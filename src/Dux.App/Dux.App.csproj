@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
-    <PackageId>Dux</PackageId>
+    <PackageId>Dux.App</PackageId>
     <Version>0.1.0-preview</Version>
     <Authors>dimohy</Authors>
     <Description>Cross-platform, ImGui-style immediate-mode GUI framework for .NET with Vulkan and GLFW backends.</Description>
