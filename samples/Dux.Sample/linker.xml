@@ -1,0 +1,9 @@
+<linker>
+  <assembly fullname="Silk.NET.Windowing.Glfw">
+    <type fullname="Silk.NET.Windowing.Glfw.GlfwPlatform" preserve="all" />
+    <type fullname="Silk.NET.Windowing.Glfw.GlfwWindowing" preserve="all" />
+  </assembly>
+  <assembly fullname="Silk.NET.Input.Glfw">
+    <type fullname="Silk.NET.Input.Glfw.GlfwInputPlatform" preserve="all" />
+  </assembly>
+</linker>

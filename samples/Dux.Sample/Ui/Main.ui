@@ -1,0 +1,11 @@
+Window "DSL Demo 데모"
+  Row
+    Button "play" "Play 재생"
+    Button "options" "Options 옵션"
+    Button "exit" "Exit 종료"
+  Row
+    Text "Status 상태: Ready 준비됨"
+    Button "refresh" "Refresh 새로고침"
+  Row
+    Checkbox "vsync" "Enable VSync 수직동기화" true
+    Checkbox "fullscreen" "Fullscreen 전체화면" false

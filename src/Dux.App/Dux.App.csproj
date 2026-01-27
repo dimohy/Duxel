@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dux.Core\Dux.Core.csproj" />
+    <ProjectReference Include="..\Dux.Platform.Glfw\Dux.Platform.Glfw.csproj" />
+    <ProjectReference Include="..\Dux.Platform.Windows\Dux.Platform.Windows.csproj" />
+    <ProjectReference Include="..\Dux.Vulkan\Dux.Vulkan.csproj" />
+  </ItemGroup>
+
+</Project>

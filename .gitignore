@@ -1,0 +1,35 @@
+# Build outputs
+bin/
+obj/
+artifacts/
+**/bin/
+**/obj/
+
+# Embedded repository in skills (exclude from main repo)
+.github/skills/imgui/imgui/
+
+# Rider/VS/VSCode
+.idea/
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# NuGet
+*.nupkg
+packages/
+
+# Test results
+TestResults/
+
+# .NET profiler
+*.profiler
