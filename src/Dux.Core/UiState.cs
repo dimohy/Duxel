@@ -20,7 +20,10 @@ public sealed class UiState
     private readonly Dictionary<string, float> _scrollX = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiRect> _windowRects = new(StringComparer.Ordinal);
     private readonly Dictionary<string, bool> _windowCollapsed = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, bool> _windowOpen = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, UiVector2> _windowExpandedSizes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiVector2> _popupOpenMousePos = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, UiVector2> _menuSizes = new(StringComparer.Ordinal);
     private readonly List<string> _windowOrder = new();
     private readonly List<string> _debugLogEntries = new();
     private string? _activeWindowId;
@@ -170,6 +173,18 @@ public sealed class UiState
         return _popupOpenMousePos.TryGetValue(key, out var value) ? value : fallback;
     }
 
+    public UiVector2 GetMenuSize(string key, UiVector2 fallback)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        return _menuSizes.TryGetValue(key, out var value) ? value : fallback;
+    }
+
+    public void SetMenuSize(string key, UiVector2 size)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        _menuSizes[key] = size;
+    }
+
     public void AdvanceTime(float deltaTime)
     {
         _timeSeconds += deltaTime;
@@ -182,6 +197,7 @@ public sealed class UiState
         _previousHoveredId = _hoveredId;
         _hoverLoggedThisFrame = false;
         _hoveredId = null;
+        _mouseCursor = UiMouseCursor.Arrow;
     }
 
     public void EndFrame()
@@ -375,6 +391,37 @@ public sealed class UiState
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         _windowCollapsed[key] = collapsed;
+    }
+
+    public UiVector2 GetWindowExpandedSize(string key, UiVector2 fallback)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        return _windowExpandedSizes.TryGetValue(key, out var value) ? value : fallback;
+    }
+
+    public void SetWindowExpandedSize(string key, UiVector2 size)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        _windowExpandedSizes[key] = size;
+    }
+
+    public bool GetWindowOpen(string key, bool defaultValue = true)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        if (_windowOpen.TryGetValue(key, out var value))
+        {
+            return value;
+        }
+
+        _windowOpen[key] = defaultValue;
+        return defaultValue;
+    }
+
+    public void SetWindowOpen(string key, bool open)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        _windowOpen[key] = open;
     }
 
     public UiTextSelection GetSelection(string key)

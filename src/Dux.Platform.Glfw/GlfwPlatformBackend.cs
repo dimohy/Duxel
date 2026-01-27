@@ -1,6 +1,6 @@
+using System.Collections.Generic;
 using System.Numerics;
 using Dux.Core;
-using Dux.Platform.Windows;
 using Silk.NET.Core.Contexts;
 using Silk.NET.Core.Native;
 using Silk.NET.Input;
@@ -8,6 +8,11 @@ using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Silk.NET.Windowing;
 using Silk.NET.Windowing.Glfw;
+using GlfwApi = Silk.NET.GLFW.Glfw;
+using GlfwCursor = Silk.NET.GLFW.Cursor;
+using GlfwCursorShape = Silk.NET.GLFW.CursorShape;
+using GlfwImage = Silk.NET.GLFW.Image;
+using GlfwWindowHandle = Silk.NET.GLFW.WindowHandle;
 
 namespace Dux.Platform.Glfw;
 
@@ -15,7 +20,8 @@ public readonly record struct GlfwPlatformBackendOptions(
     int Width,
     int Height,
     string Title,
-    bool VSync
+    bool VSync,
+    IKeyRepeatSettingsProvider KeyRepeatSettingsProvider
 );
 
 public sealed class GlfwPlatformBackend : IPlatformBackend, IWin32PlatformBackend
@@ -24,9 +30,15 @@ public sealed class GlfwPlatformBackend : IPlatformBackend, IWin32PlatformBacken
     private readonly IInputContext _inputContext;
     private readonly GlfwInputBackend _inputBackend;
     private readonly IVulkanSurfaceSource? _vulkanSurface;
+    private readonly GlfwApi _glfw;
+    private readonly unsafe GlfwWindowHandle* _glfwWindow;
+    private readonly Dictionary<UiMouseCursor, nint> _cursorCache = new();
+    private UiMouseCursor _currentCursor = UiMouseCursor.Arrow;
 
     public GlfwPlatformBackend(GlfwPlatformBackendOptions options)
     {
+        ArgumentNullException.ThrowIfNull(options.KeyRepeatSettingsProvider);
+
         if (!Window.TryAdd("Silk.NET.Windowing.Glfw"))
         {
             throw new PlatformNotSupportedException("GLFW windowing platform not registered.");
@@ -52,8 +64,14 @@ public sealed class GlfwPlatformBackend : IPlatformBackend, IWin32PlatformBacken
         }
 
         _inputContext = _window.CreateInput();
-        _inputBackend = GlfwInputBackend.Create(_inputContext, new WindowsKeyRepeatSettingsProvider());
+        _inputBackend = GlfwInputBackend.Create(_inputContext, options.KeyRepeatSettingsProvider);
         _vulkanSurface = _window.VkSurface is null ? null : new GlfwVulkanSurfaceSource(_window.VkSurface);
+
+        _glfw = GlfwApi.GetApi();
+        unsafe
+        {
+            _glfwWindow = (GlfwWindowHandle*)_window.Native!.Glfw!.Value;
+        }
     }
 
     public PlatformSize WindowSize
@@ -90,10 +108,187 @@ public sealed class GlfwPlatformBackend : IPlatformBackend, IWin32PlatformBacken
         _window.DoEvents();
     }
 
+    public void SetMouseCursor(UiMouseCursor cursor)
+    {
+        if (cursor == _currentCursor)
+        {
+            return;
+        }
+
+        _currentCursor = cursor;
+        var handle = GetCursorHandle(cursor);
+        unsafe
+        {
+            _glfw.SetCursor(_glfwWindow, (GlfwCursor*)handle);
+        }
+    }
+
     public void Dispose()
     {
+        unsafe
+        {
+            foreach (var handle in _cursorCache.Values)
+            {
+                _glfw.DestroyCursor((GlfwCursor*)handle);
+            }
+        }
+        _cursorCache.Clear();
         _inputContext.Dispose();
         _window.Dispose();
+    }
+
+    private nint GetCursorHandle(UiMouseCursor cursor)
+    {
+        if (_cursorCache.TryGetValue(cursor, out var handle))
+        {
+            return handle;
+        }
+
+        var shape = cursor switch
+        {
+            UiMouseCursor.TextInput => GlfwCursorShape.IBeam,
+            UiMouseCursor.Hand => GlfwCursorShape.Hand,
+            UiMouseCursor.ResizeEW => GlfwCursorShape.HResize,
+            UiMouseCursor.ResizeNS => GlfwCursorShape.VResize,
+            UiMouseCursor.ResizeNWSE => GlfwCursorShape.Arrow,
+            UiMouseCursor.ResizeNESW => GlfwCursorShape.Arrow,
+            UiMouseCursor.ResizeAll => GlfwCursorShape.HResize,
+            UiMouseCursor.NotAllowed => GlfwCursorShape.Arrow,
+            _ => GlfwCursorShape.Arrow,
+        };
+
+        if (cursor is UiMouseCursor.ResizeNWSE or UiMouseCursor.ResizeNESW)
+        {
+            handle = CreateDiagonalCursor(cursor == UiMouseCursor.ResizeNWSE);
+            _cursorCache[cursor] = handle;
+            return handle;
+        }
+
+        unsafe
+        {
+            handle = (nint)_glfw.CreateStandardCursor(shape);
+        }
+
+        _cursorCache[cursor] = handle;
+        return handle;
+    }
+
+    private nint CreateDiagonalCursor(bool isNWSE)
+    {
+        const int size = 24;
+        const int hot = 12;
+        var pixels = new byte[size * size * 4];
+
+        void SetPixel(int x, int y, byte r, byte g, byte b, byte a)
+        {
+            if ((uint)x >= size || (uint)y >= size)
+            {
+                return;
+            }
+
+            var index = (y * size + x) * 4;
+            pixels[index + 0] = r;
+            pixels[index + 1] = g;
+            pixels[index + 2] = b;
+            pixels[index + 3] = a;
+        }
+
+        static void DrawLine(int x0, int y0, int x1, int y1, Action<int, int> plot)
+        {
+            var dx = Math.Abs(x1 - x0);
+            var sx = x0 < x1 ? 1 : -1;
+            var dy = -Math.Abs(y1 - y0);
+            var sy = y0 < y1 ? 1 : -1;
+            var err = dx + dy;
+
+            while (true)
+            {
+                plot(x0, y0);
+                if (x0 == x1 && y0 == y1)
+                {
+                    break;
+                }
+
+                var e2 = 2 * err;
+                if (e2 >= dy)
+                {
+                    err += dy;
+                    x0 += sx;
+                }
+                if (e2 <= dx)
+                {
+                    err += dx;
+                    y0 += sy;
+                }
+            }
+        }
+
+        void PlotThick(int x, int y)
+        {
+            SetPixel(x, y, 255, 255, 255, 255);
+        }
+
+        static int Edge(int ax, int ay, int bx, int by, int px, int py) => (px - ax) * (by - ay) - (py - ay) * (bx - ax);
+
+        void FillTriangle(int ax, int ay, int bx, int by, int cx, int cy)
+        {
+            var minX = Math.Min(ax, Math.Min(bx, cx));
+            var maxX = Math.Max(ax, Math.Max(bx, cx));
+            var minY = Math.Min(ay, Math.Min(by, cy));
+            var maxY = Math.Max(ay, Math.Max(by, cy));
+
+            minX = Math.Clamp(minX, 0, size - 1);
+            maxX = Math.Clamp(maxX, 0, size - 1);
+            minY = Math.Clamp(minY, 0, size - 1);
+            maxY = Math.Clamp(maxY, 0, size - 1);
+
+            var area = Edge(ax, ay, bx, by, cx, cy);
+            if (area == 0)
+            {
+                return;
+            }
+
+            for (var y = minY; y <= maxY; y++)
+            {
+                for (var x = minX; x <= maxX; x++)
+                {
+                    var e1 = Edge(ax, ay, bx, by, x, y);
+                    var e2 = Edge(bx, by, cx, cy, x, y);
+                    var e3 = Edge(cx, cy, ax, ay, x, y);
+                    if ((e1 >= 0 && e2 >= 0 && e3 >= 0) || (e1 <= 0 && e2 <= 0 && e3 <= 0))
+                    {
+                        SetPixel(x, y, 255, 255, 255, 255);
+                    }
+                }
+            }
+        }
+
+        if (isNWSE)
+        {
+            DrawLine(7, 7, 16, 16, PlotThick);
+            FillTriangle(4, 4, 9, 4, 4, 9);
+            FillTriangle(19, 19, 14, 19, 19, 14);
+        }
+        else
+        {
+            DrawLine(16, 7, 7, 16, PlotThick);
+            FillTriangle(19, 4, 14, 4, 19, 9);
+            FillTriangle(4, 19, 9, 19, 4, 14);
+        }
+
+        unsafe
+        {
+            fixed (byte* pPixels = pixels)
+            {
+                var image = new GlfwImage
+                {
+                    Width = size,
+                    Height = size,
+                    Pixels = pPixels
+                };
+                return (nint)_glfw.CreateCursor(&image, hot, hot);
+            }
+        }
     }
 
     private void CenterWindowOnMonitor(GlfwPlatformBackendOptions options)
@@ -187,9 +382,9 @@ internal sealed class GlfwInputBackend : IInputBackend
     private void OnKeyChar(IKeyboard keyboard, char c) =>
         _charEvents.Add(new UiCharEvent(c));
 
-    private void OnMouseDown(IMouse mouse, MouseButton button) => SetMouseButton(button, true);
+    private void OnMouseDown(IMouse mouse, Silk.NET.Input.MouseButton button) => SetMouseButton(button, true);
 
-    private void OnMouseUp(IMouse mouse, MouseButton button) => SetMouseButton(button, false);
+    private void OnMouseUp(IMouse mouse, Silk.NET.Input.MouseButton button) => SetMouseButton(button, false);
 
     private void OnMouseMove(IMouse mouse, Vector2 position) =>
         _mousePosition = new UiVector2(position.X, position.Y);
@@ -200,17 +395,17 @@ internal sealed class GlfwInputBackend : IInputBackend
         _wheelHorizontal += wheel.X;
     }
 
-    private void SetMouseButton(MouseButton button, bool isDown)
+    private void SetMouseButton(Silk.NET.Input.MouseButton button, bool isDown)
     {
         switch (button)
         {
-            case MouseButton.Left:
+            case Silk.NET.Input.MouseButton.Left:
                 _leftDown = isDown;
                 break;
-            case MouseButton.Right:
+            case Silk.NET.Input.MouseButton.Right:
                 _rightDown = isDown;
                 break;
-            case MouseButton.Middle:
+            case Silk.NET.Input.MouseButton.Middle:
                 _middleDown = isDown;
                 break;
         }

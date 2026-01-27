@@ -5,13 +5,21 @@
     <ProjectReference Include="..\..\src\Dux.Core\Dux.Core.csproj" />
     <ProjectReference Include="..\..\src\Dux.Platform.Glfw\Dux.Platform.Glfw.csproj" />
     <ProjectReference Include="..\..\src\Dux.Vulkan\Dux.Vulkan.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(PublishAot)' == 'true'">
     <ProjectReference Include="..\..\src\Dux.Core.Dsl.Generator\Dux.Core.Dsl.Generator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
+    <AdditionalFiles Include="Ui\**\*.ui" />
   </ItemGroup>
 
-  <ItemGroup>
-    <AdditionalFiles Include="Ui\**\*.ui" />
+  <ItemGroup Condition="'$(PublishAot)' != 'true'">
+    <Compile Remove="UiDslPipeline.Aot.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(PublishAot)' == 'true'">
+    <Compile Remove="UiDslPipeline.Runtime.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,7 +35,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PublishAot>true</PublishAot>
     <SelfContained>true</SelfContained>
     <StripSymbols>true</StripSymbols>
     <PublishTrimmed>true</PublishTrimmed>
@@ -35,6 +42,10 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <NoWarn>$(NoWarn);IL2104;IL3000;IL3002;IL3053</NoWarn>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(PublishAot)' == 'true'">
+    <DefineConstants>$(DefineConstants);DUX_NATIVEAOT</DefineConstants>
   </PropertyGroup>
 
 </Project>

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -11,15 +12,15 @@ public sealed class UiDslSourceGenerator : IIncrementalGenerator
     {
         var uiFiles = context.AdditionalTextsProvider
             .Where(file => file.Path.EndsWith(".ui", StringComparison.OrdinalIgnoreCase))
-            .Select((file, ct) => (file.Path, file.GetText(ct)?.ToString() ?? string.Empty));
+            .Select((file, ct) => new UiDslSourceFile(file.Path, file.GetText(ct)?.ToString() ?? string.Empty));
 
-        context.RegisterSourceOutput(uiFiles, (spc, item) =>
+        var uiDocs = uiFiles
+            .Where(static file => !string.IsNullOrWhiteSpace(file.Content));
+
+        context.RegisterSourceOutput(uiDocs, (spc, item) =>
         {
-            var (path, content) = item;
-            if (string.IsNullOrWhiteSpace(content))
-            {
-                return;
-            }
+            var path = item.Path;
+            var content = item.Content;
 
             UiDslDocument document;
             try
@@ -48,8 +49,26 @@ public sealed class UiDslSourceGenerator : IIncrementalGenerator
             var source = UiDslCompiler.Generate("Dux.Generated.Ui", className, document);
             spc.AddSource($"{className}.g.cs", SourceText.From(source, Encoding.UTF8));
         });
+
+        var registryItems = uiDocs
+            .Select(static (file, _) => new UiDslRegistryItem(file.Path, UiDslNames.GetClassName(file.Path)))
+            .Collect();
+
+        context.RegisterSourceOutput(registryItems, (spc, items) =>
+        {
+            if (items.IsDefaultOrEmpty)
+            {
+                return;
+            }
+
+            var source = UiDslRegistryEmitter.Emit(items);
+            spc.AddSource("UiDslGeneratedRegistry.g.cs", SourceText.From(source, Encoding.UTF8));
+        });
     }
 }
+
+internal readonly record struct UiDslSourceFile(string Path, string Content);
+internal readonly record struct UiDslRegistryItem(string Path, string ClassName);
 
 internal static class UiDslNames
 {
@@ -71,6 +90,55 @@ internal static class UiDslNames
         }
 
         sb.Append("Ui");
+        return sb.ToString();
+    }
+}
+
+internal static class UiDslRegistryEmitter
+{
+    public static string Emit(ImmutableArray<UiDslRegistryItem> items)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("namespace Dux.Generated.Ui;");
+        sb.AppendLine();
+        sb.AppendLine("public static partial class UiDslGeneratedRegistry");
+        sb.AppendLine("{");
+        sb.AppendLine("    private static readonly global::System.Collections.Generic.Dictionary<string, global::System.Action<global::Dux.Core.Dsl.IUiDslEmitter>> s_renderers = new()");
+        sb.AppendLine("    {");
+
+        for (var i = 0; i < items.Length; i++)
+        {
+            var className = items[i].ClassName;
+            sb.Append("        [\"").Append(className).Append("\"] = ").Append(className).Append(".Render");
+            sb.AppendLine(",");
+        }
+
+        sb.AppendLine("    };");
+        sb.AppendLine();
+        sb.AppendLine("    public static global::System.Action<global::Dux.Core.Dsl.IUiDslEmitter> GetRenderer(string name)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (TryGetRenderer(name, out var render))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return render;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        throw new global::System.InvalidOperationException($\"Unknown DSL document: {name}.\");");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    public static bool TryGetRenderer(string name, out global::System.Action<global::Dux.Core.Dsl.IUiDslEmitter> render)");
+        sb.AppendLine("        => s_renderers.TryGetValue(name, out render);");
+        sb.AppendLine();
+        sb.AppendLine("    public static string[] Names { get; } = new string[]");
+        sb.AppendLine("    {");
+
+        for (var i = 0; i < items.Length; i++)
+        {
+            sb.Append("        \"").Append(items[i].ClassName).Append("\"");
+            sb.AppendLine(",");
+        }
+
+        sb.AppendLine("    };");
+        sb.AppendLine("}");
         return sb.ToString();
     }
 }

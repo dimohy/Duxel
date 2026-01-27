@@ -12,6 +12,7 @@ public sealed partial class UiImmediateContext
         public bool ShowAbout;
         public bool ShowStyleEditor;
         public bool ShowUserGuide;
+        public bool ShowClosableWindow = true;
         public int Counter;
         public float SliderValue = 0.5f;
         public bool DemoCheckbox = true;
@@ -62,6 +63,12 @@ public sealed partial class UiImmediateContext
         SameLine();
         TextV("Counter: {0}", DemoState.Counter);
 
+        SeparatorText("Windows");
+        if (Checkbox("Show closable window", ref DemoState.ShowClosableWindow))
+        {
+            SetWindowOpen("Closable Window", DemoState.ShowClosableWindow);
+        }
+
         EndWindow();
 
         if (DemoState.ShowMetrics)
@@ -105,6 +112,12 @@ public sealed partial class UiImmediateContext
             }
             EndWindow();
         }
+
+        SetNextWindowOpen(DemoState.ShowClosableWindow);
+        BeginWindow("Closable Window");
+        Text("Close with the title bar X button.");
+        EndWindow();
+        DemoState.ShowClosableWindow = _state.GetWindowOpen("Closable Window", DemoState.ShowClosableWindow);
     }
 
     public void ShowMetricsWindow()

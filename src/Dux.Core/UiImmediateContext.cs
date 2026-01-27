@@ -64,6 +64,8 @@ public sealed partial class UiImmediateContext
     private readonly Stack<UiRect> _comboStack = new();
     private readonly Stack<float> _itemWidthStack = new();
     private readonly Stack<UiItemFlags> _itemFlagStack = new();
+    private readonly List<UiRect> _openMenuPopupRects = [];
+    private readonly List<UiRect> _openMenuButtonRects = [];
     private UiItemFlags _currentItemFlags;
     private readonly Stack<StyleColorEntry> _styleColorStack = new();
     private readonly Stack<StyleVarEntry> _styleVarStack = new();
@@ -174,6 +176,8 @@ public sealed partial class UiImmediateContext
     private UiVector2 _nextWindowMinSize;
     private UiVector2 _nextWindowMaxSize;
     private bool _hasNextWindowSizeConstraints;
+    private bool _nextWindowOpen = true;
+    private bool _hasNextWindowOpen;
     private bool _nextWindowCollapsed;
     private bool _hasNextWindowCollapsed;
     private bool _hasNextWindowFocus;
@@ -533,6 +537,32 @@ public sealed partial class UiImmediateContext
         return pos.X >= rect.X && pos.X <= rect.X + rect.Width && pos.Y >= rect.Y && pos.Y <= rect.Y + rect.Height;
     }
 
+    private bool IsMouseOverAnyOpenMenuPopup()
+    {
+        for (var i = 0; i < _openMenuPopupRects.Count; i++)
+        {
+            if (IsHovering(_openMenuPopupRects[i]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsMouseOverAnyOpenMenuButton()
+    {
+        for (var i = 0; i < _openMenuButtonRects.Count; i++)
+        {
+            if (IsHovering(_openMenuButtonRects[i]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public float GetTextLineHeight() => _lineHeight * _textSettings.Scale * _windowFontScale;
 
     public float GetTextLineHeightWithSpacing() => GetTextLineHeight() + ItemSpacingY;
@@ -625,6 +655,10 @@ public sealed partial class UiImmediateContext
         if (_overlayDepth == 0)
         {
             _builder = _baseBuilder;
+        }
+        else
+        {
+            _builder = _overlayBuilder;
         }
     }
 
@@ -1009,6 +1043,8 @@ public sealed partial class UiImmediateContext
         var pos = new UiVector2(0f, 0f);
         return new UiViewport(pos, _displaySize, pos, _displaySize);
     }
+
+    public UiTextureId WhiteTextureId => _whiteTexture;
 
     public UiDrawListBuilder GetBackgroundDrawList() => _baseBuilder;
 
@@ -2173,6 +2209,15 @@ public sealed partial class UiImmediateContext
     private readonly record struct UiLayoutState(UiVector2 Cursor, bool IsRow, float RowMaxHeight, float LineStartX);
     private readonly record struct UiListBoxState(string Id, UiRect Rect, float ScrollY);
     private readonly record struct UiChildState(UiRect Rect, UiVector2 Cursor);
-    private readonly record struct UiMenuState(string Id, UiRect ButtonRect, UiRect PopupRect);
+    private readonly record struct UiMenuState(
+        string Id,
+        string MenuSetKey,
+        string SubmenuSetKey,
+        UiRect ButtonRect,
+        UiRect PopupRect,
+        UiVector2 StartPos,
+        float MinContentWidth,
+        float MaxContentWidth
+    );
     private readonly record struct UiPopupState(string Id, UiRect Rect);
 }

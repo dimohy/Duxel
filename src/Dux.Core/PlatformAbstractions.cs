@@ -42,6 +42,7 @@ public interface IPlatformBackend : IDisposable
     IVulkanSurfaceSource? VulkanSurface { get; }
 
     void PollEvents();
+    void SetMouseCursor(UiMouseCursor cursor);
 }
 
 public interface IWin32PlatformBackend

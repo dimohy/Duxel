@@ -8,6 +8,9 @@ artifacts/
 # Embedded repository in skills (exclude from main repo)
 .github/skills/imgui/imgui/
 
+# Ignore all .github contents
+.github/
+
 # Rider/VS/VSCode
 .idea/
 .vs/

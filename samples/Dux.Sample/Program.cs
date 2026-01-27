@@ -1,4 +1,6 @@
-﻿using Dux.App;
+﻿using System;
+using Dux.App;
+using Dux.Core;
 
 DuxApp.Run(new DuxAppOptions
 {
@@ -9,7 +11,7 @@ DuxApp.Run(new DuxAppOptions
     Font = new DuxFontOptions
     {
         FontSize = 16,
-        //InitialGlyphs = SampleScreen.GlyphStrings
+        InitialGlyphs = SampleScreen.GlyphStrings
     },
     Debug = new DuxDebugOptions
     {

@@ -31,15 +31,54 @@ Window "Main"
 3) 빌드 시 생성 소스 포함(소스 생성기 or MSBuild Task)
 4) 런타임에서 즉시 모드 방식으로 렌더 호출
 
+> NativeAOT 배포 빌드에서는 런타임 파서를 사용하지 않는다.
+> `.ui`를 AdditionalFiles로 포함하고 소스 생성기가 만든 `Render`를 호출한다.
+
 ## 런타임 동작(동등성 원칙)
 - DSL 트리는 ImGui의 즉시 모드 호출을 **정해진 순서로 재현**한다.
 - 렌더 프레임 루프에서 `Emit()`이 호출되며, 위젯 호출은 즉시 수행된다.
+
+## 위젯 매핑 규칙 (UiImmediateContext 기준)
+- DSL 노드 이름은 `UiImmediateContext`의 공개 위젯 API에 직접 매핑된다.
+- 모든 `UiImmediateContext*.cs` 위젯 메서드를 DSL에서 사용할 수 있다.
+
+### 인자 기본 규칙
+- 값 타입은 문자열을 숫자/불리언으로 자동 파싱한다.
+- `UiVector2`: `"x,y"` 또는 `x y` 형태로 전달한다.
+- 색상(`UiColor`): `#RRGGBB`, `#RRGGBBAA`, `0xAARRGGBB`, 정수 값 모두 허용한다.
+- 배열 값(`float[]`, `int[]`, `double[]`): `"1,2,3"` 형태로 전달한다.
+- 열거형/플래그(`Ui*Flags`): 이름 문자열로 전달한다(예: `"NoArrowButton"`).
+- `Id=`, `Text=`(또는 `Label=`/`Name=`) 형식의 **명명 인자**를 지원한다.
+- 모든 인자는 `Key=Value` 형태로 표기할 수 있으며, **순서와 무관하게** 해석된다.
+- 동일 위젯에서 위치 기반 인자와 명명 인자를 혼용할 수 있다.
+
+### 상태 바인딩 규칙
+- 상태가 필요한 위젯은 `id`와 `label`을 순서대로 전달한다.
+  - 예: `Checkbox "vsync" "VSync" true`
+- 동일 표현을 명명 인자로도 사용할 수 있다.
+  - 예: `Checkbox Id="vsync" Text="VSync" true`
+- `id`는 `UiDslState` 또는 `IUiDslValueSource`에 저장/조회되는 키로 사용된다.
+
+### 예시
+```
+Window "DSL Demo"
+  Row
+    Button "play" "Play"
+    Checkbox "vsync" "VSync" true
+  SliderFloat "volume" "Volume" 0 1
+  InputText "name" "Name" 64
+  Combo "quality" "Quality" "Low|Medium|High"
+```
 
 ## 코드 생성 스케치
 - `.ui` 하나당 `partial class` 생성
 - 각 문서에 `Render(IUiDslEmitter emitter)` 생성
 - `emitter.BeginNode(name, args)` → 자식 → `emitter.EndNode()`
 - 위젯 동작은 `IUiDslEmitter` 구현체가 책임
+
+### 생성 결과 사용
+- 소스 생성기는 `Dux.Generated.Ui.UiDslGeneratedRegistry`를 생성한다.
+- `GetRenderer("MainUi")`로 렌더 델리게이트를 얻어 `DuxDslOptions.Render`에 전달한다.
 
 ## 컴파일/핫리로드 정책
 - 빌드시 `.ui` → `.g.cs` 생성되어 실행파일에 포함.

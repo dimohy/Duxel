@@ -237,7 +237,7 @@ public sealed partial class UiImmediateContext
 
         var fillHeight = barRect.Height * normalized;
         var fillRect = new UiRect(barRect.X, barRect.Y + (barRect.Height - fillHeight), barRect.Width, fillHeight);
-        AddRectFilled(fillRect, _theme.HeaderActive, _whiteTexture);
+        AddRectFilled(fillRect, _theme.SliderGrabActive, _whiteTexture);
 
         var grabHeight = MathF.Max(12f, barRect.Width + 6f);
         var grabY = barRect.Y + (barRect.Height - fillHeight) - grabHeight * 0.5f;
@@ -389,7 +389,7 @@ public sealed partial class UiImmediateContext
         AddRectFilled(barRect, backColor, _whiteTexture);
 
         var fillRect = new UiRect(barRect.X, barRect.Y, barRect.Width * normalized, barRect.Height);
-        AddRectFilled(fillRect, _theme.HeaderActive, _whiteTexture);
+        AddRectFilled(fillRect, _theme.SliderGrabActive, _whiteTexture);
 
         var grabWidth = MathF.Max(12f, barHeight * 1.6f);
         var grabX = barRect.X + barRect.Width * normalized - grabWidth * 0.5f;

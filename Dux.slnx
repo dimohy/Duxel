@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/samples/">
     <Project Path="samples/Dux.Sample/Dux.Sample.csproj" />
+    <Project Path="samples/Dux.PerfTest/Dux.PerfTest.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Dux.App/Dux.App.csproj" />

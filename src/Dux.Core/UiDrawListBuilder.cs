@@ -357,6 +357,11 @@ public sealed class UiDrawListBuilder
 
     public void AddLine(UiVector2 p1, UiVector2 p2, UiColor color, float thickness = 1f)
     {
+        AddLine(p1, p2, color, thickness, _currentTexture);
+    }
+
+    public void AddLine(UiVector2 p1, UiVector2 p2, UiColor color, float thickness, UiTextureId textureId)
+    {
         if (thickness <= 0f)
         {
             return;
@@ -380,7 +385,7 @@ public sealed class UiDrawListBuilder
         var c = new UiVector2(p2.X - px, p2.Y - py);
         var d = new UiVector2(p1.X - px, p1.Y - py);
 
-        AddQuadFilled(a, b, c, d, color);
+        AddQuadFilled(a, b, c, d, color, textureId);
     }
 
     public void AddRect(UiRect rect, UiColor color, float rounding = 0f, float thickness = 1f)
@@ -457,6 +462,27 @@ public sealed class UiDrawListBuilder
         AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, 6, 0));
     }
 
+    public void AddQuadFilled(UiVector2 a, UiVector2 b, UiVector2 c, UiVector2 d, UiColor color, UiTextureId textureId)
+    {
+        EnsureCapacityFor(4, 6);
+        var startVertex = (uint)_vertices.Count;
+        var startIndex = (uint)_indices.Count;
+
+        _vertices.Add(new UiDrawVertex(a, new UiVector2(0, 0), color));
+        _vertices.Add(new UiDrawVertex(b, new UiVector2(1, 0), color));
+        _vertices.Add(new UiDrawVertex(c, new UiVector2(1, 1), color));
+        _vertices.Add(new UiDrawVertex(d, new UiVector2(0, 1), color));
+
+        _indices.Add(startVertex + 0);
+        _indices.Add(startVertex + 1);
+        _indices.Add(startVertex + 2);
+        _indices.Add(startVertex + 0);
+        _indices.Add(startVertex + 2);
+        _indices.Add(startVertex + 3);
+
+        AddCommand(new UiDrawCommand(_currentClipRect, textureId, startIndex, 6, 0));
+    }
+
     public void AddTriangle(UiVector2 a, UiVector2 b, UiVector2 c, UiColor color, float thickness = 1f)
     {
         AddLine(a, b, color, thickness);
@@ -465,6 +491,11 @@ public sealed class UiDrawListBuilder
     }
 
     public void AddTriangleFilled(UiVector2 a, UiVector2 b, UiVector2 c, UiColor color)
+    {
+        AddTriangleFilled(a, b, c, color, _currentTexture);
+    }
+
+    public void AddTriangleFilled(UiVector2 a, UiVector2 b, UiVector2 c, UiColor color, UiTextureId textureId)
     {
         EnsureCapacityFor(3, 3);
         var startVertex = (uint)_vertices.Count;
@@ -478,7 +509,24 @@ public sealed class UiDrawListBuilder
         _indices.Add(startVertex + 1);
         _indices.Add(startVertex + 2);
 
-        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, 3, 0));
+        AddCommand(new UiDrawCommand(_currentClipRect, textureId, startIndex, 3, 0));
+    }
+
+    public void AddTriangleFilled(UiVector2 a, UiVector2 b, UiVector2 c, UiColor color, UiTextureId textureId, UiRect clipRect)
+    {
+        EnsureCapacityFor(3, 3);
+        var startVertex = (uint)_vertices.Count;
+        var startIndex = (uint)_indices.Count;
+
+        _vertices.Add(new UiDrawVertex(a, new UiVector2(0, 0), color));
+        _vertices.Add(new UiDrawVertex(b, new UiVector2(1, 0), color));
+        _vertices.Add(new UiDrawVertex(c, new UiVector2(0, 1), color));
+
+        _indices.Add(startVertex + 0);
+        _indices.Add(startVertex + 1);
+        _indices.Add(startVertex + 2);
+
+        AddCommand(new UiDrawCommand(clipRect, textureId, startIndex, 3, 0));
     }
 
     public void AddCircle(UiVector2 center, float radius, UiColor color, int segments = 0, float thickness = 1f)

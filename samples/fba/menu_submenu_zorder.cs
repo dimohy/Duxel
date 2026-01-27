@@ -1,0 +1,47 @@
+#:property TargetFramework=net10.0
+#:project ../../src/Dux.App/Dux.App.csproj
+
+using Dux.App;
+using Dux.Core.Dsl;
+
+var dslText = """
+Window "Menu Z-Order"
+  BeginMenuBar
+    BeginMenu "File"
+      MenuItem Id="new" Text="New"
+      MenuItem Id="open" Text="Open"
+      BeginMenu "Recent"
+        MenuItem Id="recent-1" Text="Report_2025.dui"
+        MenuItem Id="recent-2" Text="Notes.dui"
+        BeginMenu "Archived"
+          MenuItem Id="arch-1" Text="Archive_1.dui"
+          MenuItem Id="arch-2" Text="Archive_2.dui"
+      MenuItem Id="exit" Text="Exit"
+    BeginMenu "View"
+      MenuItem Id="show-grid" Text="Show Grid"
+      MenuItem Id="show-guides" Text="Show Guides"
+    BeginMenu "Help"
+      MenuItem Id="about" Text="About"
+  SeparatorText "Interaction"
+  Text "Hover and click controls while menus are open"
+  SliderFloat Id="scale" Text="Scale" Min=0 Max=1 Default=0.5
+  DragFloat Id="drag" Text="Drag" Min=0 Max=1 Default=0.25 Speed=0.01
+  Checkbox Id="check" Text="Enable Feature" Default=true
+  Button "Apply"
+  SameLine
+  Button "Reset"
+""";
+
+var doc = UiDslParser.Parse(dslText);
+
+DuxApp.Run(new DuxAppOptions
+{
+    Window = new DuxWindowOptions
+    {
+        Title = "Menu Z-Order"
+    },
+    Dsl = new DuxDslOptions
+    {
+        Render = emitter => doc.Emit(emitter)
+    }
+});

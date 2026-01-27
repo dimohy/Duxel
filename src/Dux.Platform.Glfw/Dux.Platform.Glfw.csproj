@@ -17,7 +17,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Dux.Core\Dux.Core.csproj" />
-    <ProjectReference Include="..\Dux.Platform.Windows\Dux.Platform.Windows.csproj" />
   </ItemGroup>
 
 </Project>

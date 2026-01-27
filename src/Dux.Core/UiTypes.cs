@@ -48,37 +48,37 @@ public readonly record struct UiTheme(
 )
 {
     public static UiTheme ImGuiDark => new(
-        new UiColor(0xFFE6E6E6), // Text
-        new UiColor(0xFF8C8C8C), // TextDisabled
-        new UiColor(0xFF1A1A1A), // WindowBg
-        new UiColor(0xFF141414), // TitleBg
-        new UiColor(0xFF2A2A2A), // TitleBgActive
-        new UiColor(0xFF1E1E1E), // MenuBarBg
-        new UiColor(0xEE1A1A1A), // PopupBg
-        new UiColor(0xFF2A2A2A), // Border
-        new UiColor(0xFF2B2B2B), // FrameBg
-        new UiColor(0xFF3A3A3A), // FrameBgHovered
-        new UiColor(0xFF4A4A4A), // FrameBgActive
-        new UiColor(0xFF2D2D2D), // Header
-        new UiColor(0xFF3C3C3C), // HeaderHovered
-        new UiColor(0xFF4A4A4A), // HeaderActive
-        new UiColor(0xFF2B2B2B), // Button
-        new UiColor(0xFF3C3C3C), // ButtonHovered
-        new UiColor(0xFF4A4A4A), // ButtonActive
-        new UiColor(0xFF242424), // Tab
-        new UiColor(0xFF3A3A3A), // TabHovered
-        new UiColor(0xFF4A4A4A), // TabActive
-        new UiColor(0xFF4AA3FF), // CheckMark
-        new UiColor(0xFF4AA3FF), // SliderGrab
-        new UiColor(0xFF6BB2FF), // SliderGrabActive
-        new UiColor(0xFFA0A0A0), // PlotLines
+        new UiColor(0xFFE6E8EA), // Text
+        new UiColor(0xFF8A9099), // TextDisabled
+        new UiColor(0xFF1E1F22), // WindowBg
+        new UiColor(0xFF1B1C1F), // TitleBg
+        new UiColor(0xFF2A2D32), // TitleBgActive
+        new UiColor(0xFF202225), // MenuBarBg
+        new UiColor(0xEE1F2124), // PopupBg
+        new UiColor(0xFF2C2F36), // Border
+        new UiColor(0xFF2B2D31), // FrameBg
+        new UiColor(0xFF3A3F47), // FrameBgHovered
+        new UiColor(0xFF4A515C), // FrameBgActive
+        new UiColor(0xFF2F3136), // Header
+        new UiColor(0xFF3C424D), // HeaderHovered
+        new UiColor(0xFF4C5462), // HeaderActive
+        new UiColor(0xFF2F3136), // Button
+        new UiColor(0xFF3C424D), // ButtonHovered
+        new UiColor(0xFF4C5462), // ButtonActive
+        new UiColor(0xFF26292E), // Tab
+        new UiColor(0xFF3A3F47), // TabHovered
+        new UiColor(0xFF4A515C), // TabActive
+        new UiColor(0xFF58A6FF), // CheckMark
+        new UiColor(0xFF58A6FF), // SliderGrab
+        new UiColor(0xFF79B8FF), // SliderGrabActive
+        new UiColor(0xFFB0B6BE), // PlotLines
         new UiColor(0xFFB58A42), // PlotHistogram
-        new UiColor(0xFF2A2A2A), // Separator
-        new UiColor(0xFF262626), // TableHeaderBg
-        new UiColor(0xFF1E1E1E), // TableRowBg0
-        new UiColor(0xFF222222), // TableRowBg1
-        new UiColor(0xFF2A2A2A), // TableBorder
-        new UiColor(0x882A4A68)  // TextSelectedBg
+        new UiColor(0xFF2C2F36), // Separator
+        new UiColor(0xFF26292E), // TableHeaderBg
+        new UiColor(0xFF1E1F22), // TableRowBg0
+        new UiColor(0xFF22252A), // TableRowBg1
+        new UiColor(0xFF2C2F36), // TableBorder
+        new UiColor(0x88406AA3)  // TextSelectedBg
     );
 
     public static UiTheme ImGuiLight => new(
@@ -163,15 +163,15 @@ public sealed record class UiStyle(
 )
 {
     public static UiStyle Default => new(
-        new UiVector2(8f, 8f),
-        new UiVector2(8f, 4f),
-        new UiVector2(4f, 4f),
-        new UiVector2(4f, 4f),
-        4f,
-        4f,
-        220f,
-        220f,
-        16f
+        new UiVector2(10f, 10f),
+        new UiVector2(10f, 6f),
+        new UiVector2(6f, 4f),
+        new UiVector2(6f, 4f),
+        6f,
+        6f,
+        240f,
+        240f,
+        18f
     );
 
     public UiStyle ScaleAllSizes(float scale)

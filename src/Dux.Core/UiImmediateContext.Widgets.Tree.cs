@@ -31,7 +31,10 @@ public sealed partial class UiImmediateContext
         var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
         var height = MathF.Max(textSize.Y, frameHeight);
-        var width = textSize.X + (ButtonPaddingX * 2f) + 14f;
+        var arrowSize = MathF.Min(height, 12f);
+        var available = GetContentRegionAvail();
+        var minWidth = textSize.X + (ButtonPaddingX * 2f) + arrowSize + 6f;
+        var width = MathF.Max(minWidth, available.X);
         var size = new UiVector2(width, height);
         var cursor = AdvanceCursor(size);
         var rect = new UiRect(cursor.X, cursor.Y, size.X, size.Y);
@@ -47,21 +50,10 @@ public sealed partial class UiImmediateContext
         var bg = held ? _theme.HeaderActive : hovered ? _theme.HeaderHovered : _theme.Header;
         AddRectFilled(rect, bg, _whiteTexture);
 
-        var arrowText = isOpen ? "v" : ">";
-        var arrowSize = UiTextBuilder.MeasureText(_fontAtlas, arrowText, _textSettings, _lineHeight);
-        var arrowPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (height - arrowSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
-            arrowText,
-            arrowPos,
-            _theme.Text,
-            _fontTexture,
-            CurrentClipRect,
-            _textSettings,
-            _lineHeight
-        );
+        var arrowRect = new UiRect(rect.X + ButtonPaddingX, rect.Y + (height - arrowSize) * 0.5f, arrowSize, arrowSize);
+        DrawTreeArrow(arrowRect, isOpen, _theme.Text);
 
-        var textPos = new UiVector2(arrowPos.X + arrowSize.X + 6f, rect.Y + (height - textSize.Y) * 0.5f);
+        var textPos = new UiVector2(arrowRect.X + arrowRect.Width + 6f, rect.Y + (height - textSize.Y) * 0.5f);
         _builder.AddText(
             _fontAtlas,
             label,
@@ -116,7 +108,10 @@ public sealed partial class UiImmediateContext
         var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
         var height = MathF.Max(textSize.Y, frameHeight);
-        var width = textSize.X + (ButtonPaddingX * 2f) + 14f;
+        var arrowSize = MathF.Min(height, 12f);
+        var available = GetContentRegionAvail();
+        var minWidth = textSize.X + (ButtonPaddingX * 2f) + arrowSize + 6f;
+        var width = MathF.Max(minWidth, available.X);
         var size = new UiVector2(width, height);
         var cursor = AdvanceCursor(size);
         var rect = new UiRect(cursor.X, cursor.Y, size.X, size.Y);
@@ -134,21 +129,10 @@ public sealed partial class UiImmediateContext
             AddRectFilled(rect, _theme.HeaderHovered, _whiteTexture);
         }
 
-        var arrowText = isOpen ? "v" : ">";
-        var arrowSize = UiTextBuilder.MeasureText(_fontAtlas, arrowText, _textSettings, _lineHeight);
-        var arrowPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (height - arrowSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
-            arrowText,
-            arrowPos,
-            _theme.Text,
-            _fontTexture,
-            CurrentClipRect,
-            _textSettings,
-            _lineHeight
-        );
+        var arrowRect = new UiRect(rect.X + ButtonPaddingX, rect.Y + (height - arrowSize) * 0.5f, arrowSize, arrowSize);
+        DrawTreeArrow(arrowRect, isOpen, _theme.Text);
 
-        var textPos = new UiVector2(arrowPos.X + arrowSize.X + 6f, rect.Y + (height - textSize.Y) * 0.5f);
+        var textPos = new UiVector2(arrowRect.X + arrowRect.Width + 6f, rect.Y + (height - textSize.Y) * 0.5f);
         _builder.AddText(
             _fontAtlas,
             label,
@@ -204,5 +188,25 @@ public sealed partial class UiImmediateContext
     public void TreePop()
     {
         PopIndent();
+    }
+
+    private void DrawTreeArrow(UiRect rect, bool isOpen, UiColor color)
+    {
+        var center = new UiVector2(rect.X + rect.Width * 0.5f, rect.Y + rect.Height * 0.5f);
+        var half = MathF.Max(2f, MathF.Min(rect.Width, rect.Height) * 0.38f);
+
+        if (isOpen)
+        {
+            var a = new UiVector2(center.X - half, center.Y - half * 0.6f);
+            var b = new UiVector2(center.X + half, center.Y - half * 0.6f);
+            var c = new UiVector2(center.X, center.Y + half);
+            _builder.AddTriangleFilled(a, b, c, color, _whiteTexture, CurrentClipRect);
+            return;
+        }
+
+        var p1 = new UiVector2(center.X - half * 0.6f, center.Y - half);
+        var p2 = new UiVector2(center.X - half * 0.6f, center.Y + half);
+        var p3 = new UiVector2(center.X + half, center.Y);
+        _builder.AddTriangleFilled(p1, p2, p3, color, _whiteTexture, CurrentClipRect);
     }
 }

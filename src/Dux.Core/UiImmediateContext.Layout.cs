@@ -233,6 +233,12 @@ public sealed partial class UiImmediateContext
         _hasNextWindowContentSize = true;
     }
 
+    public void SetNextWindowOpen(bool open)
+    {
+        _nextWindowOpen = open;
+        _hasNextWindowOpen = true;
+    }
+
     public void SetNextWindowCollapsed(bool collapsed)
     {
         _nextWindowCollapsed = collapsed;
@@ -327,6 +333,12 @@ public sealed partial class UiImmediateContext
         {
             _windowCollapsed = collapsed;
         }
+    }
+
+    public void SetWindowOpen(string title, bool open)
+    {
+        title ??= "Window";
+        _state.SetWindowOpen(title, open);
     }
 
     public void SetWindowFocus()
@@ -611,6 +623,37 @@ public sealed partial class UiImmediateContext
         _windowAppearing = !hasStoredRect;
         _currentWindowId = title;
 
+        var isOpen = _state.GetWindowOpen(title, true);
+        if (_hasNextWindowOpen)
+        {
+            isOpen = _nextWindowOpen;
+            _state.SetWindowOpen(title, isOpen);
+            _hasNextWindowOpen = false;
+        }
+
+        if (!isOpen)
+        {
+            _hasNextWindowPos = false;
+            _hasNextWindowSize = false;
+            _hasNextWindowSizeConstraints = false;
+            _hasNextWindowContentSize = false;
+            _hasNextWindowCollapsed = false;
+            _hasNextWindowFocus = false;
+            _hasNextWindowScrollX = false;
+            _hasNextWindowScrollY = false;
+            _hasNextWindowBgAlpha = false;
+
+            _windowRect = default;
+            _hasWindowRect = false;
+            _windowCollapsed = true;
+            _windowScrollX = 0f;
+            _windowScrollY = 0f;
+            _windowOverlayStack.Push(false);
+            PushClipRect(new UiRect(0f, 0f, 0f, 0f), true);
+            _layouts.Push(new UiLayoutState(root.Cursor, false, 0f, root.Cursor.X));
+            return;
+        }
+
         if (_hasNextWindowPos)
         {
             rect = rect with { X = _nextWindowPos.X, Y = _nextWindowPos.Y };
@@ -686,6 +729,49 @@ public sealed partial class UiImmediateContext
         var titleBarRect = new UiRect(rect.X, rect.Y, rect.Width, titleBarHeight);
         var dragId = $"{title}##window_drag";
         var resizeId = $"{title}##window_resize";
+        var collapseSize = MathF.Min(titleBarHeight - 2f, _lineHeight + 4f);
+        var collapseRect = new UiRect(
+            rect.X + WindowPadding,
+            rect.Y + (titleBarHeight - collapseSize) * 0.5f,
+            collapseSize,
+            collapseSize
+        );
+        var collapseId = $"{title}##window_collapse";
+        var collapsePressed = ButtonBehavior(collapseId, collapseRect, out var collapseHovered, out var collapseHeld);
+        var expandedSize = _state.GetWindowExpandedSize(title, new UiVector2(rect.Width, rect.Height));
+        if (collapsePressed)
+        {
+            if (_windowCollapsed)
+            {
+                _windowCollapsed = false;
+                rect = rect with { Width = expandedSize.X, Height = expandedSize.Y };
+            }
+            else
+            {
+                _state.SetWindowExpandedSize(title, new UiVector2(rect.Width, rect.Height));
+                _windowCollapsed = true;
+                rect = rect with { Height = titleBarHeight + WindowPadding };
+            }
+            _state.SetWindowCollapsed(title, _windowCollapsed);
+        }
+        else if (!_windowCollapsed)
+        {
+            _state.SetWindowExpandedSize(title, new UiVector2(rect.Width, rect.Height));
+        }
+        var closeSize = MathF.Min(titleBarHeight - 2f, _lineHeight + 4f);
+        var closeRect = new UiRect(
+            rect.X + rect.Width - WindowPadding - closeSize,
+            rect.Y + (titleBarHeight - closeSize) * 0.5f,
+            closeSize,
+            closeSize
+        );
+        var closeId = $"{title}##window_close";
+        var closePressed = ButtonBehavior(closeId, closeRect, out var closeHovered, out var closeHeld);
+        if (closePressed)
+        {
+            _state.SetWindowOpen(title, false);
+        }
+        var blockDrag = closeHovered || closeHeld || collapseHovered || collapseHeld;
 
         var isTopmost = IsWindowTopmostAtMouse(title, rect);
         if (_leftMousePressed && isTopmost && IsHovering(rect))
@@ -694,7 +780,7 @@ public sealed partial class UiImmediateContext
             _state.BringWindowToFront(title);
         }
 
-        if (_leftMousePressed && isTopmost && IsHovering(titleBarRect))
+        if (_leftMousePressed && isTopmost && IsHovering(titleBarRect) && !blockDrag)
         {
             _state.ActiveId = dragId;
             _state.SetScrollX(dragId, _mousePosition.X - rect.X);
@@ -705,30 +791,118 @@ public sealed partial class UiImmediateContext
         {
             var offsetX = _state.GetScrollX(dragId);
             var offsetY = _state.GetScrollY(dragId);
-            rect = ClampRectToDisplay(new UiRect(_mousePosition.X - offsetX, _mousePosition.Y - offsetY, rect.Width, rect.Height));
+            rect = new UiRect(_mousePosition.X - offsetX, _mousePosition.Y - offsetY, rect.Width, rect.Height);
         }
         else if (_state.ActiveId == dragId && !_leftMouseDown)
         {
             _state.ActiveId = null;
         }
 
+        var resizeBorder = MathF.Max(6f, ResizeGripSize * 0.6f);
         var gripRect = new UiRect(rect.X + rect.Width - ResizeGripSize, rect.Y + rect.Height - ResizeGripSize, ResizeGripSize, ResizeGripSize);
-        if (_leftMousePressed && isTopmost && IsHovering(gripRect))
+        var canResize = !_windowCollapsed;
+        var resizeMask = 0;
+        var hoverResize = false;
+
+        if (canResize && isTopmost && !blockDrag)
+        {
+            var hoverGrip = IsHovering(gripRect);
+            if (hoverGrip)
+            {
+                resizeMask = 2 | 8;
+            }
+            else
+            {
+                var hoverLeft = _mousePosition.X >= rect.X - resizeBorder && _mousePosition.X <= rect.X + resizeBorder && _mousePosition.Y >= rect.Y && _mousePosition.Y <= rect.Y + rect.Height;
+                var hoverRight = _mousePosition.X >= rect.X + rect.Width - resizeBorder && _mousePosition.X <= rect.X + rect.Width + resizeBorder && _mousePosition.Y >= rect.Y && _mousePosition.Y <= rect.Y + rect.Height;
+                var hoverTop = _mousePosition.Y >= rect.Y - resizeBorder && _mousePosition.Y <= rect.Y + resizeBorder && _mousePosition.X >= rect.X && _mousePosition.X <= rect.X + rect.Width;
+                var hoverBottom = _mousePosition.Y >= rect.Y + rect.Height - resizeBorder && _mousePosition.Y <= rect.Y + rect.Height + resizeBorder && _mousePosition.X >= rect.X && _mousePosition.X <= rect.X + rect.Width;
+
+                if (hoverLeft)
+                {
+                    resizeMask |= 1;
+                }
+                if (hoverRight)
+                {
+                    resizeMask |= 2;
+                }
+                if (hoverTop)
+                {
+                    resizeMask |= 4;
+                }
+                if (hoverBottom)
+                {
+                    resizeMask |= 8;
+                }
+            }
+
+            hoverResize = resizeMask != 0;
+            if (hoverResize)
+            {
+                var resizeCursor = resizeMask switch
+                {
+                    1 or 2 => UiMouseCursor.ResizeEW,
+                    4 or 8 => UiMouseCursor.ResizeNS,
+                    1 | 4 => UiMouseCursor.ResizeNWSE,
+                    2 | 8 => UiMouseCursor.ResizeNWSE,
+                    2 | 4 => UiMouseCursor.ResizeNESW,
+                    1 | 8 => UiMouseCursor.ResizeNESW,
+                    _ => UiMouseCursor.ResizeAll,
+                };
+                SetMouseCursor(resizeCursor);
+            }
+        }
+
+        if (canResize && _leftMousePressed && isTopmost && hoverResize)
         {
             _state.ActiveId = resizeId;
-            _state.SetScrollX(resizeId, rect.X + rect.Width - _mousePosition.X);
-            _state.SetScrollY(resizeId, rect.Y + rect.Height - _mousePosition.Y);
+            _state.SetCursor(resizeId, resizeMask);
+            _state.SetScrollX($"{resizeId}##ox", rect.X);
+            _state.SetScrollY($"{resizeId}##oy", rect.Y);
+            _state.SetScrollX($"{resizeId}##ow", rect.Width);
+            _state.SetScrollY($"{resizeId}##oh", rect.Height);
+            _state.SetScrollX($"{resizeId}##mx", _mousePosition.X);
+            _state.SetScrollY($"{resizeId}##my", _mousePosition.Y);
         }
 
         if (_state.ActiveId == resizeId && _leftMouseDown)
         {
-            var offsetX = _state.GetScrollX(resizeId);
-            var offsetY = _state.GetScrollY(resizeId);
-            var width = MathF.Max(WindowMinWidth, _mousePosition.X + offsetX - rect.X);
-            var height = MathF.Max(WindowMinHeight, _mousePosition.Y + offsetY - rect.Y);
-            width = MathF.Min(width, MathF.Max(WindowMinWidth, _displaySize.X - rect.X));
-            height = MathF.Min(height, MathF.Max(WindowMinHeight, _displaySize.Y - rect.Y));
-            rect = ClampRectToDisplay(new UiRect(rect.X, rect.Y, width, height));
+            var mask = _state.GetCursor(resizeId, 0);
+            var ox = _state.GetScrollX($"{resizeId}##ox");
+            var oy = _state.GetScrollY($"{resizeId}##oy");
+            var ow = _state.GetScrollX($"{resizeId}##ow");
+            var oh = _state.GetScrollY($"{resizeId}##oh");
+            var mx = _state.GetScrollX($"{resizeId}##mx");
+            var my = _state.GetScrollY($"{resizeId}##my");
+
+            var dx = _mousePosition.X - mx;
+            var dy = _mousePosition.Y - my;
+
+            var newX = ox;
+            var newY = oy;
+            var newW = ow;
+            var newH = oh;
+
+            if ((mask & 2) != 0)
+            {
+                newW = MathF.Max(WindowMinWidth, ow + dx);
+            }
+            if ((mask & 1) != 0)
+            {
+                newW = MathF.Max(WindowMinWidth, ow - dx);
+                newX = ox + (ow - newW);
+            }
+            if ((mask & 8) != 0)
+            {
+                newH = MathF.Max(WindowMinHeight, oh + dy);
+            }
+            if ((mask & 4) != 0)
+            {
+                newH = MathF.Max(WindowMinHeight, oh - dy);
+                newY = oy + (oh - newH);
+            }
+
+            rect = new UiRect(newX, newY, newW, newH);
         }
         else if (_state.ActiveId == resizeId && !_leftMouseDown)
         {
@@ -736,6 +910,20 @@ public sealed partial class UiImmediateContext
         }
 
         _state.SetWindowRect(title, rect);
+
+        titleBarRect = new UiRect(rect.X, rect.Y, rect.Width, titleBarHeight);
+        collapseRect = new UiRect(
+            rect.X + WindowPadding,
+            rect.Y + (titleBarHeight - collapseSize) * 0.5f,
+            collapseSize,
+            collapseSize
+        );
+        closeRect = new UiRect(
+            rect.X + rect.Width - WindowPadding - closeSize,
+            rect.Y + (titleBarHeight - closeSize) * 0.5f,
+            closeSize,
+            closeSize
+        );
 
         var nextCursorY = root.Cursor.Y + rect.Height + ItemSpacingY;
         _windowRootLayout = root with { Cursor = new UiVector2(root.LineStartX, nextCursorY) };
@@ -768,7 +956,57 @@ public sealed partial class UiImmediateContext
         AddRectFilled(new UiRect(rect.X, rect.Y, 1f, rect.Height), _theme.Border, _whiteTexture);
         AddRectFilled(new UiRect(rect.X + rect.Width - 1f, rect.Y, 1f, rect.Height), _theme.Border, _whiteTexture);
 
-        var titlePos = new UiVector2(rect.X + WindowPadding, rect.Y + (titleBarHeight - _lineHeight) * 0.5f);
+        if (collapseHovered || collapseHeld)
+        {
+            var collapseBg = collapseHeld ? _theme.ButtonActive : _theme.ButtonHovered;
+            AddRectFilled(collapseRect, collapseBg, _whiteTexture);
+        }
+
+        var collapseInset = MathF.Max(2f, collapseRect.Width * 0.22f);
+        var cLeft = collapseRect.X + collapseInset;
+        var cRight = collapseRect.X + collapseRect.Width - collapseInset;
+        var cTop = collapseRect.Y + collapseInset;
+        var cBottom = collapseRect.Y + collapseRect.Height - collapseInset;
+        var cCenterX = (cLeft + cRight) * 0.5f;
+        var cCenterY = (cTop + cBottom) * 0.5f;
+        if (_windowCollapsed)
+        {
+            _builder.AddTriangleFilled(
+                new UiVector2(cLeft, cTop),
+                new UiVector2(cLeft, cBottom),
+                new UiVector2(cRight, cCenterY),
+                _theme.Text,
+                _whiteTexture,
+                rect
+            );
+        }
+        else
+        {
+            _builder.AddTriangleFilled(
+                new UiVector2(cLeft, cTop),
+                new UiVector2(cRight, cTop),
+                new UiVector2(cCenterX, cBottom),
+                _theme.Text,
+                _whiteTexture,
+                rect
+            );
+        }
+
+        if (closeHovered || closeHeld)
+        {
+            var closeBg = closeHeld ? _theme.ButtonActive : _theme.ButtonHovered;
+            AddRectFilled(closeRect, closeBg, _whiteTexture);
+        }
+
+        var closeInset = MathF.Max(2f, closeRect.Width * 0.28f);
+        var closeX1 = closeRect.X + closeInset;
+        var closeY1 = closeRect.Y + closeInset;
+        var closeX2 = closeRect.X + closeRect.Width - closeInset;
+        var closeY2 = closeRect.Y + closeRect.Height - closeInset;
+        _builder.AddLine(new UiVector2(closeX1, closeY1), new UiVector2(closeX2, closeY2), _theme.Text, 1.5f, _whiteTexture);
+        _builder.AddLine(new UiVector2(closeX1, closeY2), new UiVector2(closeX2, closeY1), _theme.Text, 1.5f, _whiteTexture);
+
+        var titlePos = new UiVector2(collapseRect.X + collapseRect.Width + 6f, rect.Y + (titleBarHeight - _lineHeight) * 0.5f);
         _builder.AddText(
             _fontAtlas,
             title,

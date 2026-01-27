@@ -758,9 +758,11 @@ public sealed class UiContext : IUiContext
             UiPooledList<UiTextureUpdate>.FromArray(_textureUpdates.ToArray())
         );
 
+
         _textureUpdates.Clear();
         _hasDrawData = true;
     }
+
 
     public UiDrawData GetDrawData()
     {

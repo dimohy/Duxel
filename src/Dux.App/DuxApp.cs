@@ -28,7 +28,8 @@ public static class DuxApp
             window.Width,
             window.Height,
             window.Title,
-            window.VSync
+            window.VSync,
+            new WindowsKeyRepeatSettingsProvider()
         ));
 
         using var renderer = new VulkanRendererBackend(platform, new VulkanRendererOptions(
@@ -124,11 +125,13 @@ public static class DuxApp
         Action<IUiDslEmitter>? dslRender = null;
         IUiDslEventSink? dslEventSink = null;
         IUiDslValueSource? dslValueSource = null;
+        IUiClipboard? dslClipboard = null;
         var textureUpdates = new List<UiTextureUpdate>(4);
         var frameCounter = 0;
         var fpsSampleTime = 0f;
         var fpsSampleFrames = 0;
         var fps = 0f;
+        var cursorValue = (int)UiMouseCursor.Arrow;
 
         IUiImeHandler? imeHandlerForContext = null;
         WindowsImeHandler? win32ImeHandler = null;
@@ -151,6 +154,14 @@ public static class DuxApp
             dslRender = dsl.Render;
             dslEventSink = dsl.EventSink ?? dsl.Bindings;
             dslValueSource = dsl.ValueSource ?? dsl.Bindings;
+            if (options.Clipboard is not null)
+            {
+                dslClipboard = options.Clipboard;
+            }
+            else if (platform is IWin32PlatformBackend)
+            {
+                dslClipboard = new WindowsClipboard();
+            }
         }
         else
         {
@@ -421,6 +432,7 @@ public static class DuxApp
                     }
 
                     uiContext.Render();
+                    Volatile.Write(ref cursorValue, (int)uiContext.State.MouseCursor);
                     var drawData = uiContext.GetDrawData();
                     renderer.RenderDrawData(drawData);
                     EmitTrace(options.Debug, ref frameCounter, drawData, fps);
@@ -453,6 +465,10 @@ public static class DuxApp
                     fontTextureDirty = false;
                 }
 
+                dslState!.UiState.AdvanceTime(deltaTime);
+                dslState.UiState.BeginFrame();
+                dslState.UiState.UpdateInput(snapshot.KeyEvents);
+
                 var dslContext = new UiDslRenderContext(
                     dslState!,
                     fontAtlas,
@@ -461,17 +477,31 @@ public static class DuxApp
                     fontTextureId,
                     whiteTextureId,
                     theme,
+                    UiStyle.Default,
                     clipRect,
                     new UiVector2(mouseX, mouseY),
                     leftDown,
                     leftPressed,
+                    leftReleased,
+                    snapshot.MouseWheel,
+                    snapshot.MouseWheelHorizontal,
+                    snapshot.KeyEvents,
+                    snapshot.CharEvents,
+                    dslClipboard,
                     displaySize,
+                    snapshot.KeyRepeatSettings,
+                    imeHandlerForContext,
+                    0,
+                    0,
+                    0,
                     dslEventSink,
                     dslValueSource
                 );
 
                 var emitter = new UiDslImmediateEmitter(dslContext);
                 dslRender!(emitter);
+                dslState.UiState.EndFrame();
+                Volatile.Write(ref cursorValue, (int)dslState.UiState.MouseCursor);
 
                 var drawLists = emitter.BuildDrawLists();
                 var totalVertexCount = 0;
@@ -516,6 +546,7 @@ public static class DuxApp
                     queuedImeHandler.Flush(win32ImeHandler);
                 }
                 UpdateSnapshot();
+                platform.SetMouseCursor((UiMouseCursor)Volatile.Read(ref cursorValue));
             }
         }
         finally
