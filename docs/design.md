@@ -1,4 +1,4 @@
-# Dux GUI 디자인 문서 (ImGui 동등 목표)
+# Duxel GUI 디자인 문서 (ImGui 동등 목표)
 
 ## 목표
 - .NET 10 전용 즉시 모드 GUI 라이브러리.
@@ -60,6 +60,12 @@
 - 구현은 기능별 FBA 샘플로 즉시 검증한다.
 - 각 변경 후 최소 1개 샘플을 실행해 동작성을 확인한다.
 
+## 구현/검증 결과
+- 폰트 아틀라스: TTF 컴파운드 글리프 파싱/래스터 경로 포함.
+- NativeAOT: `PublishAot`/`SelfContained`/`StripSymbols`/`RuntimeIdentifier` 설정 기반 샘플 게시 검증.
+  - Silk.NET.Core 단일 파일 경고(IL3000/IL3002) 잔여
+  - Silk.NET.Windowing.Common/Input.Common 트리밍 경고(IL2072) 잔여
+
 ## 2차 목표(추적 목록)
 - 멀티뷰포트 및 도킹 지원
 - 멀티 컨텍스트 분리/공유
@@ -71,3 +77,4 @@
 2. `imgui_draw.cpp`
 3. `backends/imgui_impl_vulkan.*`
 4. `docs/BACKENDS.md`
+

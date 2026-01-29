@@ -24,6 +24,9 @@ Window "Main"
 - `NodeName`은 알파벳/숫자/`_` 조합을 권장.
 - 인자는 공백으로 구분, 문자열 인자는 큰따옴표로 감싼다.
 - 인자에는 이스케이프(`\"`, `\\`)를 허용한다.
+- 컨테이너 위젯은 들여쓰기로 자식 블록을 표현하므로 `Begin` 접두사는 생략할 수 있다.
+  - 예: `Group` → 내부적으로 `BeginGroup`으로 처리
+  - 단, `Combo`/`ListBox`는 자식 블록이 있을 때만 `Begin*`으로 해석한다.
 
 ## 변환 파이프라인
 1) `.ui` 파일 파싱 → AST(`UiDslDocument`, `UiDslNode`)
@@ -70,15 +73,31 @@ Window "DSL Demo"
   Combo "quality" "Quality" "Low|Medium|High"
 ```
 
+`Begin` 생략 컨테이너 예시:
+```
+Window "DSL Demo"
+  MenuBar
+    Menu "File"
+      MenuItem "file.new" "New"
+      MenuItem "file.exit" "Exit"
+  Group
+    Text "Begin 생략 가능"
+  Combo "quality" "Quality" "Medium"
+    Selectable "quality.low" "Low"
+    Selectable "quality.medium" "Medium"
+    Selectable "quality.high" "High"
+```
+
 ## 코드 생성 스케치
 - `.ui` 하나당 `partial class` 생성
 - 각 문서에 `Render(IUiDslEmitter emitter)` 생성
 - `emitter.BeginNode(name, args)` → 자식 → `emitter.EndNode()`
+- `Begin` 접두사를 생략한 경우 파서가 자동으로 정규화한다.
 - 위젯 동작은 `IUiDslEmitter` 구현체가 책임
 
 ### 생성 결과 사용
-- 소스 생성기는 `Dux.Generated.Ui.UiDslGeneratedRegistry`를 생성한다.
-- `GetRenderer("MainUi")`로 렌더 델리게이트를 얻어 `DuxDslOptions.Render`에 전달한다.
+- 소스 생성기는 `Duxel.Generated.Ui.UiDslGeneratedRegistry`를 생성한다.
+- `GetRenderer("MainUi")`로 렌더 델리게이트를 얻어 `DuxelDslOptions.Render`에 전달한다.
 
 ## 컴파일/핫리로드 정책
 - 빌드시 `.ui` → `.g.cs` 생성되어 실행파일에 포함.
@@ -87,3 +106,4 @@ Window "DSL Demo"
 ## 상태
 - DSL 파서/AST/컴파일러 기본 구현 완료.
 - 소스 생성기/MSBuild 통합은 다음 단계에서 진행.
+

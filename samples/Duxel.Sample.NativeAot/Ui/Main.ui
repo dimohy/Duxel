@@ -1,0 +1,4 @@
+Window "NativeAOT DSL Sample"
+  Text "Generated renderer + NativeAOT"
+  Checkbox "vsync" "VSync" true
+  Button "exit" "Exit"

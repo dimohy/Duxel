@@ -1,0 +1,2 @@
+namespace Duxel.Platform.Windows;
+

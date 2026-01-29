@@ -1,7 +1,7 @@
-# Dux TODO 목록
+# Duxel TODO 목록
 
 - [x] Core API 정교화
-   - [src/Dux.Core/UiTypes.cs](../src/Dux.Core/UiTypes.cs)의 `UiDrawData`/`UiDrawList`/`UiDrawCommand` 구조를 ImGui 동등 기준으로 검토하고 필요한 필드(예: TotalVtxCount/TotalIdxCount 대응, DisplayPos/FramebufferScale 해석)를 보완.
+   - [src/Duxel.Core/UiTypes.cs](../src/Duxel.Core/UiTypes.cs)의 `UiDrawData`/`UiDrawList`/`UiDrawCommand` 구조를 ImGui 동등 기준으로 검토하고 필요한 필드(예: TotalVtxCount/TotalIdxCount 대응, DisplayPos/FramebufferScale 해석)를 보완.
    - NativeAOT 친화성을 유지하며 public API 고정.
    - 변경 사항을 [docs/design.md](design.md)에 반영.
 
@@ -11,7 +11,7 @@
    - [docs/design.md](design.md)에 규약 문서화.
 
 - [x] GLFW 플랫폼 백엔드 완성
-   - [src/Dux.Platform.Glfw/GlfwPlatformBackend.cs](../src/Dux.Platform.Glfw/GlfwPlatformBackend.cs) 창 옵션/리사이즈/닫기 처리 완성.
+   - [src/Duxel.Platform.Glfw/GlfwPlatformBackend.cs](../src/Duxel.Platform.Glfw/GlfwPlatformBackend.cs) 창 옵션/리사이즈/닫기 처리 완성.
    - 입력 스냅샷 정확도(모디파이어/키맵핑/스크롤) 검증 및 보완.
 
 - [x] GLFW FBA 샘플 실행 검증
@@ -21,7 +21,7 @@
    - 정책에 따라 변경 후 최소 1개 샘플 실행.
 
 - [x] Vulkan 렌더러 초기화
-   - [src/Dux.Vulkan/VulkanRendererBackend.cs](../src/Dux.Vulkan/VulkanRendererBackend.cs)에서 인스턴스/디바이스/스왑체인/렌더패스/프레임버퍼/커맨드버퍼/동기화 객체 생성.
+   - [src/Duxel.Vulkan/VulkanRendererBackend.cs](../src/Duxel.Vulkan/VulkanRendererBackend.cs)에서 인스턴스/디바이스/스왑체인/렌더패스/프레임버퍼/커맨드버퍼/동기화 객체 생성.
    - Vulkan 스킬 가이드 준수 및 Validation Layer 옵션 반영.
    - [x] Vulkan 인스턴스 생성
    - [x] Surface 생성
@@ -42,7 +42,7 @@
    - 텍스트 품질 기준(HiDPI 포함) 충족 확인.
    - [x] `UiTextureUpdate` 기반 스테이징 업로드/레이아웃 전환 경로 구현
    - [x] ImGui 폰트(TTF) 기반 아틀라스 생성 경로 추가
-   - [ ] TTF 컴파운드 글리프 지원
+   - [x] TTF 컴파운드 글리프 지원
 
 - [x] RenderDrawData 구현
    - `UiDrawData` 소비 렌더링 루프 구현: 정점/인덱스 버퍼 업로드, `ClipRect` 스캐서 적용, 드로우 기록.
@@ -56,12 +56,14 @@
 - [ ] NativeAOT 게시 검증
    - 샘플 앱 NativeAOT publish/run 검증.
    - `PublishAot`, `SelfContained`, `StripSymbols`, `RuntimeIdentifier` 유지 및 트리밍 경고 해결.
+   - [ ] Silk.NET.Core 단일 파일 경고(IL3000/IL3002) 해소
+   - [ ] Silk.NET.Windowing.Common/Input.Common 트리밍 경고(IL2072) 해소
 
-- [ ] 문서화 업데이트
+- [x] 문서화 업데이트
    - [docs/design.md](design.md)에 구현 완료 항목과 검증 결과 추가.
    - ImGui 동등성 기준/1픽셀 비교 정책 유지.
 
-- [ ] ImGui 스킬 참조 규칙 검증
+- [x] ImGui 스킬 참조 규칙 검증
    - [.github/skills/imgui/SKILL.md](../.github/skills/imgui/SKILL.md)와
       [.github/skills/imgui/imgui](../.github/skills/imgui/imgui) 참조 규칙 최신화.
 
@@ -103,3 +105,4 @@
    5. 테이블/컬럼/탭/팝업 보완: 누락된 Table/Columns/Popup 세부 API
    6. 로그/디버그/INI/메모리: Log/Debug/Settings/Allocator API
    7. 기타 유틸/색 변환/키 이벤트: ColorConvert, Input 이벤트 큐 API
+

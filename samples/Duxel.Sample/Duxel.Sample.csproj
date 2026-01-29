@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Duxel.App\Duxel.App.csproj" />
+    <ProjectReference Include="..\..\src\Duxel.Core\Duxel.Core.csproj" />
+    <ProjectReference Include="..\..\src\Duxel.Platform.Glfw\Duxel.Platform.Glfw.csproj" />
+    <ProjectReference Include="..\..\src\Duxel.Vulkan\Duxel.Vulkan.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Duxel.Core.Dsl.Generator\Duxel.Core.Dsl.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+    <AdditionalFiles Include="Ui\**\*.ui" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Ui\**\*.ui" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <TrimmerRootDescriptor Include="linker.xml" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <SelfContained>true</SelfContained>
+    <StripSymbols>true</StripSymbols>
+    <PublishTrimmed>true</PublishTrimmed>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <NoWarn>$(NoWarn);IL2104;IL3000;IL3002;IL3053</NoWarn>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(PublishAot)' == 'true'">
+    <DefineConstants>$(DefineConstants);DUX_NATIVEAOT</DefineConstants>
+  </PropertyGroup>
+
+</Project>
+

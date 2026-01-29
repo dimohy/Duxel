@@ -1,0 +1,21 @@
+Window "DSL Demo 데모"
+  MenuBar
+    Menu "File 파일"
+      MenuItem "file.new" "New 새로 만들기"
+      MenuItem "file.exit" "Exit 종료"
+  Group
+    Text "Begin 접두사 생략 테스트"
+  Row
+    Button "play" "Play 재생"
+    Button "options" "Options 옵션"
+    Button "exit" "Exit 종료"
+  Row
+    Text "Status 상태: Ready 준비됨 (HotReload 확인)"
+    Button "refresh" "Refresh 새로고침"
+  Row
+    Checkbox "vsync" "Enable VSync 수직동기화" true
+    Checkbox "fullscreen" "Fullscreen 전체화면" false
+  Combo "quality" "Quality 품질" "Medium 중간"
+    Selectable "quality.low" "Low 낮음"
+    Selectable "quality.medium" "Medium 중간"
+    Selectable "quality.high" "High 높음"

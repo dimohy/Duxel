@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <PackageId>Duxel.App</PackageId>
+    <Version>0.1.4-preview</Version>
+    <Authors>dimohy</Authors>
+    <Description>Cross-platform, ImGui-style immediate-mode GUI framework for .NET with Vulkan and GLFW backends.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/dimohy/Duxel</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/dimohy/Duxel</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeReferencedProjects>true</IncludeReferencedProjects>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Duxel.Core\Duxel.Core.csproj" />
+    <ProjectReference Include="..\Duxel.Platform.Glfw\Duxel.Platform.Glfw.csproj" />
+    <ProjectReference Include="..\Duxel.Platform.Windows\Duxel.Platform.Windows.csproj" />
+    <ProjectReference Include="..\Duxel.Vulkan\Duxel.Vulkan.csproj" />
+  </ItemGroup>
+
+</Project>
+

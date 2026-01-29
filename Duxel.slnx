@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/Duxel.Sample/Duxel.Sample.csproj" />
+    <Project Path="samples/Duxel.PerfTest/Duxel.PerfTest.csproj" />
+    <Project Path="samples/Duxel.Sample.NativeAot/Duxel.Sample.NativeAot.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Duxel.App/Duxel.App.csproj" />
+    <Project Path="src/Duxel.Core/Duxel.Core.csproj" />
+    <Project Path="src/Duxel.Core.Dsl.Generator/Duxel.Core.Dsl.Generator.csproj" />
+    <Project Path="src/Duxel.Platform.Glfw/Duxel.Platform.Glfw.csproj" />
+    <Project Path="src/Duxel.Platform.Windows/Duxel.Platform.Windows.csproj" />
+    <Project Path="src/Duxel.Vulkan/Duxel.Vulkan.csproj" />
+  </Folder>
+</Solution>
+

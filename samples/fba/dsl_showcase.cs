@@ -1,8 +1,8 @@
 #:property TargetFramework=net10.0
-#:project ../../src/Dux.App/Dux.App.csproj
+#:project ../../src/Duxel.App/Duxel.App.csproj
 
-using Dux.App;
-using Dux.Core.Dsl;
+using Duxel.App;
+using Duxel.Core.Dsl;
 
 var dslText = """
 Window "DSL Showcase"
@@ -22,13 +22,13 @@ Window "DSL Showcase"
   ColorEdit4 Id="tint" Text="Tint"
   ProgressBar 0.5 "220,16" "Half"
   SeparatorText "Tabs"
-  BeginTabBar "tabs"
-    BeginTabItem "Tab A"
+  TabBar "tabs"
+    TabItem "Tab A"
       Text "Tab A content"
-    BeginTabItem "Tab B"
+    TabItem "Tab B"
       Text "Tab B content"
   SeparatorText "Table"
-  BeginTable "table" 3
+  Table "table" 3
     TableSetupColumn "Name"
     TableSetupColumn "Value"
     TableSetupColumn "Notes"
@@ -59,15 +59,16 @@ Window "DSL Showcase"
 var doc = UiDslParser.Parse(dslText);
 var state = new UiDslState();
 
-DuxApp.Run(new DuxAppOptions
+DuxelApp.Run(new DuxelAppOptions
 {
-    Window = new DuxWindowOptions
+    Window = new DuxelWindowOptions
     {
         Title = "DSL Showcase"
     },
-    Dsl = new DuxDslOptions
+    Dsl = new DuxelDslOptions
     {
         State = state,
         Render = emitter => doc.Emit(emitter)
     }
 });
+

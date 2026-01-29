@@ -1,1 +1,0 @@
-namespace Dux.Platform.Windows;

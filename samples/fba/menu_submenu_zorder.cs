@@ -1,26 +1,26 @@
 #:property TargetFramework=net10.0
-#:project ../../src/Dux.App/Dux.App.csproj
+#:project ../../src/Duxel.App/Duxel.App.csproj
 
-using Dux.App;
-using Dux.Core.Dsl;
+using Duxel.App;
+using Duxel.Core.Dsl;
 
 var dslText = """
 Window "Menu Z-Order"
-  BeginMenuBar
-    BeginMenu "File"
+  MenuBar
+    Menu "File"
       MenuItem Id="new" Text="New"
       MenuItem Id="open" Text="Open"
-      BeginMenu "Recent"
+      Menu "Recent"
         MenuItem Id="recent-1" Text="Report_2025.dui"
         MenuItem Id="recent-2" Text="Notes.dui"
-        BeginMenu "Archived"
+        Menu "Archived"
           MenuItem Id="arch-1" Text="Archive_1.dui"
           MenuItem Id="arch-2" Text="Archive_2.dui"
       MenuItem Id="exit" Text="Exit"
-    BeginMenu "View"
+    Menu "View"
       MenuItem Id="show-grid" Text="Show Grid"
       MenuItem Id="show-guides" Text="Show Guides"
-    BeginMenu "Help"
+    Menu "Help"
       MenuItem Id="about" Text="About"
   SeparatorText "Interaction"
   Text "Hover and click controls while menus are open"
@@ -34,14 +34,15 @@ Window "Menu Z-Order"
 
 var doc = UiDslParser.Parse(dslText);
 
-DuxApp.Run(new DuxAppOptions
+DuxelApp.Run(new DuxelAppOptions
 {
-    Window = new DuxWindowOptions
+    Window = new DuxelWindowOptions
     {
         Title = "Menu Z-Order"
     },
-    Dsl = new DuxDslOptions
+    Dsl = new DuxelDslOptions
     {
         Render = emitter => doc.Emit(emitter)
     }
 });
+

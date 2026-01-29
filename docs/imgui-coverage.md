@@ -1,6 +1,6 @@
 # ImGui API Coverage
 
-ImGui 전체 API 목록 대비 Dux 구현 현황(체크됨=구현됨).
+ImGui 전체 API 목록 대비 Duxel 구현 현황(체크됨=구현됨).
 
 ## Checklist
 - [x] CreateContext
@@ -529,3 +529,4 @@ ImGui 전체 API 목록 대비 Dux 구현 현황(체크됨=구현됨).
 - [x] SetItemAllowOverlap
 - [x] GetKeyIndex
 - [x] CalcListClipping
+
