@@ -23,14 +23,14 @@ Repository: https://github.com/dimohy/Duxel
 
 ## 패키지 구조
 
-| 패키지 | 설명 |
-|---|---|
-| **Duxel.App** | 앱 진입점 (`DuxelApp.Run`), 옵션 설정, DSL 바인딩 통합 |
-| **Duxel.Core** | UI 컨텍스트, 위젯 API, 드로우 리스트, 폰트 아틀라스, DSL 런타임 |
-| **Duxel.Core.Dsl.Generator** | `.ui` → C# 소스 생성기 (빌드 타임) |
-| **Duxel.Platform.Glfw** | GLFW 기반 윈도우/입력 백엔드 |
-| **Duxel.Platform.Windows** | Windows 전용 플랫폼 지원 (키 반복, IME) |
-| **Duxel.Vulkan** | Vulkan 렌더러 백엔드 |
+| 패키지                             | 설명                                                            |
+| ---------------------------------- | --------------------------------------------------------------- |
+| **Duxel.App**                | 앱 진입점 (`DuxelApp.Run`), 옵션 설정, DSL 바인딩 통합        |
+| **Duxel.Core**               | UI 컨텍스트, 위젯 API, 드로우 리스트, 폰트 아틀라스, DSL 런타임 |
+| **Duxel.Core.Dsl.Generator** | `.ui` → C# 소스 생성기 (빌드 타임)                           |
+| **Duxel.Platform.Glfw**      | GLFW 기반 윈도우/입력 백엔드                                    |
+| **Duxel.Platform.Windows**   | Windows 전용 플랫폼 지원 (키 반복, IME)                         |
+| **Duxel.Vulkan**             | Vulkan 렌더러 백엔드                                            |
 
 ## 빠른 시작
 
@@ -110,11 +110,11 @@ DuxelApp.Run(new DuxelAppOptions
 
 ### 프로젝트 샘플
 
-| 프로젝트 | 설명 | 실행 |
-|---|---|---|
-| `Duxel.Sample` | DSL `.ui` + 소스 생성기 + 바인딩 데모 | `dotnet run --project samples/Duxel.Sample/` |
-| `Duxel.Sample.NativeAot` | NativeAOT 배포 검증 (DSL + AOT) | `dotnet publish -c Release` |
-| `Duxel.PerfTest` | 대량 폴리곤 물리 시뮬레이션 성능 벤치마크 | `dotnet run --project samples/Duxel.PerfTest/` |
+| 프로젝트                   | 설명                                      | 실행                                             |
+| -------------------------- | ----------------------------------------- | ------------------------------------------------ |
+| `Duxel.Sample`           | DSL `.ui` + 소스 생성기 + 바인딩 데모   | `dotnet run --project samples/Duxel.Sample/`   |
+| `Duxel.Sample.NativeAot` | NativeAOT 배포 검증 (DSL + AOT)           | `dotnet publish -c Release`                    |
+| `Duxel.PerfTest`         | 대량 폴리곤 물리 시뮬레이션 성능 벤치마크 | `dotnet run --project samples/Duxel.PerfTest/` |
 
 ### FBA 샘플 (`samples/fba/`)
 
@@ -128,17 +128,18 @@ dotnet run samples/fba/all_features.cs
 ./run-fba.ps1 samples/fba/all_features.cs -NoCache
 ```
 
-| 파일 | 모드 | 설명 |
-|---|---|---|
-| `all_features.cs` | 즉시 모드 | 전체 위젯 종합 데모 (400+ API 사용) |
-| `dsl_showcase.cs` | DSL | DSL 정적 레이아웃 — 입력/탭/테이블/트리 |
-| `dsl_interaction.cs` | DSL | DSL 인터랙션 — Drag/Slider/Color/Child/Popup |
-| `menu_submenu_zorder.cs` | DSL | 메뉴/서브메뉴 중첩 Z-Order 테스트 |
-| `advanced_layout.cs` | 즉시 모드 | PushID, Cursor, Scroll, StyleVar, ClipRect |
-| `columns_demo.cs` | 즉시 모드 | Legacy Columns API 전체 시연 |
-| `image_and_popups.cs` | 즉시 모드 | Image/Popup/Tooltip/TreeNodeV/TextLink |
-| `input_queries.cs` | 즉시 모드 | 키보드/마우스 상태, Shortcut, 클립보드 |
-| `item_status.cs` | 즉시 모드 | IsItemActive/Focused/Clicked, MultiSelect |
+| 파일                       | 모드      | 설명                                          |
+| -------------------------- | --------- | --------------------------------------------- |
+| `all_features.cs`        | 즉시 모드 | 전체 위젯 종합 데모 (400+ API 사용)           |
+| `dsl_showcase.cs`        | DSL       | DSL 정적 레이아웃 — 입력/탭/테이블/트리      |
+| `dsl_interaction.cs`     | DSL       | DSL 인터랙션 — Drag/Slider/Color/Child/Popup |
+| `menu_submenu_zorder.cs` | DSL       | 메뉴/서브메뉴 중첩 Z-Order 테스트             |
+| `advanced_layout.cs`     | 즉시 모드 | PushID, Cursor, Scroll, StyleVar, ClipRect    |
+| `columns_demo.cs`        | 즉시 모드 | Legacy Columns API 전체 시연                  |
+| `image_and_popups.cs`    | 즉시 모드 | Image/Popup/Tooltip/TreeNodeV/TextLink        |
+| `input_queries.cs`       | 즉시 모드 | 키보드/마우스 상태, Shortcut, 클립보드        |
+| `item_status.cs`         | 즉시 모드 | IsItemActive/Focused/Clicked, MultiSelect     |
+| `Duxel_perf_test_fba.cs` | 즉시 모드 | 대량 폴리곤 물리 시뮬레이션 성능 벤치마크     |
 
 ## UI DSL
 
@@ -237,4 +238,3 @@ dotnet publish samples/Duxel.Sample.NativeAot/ -c Release
 ## 라이선스
 
 MIT
-

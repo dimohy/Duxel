@@ -189,6 +189,24 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/item_s
 
 ---
 
+## 성능 벤치마크 (PerfTest)
+
+대량 폴리곤 물리 시뮬레이션으로 DrawList 렌더링 성능을 테스트합니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/Duxel_perf_test_fba.cs -OutFile Duxel_perf_test_fba.cs; dotnet run Duxel_perf_test_fba.cs
+```
+
+**Bash**
+```bash
+curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/Duxel_perf_test_fba.cs && dotnet run Duxel_perf_test_fba.cs
+```
+
+> 다각형 추가/제거 · 속도/크기/면수/회전 슬라이더 · FPS 표시 · 바운딩 충돌
+
+---
+
 ## 전체 한번에 다운로드
 
 모든 FBA 샘플을 한번에 받으려면:
@@ -199,7 +217,8 @@ $base = "https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 $files = @(
     "all_features.cs", "dsl_showcase.cs", "dsl_interaction.cs",
     "menu_submenu_zorder.cs", "advanced_layout.cs", "columns_demo.cs",
-    "image_and_popups.cs", "input_queries.cs", "item_status.cs"
+    "image_and_popups.cs", "input_queries.cs", "item_status.cs",
+    "Duxel_perf_test_fba.cs"
 )
 New-Item -ItemType Directory -Force -Path fba | Out-Null
 $files | ForEach-Object { irm "$base/$_" -OutFile "fba/$_"; Write-Host "Downloaded $_" }
@@ -210,7 +229,8 @@ Write-Host "`nRun: dotnet run fba/all_features.cs"
 ```bash
 BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 FILES=(all_features.cs dsl_showcase.cs dsl_interaction.cs menu_submenu_zorder.cs \
-       advanced_layout.cs columns_demo.cs image_and_popups.cs input_queries.cs item_status.cs)
+       advanced_layout.cs columns_demo.cs image_and_popups.cs input_queries.cs item_status.cs \
+       Duxel_perf_test_fba.cs)
 mkdir -p fba
 for f in "${FILES[@]}"; do curl -sL "$BASE/$f" -o "fba/$f" && echo "Downloaded $f"; done
 echo -e "\nRun: dotnet run fba/all_features.cs"
