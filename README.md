@@ -3,6 +3,8 @@
 **.NET 10 전용 크로스플랫폼 즉시 모드(Immediate-Mode) GUI 프레임워크.**
 Vulkan 렌더러 + GLFW 윈도우/입력 백엔드로 Dear ImGui 동등 수준의 위젯·렌더링·텍스트 품질을 목표합니다.
 
+**현재 버전: `0.1.5-preview`** · MSAA 4x · VSync 토글 · 스크롤바 통합 · 팝업 차단 레이어
+
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -11,8 +13,9 @@ Repository: https://github.com/dimohy/Duxel
 ## 주요 특징
 
 - **즉시 모드 UI** — Dear ImGui 스타일의 Begin/End 패턴 기반 위젯 API
-- **Vulkan 렌더러** — ImGui 동등 블렌딩/클립/셰이더 파이프라인, Triple Buffering, Persistent Mapped Buffers
+- **Vulkan 렌더러** — MSAA 4x, VSync 토글, Triple Buffering, Persistent Mapped Buffers
 - **GLFW 윈도우/입력** — 키보드·마우스·스크롤·IME 입력 지원
+- **스크롤바/팝업** — 통합 스크롤바 렌더러 (Child/Combo/ListBox/InputMultiline), 팝업 차단 레이어
 - **NativeAOT 지원** — `PublishAot=true` 배포 가능 (리플렉션/동적 로딩 없음)
 - **UI DSL** — `.ui` 파일로 선언적 UI 정의, 소스 생성기 기반 빌드 타임 코드 생성, 핫리로드 지원
 - **폰트 아틀라스** — TTF 파싱(컴파운드 글리프 포함), HiDPI 스케일링, 빠른 시작을 위한 Built-in ASCII 폰트
