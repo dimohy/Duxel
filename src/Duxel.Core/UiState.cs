@@ -49,6 +49,15 @@ public sealed class UiState
     private KeyModifiers _modifiers;
     private UiTheme? _requestedTheme;
     private int _frameCount;
+    private bool _vSync = true;
+    private bool _vSyncDirty;
+    private List<UiRect> _popupBlockingRects = [];
+    private List<UiRect> _prevPopupBlockingRects = [];
+
+    // Frame timing (set by the app loop, read by UI)
+    public float NewFrameTimeMs { get; set; }
+    public float RenderTimeMs { get; set; }
+    public float SubmitTimeMs { get; set; }
 
     public bool GetBool(string key, bool defaultValue = false)
     {
@@ -154,6 +163,30 @@ public sealed class UiState
         set => _navCursorVisible = value;
     }
 
+    public bool VSync
+    {
+        get => _vSync;
+        set
+        {
+            if (_vSync != value)
+            {
+                _vSync = value;
+                _vSyncDirty = true;
+            }
+        }
+    }
+
+    public bool ConsumeVSyncDirty()
+    {
+        if (!_vSyncDirty)
+        {
+            return false;
+        }
+
+        _vSyncDirty = false;
+        return true;
+    }
+
     public void SetLastClick(double timeSeconds, UiVector2 position, int count)
     {
         _lastClickTime = timeSeconds;
@@ -198,6 +231,17 @@ public sealed class UiState
         _hoverLoggedThisFrame = false;
         _hoveredId = null;
         _mouseCursor = UiMouseCursor.Arrow;
+
+        // Swap popup blocking rects: current → previous, clear current for new frame
+        (_prevPopupBlockingRects, _popupBlockingRects) = (_popupBlockingRects, _prevPopupBlockingRects);
+        _popupBlockingRects.Clear();
+    }
+
+    public IReadOnlyList<UiRect> PreviousPopupBlockingRects => _prevPopupBlockingRects;
+
+    public void AddPopupBlockingRect(UiRect rect)
+    {
+        _popupBlockingRects.Add(rect);
     }
 
     public void EndFrame()
@@ -396,7 +440,13 @@ public sealed class UiState
     public UiVector2 GetWindowExpandedSize(string key, UiVector2 fallback)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
-        return _windowExpandedSizes.TryGetValue(key, out var value) ? value : fallback;
+        if (_windowExpandedSizes.TryGetValue(key, out var value))
+        {
+            return value;
+        }
+
+        _windowExpandedSizes[key] = fallback;
+        return fallback;
     }
 
     public void SetWindowExpandedSize(string key, UiVector2 size)

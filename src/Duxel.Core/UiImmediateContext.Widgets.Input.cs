@@ -699,13 +699,14 @@ public sealed partial class UiImmediateContext
 
         var contentHeight = lineCount * _lineHeight;
         var maxScroll = MathF.Max(0f, contentHeight - (inputRect.Height - 8f));
-        if (hovered && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f)
+        var wheelBlocked = _popupTierDepth == 0 && IsMouseOverAnyBlockingPopup();
+        if (hovered && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f && !wheelBlocked)
         {
             scrollY = Math.Clamp(scrollY - (_mouseWheel * _lineHeight * 3f), 0f, maxScroll);
         }
         var maxLineWidth = MeasureMaxLineWidth(text);
         var maxScrollX = MathF.Max(0f, maxLineWidth - (inputRect.Width - 12f));
-        if (hovered && MathF.Abs(_mouseWheelHorizontal) > 0.001f && maxScrollX > 0f)
+        if (hovered && MathF.Abs(_mouseWheelHorizontal) > 0.001f && maxScrollX > 0f && !wheelBlocked)
         {
             scrollX = Math.Clamp(scrollX - (_mouseWheelHorizontal * _lineHeight * 3f), 0f, maxScrollX);
         }
@@ -1025,77 +1026,29 @@ public sealed partial class UiImmediateContext
 
         var hasVScroll = maxScroll > 0f;
         var hasHScroll = maxScrollX > 0f;
-        var barWidth = 8f;
-        var barHeight = 8f;
+        var barWidth = ScrollbarSize;
+        var barHeight = ScrollbarSize;
 
         if (hasVScroll)
         {
-            var scrollId = $"{label}##scroll";
+            var scrollBarId = $"{label}##scroll";
             var barHeightAdjusted = inputRect.Height - (hasHScroll ? barHeight : 0f);
             var barRect = new UiRect(inputRect.X + inputRect.Width - barWidth, inputRect.Y, barWidth, barHeightAdjusted);
-            var handleHeight = MathF.Max(16f, barHeightAdjusted * (barHeightAdjusted / contentHeight));
-            var handleY = inputRect.Y + (scrollY / maxScroll) * (barHeightAdjusted - handleHeight);
-            var handleRect = new UiRect(barRect.X + 1f, handleY, barRect.Width - 2f, handleHeight);
-            var handleHover = IsHovering(handleRect);
-
-            if (_leftMousePressed && handleHover)
-            {
-                _state.ActiveId = scrollId;
-            }
-
-            var scrollActive = _state.ActiveId == scrollId;
-            if (!_leftMouseDown && scrollActive)
-            {
-                _state.ActiveId = null;
-            }
-
-            if (scrollActive && _leftMouseDown)
-            {
-                var t = Math.Clamp((_mousePosition.Y - inputRect.Y - (handleHeight * 0.5f)) / (barHeightAdjusted - handleHeight), 0f, 1f);
-                scrollY = t * maxScroll;
-            }
-
-            _builder.AddRectFilled(barRect, _theme.FrameBg, _whiteTexture, inputClip);
-            var handleColor = scrollActive ? _theme.SliderGrabActive : handleHover ? _theme.SliderGrab : _theme.FrameBgActive;
-            _builder.AddRectFilled(handleRect, handleColor, _whiteTexture, inputClip);
+            scrollY = RenderScrollbarV(scrollBarId, barRect, scrollY, maxScroll, contentHeight, inputClip);
         }
 
         if (hasHScroll)
         {
-            var scrollId = $"{label}##scrollx";
+            var scrollBarId = $"{label}##scrollx";
             var barWidthAdjusted = inputRect.Width - (hasVScroll ? barWidth : 0f);
             var barRect = new UiRect(inputRect.X, inputRect.Y + inputRect.Height - barHeight, barWidthAdjusted, barHeight);
-            var handleWidth = MathF.Max(24f, barWidthAdjusted * (barWidthAdjusted / maxLineWidth));
-            var handleX = inputRect.X + (scrollX / maxScrollX) * (barWidthAdjusted - handleWidth);
-            var handleRect = new UiRect(handleX, barRect.Y + 1f, handleWidth, barRect.Height - 2f);
-            var handleHover = IsHovering(handleRect);
-
-            if (_leftMousePressed && handleHover)
-            {
-                _state.ActiveId = scrollId;
-            }
-
-            var scrollActive = _state.ActiveId == scrollId;
-            if (!_leftMouseDown && scrollActive)
-            {
-                _state.ActiveId = null;
-            }
-
-            if (scrollActive && _leftMouseDown)
-            {
-                var t = Math.Clamp((_mousePosition.X - inputRect.X - (handleWidth * 0.5f)) / (barWidthAdjusted - handleWidth), 0f, 1f);
-                scrollX = t * maxScrollX;
-            }
-
-            _builder.AddRectFilled(barRect, _theme.FrameBg, _whiteTexture, inputClip);
-            var handleColor = scrollActive ? _theme.SliderGrabActive : handleHover ? _theme.SliderGrab : _theme.FrameBgActive;
-            _builder.AddRectFilled(handleRect, handleColor, _whiteTexture, inputClip);
+            scrollX = RenderScrollbarH(scrollBarId, barRect, scrollX, maxScrollX, maxLineWidth, inputClip);
         }
 
         if (hasVScroll && hasHScroll)
         {
             var cornerRect = new UiRect(inputRect.X + inputRect.Width - barWidth, inputRect.Y + inputRect.Height - barHeight, barWidth, barHeight);
-            _builder.AddRectFilled(cornerRect, _theme.FrameBg, _whiteTexture, inputClip);
+            _builder.AddRectFilled(cornerRect, _theme.ScrollbarBg, _whiteTexture, inputClip);
         }
 
         _state.SetScrollY(id, scrollY);

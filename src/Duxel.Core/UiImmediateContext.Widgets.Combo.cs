@@ -57,11 +57,15 @@ public sealed partial class UiImmediateContext
         var visibleItems = Math.Clamp(popupMaxHeightInItems, 1, 12);
         var popupHeight = visibleItems * frameHeight;
         var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
+
+        PushPopup();
+        _state.AddPopupBlockingRect(popupRect);
         AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
 
         if (_leftMousePressed && !IsHovering(popupRect) && !IsHovering(comboRect))
         {
             _state.OpenComboId = null;
+            PopPopup();
             return false;
         }
 
@@ -81,6 +85,7 @@ public sealed partial class UiImmediateContext
 
         _layouts.Pop();
         PopClipRect();
+        PopPopup();
         _comboStack.Pop();
     }
 
@@ -145,11 +150,20 @@ public sealed partial class UiImmediateContext
         var changed = false;
         if (_state.OpenComboId == id)
         {
-            var visibleItems = items.Count == 0 ? 0 : Math.Clamp(popupMaxHeightInItems, 1, items.Count);
-            var popupHeight = visibleItems * frameHeight;
+            var maxVisible = Math.Clamp(popupMaxHeightInItems, 1, 12);
+            var displayCount = Math.Min(maxVisible, items.Count);
+            var popupHeight = displayCount * frameHeight;
             var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
+            var contentHeight = items.Count * frameHeight;
+            var maxScroll = MathF.Max(0f, contentHeight - popupHeight);
+            var comboScrollId = $"{id}##comboscroll";
+            var scrollY = _state.GetScrollY(comboScrollId);
+            scrollY = Math.Clamp(scrollY, 0f, maxScroll);
 
-            if (visibleItems > 0)
+            PushPopup();
+            _state.AddPopupBlockingRect(popupRect);
+
+            if (displayCount > 0)
             {
                 AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
             }
@@ -160,16 +174,23 @@ public sealed partial class UiImmediateContext
                 _state.OpenComboId = null;
             }
 
-            for (var i = 0; i < visibleItems; i++)
+            // Mouse wheel
+            if (IsHovering(popupRect) && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f)
             {
-                var index = i;
-                if (index >= items.Count)
+                scrollY = Math.Clamp(scrollY - (_mouseWheel * frameHeight * 3f), 0f, maxScroll);
+            }
+
+            PushClipRect(popupRect, false);
+            for (var i = 0; i < items.Count; i++)
+            {
+                var itemY = popupRect.Y + (i * frameHeight) - scrollY;
+                if (itemY + frameHeight < popupRect.Y || itemY > popupRect.Y + popupHeight)
                 {
-                    break;
+                    continue;
                 }
 
-                var itemRect = new UiRect(popupRect.X, popupRect.Y + (i * frameHeight), popupRect.Width, frameHeight);
-                var itemId = ResolveId($"{label}##item{index}");
+                var itemRect = new UiRect(popupRect.X, itemY, popupRect.Width, frameHeight);
+                var itemId = ResolveId($"{label}##item{i}");
                 var itemHovered = ItemHoverable(itemId, itemRect);
                 if (itemHovered)
                 {
@@ -178,12 +199,12 @@ public sealed partial class UiImmediateContext
 
                 if (_leftMousePressed && itemHovered)
                 {
-                    currentIndex = index;
+                    currentIndex = i;
                     changed = true;
                     _state.OpenComboId = null;
                 }
 
-                var itemText = items[index];
+                var itemText = items[i];
                 var itemSize = UiTextBuilder.MeasureText(_fontAtlas, itemText, _textSettings, _lineHeight);
                 var itemPos = new UiVector2(itemRect.X + 6f, itemRect.Y + (itemRect.Height - itemSize.Y) * 0.5f);
                 _builder.AddText(
@@ -197,6 +218,22 @@ public sealed partial class UiImmediateContext
                     _lineHeight
                 );
             }
+            PopClipRect();
+
+            // Scrollbar
+            if (maxScroll > 0f)
+            {
+                var trackRect = new UiRect(
+                    popupRect.X + popupRect.Width - ScrollbarSize,
+                    popupRect.Y,
+                    ScrollbarSize,
+                    popupRect.Height
+                );
+                scrollY = RenderScrollbarV($"{id}##comboscrollbar", trackRect, scrollY, maxScroll, contentHeight, popupRect);
+            }
+
+            _state.SetScrollY(comboScrollId, scrollY);
+            PopPopup();
         }
 
         return changed;
@@ -264,11 +301,20 @@ public sealed partial class UiImmediateContext
         var changed = false;
         if (_state.OpenComboId == id)
         {
-            var visibleItems = itemsCount == 0 ? 0 : Math.Clamp(popupMaxHeightInItems, 1, itemsCount);
-            var popupHeight = visibleItems * frameHeight;
+            var maxVisible = Math.Clamp(popupMaxHeightInItems, 1, 12);
+            var displayCount = Math.Min(maxVisible, itemsCount);
+            var popupHeight = displayCount * frameHeight;
             var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
+            var contentHeight = itemsCount * frameHeight;
+            var maxScroll = MathF.Max(0f, contentHeight - popupHeight);
+            var comboScrollId = $"{id}##comboscroll";
+            var scrollY = _state.GetScrollY(comboScrollId);
+            scrollY = Math.Clamp(scrollY, 0f, maxScroll);
 
-            if (visibleItems > 0)
+            PushPopup();
+            _state.AddPopupBlockingRect(popupRect);
+
+            if (displayCount > 0)
             {
                 AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
             }
@@ -279,16 +325,23 @@ public sealed partial class UiImmediateContext
                 _state.OpenComboId = null;
             }
 
-            for (var i = 0; i < visibleItems; i++)
+            // Mouse wheel
+            if (IsHovering(popupRect) && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f)
             {
-                var index = i;
-                if (index >= itemsCount)
+                scrollY = Math.Clamp(scrollY - (_mouseWheel * frameHeight * 3f), 0f, maxScroll);
+            }
+
+            PushClipRect(popupRect, false);
+            for (var i = 0; i < itemsCount; i++)
+            {
+                var itemY = popupRect.Y + (i * frameHeight) - scrollY;
+                if (itemY + frameHeight < popupRect.Y || itemY > popupRect.Y + popupHeight)
                 {
-                    break;
+                    continue;
                 }
 
-                var itemRect = new UiRect(popupRect.X, popupRect.Y + (i * frameHeight), popupRect.Width, frameHeight);
-                var itemId = ResolveId($"{label}##item{index}");
+                var itemRect = new UiRect(popupRect.X, itemY, popupRect.Width, frameHeight);
+                var itemId = ResolveId($"{label}##item{i}");
                 var itemHovered = ItemHoverable(itemId, itemRect);
                 if (itemHovered)
                 {
@@ -297,12 +350,12 @@ public sealed partial class UiImmediateContext
 
                 if (_leftMousePressed && itemHovered)
                 {
-                    currentIndex = index;
+                    currentIndex = i;
                     changed = true;
                     _state.OpenComboId = null;
                 }
 
-                var itemText = itemsGetter(index) ?? string.Empty;
+                var itemText = itemsGetter(i) ?? string.Empty;
                 var itemSize = UiTextBuilder.MeasureText(_fontAtlas, itemText, _textSettings, _lineHeight);
                 var itemPos = new UiVector2(itemRect.X + 6f, itemRect.Y + (itemRect.Height - itemSize.Y) * 0.5f);
                 _builder.AddText(
@@ -316,6 +369,22 @@ public sealed partial class UiImmediateContext
                     _lineHeight
                 );
             }
+            PopClipRect();
+
+            // Scrollbar
+            if (maxScroll > 0f)
+            {
+                var trackRect = new UiRect(
+                    popupRect.X + popupRect.Width - ScrollbarSize,
+                    popupRect.Y,
+                    ScrollbarSize,
+                    popupRect.Height
+                );
+                scrollY = RenderScrollbarV($"{id}##comboscrollbar", trackRect, scrollY, maxScroll, contentHeight, popupRect);
+            }
+
+            _state.SetScrollY(comboScrollId, scrollY);
+            PopPopup();
         }
 
         return changed;

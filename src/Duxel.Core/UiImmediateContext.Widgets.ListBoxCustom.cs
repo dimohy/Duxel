@@ -43,7 +43,7 @@ public sealed partial class UiImmediateContext
 
         var hovered = IsHovering(listRect);
         var scrollY = _state.GetScrollY(id);
-        if (hovered && MathF.Abs(_mouseWheel) > 0.001f)
+        if (hovered && MathF.Abs(_mouseWheel) > 0.001f && !(_popupTierDepth == 0 && IsMouseOverAnyBlockingPopup()))
         {
             scrollY = MathF.Max(0f, scrollY - (_mouseWheel * frameHeight * 3f));
         }

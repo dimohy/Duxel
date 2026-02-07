@@ -18,6 +18,7 @@ public sealed partial class UiImmediateContext
     private float InputWidth = 220f;
     private float SliderWidth = 220f;
     private float TreeIndent = 16f;
+    private float ScrollbarSize = 14f;
     private float _windowFontScale = 1f;
     private const int TabSpaces = 4;
     private static readonly string TabSpacesString = new(' ', TabSpaces);
@@ -49,7 +50,9 @@ public sealed partial class UiImmediateContext
 
     private readonly UiDrawListBuilder _baseBuilder;
     private readonly UiDrawListBuilder _overlayBuilder;
+    private readonly UiDrawListBuilder _popupBuilder;
     private UiDrawListBuilder _builder;
+    private readonly Stack<UiDrawListBuilder> _builderStack = new();
     private readonly Stack<UiRect> _clipStack = new();
     private UiStateStorage _stateStorage = new();
     private readonly Stack<UiFontState> _fontStack = new();
@@ -66,6 +69,7 @@ public sealed partial class UiImmediateContext
     private readonly Stack<UiItemFlags> _itemFlagStack = new();
     private readonly List<UiRect> _openMenuPopupRects = [];
     private readonly List<UiRect> _openMenuButtonRects = [];
+    private int _popupTierDepth;
     private UiItemFlags _currentItemFlags;
     private readonly Stack<StyleColorEntry> _styleColorStack = new();
     private readonly Stack<StyleVarEntry> _styleVarStack = new();
@@ -81,6 +85,8 @@ public sealed partial class UiImmediateContext
     private bool _inMenuBar;
     private bool _tooltipActive;
     private float _tooltipPadding;
+    private UiVector2 _tooltipOrigin;
+    private float _tooltipMaxRight;
     private bool _columnsActive;
     private int _columnsCount;
     private int _columnsIndex;
@@ -106,7 +112,6 @@ public sealed partial class UiImmediateContext
     private UiTableFlags _tableFlags;
     private float _tableStartY;
     private UiRect _tableRect;
-    private int _overlayDepth;
 
     private readonly record struct UiFontState(UiFontAtlas FontAtlas, float LineHeight);
     private readonly record struct StyleColorEntry(UiStyleColor Color, UiColor Previous);
@@ -273,13 +278,23 @@ public sealed partial class UiImmediateContext
         InputWidth = style.InputWidth;
         SliderWidth = style.SliderWidth;
         TreeIndent = style.TreeIndent;
+        ScrollbarSize = style.ScrollbarSize;
         _clipRect = clipRect;
         _mousePosition = mousePosition;
         _leftMouseDown = leftMouseDown;
         _leftMousePressed = leftMousePressed;
         _leftMouseReleased = leftMouseReleased;
-        _mouseWheel = mouseWheel;
-        _mouseWheelHorizontal = mouseWheelHorizontal;
+        // Shift+Wheel → horizontal scroll
+        if ((_state.Modifiers & KeyModifiers.Shift) != 0 && MathF.Abs(mouseWheel) > 0.001f && MathF.Abs(mouseWheelHorizontal) < 0.001f)
+        {
+            _mouseWheel = 0f;
+            _mouseWheelHorizontal = mouseWheel;
+        }
+        else
+        {
+            _mouseWheel = mouseWheel;
+            _mouseWheelHorizontal = mouseWheelHorizontal;
+        }
         _keyEvents = keyEvents;
         _charEvents = charEvents;
         _clipboard = clipboard;
@@ -290,9 +305,14 @@ public sealed partial class UiImmediateContext
 
         _baseBuilder = new UiDrawListBuilder(clipRect);
         _overlayBuilder = new UiDrawListBuilder(clipRect);
+        _popupBuilder = new UiDrawListBuilder(clipRect);
         _builder = _baseBuilder;
         _baseBuilder._SetDrawListSharedData(GetDrawListSharedData());
         _overlayBuilder._SetDrawListSharedData(GetDrawListSharedData());
+        _popupBuilder._SetDrawListSharedData(GetDrawListSharedData());
+        _baseBuilder.PushTexture(_fontTexture);
+        _overlayBuilder.PushTexture(_fontTexture);
+        _popupBuilder.PushTexture(_fontTexture);
         if (reserveVertices > 0 || reserveIndices > 0 || reserveCommands > 0)
         {
             _baseBuilder.Reserve(reserveVertices, reserveIndices, reserveCommands);
@@ -311,25 +331,45 @@ public sealed partial class UiImmediateContext
     {
         var baseLists = _baseBuilder.Build();
         var overlayLists = _overlayBuilder.Build();
-        if (overlayLists.Count == 0)
+        var popupLists = _popupBuilder.Build();
+
+        var totalCount = baseLists.Count + overlayLists.Count + popupLists.Count;
+        if (totalCount == 0)
         {
-            return baseLists;
+            baseLists.Return();
+            overlayLists.Return();
+            popupLists.Return();
+            return UiPooledList<UiDrawList>.FromArray(Array.Empty<UiDrawList>());
         }
 
-        if (baseLists.Count == 0)
-        {
-            return overlayLists;
-        }
+        // Single-tier fast path
+        if (overlayLists.Count == 0 && popupLists.Count == 0) return baseLists;
+        if (baseLists.Count == 0 && popupLists.Count == 0) return overlayLists;
+        if (baseLists.Count == 0 && overlayLists.Count == 0) return popupLists;
 
-        var mergedCount = baseLists.Count + overlayLists.Count;
-        var mergedBuffer = ArrayPool<UiDrawList>.Shared.Rent(mergedCount);
-        baseLists.CopyTo(mergedBuffer.AsSpan(0, baseLists.Count));
-        overlayLists.CopyTo(mergedBuffer.AsSpan(baseLists.Count, overlayLists.Count));
+        // Merge: base → overlay (active window) → popup (menus/tooltips)
+        var mergedBuffer = ArrayPool<UiDrawList>.Shared.Rent(totalCount);
+        var offset = 0;
+        if (baseLists.Count > 0)
+        {
+            baseLists.CopyTo(mergedBuffer.AsSpan(offset, baseLists.Count));
+            offset += baseLists.Count;
+        }
+        if (overlayLists.Count > 0)
+        {
+            overlayLists.CopyTo(mergedBuffer.AsSpan(offset, overlayLists.Count));
+            offset += overlayLists.Count;
+        }
+        if (popupLists.Count > 0)
+        {
+            popupLists.CopyTo(mergedBuffer.AsSpan(offset, popupLists.Count));
+        }
 
         baseLists.Return();
         overlayLists.Return();
+        popupLists.Return();
 
-        return new UiPooledList<UiDrawList>(mergedBuffer, mergedCount, pooled: true);
+        return new UiPooledList<UiDrawList>(mergedBuffer, totalCount, pooled: true);
     }
 
     private UiVector2 AdvanceCursor(UiVector2 size)
@@ -379,6 +419,10 @@ public sealed partial class UiImmediateContext
         _layouts.Push(current);
         _lastItemPos = cursor;
         _lastItemSize = size;
+        if (_tooltipActive)
+        {
+            _tooltipMaxRight = MathF.Max(_tooltipMaxRight, cursor.X + size.X);
+        }
         if (_hasWindowRect && _childStack.Count == 0)
         {
             var unscrolledMax = new UiVector2(
@@ -524,11 +568,31 @@ public sealed partial class UiImmediateContext
             return;
         }
 
+        var cursorY = _layouts.Peek().Cursor.Y;
         _layouts.Pop();
-        PopClipRect();
 
         var state = _listBoxStack.Pop();
-        _state.SetScrollY(state.Id, state.ScrollY);
+
+        // Clamp scroll to actual content height
+        var contentHeight = cursorY - state.Rect.Y - 2f + state.ScrollY;
+        var visibleHeight = state.Rect.Height - 4f;
+        var maxScroll = MathF.Max(0f, contentHeight - visibleHeight);
+        var clampedScrollY = Math.Clamp(state.ScrollY, 0f, maxScroll);
+
+        // Render scrollbar before PopClipRect (respects parent clip)
+        if (maxScroll > 0f)
+        {
+            var trackRect = new UiRect(
+                state.Rect.X + state.Rect.Width - ScrollbarSize,
+                state.Rect.Y,
+                ScrollbarSize,
+                state.Rect.Height
+            );
+            clampedScrollY = RenderScrollbarV($"{state.Id}##lbscroll", trackRect, clampedScrollY, maxScroll, contentHeight, CurrentClipRect);
+        }
+
+        PopClipRect();
+        _state.SetScrollY(state.Id, clampedScrollY);
     }
 
     private bool IsHovering(UiRect rect)
@@ -555,6 +619,20 @@ public sealed partial class UiImmediateContext
         for (var i = 0; i < _openMenuButtonRects.Count; i++)
         {
             if (IsHovering(_openMenuButtonRects[i]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsMouseOverAnyBlockingPopup()
+    {
+        var rects = _state.PreviousPopupBlockingRects;
+        for (var i = 0; i < rects.Count; i++)
+        {
+            if (IsHovering(rects[i]))
             {
                 return true;
             }
@@ -628,6 +706,7 @@ public sealed partial class UiImmediateContext
         }
 
         _clipStack.Push(next);
+        _builder.PushClipRect(next, false);
     }
 
     public void PopClipRect()
@@ -635,30 +714,45 @@ public sealed partial class UiImmediateContext
         if (_clipStack.Count > 1)
         {
             _clipStack.Pop();
+            _builder.PopClipRect();
         }
     }
 
     private void PushOverlay()
     {
-        _overlayDepth++;
+        _builderStack.Push(_builder);
         _builder = _overlayBuilder;
     }
 
     private void PopOverlay()
     {
-        if (_overlayDepth <= 0)
+        if (_builderStack.Count > 0)
         {
-            return;
-        }
-
-        _overlayDepth--;
-        if (_overlayDepth == 0)
-        {
-            _builder = _baseBuilder;
+            _builder = _builderStack.Pop();
         }
         else
         {
-            _builder = _overlayBuilder;
+            _builder = _baseBuilder;
+        }
+    }
+
+    private void PushPopup()
+    {
+        _builderStack.Push(_builder);
+        _builder = _popupBuilder;
+        _popupTierDepth++;
+    }
+
+    private void PopPopup()
+    {
+        _popupTierDepth--;
+        if (_builderStack.Count > 0)
+        {
+            _builder = _builderStack.Pop();
+        }
+        else
+        {
+            _builder = _baseBuilder;
         }
     }
 
@@ -946,6 +1040,10 @@ public sealed partial class UiImmediateContext
         UiStyleColor.TableRowBg1 => _theme.TableRowBg1,
         UiStyleColor.TableBorder => _theme.TableBorder,
         UiStyleColor.TextSelectedBg => _theme.TextSelectedBg,
+        UiStyleColor.ScrollbarBg => _theme.ScrollbarBg,
+        UiStyleColor.ScrollbarGrab => _theme.ScrollbarGrab,
+        UiStyleColor.ScrollbarGrabHovered => _theme.ScrollbarGrabHovered,
+        UiStyleColor.ScrollbarGrabActive => _theme.ScrollbarGrabActive,
         _ => _theme.Text,
     };
 
@@ -1030,6 +1128,10 @@ public sealed partial class UiImmediateContext
             UiStyleColor.TableRowBg1 => _theme with { TableRowBg1 = value },
             UiStyleColor.TableBorder => _theme with { TableBorder = value },
             UiStyleColor.TextSelectedBg => _theme with { TextSelectedBg = value },
+            UiStyleColor.ScrollbarBg => _theme with { ScrollbarBg = value },
+            UiStyleColor.ScrollbarGrab => _theme with { ScrollbarGrab = value },
+            UiStyleColor.ScrollbarGrabHovered => _theme with { ScrollbarGrabHovered = value },
+            UiStyleColor.ScrollbarGrabActive => _theme with { ScrollbarGrabActive = value },
             _ => _theme,
         };
     }
@@ -1045,6 +1147,16 @@ public sealed partial class UiImmediateContext
     }
 
     public UiTextureId WhiteTextureId => _whiteTexture;
+
+    public UiTextureId FontTextureId => _fontTexture;
+
+    public bool GetVSync() => _state.VSync;
+
+    public void SetVSync(bool enable) => _state.VSync = enable;
+
+    public float GetNewFrameTimeMs() => _state.NewFrameTimeMs;
+    public float GetRenderTimeMs() => _state.RenderTimeMs;
+    public float GetSubmitTimeMs() => _state.SubmitTimeMs;
 
     public UiDrawListBuilder GetBackgroundDrawList() => _baseBuilder;
 
@@ -1139,6 +1251,12 @@ public sealed partial class UiImmediateContext
         }
 
         if ((_currentItemFlags & UiItemFlags.Disabled) != 0)
+        {
+            return false;
+        }
+
+        // Block input for items not in popup tier when mouse is over any popup
+        if (_popupTierDepth == 0 && IsMouseOverAnyBlockingPopup())
         {
             return false;
         }
@@ -2208,7 +2326,7 @@ public sealed partial class UiImmediateContext
 
     private readonly record struct UiLayoutState(UiVector2 Cursor, bool IsRow, float RowMaxHeight, float LineStartX);
     private readonly record struct UiListBoxState(string Id, UiRect Rect, float ScrollY);
-    private readonly record struct UiChildState(UiRect Rect, UiVector2 Cursor);
+    private readonly record struct UiChildState(string Id, UiRect Rect, UiVector2 Cursor, float ScrollY);
     private readonly record struct UiMenuState(
         string Id,
         string MenuSetKey,

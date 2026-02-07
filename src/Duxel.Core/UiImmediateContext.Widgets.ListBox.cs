@@ -45,7 +45,7 @@ public sealed partial class UiImmediateContext
         var scrollY = _state.GetScrollY(id);
         var contentHeight = itemsCount * frameHeight;
         var maxScroll = MathF.Max(0f, contentHeight - (listRect.Height - 4f));
-        if (hovered && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f)
+        if (hovered && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f && !(_popupTierDepth == 0 && IsMouseOverAnyBlockingPopup()))
         {
             scrollY = Math.Clamp(scrollY - (_mouseWheel * frameHeight * 3f), 0f, maxScroll);
         }
@@ -92,6 +92,17 @@ public sealed partial class UiImmediateContext
                 _textSettings,
                 _lineHeight
             );
+        }
+
+        if (maxScroll > 0f)
+        {
+            var trackRect = new UiRect(
+                listRect.X + listRect.Width - ScrollbarSize,
+                listRect.Y,
+                ScrollbarSize,
+                listRect.Height
+            );
+            scrollY = RenderScrollbarV($"{id}##lbscroll", trackRect, scrollY, maxScroll, contentHeight, CurrentClipRect);
         }
         PopClipRect();
 
@@ -142,7 +153,7 @@ public sealed partial class UiImmediateContext
         var scrollY = _state.GetScrollY(id);
         var contentHeight = items.Count * frameHeight;
         var maxScroll = MathF.Max(0f, contentHeight - (listRect.Height - 4f));
-        if (hovered && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f)
+        if (hovered && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f && !(_popupTierDepth == 0 && IsMouseOverAnyBlockingPopup()))
         {
             scrollY = Math.Clamp(scrollY - (_mouseWheel * frameHeight * 3f), 0f, maxScroll);
         }
@@ -189,6 +200,17 @@ public sealed partial class UiImmediateContext
                 _textSettings,
                 _lineHeight
             );
+        }
+
+        if (maxScroll > 0f)
+        {
+            var trackRect = new UiRect(
+                listRect.X + listRect.Width - ScrollbarSize,
+                listRect.Y,
+                ScrollbarSize,
+                listRect.Height
+            );
+            scrollY = RenderScrollbarV($"{id}##lbscroll", trackRect, scrollY, maxScroll, contentHeight, CurrentClipRect);
         }
         PopClipRect();
 

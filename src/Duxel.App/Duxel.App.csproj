@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.App</PackageId>
-    <Version>0.1.4-preview</Version>
+    <Version>0.1.5-preview</Version>
     <Authors>dimohy</Authors>
     <Description>Cross-platform, ImGui-style immediate-mode GUI framework for .NET with Vulkan and GLFW backends.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

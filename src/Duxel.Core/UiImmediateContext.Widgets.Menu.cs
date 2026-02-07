@@ -166,6 +166,7 @@ public sealed partial class UiImmediateContext
 
         _openMenuPopupRects.Add(popupRect);
         _openMenuButtonRects.Add(buttonRect);
+        _state.AddPopupBlockingRect(popupRect);
 
         if (_leftMousePressed && !IsMouseOverAnyOpenMenuPopup() && !IsMouseOverAnyOpenMenuButton())
         {
@@ -173,7 +174,7 @@ public sealed partial class UiImmediateContext
             return false;
         }
 
-        PushOverlay();
+        PushPopup();
         PushClipRect(popupRect, false);
         AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
         var start = new UiVector2(popupRect.X + MenuPaddingX, popupRect.Y + MenuPaddingY);
@@ -200,7 +201,7 @@ public sealed partial class UiImmediateContext
         _state.SetMenuSize(menu.Id, new UiVector2(popupWidth, popupHeight));
 
         PopClipRect();
-        PopOverlay();
+        PopPopup();
     }
 
     public bool MenuItem(string label, bool selected = false, bool enabled = true)

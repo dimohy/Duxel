@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Duxel.Core;
@@ -8,9 +9,9 @@ public sealed class UiDrawListBuilder
     private const int MaxVerticesPerList = 60_000;
     private const int MaxIndicesPerList = 120_000;
 
-    private List<UiDrawVertex> _vertices = [];
-    private List<uint> _indices = [];
-    private List<UiDrawCommand> _commands = [];
+    private PooledBuffer<UiDrawVertex> _vertices = new();
+    private PooledBuffer<uint> _indices = new();
+    private PooledBuffer<UiDrawCommand> _commands = new();
     private List<UiDrawList> _drawLists = [];
     private readonly UiRect _clipRect;
     private UiRect _currentClipRect;
@@ -24,12 +25,12 @@ public sealed class UiDrawListBuilder
 
     private sealed class Channel
     {
-        public List<UiDrawVertex> Vertices { get; }
-        public List<uint> Indices { get; }
-        public List<UiDrawCommand> Commands { get; }
+        public PooledBuffer<UiDrawVertex> Vertices { get; }
+        public PooledBuffer<uint> Indices { get; }
+        public PooledBuffer<UiDrawCommand> Commands { get; }
         public List<UiDrawList> DrawLists { get; }
 
-        public Channel(List<UiDrawVertex> vertices, List<uint> indices, List<UiDrawCommand> commands, List<UiDrawList> drawLists)
+        public Channel(PooledBuffer<UiDrawVertex> vertices, PooledBuffer<uint> indices, PooledBuffer<UiDrawCommand> commands, List<UiDrawList> drawLists)
         {
             Vertices = vertices;
             Indices = indices;
@@ -47,20 +48,9 @@ public sealed class UiDrawListBuilder
 
     public void Reserve(int vertexCapacity, int indexCapacity, int commandCapacity)
     {
-        if (vertexCapacity > _vertices.Capacity)
-        {
-            _vertices.Capacity = vertexCapacity;
-        }
-
-        if (indexCapacity > _indices.Capacity)
-        {
-            _indices.Capacity = indexCapacity;
-        }
-
-        if (commandCapacity > _commands.Capacity)
-        {
-            _commands.Capacity = commandCapacity;
-        }
+        _vertices.EnsureCapacity(vertexCapacity);
+        _indices.EnsureCapacity(indexCapacity);
+        _commands.EnsureCapacity(commandCapacity);
     }
 
     public void AddRectFilled(UiRect rect, UiColor color, UiTextureId textureId)
@@ -184,6 +174,21 @@ public sealed class UiDrawListBuilder
         var segmentStartIndex = (uint)_indices.Count;
         var segmentElementCount = 0;
 
+        // Pre-grow lists once for the batch path, then write via spans
+        int vtxWritePos, idxWritePos;
+        if (canBatch)
+        {
+            vtxWritePos = _vertices.Count;
+            idxWritePos = _indices.Count;
+            _vertices.SetCount(vtxWritePos + estimatedVertices);
+            _indices.SetCount(idxWritePos + estimatedIndices);
+        }
+        else
+        {
+            vtxWritePos = -1;
+            idxWritePos = -1;
+        }
+
         while (index < span.Length)
         {
             if (checkClipY && lineStart && y > clipMaxY)
@@ -191,15 +196,21 @@ public sealed class UiDrawListBuilder
                 break;
             }
 
-            var status = Rune.DecodeFromUtf16(span.Slice(index), out var rune, out var consumed);
-            if (status != OperationStatus.Done || consumed == 0)
+            // Fast BMP path: direct char iteration (avoids Rune.DecodeFromUtf16)
+            int codepoint;
+            var c = span[index];
+            if (char.IsHighSurrogate(c) && index + 1 < span.Length && char.IsLowSurrogate(span[index + 1]))
             {
+                codepoint = char.ConvertToUtf32(c, span[index + 1]);
+                index += 2;
+            }
+            else
+            {
+                codepoint = c;
                 index++;
-                continue;
             }
 
-            index += consumed;
-            if (rune.Value == '\n')
+            if (codepoint == '\n')
             {
                 x = Snap(position.X, pixelSnap);
                 y = Snap(y + effectiveLineHeight, pixelSnap);
@@ -212,10 +223,10 @@ public sealed class UiDrawListBuilder
 
             if (hasPrev && hasKerning)
             {
-                x += font.GetKerning(prevChar, rune.Value) * scale;
+                x += font.GetKerning(prevChar, codepoint) * scale;
             }
 
-            if (!font.GetGlyphOrFallback(rune.Value, out var glyph))
+            if (!font.GetGlyphOrFallback(codepoint, out var glyph))
             {
                 x += effectiveLineHeight * 0.5f;
                 continue;
@@ -249,23 +260,53 @@ public sealed class UiDrawListBuilder
             var u1 = u0 + glyph.UvRect.Width;
             var v1 = v0 + glyph.UvRect.Height;
 
-            var startVertex = (uint)_vertices.Count;
-            _vertices.Add(new UiDrawVertex(new UiVector2(x0, y0), new UiVector2(u0, v0), color));
-            _vertices.Add(new UiDrawVertex(new UiVector2(x1, y0), new UiVector2(u1, v0), color));
-            _vertices.Add(new UiDrawVertex(new UiVector2(x1, y1), new UiVector2(u1, v1), color));
-            _vertices.Add(new UiDrawVertex(new UiVector2(x0, y1), new UiVector2(u0, v1), color));
+            if (canBatch)
+            {
+                // Direct span write — no bounds check per Add, no list growth
+                var vtxSpan = _vertices.AsSpan();
+                var startVertex = (uint)vtxWritePos;
+                vtxSpan[vtxWritePos] = new UiDrawVertex(new UiVector2(x0, y0), new UiVector2(u0, v0), color);
+                vtxSpan[vtxWritePos + 1] = new UiDrawVertex(new UiVector2(x1, y0), new UiVector2(u1, v0), color);
+                vtxSpan[vtxWritePos + 2] = new UiDrawVertex(new UiVector2(x1, y1), new UiVector2(u1, v1), color);
+                vtxSpan[vtxWritePos + 3] = new UiDrawVertex(new UiVector2(x0, y1), new UiVector2(u0, v1), color);
+                vtxWritePos += 4;
 
-            _indices.Add(startVertex);
-            _indices.Add(startVertex + 1);
-            _indices.Add(startVertex + 2);
-            _indices.Add(startVertex);
-            _indices.Add(startVertex + 2);
-            _indices.Add(startVertex + 3);
+                var idxSpan = _indices.AsSpan();
+                idxSpan[idxWritePos] = startVertex;
+                idxSpan[idxWritePos + 1] = startVertex + 1;
+                idxSpan[idxWritePos + 2] = startVertex + 2;
+                idxSpan[idxWritePos + 3] = startVertex;
+                idxSpan[idxWritePos + 4] = startVertex + 2;
+                idxSpan[idxWritePos + 5] = startVertex + 3;
+                idxWritePos += 6;
+            }
+            else
+            {
+                var startVertex = (uint)_vertices.Count;
+                _vertices.Add(new UiDrawVertex(new UiVector2(x0, y0), new UiVector2(u0, v0), color));
+                _vertices.Add(new UiDrawVertex(new UiVector2(x1, y0), new UiVector2(u1, v0), color));
+                _vertices.Add(new UiDrawVertex(new UiVector2(x1, y1), new UiVector2(u1, v1), color));
+                _vertices.Add(new UiDrawVertex(new UiVector2(x0, y1), new UiVector2(u0, v1), color));
+
+                _indices.Add(startVertex);
+                _indices.Add(startVertex + 1);
+                _indices.Add(startVertex + 2);
+                _indices.Add(startVertex);
+                _indices.Add(startVertex + 2);
+                _indices.Add(startVertex + 3);
+            }
 
             segmentElementCount += 6;
             x = Snap(x + (glyph.AdvanceX * scale), pixelSnap);
             hasPrev = true;
-            prevChar = rune.Value;
+            prevChar = codepoint;
+        }
+
+        // Trim over-allocated space in batch mode (newlines/invisible glyphs used fewer slots)
+        if (canBatch)
+        {
+            _vertices.SetCount(vtxWritePos);
+            _indices.SetCount(idxWritePos);
         }
 
         if (segmentElementCount > 0)
@@ -276,7 +317,7 @@ public sealed class UiDrawListBuilder
 
     public void AddCircleFilled(UiVector2 center, float radius, UiColor color, UiTextureId textureId, int segments = 12)
     {
-        AddCircleFilled(center, radius, color, textureId, _clipRect, segments);
+        AddCircleFilled(center, radius, color, textureId, _currentClipRect, segments);
     }
 
     public void AddCircleFilled(UiVector2 center, float radius, UiColor color, UiTextureId textureId, UiRect clipRect, int segments = 12)
@@ -401,10 +442,14 @@ public sealed class UiDrawListBuilder
         var x1 = rect.X + rect.Width;
         var y1 = rect.Y + rect.Height;
 
-        AddLine(new UiVector2(x0, y0), new UiVector2(x1, y0), color, thickness);
-        AddLine(new UiVector2(x1, y0), new UiVector2(x1, y1), color, thickness);
-        AddLine(new UiVector2(x1, y1), new UiVector2(x0, y1), color, thickness);
-        AddLine(new UiVector2(x0, y1), new UiVector2(x0, y0), color, thickness);
+        ReadOnlySpan<UiVector2> points =
+        [
+            new(x0, y0),
+            new(x1, y0),
+            new(x1, y1),
+            new(x0, y1),
+        ];
+        AddPolyline(points, true, color, thickness);
     }
 
     public void AddRectFilled(UiRect rect, UiColor color)
@@ -435,10 +480,8 @@ public sealed class UiDrawListBuilder
 
     public void AddQuad(UiVector2 a, UiVector2 b, UiVector2 c, UiVector2 d, UiColor color, float thickness = 1f)
     {
-        AddLine(a, b, color, thickness);
-        AddLine(b, c, color, thickness);
-        AddLine(c, d, color, thickness);
-        AddLine(d, a, color, thickness);
+        ReadOnlySpan<UiVector2> points = [a, b, c, d];
+        AddPolyline(points, true, color, thickness);
     }
 
     public void AddQuadFilled(UiVector2 a, UiVector2 b, UiVector2 c, UiVector2 d, UiColor color)
@@ -485,9 +528,8 @@ public sealed class UiDrawListBuilder
 
     public void AddTriangle(UiVector2 a, UiVector2 b, UiVector2 c, UiColor color, float thickness = 1f)
     {
-        AddLine(a, b, color, thickness);
-        AddLine(b, c, color, thickness);
-        AddLine(c, a, color, thickness);
+        ReadOnlySpan<UiVector2> points = [a, b, c];
+        AddPolyline(points, true, color, thickness);
     }
 
     public void AddTriangleFilled(UiVector2 a, UiVector2 b, UiVector2 c, UiColor color)
@@ -647,20 +689,147 @@ public sealed class UiDrawListBuilder
 
     public void AddPolyline(ReadOnlySpan<UiVector2> points, bool closed, UiColor color, float thickness = 1f)
     {
-        if (points.Length < 2)
+        var count = points.Length;
+        if (count < 2)
         {
             return;
         }
 
-        for (var i = 0; i < points.Length - 1; i++)
+        var halfThick = thickness * 0.5f;
+        var segCount = closed ? count : count - 1;
+
+        // For a single segment (open polyline with 2 points), fall back to AddLine
+        if (segCount == 1 && !closed)
         {
-            AddLine(points[i], points[i + 1], color, thickness);
+            AddLine(points[0], points[1], color, thickness);
+            return;
         }
 
-        if (closed)
+        // Allocate vertices: 2 per point (inner + outer)
+        var vertCount = count * 2;
+        var idxCount = segCount * 6; // 2 triangles per segment
+        EnsureCapacityFor(vertCount, idxCount);
+
+        var startVertex = (uint)_vertices.Count;
+        var startIndex = (uint)_indices.Count;
+        var uv = new UiVector2(0.5f, 0.5f);
+
+        // Compute offset direction at each point via miter
+        for (var i = 0; i < count; i++)
         {
-            AddLine(points[^1], points[0], color, thickness);
+            UiVector2 prev, curr, next;
+            curr = points[i];
+
+            if (closed)
+            {
+                prev = points[(i + count - 1) % count];
+                next = points[(i + 1) % count];
+            }
+            else
+            {
+                prev = i > 0 ? points[i - 1] : curr;
+                next = i < count - 1 ? points[i + 1] : curr;
+            }
+
+            // Edge normals
+            var d0x = curr.X - prev.X;
+            var d0y = curr.Y - prev.Y;
+            var d1x = next.X - curr.X;
+            var d1y = next.Y - curr.Y;
+
+            // Normalize
+            var len0 = MathF.Sqrt(d0x * d0x + d0y * d0y);
+            var len1 = MathF.Sqrt(d1x * d1x + d1y * d1y);
+
+            float n0x, n0y, n1x, n1y;
+            if (len0 > 0.0001f)
+            {
+                n0x = -d0y / len0;
+                n0y = d0x / len0;
+            }
+            else
+            {
+                n0x = 0;
+                n0y = 0;
+            }
+
+            if (len1 > 0.0001f)
+            {
+                n1x = -d1y / len1;
+                n1y = d1x / len1;
+            }
+            else
+            {
+                n1x = 0;
+                n1y = 0;
+            }
+
+            // Average normal for miter
+            float mx, my;
+            if (i == 0 && !closed)
+            {
+                mx = n1x;
+                my = n1y;
+            }
+            else if (i == count - 1 && !closed)
+            {
+                mx = n0x;
+                my = n0y;
+            }
+            else
+            {
+                mx = (n0x + n1x) * 0.5f;
+                my = (n0y + n1y) * 0.5f;
+            }
+
+            var mLen = MathF.Sqrt(mx * mx + my * my);
+            if (mLen > 0.0001f)
+            {
+                mx /= mLen;
+                my /= mLen;
+            }
+
+            // Miter length: halfThick / dot(miter, normal)
+            var dot = mx * n0x + my * n0y;
+            if (i == 0 && !closed)
+            {
+                dot = mx * n1x + my * n1y;
+            }
+
+            if (MathF.Abs(dot) < 0.1f)
+            {
+                dot = 0.1f; // Clamp to avoid extreme miter spikes
+            }
+
+            var miterLen = halfThick / dot;
+            // Clamp miter length to avoid spikes at very sharp angles
+            var maxMiter = halfThick * 3f;
+            if (miterLen > maxMiter) miterLen = maxMiter;
+            if (miterLen < -maxMiter) miterLen = -maxMiter;
+
+            var ox = mx * miterLen;
+            var oy = my * miterLen;
+
+            _vertices.Add(new UiDrawVertex(new UiVector2(curr.X + ox, curr.Y + oy), uv, color)); // outer
+            _vertices.Add(new UiDrawVertex(new UiVector2(curr.X - ox, curr.Y - oy), uv, color)); // inner
         }
+
+        // Indices: for each segment, make a quad from 2 consecutive vertex pairs
+        for (var i = 0; i < segCount; i++)
+        {
+            var i0 = (uint)(i * 2);
+            var i1 = (uint)(((i + 1) % count) * 2);
+
+            _indices.Add(startVertex + i0);     // outer current
+            _indices.Add(startVertex + i1);     // outer next
+            _indices.Add(startVertex + i1 + 1); // inner next
+
+            _indices.Add(startVertex + i0);     // outer current
+            _indices.Add(startVertex + i1 + 1); // inner next
+            _indices.Add(startVertex + i0 + 1); // inner current
+        }
+
+        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, (uint)idxCount, 0));
     }
 
     public void AddConvexPolyFilled(ReadOnlySpan<UiVector2> points, UiColor color)
@@ -846,9 +1015,9 @@ public sealed class UiDrawListBuilder
     public UiDrawList CloneOutput()
     {
         return new UiDrawList(
-            UiPooledList<UiDrawVertex>.RentAndCopy(_vertices),
-            UiPooledList<uint>.RentAndCopy(_indices),
-            UiPooledList<UiDrawCommand>.RentAndCopy(_commands)
+            UiPooledList<UiDrawVertex>.RentAndCopy(_vertices.AsSpan()),
+            UiPooledList<uint>.RentAndCopy(_indices.AsSpan()),
+            UiPooledList<UiDrawCommand>.RentAndCopy(_commands.AsSpan())
         );
     }
 
@@ -1046,7 +1215,7 @@ public sealed class UiDrawListBuilder
         _channels.Add(new Channel(_vertices, _indices, _commands, _drawLists));
         for (var i = 1; i < count; i++)
         {
-            _channels.Add(new Channel(new List<UiDrawVertex>(), new List<uint>(), new List<UiDrawCommand>(), new List<UiDrawList>()));
+            _channels.Add(new Channel(new PooledBuffer<UiDrawVertex>(), new PooledBuffer<uint>(), new PooledBuffer<UiDrawCommand>(), new List<UiDrawList>()));
         }
         _currentChannel = 0;
     }
@@ -1228,14 +1397,11 @@ public sealed class UiDrawListBuilder
 
         _drawLists.Add(
             new UiDrawList(
-                UiPooledList<UiDrawVertex>.RentAndCopy(_vertices),
-                UiPooledList<uint>.RentAndCopy(_indices),
-                UiPooledList<UiDrawCommand>.RentAndCopy(_commands)
+                _vertices.TransferToPooledList(),
+                _indices.TransferToPooledList(),
+                _commands.TransferToPooledList()
             )
         );
-        _vertices.Clear();
-        _indices.Clear();
-        _commands.Clear();
     }
 
     private void FlushChannel(Channel channel)
@@ -1252,14 +1418,11 @@ public sealed class UiDrawListBuilder
 
         channel.DrawLists.Add(
             new UiDrawList(
-                UiPooledList<UiDrawVertex>.RentAndCopy(channel.Vertices),
-                UiPooledList<uint>.RentAndCopy(channel.Indices),
-                UiPooledList<UiDrawCommand>.RentAndCopy(channel.Commands)
+                channel.Vertices.TransferToPooledList(),
+                channel.Indices.TransferToPooledList(),
+                channel.Commands.TransferToPooledList()
             )
         );
-        channel.Vertices.Clear();
-        channel.Indices.Clear();
-        channel.Commands.Clear();
     }
 
     private static UiRect Intersect(UiRect a, UiRect b)

@@ -2,16 +2,26 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Duxel.Core;
 
+[StructLayout(LayoutKind.Sequential)]
 public readonly record struct UiVector2(float X, float Y);
 
 public readonly record struct UiVector4(float X, float Y, float Z, float W);
 
 public readonly record struct UiRect(float X, float Y, float Width, float Height);
 
-public readonly record struct UiColor(uint Rgba);
+[StructLayout(LayoutKind.Sequential)]
+public readonly record struct UiColor(uint Rgba)
+{
+    /// <summary>
+    /// Creates a UiColor from individual RGBA byte components.
+    /// </summary>
+    public UiColor(byte r, byte g, byte b, byte a = 255)
+        : this((uint)a << 24 | (uint)b << 16 | (uint)g << 8 | r) { }
+}
 
 public readonly record struct UiTheme(
     UiColor Text,
@@ -44,7 +54,11 @@ public readonly record struct UiTheme(
     UiColor TableRowBg0,
     UiColor TableRowBg1,
     UiColor TableBorder,
-    UiColor TextSelectedBg
+    UiColor TextSelectedBg,
+    UiColor ScrollbarBg,
+    UiColor ScrollbarGrab,
+    UiColor ScrollbarGrabHovered,
+    UiColor ScrollbarGrabActive
 )
 {
     public static UiTheme ImGuiDark => new(
@@ -79,6 +93,10 @@ public readonly record struct UiTheme(
         new UiColor(0xFF22252A), // TableRowBg1
         new UiColor(0xFF2C2F36), // TableBorder
         new UiColor(0x88406AA3)  // TextSelectedBg
+        ,new UiColor(0x87020202)  // ScrollbarBg
+        ,new UiColor(0xFF4F4F4F) // ScrollbarGrab
+        ,new UiColor(0xFF696969) // ScrollbarGrabHovered
+        ,new UiColor(0xFF828282) // ScrollbarGrabActive
     );
 
     public static UiTheme ImGuiLight => new(
@@ -113,6 +131,10 @@ public readonly record struct UiTheme(
         new UiColor(0xFFEFEFEF), // TableRowBg1
         new UiColor(0xFFB0B0B0), // TableBorder
         new UiColor(0x804A78B0)  // TextSelectedBg
+        ,new UiColor(0x33000000)  // ScrollbarBg
+        ,new UiColor(0xFFA0A0A0) // ScrollbarGrab
+        ,new UiColor(0xFFB0B0B0) // ScrollbarGrabHovered
+        ,new UiColor(0xFFC0C0C0) // ScrollbarGrabActive
     );
 
     public static UiTheme ImGuiClassic => new(
@@ -147,6 +169,10 @@ public readonly record struct UiTheme(
         new UiColor(0xFFEFEFEF), // TableRowBg1
         new UiColor(0xFF9A9A9A), // TableBorder
         new UiColor(0x803A7BD5)  // TextSelectedBg
+        ,new UiColor(0x33000000)  // ScrollbarBg
+        ,new UiColor(0xFF9A9A9A) // ScrollbarGrab
+        ,new UiColor(0xFFAEAEAE) // ScrollbarGrabHovered
+        ,new UiColor(0xFFC0C0C0) // ScrollbarGrabActive
     );
 }
 
@@ -159,7 +185,8 @@ public sealed record class UiStyle(
     float CheckboxSpacing,
     float InputWidth,
     float SliderWidth,
-    float TreeIndent
+    float TreeIndent,
+    float ScrollbarSize
 )
 {
     public static UiStyle Default => new(
@@ -171,7 +198,8 @@ public sealed record class UiStyle(
         6f,
         240f,
         240f,
-        18f
+        18f,
+        14f
     );
 
     public UiStyle ScaleAllSizes(float scale)
@@ -188,6 +216,7 @@ public sealed record class UiStyle(
             InputWidth = InputWidth * s,
             SliderWidth = SliderWidth * s,
             TreeIndent = TreeIndent * s,
+            ScrollbarSize = ScrollbarSize * s,
         };
     }
 
@@ -227,6 +256,10 @@ public enum UiStyleColor
     TableRowBg1,
     TableBorder,
     TextSelectedBg,
+    ScrollbarBg,
+    ScrollbarGrab,
+    ScrollbarGrabHovered,
+    ScrollbarGrabActive,
 }
 
 public enum UiStyleVar
@@ -237,6 +270,7 @@ public enum UiStyleVar
     IndentSpacing,
 }
 
+[StructLayout(LayoutKind.Sequential)]
 public readonly record struct UiDrawVertex(UiVector2 Position, UiVector2 UV, UiColor Color);
 
 public readonly record struct UiTextureId(nuint Value);
@@ -465,6 +499,160 @@ public sealed record class UiDrawCommand(
 );
 
 public delegate void UiDrawCallback(UiDrawList drawList, UiDrawCommand command);
+
+/// <summary>
+/// ArrayPool-backed buffer with zero-copy transfer to <see cref="UiPooledList{T}"/>.
+/// Replaces List&lt;T&gt; for vertex/index/command buffers in draw list building.
+/// </summary>
+internal sealed class PooledBuffer<T>
+{
+    private T[] _array;
+    private int _count;
+
+    public PooledBuffer(int initialCapacity = 1024)
+    {
+        _array = ArrayPool<T>.Shared.Rent(Math.Max(initialCapacity, 16));
+        _count = 0;
+    }
+
+    public int Count
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _count;
+    }
+
+    public int Capacity => _array.Length;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void EnsureCapacity(int capacity)
+    {
+        if (capacity > _array.Length)
+        {
+            Grow(capacity);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void Grow(int capacity)
+    {
+        var newArray = ArrayPool<T>.Shared.Rent(capacity);
+        _array.AsSpan(0, _count).CopyTo(newArray);
+        ArrayPool<T>.Shared.Return(_array, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+        _array = newArray;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Add(T item)
+    {
+        var array = _array;
+        var count = _count;
+        if ((uint)count < (uint)array.Length)
+        {
+            array[count] = item;
+            _count = count + 1;
+        }
+        else
+        {
+            AddWithResize(item);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void AddWithResize(T item)
+    {
+        Grow(_count + 1);
+        _array[_count] = item;
+        _count++;
+    }
+
+    public void AddRange(IReadOnlyList<T> source)
+    {
+        var sourceCount = source.Count;
+        EnsureCapacity(_count + sourceCount);
+        if (source is UiPooledList<T> pooled)
+        {
+            pooled.AsSpan().CopyTo(_array.AsSpan(_count));
+        }
+        else
+        {
+            for (var i = 0; i < sourceCount; i++)
+            {
+                _array[_count + i] = source[i];
+            }
+        }
+        _count += sourceCount;
+    }
+
+    public ref T this[int index]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => ref _array[index];
+    }
+
+    public ref T this[Index index]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => ref _array[index.GetOffset(_count)];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Span<T> AsSpan() => _array.AsSpan(0, _count);
+
+    public void SetCount(int count)
+    {
+        if (count > _array.Length)
+        {
+            Grow(count);
+        }
+        _count = count;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Clear() => _count = 0;
+
+    public void RemoveAt(int index)
+    {
+        _count--;
+        if (index < _count)
+        {
+            Array.Copy(_array, index + 1, _array, index, _count - index);
+        }
+    }
+
+    public void RemoveRange(int start, int count)
+    {
+        if (start + count < _count)
+        {
+            Array.Copy(_array, start + count, _array, start, _count - start - count);
+        }
+        _count -= count;
+    }
+
+    public void TrimExcess()
+    {
+        // For pooled buffers, return old and rent a minimal one
+        if (_count == 0 && _array.Length > 64)
+        {
+            ArrayPool<T>.Shared.Return(_array, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+            _array = ArrayPool<T>.Shared.Rent(16);
+        }
+    }
+
+    /// <summary>
+    /// Zero-copy transfer: hands off the backing array to a <see cref="UiPooledList{T}"/> and rents a fresh buffer.
+    /// </summary>
+    public UiPooledList<T> TransferToPooledList()
+    {
+        if (_count == 0)
+        {
+            return new UiPooledList<T>(Array.Empty<T>(), 0, pooled: false);
+        }
+        var result = new UiPooledList<T>(_array, _count, pooled: true);
+        _array = ArrayPool<T>.Shared.Rent(1024);
+        _count = 0;
+        return result;
+    }
+}
 
 public sealed class UiPooledList<T> : IReadOnlyList<T>
 {
@@ -920,4 +1108,5 @@ public interface IRendererBackend : IDisposable
     void InvalidateDeviceObjects();
     void RenderDrawData(UiDrawData drawData);
     void SetMinImageCount(int count);
+    void SetVSync(bool enable);
 }

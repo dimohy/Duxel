@@ -7,7 +7,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.Vulkan</PackageId>
-    <Version>0.1.4-preview</Version>
+    <Version>0.1.5-preview</Version>
     <Authors>dimohy</Authors>
     <Description>Vulkan renderer backend for Duxel.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

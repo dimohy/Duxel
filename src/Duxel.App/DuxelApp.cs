@@ -34,7 +34,8 @@ public static class DuxelApp
 
         using var renderer = new VulkanRendererBackend(platform, new VulkanRendererOptions(
             rendererOptions.MinImageCount,
-            rendererOptions.EnableValidationLayers
+            rendererOptions.EnableValidationLayers,
+            window.VSync
         ));
         renderer.SetClearColor(theme.WindowBg);
         RenderStartupClear(renderer, platform);
@@ -169,6 +170,7 @@ public static class DuxelApp
             uiContext.SetTheme(theme);
             uiContext.SetScreen(options.Screen!);
             ConfigureContext(uiContext, options, platform, imeHandlerForContext);
+            uiContext.State.VSync = window.VSync;
             if (options.Debug.Log is { } log)
             {
                 uiContext.State.DebugLog = log;
@@ -404,6 +406,7 @@ public static class DuxelApp
 
                 if (uiContext is not null)
                 {
+                    var t0 = Stopwatch.GetTimestamp();
                     uiContext.NewFrame(frameInfo, input, clipRect, textSettings);
 
                     if (!whiteTextureCreated)
@@ -431,10 +434,26 @@ public static class DuxelApp
                         fontTextureDirty = false;
                     }
 
+                    var t1 = Stopwatch.GetTimestamp();
                     uiContext.Render();
+                    var t2 = Stopwatch.GetTimestamp();
+
                     Volatile.Write(ref cursorValue, (int)uiContext.State.MouseCursor);
+                    if (uiContext.State.ConsumeVSyncDirty())
+                    {
+                        renderer.SetVSync(uiContext.State.VSync);
+                    }
+
                     var drawData = uiContext.GetDrawData();
+                    var t3 = Stopwatch.GetTimestamp();
                     renderer.RenderDrawData(drawData);
+                    var t4 = Stopwatch.GetTimestamp();
+
+                    var tickFreq = (float)Stopwatch.Frequency / 1000f;
+                    uiContext.State.NewFrameTimeMs = (t1 - t0) / tickFreq;
+                    uiContext.State.RenderTimeMs = (t2 - t1) / tickFreq;
+                    uiContext.State.SubmitTimeMs = (t4 - t3) / tickFreq;
+
                     EmitTrace(options.Debug, ref frameCounter, drawData, fps);
                     drawData.ReleasePooled();
                     continue;
@@ -834,7 +853,7 @@ public sealed record class DuxelWindowOptions
 
 public sealed record class DuxelRendererOptions
 {
-    public int MinImageCount { get; init; } = 2;
+    public int MinImageCount { get; init; } = 3;
     public bool EnableValidationLayers { get; init; } = Debugger.IsAttached;
 }
 

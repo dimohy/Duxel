@@ -81,7 +81,8 @@ public sealed partial class UiImmediateContext
             return false;
         }
 
-        PushOverlay();
+        PushPopup();
+        _state.AddPopupBlockingRect(popupRect);
         PushClipRect(IntersectRect(_clipRect, popupRect), false);
         AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
         var start = new UiVector2(popupRect.X + 6f, popupRect.Y + 4f);
@@ -99,7 +100,7 @@ public sealed partial class UiImmediateContext
 
         _layouts.Pop();
         PopClipRect();
-        PopOverlay();
+        PopPopup();
         _popupStack.Pop();
     }
 
@@ -133,7 +134,8 @@ public sealed partial class UiImmediateContext
             // modal stays open until closed explicitly
         }
 
-        PushOverlay();
+        PushPopup();
+        _state.AddPopupBlockingRect(popupRect);
         PushClipRect(IntersectRect(_clipRect, popupRect), false);
         AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
         var start = new UiVector2(popupRect.X + 6f, popupRect.Y + 4f);
@@ -153,7 +155,7 @@ public sealed partial class UiImmediateContext
 
         _layouts.Pop();
         PopClipRect();
-        PopOverlay();
+        PopPopup();
         _popupStack.Pop();
 
         if (!open)

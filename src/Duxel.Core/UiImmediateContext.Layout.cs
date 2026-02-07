@@ -722,6 +722,7 @@ public sealed partial class UiImmediateContext
         _windowScrollY = _state.GetScrollY(title);
 
         var titleBarHeight = GetFrameHeight() + WindowPadding;
+        var expandedSize = _state.GetWindowExpandedSize(title, new UiVector2(rect.Width, rect.Height));
         if (_windowCollapsed)
         {
             rect = rect with { Height = titleBarHeight + WindowPadding };
@@ -729,6 +730,11 @@ public sealed partial class UiImmediateContext
         var titleBarRect = new UiRect(rect.X, rect.Y, rect.Width, titleBarHeight);
         var dragId = $"{title}##window_drag";
         var resizeId = $"{title}##window_resize";
+
+        // Set window rect early so close/collapse buttons get z-order checks via ItemHoverable
+        _windowRect = rect;
+        _hasWindowRect = true;
+
         var collapseSize = MathF.Min(titleBarHeight - 2f, _lineHeight + 4f);
         var collapseRect = new UiRect(
             rect.X + WindowPadding,
@@ -738,7 +744,6 @@ public sealed partial class UiImmediateContext
         );
         var collapseId = $"{title}##window_collapse";
         var collapsePressed = ButtonBehavior(collapseId, collapseRect, out var collapseHovered, out var collapseHeld);
-        var expandedSize = _state.GetWindowExpandedSize(title, new UiVector2(rect.Width, rect.Height));
         if (collapsePressed)
         {
             if (_windowCollapsed)
@@ -774,13 +779,14 @@ public sealed partial class UiImmediateContext
         var blockDrag = closeHovered || closeHeld || collapseHovered || collapseHeld;
 
         var isTopmost = IsWindowTopmostAtMouse(title, rect);
-        if (_leftMousePressed && isTopmost && IsHovering(rect))
+        var popupBlocking = _popupTierDepth == 0 && IsMouseOverAnyBlockingPopup();
+        if (_leftMousePressed && isTopmost && IsHovering(rect) && !popupBlocking)
         {
             _state.ActiveWindowId = title;
             _state.BringWindowToFront(title);
         }
 
-        if (_leftMousePressed && isTopmost && IsHovering(titleBarRect) && !blockDrag)
+        if (_leftMousePressed && isTopmost && IsHovering(titleBarRect) && !blockDrag && !popupBlocking)
         {
             _state.ActiveId = dragId;
             _state.SetScrollX(dragId, _mousePosition.X - rect.X);
@@ -798,7 +804,7 @@ public sealed partial class UiImmediateContext
             _state.ActiveId = null;
         }
 
-        var resizeBorder = MathF.Max(6f, ResizeGripSize * 0.6f);
+        var resizeBorder = MathF.Max(4f, ResizeGripSize * 0.6f - 2f);
         var gripRect = new UiRect(rect.X + rect.Width - ResizeGripSize, rect.Y + rect.Height - ResizeGripSize, ResizeGripSize, ResizeGripSize);
         var canResize = !_windowCollapsed;
         var resizeMask = 0;
@@ -962,34 +968,33 @@ public sealed partial class UiImmediateContext
             AddRectFilled(collapseRect, collapseBg, _whiteTexture);
         }
 
-        var collapseInset = MathF.Max(2f, collapseRect.Width * 0.22f);
-        var cLeft = collapseRect.X + collapseInset;
-        var cRight = collapseRect.X + collapseRect.Width - collapseInset;
-        var cTop = collapseRect.Y + collapseInset;
-        var cBottom = collapseRect.Y + collapseRect.Height - collapseInset;
+        // Chevron (꺾은선) — shallow angle so empty space is clearly visible
+        var chevronPad = MathF.Max(5f, collapseRect.Width * 0.30f);
+        var cLeft = collapseRect.X + chevronPad;
+        var cRight = collapseRect.X + collapseRect.Width - chevronPad;
+        var cTop = collapseRect.Y + chevronPad;
+        var cBottom = collapseRect.Y + collapseRect.Height - chevronPad;
         var cCenterX = (cLeft + cRight) * 0.5f;
         var cCenterY = (cTop + cBottom) * 0.5f;
+        // Use only ~55% of the box height so chevron is shallow, not a full triangle
+        var chevronHalfH = (cBottom - cTop) * 0.275f;
+        var chevronHalfW = (cRight - cLeft) * 0.275f;
+        const float chevronThickness = 1.0f;
         if (_windowCollapsed)
         {
-            _builder.AddTriangleFilled(
-                new UiVector2(cLeft, cTop),
-                new UiVector2(cLeft, cBottom),
-                new UiVector2(cRight, cCenterY),
-                _theme.Text,
-                _whiteTexture,
-                rect
-            );
+            // Chevron > (shallow)
+            var tipX = cCenterX + chevronHalfW;
+            var startX = cCenterX - chevronHalfW;
+            _builder.AddLine(new UiVector2(startX, cCenterY - chevronHalfH), new UiVector2(tipX, cCenterY), _theme.Text, chevronThickness, _whiteTexture);
+            _builder.AddLine(new UiVector2(startX, cCenterY + chevronHalfH), new UiVector2(tipX, cCenterY), _theme.Text, chevronThickness, _whiteTexture);
         }
         else
         {
-            _builder.AddTriangleFilled(
-                new UiVector2(cLeft, cTop),
-                new UiVector2(cRight, cTop),
-                new UiVector2(cCenterX, cBottom),
-                _theme.Text,
-                _whiteTexture,
-                rect
-            );
+            // Chevron ∨ (shallow)
+            var tipY = cCenterY + chevronHalfH;
+            var startY = cCenterY - chevronHalfH;
+            _builder.AddLine(new UiVector2(cCenterX - chevronHalfW, startY), new UiVector2(cCenterX, tipY), _theme.Text, chevronThickness, _whiteTexture);
+            _builder.AddLine(new UiVector2(cCenterX + chevronHalfW, startY), new UiVector2(cCenterX, tipY), _theme.Text, chevronThickness, _whiteTexture);
         }
 
         if (closeHovered || closeHeld)
@@ -1048,16 +1053,7 @@ public sealed partial class UiImmediateContext
             _windowContentStart.Y - _windowScrollY
         );
         _layouts.Push(new UiLayoutState(cursor, false, 0f, cursor.X));
-
-        var gripColor = _state.ActiveId == resizeId ? _theme.ButtonActive : IsHovering(gripRect) ? _theme.ButtonHovered : _theme.Button;
-        var step = MathF.Max(2f, ResizeGripSize / 4f);
-        for (var i = 0; i < 3; i++)
-        {
-            var size = step + (i * 2f);
-            var x = rect.X + rect.Width - WindowPadding - size;
-            var y = rect.Y + rect.Height - WindowPadding - size;
-            AddRectFilled(new UiRect(x, y, size, size), gripColor, _whiteTexture);
-        }
+        // Grip rendering is deferred to EndWindow (after scrollbars) for correct z-order
     }
 
     private bool IsWindowTopmostAtMouse(string title, UiRect rect)
@@ -1105,6 +1101,107 @@ public sealed partial class UiImmediateContext
         if (_layouts.Count <= 1)
         {
             throw new InvalidOperationException("Layout stack underflow.");
+        }
+
+        // Scrollbar + mouse wheel handling (before popping layout/clip/overlay)
+        if (_hasWindowRect && !_windowCollapsed && _currentWindowId is not null)
+        {
+            var titleBarHeight = _lineHeight + (WindowPadding * 2f);
+            var contentAreaRect = new UiRect(
+                _windowRect.X + 1f,
+                _windowRect.Y + titleBarHeight,
+                _windowRect.Width - 2f,
+                _windowRect.Height - titleBarHeight - 1f
+            );
+
+            var visibleMaxX = _windowRect.X + _windowRect.Width - WindowPadding;
+            var visibleMaxY = _windowRect.Y + _windowRect.Height - WindowPadding;
+            var maxScrollY = MathF.Max(0f, _windowContentMax.Y - visibleMaxY);
+            var maxScrollX = MathF.Max(0f, _windowContentMax.X - visibleMaxX);
+            var contentHeight = MathF.Max(1f, _windowContentMax.Y - _windowContentStart.Y);
+            var contentWidth = MathF.Max(1f, _windowContentMax.X - _windowContentStart.X);
+
+            var hasVScroll = maxScrollY > 0f;
+            var hasHScroll = maxScrollX > 0f;
+
+            // Mouse wheel
+            var isTopmost = IsWindowTopmostAtMouse(_currentWindowId, _windowRect);
+            var hovered = IsHovering(_windowRect) && isTopmost;
+            var popupBlocking = _popupTierDepth == 0 && IsMouseOverAnyBlockingPopup();
+            if (hovered && !popupBlocking)
+            {
+                if (MathF.Abs(_mouseWheel) > 0.001f && maxScrollY > 0f)
+                {
+                    _windowScrollY = Math.Clamp(_windowScrollY - (_mouseWheel * _lineHeight * 3f), 0f, maxScrollY);
+                }
+
+                if (MathF.Abs(_mouseWheelHorizontal) > 0.001f && maxScrollX > 0f)
+                {
+                    _windowScrollX = Math.Clamp(_windowScrollX - (_mouseWheelHorizontal * _lineHeight * 3f), 0f, maxScrollX);
+                }
+            }
+
+            // Vertical scrollbar (always reserve grip area at bottom)
+            if (hasVScroll)
+            {
+                var bottomReserve = MathF.Max(hasHScroll ? ScrollbarSize : 0f, ResizeGripSize);
+                var trackHeight = contentAreaRect.Height - bottomReserve;
+                var trackRect = new UiRect(
+                    contentAreaRect.X + contentAreaRect.Width - ScrollbarSize,
+                    contentAreaRect.Y,
+                    ScrollbarSize,
+                    trackHeight
+                );
+                _windowScrollY = RenderScrollbarV(
+                    $"{_currentWindowId}##wscrollv", trackRect, _windowScrollY, maxScrollY, contentHeight, _windowRect);
+            }
+
+            // Horizontal scrollbar (always reserve grip area at right)
+            if (hasHScroll)
+            {
+                var rightReserve = MathF.Max(hasVScroll ? ScrollbarSize : 0f, ResizeGripSize);
+                var trackWidth = contentAreaRect.Width - rightReserve;
+                var trackRect = new UiRect(
+                    contentAreaRect.X,
+                    contentAreaRect.Y + contentAreaRect.Height - ScrollbarSize,
+                    trackWidth,
+                    ScrollbarSize
+                );
+                _windowScrollX = RenderScrollbarH(
+                    $"{_currentWindowId}##wscrollh", trackRect, _windowScrollX, maxScrollX, contentWidth, _windowRect);
+            }
+
+            // Persist scroll for next frame
+            _state.SetScrollX(_currentWindowId, _windowScrollX);
+            _state.SetScrollY(_currentWindowId, _windowScrollY);
+
+            // Render resize grip AFTER scrollbars (correct z-order)
+            // 6 dots in triangular pattern: · / · · / · · ·
+            var gripRect = new UiRect(
+                _windowRect.X + _windowRect.Width - ResizeGripSize,
+                _windowRect.Y + _windowRect.Height - ResizeGripSize,
+                ResizeGripSize, ResizeGripSize);
+            var resId = $"{_currentWindowId}##window_resize";
+            var gripColor = _state.ActiveId == resId ? _theme.ButtonActive : IsHovering(gripRect) ? _theme.ButtonHovered : _theme.Button;
+            const float dotSize = 2f;
+            const float dotSpacing = 4f; // center-to-center distance
+            // Pattern bounding box: 3 cols x 3 rows (but triangular), total = 2*dotSpacing + dotSize
+            var patternSize = 2f * dotSpacing + dotSize;
+            // Center pattern in gripRect (with 1px border offset)
+            var patternStartX = gripRect.X + (gripRect.Width - 1f - patternSize) * 0.5f;
+            var patternStartY = gripRect.Y + (gripRect.Height - 1f - patternSize) * 0.5f;
+            // row 0: 1 dot (col 2)
+            // row 1: 2 dots (col 1, 2)
+            // row 2: 3 dots (col 0, 1, 2)
+            for (var row = 0; row < 3; row++)
+            {
+                for (var col = 2 - row; col < 3; col++)
+                {
+                    var dx = patternStartX + col * dotSpacing;
+                    var dy = patternStartY + row * dotSpacing;
+                    _builder.AddRectFilled(new UiRect(dx, dy, dotSize, dotSize), gripColor, _whiteTexture, _windowRect);
+                }
+            }
         }
 
         _layouts.Pop();

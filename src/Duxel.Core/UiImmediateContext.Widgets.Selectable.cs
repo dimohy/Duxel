@@ -42,7 +42,22 @@ public sealed partial class UiImmediateContext
         var width = textSize.X + (ButtonPaddingX * 2f);
         var size = new UiVector2(width, height);
         var cursor = AdvanceCursor(size);
-        var rect = new UiRect(cursor.X, cursor.Y, size.X, size.Y);
+
+        UiRect rect;
+        if (_comboStack.Count > 0)
+        {
+            var comboRect = _comboStack.Peek();
+            rect = new UiRect(comboRect.X, cursor.Y, comboRect.Width, size.Y);
+        }
+        else if (_listBoxStack.Count > 0)
+        {
+            var listRect = _listBoxStack.Peek().Rect;
+            rect = new UiRect(listRect.X, cursor.Y, listRect.Width, size.Y);
+        }
+        else
+        {
+            rect = new UiRect(cursor.X, cursor.Y, size.X, size.Y);
+        }
 
         var pressed = ButtonBehavior(label, rect, out var hovered, out _);
 

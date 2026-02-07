@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Runtime.CompilerServices;
 
 namespace Duxel.Core;
 
@@ -36,6 +37,11 @@ public sealed class UiFontAtlas
 	private float _lastKerningValue;
 	private bool _lastKerningValid;
 
+	// Fast ASCII glyph cache (0-127)
+	private const int AsciiCacheSize = 128;
+	private readonly UiGlyphInfo[] _asciiGlyphs = new UiGlyphInfo[AsciiCacheSize];
+	private readonly bool[] _asciiGlyphValid = new bool[AsciiCacheSize];
+
 	public UiFontAtlas(int width, int height, UiTextureFormat format, byte[] pixels)
 		: this(width, height, format, pixels, new Dictionary<int, UiGlyphInfo>(), new Dictionary<uint, float>(), 0, 0, 0, -1)
 	{
@@ -64,6 +70,21 @@ public sealed class UiFontAtlas
 		Descent = descent;
 		LineGap = lineGap;
 		FallbackCodepoint = fallbackCodepoint;
+
+		// Pre-populate ASCII glyph cache
+		for (int i = 0; i < AsciiCacheSize; i++)
+		{
+			if (glyphs.TryGetValue(i, out var g))
+			{
+				_asciiGlyphs[i] = g;
+				_asciiGlyphValid[i] = true;
+			}
+			else if (fallbackCodepoint >= 0 && glyphs.TryGetValue(fallbackCodepoint, out g))
+			{
+				_asciiGlyphs[i] = g;
+				_asciiGlyphValid[i] = true;
+			}
+		}
 	}
 
 	public bool TryGetGlyph(char c, out UiGlyphInfo glyph) => TryGetGlyph((int)c, out glyph);
@@ -87,7 +108,25 @@ public sealed class UiFontAtlas
 		return false;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public bool GetGlyphOrFallback(int codepoint, out UiGlyphInfo glyph)
+	{
+		// Fast path: ASCII range — direct array lookup, no hashing
+		if ((uint)codepoint < AsciiCacheSize)
+		{
+			if (_asciiGlyphValid[codepoint])
+			{
+				glyph = _asciiGlyphs[codepoint];
+				return true;
+			}
+			glyph = default;
+			return false;
+		}
+
+		return GetGlyphOrFallbackSlow(codepoint, out glyph);
+	}
+
+	private bool GetGlyphOrFallbackSlow(int codepoint, out UiGlyphInfo glyph)
 	{
 		if (_lastGlyphValid && _lastGlyphCodepoint == codepoint)
 		{

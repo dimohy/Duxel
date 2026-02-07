@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Duxel.Core;
 using Silk.NET.Core;
@@ -14,7 +15,8 @@ namespace Duxel.Vulkan;
 
 public readonly record struct VulkanRendererOptions(
     int MinImageCount,
-    bool EnableValidationLayers
+    bool EnableValidationLayers,
+    bool EnableVSync = true
 );
 
 public sealed unsafe class VulkanRendererBackend : IRendererBackend
@@ -34,7 +36,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     ];
 
     private readonly Vk _vk = Vk.GetApi();
-    private readonly VulkanRendererOptions _options;
+    private VulkanRendererOptions _options;
     private readonly IVulkanSurfaceSource _surfaceSource;
     private readonly IPlatformBackend _platform;
     private int _minImageCount;
@@ -86,6 +88,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     private readonly string _pipelineCachePath;
     private nuint _pipelineCacheSize;
     private ulong _pipelineCacheHash;
+
+    // MSAA resources
+    private const SampleCountFlags MsaaSampleCount = SampleCountFlags.Count4Bit;
+    private Image _msaaColorImage;
+    private DeviceMemory _msaaColorMemory;
+    private ImageView _msaaColorImageView;
 
     private static readonly byte[] VertexShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui.vert.spv");
     private static readonly byte[] FragmentShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui.frag.spv");
@@ -165,12 +173,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
         fixed (Fence* fence = &frameData.InFlight)
         {
-            var waitResult = _vk.WaitForFences(_device, 1, fence, true, 0);
-            if (waitResult == Result.Timeout)
-            {
-                return;
-            }
-            Check(waitResult);
+            Check(_vk.WaitForFences(_device, 1, fence, true, ulong.MaxValue));
         }
 
         FlushPendingTextureDestroys(frame);
@@ -180,20 +183,15 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         _semaphoreIndex = (_semaphoreIndex + 1) % _frameSemaphores.Length;
         var imageAvailable = semaphores.ImageAvailable;
         uint imageIndex = 0;
-        var acquireResult = _khrSwapchain.AcquireNextImage(_device, _swapchain, 0, imageAvailable, default, &imageIndex);
+        var acquireResult = _khrSwapchain.AcquireNextImage(_device, _swapchain, ulong.MaxValue, imageAvailable, default, &imageIndex);
         if (acquireResult == Result.ErrorOutOfDateKhr)
         {
             RecreateSwapchain();
-            acquireResult = _khrSwapchain.AcquireNextImage(_device, _swapchain, 0, imageAvailable, default, &imageIndex);
+            acquireResult = _khrSwapchain.AcquireNextImage(_device, _swapchain, ulong.MaxValue, imageAvailable, default, &imageIndex);
             if (acquireResult == Result.ErrorOutOfDateKhr)
             {
                 return;
             }
-        }
-
-        if (acquireResult == Result.Timeout || acquireResult == Result.NotReady)
-        {
-            return;
         }
 
         if (acquireResult != Result.Success && !IsSuboptimal(acquireResult))
@@ -375,6 +373,22 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         }
     }
 
+    public void SetVSync(bool enable)
+    {
+        if (_options.EnableVSync == enable)
+        {
+            return;
+        }
+
+        _options = _options with { EnableVSync = enable };
+        if (_swapchain.Handle is not 0)
+        {
+            _frameIndex = 0;
+            Array.Clear(_imagesInFlight, 0, _imagesInFlight.Length);
+            RecreateSwapchain();
+        }
+    }
+
     public void Dispose()
     {
         SavePipelineCache();
@@ -416,6 +430,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         CreatePipelineCache();
         CreateGraphicsPipeline();
         SavePipelineCache();
+        CreateMsaaColorImage();
         CreateFramebuffers();
         CreateSyncObjects();
     }
@@ -491,6 +506,8 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             _vk.DestroyFramebuffer(_device, framebuffer, null);
         }
+
+        DestroyMsaaColorImage();
 
         if (_renderPass.Handle is not 0)
         {
@@ -624,9 +641,11 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         public VkBuffer VertexBuffer;
         public DeviceMemory VertexMemory;
         public nuint VertexSize;
+        public unsafe void* VertexMappedPtr;
         public VkBuffer IndexBuffer;
         public DeviceMemory IndexMemory;
         public nuint IndexSize;
+        public unsafe void* IndexMappedPtr;
     }
 
     private readonly record struct BufferResource(VkBuffer Buffer, DeviceMemory Memory);
@@ -1007,11 +1026,25 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
     private unsafe void CreateRenderPass()
     {
-        var colorAttachment = new AttachmentDescription
+        // Attachment 0: MSAA color attachment (multisampled, not stored directly)
+        var msaaColorAttachment = new AttachmentDescription
+        {
+            Format = _swapchainFormat,
+            Samples = MsaaSampleCount,
+            LoadOp = AttachmentLoadOp.Clear,
+            StoreOp = AttachmentStoreOp.DontCare,  // MSAA image not needed after resolve
+            StencilLoadOp = AttachmentLoadOp.DontCare,
+            StencilStoreOp = AttachmentStoreOp.DontCare,
+            InitialLayout = ImageLayout.Undefined,
+            FinalLayout = ImageLayout.ColorAttachmentOptimal,
+        };
+
+        // Attachment 1: Resolve attachment (swapchain image, single-sampled)
+        var resolveAttachment = new AttachmentDescription
         {
             Format = _swapchainFormat,
             Samples = SampleCountFlags.Count1Bit,
-            LoadOp = AttachmentLoadOp.Clear,
+            LoadOp = AttachmentLoadOp.DontCare,
             StoreOp = AttachmentStoreOp.Store,
             StencilLoadOp = AttachmentLoadOp.DontCare,
             StencilStoreOp = AttachmentStoreOp.DontCare,
@@ -1025,11 +1058,18 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             Layout = ImageLayout.ColorAttachmentOptimal,
         };
 
+        var resolveAttachmentRef = new AttachmentReference
+        {
+            Attachment = 1,
+            Layout = ImageLayout.ColorAttachmentOptimal,
+        };
+
         var subpass = new SubpassDescription
         {
             PipelineBindPoint = PipelineBindPoint.Graphics,
             ColorAttachmentCount = 1,
             PColorAttachments = &colorAttachmentRef,
+            PResolveAttachments = &resolveAttachmentRef,
         };
 
         var dependency = new SubpassDependency
@@ -1043,11 +1083,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             DependencyFlags = DependencyFlags.ByRegionBit,
         };
 
+        var attachments = stackalloc AttachmentDescription[] { msaaColorAttachment, resolveAttachment };
         var renderPassInfo = new RenderPassCreateInfo
         {
             SType = StructureType.RenderPassCreateInfo,
-            AttachmentCount = 1,
-            PAttachments = &colorAttachment,
+            AttachmentCount = 2,
+            PAttachments = attachments,
             SubpassCount = 1,
             PSubpasses = &subpass,
             DependencyCount = 1,
@@ -1236,7 +1277,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             var multisampling = new PipelineMultisampleStateCreateInfo
             {
                 SType = StructureType.PipelineMultisampleStateCreateInfo,
-                RasterizationSamples = SampleCountFlags.Count1Bit,
+                RasterizationSamples = MsaaSampleCount,
                 SampleShadingEnable = false,
                 MinSampleShading = 1.0f,
                 PSampleMask = null,
@@ -1558,6 +1599,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
         if (renderBuffers.VertexBuffer.Handle is not 0)
         {
+            if (renderBuffers.VertexMappedPtr is not null)
+            {
+                _vk.UnmapMemory(_device, renderBuffers.VertexMemory);
+                renderBuffers.VertexMappedPtr = null;
+            }
+
             QueueBufferDestroy(renderBuffers.VertexBuffer, renderBuffers.VertexMemory);
             renderBuffers.VertexBuffer = default;
             renderBuffers.VertexMemory = default;
@@ -1582,6 +1629,10 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             out renderBuffers.VertexMemory
         );
 
+        void* mapped;
+        Check(_vk.MapMemory(_device, renderBuffers.VertexMemory, 0, newSize, 0, &mapped));
+        renderBuffers.VertexMappedPtr = mapped;
+
         renderBuffers.VertexSize = newSize;
         frameData.RenderBuffers = renderBuffers;
         _frames[frame] = frameData;
@@ -1599,6 +1650,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
         if (renderBuffers.IndexBuffer.Handle is not 0)
         {
+            if (renderBuffers.IndexMappedPtr is not null)
+            {
+                _vk.UnmapMemory(_device, renderBuffers.IndexMemory);
+                renderBuffers.IndexMappedPtr = null;
+            }
+
             QueueBufferDestroy(renderBuffers.IndexBuffer, renderBuffers.IndexMemory);
             renderBuffers.IndexBuffer = default;
             renderBuffers.IndexMemory = default;
@@ -1623,6 +1680,10 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             out renderBuffers.IndexMemory
         );
 
+        void* mapped;
+        Check(_vk.MapMemory(_device, renderBuffers.IndexMemory, 0, newSize, 0, &mapped));
+        renderBuffers.IndexMappedPtr = mapped;
+
         renderBuffers.IndexSize = newSize;
         frameData.RenderBuffers = renderBuffers;
         _frames[frame] = frameData;
@@ -1632,52 +1693,21 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     {
         var frameData = _frames[frame];
         var renderBuffers = frameData.RenderBuffers;
-        var vertexSize = (nuint)(drawData.TotalVertexCount * sizeof(UiVertex));
-        var indexSize = (nuint)(drawData.TotalIndexCount * sizeof(uint));
 
-        void* vertexPtr;
-        void* indexPtr;
-        Check(_vk.MapMemory(_device, renderBuffers.VertexMemory, 0, vertexSize, 0, &vertexPtr));
-        Check(_vk.MapMemory(_device, renderBuffers.IndexMemory, 0, indexSize, 0, &indexPtr));
+        var vertexDst = (byte*)renderBuffers.VertexMappedPtr;
+        var indexDst = (byte*)renderBuffers.IndexMappedPtr;
 
-        try
+        for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
         {
-            var vertexSpan = new Span<UiVertex>(vertexPtr, drawData.TotalVertexCount);
-            var indexSpan = new Span<uint>(indexPtr, drawData.TotalIndexCount);
+            var drawList = drawData.DrawLists[listIndex];
 
-            var vertexOffset = 0;
-            var indexOffset = 0;
+            var vertexSrc = MemoryMarshal.AsBytes(drawList.Vertices.AsSpan());
+            vertexSrc.CopyTo(new Span<byte>(vertexDst, vertexSrc.Length));
+            vertexDst += vertexSrc.Length;
 
-            for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
-            {
-                var drawList = drawData.DrawLists[listIndex];
-                var vertices = drawList.Vertices;
-                var vertexCount = vertices.Count;
-                var vertexDest = vertexSpan.Slice(vertexOffset, vertexCount);
-                for (var i = 0; i < vertexCount; i++)
-                {
-                    ref readonly var vertex = ref vertices.ItemRef(i);
-                    ref var dst = ref vertexDest[i];
-                    dst.PositionX = vertex.Position.X;
-                    dst.PositionY = vertex.Position.Y;
-                    dst.UVx = vertex.UV.X;
-                    dst.UVy = vertex.UV.Y;
-                    dst.Color = vertex.Color.Rgba;
-                }
-
-                var indices = drawList.Indices;
-                var indexCount = indices.Count;
-                var indexDest = indexSpan.Slice(indexOffset, indexCount);
-                indices.AsSpan().CopyTo(indexDest);
-
-                vertexOffset += vertexCount;
-                indexOffset += indexCount;
-            }
-        }
-        finally
-        {
-            _vk.UnmapMemory(_device, renderBuffers.VertexMemory);
-            _vk.UnmapMemory(_device, renderBuffers.IndexMemory);
+            var indexSrc = MemoryMarshal.AsBytes(drawList.Indices.AsSpan());
+            indexSrc.CopyTo(new Span<byte>(indexDst, indexSrc.Length));
+            indexDst += indexSrc.Length;
         }
     }
 
@@ -1856,6 +1886,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
             if (renderBuffers.VertexBuffer.Handle is not 0)
             {
+                if (renderBuffers.VertexMappedPtr is not null)
+                {
+                    _vk.UnmapMemory(_device, renderBuffers.VertexMemory);
+                    renderBuffers.VertexMappedPtr = null;
+                }
+
                 DestroyBufferResource(new BufferResource(renderBuffers.VertexBuffer, renderBuffers.VertexMemory));
                 renderBuffers.VertexBuffer = default;
                 renderBuffers.VertexMemory = default;
@@ -1864,6 +1900,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
             if (renderBuffers.IndexBuffer.Handle is not 0)
             {
+                if (renderBuffers.IndexMappedPtr is not null)
+                {
+                    _vk.UnmapMemory(_device, renderBuffers.IndexMemory);
+                    renderBuffers.IndexMappedPtr = null;
+                }
+
                 DestroyBufferResource(new BufferResource(renderBuffers.IndexBuffer, renderBuffers.IndexMemory));
                 renderBuffers.IndexBuffer = default;
                 renderBuffers.IndexMemory = default;
@@ -2584,19 +2626,105 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         public uint Color;
     }
 
+    private unsafe void CreateMsaaColorImage()
+    {
+        var imageInfo = new ImageCreateInfo
+        {
+            SType = StructureType.ImageCreateInfo,
+            ImageType = ImageType.Type2D,
+            Extent = new Extent3D(_swapchainExtent.Width, _swapchainExtent.Height, 1),
+            MipLevels = 1,
+            ArrayLayers = 1,
+            Format = _swapchainFormat,
+            Tiling = ImageTiling.Optimal,
+            InitialLayout = ImageLayout.Undefined,
+            Usage = ImageUsageFlags.TransientAttachmentBit | ImageUsageFlags.ColorAttachmentBit,
+            Samples = MsaaSampleCount,
+            SharingMode = SharingMode.Exclusive,
+        };
+
+        fixed (Image* img = &_msaaColorImage)
+        {
+            Check(_vk.CreateImage(_device, &imageInfo, null, img));
+        }
+
+        _vk.GetImageMemoryRequirements(_device, _msaaColorImage, out var memRequirements);
+
+        var allocInfo = new MemoryAllocateInfo
+        {
+            SType = StructureType.MemoryAllocateInfo,
+            AllocationSize = memRequirements.Size,
+            MemoryTypeIndex = FindMemoryType(memRequirements.MemoryTypeBits, MemoryPropertyFlags.DeviceLocalBit),
+        };
+
+        fixed (DeviceMemory* mem = &_msaaColorMemory)
+        {
+            Check(_vk.AllocateMemory(_device, &allocInfo, null, mem));
+        }
+
+        Check(_vk.BindImageMemory(_device, _msaaColorImage, _msaaColorMemory, 0));
+
+        var viewInfo = new ImageViewCreateInfo
+        {
+            SType = StructureType.ImageViewCreateInfo,
+            Image = _msaaColorImage,
+            ViewType = ImageViewType.Type2D,
+            Format = _swapchainFormat,
+            SubresourceRange = new ImageSubresourceRange
+            {
+                AspectMask = ImageAspectFlags.ColorBit,
+                BaseMipLevel = 0,
+                LevelCount = 1,
+                BaseArrayLayer = 0,
+                LayerCount = 1,
+            },
+        };
+
+        fixed (ImageView* view = &_msaaColorImageView)
+        {
+            Check(_vk.CreateImageView(_device, &viewInfo, null, view));
+        }
+    }
+
+    private void DestroyMsaaColorImage()
+    {
+        if (_msaaColorImageView.Handle is not 0)
+        {
+            _vk.DestroyImageView(_device, _msaaColorImageView, null);
+            _msaaColorImageView = default;
+        }
+
+        if (_msaaColorImage.Handle is not 0)
+        {
+            _vk.DestroyImage(_device, _msaaColorImage, null);
+            _msaaColorImage = default;
+        }
+
+        if (_msaaColorMemory.Handle is not 0)
+        {
+            _vk.FreeMemory(_device, _msaaColorMemory, null);
+            _msaaColorMemory = default;
+        }
+    }
+
     private unsafe void CreateFramebuffers()
     {
         _framebuffers = new Framebuffer[_swapchainImageViews.Length];
 
+        // Allocate outside loop to avoid CA2014 (stackalloc in loop)
+        var attachments = stackalloc ImageView[2];
+        attachments[0] = _msaaColorImageView;
+
         for (var i = 0; i < _swapchainImageViews.Length; i++)
         {
-            var attachment = _swapchainImageViews[i];
+            // Attachment 0: MSAA color, Attachment 1: resolve (swapchain)
+            attachments[1] = _swapchainImageViews[i];
             var framebufferInfo = new FramebufferCreateInfo
             {
                 SType = StructureType.FramebufferCreateInfo,
                 RenderPass = _renderPass,
-                AttachmentCount = 1,
-                PAttachments = &attachment,
+                AttachmentCount = 2,
+                PAttachments = attachments,
                 Width = _swapchainExtent.Width,
                 Height = _swapchainExtent.Height,
                 Layers = 1,
@@ -2727,8 +2855,29 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         return formats[0];
     }
 
-    private static unsafe PresentModeKHR ChoosePresentMode(PresentModeKHR* modes, uint count)
+    private unsafe PresentModeKHR ChoosePresentMode(PresentModeKHR* modes, uint count)
     {
+        if (!_options.EnableVSync)
+        {
+            // Immediate: uncapped FPS (may tear)
+            for (var i = 0u; i < count; i++)
+            {
+                if (modes[i] == PresentModeKHR.ImmediateKhr)
+                {
+                    return PresentModeKHR.ImmediateKhr;
+                }
+            }
+
+            // Mailbox: capped at monitor refresh but no tearing
+            for (var i = 0u; i < count; i++)
+            {
+                if (modes[i] == PresentModeKHR.MailboxKhr)
+                {
+                    return PresentModeKHR.MailboxKhr;
+                }
+            }
+        }
+
         return PresentModeKHR.FifoKhr;
     }
 

@@ -106,3 +106,18 @@
    6. 로그/디버그/INI/메모리: Log/Debug/Settings/Allocator API
    7. 기타 유틸/색 변환/키 이벤트: ColorConvert, Input 이벤트 큐 API
 
+- [ ] 렌더링 성능 최적화
+   - [x] Vulkan 동기화: Fence/AcquireNextImage 블로킹 대기 (CPU 스피닝 제거)
+   - [x] VSync 런타임 토글 (Mailbox/Immediate/FIFO 자동 선택)
+   - [x] Persistent Mapped Buffers (Map 1회 → 매 프레임 Span.CopyTo)
+   - [x] StructLayout Sequential + MemoryMarshal.AsBytes 벌크 memcpy
+   - [x] Triple Buffering (MinImageCount=3)
+   - [x] CPU 프로파일링 계측 (NF/R/S 타이밍)
+   - [x] ASCII 글리프 캐시 (128-entry 배열 → Dictionary 해시 제거)
+   - [x] AddText 배치 쓰기 (PooledBuffer.SetCount + AsSpan, Rune 디코딩 제거)
+   - [x] Draw List Zero-Copy (PooledBuffer.TransferToPooledList — 배열 소유권 이전, memcpy 제거)
+   - [ ] Idle Frame Skip: 입력 변화가 없을 때 프레임 스킵하여 CPU/GPU 유휴 절전
+     - 설계 고려사항: 애니메이션/타이머 콜백 시 강제 렌더, 외부 이벤트(리사이즈/포커스) 시 강제 렌더
+     - WaitEvents vs PollEvents 전환 방식, 혹은 프레임 카운터/더티 플래그 방식 검토
+     - ImGui의 `io.WantCaptureMouse`/`io.WantCaptureKeyboard` 참고
+
