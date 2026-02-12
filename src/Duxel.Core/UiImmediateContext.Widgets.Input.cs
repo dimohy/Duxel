@@ -39,6 +39,22 @@ public sealed partial class UiImmediateContext
         var inputRect = new UiRect(cursor.X + textSize.X + ItemSpacingX, cursor.Y + (height - frameHeight) * 0.5f, inputWidth, frameHeight);
         var inputClip = IntersectRect(CurrentClipRect, inputRect);
         var hovered = ItemHoverable(id, inputRect);
+        var compositionOwner = _state.ActiveId ?? _state.PreviousActiveId;
+        var compositionTextAtFocus = _imeHandler?.GetCompositionText();
+        var compositionActive = !string.IsNullOrEmpty(compositionTextAtFocus)
+            || (_charEvents.Count > 0 && !string.IsNullOrEmpty(_state.PreviousActiveId));
+        var lockFocusForIme = compositionActive
+            && !string.IsNullOrEmpty(compositionOwner)
+            && !string.Equals(compositionOwner, id, StringComparison.Ordinal);
+        var lockFocusClearForIme = compositionActive && !string.IsNullOrEmpty(compositionOwner);
+
+        if (!compositionActive
+            && !string.IsNullOrEmpty(_state.PendingTextInputFocusId)
+            && string.Equals(_state.PendingTextInputFocusId, id, StringComparison.Ordinal))
+        {
+            _state.ActiveId = id;
+            _state.PendingTextInputFocusId = null;
+        }
 
         var caretIndex = ClampCaret(text, _state.GetCursor(id, text.Length));
         var initialCaretIndex = caretIndex;
@@ -48,24 +64,40 @@ public sealed partial class UiImmediateContext
         {
             if (hovered)
             {
-                _state.ActiveId = id;
-                var caret = GetCaretIndexFromMouse(text, inputRect.X + 6f - scrollX);
-                var anchor = caretIndex;
-                var shiftClick = (_state.Modifiers & KeyModifiers.Shift) != 0;
-                selection = shiftClick ? new UiTextSelection(anchor, caret) : new UiTextSelection(caret, caret);
-                caretIndex = caret;
-                _state.SetCursor(id, caret);
-                caretMoved = true;
-                if (_state.RegisterClick(id, _mousePosition))
+                var allowActivate = !lockFocusForIme || _charEvents.Count > 0;
+                if (allowActivate)
                 {
-                    SelectWordAt(text, ref caret, ref selection);
+                    _state.ActiveId = id;
+                    var caret = GetCaretIndexFromMouse(text, inputRect.X + 6f - scrollX);
+                    var anchor = caretIndex;
+                    var shiftClick = (_state.Modifiers & KeyModifiers.Shift) != 0;
+                    selection = shiftClick ? new UiTextSelection(anchor, caret) : new UiTextSelection(caret, caret);
                     caretIndex = caret;
+                    _state.SetCursor(id, caret);
                     caretMoved = true;
+                    if (_state.RegisterClick(id, _mousePosition))
+                    {
+                        SelectWordAt(text, ref caret, ref selection);
+                        caretIndex = caret;
+                        caretMoved = true;
+                    }
+
+                    if (string.Equals(_state.PendingTextInputFocusId, id, StringComparison.Ordinal))
+                    {
+                        _state.PendingTextInputFocusId = null;
+                    }
+                }
+                else
+                {
+                    _state.PendingTextInputFocusId = id;
                 }
             }
             else if (_state.ActiveId == id)
             {
-                _state.ActiveId = null;
+                if (!lockFocusClearForIme)
+                {
+                    _state.ActiveId = null;
+                }
             }
         }
 
@@ -76,8 +108,21 @@ public sealed partial class UiImmediateContext
         var changed = false;
         var historyChanged = false;
         selection = ClampSelection(selection, text.Length, caretIndex);
+
+        var committedText = _imeHandler?.ConsumeCommittedText(id);
+        if (!string.IsNullOrEmpty(committedText))
+        {
+            var committedInsert = SanitizeText(committedText, false);
+            if (!string.IsNullOrEmpty(committedInsert))
+            {
+                changed |= InsertText(ref buffer, ref text, ref caretIndex, ref selection, committedInsert, maxLength);
+            }
+        }
+
         if (active)
         {
+            _imeHandler?.SetCompositionOwner(id);
+
             if (_leftMouseDown && hovered)
             {
                 var dragCaret = GetCaretIndexFromMouse(text, inputRect.X + 6f - scrollX);
@@ -239,23 +284,27 @@ public sealed partial class UiImmediateContext
                 changed = true;
             }
 
-            foreach (var charEvent in _charEvents)
+            var skipCharEventsForIme = _imeHandler is not null;
+            if (!skipCharEventsForIme)
             {
-                if (text.Length >= maxLength)
+                foreach (var charEvent in _charEvents)
                 {
-                    break;
-                }
+                    if (text.Length >= maxLength)
+                    {
+                        break;
+                    }
 
-                var rune = new System.Text.Rune((int)charEvent.CodePoint);
-                if (rune.Value < 0x20)
-                {
-                    continue;
-                }
+                    var rune = new System.Text.Rune((int)charEvent.CodePoint);
+                    if (rune.Value < 0x20)
+                    {
+                        continue;
+                    }
 
-                var insert = SanitizeText(rune.ToString(), false);
-                if (!string.IsNullOrEmpty(insert))
-                {
-                    changed |= InsertText(ref buffer, ref text, ref caretIndex, ref selection, insert, maxLength);
+                    var insert = SanitizeText(rune.ToString(), false);
+                    if (!string.IsNullOrEmpty(insert))
+                    {
+                        changed |= InsertText(ref buffer, ref text, ref caretIndex, ref selection, insert, maxLength);
+                    }
                 }
             }
         }
@@ -303,26 +352,41 @@ public sealed partial class UiImmediateContext
             var selectionRect = new UiRect(startX, inputRect.Y + 2f, endX - startX, inputRect.Height - 4f);
             _builder.AddRectFilled(selectionRect, _theme.TextSelectedBg, _whiteTexture, inputClip);
         }
-        _builder.AddText(
-            _fontAtlas,
-            text,
-            textPos,
-            _theme.Text,
-            _fontTexture,
-            inputClip,
-            _textSettings,
-            _lineHeight
-        );
+        if (active)
+        {
+            DrawTextWithoutFallback(text, textPos, _theme.Text, inputClip);
+        }
+        else
+        {
+            _builder.AddText(
+                _fontAtlas,
+                text,
+                textPos,
+                _theme.Text,
+                _fontTexture,
+                inputClip,
+                _textSettings,
+                _lineHeight
+            );
+        }
 
         if (active)
         {
             var caretX = MathF.Round(textPos.X + MeasureTextWidth(text, caretIndex));
+            var drawCaretX = caretX;
             var caretWidth = MathF.Max(0.75f, 1f / MathF.Max(1f, _textSettings.Scale));
-            var caretLeft = Math.Clamp(caretX, inputRect.X, inputRect.X + inputRect.Width - caretWidth);
+            GetImeFontMetrics(text, caretIndex, out var fontPixelHeight, out var fontPixelWidth);
+            _imeHandler?.SetCaretRect(new UiRect(caretX, inputRect.Y + 3f, caretWidth, inputRect.Height - 6f), inputRect, fontPixelHeight, fontPixelWidth);
+            var compositionText = _imeHandler?.GetCompositionText();
+            if (!string.IsNullOrEmpty(compositionText))
+            {
+                DrawImeCompositionInline(compositionText, caretX, textPos.Y, inputRect, inputClip);
+                drawCaretX = MathF.Round(caretX + MeasureTextWidth(compositionText, compositionText.Length));
+            }
+
+            var caretLeft = Math.Clamp(drawCaretX, inputRect.X, inputRect.X + inputRect.Width - caretWidth);
             var caretTop = Math.Clamp(inputRect.Y + 3f, inputRect.Y, inputRect.Y + inputRect.Height - (inputRect.Height - 6f));
             var caretRect = new UiRect(caretLeft, caretTop, caretWidth, inputRect.Height - 6f);
-            GetImeFontMetrics(text, caretIndex, out var fontPixelHeight, out var fontPixelWidth);
-            _imeHandler?.SetCaretRect(caretRect, inputRect, fontPixelHeight, fontPixelWidth);
             if (IsCaretBlinkOn())
             {
                 _builder.AddRectFilled(caretRect, _theme.Text, _whiteTexture, inputClip);
@@ -682,6 +746,22 @@ public sealed partial class UiImmediateContext
         var inputRect = new UiRect(cursor.X + textSize.X + ItemSpacingX, cursor.Y, inputWidth, height);
         var inputClip = IntersectRect(CurrentClipRect, inputRect);
         var hovered = ItemHoverable(id, inputRect);
+        var compositionOwner = _state.ActiveId ?? _state.PreviousActiveId;
+        var compositionTextAtFocus = _imeHandler?.GetCompositionText();
+        var compositionActive = !string.IsNullOrEmpty(compositionTextAtFocus)
+            || (_charEvents.Count > 0 && !string.IsNullOrEmpty(_state.PreviousActiveId));
+        var lockFocusForIme = compositionActive
+            && !string.IsNullOrEmpty(compositionOwner)
+            && !string.Equals(compositionOwner, id, StringComparison.Ordinal);
+        var lockFocusClearForIme = compositionActive && !string.IsNullOrEmpty(compositionOwner);
+
+        if (!compositionActive
+            && !string.IsNullOrEmpty(_state.PendingTextInputFocusId)
+            && string.Equals(_state.PendingTextInputFocusId, id, StringComparison.Ordinal))
+        {
+            _state.ActiveId = id;
+            _state.PendingTextInputFocusId = null;
+        }
 
         var caretIndex = ClampCaret(text, _state.GetCursor(id, text.Length));
         var initialCaretIndex = caretIndex;
@@ -714,24 +794,40 @@ public sealed partial class UiImmediateContext
         {
             if (hovered)
             {
-                _state.ActiveId = id;
-                var caret = GetCaretIndexFromMouseMultiline(text, inputRect.X + 6f - scrollX, inputRect.Y + 4f - scrollY, _lineHeight);
-                var anchor = caretIndex;
-                var shiftClick = (_state.Modifiers & KeyModifiers.Shift) != 0;
-                selection = shiftClick ? new UiTextSelection(anchor, caret) : new UiTextSelection(caret, caret);
-                caretIndex = caret;
-                _state.SetCursor(id, caret);
-                caretMoved = true;
-                if (_state.RegisterClick(id, _mousePosition))
+                var allowActivate = !lockFocusForIme || _charEvents.Count > 0;
+                if (allowActivate)
                 {
-                    SelectWordAt(text, ref caret, ref selection);
+                    _state.ActiveId = id;
+                    var caret = GetCaretIndexFromMouseMultiline(text, inputRect.X + 6f - scrollX, inputRect.Y + 4f - scrollY, _lineHeight);
+                    var anchor = caretIndex;
+                    var shiftClick = (_state.Modifiers & KeyModifiers.Shift) != 0;
+                    selection = shiftClick ? new UiTextSelection(anchor, caret) : new UiTextSelection(caret, caret);
                     caretIndex = caret;
+                    _state.SetCursor(id, caret);
                     caretMoved = true;
+                    if (_state.RegisterClick(id, _mousePosition))
+                    {
+                        SelectWordAt(text, ref caret, ref selection);
+                        caretIndex = caret;
+                        caretMoved = true;
+                    }
+
+                    if (string.Equals(_state.PendingTextInputFocusId, id, StringComparison.Ordinal))
+                    {
+                        _state.PendingTextInputFocusId = null;
+                    }
+                }
+                else
+                {
+                    _state.PendingTextInputFocusId = id;
                 }
             }
             else if (_state.ActiveId == id)
             {
-                _state.ActiveId = null;
+                if (!lockFocusClearForIme)
+                {
+                    _state.ActiveId = null;
+                }
             }
         }
 
@@ -742,8 +838,21 @@ public sealed partial class UiImmediateContext
         var changed = false;
         var historyChanged = false;
         selection = ClampSelection(selection, text.Length, caretIndex);
+
+        var committedText = _imeHandler?.ConsumeCommittedText(id);
+        if (!string.IsNullOrEmpty(committedText))
+        {
+            var committedInsert = SanitizeText(committedText, true);
+            if (!string.IsNullOrEmpty(committedInsert))
+            {
+                changed |= InsertText(ref buffer, ref text, ref caretIndex, ref selection, committedInsert, maxLength);
+            }
+        }
+
         if (active)
         {
+            _imeHandler?.SetCompositionOwner(id);
+
             if (_leftMouseDown && hovered)
             {
                 var dragCaret = GetCaretIndexFromMouseMultiline(text, inputRect.X + 6f - scrollX, inputRect.Y + 4f - scrollY, _lineHeight);
@@ -937,23 +1046,27 @@ public sealed partial class UiImmediateContext
                 changed = true;
             }
 
-            foreach (var charEvent in _charEvents)
+            var skipCharEventsForIme = _imeHandler is not null;
+            if (!skipCharEventsForIme)
             {
-                if (text.Length >= maxLength)
+                foreach (var charEvent in _charEvents)
                 {
-                    break;
-                }
+                    if (text.Length >= maxLength)
+                    {
+                        break;
+                    }
 
-                var rune = new System.Text.Rune((int)charEvent.CodePoint);
-                if (rune.Value < 0x20)
-                {
-                    continue;
-                }
+                    var rune = new System.Text.Rune((int)charEvent.CodePoint);
+                    if (rune.Value < 0x20)
+                    {
+                        continue;
+                    }
 
-                var insert = SanitizeText(rune.ToString(), true);
-                if (!string.IsNullOrEmpty(insert))
-                {
-                    changed |= InsertText(ref buffer, ref text, ref caretIndex, ref selection, insert, maxLength);
+                    var insert = SanitizeText(rune.ToString(), true);
+                    if (!string.IsNullOrEmpty(insert))
+                    {
+                        changed |= InsertText(ref buffer, ref text, ref caretIndex, ref selection, insert, maxLength);
+                    }
                 }
             }
         }
@@ -993,29 +1106,44 @@ public sealed partial class UiImmediateContext
             DrawSelectionMultiline(text, selection, textPos.X, textPos.Y, _lineHeight, inputRect);
         }
 
-        _builder.AddText(
-            _fontAtlas,
-            text,
-            textPos,
-            _theme.Text,
-            _fontTexture,
-            inputClip,
-            _textSettings,
-            _lineHeight
-        );
+        if (active)
+        {
+            DrawTextWithoutFallback(text, textPos, _theme.Text, inputClip);
+        }
+        else
+        {
+            _builder.AddText(
+                _fontAtlas,
+                text,
+                textPos,
+                _theme.Text,
+                _fontTexture,
+                inputClip,
+                _textSettings,
+                _lineHeight
+            );
+        }
 
         if (active)
         {
             var (caretX, caretY) = GetCaretPositionMultiline(text, caretIndex, textPos.X, textPos.Y, _lineHeight);
             caretX = MathF.Round(caretX);
             caretY = MathF.Round(caretY);
+            var drawCaretX = caretX;
             var caretWidth = MathF.Max(0.75f, 1f / MathF.Max(1f, _textSettings.Scale));
             var caretHeight = _lineHeight - 4f;
-            var caretLeft = Math.Clamp(caretX, inputRect.X, inputRect.X + inputRect.Width - caretWidth);
+            GetImeFontMetrics(text, caretIndex, out var fontPixelHeight, out var fontPixelWidth);
+            _imeHandler?.SetCaretRect(new UiRect(caretX, caretY + 2f, caretWidth, caretHeight), inputRect, fontPixelHeight, fontPixelWidth);
+            var compositionText = _imeHandler?.GetCompositionText();
+            if (!string.IsNullOrEmpty(compositionText))
+            {
+                DrawImeCompositionInline(compositionText, caretX, caretY, inputRect, inputClip);
+                drawCaretX = MathF.Round(caretX + MeasureTextWidth(compositionText, compositionText.Length));
+            }
+
+            var caretLeft = Math.Clamp(drawCaretX, inputRect.X, inputRect.X + inputRect.Width - caretWidth);
             var caretTop = Math.Clamp(caretY + 2f, inputRect.Y, inputRect.Y + inputRect.Height - caretHeight);
             var caretRect = new UiRect(caretLeft, caretTop, caretWidth, caretHeight);
-            GetImeFontMetrics(text, caretIndex, out var fontPixelHeight, out var fontPixelWidth);
-            _imeHandler?.SetCaretRect(caretRect, inputRect, fontPixelHeight, fontPixelWidth);
             if (IsCaretBlinkOn())
             {
                 _builder.AddRectFilled(caretRect, _theme.Text, _whiteTexture, inputClip);
@@ -1055,6 +1183,80 @@ public sealed partial class UiImmediateContext
         _state.SetScrollX(id, scrollX);
 
         return changed;
+    }
+
+    private void DrawImeCompositionInline(string compositionText, float startX, float startY, UiRect inputRect, UiRect inputClip)
+    {
+        if (string.IsNullOrEmpty(compositionText))
+        {
+            return;
+        }
+
+        var textPos = new UiVector2(startX, startY);
+        DrawTextWithoutFallback(compositionText, textPos, _theme.Text, inputClip);
+
+        var compositionWidth = MeasureTextWidth(compositionText, compositionText.Length);
+        if (compositionWidth <= 0f)
+        {
+            return;
+        }
+
+        var underlineThickness = MathF.Max(1f, 1f / MathF.Max(1f, _textSettings.Scale));
+        var underlineY = MathF.Min(startY + _lineHeight - underlineThickness, inputRect.Y + inputRect.Height - underlineThickness);
+        var underlineLeft = Math.Clamp(startX, inputRect.X, inputRect.X + inputRect.Width);
+        var underlineRight = Math.Clamp(startX + compositionWidth, inputRect.X, inputRect.X + inputRect.Width);
+        if (underlineRight <= underlineLeft)
+        {
+            return;
+        }
+
+        var underlineRect = new UiRect(underlineLeft, underlineY, underlineRight - underlineLeft, underlineThickness);
+        _builder.AddRectFilled(underlineRect, _theme.Text, _whiteTexture, inputClip);
+    }
+
+    private void DrawTextWithoutFallback(string text, UiVector2 position, UiColor color, UiRect clipRect)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        var x = position.X;
+        var y = position.Y;
+        var lineStartX = position.X;
+
+        foreach (var rune in text.EnumerateRunes())
+        {
+            if (rune.Value == '\r')
+            {
+                continue;
+            }
+
+            if (rune.Value == '\n')
+            {
+                x = lineStartX;
+                y += _lineHeight;
+                continue;
+            }
+
+            var runeText = rune.ToString();
+            var advance = MeasureTextWidth(runeText, runeText.Length);
+            if (_fontAtlas.TryGetGlyph(rune.Value, out _))
+            {
+                _builder.AddText(
+                    _fontAtlas,
+                    runeText,
+                    new UiVector2(x, y),
+                    color,
+                    _fontTexture,
+                    clipRect,
+                    _textSettings,
+                    _lineHeight
+                );
+            }
+
+            x += advance;
+        }
     }
 }
 

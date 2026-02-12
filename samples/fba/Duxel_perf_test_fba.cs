@@ -15,7 +15,6 @@ DuxelApp.Run(new DuxelAppOptions
     },
     Font = new DuxelFontOptions
     {
-        FontSize = 16,
         InitialGlyphs = PerfTestScreen.GlyphStrings
     },
     Screen = new PerfTestScreen()

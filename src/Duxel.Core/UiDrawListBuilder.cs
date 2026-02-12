@@ -121,6 +121,8 @@ public sealed class UiDrawListBuilder
         var effectiveLineHeight = lineHeight * scale;
         var baselineOffset = settings.UseBaseline ? font.Ascent * scale : 0f;
         var hasKerning = font.Kerning.Count > 0;
+        var useFallbackGlyph = settings.UseFallbackGlyph;
+        var missingGlyphObserver = settings.MissingGlyphObserver;
         var span = text.AsSpan();
         var index = 0;
         var checkClipY = effectiveLineHeight > 0f && clipRect.Height > 0f;
@@ -226,8 +228,13 @@ public sealed class UiDrawListBuilder
                 x += font.GetKerning(prevChar, codepoint) * scale;
             }
 
-            if (!font.GetGlyphOrFallback(codepoint, out var glyph))
+                var allowFallbackForCodepoint = useFallbackGlyph && !IsHangulCodepoint(codepoint);
+                var hasGlyph = allowFallbackForCodepoint
+                    ? font.GetGlyphOrFallback(codepoint, out var glyph)
+                    : font.TryGetGlyph(codepoint, out glyph);
+            if (!hasGlyph)
             {
+                missingGlyphObserver?.Invoke(codepoint);
                 x += effectiveLineHeight * 0.5f;
                 continue;
             }
@@ -1570,6 +1577,14 @@ public sealed class UiDrawListBuilder
         var hasNeg = (ab < 0f) || (bc < 0f) || (ca < 0f);
         var hasPos = (ab > 0f) || (bc > 0f) || (ca > 0f);
         return !(hasNeg && hasPos);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsHangulCodepoint(int codepoint)
+    {
+        return (codepoint >= 0xAC00 && codepoint <= 0xD7A3)
+            || (codepoint >= 0x1100 && codepoint <= 0x11FF)
+            || (codepoint >= 0x3130 && codepoint <= 0x318F);
     }
 
     private static float Snap(float value, bool enabled) => enabled ? MathF.Round(value) : value;

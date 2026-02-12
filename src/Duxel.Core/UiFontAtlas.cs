@@ -191,6 +191,8 @@ public sealed class UiFontAtlas
 
 public static class UiFontAtlasBuilder
 {
+	public static Action<string>? DiagnosticsLog { get; set; }
+
 	private static readonly object CacheLock = new();
 	private static readonly Dictionary<string, UiFontAtlas> AtlasCache = new();
 	private static readonly Dictionary<string, CachedFont> FontCache = new(StringComparer.OrdinalIgnoreCase);
@@ -201,12 +203,90 @@ public static class UiFontAtlasBuilder
 	private const int MaxAtlasCacheEntries = 8;
 	private const int MaxFontCacheEntries = 32;
 	private const int MaxGlyphCacheEntries = 4096;
+	private const int MaxKerningGlyphs = 384;
 	private const int DiskCacheVersion = 1;
 	private static readonly byte[] DiskCacheMagic = System.Text.Encoding.ASCII.GetBytes("DUXFNT");
 	private static readonly string DiskCacheRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Duxel", "FontAtlasCache");
 
 	private readonly record struct CachedFont(TtfFont Font, DateTime LastWriteTimeUtc);
 	private readonly record struct GlyphCacheKey(string FontPath, int Codepoint, int FontSize, int Oversample, float Scale);
+	private readonly record struct PreparedGlyphEntry(int Codepoint, float Advance, float OffsetX, float OffsetY, GlyphBitmap Bitmap, bool HasBitmap);
+
+	private static void EmitDiagnostics(string message)
+	{
+		try
+		{
+			DiagnosticsLog?.Invoke(message);
+		}
+		catch
+		{
+		}
+	}
+
+	public static bool TryCreateFromTtfMergedCached(
+		IReadOnlyList<UiFontSource> sources,
+		int fontSize,
+		int atlasWidth,
+		int atlasHeight,
+		int padding,
+		int oversample,
+		out UiFontAtlas atlas
+	)
+	{
+		if (sources.Count == 0)
+		{
+			atlas = null!;
+			return false;
+		}
+
+		var orderedSources = new List<UiFontSource>(sources.Count);
+		for (var i = 0; i < sources.Count; i++)
+		{
+			orderedSources.Add(sources[i]);
+		}
+		orderedSources.Sort(static (left, right) => left.Priority.CompareTo(right.Priority));
+
+		var cacheKey = BuildCacheKey(orderedSources, fontSize, atlasWidth, atlasHeight, padding, oversample, includeKerning: true);
+		lock (CacheLock)
+		{
+			if (AtlasCache.TryGetValue(cacheKey, out var cached))
+			{
+				atlas = cached;
+				return true;
+			}
+		}
+
+		if (TryLoadAtlasFromDisk(cacheKey, out var diskCached))
+		{
+			StoreAtlasCache(cacheKey, diskCached);
+			atlas = diskCached;
+			return true;
+		}
+
+		atlas = null!;
+		return false;
+	}
+
+	public static bool TryCreateFromTtfCached(
+		string fontPath,
+		IReadOnlyList<int> codepoints,
+		int fontSize,
+		int atlasWidth,
+		int atlasHeight,
+		int padding,
+		int oversample,
+		out UiFontAtlas atlas
+	)
+	{
+		if (string.IsNullOrWhiteSpace(fontPath) || codepoints.Count == 0)
+		{
+			atlas = null!;
+			return false;
+		}
+
+		var source = new UiFontSource(fontPath, codepoints, 0, 1f);
+		return TryCreateFromTtfMergedCached([source], fontSize, atlasWidth, atlasHeight, padding, oversample, out atlas);
+	}
 
 	public static void ClearCache()
 	{
@@ -409,7 +489,7 @@ public static class UiFontAtlasBuilder
 			orderedSources.Add(sources[i]);
 		}
 		orderedSources.Sort(static (left, right) => left.Priority.CompareTo(right.Priority));
-		var cacheKey = BuildCacheKey(orderedSources, fontSize, atlasWidth, atlasHeight, padding, oversample);
+		var cacheKey = BuildCacheKey(orderedSources, fontSize, atlasWidth, atlasHeight, padding, oversample, includeKerning: true);
 		lock (CacheLock)
 		{
 			return AtlasCache.Remove(cacheKey);
@@ -474,7 +554,8 @@ public static class UiFontAtlasBuilder
 		int atlasWidth = 512,
 		int atlasHeight = 512,
 		int padding = 1,
-		int oversample = 2
+		int oversample = 2,
+		bool includeKerning = true
 	)
 	{
 		return CreateFromTtfMerged(
@@ -483,7 +564,8 @@ public static class UiFontAtlasBuilder
 			atlasWidth,
 			atlasHeight,
 			padding,
-			oversample
+			oversample,
+			includeKerning
 		);
 	}
 
@@ -493,7 +575,8 @@ public static class UiFontAtlasBuilder
 		int atlasWidth = 512,
 		int atlasHeight = 512,
 		int padding = 1,
-		int oversample = 2
+		int oversample = 2,
+		bool includeKerning = true
 	)
 	{
 		if (sources.Count == 0)
@@ -512,19 +595,22 @@ public static class UiFontAtlasBuilder
 			orderedSources.Add(sources[i]);
 		}
 		orderedSources.Sort(static (left, right) => left.Priority.CompareTo(right.Priority));
-		var cacheKey = BuildCacheKey(orderedSources, fontSize, atlasWidth, atlasHeight, padding, oversample);
+		var cacheKey = BuildCacheKey(orderedSources, fontSize, atlasWidth, atlasHeight, padding, oversample, includeKerning);
 		lock (CacheLock)
 		{
 			if (AtlasCache.TryGetValue(cacheKey, out var cached))
 			{
+				EmitDiagnostics("FontAtlasCache[MemoryHit]");
 				return cached;
 			}
 		}
 		if (TryLoadAtlasFromDisk(cacheKey, out var diskCached))
 		{
+			EmitDiagnostics("FontAtlasCache[DiskHit]");
 			StoreAtlasCache(cacheKey, diskCached);
 			return diskCached;
 		}
+		EmitDiagnostics("FontAtlasCache[MissBuild]");
 		var fonts = new List<TtfFont>(orderedSources.Count);
 		var renderScales = new List<float>(orderedSources.Count);
 		var pixelScales = new List<float>(orderedSources.Count);
@@ -579,6 +665,7 @@ public static class UiFontAtlasBuilder
 			var pixelScale = pixelScales[sourceIndex];
 			var codepoints = NormalizeCodepoints(source.Codepoints);
 
+			var pendingCodepoints = new List<int>(codepoints.Count);
 			foreach (var codepoint in codepoints)
 			{
 				if (assignedFont.ContainsKey(codepoint))
@@ -590,24 +677,32 @@ public static class UiFontAtlasBuilder
 					throw new InvalidOperationException("Codepoints beyond U+FFFF are not supported yet.");
 				}
 
-				var glyphIndex = font.GetGlyphIndex((char)codepoint);
-				var glyph = font.GetGlyph(glyphIndex);
-				var advance = font.GetAdvanceWidth(glyphIndex) * pixelScale;
-				var offsetX = glyph.XMin * pixelScale;
-				var offsetY = -glyph.YMax * pixelScale;
-				if (codepoint == ' ')
+				pendingCodepoints.Add(codepoint);
+			}
+
+			var prepared = new PreparedGlyphEntry[pendingCodepoints.Count];
+			Parallel.For(0, pendingCodepoints.Count, i =>
+			{
+				var codepoint = pendingCodepoints[i];
+				int glyphIndex;
+				TtfGlyph glyph;
+				float advance;
+				float offsetX;
+				float offsetY;
+
+				lock (font)
 				{
-					glyphs[codepoint] = new UiGlyphInfo(advance, 0, 0, 0, 0, new UiRect(0, 0, 0, 0));
-					assignedFont[codepoint] = sourceIndex;
-					perFontCodepoints[sourceIndex].Add(codepoint);
-					continue;
+					glyphIndex = font.GetGlyphIndex((char)codepoint);
+					glyph = font.GetGlyph(glyphIndex);
+					advance = font.GetAdvanceWidth(glyphIndex) * pixelScale;
+					offsetX = glyph.XMin * pixelScale;
+					offsetY = -glyph.YMax * pixelScale;
 				}
-				if (glyph.Contours.Count is 0)
+
+				if (codepoint == ' ' || glyph.Contours.Count is 0)
 				{
-					glyphs[codepoint] = new UiGlyphInfo(advance, offsetX, offsetY, 0, 0, new UiRect(0, 0, 0, 0));
-					assignedFont[codepoint] = sourceIndex;
-					perFontCodepoints[sourceIndex].Add(codepoint);
-					continue;
+					prepared[i] = new PreparedGlyphEntry(codepoint, advance, codepoint == ' ' ? 0 : offsetX, codepoint == ' ' ? 0 : offsetY, default, false);
+					return;
 				}
 
 				var glyphCacheKey = new GlyphCacheKey(source.FontPath, codepoint, fontSize, oversample, source.Scale);
@@ -620,6 +715,22 @@ public static class UiFontAtlasBuilder
 					}
 					StoreCachedBitmap(glyphCacheKey, bitmap);
 				}
+
+				prepared[i] = new PreparedGlyphEntry(codepoint, advance, offsetX, offsetY, bitmap, true);
+			});
+
+			for (var i = 0; i < prepared.Length; i++)
+			{
+				var entry = prepared[i];
+				if (!entry.HasBitmap)
+				{
+					glyphs[entry.Codepoint] = new UiGlyphInfo(entry.Advance, entry.OffsetX, entry.OffsetY, 0, 0, new UiRect(0, 0, 0, 0));
+					assignedFont[entry.Codepoint] = sourceIndex;
+					perFontCodepoints[sourceIndex].Add(entry.Codepoint);
+					continue;
+				}
+
+				var bitmap = entry.Bitmap;
 				var glyphWidth = bitmap.Width + padding;
 				var glyphHeight = bitmap.Height + padding;
 
@@ -643,27 +754,27 @@ public static class UiFontAtlasBuilder
 					bitmap.Width / (float)atlasWidth,
 					bitmap.Height / (float)atlasHeight
 				);
-				glyphs[codepoint] = new UiGlyphInfo(advance, offsetX, offsetY, bitmap.Width, bitmap.Height, uv);
-				assignedFont[codepoint] = sourceIndex;
-				perFontCodepoints[sourceIndex].Add(codepoint);
+				glyphs[entry.Codepoint] = new UiGlyphInfo(entry.Advance, entry.OffsetX, entry.OffsetY, bitmap.Width, bitmap.Height, uv);
+				assignedFont[entry.Codepoint] = sourceIndex;
+				perFontCodepoints[sourceIndex].Add(entry.Codepoint);
 
 				x += glyphWidth + padding;
 				rowHeight = Math.Max(rowHeight, glyphHeight);
 			}
 		}
 
-		if (fonts.Count > 0)
+		if (includeKerning && fonts.Count > 0)
 		{
 			var font = fonts[0];
 			var pixelScale = pixelScales[0];
-			var list = perFontCodepoints[0];
-			for (var i = 0; i < list.Count; i++)
+			var kerningList = SelectKerningSubset(perFontCodepoints[0]);
+			for (var i = 0; i < kerningList.Count; i++)
 			{
-				var left = list[i];
+				var left = kerningList[i];
 				var leftGlyphIndex = font.GetGlyphIndex((char)left);
-				for (var j = 0; j < list.Count; j++)
+				for (var j = 0; j < kerningList.Count; j++)
 				{
-					var right = list[j];
+					var right = kerningList[j];
 					var rightGlyphIndex = font.GetGlyphIndex((char)right);
 					var kern = font.GetKerning(leftGlyphIndex, rightGlyphIndex);
 					if (kern == 0)
@@ -680,6 +791,7 @@ public static class UiFontAtlasBuilder
 		var atlas = new UiFontAtlas(atlasWidth, atlasHeight, UiTextureFormat.Rgba8Unorm, pixels, glyphs, kerning, ascent, descent, lineGap, fallback);
 		StoreAtlasCache(cacheKey, atlas);
 		SaveAtlasToDisk(cacheKey, atlas);
+		EmitDiagnostics("FontAtlasCache[Saved]");
 		return atlas;
 	}
 
@@ -689,7 +801,8 @@ public static class UiFontAtlasBuilder
 		int atlasWidth,
 		int atlasHeight,
 		int padding,
-		int oversample
+		int oversample,
+		bool includeKerning
 	)
 	{
 		var builder = new System.Text.StringBuilder();
@@ -697,7 +810,8 @@ public static class UiFontAtlasBuilder
 			.Append(atlasWidth).Append('|')
 			.Append(atlasHeight).Append('|')
 			.Append(padding).Append('|')
-			.Append(oversample);
+			.Append(oversample).Append('|')
+			.Append(includeKerning ? '1' : '0');
 		for (var i = 0; i < sources.Count; i++)
 		{
 			var source = sources[i];
@@ -730,10 +844,14 @@ public static class UiFontAtlasBuilder
 
 	private static int HashCodepoints(IReadOnlyList<int> codepoints)
 	{
-		var hash = new HashCode();
 		if (codepoints.Count == 0)
 		{
-			return hash.ToHashCode();
+			return 0;
+		}
+
+		static uint Mix(uint current, int value)
+		{
+			return unchecked((current ^ (uint)value) * 16777619u);
 		}
 
 		var count = codepoints.Count;
@@ -741,6 +859,7 @@ public static class UiFontAtlasBuilder
 		var buffer = pool.Rent(count);
 		try
 		{
+			var hash = 2166136261u;
 			for (var i = 0; i < count; i++)
 			{
 				buffer[i] = codepoints[i];
@@ -757,19 +876,53 @@ public static class UiFontAtlasBuilder
 					rangeEnd = value;
 					continue;
 				}
-				hash.Add(rangeStart);
-				hash.Add(rangeEnd);
+				hash = Mix(hash, rangeStart);
+				hash = Mix(hash, rangeEnd);
 				rangeStart = value;
 				rangeEnd = value;
 			}
-			hash.Add(rangeStart);
-			hash.Add(rangeEnd);
-			return hash.ToHashCode();
+			hash = Mix(hash, rangeStart);
+			hash = Mix(hash, rangeEnd);
+			return unchecked((int)hash);
 		}
 		finally
 		{
 			pool.Return(buffer, clearArray: false);
 		}
+	}
+
+	private static List<int> SelectKerningSubset(IReadOnlyList<int> list)
+	{
+		if (list.Count <= MaxKerningGlyphs)
+		{
+			return new List<int>(list);
+		}
+
+		var selected = new List<int>(MaxKerningGlyphs);
+		for (var i = 0; i < list.Count && selected.Count < MaxKerningGlyphs; i++)
+		{
+			var cp = list[i];
+			if (cp <= 0x7E)
+			{
+				selected.Add(cp);
+			}
+		}
+
+		for (var i = 0; i < list.Count && selected.Count < MaxKerningGlyphs; i++)
+		{
+			var cp = list[i];
+			if (cp >= 0xAC00 && cp <= 0xD7A3)
+			{
+				selected.Add(cp);
+			}
+		}
+
+		for (var i = 0; i < list.Count && selected.Count < MaxKerningGlyphs; i++)
+		{
+			selected.Add(list[i]);
+		}
+
+		return selected;
 	}
 
 	private static List<int> NormalizeCodepoints(IReadOnlyList<int> codepoints)

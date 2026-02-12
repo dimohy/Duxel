@@ -257,7 +257,9 @@ public sealed class UiFontAtlasState
             return false;
         }
 
-        return _atlas.GetGlyphOrFallback(codepoint, out glyph);
+        return IsHangulCodepoint(codepoint)
+            ? _atlas.TryGetGlyph(codepoint, out glyph)
+            : _atlas.GetGlyphOrFallback(codepoint, out glyph);
     }
 
     public bool FindGlyphNoFallback(int codepoint, out UiGlyphInfo glyph)
@@ -314,7 +316,10 @@ public sealed class UiFontAtlasState
         var index = 0;
         foreach (var rune in text.EnumerateRunes())
         {
-            if (!_atlas.GetGlyphOrFallback(rune.Value, out var glyph))
+            var hasGlyph = IsHangulCodepoint(rune.Value)
+                ? _atlas.TryGetGlyph(rune.Value, out var glyph)
+                : _atlas.GetGlyphOrFallback(rune.Value, out glyph);
+            if (!hasGlyph)
             {
                 break;
             }
@@ -329,6 +334,13 @@ public sealed class UiFontAtlasState
         }
 
         return text.Length;
+    }
+
+    private static bool IsHangulCodepoint(int codepoint)
+    {
+        return (codepoint >= 0xAC00 && codepoint <= 0xD7A3)
+            || (codepoint >= 0x1100 && codepoint <= 0x11FF)
+            || (codepoint >= 0x3130 && codepoint <= 0x318F);
     }
 
     public UiDrawList RenderChar(float size, UiVector2 pos, UiColor color, int codepoint)

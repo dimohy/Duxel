@@ -1094,6 +1094,10 @@ public interface IUiContext : IDisposable
 public interface IUiImeHandler
 {
     void SetCaretRect(UiRect caretRect, UiRect inputRect, float fontPixelHeight, float fontPixelWidth);
+    string? GetCompositionText();
+    void SetCompositionOwner(string? inputId);
+    string? ConsumeCommittedText(string inputId);
+    string? ConsumeRecentCommittedText();
 }
 
 public readonly record struct UiFrameInfo(

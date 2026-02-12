@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 using Duxel.Core;
@@ -23,6 +24,27 @@ public static class DuxelApp
         var fontOptions = options.Font;
         var frameOptions = options.Frame;
         var theme = options.Theme;
+        var startupLog = options.Debug.LogStartupTimings
+            ? options.Debug.Log ?? Console.WriteLine
+            : null;
+        var startupStopwatch = startupLog is null ? null : Stopwatch.StartNew();
+        var startupFirstFrameLogged = 0;
+        var startupFullAtlasLogged = 0;
+        var previousFontAtlasDiagnosticsLog = UiFontAtlasBuilder.DiagnosticsLog;
+        if (startupLog is not null)
+        {
+            UiFontAtlasBuilder.DiagnosticsLog = message => startupLog($"{message} @ {startupStopwatch!.Elapsed.TotalMilliseconds:0.00}ms");
+        }
+
+        void EmitStartupTiming(string phase)
+        {
+            if (startupLog is null || startupStopwatch is null)
+            {
+                return;
+            }
+
+            startupLog($"StartupTiming[{phase}]={startupStopwatch.Elapsed.TotalMilliseconds:0.00}ms");
+        }
 
         using var platform = new GlfwPlatformBackend(new GlfwPlatformBackendOptions(
             window.Width,
@@ -38,7 +60,7 @@ public static class DuxelApp
             window.VSync
         ));
         renderer.SetClearColor(theme.WindowBg);
-        RenderStartupClear(renderer, platform);
+        EmitStartupTiming("StartupClear");
 
         var glyphBuilder = new UiFontGlyphRangesBuilder();
         foreach (var range in fontOptions.InitialRanges)
@@ -58,6 +80,9 @@ public static class DuxelApp
 
         var activeCodepointSet = fullCodepointSet;
         Task<UiFontAtlas>? fullAtlasTask = null;
+        Task<UiFontAtlas>? incrementalAtlasTask = null;
+        var atlasBuildVersion = 0;
+        var incrementalAtlasTaskVersion = 0;
         UiFontAtlas fontAtlas;
         if (fontOptions.FastStartup)
         {
@@ -70,6 +95,10 @@ public static class DuxelApp
             {
                 startupBuilder.AddText(text);
             }
+            foreach (var text in fontOptions.InitialGlyphs)
+            {
+                startupBuilder.AddText(text);
+            }
 
             var startupCodepoints = startupBuilder.BuildCodepoints();
             if (startupCodepoints.Count > 0)
@@ -77,7 +106,17 @@ public static class DuxelApp
                 activeCodepointSet = new HashSet<int>(startupCodepoints);
             }
 
-            if (fontOptions.UseBuiltInAsciiAtStartup)
+            var hasNonAsciiStartupCodepoint = false;
+            for (var i = 0; i < startupCodepoints.Count; i++)
+            {
+                if (startupCodepoints[i] > 0x7E)
+                {
+                    hasNonAsciiStartupCodepoint = true;
+                    break;
+                }
+            }
+
+            if (fontOptions.UseBuiltInAsciiAtStartup && !hasNonAsciiStartupCodepoint)
             {
                 fontAtlas = UiFontAtlasBuilder.CreateBuiltInAscii5x7(
                     fontOptions.StartupBuiltInScale,
@@ -92,10 +131,12 @@ public static class DuxelApp
 
             var fullSnapshot = new HashSet<int>(fullCodepointSet);
             fullAtlasTask = Task.Run(() => BuildFontAtlas(fontOptions, fullSnapshot, useStartupSettings: false));
+            EmitStartupTiming("StartupAtlasReady");
         }
         else
         {
             fontAtlas = BuildFontAtlas(fontOptions, fullCodepointSet, useStartupSettings: false);
+            EmitStartupTiming("FullAtlasReadySync");
         }
         var fontTextureId = options.FontTextureId;
         var whiteTextureId = options.WhiteTextureId;
@@ -120,6 +161,12 @@ public static class DuxelApp
         var previousTime = 0d;
         var pendingGlyphs = 0;
         var lastFontRebuildTime = 0d;
+        const int imeTempAtlasCacheCapacity = 4;
+        const double imeTempAtlasCacheTtlSeconds = 1.2;
+        var imeTempAtlasCache = new Dictionary<ulong, (UiFontAtlas Atlas, double ExpiresAt)>();
+        var imeTempAtlasOrder = new Queue<ulong>();
+        var pendingImeCacheStore = false;
+        var pendingImeCacheKey = 0UL;
 
         UiContext? uiContext = null;
         UiDslState? dslState = null;
@@ -204,6 +251,94 @@ public static class DuxelApp
                 charEvents,
                 snapshot.KeyRepeatSettings
             );
+        }
+
+        static ulong ComputeCodepointSignature(HashSet<int> codepoints)
+        {
+            if (codepoints.Count == 0)
+            {
+                return 0UL;
+            }
+
+            const ulong offset = 1469598103934665603UL;
+            const ulong prime = 1099511628211UL;
+
+            var pool = ArrayPool<int>.Shared;
+            var buffer = pool.Rent(codepoints.Count);
+            try
+            {
+                var i = 0;
+                foreach (var cp in codepoints)
+                {
+                    buffer[i++] = cp;
+                }
+
+                Array.Sort(buffer, 0, i);
+                var hash = offset;
+                for (var index = 0; index < i; index++)
+                {
+                    hash ^= (uint)buffer[index];
+                    hash *= prime;
+                }
+
+                return hash;
+            }
+            finally
+            {
+                pool.Return(buffer, clearArray: false);
+            }
+        }
+
+        static ulong ComposeImeTempAtlasKey(HashSet<int> codepoints, bool useStartupSettings)
+        {
+            var hash = ComputeCodepointSignature(codepoints);
+            return useStartupSettings ? hash ^ 0x9E3779B97F4A7C15UL : hash ^ 0xC2B2AE3D27D4EB4FUL;
+        }
+
+        void PruneImeTempAtlasCache(double currentTime)
+        {
+            if (imeTempAtlasCache.Count == 0)
+            {
+                return;
+            }
+
+            while (imeTempAtlasOrder.Count > 0)
+            {
+                var key = imeTempAtlasOrder.Peek();
+                if (!imeTempAtlasCache.TryGetValue(key, out var entry))
+                {
+                    imeTempAtlasOrder.Dequeue();
+                    continue;
+                }
+
+                if (entry.ExpiresAt > currentTime && imeTempAtlasCache.Count <= imeTempAtlasCacheCapacity)
+                {
+                    break;
+                }
+
+                imeTempAtlasOrder.Dequeue();
+                imeTempAtlasCache.Remove(key);
+            }
+        }
+
+        bool TryGetImeTempAtlas(ulong key, double currentTime, out UiFontAtlas atlas)
+        {
+            PruneImeTempAtlasCache(currentTime);
+            if (imeTempAtlasCache.TryGetValue(key, out var entry) && entry.ExpiresAt > currentTime)
+            {
+                atlas = entry.Atlas;
+                return true;
+            }
+
+            atlas = null!;
+            return false;
+        }
+
+        void StoreImeTempAtlas(ulong key, UiFontAtlas atlas, double currentTime)
+        {
+            imeTempAtlasCache[key] = (atlas, currentTime + imeTempAtlasCacheTtlSeconds);
+            imeTempAtlasOrder.Enqueue(key);
+            PruneImeTempAtlasCache(currentTime);
         }
 
         var snapshotLock = new object();
@@ -315,13 +450,27 @@ public static class DuxelApp
                 }
 
                 var displaySize = new UiVector2(windowSize.Width, windowSize.Height);
+                var missingGlyphsFromRender = 0;
+
+                void OnMissingGlyph(int codepoint)
+                {
+                    if ((uint)codepoint > 0xFFFFu)
+                    {
+                        return;
+                    }
+
+                    if (activeCodepointSet.Add(codepoint))
+                    {
+                        missingGlyphsFromRender++;
+                    }
+                }
 
                 var scaleX = windowSize.Width > 0 ? (float)framebufferSize.Width / windowSize.Width : 1f;
                 var scaleY = windowSize.Height > 0 ? (float)framebufferSize.Height / windowSize.Height : 1f;
                 var framebufferScale = new UiVector2(scaleX, scaleY);
 
                 var clipRect = new UiRect(0, 0, displaySize.X, displaySize.Y);
-                var textSettings = new UiTextSettings(1f, frameOptions.LineHeightScale, frameOptions.PixelSnap, frameOptions.UseBaseline);
+                var textSettings = new UiTextSettings(1f, frameOptions.LineHeightScale, frameOptions.PixelSnap, frameOptions.UseBaseline, true);
 
                 var mouse = snapshot.MousePosition;
                 var mouseX = scaleX > 0f ? mouse.X / scaleX : mouse.X;
@@ -352,7 +501,44 @@ public static class DuxelApp
                         newlyAdded++;
                     }
                 }
+
+                var compositionText = imeHandlerForContext?.GetCompositionText();
+                var imeComposing = !string.IsNullOrEmpty(compositionText);
+                var allowMissingGlyphFallback = fullAtlasTask is null && incrementalAtlasTask is null && !imeComposing;
+                textSettings = new UiTextSettings(1f, frameOptions.LineHeightScale, frameOptions.PixelSnap, frameOptions.UseBaseline, allowMissingGlyphFallback, OnMissingGlyph);
+                var composingGlyphsAdded = 0;
+                if (!string.IsNullOrEmpty(compositionText))
+                {
+                    foreach (var rune in compositionText.EnumerateRunes())
+                    {
+                        if (rune.Value <= 0xFFFF && activeCodepointSet.Add(rune.Value))
+                        {
+                            newlyAdded++;
+                            composingGlyphsAdded++;
+                        }
+                    }
+                }
+
+                var committedTextForGlyphs = imeHandlerForContext?.ConsumeRecentCommittedText();
+                var committedGlyphsAdded = 0;
+                if (!string.IsNullOrEmpty(committedTextForGlyphs))
+                {
+                    foreach (var rune in committedTextForGlyphs.EnumerateRunes())
+                    {
+                        if (rune.Value <= 0xFFFF && activeCodepointSet.Add(rune.Value))
+                        {
+                            newlyAdded++;
+                            committedGlyphsAdded++;
+                        }
+                    }
+                }
+
                 pendingGlyphs += newlyAdded;
+                var forceRebuildForImeGlyphs = committedGlyphsAdded > 0 || composingGlyphsAdded > 0;
+                if (forceRebuildForImeGlyphs)
+                {
+                    pendingGlyphs = Math.Max(pendingGlyphs, frameOptions.FontRebuildBatchSize);
+                }
 
                 var currentTime = stopwatch.Elapsed.TotalSeconds;
                 var deltaTime = (float)(currentTime - previousTime);
@@ -373,6 +559,7 @@ public static class DuxelApp
                         throw new InvalidOperationException("Font atlas build task failed.", fullAtlasTask.Exception!);
                     }
 
+                    atlasBuildVersion++;
                     fontAtlas = fullAtlasTask.Result;
                     if (uiContext is not null)
                     {
@@ -382,18 +569,78 @@ public static class DuxelApp
                     activeCodepointSet = fullCodepointSet;
                     fontTextureDirty = true;
                     fullAtlasTask = null;
+                    if (Interlocked.Exchange(ref startupFullAtlasLogged, 1) == 0)
+                    {
+                        EmitStartupTiming("FullAtlasReady");
+                    }
                 }
 
-                if (pendingGlyphs > 0 && (pendingGlyphs >= frameOptions.FontRebuildBatchSize || (currentTime - lastFontRebuildTime) >= frameOptions.FontRebuildMinIntervalSeconds))
+                if (incrementalAtlasTask is { IsCompleted: true })
                 {
-                    var useStartupSettings = fontOptions.FastStartup && fullAtlasTask is not null;
-                    fontAtlas = BuildFontAtlas(fontOptions, activeCodepointSet, useStartupSettings);
-                    if (uiContext is not null)
+                    if (incrementalAtlasTask.IsFaulted)
                     {
-                        uiContext.SetFontAtlas(fontAtlas);
+                        throw new InvalidOperationException("Incremental font atlas build task failed.", incrementalAtlasTask.Exception!);
                     }
 
-                    fontTextureDirty = true;
+                    if (incrementalAtlasTaskVersion == atlasBuildVersion)
+                    {
+                        fontAtlas = incrementalAtlasTask.Result;
+                        if (pendingImeCacheStore)
+                        {
+                            StoreImeTempAtlas(pendingImeCacheKey, fontAtlas, currentTime);
+                        }
+                        if (uiContext is not null)
+                        {
+                            uiContext.SetFontAtlas(fontAtlas);
+                        }
+
+                        fontTextureDirty = true;
+                    }
+
+                    pendingImeCacheStore = false;
+                    pendingImeCacheKey = 0UL;
+                    incrementalAtlasTask = null;
+                }
+
+                if (incrementalAtlasTask is null
+                    && pendingGlyphs > 0
+                    && (forceRebuildForImeGlyphs
+                        || (!imeComposing
+                            && (pendingGlyphs >= frameOptions.FontRebuildBatchSize
+                                || (currentTime - lastFontRebuildTime) >= frameOptions.FontRebuildMinIntervalSeconds))))
+                {
+                    var useStartupSettings = fontOptions.FastStartup && fullAtlasTask is not null;
+                    var snapshotCodepoints = new HashSet<int>(activeCodepointSet);
+                    if (forceRebuildForImeGlyphs)
+                    {
+                        var imeCacheKey = ComposeImeTempAtlasKey(snapshotCodepoints, useStartupSettings);
+                        if (TryGetImeTempAtlas(imeCacheKey, currentTime, out var cachedImeAtlas))
+                        {
+                            fontAtlas = cachedImeAtlas;
+                            if (uiContext is not null)
+                            {
+                                uiContext.SetFontAtlas(fontAtlas);
+                            }
+
+                            fontTextureDirty = true;
+                            pendingGlyphs = 0;
+                            lastFontRebuildTime = currentTime;
+                            continue;
+                        }
+
+                        pendingImeCacheStore = true;
+                        pendingImeCacheKey = imeCacheKey;
+                    }
+                    else
+                    {
+                        pendingImeCacheStore = false;
+                        pendingImeCacheKey = 0UL;
+                    }
+
+                    var scheduledVersion = atlasBuildVersion + 1;
+                    atlasBuildVersion = scheduledVersion;
+                    incrementalAtlasTaskVersion = scheduledVersion;
+                    incrementalAtlasTask = Task.Run(() => BuildFontAtlas(fontOptions, snapshotCodepoints, useStartupSettings));
                     pendingGlyphs = 0;
                     lastFontRebuildTime = currentTime;
                 }
@@ -448,6 +695,10 @@ public static class DuxelApp
                     var t3 = Stopwatch.GetTimestamp();
                     renderer.RenderDrawData(drawData);
                     var t4 = Stopwatch.GetTimestamp();
+                    if (Interlocked.Exchange(ref startupFirstFrameLogged, 1) == 0)
+                    {
+                        EmitStartupTiming("FirstFramePresented");
+                    }
 
                     var tickFreq = (float)Stopwatch.Frequency / 1000f;
                     uiContext.State.NewFrameTimeMs = (t1 - t0) / tickFreq;
@@ -456,6 +707,11 @@ public static class DuxelApp
 
                     EmitTrace(options.Debug, ref frameCounter, drawData, fps);
                     drawData.ReleasePooled();
+                    if (missingGlyphsFromRender > 0)
+                    {
+                        pendingGlyphs += missingGlyphsFromRender;
+                        pendingGlyphs = Math.Max(pendingGlyphs, frameOptions.FontRebuildBatchSize);
+                    }
                     continue;
                 }
 
@@ -546,6 +802,15 @@ public static class DuxelApp
                 renderer.RenderDrawData(dslDrawData);
                 EmitTrace(options.Debug, ref frameCounter, dslDrawData, fps);
                 dslDrawData.ReleasePooled();
+                if (missingGlyphsFromRender > 0)
+                {
+                    pendingGlyphs += missingGlyphsFromRender;
+                    pendingGlyphs = Math.Max(pendingGlyphs, frameOptions.FontRebuildBatchSize);
+                }
+                if (Interlocked.Exchange(ref startupFirstFrameLogged, 1) == 0)
+                {
+                    EmitStartupTiming("FirstFramePresented");
+                }
             }
         })
         {
@@ -573,6 +838,7 @@ public static class DuxelApp
             Volatile.Write(ref stopRequested, true);
             renderThread.Join();
             uiContext?.Dispose();
+            UiFontAtlasBuilder.DiagnosticsLog = previousFontAtlasDiagnosticsLog;
         }
     }
 
@@ -646,6 +912,7 @@ public static class DuxelApp
         var atlasHeight = useStartupSettings ? options.StartupAtlasHeight : options.AtlasHeight;
         var padding = useStartupSettings ? options.StartupPadding : options.Padding;
         var oversample = useStartupSettings ? options.StartupOversample : options.Oversample;
+        const bool includeKerning = false;
 
         if (!string.IsNullOrWhiteSpace(options.SecondaryFontPath) && nonAscii.Count > 0)
         {
@@ -661,7 +928,8 @@ public static class DuxelApp
                 atlasWidth,
                 atlasHeight,
                 padding,
-                oversample
+                oversample,
+                includeKerning
             );
         }
 
@@ -672,7 +940,8 @@ public static class DuxelApp
             atlasWidth,
             atlasHeight,
             padding,
-            oversample
+            oversample,
+            includeKerning
         );
     }
 
@@ -715,8 +984,12 @@ public static class DuxelApp
         private readonly object _lock = new();
         private bool _hasPending;
         private ImeRequest _pending;
+        private bool _hasPendingOwner;
+        private string? _pendingOwner;
         private bool _hasLastSent;
         private ImeRequest _lastSent;
+        private string? _compositionText;
+        private IUiImeHandler? _target;
 
         public void SetCaretRect(UiRect caretRect, UiRect inputRect, float fontPixelHeight, float fontPixelWidth)
         {
@@ -735,11 +1008,31 @@ public static class DuxelApp
 
         public void Flush(IUiImeHandler target)
         {
+            _target = target;
+
             ImeRequest request;
+            string? pendingOwner;
+            var hasOwner = false;
             lock (_lock)
             {
+                if (_hasPendingOwner)
+                {
+                    pendingOwner = _pendingOwner;
+                    _hasPendingOwner = false;
+                    hasOwner = true;
+                }
+                else
+                {
+                    pendingOwner = null;
+                }
+
                 if (!_hasPending)
                 {
+                    if (hasOwner)
+                    {
+                        target.SetCompositionOwner(pendingOwner);
+                    }
+                    _compositionText = target.GetCompositionText();
                     return;
                 }
 
@@ -747,14 +1040,49 @@ public static class DuxelApp
                 _hasPending = false;
             }
 
+            if (hasOwner)
+            {
+                target.SetCompositionOwner(pendingOwner);
+            }
+
             if (_hasLastSent && AreClose(request, _lastSent))
             {
+                _compositionText = target.GetCompositionText();
                 return;
             }
 
             target.SetCaretRect(request.CaretRect, request.InputRect, request.FontPixelHeight, request.FontPixelWidth);
+            _compositionText = target.GetCompositionText();
             _lastSent = request;
             _hasLastSent = true;
+        }
+
+        public string? GetCompositionText() => Volatile.Read(ref _compositionText);
+
+        public void SetCompositionOwner(string? inputId)
+        {
+            lock (_lock)
+            {
+                _pendingOwner = inputId;
+                _hasPendingOwner = true;
+            }
+        }
+
+        public string? ConsumeCommittedText(string inputId)
+        {
+            if (string.IsNullOrEmpty(inputId))
+            {
+                return null;
+            }
+
+            var target = _target;
+            return target?.ConsumeCommittedText(inputId);
+        }
+
+        public string? ConsumeRecentCommittedText()
+        {
+            var target = _target;
+            return target?.ConsumeRecentCommittedText();
         }
 
         private static bool AreClose(ImeRequest a, ImeRequest b)
@@ -795,27 +1123,6 @@ public static class DuxelApp
         }
     }
 
-    private static void RenderStartupClear(IRendererBackend renderer, IPlatformBackend platform)
-    {
-        var windowSize = platform.WindowSize;
-        var framebufferSize = platform.FramebufferSize;
-        var displaySize = new UiVector2(windowSize.Width, windowSize.Height);
-        var scaleX = windowSize.Width > 0 ? (float)framebufferSize.Width / windowSize.Width : 1f;
-        var scaleY = windowSize.Height > 0 ? (float)framebufferSize.Height / windowSize.Height : 1f;
-        var framebufferScale = new UiVector2(scaleX, scaleY);
-
-        var drawData = new UiDrawData(
-            displaySize,
-            new UiVector2(0, 0),
-            framebufferScale,
-            0,
-            0,
-            UiPooledList<UiDrawList>.FromArray(Array.Empty<UiDrawList>()),
-            UiPooledList<UiTextureUpdate>.FromArray(Array.Empty<UiTextureUpdate>())
-        );
-
-        renderer.RenderDrawData(drawData);
-    }
 }
 
 public sealed record class DuxelAppOptions
@@ -841,6 +1148,7 @@ public sealed record class DuxelDebugOptions
 {
     public Action<string>? Log { get; init; }
     public int LogEveryNFrames { get; init; } = 60;
+    public bool LogStartupTimings { get; init; } = false;
 }
 
 public sealed record class DuxelWindowOptions
@@ -866,14 +1174,14 @@ public sealed record class DuxelFontOptions
     public bool UseBuiltInAsciiAtStartup { get; init; } = true;
     public int StartupBuiltInScale { get; init; } = 2;
     public int StartupBuiltInColumns { get; init; } = 16;
-    public int StartupFontSize { get; init; } = 18;
+    public int StartupFontSize { get; init; } = 16;
     public int StartupAtlasWidth { get; init; } = 512;
     public int StartupAtlasHeight { get; init; } = 512;
     public int StartupPadding { get; init; } = 1;
     public int StartupOversample { get; init; } = 1;
     public IReadOnlyList<UiFontRange> StartupRanges { get; init; } = [new UiFontRange(0x20, 0x7E)];
     public IReadOnlyList<string> StartupGlyphs { get; init; } = [];
-    public int FontSize { get; init; } = 26;
+    public int FontSize { get; init; } = 16;
     public int AtlasWidth { get; init; } = 1024;
     public int AtlasHeight { get; init; } = 1024;
     public int Padding { get; init; } = 2;
@@ -887,8 +1195,8 @@ public sealed record class DuxelFrameOptions
     public float LineHeightScale { get; init; } = 1.2f;
     public bool PixelSnap { get; init; } = true;
     public bool UseBaseline { get; init; } = true;
-    public double FontRebuildMinIntervalSeconds { get; init; } = 0.12;
-    public int FontRebuildBatchSize { get; init; } = 6;
+    public double FontRebuildMinIntervalSeconds { get; init; } = 0.25;
+    public int FontRebuildBatchSize { get; init; } = 16;
 }
 
 public sealed record class DuxelDslOptions

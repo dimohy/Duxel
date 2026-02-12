@@ -1442,7 +1442,10 @@ public sealed partial class UiImmediateContext
                     width += _fontAtlas.GetKerning(prevChar, code) * scale;
                 }
 
-                if (!_fontAtlas.GetGlyphOrFallback(code, out var glyph))
+                var hasGlyph = IsHangulCodepoint(code)
+                    ? _fontAtlas.TryGetGlyph(code, out var glyph)
+                    : _fontAtlas.GetGlyphOrFallback(code, out glyph);
+                if (!hasGlyph)
                 {
                     width += lineHeight * 0.5f;
                     hasPrev = false;
@@ -1477,7 +1480,10 @@ public sealed partial class UiImmediateContext
                     width += _fontAtlas.GetKerning(prevChar, rune.Value) * scale;
                 }
 
-                if (!_fontAtlas.GetGlyphOrFallback(rune.Value, out var glyph))
+                var hasGlyph = IsHangulCodepoint(rune.Value)
+                    ? _fontAtlas.TryGetGlyph(rune.Value, out var glyph)
+                    : _fontAtlas.GetGlyphOrFallback(rune.Value, out glyph);
+                if (!hasGlyph)
                 {
                     width += lineHeight * 0.5f;
                     hasPrev = false;
@@ -1623,7 +1629,10 @@ public sealed partial class UiImmediateContext
                 width += _fontAtlas.GetKerning(prevChar, rune.Value) * scale;
             }
 
-            if (!_fontAtlas.GetGlyphOrFallback(rune.Value, out var glyph))
+            var hasGlyph = IsHangulCodepoint(rune.Value)
+                ? _fontAtlas.TryGetGlyph(rune.Value, out var glyph)
+                : _fontAtlas.GetGlyphOrFallback(rune.Value, out glyph);
+            if (!hasGlyph)
             {
                 width += lineHeight * 0.5f;
                 hasPrev = false;
@@ -1663,6 +1672,13 @@ public sealed partial class UiImmediateContext
         }
 
         return 0;
+    }
+
+    private static bool IsHangulCodepoint(int codepoint)
+    {
+        return (codepoint >= 0xAC00 && codepoint <= 0xD7A3)
+            || (codepoint >= 0x1100 && codepoint <= 0x11FF)
+            || (codepoint >= 0x3130 && codepoint <= 0x318F);
     }
 
     private int GetLineEndIndex(string value, int caretIndex)

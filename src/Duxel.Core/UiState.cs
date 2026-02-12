@@ -53,6 +53,7 @@ public sealed class UiState
     private bool _vSyncDirty;
     private List<UiRect> _popupBlockingRects = [];
     private List<UiRect> _prevPopupBlockingRects = [];
+    private string? _pendingTextInputFocusId;
 
     // Frame timing (set by the app loop, read by UI)
     public float NewFrameTimeMs { get; set; }
@@ -104,6 +105,12 @@ public sealed class UiState
     }
 
     public string? PreviousActiveId => _previousActiveId;
+
+    public string? PendingTextInputFocusId
+    {
+        get => _pendingTextInputFocusId;
+        set => _pendingTextInputFocusId = value;
+    }
 
     public string? FocusedId
     {
