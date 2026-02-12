@@ -3,12 +3,18 @@
 **.NET 10 전용 크로스플랫폼 즉시 모드(Immediate-Mode) GUI 프레임워크.**
 Vulkan 렌더러 + GLFW 윈도우/입력 백엔드로 Dear ImGui 동등 수준의 위젯·렌더링·텍스트 품질을 목표합니다.
 
-**현재 버전: `0.1.5-preview`** · MSAA 4x · VSync 토글 · 스크롤바 통합 · 팝업 차단 레이어
+**현재 버전: `0.1.6-preview`** · MSAA 4x · VSync 토글 · 스크롤바 통합 · 팝업 차단 레이어
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Repository: https://github.com/dimohy/Duxel
+
+## 0.1.6-preview 개선 사항
+
+- 한글 IME 입력 시 누락 글리프 감지 후 증분 폰트 아틀라스 재빌드 트리거를 개선해 표시 지연을 완화했습니다.
+- Startup/Initial 글리프 구성 경로를 정리해 초기 폰트 아틀라스 전환 동작을 안정화했습니다.
+- 기본 폰트 크기를 16으로 일원화하고, FBA 텍스트 입력 전용 샘플(`samples/fba/text_input_only.cs`)을 추가했습니다.
 
 ## 주요 특징
 
