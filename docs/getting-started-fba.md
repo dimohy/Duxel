@@ -92,10 +92,25 @@ cd Duxel
 | `./run-fba.ps1 samples/fba/advanced_layout.cs` | **레이아웃** — PushID, Cursor, Scroll, StyleVar, ClipRect |
 | `./run-fba.ps1 samples/fba/columns_demo.cs` | **Columns** — Legacy Columns API 전체 시연 |
 | `./run-fba.ps1 samples/fba/image_and_popups.cs` | **이미지/팝업** — Image, Tooltip, TreeNodeV, TextLink |
+| `./run-fba.ps1 samples/fba/image_widget_effects_fba.cs -NoCache` | **이미지 효과 실험실** — 웹 PNG/JPG/GIF 로드, GIF 애니메이션, Zoom/Rotation/Alpha/Pixelate |
 | `./run-fba.ps1 samples/fba/input_queries.cs` | **입력 쿼리** — 키보드/마우스 상태, Shortcut, 클립보드 |
 | `./run-fba.ps1 samples/fba/item_status.cs` | **아이템 상태** — IsItemActive/Clicked/Edited, GetItemRect |
 
 > 개발자 기본 실행은 NativeAOT 게시입니다. Managed 실행이 필요하면 `-Managed`를 사용하세요.
+
+### 이미지 샘플 바로 실행
+
+```powershell
+./run-fba.ps1 samples/fba/image_widget_effects_fba.cs -NoCache
+```
+
+선택적으로 로컬 이미지를 직접 지정할 수 있습니다.
+
+```powershell
+$env:DUXEL_IMAGE_PATH='C:\images\sample.gif'
+./run-fba.ps1 samples/fba/image_widget_effects_fba.cs -NoCache
+Remove-Item Env:DUXEL_IMAGE_PATH
+```
 
 ### 기본 동작 프로필 전환
 

@@ -12,6 +12,8 @@ Repository: https://github.com/dimohy/Duxel
 
 ## 0.1.7-preview 개선 사항
 
+- Vulkan 백엔드에 TAA/FXAA 토글 경로를 보강하고, 런타임에서 AA 방식 전환 시 리소스/파이프라인 재구성을 안전하게 처리하도록 개선했습니다.
+- 성능 샘플과 체크리스트를 정비해 MSAA/FXAA 비교 실험을 반복 가능한 절차로 수행할 수 있게 했습니다(`docs/aa-comparison-checklist.md`, `samples/fba/Duxel_perf_test_fba.cs`).
 - `Duxel.Core`에 플랫폼 중립 이미지 API(`UiImageTexture`, `UiImageEffects`, `IUiImageDecoder`)를 추가해 이미지 처리 경로를 라이브러리 API로 정리했습니다.
 - Windows 전용 디코더를 `Duxel.Platform.Windows`로 분리하고 `Duxel.App`에서 런타임 등록하도록 구성해 Core 계층의 플랫폼 종속성을 제거했습니다.
 - FBA 이미지 샘플(`samples/fba/image_widget_effects_fba.cs`)에 웹 이미지 소스 선택(PNG/JPG/GIF)과 GIF 프레임 애니메이션 재생을 추가했습니다.
@@ -150,6 +152,7 @@ $env:DUXEL_APP_PROFILE='render'; ./run-fba.ps1 samples/fba/Duxel_perf_test_fba.c
 | `advanced_layout.cs`     | 즉시 모드 | PushID, Cursor, Scroll, StyleVar, ClipRect    |
 | `columns_demo.cs`        | 즉시 모드 | Legacy Columns API 전체 시연                  |
 | `image_and_popups.cs`    | 즉시 모드 | Image/Popup/Tooltip/TreeNodeV/TextLink        |
+| `image_widget_effects_fba.cs` | 즉시 모드 | 웹 PNG/JPG/GIF + GIF 애니메이션 + 이미지 효과(Zoom/Rotation/Alpha/Pixelate) |
 | `input_queries.cs`       | 즉시 모드 | 키보드/마우스 상태, Shortcut, 클립보드        |
 | `item_status.cs`         | 즉시 모드 | IsItemActive/Focused/Clicked, MultiSelect     |
 | `Duxel_perf_test_fba.cs` | 즉시 모드 | 대량 폴리곤 물리 시뮬레이션 성능 벤치마크     |

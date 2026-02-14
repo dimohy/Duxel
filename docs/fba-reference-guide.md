@@ -25,6 +25,22 @@ FBA 파일에 `#:package Duxel.App@*-*`가 있으므로 자동으로 최신 NuGe
 ./run-fba.ps1 samples/fba/all_features.cs -NoCache
 ```
 
+### 신규 이미지 효과 샘플 실행
+
+```powershell
+# 기본 실행 (웹 PNG/JPG/GIF 자동 다운로드 + NativeAOT 게시)
+./run-fba.ps1 samples/fba/image_widget_effects_fba.cs -NoCache
+
+# 로컬 이미지 강제 지정(선택)
+$env:DUXEL_IMAGE_PATH='C:\images\sample.png'
+./run-fba.ps1 samples/fba/image_widget_effects_fba.cs -NoCache
+Remove-Item Env:DUXEL_IMAGE_PATH
+```
+
+- 기본 모드는 `Web PNG / Web JPG / Web GIF`를 자동 준비합니다.
+- `DUXEL_IMAGE_PATH`를 지정하면 `Custom` 옵션으로 로컬 파일을 우선 확인할 수 있습니다.
+- GIF를 선택하면 프레임 지연값을 사용해 애니메이션이 재생됩니다.
+
 스크립트가:
 1. `#:package Duxel.App@*-*` → `#:project ../../src/Duxel.App/Duxel.App.csproj` 치환
 2. 임시 파일로 기본 `dotnet publish -p:PublishAot=true` 실행
