@@ -1,7 +1,7 @@
 # Duxel FBA 빠른 시작 가이드
 
 > **Duxel** — .NET 10 전용 즉시 모드(Immediate-Mode) GUI 프레임워크  
-> Vulkan 렌더러 + GLFW 백엔드 · MSAA 4x · NativeAOT 지원
+> Vulkan 렌더러 + GLFW 백엔드 · 프로필 기반 MSAA(Display=2x/Render=1x) · NativeAOT 지원
 
 단일 `.cs` 파일 하나로 GUI 앱을 바로 실행할 수 있는 **FBA(File-Based App)** 방식을 소개합니다.
 
@@ -76,7 +76,7 @@ cd Duxel
 ### 전체 기능 데모 (추천!)
 
 ```powershell
-dotnet run samples/fba/all_features.cs
+./run-fba.ps1 samples/fba/all_features.cs
 ```
 
 400+ API를 사용하는 종합 데모입니다. 메뉴바, 슬라이더, 드래그, 입력, 컬러 피커, 테이블, 팝업, 툴팁, 드로잉 프리미티브, 드래그앤드롭, ListClipper 등 거의 모든 위젯이 포함되어 있습니다.
@@ -85,15 +85,27 @@ dotnet run samples/fba/all_features.cs
 
 | 실행 명령 | 설명 |
 |---|---|
-| `dotnet run samples/fba/all_features.cs` | **전체 위젯 종합 데모** — 400+ API, 메뉴/슬라이더/테이블/팝업/드로잉 |
-| `dotnet run samples/fba/dsl_showcase.cs` | **DSL 선언적 UI** — 마크업으로 입력/탭/테이블/트리 레이아웃 |
-| `dotnet run samples/fba/dsl_interaction.cs` | **DSL 인터랙션** — Drag/Slider/Color/Child/Popup 바인딩 |
-| `dotnet run samples/fba/menu_submenu_zorder.cs` | **메뉴 Z-Order** — 중첩 메뉴/서브메뉴 올바른 가리기 테스트 |
-| `dotnet run samples/fba/advanced_layout.cs` | **레이아웃** — PushID, Cursor, Scroll, StyleVar, ClipRect |
-| `dotnet run samples/fba/columns_demo.cs` | **Columns** — Legacy Columns API 전체 시연 |
-| `dotnet run samples/fba/image_and_popups.cs` | **이미지/팝업** — Image, Tooltip, TreeNodeV, TextLink |
-| `dotnet run samples/fba/input_queries.cs` | **입력 쿼리** — 키보드/마우스 상태, Shortcut, 클립보드 |
-| `dotnet run samples/fba/item_status.cs` | **아이템 상태** — IsItemActive/Clicked/Edited, GetItemRect |
+| `./run-fba.ps1 samples/fba/all_features.cs` | **전체 위젯 종합 데모** — 400+ API, 메뉴/슬라이더/테이블/팝업/드로잉 |
+| `./run-fba.ps1 samples/fba/dsl_showcase.cs` | **DSL 선언적 UI** — 마크업으로 입력/탭/테이블/트리 레이아웃 |
+| `./run-fba.ps1 samples/fba/dsl_interaction.cs` | **DSL 인터랙션** — Drag/Slider/Color/Child/Popup 바인딩 |
+| `./run-fba.ps1 samples/fba/menu_submenu_zorder.cs` | **메뉴 Z-Order** — 중첩 메뉴/서브메뉴 올바른 가리기 테스트 |
+| `./run-fba.ps1 samples/fba/advanced_layout.cs` | **레이아웃** — PushID, Cursor, Scroll, StyleVar, ClipRect |
+| `./run-fba.ps1 samples/fba/columns_demo.cs` | **Columns** — Legacy Columns API 전체 시연 |
+| `./run-fba.ps1 samples/fba/image_and_popups.cs` | **이미지/팝업** — Image, Tooltip, TreeNodeV, TextLink |
+| `./run-fba.ps1 samples/fba/input_queries.cs` | **입력 쿼리** — 키보드/마우스 상태, Shortcut, 클립보드 |
+| `./run-fba.ps1 samples/fba/item_status.cs` | **아이템 상태** — IsItemActive/Clicked/Edited, GetItemRect |
+
+> 개발자 기본 실행은 NativeAOT 게시입니다. Managed 실행이 필요하면 `-Managed`를 사용하세요.
+
+### 기본 동작 프로필 전환
+
+기본 프로필은 `Display`이며, `Render`로 바꾸려면 환경변수만 지정하면 됩니다.
+
+```powershell
+$env:DUXEL_APP_PROFILE='render'
+./run-fba.ps1 samples/fba/Duxel_perf_test_fba.cs -Managed
+Remove-Item Env:DUXEL_APP_PROFILE
+```
 
 ---
 

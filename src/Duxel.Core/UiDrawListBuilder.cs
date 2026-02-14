@@ -120,6 +120,7 @@ public sealed class UiDrawListBuilder
         var lineHeight = lineHeightOverride ?? (font.LineHeight * settings.LineHeightScale);
         var effectiveLineHeight = lineHeight * scale;
         var baselineOffset = settings.UseBaseline ? font.Ascent * scale : 0f;
+        var baselineY = Snap(y + baselineOffset, pixelSnap);
         var hasKerning = font.Kerning.Count > 0;
         var useFallbackGlyph = settings.UseFallbackGlyph;
         var missingGlyphObserver = settings.MissingGlyphObserver;
@@ -150,6 +151,7 @@ public sealed class UiDrawListBuilder
                 {
                     index = searchIndex;
                     y = Snap(position.Y + (effectiveLineHeight * linesSkipped), pixelSnap);
+                    baselineY = Snap(y + baselineOffset, pixelSnap);
                     x = Snap(position.X, pixelSnap);
                     hasPrev = false;
                 }
@@ -216,6 +218,7 @@ public sealed class UiDrawListBuilder
             {
                 x = Snap(position.X, pixelSnap);
                 y = Snap(y + effectiveLineHeight, pixelSnap);
+                baselineY = Snap(y + baselineOffset, pixelSnap);
                 hasPrev = false;
                 lineStart = true;
                 continue;
@@ -258,7 +261,9 @@ public sealed class UiDrawListBuilder
             }
 
             var x0 = Snap(x + (glyph.OffsetX * scale), pixelSnap);
-            var y0 = Snap(y + baselineOffset + (glyph.OffsetY * scale), pixelSnap);
+            var y0 = pixelSnap
+                ? baselineY + MathF.Round(glyph.OffsetY * scale)
+                : y + baselineOffset + (glyph.OffsetY * scale);
             var x1 = Snap(x0 + (glyph.Width * scale), pixelSnap);
             var y1 = Snap(y0 + (glyph.Height * scale), pixelSnap);
 

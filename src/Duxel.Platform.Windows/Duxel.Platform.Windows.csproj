@@ -7,7 +7,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.Platform.Windows</PackageId>
-    <Version>0.1.6-preview</Version>
+    <Version>0.1.7-preview</Version>
     <Authors>dimohy</Authors>
     <Description>Windows platform services for Duxel (clipboard/IME).</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -23,6 +23,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Duxel.Core\Duxel.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
   </ItemGroup>
 
 </Project>

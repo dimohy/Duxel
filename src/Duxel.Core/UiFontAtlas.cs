@@ -614,6 +614,7 @@ public static class UiFontAtlasBuilder
 		var fonts = new List<TtfFont>(orderedSources.Count);
 		var renderScales = new List<float>(orderedSources.Count);
 		var pixelScales = new List<float>(orderedSources.Count);
+		var sourceAscents = new List<float>(orderedSources.Count);
 		var ascent = 0f;
 		var descent = 0f;
 		var lineGap = 0f;
@@ -629,13 +630,15 @@ public static class UiFontAtlasBuilder
 			var font = GetCachedFont(source.FontPath);
 			var renderScale = font.GetScaleForPixelHeight((int)(fontSize * source.Scale * oversample));
 			var pixelScale = font.GetScaleForPixelHeight((int)(fontSize * source.Scale));
+			var sourceAscent = font.Ascender * pixelScale;
 			fonts.Add(font);
 			renderScales.Add(renderScale);
 			pixelScales.Add(pixelScale);
+			sourceAscents.Add(sourceAscent);
 
 			if (s == 0)
 			{
-				ascent = font.Ascender * pixelScale;
+				ascent = sourceAscent;
 				descent = font.Descent * pixelScale;
 				lineGap = font.LineGap * pixelScale;
 			}
@@ -663,6 +666,7 @@ public static class UiFontAtlasBuilder
 			var font = fonts[sourceIndex];
 			var renderScale = renderScales[sourceIndex];
 			var pixelScale = pixelScales[sourceIndex];
+			var baselineDelta = sourceAscents[sourceIndex] - sourceAscents[0];
 			var codepoints = NormalizeCodepoints(source.Codepoints);
 
 			var pendingCodepoints = new List<int>(codepoints.Count);
@@ -696,7 +700,7 @@ public static class UiFontAtlasBuilder
 					glyph = font.GetGlyph(glyphIndex);
 					advance = font.GetAdvanceWidth(glyphIndex) * pixelScale;
 					offsetX = glyph.XMin * pixelScale;
-					offsetY = -glyph.YMax * pixelScale;
+					offsetY = (-glyph.YMax * pixelScale) + baselineDelta;
 				}
 
 				if (codepoint == ' ' || glyph.Contours.Count is 0)

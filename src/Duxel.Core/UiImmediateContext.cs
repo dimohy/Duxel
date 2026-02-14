@@ -47,6 +47,7 @@ public sealed partial class UiImmediateContext
     private readonly float _keyRepeatDelaySeconds;
     private readonly float _keyRepeatRateSeconds;
     private readonly IUiImeHandler? _imeHandler;
+    private readonly Action<UiTextureUpdate>? _queueTextureUpdate;
 
     private readonly UiDrawListBuilder _baseBuilder;
     private readonly UiDrawListBuilder _overlayBuilder;
@@ -252,7 +253,8 @@ public sealed partial class UiImmediateContext
         IUiImeHandler? imeHandler,
         int reserveVertices,
         int reserveIndices,
-        int reserveCommands
+        int reserveCommands,
+        Action<UiTextureUpdate>? queueTextureUpdate = null
     )
     {
         ArgumentNullException.ThrowIfNull(state);
@@ -302,6 +304,7 @@ public sealed partial class UiImmediateContext
         _keyRepeatDelaySeconds = (float)keyRepeatSettings.InitialDelaySeconds;
         _keyRepeatRateSeconds = (float)keyRepeatSettings.RepeatIntervalSeconds;
         _imeHandler = imeHandler;
+        _queueTextureUpdate = queueTextureUpdate;
 
         _baseBuilder = new UiDrawListBuilder(clipRect);
         _overlayBuilder = new UiDrawListBuilder(clipRect);
@@ -325,6 +328,11 @@ public sealed partial class UiImmediateContext
         var rootLayout = new UiLayoutState(start, false, 0f, start.X);
         _layouts.Push(rootLayout);
         _windowRootLayout = rootLayout;
+    }
+
+    public void QueueTextureUpdate(UiTextureUpdate update)
+    {
+        _queueTextureUpdate?.Invoke(update);
     }
 
     public UiPooledList<UiDrawList> BuildDrawLists()
@@ -1153,6 +1161,26 @@ public sealed partial class UiImmediateContext
     public bool GetVSync() => _state.VSync;
 
     public void SetVSync(bool enable) => _state.VSync = enable;
+
+    public int GetMsaaSamples() => _state.MsaaSamples;
+
+    public void SetMsaaSamples(int samples) => _state.MsaaSamples = samples;
+
+    public bool GetTaaEnabled() => _state.TaaEnabled;
+
+    public void SetTaaEnabled(bool enable) => _state.TaaEnabled = enable;
+
+    public bool GetFxaaEnabled() => _state.FxaaEnabled;
+
+    public void SetFxaaEnabled(bool enable) => _state.FxaaEnabled = enable;
+
+    public bool GetTaaExcludeFont() => _state.TaaExcludeFont;
+
+    public void SetTaaExcludeFont(bool exclude) => _state.TaaExcludeFont = exclude;
+
+    public float GetTaaCurrentFrameWeight() => _state.TaaCurrentFrameWeight;
+
+    public void SetTaaCurrentFrameWeight(float weight) => _state.TaaCurrentFrameWeight = weight;
 
     public float GetNewFrameTimeMs() => _state.NewFrameTimeMs;
     public float GetRenderTimeMs() => _state.RenderTimeMs;

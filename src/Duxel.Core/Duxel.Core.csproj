@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.Core</PackageId>
-    <Version>0.1.6-preview</Version>
+    <Version>0.1.7-preview</Version>
     <Authors>dimohy</Authors>
     <Description>Core types and immediate-mode UI runtime for Duxel.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

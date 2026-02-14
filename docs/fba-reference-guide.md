@@ -3,7 +3,7 @@
 ## 구조
 
 - **FBA 파일 기본값**: `#:package Duxel.App@*-*` (외부 사용자가 바로 `dotnet run` 가능)
-- **개발자 실행**: `./run-fba.ps1` (자동으로 `#:project`로 치환하여 로컬 소스 사용)
+- **개발자 실행**: `./run-fba.ps1` (자동으로 `#:project`로 치환, 기본 NativeAOT 게시)
 
 ## 사용법
 
@@ -18,15 +18,30 @@ FBA 파일에 `#:package Duxel.App@*-*`가 있으므로 자동으로 최신 NuGe
 ### 개발자 (로컬 프로젝트 참조)
 
 ```powershell
-./run-fba.ps1 samples/fba/all_features.cs           # 프로젝트 참조로 실행
-./run-fba.ps1 samples/fba/all_features.cs -NoCache   # 캐시 없이 프로젝트 참조로 실행
+./run-fba.ps1 samples/fba/all_features.cs                     # 기본: 프로젝트 참조 + NativeAOT 게시
+./run-fba.ps1 samples/fba/all_features.cs -Managed            # Managed(dotnet run) 실행
+./run-fba.ps1 samples/fba/all_features.cs -RuntimeIdentifier win-x64
+./run-fba.ps1 samples/fba/all_features.cs -Launch             # 게시 후 실행 파일 자동 실행
+./run-fba.ps1 samples/fba/all_features.cs -NoCache
 ```
 
 스크립트가:
 1. `#:package Duxel.App@*-*` → `#:project ../../src/Duxel.App/Duxel.App.csproj` 치환
-2. 임시 파일로 `dotnet run` 실행
-3. 실행 후 임시 파일 자동 삭제
-4. 원본 파일은 절대 변경하지 않음
+2. 임시 파일로 기본 `dotnet publish -p:PublishAot=true` 실행
+3. 필요 시 `-Managed`로 `dotnet run` 실행
+4. 실행 후 임시 파일 자동 삭제
+5. 원본 파일은 절대 변경하지 않음
+
+## 기본 동작 프로필
+
+- 기본값: `Display` 프로필
+- 전환: `DUXEL_APP_PROFILE=render` 환경변수 지정
+
+```powershell
+$env:DUXEL_APP_PROFILE='render'
+./run-fba.ps1 samples/fba/Duxel_perf_test_fba.cs -Managed
+Remove-Item Env:DUXEL_APP_PROFILE
+```
 
 ### NuGet 패키지 배포 시
 

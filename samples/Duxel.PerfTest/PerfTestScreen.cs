@@ -57,13 +57,19 @@ public sealed class PerfTestScreen : UiScreen
         var clip = bounds;
         var whiteTexture = ui.WhiteTextureId;
 
+        drawList.PushTexture(whiteTexture);
+        drawList.PushClipRect(clip);
+
         foreach (var body in _polygons)
         {
             var radius = _baseSize * body.SizeScale;
             var center = body.Position;
             var sides = Math.Max(3, _baseSides + body.SideOffset);
-            DrawPolygon(drawList, clip, whiteTexture, center, radius, sides, body.Rotation, body.Color);
+            DrawPolygon(drawList, center, radius, sides, body.Rotation, body.Color);
         }
+
+        drawList.PopClipRect();
+        drawList.PopTexture();
     }
 
     private void DrawControls(UiImmediateContext ui, UiRect bounds)
@@ -80,6 +86,37 @@ public sealed class PerfTestScreen : UiScreen
             {
                 _lastTime = ui.GetTime();
             }
+        }
+
+        ui.SeparatorText("Renderer");
+        var vSync = ui.GetVSync();
+        if (ui.Checkbox("VSync", ref vSync))
+        {
+            ui.SetVSync(vSync);
+        }
+
+        var taaEnabled = ui.GetTaaEnabled();
+        if (ui.Checkbox("TAA", ref taaEnabled))
+        {
+            ui.SetTaaEnabled(taaEnabled);
+        }
+
+        var fxaaEnabled = ui.GetFxaaEnabled();
+        if (ui.Checkbox("FXAA", ref fxaaEnabled))
+        {
+            ui.SetFxaaEnabled(fxaaEnabled);
+        }
+
+        var taaExcludeFont = ui.GetTaaExcludeFont();
+        if (ui.Checkbox("TAA Exclude Font", ref taaExcludeFont))
+        {
+            ui.SetTaaExcludeFont(taaExcludeFont);
+        }
+
+        var taaWeight = ui.GetTaaCurrentFrameWeight();
+        if (ui.SliderFloat("TAA Weight", ref taaWeight, 0.05f, 1f, 0f, "0.00"))
+        {
+            ui.SetTaaCurrentFrameWeight(taaWeight);
         }
 
         ui.SeparatorText("Polygons");
@@ -220,26 +257,28 @@ public sealed class PerfTestScreen : UiScreen
         return new UiColor(0xFF000000u | (r << 16) | (g << 8) | b);
     }
 
-    private static void DrawPolygon(UiDrawListBuilder drawList, UiRect clip, UiTextureId whiteTexture, UiVector2 center, float radius, int sides, float rotation, UiColor color)
+    private static void DrawPolygon(UiDrawListBuilder drawList, UiVector2 center, float radius, int sides, float rotation, UiColor color)
     {
         var step = MathF.Tau / sides;
-        var prev = GetPoint(center, radius, rotation, 0, step);
-        var first = prev;
+        var cosStep = MathF.Cos(step);
+        var sinStep = MathF.Sin(step);
+
+        var cosAngle = MathF.Cos(rotation);
+        var sinAngle = MathF.Sin(rotation);
+
+        Span<UiVector2> points = stackalloc UiVector2[sides];
+        points[0] = new UiVector2(center.X + cosAngle * radius, center.Y + sinAngle * radius);
 
         for (var i = 1; i < sides; i++)
         {
-            var next = GetPoint(center, radius, rotation, i, step);
-            drawList.AddTriangleFilled(center, prev, next, color, whiteTexture, clip);
-            prev = next;
+            var nextCos = cosAngle * cosStep - sinAngle * sinStep;
+            var nextSin = sinAngle * cosStep + cosAngle * sinStep;
+            cosAngle = nextCos;
+            sinAngle = nextSin;
+            points[i] = new UiVector2(center.X + cosAngle * radius, center.Y + sinAngle * radius);
         }
 
-        drawList.AddTriangleFilled(center, prev, first, color, whiteTexture, clip);
-    }
-
-    private static UiVector2 GetPoint(UiVector2 center, float radius, float rotation, int index, float step)
-    {
-        var angle = rotation + step * index;
-        return new UiVector2(center.X + MathF.Cos(angle) * radius, center.Y + MathF.Sin(angle) * radius);
+        drawList.AddConvexPolyFilled(points, color);
     }
 
     private sealed class PolygonBody

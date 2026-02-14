@@ -54,13 +54,94 @@ public static class DuxelApp
             new WindowsKeyRepeatSettingsProvider()
         ));
 
+        if (options.ImageDecoder is not null)
+        {
+            UiImageTexture.ImageDecoder = options.ImageDecoder;
+        }
+
+        if (UiImageTexture.ImageDecoder is null && OperatingSystem.IsWindows())
+        {
+            UiImageTexture.ImageDecoder = WindowsUiImageDecoder.Shared;
+        }
+
+        var requestedMsaaSamples = rendererOptions.MsaaSamples > 0
+            ? rendererOptions.MsaaSamples
+            : rendererOptions.Profile switch
+            {
+                DuxelPerformanceProfile.Render => 1,
+                _ => 4,
+            };
+
         using var renderer = new VulkanRendererBackend(platform, new VulkanRendererOptions(
             rendererOptions.MinImageCount,
             rendererOptions.EnableValidationLayers,
-            window.VSync
+            window.VSync,
+            requestedMsaaSamples,
+            rendererOptions.EnableTaaIfSupported,
+            rendererOptions.EnableFxaaIfSupported,
+            rendererOptions.TaaExcludeFont,
+            rendererOptions.TaaCurrentFrameWeight,
+            rendererOptions.FontLinearSampling,
+            options.FontTextureId
         ));
         renderer.SetClearColor(theme.WindowBg);
         EmitStartupTiming("StartupClear");
+
+        var captureOutputDirectory = options.Debug.CaptureOutputDirectory;
+        if (string.IsNullOrWhiteSpace(captureOutputDirectory))
+        {
+            captureOutputDirectory = Environment.GetEnvironmentVariable("DUXEL_CAPTURE_OUT_DIR");
+        }
+
+        var captureFrames = options.Debug.CaptureFrameIndices.Count > 0
+            ? options.Debug.CaptureFrameIndices
+            : ParseCaptureFrameList(Environment.GetEnvironmentVariable("DUXEL_CAPTURE_FRAMES"));
+
+        var pendingCaptureFrames = new HashSet<int>();
+        for (var i = 0; i < captureFrames.Count; i++)
+        {
+            if (captureFrames[i] > 0)
+            {
+                pendingCaptureFrames.Add(captureFrames[i]);
+            }
+        }
+
+        if (pendingCaptureFrames.Count > 0)
+        {
+            if (string.IsNullOrWhiteSpace(captureOutputDirectory))
+            {
+                captureOutputDirectory = Path.Combine(Environment.CurrentDirectory, "captures");
+            }
+
+            Directory.CreateDirectory(captureOutputDirectory);
+        }
+
+        var renderedFrameNumber = 0;
+
+        void TryCaptureFrameIfRequested(int frameNumber)
+        {
+            if (pendingCaptureFrames.Count == 0 || !pendingCaptureFrames.Remove(frameNumber))
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(captureOutputDirectory))
+            {
+                return;
+            }
+
+            try
+            {
+                var rgba = renderer.CaptureBackbufferRgba(out var width, out var height);
+                var filePath = Path.Combine(captureOutputDirectory, $"frame_{frameNumber:D4}.bmp");
+                WriteRgbaToBmp(filePath, width, height, rgba);
+                options.Debug.Log?.Invoke($"CaptureSaved: {filePath}");
+            }
+            catch (Exception ex)
+            {
+                options.Debug.Log?.Invoke($"CaptureFailed(frame={frameNumber}): {ex.Message}");
+            }
+        }
 
         var glyphBuilder = new UiFontGlyphRangesBuilder();
         foreach (var range in fontOptions.InitialRanges)
@@ -218,6 +299,12 @@ public static class DuxelApp
             uiContext.SetScreen(options.Screen!);
             ConfigureContext(uiContext, options, platform, imeHandlerForContext);
             uiContext.State.VSync = window.VSync;
+            uiContext.State.MsaaSamples = requestedMsaaSamples;
+            uiContext.State.TaaEnabled = rendererOptions.EnableTaaIfSupported;
+            uiContext.State.FxaaEnabled = rendererOptions.EnableFxaaIfSupported;
+            uiContext.State.TaaExcludeFont = rendererOptions.TaaExcludeFont;
+            uiContext.State.TaaCurrentFrameWeight = rendererOptions.TaaCurrentFrameWeight;
+            uiContext.State.ConsumeRendererAaSettingsDirty();
             if (options.Debug.Log is { } log)
             {
                 uiContext.State.DebugLog = log;
@@ -690,10 +777,20 @@ public static class DuxelApp
                     {
                         renderer.SetVSync(uiContext.State.VSync);
                     }
+                    if (uiContext.State.ConsumeRendererAaSettingsDirty())
+                    {
+                        renderer.SetMsaaSamples(uiContext.State.MsaaSamples);
+                        renderer.SetTaaEnabled(uiContext.State.TaaEnabled);
+                        renderer.SetFxaaEnabled(uiContext.State.FxaaEnabled);
+                        renderer.SetTaaExcludeFont(uiContext.State.TaaExcludeFont);
+                        renderer.SetTaaCurrentFrameWeight(uiContext.State.TaaCurrentFrameWeight);
+                    }
 
                     var drawData = uiContext.GetDrawData();
                     var t3 = Stopwatch.GetTimestamp();
                     renderer.RenderDrawData(drawData);
+                    renderedFrameNumber++;
+                    TryCaptureFrameIfRequested(renderedFrameNumber);
                     var t4 = Stopwatch.GetTimestamp();
                     if (Interlocked.Exchange(ref startupFirstFrameLogged, 1) == 0)
                     {
@@ -800,6 +897,8 @@ public static class DuxelApp
 
                 textureUpdates.Clear();
                 renderer.RenderDrawData(dslDrawData);
+                renderedFrameNumber++;
+                TryCaptureFrameIfRequested(renderedFrameNumber);
                 EmitTrace(options.Debug, ref frameCounter, dslDrawData, fps);
                 dslDrawData.ReleasePooled();
                 if (missingGlyphsFromRender > 0)
@@ -871,6 +970,92 @@ public static class DuxelApp
         handler.AppendLiteral(", Textures=");
         handler.AppendFormatted(drawData.TextureUpdates.Count);
         log(handler.ToStringAndClear());
+    }
+
+    private static IReadOnlyList<int> ParseCaptureFrameList(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return Array.Empty<int>();
+        }
+
+        var tokens = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (tokens.Length == 0)
+        {
+            return Array.Empty<int>();
+        }
+
+        var frames = new List<int>(tokens.Length);
+        for (var i = 0; i < tokens.Length; i++)
+        {
+            if (int.TryParse(tokens[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out var frame) && frame > 0)
+            {
+                frames.Add(frame);
+            }
+        }
+
+        return frames;
+    }
+
+    private static void WriteRgbaToBmp(string filePath, int width, int height, ReadOnlySpan<byte> rgba)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width), "Capture size must be positive.");
+        }
+
+        var expectedLength = checked(width * height * 4);
+        if (rgba.Length < expectedLength)
+        {
+            throw new InvalidOperationException("Capture buffer length is smaller than expected.");
+        }
+
+        var rowStride = ((width * 3) + 3) & ~3;
+        var pixelDataSize = checked(rowStride * height);
+        var fileSize = checked(54 + pixelDataSize);
+
+        using var stream = File.Open(filePath, FileMode.Create, FileAccess.Write, FileShare.Read);
+        using var writer = new BinaryWriter(stream);
+
+        writer.Write((byte)'B');
+        writer.Write((byte)'M');
+        writer.Write(fileSize);
+        writer.Write((short)0);
+        writer.Write((short)0);
+        writer.Write(54);
+
+        writer.Write(40);
+        writer.Write(width);
+        writer.Write(height);
+        writer.Write((short)1);
+        writer.Write((short)24);
+        writer.Write(0);
+        writer.Write(pixelDataSize);
+        writer.Write(0);
+        writer.Write(0);
+        writer.Write(0);
+        writer.Write(0);
+
+        var padCount = rowStride - (width * 3);
+        for (var y = height - 1; y >= 0; y--)
+        {
+            var rowStart = y * width * 4;
+            for (var x = 0; x < width; x++)
+            {
+                var pixelIndex = rowStart + x * 4;
+                var r = rgba[pixelIndex + 0];
+                var g = rgba[pixelIndex + 1];
+                var b = rgba[pixelIndex + 2];
+                writer.Write(b);
+                writer.Write(g);
+                writer.Write(r);
+            }
+
+            for (var i = 0; i < padCount; i++)
+            {
+                writer.Write((byte)0);
+            }
+        }
     }
 
     private static UiFontAtlas BuildFontAtlas(DuxelFontOptions options, HashSet<int> codepoints, bool useStartupSettings)
@@ -1142,6 +1327,7 @@ public sealed record class DuxelAppOptions
 
     public IUiClipboard? Clipboard { get; init; }
     public IUiImeHandler? ImeHandler { get; init; }
+    public IUiImageDecoder? ImageDecoder { get; init; }
 }
 
 public sealed record class DuxelDebugOptions
@@ -1149,6 +1335,8 @@ public sealed record class DuxelDebugOptions
     public Action<string>? Log { get; init; }
     public int LogEveryNFrames { get; init; } = 60;
     public bool LogStartupTimings { get; init; } = false;
+    public string? CaptureOutputDirectory { get; init; }
+    public IReadOnlyList<int> CaptureFrameIndices { get; init; } = Array.Empty<int>();
 }
 
 public sealed record class DuxelWindowOptions
@@ -1163,6 +1351,19 @@ public sealed record class DuxelRendererOptions
 {
     public int MinImageCount { get; init; } = 3;
     public bool EnableValidationLayers { get; init; } = Debugger.IsAttached;
+    public DuxelPerformanceProfile Profile { get; init; } = DuxelPerformanceProfile.Display;
+    public int MsaaSamples { get; init; } = 0;
+    public bool EnableTaaIfSupported { get; init; } = false;
+    public bool EnableFxaaIfSupported { get; init; } = false;
+    public bool TaaExcludeFont { get; init; } = true;
+    public float TaaCurrentFrameWeight { get; init; } = 0.18f;
+    public bool FontLinearSampling { get; init; } = false;
+}
+
+public enum DuxelPerformanceProfile
+{
+    Display,
+    Render,
 }
 
 public sealed record class DuxelFontOptions

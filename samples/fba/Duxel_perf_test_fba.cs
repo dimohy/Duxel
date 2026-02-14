@@ -4,20 +4,43 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Runtime.InteropServices;
 using Duxel.App;
 using Duxel.Core;
+
+var profileName = Environment.GetEnvironmentVariable("DUXEL_APP_PROFILE");
+var profile = string.Equals(profileName, "render", StringComparison.OrdinalIgnoreCase)
+    ? DuxelPerformanceProfile.Render
+    : DuxelPerformanceProfile.Display;
+var fxaaName = Environment.GetEnvironmentVariable("DUXEL_FXAA");
+var enableFxaa = string.Equals(fxaaName, "1", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(fxaaName, "true", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(fxaaName, "on", StringComparison.OrdinalIgnoreCase);
+var taaName = Environment.GetEnvironmentVariable("DUXEL_TAA");
+var enableTaa = string.Equals(taaName, "1", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(taaName, "true", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(taaName, "on", StringComparison.OrdinalIgnoreCase);
 
 DuxelApp.Run(new DuxelAppOptions
 {
     Window = new DuxelWindowOptions
     {
-        Title = "Duxel Performance Test (FBA)"
+        Title = "Duxel Performance Test (FBA)",
+        VSync = false
+    },
+    Renderer = new DuxelRendererOptions
+    {
+        Profile = profile,
+        EnableTaaIfSupported = enableTaa,
+        EnableFxaaIfSupported = enableFxaa
     },
     Font = new DuxelFontOptions
     {
         InitialGlyphs = PerfTestScreen.GlyphStrings
     },
-    Screen = new PerfTestScreen()
+    Screen = new PerfTestScreen(profile)
 });
 
 public sealed class PerfTestScreen : UiScreen
@@ -26,6 +49,18 @@ public sealed class PerfTestScreen : UiScreen
     {
         "Duxel Performance Test (FBA)",
         "Controls",
+        "Render",
+        "Profile",
+        "Render Profile",
+        "Restart required to apply",
+        "VSync",
+        "MSAA",
+        "MSAA 1x/2x/4x/8x",
+        "MSAA is forced to 1x while TAA/FXAA is enabled",
+        "TAA",
+        "FXAA",
+        "TAA Exclude Font",
+        "TAA Weight",
         "Polygons",
         "Add",
         "Remove",
@@ -39,6 +74,8 @@ public sealed class PerfTestScreen : UiScreen
         "Reset",
         "Bounds",
         "Paused"
+        ,"Renderer Status"
+        ,"AA"
     };
 
     private readonly List<PolygonBody> _polygons = [];
@@ -52,6 +89,22 @@ public sealed class PerfTestScreen : UiScreen
     private float _fps;
     private int _fpsFrames;
     private double _fpsTime;
+    private readonly double _benchDurationSeconds = ReadBenchDurationSeconds();
+    private readonly string? _benchOutputPath = Environment.GetEnvironmentVariable("DUXEL_PERF_BENCH_OUT");
+    private readonly int _initialPolygons = ReadInitialPolygonCount();
+    private readonly DuxelPerformanceProfile _startupProfile;
+    private bool _renderProfileForNextLaunch;
+    private bool _initialized;
+    private double _benchElapsedSeconds;
+    private double _benchFpsSum;
+    private int _benchFpsSamples;
+    private bool _benchCompleted;
+
+    public PerfTestScreen(DuxelPerformanceProfile startupProfile)
+    {
+        _startupProfile = startupProfile;
+        _renderProfileForNextLaunch = startupProfile == DuxelPerformanceProfile.Render;
+    }
 
     public override void Render(UiImmediateContext ui)
     {
@@ -63,35 +116,216 @@ public sealed class PerfTestScreen : UiScreen
         var bounds = new UiRect(viewport.Pos.X, viewport.Pos.Y, viewport.Size.X, viewport.Size.Y);
 
         UpdateFps(delta);
-        UpdatePolygons(delta, bounds);
+        var renderBounds = DrawRenderWindow(ui, bounds, delta);
+        DrawControls(ui, bounds, renderBounds);
+        DrawRendererStatusOverlay(ui);
+    }
 
+    private static double ReadBenchDurationSeconds()
+    {
+        var value = Environment.GetEnvironmentVariable("DUXEL_PERF_BENCH_SECONDS");
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0d;
+        }
+
+        return double.TryParse(value, out var seconds) && seconds > 0d ? seconds : 0d;
+    }
+
+    private static int ReadInitialPolygonCount()
+    {
+        var value = Environment.GetEnvironmentVariable("DUXEL_PERF_INITIAL_POLYGONS");
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0;
+        }
+
+        return int.TryParse(value, out var count) && count > 0 ? count : 0;
+    }
+
+    private void EnsureInitialized(UiRect bounds)
+    {
+        if (_initialized)
+        {
+            return;
+        }
+
+        _initialized = true;
+        if (_initialPolygons <= 0)
+        {
+            return;
+        }
+
+        EnsurePolygonCapacity(_initialPolygons);
+
+        for (var i = 0; i < _initialPolygons; i++)
+        {
+            AddPolygon(bounds);
+        }
+    }
+
+    private void TickBenchMode(UiImmediateContext ui, double delta)
+    {
+        if (_benchCompleted || _benchDurationSeconds <= 0d)
+        {
+            return;
+        }
+
+        _benchElapsedSeconds += delta;
+        if (_fps > 0f)
+        {
+            _benchFpsSum += _fps;
+            _benchFpsSamples++;
+        }
+
+        if (_benchElapsedSeconds < _benchDurationSeconds)
+        {
+            return;
+        }
+
+        _benchCompleted = true;
+        var avgFps = _benchFpsSamples > 0 ? _benchFpsSum / _benchFpsSamples : 0d;
+        var vsync = ui.GetVSync();
+        var taaEnabled = ui.GetTaaEnabled();
+        var fxaaEnabled = ui.GetFxaaEnabled();
+        var taaExcludeFont = ui.GetTaaExcludeFont();
+        var taaWeight = ui.GetTaaCurrentFrameWeight();
+        var msaaSamples = ui.GetMsaaSamples();
+
+        if (!string.IsNullOrWhiteSpace(_benchOutputPath))
+        {
+            var json = string.Format(
+                CultureInfo.InvariantCulture,
+                "{{\"avgFps\":{0:0.###},\"samples\":{1},\"elapsedSeconds\":{2:0.###},\"vsync\":{3},\"msaa\":{4},\"taa\":{5},\"fxaa\":{6},\"taaExcludeFont\":{7},\"taaWeight\":{8:0.###},\"count\":{9}}}",
+                avgFps,
+                _benchFpsSamples,
+                _benchElapsedSeconds,
+                vsync.ToString().ToLowerInvariant(),
+                msaaSamples,
+                taaEnabled.ToString().ToLowerInvariant(),
+                fxaaEnabled.ToString().ToLowerInvariant(),
+                taaExcludeFont.ToString().ToLowerInvariant(),
+                taaWeight,
+                _polygons.Count
+            );
+            File.WriteAllText(_benchOutputPath!, json);
+        }
+
+        Environment.Exit(0);
+    }
+
+    private UiRect DrawRenderWindow(UiImmediateContext ui, UiRect viewportBounds, double delta)
+    {
+        const float controlsWidth = 320f;
+        const float margin = 16f;
+        var renderX = viewportBounds.X + controlsWidth + margin * 2f;
+        var renderY = viewportBounds.Y + margin;
+        var renderWidth = MathF.Max(240f, viewportBounds.Width - controlsWidth - margin * 3f);
+        var renderHeight = MathF.Max(240f, viewportBounds.Height - margin * 2f);
+
+        ui.SetNextWindowPos(new UiVector2(renderX, renderY));
+        ui.SetNextWindowSize(new UiVector2(renderWidth, renderHeight));
+        ui.BeginWindow("Render");
+
+        var contentPos = ui.GetCursorScreenPos();
+        var contentAvail = ui.GetContentRegionAvail();
+        var bounds = new UiRect(
+            contentPos.X,
+            contentPos.Y,
+            MathF.Max(1f, contentAvail.X),
+            MathF.Max(1f, contentAvail.Y)
+        );
+
+        EnsureInitialized(bounds);
+        UpdatePolygons(delta, bounds);
+        TickBenchMode(ui, delta);
         DrawScene(ui, bounds);
-        DrawControls(ui, bounds);
+
+        ui.EndWindow();
+        return bounds;
     }
 
     private void DrawScene(UiImmediateContext ui, UiRect bounds)
     {
-        var drawList = ui.GetBackgroundDrawList();
+        var drawList = ui.GetWindowDrawList();
         var clip = bounds;
         var whiteTexture = ui.WhiteTextureId;
 
-        foreach (var body in _polygons)
+        drawList.PushTexture(whiteTexture);
+        drawList.PushClipRect(clip);
+
+        var polygons = CollectionsMarshal.AsSpan(_polygons);
+        for (var i = 0; i < polygons.Length; i++)
         {
+            var body = polygons[i];
             var radius = _baseSize * body.SizeScale;
             var center = body.Position;
             var sides = Math.Max(3, _baseSides + body.SideOffset);
-            DrawPolygon(drawList, clip, whiteTexture, center, radius, sides, body.Rotation, body.Color);
+            DrawPolygon(drawList, center, radius, sides, body.Rotation, body.Color);
         }
+
+        drawList.PopClipRect();
+        drawList.PopTexture();
     }
 
-    private void DrawControls(UiImmediateContext ui, UiRect bounds)
+    private void DrawControls(UiImmediateContext ui, UiRect viewportBounds, UiRect renderBounds)
     {
-        ui.SetNextWindowPos(new UiVector2(bounds.X + 16f, bounds.Y + 16f));
-        ui.SetNextWindowSize(new UiVector2(320f, 420f));
+        const float margin = 16f;
+        ui.SetNextWindowPos(new UiVector2(viewportBounds.X + margin, viewportBounds.Y + margin));
+        ui.SetNextWindowSize(new UiVector2(320f, MathF.Max(320f, viewportBounds.Height - margin * 2f)));
         ui.BeginWindow("Controls");
+        if (ui.IsWindowAppearing())
+        {
+            ui.SetScrollY(0f);
+        }
 
         ui.TextV("FPS: {0:0.0}", _fps);
         ui.TextV("Count: {0}", _polygons.Count);
+        var vsync = ui.GetVSync();
+        if (ui.Checkbox("VSync", ref vsync))
+        {
+            ui.SetVSync(vsync);
+        }
+
+        var msaaSamples = ui.GetMsaaSamples();
+        if (ui.SliderInt("MSAA", ref msaaSamples, 1, 8))
+        {
+            ui.SetMsaaSamples(msaaSamples);
+        }
+        ui.TextV("MSAA: {0}x", ui.GetMsaaSamples());
+        if (ui.GetTaaEnabled() || ui.GetFxaaEnabled())
+        {
+            ui.Text("MSAA is forced to 1x while TAA/FXAA is enabled");
+        }
+
+        var taaEnabled = ui.GetTaaEnabled();
+        if (ui.Checkbox("TAA", ref taaEnabled))
+        {
+            ui.SetTaaEnabled(taaEnabled);
+        }
+
+        var fxaaEnabled = ui.GetFxaaEnabled();
+        if (ui.Checkbox("FXAA", ref fxaaEnabled))
+        {
+            ui.SetFxaaEnabled(fxaaEnabled);
+        }
+
+        var taaExcludeFont = ui.GetTaaExcludeFont();
+        if (ui.Checkbox("TAA Exclude Font", ref taaExcludeFont))
+        {
+            ui.SetTaaExcludeFont(taaExcludeFont);
+        }
+
+        var taaWeight = ui.GetTaaCurrentFrameWeight();
+        if (ui.SliderFloat("TAA Weight", ref taaWeight, 0.05f, 1f, 0f, "0.00"))
+        {
+            ui.SetTaaCurrentFrameWeight(taaWeight);
+        }
+
+        ui.SeparatorText("Profile");
+        ui.TextV("Current: {0}", _startupProfile == DuxelPerformanceProfile.Render ? "Render" : "Display");
+        ui.Checkbox("Render Profile", ref _renderProfileForNextLaunch);
+        ui.Text("Restart required to apply");
         if (ui.Checkbox("Paused", ref _paused))
         {
             if (_paused)
@@ -108,15 +342,19 @@ public sealed class PerfTestScreen : UiScreen
 
         if (ui.Button("Add"))
         {
+            EnsurePolygonCapacity(100);
             for (var i = 0; i < 100; i++)
             {
-                AddPolygon(bounds);
+                AddPolygon(renderBounds);
             }
         }
         ui.SameLine();
         if (ui.Button("Remove"))
         {
-            RemovePolygon();
+            for (var i = 0; i < 100; i++)
+            {
+                RemovePolygon();
+            }
         }
         ui.SameLine();
         if (ui.Button("Clear"))
@@ -126,10 +364,26 @@ public sealed class PerfTestScreen : UiScreen
 
         if (ui.Button("Reset"))
         {
-            ResetSimulation(bounds);
+            ResetSimulation(renderBounds);
         }
 
         ui.EndWindow();
+    }
+
+    private static void DrawRendererStatusOverlay(UiImmediateContext ui)
+    {
+        var viewport = ui.GetMainViewport();
+        var vsync = ui.GetVSync() ? "ON" : "OFF";
+        var taa = ui.GetTaaEnabled() ? "ON" : "OFF";
+        var fxaa = ui.GetFxaaEnabled() ? "ON" : "OFF";
+        var weight = ui.GetTaaCurrentFrameWeight();
+        var msaa = ui.GetMsaaSamples();
+        var text = $"Renderer: VSync {vsync} | MSAA {msaa}x | TAA {taa} | FXAA {fxaa} | AA W {weight:0.00}";
+        var margin = 8f;
+        var textSize = ui.CalcTextSize(text);
+        var pos = new UiVector2(viewport.Size.X - textSize.X - margin, 6f);
+        var fg = ui.GetForegroundDrawList();
+        fg.AddText(pos, new UiColor(210, 210, 210), text);
     }
 
     private void UpdateFps(double delta)
@@ -151,51 +405,151 @@ public sealed class PerfTestScreen : UiScreen
             return;
         }
 
+        var dt = (float)delta;
         var speed = _baseSpeed;
         var minX = bounds.X + 8f;
         var minY = bounds.Y + 8f;
         var maxX = bounds.X + bounds.Width - 8f;
         var maxY = bounds.Y + bounds.Height - 8f;
 
-        foreach (var body in _polygons)
+        var polygons = CollectionsMarshal.AsSpan(_polygons);
+        for (var i = 0; i < polygons.Length; i++)
         {
+            var body = polygons[i];
             var radius = _baseSize * body.SizeScale;
-            var velocity = new UiVector2(body.Direction.X * speed * body.SpeedScale, body.Direction.Y * speed * body.SpeedScale);
-            var pos = new UiVector2(body.Position.X + velocity.X * (float)delta, body.Position.Y + velocity.Y * (float)delta);
+            var dir = body.Direction;
+            var pos = body.Position;
+            var vx = dir.X * speed * body.SpeedScale;
+            var vy = dir.Y * speed * body.SpeedScale;
+            var px = pos.X + vx * dt;
+            var py = pos.Y + vy * dt;
 
-            if (pos.X - radius < minX)
+            if (px - radius < minX)
             {
-                pos = pos with { X = minX + radius };
-                body.Direction = new UiVector2(-body.Direction.X, body.Direction.Y);
+                px = minX + radius;
+                dir = new UiVector2(-dir.X, dir.Y);
             }
-            else if (pos.X + radius > maxX)
+            else if (px + radius > maxX)
             {
-                pos = pos with { X = maxX - radius };
-                body.Direction = new UiVector2(-body.Direction.X, body.Direction.Y);
-            }
-
-            if (pos.Y - radius < minY)
-            {
-                pos = pos with { Y = minY + radius };
-                body.Direction = new UiVector2(body.Direction.X, -body.Direction.Y);
-            }
-            else if (pos.Y + radius > maxY)
-            {
-                pos = pos with { Y = maxY - radius };
-                body.Direction = new UiVector2(body.Direction.X, -body.Direction.Y);
+                px = maxX - radius;
+                dir = new UiVector2(-dir.X, dir.Y);
             }
 
-            body.Position = pos;
-            body.Rotation += (float)(body.AngularSpeed * delta);
+            if (py - radius < minY)
+            {
+                py = minY + radius;
+                dir = new UiVector2(dir.X, -dir.Y);
+            }
+            else if (py + radius > maxY)
+            {
+                py = maxY - radius;
+                dir = new UiVector2(dir.X, -dir.Y);
+            }
+
+            body.Direction = dir;
+            body.Position = new UiVector2(px, py);
+            body.Rotation += (float)(body.AngularSpeed * dt);
         }
+
+        ResolvePolygonCollisions(polygons);
     }
 
     private void ResetSimulation(UiRect bounds)
     {
+        var count = _polygons.Count;
         _polygons.Clear();
-        for (var i = 0; i < 32; i++)
+        EnsurePolygonCapacity(count);
+        for (var i = 0; i < count; i++)
         {
             AddPolygon(bounds);
+        }
+    }
+
+    private void ResolvePolygonCollisions(Span<PolygonBody> polygons)
+    {
+        for (var i = 0; i < polygons.Length; i++)
+        {
+            var bodyA = polygons[i];
+            var radiusA = _baseSize * bodyA.SizeScale;
+
+            for (var j = i + 1; j < polygons.Length; j++)
+            {
+                var bodyB = polygons[j];
+                var radiusB = _baseSize * bodyB.SizeScale;
+                var minDistance = radiusA + radiusB;
+
+                var dx = bodyB.Position.X - bodyA.Position.X;
+                var dy = bodyB.Position.Y - bodyA.Position.Y;
+                var distanceSquared = dx * dx + dy * dy;
+                var minDistanceSquared = minDistance * minDistance;
+                if (distanceSquared >= minDistanceSquared)
+                {
+                    continue;
+                }
+
+                float normalX;
+                float normalY;
+                float distance;
+
+                if (distanceSquared <= float.Epsilon)
+                {
+                    var angle = (float)(_random.NextDouble() * MathF.Tau);
+                    normalX = MathF.Cos(angle);
+                    normalY = MathF.Sin(angle);
+                    distance = 0f;
+                }
+                else
+                {
+                    distance = MathF.Sqrt(distanceSquared);
+                    normalX = dx / distance;
+                    normalY = dy / distance;
+                }
+
+                var overlap = minDistance - distance;
+                if (overlap > 0f)
+                {
+                    var correctionX = normalX * (overlap * 0.5f);
+                    var correctionY = normalY * (overlap * 0.5f);
+                    bodyA.Position = new UiVector2(bodyA.Position.X - correctionX, bodyA.Position.Y - correctionY);
+                    bodyB.Position = new UiVector2(bodyB.Position.X + correctionX, bodyB.Position.Y + correctionY);
+                }
+
+                var aAlong = bodyA.Direction.X * normalX + bodyA.Direction.Y * normalY;
+                var bAlong = bodyB.Direction.X * normalX + bodyB.Direction.Y * normalY;
+                var exchange = bAlong - aAlong;
+
+                var nextDirA = new UiVector2(bodyA.Direction.X + normalX * exchange, bodyA.Direction.Y + normalY * exchange);
+                var nextDirB = new UiVector2(bodyB.Direction.X - normalX * exchange, bodyB.Direction.Y - normalY * exchange);
+
+                bodyA.Direction = NormalizeDirection(nextDirA);
+                bodyB.Direction = NormalizeDirection(nextDirB);
+            }
+        }
+    }
+
+    private static UiVector2 NormalizeDirection(UiVector2 direction)
+    {
+        var lengthSquared = direction.X * direction.X + direction.Y * direction.Y;
+        if (lengthSquared <= 1e-6f)
+        {
+            return new UiVector2(1f, 0f);
+        }
+
+        var invLength = 1f / MathF.Sqrt(lengthSquared);
+        return new UiVector2(direction.X * invLength, direction.Y * invLength);
+    }
+
+    private void EnsurePolygonCapacity(int additionalCount)
+    {
+        if (additionalCount <= 0)
+        {
+            return;
+        }
+
+        var required = _polygons.Count + additionalCount;
+        if (_polygons.Capacity < required)
+        {
+            _polygons.Capacity = required;
         }
     }
 
@@ -238,26 +592,29 @@ public sealed class PerfTestScreen : UiScreen
         return new UiColor(0xFF000000u | (r << 16) | (g << 8) | b);
     }
 
-    private static void DrawPolygon(UiDrawListBuilder drawList, UiRect clip, UiTextureId whiteTexture, UiVector2 center, float radius, int sides, float rotation, UiColor color)
+    private static void DrawPolygon(UiDrawListBuilder drawList, UiVector2 center, float radius, int sides, float rotation, UiColor color)
     {
         var step = MathF.Tau / sides;
-        var prev = GetPoint(center, radius, rotation, 0, step);
-        var first = prev;
+        var cosStep = MathF.Cos(step);
+        var sinStep = MathF.Sin(step);
+
+        var cosAngle = MathF.Cos(rotation);
+        var sinAngle = MathF.Sin(rotation);
+
+        Span<UiVector2> points = stackalloc UiVector2[sides];
+        points[0] = new UiVector2(center.X + cosAngle * radius, center.Y + sinAngle * radius);
 
         for (var i = 1; i < sides; i++)
         {
-            var next = GetPoint(center, radius, rotation, i, step);
-            drawList.AddTriangleFilled(center, prev, next, color, whiteTexture, clip);
-            prev = next;
+            var nextCos = cosAngle * cosStep - sinAngle * sinStep;
+            var nextSin = sinAngle * cosStep + cosAngle * sinStep;
+            cosAngle = nextCos;
+            sinAngle = nextSin;
+
+            points[i] = new UiVector2(center.X + cosAngle * radius, center.Y + sinAngle * radius);
         }
 
-        drawList.AddTriangleFilled(center, prev, first, color, whiteTexture, clip);
-    }
-
-    private static UiVector2 GetPoint(UiVector2 center, float radius, float rotation, int index, float step)
-    {
-        var angle = rotation + step * index;
-        return new UiVector2(center.X + MathF.Cos(angle) * radius, center.Y + MathF.Sin(angle) * radius);
+        drawList.AddConvexPolyFilled(points, color);
     }
 
     private sealed class PolygonBody

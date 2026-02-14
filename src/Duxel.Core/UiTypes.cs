@@ -706,6 +706,23 @@ public sealed class UiPooledList<T> : IReadOnlyList<T>
         return new UiPooledList<T>(buffer, source.Length, pooled: true);
     }
 
+    public static UiPooledList<T> RentAndCopy(IReadOnlyList<T> source)
+    {
+        var count = source.Count;
+        if (count == 0)
+        {
+            return new UiPooledList<T>(Array.Empty<T>(), 0, pooled: false);
+        }
+
+        var buffer = ArrayPool<T>.Shared.Rent(count);
+        for (var i = 0; i < count; i++)
+        {
+            buffer[i] = source[i];
+        }
+
+        return new UiPooledList<T>(buffer, count, pooled: true);
+    }
+
     public static UiPooledList<T> FromArray(T[] array)
     {
         return new UiPooledList<T>(array, array.Length, pooled: false);
@@ -1113,4 +1130,9 @@ public interface IRendererBackend : IDisposable
     void RenderDrawData(UiDrawData drawData);
     void SetMinImageCount(int count);
     void SetVSync(bool enable);
+    void SetMsaaSamples(int samples);
+    void SetTaaEnabled(bool enable);
+    void SetFxaaEnabled(bool enable);
+    void SetTaaExcludeFont(bool exclude);
+    void SetTaaCurrentFrameWeight(float weight);
 }

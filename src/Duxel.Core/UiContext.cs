@@ -50,6 +50,8 @@ public sealed class UiContext : IUiContext
     private bool _appAcceptingEvents = true;
     private bool _previousInjectedLeftDown;
     private char? _pendingHighSurrogate;
+    private UiKeyEvent[] _mergedKeyEventsBuffer = Array.Empty<UiKeyEvent>();
+    private UiCharEvent[] _mergedCharEventsBuffer = Array.Empty<UiCharEvent>();
 
     private enum UiLogTarget
     {
@@ -619,7 +621,13 @@ public sealed class UiContext : IUiContext
         var keyEvents = input.KeyEvents;
         if (_queuedKeyEvents.Count > 0)
         {
-            var merged = new UiKeyEvent[keyEvents.Count + _queuedKeyEvents.Count];
+            var mergedCount = keyEvents.Count + _queuedKeyEvents.Count;
+            if (_mergedKeyEventsBuffer.Length < mergedCount)
+            {
+                _mergedKeyEventsBuffer = new UiKeyEvent[mergedCount];
+            }
+
+            var merged = _mergedKeyEventsBuffer;
             for (var i = 0; i < keyEvents.Count; i++)
             {
                 merged[i] = keyEvents[i];
@@ -634,7 +642,13 @@ public sealed class UiContext : IUiContext
         var charEvents = input.CharEvents;
         if (_queuedCharEvents.Count > 0)
         {
-            var merged = new UiCharEvent[charEvents.Count + _queuedCharEvents.Count];
+            var mergedCount = charEvents.Count + _queuedCharEvents.Count;
+            if (_mergedCharEventsBuffer.Length < mergedCount)
+            {
+                _mergedCharEventsBuffer = new UiCharEvent[mergedCount];
+            }
+
+            var merged = _mergedCharEventsBuffer;
             for (var i = 0; i < charEvents.Count; i++)
             {
                 merged[i] = charEvents[i];
@@ -727,7 +741,8 @@ public sealed class UiContext : IUiContext
             _imeHandler,
             _reserveVertices,
             _reserveIndices,
-            _reserveCommands
+            _reserveCommands,
+            QueueTextureUpdate
         );
 
         screen.Render(ui);
@@ -755,7 +770,7 @@ public sealed class UiContext : IUiContext
             totalVertexCount,
             totalIndexCount,
             drawLists,
-            UiPooledList<UiTextureUpdate>.FromArray(_textureUpdates.ToArray())
+            UiPooledList<UiTextureUpdate>.RentAndCopy(_textureUpdates)
         );
 
 

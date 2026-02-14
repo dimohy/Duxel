@@ -51,6 +51,12 @@ public sealed class UiState
     private int _frameCount;
     private bool _vSync = true;
     private bool _vSyncDirty;
+    private bool _taaEnabled;
+    private bool _fxaaEnabled;
+    private bool _taaExcludeFont = true;
+    private float _taaCurrentFrameWeight = 0.18f;
+    private int _msaaSamples = 4;
+    private bool _rendererAaSettingsDirty;
     private List<UiRect> _popupBlockingRects = [];
     private List<UiRect> _prevPopupBlockingRects = [];
     private string? _pendingTextInputFocusId;
@@ -193,6 +199,101 @@ public sealed class UiState
         _vSyncDirty = false;
         return true;
     }
+
+    public bool TaaEnabled
+    {
+        get => _taaEnabled;
+        set
+        {
+            if (_taaEnabled == value)
+            {
+                return;
+            }
+
+            _taaEnabled = value;
+            _rendererAaSettingsDirty = true;
+        }
+    }
+
+    public bool FxaaEnabled
+    {
+        get => _fxaaEnabled;
+        set
+        {
+            if (_fxaaEnabled == value)
+            {
+                return;
+            }
+
+            _fxaaEnabled = value;
+            _rendererAaSettingsDirty = true;
+        }
+    }
+
+    public bool TaaExcludeFont
+    {
+        get => _taaExcludeFont;
+        set
+        {
+            if (_taaExcludeFont == value)
+            {
+                return;
+            }
+
+            _taaExcludeFont = value;
+            _rendererAaSettingsDirty = true;
+        }
+    }
+
+    public float TaaCurrentFrameWeight
+    {
+        get => _taaCurrentFrameWeight;
+        set
+        {
+            if (MathF.Abs(_taaCurrentFrameWeight - value) <= float.Epsilon)
+            {
+                return;
+            }
+
+            _taaCurrentFrameWeight = value;
+            _rendererAaSettingsDirty = true;
+        }
+    }
+
+    public int MsaaSamples
+    {
+        get => _msaaSamples;
+        set
+        {
+            var normalized = NormalizeMsaaSamples(value);
+            if (_msaaSamples == normalized)
+            {
+                return;
+            }
+
+            _msaaSamples = normalized;
+            _rendererAaSettingsDirty = true;
+        }
+    }
+
+    public bool ConsumeRendererAaSettingsDirty()
+    {
+        if (!_rendererAaSettingsDirty)
+        {
+            return false;
+        }
+
+        _rendererAaSettingsDirty = false;
+        return true;
+    }
+
+    private static int NormalizeMsaaSamples(int value) => value switch
+    {
+        <= 1 => 1,
+        <= 2 => 2,
+        <= 4 => 4,
+        _ => 8,
+    };
 
     public void SetLastClick(double timeSeconds, UiVector2 position, int count)
     {

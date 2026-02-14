@@ -3,23 +3,24 @@
 **.NET 10 전용 크로스플랫폼 즉시 모드(Immediate-Mode) GUI 프레임워크.**
 Vulkan 렌더러 + GLFW 윈도우/입력 백엔드로 Dear ImGui 동등 수준의 위젯·렌더링·텍스트 품질을 목표합니다.
 
-**현재 버전: `0.1.6-preview`** · MSAA 4x · VSync 토글 · 스크롤바 통합 · 팝업 차단 레이어
+**현재 버전: `0.1.7-preview`** · Display/Render 프로필 · 동적 MSAA(1x/2x/4x/8x) · VSync 토글
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Repository: https://github.com/dimohy/Duxel
 
-## 0.1.6-preview 개선 사항
+## 0.1.7-preview 개선 사항
 
-- 한글 IME 입력 시 누락 글리프 감지 후 증분 폰트 아틀라스 재빌드 트리거를 개선해 표시 지연을 완화했습니다.
-- Startup/Initial 글리프 구성 경로를 정리해 초기 폰트 아틀라스 전환 동작을 안정화했습니다.
-- 기본 폰트 크기를 16으로 일원화하고, FBA 텍스트 입력 전용 샘플(`samples/fba/text_input_only.cs`)을 추가했습니다.
+- `Duxel.Core`에 플랫폼 중립 이미지 API(`UiImageTexture`, `UiImageEffects`, `IUiImageDecoder`)를 추가해 이미지 처리 경로를 라이브러리 API로 정리했습니다.
+- Windows 전용 디코더를 `Duxel.Platform.Windows`로 분리하고 `Duxel.App`에서 런타임 등록하도록 구성해 Core 계층의 플랫폼 종속성을 제거했습니다.
+- FBA 이미지 샘플(`samples/fba/image_widget_effects_fba.cs`)에 웹 이미지 소스 선택(PNG/JPG/GIF)과 GIF 프레임 애니메이션 재생을 추가했습니다.
+- 접힘/확장 UI 동작을 보정해 접힘 시 3px 본문 peek는 유지하면서도 비정상 캔버스 돌출이 발생하지 않도록 렌더링 클립 경로를 안정화했습니다.
 
 ## 주요 특징
 
 - **즉시 모드 UI** — Dear ImGui 스타일의 Begin/End 패턴 기반 위젯 API
-- **Vulkan 렌더러** — MSAA 4x, VSync 토글, Triple Buffering, Persistent Mapped Buffers
+- **Vulkan 렌더러** — 프로필 기반 기본값(Display=MSAA2, Render=MSAA1), VSync 토글, Triple Buffering, Persistent Mapped Buffers
 - **GLFW 윈도우/입력** — 키보드·마우스·스크롤·IME 입력 지원
 - **스크롤바/팝업** — 통합 스크롤바 렌더러 (Child/Combo/ListBox/InputMultiline), 팝업 차단 레이어
 - **NativeAOT 지원** — `PublishAot=true` 배포 가능 (리플렉션/동적 로딩 없음)
@@ -124,14 +125,20 @@ DuxelApp.Run(new DuxelAppOptions
 
 ### FBA 샘플 (`samples/fba/`)
 
-FBA(File-Based App)는 단일 `.cs` 파일로 `dotnet run`만으로 바로 실행할 수 있는 샘플입니다.
+FBA(File-Based App)는 단일 `.cs` 파일로 `dotnet run`만으로 바로 실행할 수 있는 샘플이며, 개발용 `run-fba.ps1`는 기본적으로 NativeAOT 게시를 수행합니다.
 
 ```powershell
 # NuGet 패키지 참조(외부 사용자)
 dotnet run samples/fba/all_features.cs
 
-# 로컬 프로젝트 참조(개발자)
-./run-fba.ps1 samples/fba/all_features.cs -NoCache
+# 로컬 프로젝트 참조(개발자, 기본 NativeAOT)
+./run-fba.ps1 samples/fba/all_features.cs
+
+# 로컬 프로젝트 참조(개발자, Managed 실행)
+./run-fba.ps1 samples/fba/all_features.cs -Managed
+
+# 기본 동작 프로필 전환(코드 기본값: Display)
+$env:DUXEL_APP_PROFILE='render'; ./run-fba.ps1 samples/fba/Duxel_perf_test_fba.cs -Managed
 ```
 
 | 파일                       | 모드      | 설명                                          |
@@ -146,6 +153,18 @@ dotnet run samples/fba/all_features.cs
 | `input_queries.cs`       | 즉시 모드 | 키보드/마우스 상태, Shortcut, 클립보드        |
 | `item_status.cs`         | 즉시 모드 | IsItemActive/Focused/Clicked, MultiSelect     |
 | `Duxel_perf_test_fba.cs` | 즉시 모드 | 대량 폴리곤 물리 시뮬레이션 성능 벤치마크     |
+| `ui_mixed_stress.cs`     | 즉시 모드 | 다중 창/텍스트/테이블/리스트/입력/드로우 복합 스트레스 |
+
+성능 자동 비교 스크립트(`./scripts/run-fba-bench.ps1`)의 기본 동작은 아래 2개 샘플을 순차 벤치합니다.
+
+- `samples/fba/Duxel_perf_test_fba.cs`
+- `samples/fba/ui_mixed_stress.cs`
+
+단일 샘플만 벤치하려면 `-SamplePath`를 사용합니다.
+
+```powershell
+./scripts/run-fba-bench.ps1 -SamplePath samples/fba/Duxel_perf_test_fba.cs
+```
 
 ## UI DSL
 
@@ -207,7 +226,9 @@ DuxelApp.Run(new DuxelAppOptions
     Renderer = new DuxelRendererOptions
     {
         MinImageCount = 3,     // Triple Buffering
-        EnableValidationLayers = false
+      EnableValidationLayers = false,
+      Profile = DuxelPerformanceProfile.Display, // Display|Render
+      MsaaSamples = 0         // 0=프로필 기본값, 또는 1/2/4/8 강제
     },
     Font = new DuxelFontOptions
     {

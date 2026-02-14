@@ -721,11 +721,12 @@ public sealed partial class UiImmediateContext
         _windowScrollX = _state.GetScrollX(title);
         _windowScrollY = _state.GetScrollY(title);
 
+        const float collapsedContentPeekHeight = 3f;
         var titleBarHeight = GetFrameHeight() + WindowPadding;
         var expandedSize = _state.GetWindowExpandedSize(title, new UiVector2(rect.Width, rect.Height));
         if (_windowCollapsed)
         {
-            rect = rect with { Height = titleBarHeight + WindowPadding };
+            rect = rect with { Height = titleBarHeight + collapsedContentPeekHeight };
         }
         var titleBarRect = new UiRect(rect.X, rect.Y, rect.Width, titleBarHeight);
         var dragId = $"{title}##window_drag";
@@ -755,7 +756,7 @@ public sealed partial class UiImmediateContext
             {
                 _state.SetWindowExpandedSize(title, new UiVector2(rect.Width, rect.Height));
                 _windowCollapsed = true;
-                rect = rect with { Height = titleBarHeight + WindowPadding };
+                rect = rect with { Height = titleBarHeight + collapsedContentPeekHeight };
             }
             _state.SetWindowCollapsed(title, _windowCollapsed);
         }
@@ -968,34 +969,30 @@ public sealed partial class UiImmediateContext
             AddRectFilled(collapseRect, collapseBg, _whiteTexture);
         }
 
-        // Chevron (꺾은선) — shallow angle so empty space is clearly visible
-        var chevronPad = MathF.Max(5f, collapseRect.Width * 0.30f);
-        var cLeft = collapseRect.X + chevronPad;
-        var cRight = collapseRect.X + collapseRect.Width - chevronPad;
-        var cTop = collapseRect.Y + chevronPad;
-        var cBottom = collapseRect.Y + collapseRect.Height - chevronPad;
-        var cCenterX = (cLeft + cRight) * 0.5f;
-        var cCenterY = (cTop + cBottom) * 0.5f;
-        // Use only ~55% of the box height so chevron is shallow, not a full triangle
-        var chevronHalfH = (cBottom - cTop) * 0.275f;
-        var chevronHalfW = (cRight - cLeft) * 0.275f;
-        const float chevronThickness = 1.0f;
+        // Filled triangle icon
+        var trianglePad = MathF.Max(4f, collapseRect.Width * 0.26f);
+        var tLeft = collapseRect.X + trianglePad;
+        var tRight = collapseRect.X + collapseRect.Width - trianglePad;
+        var tTop = collapseRect.Y + trianglePad;
+        var tBottom = collapseRect.Y + collapseRect.Height - trianglePad;
+        var tCenterX = (tLeft + tRight) * 0.5f;
+        var tCenterY = (tTop + tBottom) * 0.5f;
+        Span<UiVector2> triangle = stackalloc UiVector2[3];
         if (_windowCollapsed)
         {
-            // Chevron > (shallow)
-            var tipX = cCenterX + chevronHalfW;
-            var startX = cCenterX - chevronHalfW;
-            _builder.AddLine(new UiVector2(startX, cCenterY - chevronHalfH), new UiVector2(tipX, cCenterY), _theme.Text, chevronThickness, _whiteTexture);
-            _builder.AddLine(new UiVector2(startX, cCenterY + chevronHalfH), new UiVector2(tipX, cCenterY), _theme.Text, chevronThickness, _whiteTexture);
+            // ▶
+            triangle[0] = new UiVector2(tLeft, tTop);
+            triangle[1] = new UiVector2(tLeft, tBottom);
+            triangle[2] = new UiVector2(tRight, tCenterY);
         }
         else
         {
-            // Chevron ∨ (shallow)
-            var tipY = cCenterY + chevronHalfH;
-            var startY = cCenterY - chevronHalfH;
-            _builder.AddLine(new UiVector2(cCenterX - chevronHalfW, startY), new UiVector2(cCenterX, tipY), _theme.Text, chevronThickness, _whiteTexture);
-            _builder.AddLine(new UiVector2(cCenterX + chevronHalfW, startY), new UiVector2(cCenterX, tipY), _theme.Text, chevronThickness, _whiteTexture);
+            // ▼
+            triangle[0] = new UiVector2(tLeft, tTop);
+            triangle[1] = new UiVector2(tRight, tTop);
+            triangle[2] = new UiVector2(tCenterX, tBottom);
         }
+        _builder.AddConvexPolyFilled(triangle, _theme.Text);
 
         if (closeHovered || closeHeld)
         {
@@ -1026,7 +1023,7 @@ public sealed partial class UiImmediateContext
         var contentHeight = MathF.Max(0f, rect.Height - titleBarHeight - WindowPadding);
         if (_windowCollapsed)
         {
-            contentHeight = 0f;
+            contentHeight = collapsedContentPeekHeight;
         }
 
         var clip = new UiRect(
@@ -1120,6 +1117,11 @@ public sealed partial class UiImmediateContext
             var maxScrollX = MathF.Max(0f, _windowContentMax.X - visibleMaxX);
             var contentHeight = MathF.Max(1f, _windowContentMax.Y - _windowContentStart.Y);
             var contentWidth = MathF.Max(1f, _windowContentMax.X - _windowContentStart.X);
+
+            // Clamp persisted scroll to current content/viewport range.
+            // This is required when window size increases and maxScroll shrinks.
+            _windowScrollY = Math.Clamp(_windowScrollY, 0f, maxScrollY);
+            _windowScrollX = Math.Clamp(_windowScrollX, 0f, maxScrollX);
 
             var hasVScroll = maxScrollY > 0f;
             var hasHScroll = maxScrollX > 0f;

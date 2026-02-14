@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -16,7 +17,14 @@ namespace Duxel.Vulkan;
 public readonly record struct VulkanRendererOptions(
     int MinImageCount,
     bool EnableValidationLayers,
-    bool EnableVSync = true
+    bool EnableVSync = true,
+    int MsaaSamples = 4,
+    bool EnableTaaIfSupported = false,
+    bool EnableFxaaIfSupported = false,
+    bool TaaExcludeFont = true,
+    float TaaCurrentFrameWeight = 0.18f,
+    bool FontLinearSampling = false,
+    UiTextureId FontTextureId = default
 );
 
 public sealed unsafe class VulkanRendererBackend : IRendererBackend
@@ -59,15 +67,21 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     private Format _swapchainFormat;
     private Extent2D _swapchainExtent;
     private RenderPass _renderPass;
+    private RenderPass _overlayRenderPass;
     private DescriptorSetLayout _descriptorSetLayout;
     private PipelineLayout _pipelineLayout;
     private Sampler _fontSampler;
+    private Sampler _imageSampler;
     private Pipeline _graphicsPipeline;
+    private Pipeline _taaGraphicsPipeline;
+    private Pipeline _fxaaGraphicsPipeline;
     private ShaderModule _vertexShaderModule;
     private ShaderModule _fragmentShaderModule;
+    private ShaderModule _fxaaFragmentShaderModule;
     private PipelineCache _pipelineCache;
     private DescriptorPool _descriptorPool;
     private Framebuffer[] _framebuffers = Array.Empty<Framebuffer>();
+    private Framebuffer[] _overlayFramebuffers = Array.Empty<Framebuffer>();
     private CommandPool _uploadCommandPool;
     private CommandBuffer _uploadCommandBuffer;
     private Fence _uploadFence;
@@ -88,9 +102,23 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     private readonly string _pipelineCachePath;
     private nuint _pipelineCacheSize;
     private ulong _pipelineCacheHash;
+    private readonly bool _profilingEnabled = string.Equals(Environment.GetEnvironmentVariable("DUXEL_VK_PROFILE"), "1", StringComparison.Ordinal);
+    private readonly int _profilingLogInterval = ParseProfileLogInterval();
+    private int _profilingFrameCounter;
+    private bool _taaEnabled;
+    private bool _fxaaEnabled;
+    private bool[] _taaImageHistoryValid = Array.Empty<bool>();
+    private Image[] _taaRenderImages = Array.Empty<Image>();
+    private DeviceMemory[] _taaRenderMemories = Array.Empty<DeviceMemory>();
+    private ImageView[] _taaRenderImageViews = Array.Empty<ImageView>();
+    private Image[] _taaHistoryImages = Array.Empty<Image>();
+    private DeviceMemory[] _taaHistoryMemories = Array.Empty<DeviceMemory>();
+    private ImageView[] _taaHistoryImageViews = Array.Empty<ImageView>();
+    private DescriptorSet[] _taaHistoryDescriptorSets = Array.Empty<DescriptorSet>();
+    private bool[] _taaHistoryValid = Array.Empty<bool>();
 
     // MSAA resources
-    private const SampleCountFlags MsaaSampleCount = SampleCountFlags.Count4Bit;
+    private SampleCountFlags _msaaSampleCount = SampleCountFlags.Count4Bit;
     private Image _msaaColorImage;
     private DeviceMemory _msaaColorMemory;
     private ImageView _msaaColorImageView;
@@ -113,9 +141,50 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         CreateDebugMessenger();
         CreateSurface();
         PickPhysicalDevice();
+        ConfigureTemporalAa();
+        ConfigureMsaaSampleCount();
         CreateDevice();
         LoadDeviceExtensions();
         CreateSwapchainResources();
+    }
+
+    private void ConfigureTemporalAa()
+    {
+        _fxaaEnabled = _options.EnableFxaaIfSupported;
+
+        if (!_options.EnableTaaIfSupported)
+        {
+            _taaEnabled = false;
+            if (_fxaaEnabled)
+            {
+                Console.WriteLine("[Duxel.Vulkan] FXAA enabled (post-process 1-pass).");
+            }
+            return;
+        }
+
+        _taaEnabled = true;
+        _fxaaEnabled = false;
+        Console.WriteLine("[Duxel.Vulkan] MVP TAA enabled (history blend + jitter, motion vectors 없음).");
+    }
+
+    private void ConfigureMsaaSampleCount()
+    {
+        var requested = (_taaEnabled || _fxaaEnabled) ? 1 : _options.MsaaSamples;
+        if (requested is not (1 or 2 or 4 or 8))
+        {
+            requested = 4;
+        }
+
+        _vk.GetPhysicalDeviceProperties(_physicalDevice, out var properties);
+        var supported = properties.Limits.FramebufferColorSampleCounts;
+
+        _msaaSampleCount = requested switch
+        {
+            >= 8 when (supported & SampleCountFlags.Count8Bit) != 0 => SampleCountFlags.Count8Bit,
+            >= 4 when (supported & SampleCountFlags.Count4Bit) != 0 => SampleCountFlags.Count4Bit,
+            >= 2 when (supported & SampleCountFlags.Count2Bit) != 0 => SampleCountFlags.Count2Bit,
+            _ => SampleCountFlags.Count1Bit,
+        };
     }
 
     public void SetClearColor(UiColor color)
@@ -137,6 +206,15 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
     public void RenderDrawData(UiDrawData drawData)
     {
+        var uploadTicks = 0L;
+        var recordTicks = 0L;
+        var recordTextureLookupTicks = 0L;
+        var recordClippingTicks = 0L;
+        var recordDescriptorBindTicks = 0L;
+        var recordDrawCallTicks = 0L;
+        var submitTicks = 0L;
+        var presentTicks = 0L;
+
         ApplyTextureUpdates(drawData.TextureUpdates.AsSpan());
 
         if (drawData.DisplaySize.X <= 0 || drawData.DisplaySize.Y <= 0)
@@ -214,17 +292,43 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             _imagesInFlight[imageIndex] = frameData.InFlight;
         }
 
-        EnsureVertexBufferCapacity(frame, drawData.TotalVertexCount);
-        EnsureIndexBufferCapacity(frame, drawData.TotalIndexCount);
+        var needsTemporalBlendQuad = (_taaEnabled || _fxaaEnabled) && imageIndex < _taaHistoryDescriptorSets.Length;
 
-        UploadGeometry(frame, drawData);
+        EnsureVertexBufferCapacity(frame, drawData.TotalVertexCount + (needsTemporalBlendQuad ? 4 : 0));
+        EnsureIndexBufferCapacity(frame, drawData.TotalIndexCount + (needsTemporalBlendQuad ? 6 : 0));
+
+        var uploadStart = _profilingEnabled ? Stopwatch.GetTimestamp() : 0;
+        UploadGeometry(frame, drawData, needsTemporalBlendQuad);
+        if (_profilingEnabled)
+        {
+            uploadTicks = Stopwatch.GetTimestamp() - uploadStart;
+        }
 
         var commandPool = frameData.CommandPool;
         var commandBuffer = frameData.CommandBuffer;
         Check(_vk.ResetCommandPool(_device, commandPool, 0));
         var vertexBuffer = frameData.RenderBuffers.VertexBuffer;
         var indexBuffer = frameData.RenderBuffers.IndexBuffer;
-        RecordCommandBuffer(commandBuffer, imageIndex, drawData, vertexBuffer, indexBuffer);
+        var taaNeedsClear = _taaEnabled && (imageIndex >= _taaImageHistoryValid.Length || !_taaImageHistoryValid[imageIndex]);
+        var jitter = GetTemporalJitter(_frameIndex);
+        var recordStart = _profilingEnabled ? Stopwatch.GetTimestamp() : 0;
+        RecordCommandBuffer(
+            commandBuffer,
+            imageIndex,
+            drawData,
+            vertexBuffer,
+            indexBuffer,
+            taaNeedsClear,
+            jitter.X,
+            jitter.Y,
+            out recordTextureLookupTicks,
+            out recordClippingTicks,
+            out recordDescriptorBindTicks,
+            out recordDrawCallTicks);
+        if (_profilingEnabled)
+        {
+            recordTicks = Stopwatch.GetTimestamp() - recordStart;
+        }
 
         var waitStage = PipelineStageFlags.ColorAttachmentOutputBit;
         var renderFinished = semaphores.RenderFinished;
@@ -247,7 +351,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         }
         fixed (Fence* fence = &frameData.InFlight)
         {
+            var submitStart = _profilingEnabled ? Stopwatch.GetTimestamp() : 0;
             Check(_vk.QueueSubmit(_graphicsQueue, 1, &submitInfo, *fence));
+            if (_profilingEnabled)
+            {
+                submitTicks = Stopwatch.GetTimestamp() - submitStart;
+            }
         }
 
         var swapchain = _swapchain;
@@ -261,7 +370,21 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             PImageIndices = &imageIndex,
         };
 
+        var presentStart = _profilingEnabled ? Stopwatch.GetTimestamp() : 0;
         var presentResult = _khrSwapchain.QueuePresent(_graphicsQueue, &presentInfo);
+        if (_profilingEnabled)
+        {
+            presentTicks = Stopwatch.GetTimestamp() - presentStart;
+            LogProfileFrame(
+                uploadTicks,
+                recordTicks,
+                recordTextureLookupTicks,
+                recordClippingTicks,
+                recordDescriptorBindTicks,
+                recordDrawCallTicks,
+                submitTicks,
+                presentTicks);
+        }
         if (presentResult == Result.ErrorOutOfDateKhr || IsSuboptimal(presentResult))
         {
             RecreateSwapchain();
@@ -272,7 +395,103 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             Check(presentResult);
         }
+
+        if (_taaEnabled && imageIndex < _taaImageHistoryValid.Length)
+        {
+            _taaImageHistoryValid[imageIndex] = true;
+        }
+
+        if (_taaEnabled && imageIndex < _taaHistoryValid.Length)
+        {
+            _taaHistoryValid[imageIndex] = true;
+        }
+
         _frameIndex++;
+    }
+
+    private static int ParseProfileLogInterval()
+    {
+        var raw = Environment.GetEnvironmentVariable("DUXEL_VK_PROFILE_EVERY");
+        if (int.TryParse(raw, out var value) && value > 0)
+        {
+            return value;
+        }
+
+        return 30;
+    }
+
+    private UiVector2 GetTemporalJitter(int frameIndex)
+    {
+        if (!_taaEnabled)
+        {
+            return default;
+        }
+
+        var index = frameIndex & 7;
+        var halton2 = Halton(index + 1, 2);
+        var halton3 = Halton(index + 1, 3);
+        var jitterX = (halton2 - 0.5f) * 0.66f;
+        var jitterY = (halton3 - 0.5f) * 0.66f;
+        return new UiVector2(jitterX, jitterY);
+    }
+
+    private static float Halton(int index, int @base)
+    {
+        var result = 0f;
+        var f = 1f;
+        var i = index;
+        while (i > 0)
+        {
+            f /= @base;
+            result += f * (i % @base);
+            i /= @base;
+        }
+
+        return result;
+    }
+
+    private float GetTaaCurrentFrameWeight()
+    {
+        return Math.Clamp(_options.TaaCurrentFrameWeight, 0.05f, 1f);
+    }
+
+    private float GetTaaHistoryBlendWeight()
+    {
+        var history = 1f - GetTaaCurrentFrameWeight();
+        return Math.Clamp(history, 0f, 0.60f);
+    }
+
+    private void LogProfileFrame(
+        long uploadTicks,
+        long recordTicks,
+        long recordTextureLookupTicks,
+        long recordClippingTicks,
+        long recordDescriptorBindTicks,
+        long recordDrawCallTicks,
+        long submitTicks,
+        long presentTicks)
+    {
+        _profilingFrameCounter++;
+        if (_profilingFrameCounter % _profilingLogInterval != 0)
+        {
+            return;
+        }
+
+        var uploadUs = TicksToMicroseconds(uploadTicks);
+        var recordUs = TicksToMicroseconds(recordTicks);
+        var recordTextureLookupUs = TicksToMicroseconds(recordTextureLookupTicks);
+        var recordClippingUs = TicksToMicroseconds(recordClippingTicks);
+        var recordDescriptorBindUs = TicksToMicroseconds(recordDescriptorBindTicks);
+        var recordDrawCallUs = TicksToMicroseconds(recordDrawCallTicks);
+        var submitUs = TicksToMicroseconds(submitTicks);
+        var presentUs = TicksToMicroseconds(presentTicks);
+        Console.WriteLine(
+            $"[duxel-vk-prof] upload={uploadUs:0.000} record={recordUs:0.000}(tex={recordTextureLookupUs:0.000} clip={recordClippingUs:0.000} desc={recordDescriptorBindUs:0.000} draw={recordDrawCallUs:0.000}) submit={submitUs:0.000} present={presentUs:0.000}");
+    }
+
+    private static double TicksToMicroseconds(long ticks)
+    {
+        return ticks * (1000000.0 / Stopwatch.Frequency);
     }
 
     public byte[] CaptureBackbuffer(out int width, out int height, out Format format)
@@ -356,6 +575,27 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         }
     }
 
+    public byte[] CaptureBackbufferRgba(out int width, out int height)
+    {
+        var raw = CaptureBackbuffer(out width, out height, out var format);
+        if (format is Format.R8G8B8A8Unorm or Format.R8G8B8A8Srgb)
+        {
+            return raw;
+        }
+
+        if (format is Format.B8G8R8A8Unorm or Format.B8G8R8A8Srgb)
+        {
+            for (var i = 0; i + 3 < raw.Length; i += 4)
+            {
+                (raw[i], raw[i + 2]) = (raw[i + 2], raw[i]);
+            }
+
+            return raw;
+        }
+
+        throw new InvalidOperationException($"Unsupported capture format: {format}.");
+    }
+
     public void SetMinImageCount(int count)
     {
         var newCount = Math.Max(2, count);
@@ -381,6 +621,120 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         }
 
         _options = _options with { EnableVSync = enable };
+        if (_swapchain.Handle is not 0)
+        {
+            _frameIndex = 0;
+            Array.Clear(_imagesInFlight, 0, _imagesInFlight.Length);
+            RecreateSwapchain();
+        }
+    }
+
+    public void SetMsaaSamples(int samples)
+    {
+        var normalized = samples switch
+        {
+            <= 1 => 1,
+            <= 2 => 2,
+            <= 4 => 4,
+            _ => 8,
+        };
+
+        if (_options.MsaaSamples == normalized)
+        {
+            return;
+        }
+
+        var previousMsaaSampleCount = _msaaSampleCount;
+        _options = _options with { MsaaSamples = normalized };
+        ConfigureMsaaSampleCount();
+
+        if (_msaaSampleCount == previousMsaaSampleCount)
+        {
+            return;
+        }
+
+        if (_swapchain.Handle is not 0)
+        {
+            _frameIndex = 0;
+            Array.Clear(_imagesInFlight, 0, _imagesInFlight.Length);
+            RecreateSwapchain();
+        }
+    }
+
+    public void SetTaaEnabled(bool enable)
+    {
+        if (_taaEnabled == enable)
+        {
+            return;
+        }
+
+        var nextFxaa = enable ? false : _fxaaEnabled;
+        ApplyTemporalAaSettings(enable, nextFxaa);
+    }
+
+    public void SetFxaaEnabled(bool enable)
+    {
+        if (_fxaaEnabled == enable)
+        {
+            return;
+        }
+
+        var nextTaa = enable ? false : _taaEnabled;
+        ApplyTemporalAaSettings(nextTaa, enable);
+    }
+
+    public void SetTaaExcludeFont(bool exclude)
+    {
+        if (_options.TaaExcludeFont == exclude)
+        {
+            return;
+        }
+
+        _options = _options with { TaaExcludeFont = exclude };
+    }
+
+    public void SetTaaCurrentFrameWeight(float weight)
+    {
+        var clamped = Math.Clamp(weight, 0.05f, 1f);
+        if (MathF.Abs(_options.TaaCurrentFrameWeight - clamped) <= float.Epsilon)
+        {
+            return;
+        }
+
+        _options = _options with { TaaCurrentFrameWeight = clamped };
+    }
+
+    private void ApplyTemporalAaSettings(bool taaEnabled, bool fxaaEnabled)
+    {
+        if (taaEnabled)
+        {
+            fxaaEnabled = false;
+        }
+
+        if (_taaEnabled == taaEnabled && _fxaaEnabled == fxaaEnabled)
+        {
+            return;
+        }
+
+        _taaEnabled = taaEnabled;
+        _fxaaEnabled = fxaaEnabled;
+        _options = _options with
+        {
+            EnableTaaIfSupported = _taaEnabled,
+            EnableFxaaIfSupported = _fxaaEnabled
+        };
+
+        if (_taaImageHistoryValid.Length > 0)
+        {
+            Array.Clear(_taaImageHistoryValid, 0, _taaImageHistoryValid.Length);
+        }
+
+        if (_taaHistoryValid.Length > 0)
+        {
+            Array.Clear(_taaHistoryValid, 0, _taaHistoryValid.Length);
+        }
+
+        ConfigureMsaaSampleCount();
         if (_swapchain.Handle is not 0)
         {
             _frameIndex = 0;
@@ -431,8 +785,11 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         CreateGraphicsPipeline();
         SavePipelineCache();
         CreateMsaaColorImage();
+        CreateTaaRenderTargets();
         CreateFramebuffers();
         CreateSyncObjects();
+        _taaImageHistoryValid = new bool[_swapchainImages.Length];
+        _taaHistoryValid = new bool[_swapchainImages.Length];
     }
 
     private void RecreateSwapchain()
@@ -507,6 +864,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             _vk.DestroyFramebuffer(_device, framebuffer, null);
         }
 
+        foreach (var framebuffer in _overlayFramebuffers)
+        {
+            _vk.DestroyFramebuffer(_device, framebuffer, null);
+        }
+
+        DestroyTaaRenderTargets();
         DestroyMsaaColorImage();
 
         if (_renderPass.Handle is not 0)
@@ -515,10 +878,28 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             _renderPass = default;
         }
 
+        if (_overlayRenderPass.Handle is not 0)
+        {
+            _vk.DestroyRenderPass(_device, _overlayRenderPass, null);
+            _overlayRenderPass = default;
+        }
+
         if (_graphicsPipeline.Handle is not 0)
         {
             _vk.DestroyPipeline(_device, _graphicsPipeline, null);
             _graphicsPipeline = default;
+        }
+
+        if (_taaGraphicsPipeline.Handle is not 0)
+        {
+            _vk.DestroyPipeline(_device, _taaGraphicsPipeline, null);
+            _taaGraphicsPipeline = default;
+        }
+
+        if (_fxaaGraphicsPipeline.Handle is not 0)
+        {
+            _vk.DestroyPipeline(_device, _fxaaGraphicsPipeline, null);
+            _fxaaGraphicsPipeline = default;
         }
 
         if (_vertexShaderModule.Handle is not 0)
@@ -531,6 +912,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             _vk.DestroyShaderModule(_device, _fragmentShaderModule, null);
             _fragmentShaderModule = default;
+        }
+
+        if (_fxaaFragmentShaderModule.Handle is not 0)
+        {
+            _vk.DestroyShaderModule(_device, _fxaaFragmentShaderModule, null);
+            _fxaaFragmentShaderModule = default;
         }
 
         foreach (var imageView in _swapchainImageViews)
@@ -547,8 +934,11 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         _swapchainImages = Array.Empty<Image>();
         _swapchainImageViews = Array.Empty<ImageView>();
         _framebuffers = Array.Empty<Framebuffer>();
+        _overlayFramebuffers = Array.Empty<Framebuffer>();
         _frames = Array.Empty<FrameResources>();
         _imagesInFlight = Array.Empty<Fence>();
+        _taaImageHistoryValid = Array.Empty<bool>();
+        _taaHistoryValid = Array.Empty<bool>();
         _framesInFlight = 0;
         _frameSemaphores = Array.Empty<FrameSemaphores>();
         _semaphoreIndex = 0;
@@ -591,6 +981,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             _vk.DestroySampler(_device, _fontSampler, null);
             _fontSampler = default;
+        }
+
+        if (_imageSampler.Handle is not 0)
+        {
+            _vk.DestroySampler(_device, _imageSampler, null);
+            _imageSampler = default;
         }
     }
 
@@ -1026,11 +1422,128 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
     private unsafe void CreateRenderPass()
     {
+        if (_msaaSampleCount == SampleCountFlags.Count1Bit)
+        {
+            var colorLoadOp = AttachmentLoadOp.Clear;
+            var initialLayout = ImageLayout.Undefined;
+            var finalLayout = (_taaEnabled || _fxaaEnabled) ? ImageLayout.ColorAttachmentOptimal : ImageLayout.PresentSrcKhr;
+            var colorAttachment = new AttachmentDescription
+            {
+                Format = _swapchainFormat,
+                Samples = SampleCountFlags.Count1Bit,
+                LoadOp = colorLoadOp,
+                StoreOp = AttachmentStoreOp.Store,
+                StencilLoadOp = AttachmentLoadOp.DontCare,
+                StencilStoreOp = AttachmentStoreOp.DontCare,
+                InitialLayout = initialLayout,
+                FinalLayout = finalLayout,
+            };
+
+            var singleColorAttachmentRef = new AttachmentReference
+            {
+                Attachment = 0,
+                Layout = ImageLayout.ColorAttachmentOptimal,
+            };
+
+            var singleSubpass = new SubpassDescription
+            {
+                PipelineBindPoint = PipelineBindPoint.Graphics,
+                ColorAttachmentCount = 1,
+                PColorAttachments = &singleColorAttachmentRef,
+                PResolveAttachments = null,
+            };
+
+            var singleDependency = new SubpassDependency
+            {
+                SrcSubpass = Vk.SubpassExternal,
+                DstSubpass = 0,
+                SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit,
+                DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit,
+                SrcAccessMask = 0,
+                DstAccessMask = AccessFlags.ColorAttachmentWriteBit,
+                DependencyFlags = DependencyFlags.ByRegionBit,
+            };
+
+            var singleRenderPassInfo = new RenderPassCreateInfo
+            {
+                SType = StructureType.RenderPassCreateInfo,
+                AttachmentCount = 1,
+                PAttachments = &colorAttachment,
+                SubpassCount = 1,
+                PSubpasses = &singleSubpass,
+                DependencyCount = 1,
+                PDependencies = &singleDependency,
+            };
+
+            fixed (RenderPass* renderPass = &_renderPass)
+            {
+                Check(_vk.CreateRenderPass(_device, &singleRenderPassInfo, null, renderPass));
+            }
+
+            if (_taaEnabled || _fxaaEnabled)
+            {
+                var overlayAttachment = new AttachmentDescription
+                {
+                    Format = _swapchainFormat,
+                    Samples = SampleCountFlags.Count1Bit,
+                    LoadOp = AttachmentLoadOp.Load,
+                    StoreOp = AttachmentStoreOp.Store,
+                    StencilLoadOp = AttachmentLoadOp.DontCare,
+                    StencilStoreOp = AttachmentStoreOp.DontCare,
+                    InitialLayout = ImageLayout.PresentSrcKhr,
+                    FinalLayout = ImageLayout.PresentSrcKhr,
+                };
+
+                var overlayAttachmentRef = new AttachmentReference
+                {
+                    Attachment = 0,
+                    Layout = ImageLayout.ColorAttachmentOptimal,
+                };
+
+                var overlaySubpass = new SubpassDescription
+                {
+                    PipelineBindPoint = PipelineBindPoint.Graphics,
+                    ColorAttachmentCount = 1,
+                    PColorAttachments = &overlayAttachmentRef,
+                    PResolveAttachments = null,
+                };
+
+                var overlayDependency = new SubpassDependency
+                {
+                    SrcSubpass = Vk.SubpassExternal,
+                    DstSubpass = 0,
+                    SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit,
+                    DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit,
+                    SrcAccessMask = AccessFlags.MemoryReadBit,
+                    DstAccessMask = AccessFlags.ColorAttachmentReadBit | AccessFlags.ColorAttachmentWriteBit,
+                    DependencyFlags = DependencyFlags.ByRegionBit,
+                };
+
+                var overlayRenderPassInfo = new RenderPassCreateInfo
+                {
+                    SType = StructureType.RenderPassCreateInfo,
+                    AttachmentCount = 1,
+                    PAttachments = &overlayAttachment,
+                    SubpassCount = 1,
+                    PSubpasses = &overlaySubpass,
+                    DependencyCount = 1,
+                    PDependencies = &overlayDependency,
+                };
+
+                fixed (RenderPass* overlayRenderPass = &_overlayRenderPass)
+                {
+                    Check(_vk.CreateRenderPass(_device, &overlayRenderPassInfo, null, overlayRenderPass));
+                }
+            }
+
+            return;
+        }
+
         // Attachment 0: MSAA color attachment (multisampled, not stored directly)
         var msaaColorAttachment = new AttachmentDescription
         {
             Format = _swapchainFormat,
-            Samples = MsaaSampleCount,
+            Samples = _msaaSampleCount,
             LoadOp = AttachmentLoadOp.Clear,
             StoreOp = AttachmentStoreOp.DontCare,  // MSAA image not needed after resolve
             StencilLoadOp = AttachmentLoadOp.DontCare,
@@ -1103,7 +1616,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
     private unsafe void CreatePipelineLayouts()
     {
-        if (_descriptorSetLayout.Handle is not 0 && _pipelineLayout.Handle is not 0 && _fontSampler.Handle is not 0)
+        if (_descriptorSetLayout.Handle is not 0 && _pipelineLayout.Handle is not 0 && _fontSampler.Handle is not 0 && _imageSampler.Handle is not 0)
         {
             return;
         }
@@ -1152,7 +1665,27 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             Check(_vk.CreatePipelineLayout(_device, &pipelineLayoutInfo, null, pipelineLayout));
         }
 
-        var samplerInfo = new SamplerCreateInfo
+        var fontSamplerInfo = new SamplerCreateInfo
+        {
+            SType = StructureType.SamplerCreateInfo,
+            MagFilter = _options.FontLinearSampling ? Filter.Linear : Filter.Nearest,
+            MinFilter = _options.FontLinearSampling ? Filter.Linear : Filter.Nearest,
+            MipmapMode = SamplerMipmapMode.Nearest,
+            AddressModeU = SamplerAddressMode.ClampToEdge,
+            AddressModeV = SamplerAddressMode.ClampToEdge,
+            AddressModeW = SamplerAddressMode.ClampToEdge,
+            MinLod = 0,
+            MaxLod = 0,
+            AnisotropyEnable = false,
+            MaxAnisotropy = 1,
+        };
+
+        fixed (Sampler* sampler = &_fontSampler)
+        {
+            Check(_vk.CreateSampler(_device, &fontSamplerInfo, null, sampler));
+        }
+
+        var imageSamplerInfo = new SamplerCreateInfo
         {
             SType = StructureType.SamplerCreateInfo,
             MagFilter = Filter.Linear,
@@ -1167,9 +1700,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             MaxAnisotropy = 1,
         };
 
-        fixed (Sampler* sampler = &_fontSampler)
+        fixed (Sampler* sampler = &_imageSampler)
         {
-            Check(_vk.CreateSampler(_device, &samplerInfo, null, sampler));
+            Check(_vk.CreateSampler(_device, &imageSamplerInfo, null, sampler));
         }
     }
 
@@ -1177,6 +1710,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     {
         _vertexShaderModule = CreateShaderModule(VertexShaderSpirv);
         _fragmentShaderModule = CreateShaderModule(FragmentShaderSpirv);
+        _fxaaFragmentShaderModule = _fxaaEnabled
+            ? CreateShaderModule(LoadEmbeddedShader("Duxel.Vulkan.Shaders.fxaa.frag.spv"))
+            : default;
 
         var entryPoint = (byte*)SilkMarshal.StringToPtr("main");
 
@@ -1277,7 +1813,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             var multisampling = new PipelineMultisampleStateCreateInfo
             {
                 SType = StructureType.PipelineMultisampleStateCreateInfo,
-                RasterizationSamples = MsaaSampleCount,
+                RasterizationSamples = _msaaSampleCount,
                 SampleShadingEnable = false,
                 MinSampleShading = 1.0f,
                 PSampleMask = null,
@@ -1316,14 +1852,19 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
                 PAttachments = &colorBlendAttachment,
             };
 
-            var dynamicStates = stackalloc DynamicState[2];
+            var dynamicStateCount = _taaEnabled ? 3u : 2u;
+            var dynamicStates = stackalloc DynamicState[3];
             dynamicStates[0] = DynamicState.Viewport;
             dynamicStates[1] = DynamicState.Scissor;
+            if (_taaEnabled)
+            {
+                dynamicStates[2] = DynamicState.BlendConstants;
+            }
 
             var dynamicState = new PipelineDynamicStateCreateInfo
             {
                 SType = StructureType.PipelineDynamicStateCreateInfo,
-                DynamicStateCount = 2,
+                DynamicStateCount = dynamicStateCount,
                 PDynamicStates = dynamicStates,
             };
 
@@ -1348,6 +1889,78 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             fixed (Pipeline* pipeline = &_graphicsPipeline)
             {
                 Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &pipelineInfo, null, pipeline));
+            }
+
+            if (_taaEnabled)
+            {
+                var taaBlendAttachment = new PipelineColorBlendAttachmentState
+                {
+                    BlendEnable = true,
+                    SrcColorBlendFactor = BlendFactor.ConstantAlpha,
+                    DstColorBlendFactor = BlendFactor.OneMinusConstantAlpha,
+                    ColorBlendOp = BlendOp.Add,
+                    SrcAlphaBlendFactor = BlendFactor.One,
+                    DstAlphaBlendFactor = BlendFactor.Zero,
+                    AlphaBlendOp = BlendOp.Add,
+                    ColorWriteMask = ColorComponentFlags.RBit | ColorComponentFlags.GBit | ColorComponentFlags.BBit | ColorComponentFlags.ABit,
+                };
+
+                var taaColorBlending = new PipelineColorBlendStateCreateInfo
+                {
+                    SType = StructureType.PipelineColorBlendStateCreateInfo,
+                    LogicOpEnable = false,
+                    LogicOp = LogicOp.Copy,
+                    AttachmentCount = 1,
+                    PAttachments = &taaBlendAttachment,
+                };
+
+                var taaPipelineInfo = pipelineInfo;
+                taaPipelineInfo.PColorBlendState = &taaColorBlending;
+
+                fixed (Pipeline* pipeline = &_taaGraphicsPipeline)
+                {
+                    Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &taaPipelineInfo, null, pipeline));
+                }
+            }
+
+            if (_fxaaEnabled)
+            {
+                var fxaaFragmentStage = new PipelineShaderStageCreateInfo
+                {
+                    SType = StructureType.PipelineShaderStageCreateInfo,
+                    Stage = ShaderStageFlags.FragmentBit,
+                    Module = _fxaaFragmentShaderModule,
+                    PName = entryPoint,
+                };
+
+                var fxaaStages = stackalloc PipelineShaderStageCreateInfo[2];
+                fxaaStages[0] = vertexStage;
+                fxaaStages[1] = fxaaFragmentStage;
+
+                var fxaaBlendAttachment = new PipelineColorBlendAttachmentState
+                {
+                    BlendEnable = false,
+                    ColorWriteMask = ColorComponentFlags.RBit | ColorComponentFlags.GBit | ColorComponentFlags.BBit | ColorComponentFlags.ABit,
+                };
+
+                var fxaaColorBlending = new PipelineColorBlendStateCreateInfo
+                {
+                    SType = StructureType.PipelineColorBlendStateCreateInfo,
+                    LogicOpEnable = false,
+                    LogicOp = LogicOp.Copy,
+                    AttachmentCount = 1,
+                    PAttachments = &fxaaBlendAttachment,
+                };
+
+                var fxaaPipelineInfo = pipelineInfo;
+                fxaaPipelineInfo.PStages = fxaaStages;
+                fxaaPipelineInfo.PColorBlendState = &fxaaColorBlending;
+                fxaaPipelineInfo.RenderPass = _overlayRenderPass;
+
+                fixed (Pipeline* pipeline = &_fxaaGraphicsPipeline)
+                {
+                    Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &fxaaPipelineInfo, null, pipeline));
+                }
             }
         }
         finally
@@ -1689,7 +2302,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         _frames[frame] = frameData;
     }
 
-    private unsafe void UploadGeometry(int frame, UiDrawData drawData)
+    private unsafe void UploadGeometry(int frame, UiDrawData drawData, bool appendTemporalBlendQuad)
     {
         var frameData = _frames[frame];
         var renderBuffers = frameData.RenderBuffers;
@@ -1709,10 +2322,52 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             indexSrc.CopyTo(new Span<byte>(indexDst, indexSrc.Length));
             indexDst += indexSrc.Length;
         }
+
+        if (!appendTemporalBlendQuad)
+        {
+            return;
+        }
+
+        var x0 = drawData.DisplayPos.X;
+        var y0 = drawData.DisplayPos.Y;
+        var x1 = x0 + drawData.DisplaySize.X;
+        var y1 = y0 + drawData.DisplaySize.Y;
+
+        var quadVertices = (UiVertex*)vertexDst;
+        quadVertices[0] = new UiVertex { PositionX = x0, PositionY = y0, UVx = 0f, UVy = 0f, Color = 0xFFFFFFFF };
+        quadVertices[1] = new UiVertex { PositionX = x1, PositionY = y0, UVx = 1f, UVy = 0f, Color = 0xFFFFFFFF };
+        quadVertices[2] = new UiVertex { PositionX = x1, PositionY = y1, UVx = 1f, UVy = 1f, Color = 0xFFFFFFFF };
+        quadVertices[3] = new UiVertex { PositionX = x0, PositionY = y1, UVx = 0f, UVy = 1f, Color = 0xFFFFFFFF };
+
+        var quadIndices = (uint*)indexDst;
+        quadIndices[0] = 0;
+        quadIndices[1] = 1;
+        quadIndices[2] = 2;
+        quadIndices[3] = 0;
+        quadIndices[4] = 2;
+        quadIndices[5] = 3;
     }
 
-    private unsafe void RecordCommandBuffer(CommandBuffer commandBuffer, uint imageIndex, UiDrawData drawData, VkBuffer vertexBuffer, VkBuffer indexBuffer)
+    private unsafe void RecordCommandBuffer(
+        CommandBuffer commandBuffer,
+        uint imageIndex,
+        UiDrawData drawData,
+        VkBuffer vertexBuffer,
+        VkBuffer indexBuffer,
+        bool taaNeedsClear,
+        float jitterX,
+        float jitterY,
+        out long recordTextureLookupTicks,
+        out long recordClippingTicks,
+        out long recordDescriptorBindTicks,
+        out long recordDrawCallTicks)
     {
+        var profileEnabled = _profilingEnabled;
+        var textureLookupTicksLocal = 0L;
+        var clippingTicksLocal = 0L;
+        var descriptorBindTicksLocal = 0L;
+        var drawCallTicksLocal = 0L;
+
         var beginInfo = new CommandBufferBeginInfo
         {
             SType = StructureType.CommandBufferBeginInfo,
@@ -1739,29 +2394,25 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             PClearValues = &clearValue,
         };
 
-        _vk.CmdBeginRenderPass(commandBuffer, &renderPassInfo, SubpassContents.Inline);
-        _vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, _graphicsPipeline);
-
-        var viewport = new Viewport(0, 0, fbWidth, fbHeight, 0, 1);
-        _vk.CmdSetViewport(commandBuffer, 0, 1, &viewport);
-
         var displaySize = drawData.DisplaySize;
         var displayPos = drawData.DisplayPos;
         var scaleX = 2f / displaySize.X;
         var scaleY = 2f / displaySize.Y;
         var translateX = -1f - displayPos.X * scaleX;
         var translateY = -1f - displayPos.Y * scaleY;
+        var jitterTranslateX = translateX + (2f * jitterX / displaySize.X);
+        var jitterTranslateY = translateY + (2f * jitterY / displaySize.Y);
+        var normalPushConstants = stackalloc float[4];
+        normalPushConstants[0] = scaleX;
+        normalPushConstants[1] = scaleY;
+        normalPushConstants[2] = translateX;
+        normalPushConstants[3] = translateY;
+        var temporalPushConstants = stackalloc float[4];
+        temporalPushConstants[0] = scaleX;
+        temporalPushConstants[1] = scaleY;
+        temporalPushConstants[2] = jitterTranslateX;
+        temporalPushConstants[3] = jitterTranslateY;
 
-        var pushConstants = stackalloc float[4];
-        pushConstants[0] = scaleX;
-        pushConstants[1] = scaleY;
-        pushConstants[2] = translateX;
-        pushConstants[3] = translateY;
-        _vk.CmdPushConstants(commandBuffer, _pipelineLayout, ShaderStageFlags.VertexBit, 0, (uint)(sizeof(float) * 4), pushConstants);
-
-        ulong vertexOffset = 0;
-        _vk.CmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &vertexOffset);
-        _vk.CmdBindIndexBuffer(commandBuffer, indexBuffer, 0, IndexType.Uint32);
 
         var clipOffset = drawData.DisplayPos;
         var clipScale = drawData.FramebufferScale;
@@ -1769,106 +2420,469 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         var clipOffsetY = clipOffset.Y;
         var clipScaleX = clipScale.X;
         var clipScaleY = clipScale.Y;
-
-        uint globalVertexOffset = 0;
-        uint globalIndexOffset = 0;
-        var hasDescriptorSet = false;
-        var lastDescriptorSet = default(DescriptorSet);
-        var hasScissor = false;
-        var lastScissor = default(Rect2D);
-        var hasLastTexture = false;
-        var lastTextureId = default(UiTextureId);
-        var lastTextureValid = false;
-        var lastTexture = default(TextureResource);
+        var fontTextureId = _options.FontTextureId.Value is 0 ? new UiTextureId(1) : _options.FontTextureId;
         var fbWidthF = (float)fbWidth;
         var fbHeightF = (float)fbHeight;
 
-        for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
+        var postProcessPass = (_taaEnabled || _fxaaEnabled)
+                      && _overlayRenderPass.Handle is not 0
+                      && imageIndex < _overlayFramebuffers.Length;
+        var overlayTextPass = postProcessPass && _options.TaaExcludeFont;
+
+        void DrawCommandLists(bool renderFontOnly, bool renderNonFontOnly)
         {
-            var drawList = drawData.DrawLists[listIndex];
-            var drawListVertexCount = drawList.Vertices.Count;
-            var drawListIndexCount = drawList.Indices.Count;
-            var commandCount = drawList.Commands.Count;
-            for (var cmdIndex = 0; cmdIndex < commandCount; cmdIndex++)
+            var viewport = new Viewport(0, 0, fbWidth, fbHeight, 0, 1);
+            _vk.CmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+            var localVertexBuffer = vertexBuffer;
+            ulong vertexOffset = 0;
+            _vk.CmdBindVertexBuffers(commandBuffer, 0, 1, &localVertexBuffer, &vertexOffset);
+            _vk.CmdBindIndexBuffer(commandBuffer, indexBuffer, 0, IndexType.Uint32);
+
+            uint globalVertexOffset = 0;
+            uint globalIndexOffset = 0;
+            var hasDescriptorSet = false;
+            var lastDescriptorSet = default(DescriptorSet);
+            var hasScissor = false;
+            var lastScissorX = 0;
+            var lastScissorY = 0;
+            var lastScissorW = 0u;
+            var lastScissorH = 0u;
+            var hasLastTexture = false;
+            var lastTextureId = default(UiTextureId);
+            var lastTextureValid = false;
+            var lastTexture = default(TextureResource);
+            var currentPipeline = default(Pipeline);
+            var hasPushMode = false;
+            var currentTemporalPushMode = false;
+            
+
+            for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
             {
-                ref readonly var cmd = ref drawList.Commands.ItemRef(cmdIndex);
-                if (!hasLastTexture || !cmd.TextureId.Equals(lastTextureId))
+                var drawList = drawData.DrawLists[listIndex];
+                var drawListVertexCount = drawList.Vertices.Count;
+                var drawListIndexCount = drawList.Indices.Count;
+                var commandCount = drawList.Commands.Count;
+                for (var cmdIndex = 0; cmdIndex < commandCount; cmdIndex++)
                 {
-                    lastTextureId = cmd.TextureId;
-                    hasLastTexture = true;
-                    if (!_textures.TryGetValue(cmd.TextureId, out lastTexture))
+                    ref readonly var cmd = ref drawList.Commands.ItemRef(cmdIndex);
+                    var isFontCommand = cmd.TextureId.Equals(fontTextureId);
+                    if (renderFontOnly && !isFontCommand)
                     {
-                        lastTextureValid = false;
                         continue;
                     }
 
-                    lastTextureValid = true;
+                    if (renderNonFontOnly && isFontCommand)
+                    {
+                        continue;
+                    }
+
+                    var textureLookupStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
+                    if (!hasLastTexture || !cmd.TextureId.Equals(lastTextureId))
+                    {
+                        lastTextureId = cmd.TextureId;
+                        hasLastTexture = true;
+                        if (!_textures.TryGetValue(cmd.TextureId, out lastTexture))
+                        {
+                            lastTextureValid = false;
+                            if (profileEnabled)
+                            {
+                                textureLookupTicksLocal += Stopwatch.GetTimestamp() - textureLookupStart;
+                            }
+                            continue;
+                        }
+
+                        lastTextureValid = true;
+                    }
+                    else if (!lastTextureValid)
+                    {
+                        if (profileEnabled)
+                        {
+                                textureLookupTicksLocal += Stopwatch.GetTimestamp() - textureLookupStart;
+                        }
+                        continue;
+                    }
+
+                    if (profileEnabled)
+                    {
+                            textureLookupTicksLocal += Stopwatch.GetTimestamp() - textureLookupStart;
+                    }
+
+                    var texture = lastTexture;
+
+                    var clippingStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
+                    var clipMinX = (cmd.ClipRect.X - clipOffsetX) * clipScaleX;
+                    var clipMinY = (cmd.ClipRect.Y - clipOffsetY) * clipScaleY;
+                    var clipMaxX = (cmd.ClipRect.X + cmd.ClipRect.Width - clipOffsetX) * clipScaleX;
+                    var clipMaxY = (cmd.ClipRect.Y + cmd.ClipRect.Height - clipOffsetY) * clipScaleY;
+
+                    if (clipMaxX <= clipMinX || clipMaxY <= clipMinY)
+                    {
+                        if (profileEnabled)
+                        {
+                            clippingTicksLocal += Stopwatch.GetTimestamp() - clippingStart;
+                        }
+                        continue;
+                    }
+
+                    clipMinX = Math.Clamp(clipMinX, 0f, fbWidthF);
+                    clipMinY = Math.Clamp(clipMinY, 0f, fbHeightF);
+                    clipMaxX = Math.Clamp(clipMaxX, 0f, fbWidthF);
+                    clipMaxY = Math.Clamp(clipMaxY, 0f, fbHeightF);
+
+                    var scissorX = (int)clipMinX;
+                    var scissorY = (int)clipMinY;
+                    var scissorW = (uint)(clipMaxX - clipMinX);
+                    var scissorH = (uint)(clipMaxY - clipMinY);
+
+                    if (!hasScissor
+                        || scissorX != lastScissorX
+                        || scissorY != lastScissorY
+                        || scissorW != lastScissorW
+                        || scissorH != lastScissorH)
+                    {
+                        var scissor = new Rect2D(new Offset2D(scissorX, scissorY), new Extent2D(scissorW, scissorH));
+                        _vk.CmdSetScissor(commandBuffer, 0, 1, &scissor);
+                        lastScissorX = scissorX;
+                        lastScissorY = scissorY;
+                        lastScissorW = scissorW;
+                        lastScissorH = scissorH;
+                        hasScissor = true;
+                    }
+
+                    if (profileEnabled)
+                    {
+                        clippingTicksLocal += Stopwatch.GetTimestamp() - clippingStart;
+                    }
+
+                    var descriptorBindStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
+                    var useTemporalJitter = _taaEnabled
+                                            && !renderFontOnly
+                                            && (!_options.TaaExcludeFont || !isFontCommand);
+                    var desiredPipeline = _graphicsPipeline;
+                    if (currentPipeline.Handle != desiredPipeline.Handle)
+                    {
+                        _vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, desiredPipeline);
+                        currentPipeline = desiredPipeline;
+                    }
+
+                    if (!hasPushMode || currentTemporalPushMode != useTemporalJitter)
+                    {
+                        var pushData = useTemporalJitter ? temporalPushConstants : normalPushConstants;
+                        _vk.CmdPushConstants(commandBuffer, _pipelineLayout, ShaderStageFlags.VertexBit, 0, (uint)(sizeof(float) * 4), pushData);
+                        currentTemporalPushMode = useTemporalJitter;
+                        hasPushMode = true;
+                    }
+
+                    var descriptorSet = texture.DescriptorSet;
+                    if (!hasDescriptorSet || descriptorSet.Handle != lastDescriptorSet.Handle)
+                    {
+                        _vk.CmdBindDescriptorSets(
+                            commandBuffer,
+                            PipelineBindPoint.Graphics,
+                            _pipelineLayout,
+                            0,
+                            1,
+                            &descriptorSet,
+                            0,
+                            null
+                        );
+                        lastDescriptorSet = descriptorSet;
+                        hasDescriptorSet = true;
+                    }
+
+                    if (profileEnabled)
+                    {
+                        descriptorBindTicksLocal += Stopwatch.GetTimestamp() - descriptorBindStart;
+                    }
+
+                    var firstIndex = cmd.IndexOffset + globalIndexOffset;
+                    var vertexOffsetCommand = (int)(cmd.VertexOffset + globalVertexOffset);
+                    var drawCallStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
+                    _vk.CmdDrawIndexed(commandBuffer, cmd.ElementCount, 1, firstIndex, vertexOffsetCommand, 0);
+                    if (profileEnabled)
+                    {
+                        drawCallTicksLocal += Stopwatch.GetTimestamp() - drawCallStart;
+                    }
                 }
-                else if (!lastTextureValid)
+
+                globalVertexOffset += (uint)drawListVertexCount;
+                globalIndexOffset += (uint)drawListIndexCount;
+            }
+        }
+
+        _vk.CmdBeginRenderPass(commandBuffer, &renderPassInfo, SubpassContents.Inline);
+
+        if (_taaEnabled && taaNeedsClear)
+        {
+            var clearColor = new ClearAttachment
+            {
+                AspectMask = ImageAspectFlags.ColorBit,
+                ColorAttachment = 0,
+                ClearValue = new ClearValue { Color = _clearColorValue },
+            };
+            var clearRect = new ClearRect
+            {
+                Rect = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)fbWidth, (uint)fbHeight)),
+                BaseArrayLayer = 0,
+                LayerCount = 1,
+            };
+            _vk.CmdClearAttachments(commandBuffer, 1, &clearColor, 1, &clearRect);
+        }
+
+        DrawCommandLists(renderFontOnly: false, renderNonFontOnly: overlayTextPass);
+        _vk.CmdEndRenderPass(commandBuffer);
+
+        if (_taaEnabled)
+        {
+            var taaImage = _taaRenderImages[imageIndex];
+            var swapchainImage = _swapchainImages[imageIndex];
+            var hasHistoryForBlend = imageIndex < _taaHistoryValid.Length
+                                     && _taaHistoryValid[imageIndex]
+                                     && imageIndex < _taaHistoryDescriptorSets.Length;
+
+            TransitionImageLayout(commandBuffer, taaImage, ImageLayout.ColorAttachmentOptimal, ImageLayout.TransferSrcOptimal);
+            TransitionImageLayout(commandBuffer, swapchainImage, ImageLayout.Undefined, ImageLayout.TransferDstOptimal);
+
+            var copyRegion = new ImageCopy
+            {
+                SrcSubresource = new ImageSubresourceLayers
                 {
-                    continue;
-                }
-
-                var texture = lastTexture;
-
-                var clipMinX = (cmd.ClipRect.X - clipOffsetX) * clipScaleX;
-                var clipMinY = (cmd.ClipRect.Y - clipOffsetY) * clipScaleY;
-                var clipMaxX = (cmd.ClipRect.X + cmd.ClipRect.Width - clipOffsetX) * clipScaleX;
-                var clipMaxY = (cmd.ClipRect.Y + cmd.ClipRect.Height - clipOffsetY) * clipScaleY;
-
-                if (clipMaxX <= clipMinX || clipMaxY <= clipMinY)
+                    AspectMask = ImageAspectFlags.ColorBit,
+                    MipLevel = 0,
+                    BaseArrayLayer = 0,
+                    LayerCount = 1,
+                },
+                DstSubresource = new ImageSubresourceLayers
                 {
-                    continue;
-                }
+                    AspectMask = ImageAspectFlags.ColorBit,
+                    MipLevel = 0,
+                    BaseArrayLayer = 0,
+                    LayerCount = 1,
+                },
+                Extent = new Extent3D((uint)fbWidth, (uint)fbHeight, 1),
+            };
 
-                clipMinX = Math.Clamp(clipMinX, 0f, fbWidthF);
-                clipMinY = Math.Clamp(clipMinY, 0f, fbHeightF);
-                clipMaxX = Math.Clamp(clipMaxX, 0f, fbWidthF);
-                clipMaxY = Math.Clamp(clipMaxY, 0f, fbHeightF);
+            _vk.CmdCopyImage(
+                commandBuffer,
+                taaImage,
+                ImageLayout.TransferSrcOptimal,
+                swapchainImage,
+                ImageLayout.TransferDstOptimal,
+                1,
+                &copyRegion);
 
-                var scissor = new Rect2D(
-                    new Offset2D((int)clipMinX, (int)clipMinY),
-                    new Extent2D((uint)(clipMaxX - clipMinX), (uint)(clipMaxY - clipMinY))
-                );
+            TransitionImageLayout(commandBuffer, taaImage, ImageLayout.TransferSrcOptimal, ImageLayout.ColorAttachmentOptimal);
+            TransitionImageLayout(commandBuffer, swapchainImage, ImageLayout.TransferDstOptimal, ImageLayout.PresentSrcKhr);
 
-                if (!hasScissor
-                    || scissor.Offset.X != lastScissor.Offset.X
-                    || scissor.Offset.Y != lastScissor.Offset.Y
-                    || scissor.Extent.Width != lastScissor.Extent.Width
-                    || scissor.Extent.Height != lastScissor.Extent.Height)
+            if (postProcessPass)
+            {
+                var overlayRenderPassInfo = new RenderPassBeginInfo
                 {
-                    _vk.CmdSetScissor(commandBuffer, 0, 1, &scissor);
-                    lastScissor = scissor;
-                    hasScissor = true;
-                }
+                    SType = StructureType.RenderPassBeginInfo,
+                    RenderPass = _overlayRenderPass,
+                    Framebuffer = _overlayFramebuffers[imageIndex],
+                    RenderArea = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)fbWidth, (uint)fbHeight)),
+                    ClearValueCount = 0,
+                    PClearValues = null,
+                };
 
-                var descriptorSet = texture.DescriptorSet;
-                if (!hasDescriptorSet || descriptorSet.Handle != lastDescriptorSet.Handle)
+                _vk.CmdBeginRenderPass(commandBuffer, &overlayRenderPassInfo, SubpassContents.Inline);
+
+                if (hasHistoryForBlend)
                 {
+                    var viewport = new Viewport(0, 0, fbWidth, fbHeight, 0, 1);
+                    _vk.CmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+                    var fullScissor = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)fbWidth, (uint)fbHeight));
+                    _vk.CmdSetScissor(commandBuffer, 0, 1, &fullScissor);
+
+                    var localVertexBuffer = vertexBuffer;
+                    ulong vertexOffset = 0;
+                    _vk.CmdBindVertexBuffers(commandBuffer, 0, 1, &localVertexBuffer, &vertexOffset);
+                    _vk.CmdBindIndexBuffer(commandBuffer, indexBuffer, 0, IndexType.Uint32);
+
+                    _vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, _taaGraphicsPipeline);
+                    _vk.CmdPushConstants(commandBuffer, _pipelineLayout, ShaderStageFlags.VertexBit, 0, (uint)(sizeof(float) * 4), normalPushConstants);
+
+                    var historyWeight = GetTaaHistoryBlendWeight();
+                    var blendConstants = stackalloc float[4];
+                    blendConstants[0] = historyWeight;
+                    blendConstants[1] = historyWeight;
+                    blendConstants[2] = historyWeight;
+                    blendConstants[3] = historyWeight;
+                    _vk.CmdSetBlendConstants(commandBuffer, blendConstants);
+
+                    var historyDescriptorSet = _taaHistoryDescriptorSets[imageIndex];
                     _vk.CmdBindDescriptorSets(
                         commandBuffer,
                         PipelineBindPoint.Graphics,
                         _pipelineLayout,
                         0,
                         1,
-                        &descriptorSet,
+                        &historyDescriptorSet,
                         0,
-                        null
-                    );
-                    lastDescriptorSet = descriptorSet;
-                    hasDescriptorSet = true;
+                        null);
+
+                    var temporalFirstIndex = (uint)drawData.TotalIndexCount;
+                    var temporalVertexOffset = drawData.TotalVertexCount;
+                    _vk.CmdDrawIndexed(commandBuffer, 6, 1, temporalFirstIndex, temporalVertexOffset, 0);
                 }
 
-                var firstIndex = cmd.IndexOffset + globalIndexOffset;
-                var vertexOffsetCommand = (int)(cmd.VertexOffset + globalVertexOffset);
-                _vk.CmdDrawIndexed(commandBuffer, cmd.ElementCount, 1, firstIndex, vertexOffsetCommand, 0);
+                if (overlayTextPass)
+                {
+                    DrawCommandLists(renderFontOnly: true, renderNonFontOnly: false);
+                }
+                _vk.CmdEndRenderPass(commandBuffer);
             }
 
-            globalVertexOffset += (uint)drawListVertexCount;
-            globalIndexOffset += (uint)drawListIndexCount;
+            if (imageIndex < _taaHistoryImages.Length)
+            {
+                var historyImage = _taaHistoryImages[imageIndex];
+                var historyOldLayout = imageIndex < _taaHistoryValid.Length && _taaHistoryValid[imageIndex]
+                    ? ImageLayout.ShaderReadOnlyOptimal
+                    : ImageLayout.Undefined;
+
+                TransitionImageLayout(commandBuffer, taaImage, ImageLayout.ColorAttachmentOptimal, ImageLayout.TransferSrcOptimal);
+                TransitionImageLayout(commandBuffer, historyImage, historyOldLayout, ImageLayout.TransferDstOptimal);
+
+                var historyCopyRegion = new ImageCopy
+                {
+                    SrcSubresource = new ImageSubresourceLayers
+                    {
+                        AspectMask = ImageAspectFlags.ColorBit,
+                        MipLevel = 0,
+                        BaseArrayLayer = 0,
+                        LayerCount = 1,
+                    },
+                    DstSubresource = new ImageSubresourceLayers
+                    {
+                        AspectMask = ImageAspectFlags.ColorBit,
+                        MipLevel = 0,
+                        BaseArrayLayer = 0,
+                        LayerCount = 1,
+                    },
+                    Extent = new Extent3D((uint)fbWidth, (uint)fbHeight, 1),
+                };
+
+                _vk.CmdCopyImage(
+                    commandBuffer,
+                    taaImage,
+                    ImageLayout.TransferSrcOptimal,
+                    historyImage,
+                    ImageLayout.TransferDstOptimal,
+                    1,
+                    &historyCopyRegion);
+
+                TransitionImageLayout(commandBuffer, historyImage, ImageLayout.TransferDstOptimal, ImageLayout.ShaderReadOnlyOptimal);
+                TransitionImageLayout(commandBuffer, taaImage, ImageLayout.TransferSrcOptimal, ImageLayout.ColorAttachmentOptimal);
+            }
+        }
+        else if (_fxaaEnabled)
+        {
+            var taaImage = _taaRenderImages[imageIndex];
+
+            if (imageIndex < _taaHistoryImages.Length)
+            {
+                var historyImage = _taaHistoryImages[imageIndex];
+                var historyOldLayout = imageIndex < _taaHistoryValid.Length && _taaHistoryValid[imageIndex]
+                    ? ImageLayout.ShaderReadOnlyOptimal
+                    : ImageLayout.Undefined;
+
+                TransitionImageLayout(commandBuffer, taaImage, ImageLayout.ColorAttachmentOptimal, ImageLayout.TransferSrcOptimal);
+                TransitionImageLayout(commandBuffer, historyImage, historyOldLayout, ImageLayout.TransferDstOptimal);
+
+                var historyCopyRegion = new ImageCopy
+                {
+                    SrcSubresource = new ImageSubresourceLayers
+                    {
+                        AspectMask = ImageAspectFlags.ColorBit,
+                        MipLevel = 0,
+                        BaseArrayLayer = 0,
+                        LayerCount = 1,
+                    },
+                    DstSubresource = new ImageSubresourceLayers
+                    {
+                        AspectMask = ImageAspectFlags.ColorBit,
+                        MipLevel = 0,
+                        BaseArrayLayer = 0,
+                        LayerCount = 1,
+                    },
+                    Extent = new Extent3D((uint)fbWidth, (uint)fbHeight, 1),
+                };
+
+                _vk.CmdCopyImage(
+                    commandBuffer,
+                    taaImage,
+                    ImageLayout.TransferSrcOptimal,
+                    historyImage,
+                    ImageLayout.TransferDstOptimal,
+                    1,
+                    &historyCopyRegion);
+
+                TransitionImageLayout(commandBuffer, historyImage, ImageLayout.TransferDstOptimal, ImageLayout.ShaderReadOnlyOptimal);
+                TransitionImageLayout(commandBuffer, taaImage, ImageLayout.TransferSrcOptimal, ImageLayout.ColorAttachmentOptimal);
+            }
+
+            if (postProcessPass)
+            {
+                var overlayRenderPassInfo = new RenderPassBeginInfo
+                {
+                    SType = StructureType.RenderPassBeginInfo,
+                    RenderPass = _overlayRenderPass,
+                    Framebuffer = _overlayFramebuffers[imageIndex],
+                    RenderArea = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)fbWidth, (uint)fbHeight)),
+                    ClearValueCount = 0,
+                    PClearValues = null,
+                };
+
+                _vk.CmdBeginRenderPass(commandBuffer, &overlayRenderPassInfo, SubpassContents.Inline);
+
+                if (imageIndex < _taaHistoryDescriptorSets.Length)
+                {
+                    var viewport = new Viewport(0, 0, fbWidth, fbHeight, 0, 1);
+                    _vk.CmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+                    var fullScissor = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)fbWidth, (uint)fbHeight));
+                    _vk.CmdSetScissor(commandBuffer, 0, 1, &fullScissor);
+
+                    var localVertexBuffer = vertexBuffer;
+                    ulong vertexOffset = 0;
+                    _vk.CmdBindVertexBuffers(commandBuffer, 0, 1, &localVertexBuffer, &vertexOffset);
+                    _vk.CmdBindIndexBuffer(commandBuffer, indexBuffer, 0, IndexType.Uint32);
+
+                    _vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, _fxaaGraphicsPipeline);
+                    _vk.CmdPushConstants(commandBuffer, _pipelineLayout, ShaderStageFlags.VertexBit, 0, (uint)(sizeof(float) * 4), normalPushConstants);
+
+                    var historyDescriptorSet = _taaHistoryDescriptorSets[imageIndex];
+                    _vk.CmdBindDescriptorSets(
+                        commandBuffer,
+                        PipelineBindPoint.Graphics,
+                        _pipelineLayout,
+                        0,
+                        1,
+                        &historyDescriptorSet,
+                        0,
+                        null);
+
+                    var temporalFirstIndex = (uint)drawData.TotalIndexCount;
+                    var temporalVertexOffset = drawData.TotalVertexCount;
+                    _vk.CmdDrawIndexed(commandBuffer, 6, 1, temporalFirstIndex, temporalVertexOffset, 0);
+                }
+
+                if (overlayTextPass)
+                {
+                    DrawCommandLists(renderFontOnly: true, renderNonFontOnly: false);
+                }
+                _vk.CmdEndRenderPass(commandBuffer);
+            }
         }
 
-        _vk.CmdEndRenderPass(commandBuffer);
+        recordTextureLookupTicks = textureLookupTicksLocal;
+        recordClippingTicks = clippingTicksLocal;
+        recordDescriptorBindTicks = descriptorBindTicksLocal;
+        recordDrawCallTicks = drawCallTicksLocal;
+
         Check(_vk.EndCommandBuffer(commandBuffer));
     }
 
@@ -2055,7 +3069,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         UploadTextureData(image, update, initialLayout);
 
         var view = CreateImageView(image, format);
-        var descriptorSet = AllocateTextureDescriptorSet(view);
+        var fontTextureId = _options.FontTextureId.Value is 0 ? new UiTextureId(1) : _options.FontTextureId;
+        var isFontTexture = update.TextureId.Equals(fontTextureId);
+        var descriptorSet = AllocateTextureDescriptorSet(view, isFontTexture);
 
         return new TextureResource(image, memory, view, descriptorSet, update.Width, update.Height, format);
     }
@@ -2268,7 +3284,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         _stagingBufferSize = 0;
     }
 
-    private DescriptorSet AllocateTextureDescriptorSet(ImageView view)
+    private DescriptorSet AllocateTextureDescriptorSet(ImageView view, bool isFontTexture)
     {
         var layout = _descriptorSetLayout;
         var allocInfo = new DescriptorSetAllocateInfo
@@ -2284,7 +3300,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
         var imageInfo = new DescriptorImageInfo
         {
-            Sampler = _fontSampler,
+            Sampler = isFontTexture ? _fontSampler : _imageSampler,
             ImageView = view,
             ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
         };
@@ -2544,6 +3560,34 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             sourceStage = PipelineStageFlags.TransferBit;
             destinationStage = PipelineStageFlags.BottomOfPipeBit;
         }
+        else if (oldLayout == ImageLayout.Undefined && newLayout == ImageLayout.ColorAttachmentOptimal)
+        {
+            barrier.SrcAccessMask = 0;
+            barrier.DstAccessMask = AccessFlags.ColorAttachmentWriteBit;
+            sourceStage = PipelineStageFlags.TopOfPipeBit;
+            destinationStage = PipelineStageFlags.ColorAttachmentOutputBit;
+        }
+        else if (oldLayout == ImageLayout.ColorAttachmentOptimal && newLayout == ImageLayout.TransferSrcOptimal)
+        {
+            barrier.SrcAccessMask = AccessFlags.ColorAttachmentWriteBit;
+            barrier.DstAccessMask = AccessFlags.TransferReadBit;
+            sourceStage = PipelineStageFlags.ColorAttachmentOutputBit;
+            destinationStage = PipelineStageFlags.TransferBit;
+        }
+        else if (oldLayout == ImageLayout.TransferSrcOptimal && newLayout == ImageLayout.ColorAttachmentOptimal)
+        {
+            barrier.SrcAccessMask = AccessFlags.TransferReadBit;
+            barrier.DstAccessMask = AccessFlags.ColorAttachmentWriteBit;
+            sourceStage = PipelineStageFlags.TransferBit;
+            destinationStage = PipelineStageFlags.ColorAttachmentOutputBit;
+        }
+        else if (oldLayout == ImageLayout.TransferDstOptimal && newLayout == ImageLayout.PresentSrcKhr)
+        {
+            barrier.SrcAccessMask = AccessFlags.TransferWriteBit;
+            barrier.DstAccessMask = 0;
+            sourceStage = PipelineStageFlags.TransferBit;
+            destinationStage = PipelineStageFlags.BottomOfPipeBit;
+        }
         else
         {
             throw new InvalidOperationException("Unsupported image layout transition.");
@@ -2628,6 +3672,14 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
     private unsafe void CreateMsaaColorImage()
     {
+        if (_msaaSampleCount == SampleCountFlags.Count1Bit)
+        {
+            _msaaColorImage = default;
+            _msaaColorMemory = default;
+            _msaaColorImageView = default;
+            return;
+        }
+
         var imageInfo = new ImageCreateInfo
         {
             SType = StructureType.ImageCreateInfo,
@@ -2639,7 +3691,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             Tiling = ImageTiling.Optimal,
             InitialLayout = ImageLayout.Undefined,
             Usage = ImageUsageFlags.TransientAttachmentBit | ImageUsageFlags.ColorAttachmentBit,
-            Samples = MsaaSampleCount,
+            Samples = _msaaSampleCount,
             SharingMode = SharingMode.Exclusive,
         };
 
@@ -2710,6 +3762,56 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     private unsafe void CreateFramebuffers()
     {
         _framebuffers = new Framebuffer[_swapchainImageViews.Length];
+        _overlayFramebuffers = Array.Empty<Framebuffer>();
+
+        if (_msaaSampleCount == SampleCountFlags.Count1Bit)
+        {
+            for (var i = 0; i < _swapchainImageViews.Length; i++)
+            {
+                var attachment = (_taaEnabled || _fxaaEnabled) ? _taaRenderImageViews[i] : _swapchainImageViews[i];
+                var framebufferInfo = new FramebufferCreateInfo
+                {
+                    SType = StructureType.FramebufferCreateInfo,
+                    RenderPass = _renderPass,
+                    AttachmentCount = 1,
+                    PAttachments = &attachment,
+                    Width = _swapchainExtent.Width,
+                    Height = _swapchainExtent.Height,
+                    Layers = 1,
+                };
+
+                fixed (Framebuffer* framebuffer = &_framebuffers[i])
+                {
+                    Check(_vk.CreateFramebuffer(_device, &framebufferInfo, null, framebuffer));
+                }
+            }
+
+            if (_taaEnabled || _fxaaEnabled)
+            {
+                _overlayFramebuffers = new Framebuffer[_swapchainImageViews.Length];
+                for (var i = 0; i < _swapchainImageViews.Length; i++)
+                {
+                    var overlayAttachment = _swapchainImageViews[i];
+                    var overlayFramebufferInfo = new FramebufferCreateInfo
+                    {
+                        SType = StructureType.FramebufferCreateInfo,
+                        RenderPass = _overlayRenderPass,
+                        AttachmentCount = 1,
+                        PAttachments = &overlayAttachment,
+                        Width = _swapchainExtent.Width,
+                        Height = _swapchainExtent.Height,
+                        Layers = 1,
+                    };
+
+                    fixed (Framebuffer* framebuffer = &_overlayFramebuffers[i])
+                    {
+                        Check(_vk.CreateFramebuffer(_device, &overlayFramebufferInfo, null, framebuffer));
+                    }
+                }
+            }
+
+            return;
+        }
 
         // Allocate outside loop to avoid CA2014 (stackalloc in loop)
         var attachments = stackalloc ImageView[2];
@@ -2735,6 +3837,129 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
                 Check(_vk.CreateFramebuffer(_device, &framebufferInfo, null, framebuffer));
             }
         }
+    }
+
+    private void CreateTaaRenderTargets()
+    {
+        if ((!_taaEnabled && !_fxaaEnabled) || _msaaSampleCount != SampleCountFlags.Count1Bit)
+        {
+            _taaRenderImages = Array.Empty<Image>();
+            _taaRenderMemories = Array.Empty<DeviceMemory>();
+            _taaRenderImageViews = Array.Empty<ImageView>();
+            _taaHistoryImages = Array.Empty<Image>();
+            _taaHistoryMemories = Array.Empty<DeviceMemory>();
+            _taaHistoryImageViews = Array.Empty<ImageView>();
+            _taaHistoryDescriptorSets = Array.Empty<DescriptorSet>();
+            return;
+        }
+
+        var count = _swapchainImages.Length;
+        _taaRenderImages = new Image[count];
+        _taaRenderMemories = new DeviceMemory[count];
+        _taaRenderImageViews = new ImageView[count];
+        _taaHistoryImages = new Image[count];
+        _taaHistoryMemories = new DeviceMemory[count];
+        _taaHistoryImageViews = new ImageView[count];
+        _taaHistoryDescriptorSets = new DescriptorSet[count];
+
+        for (var i = 0; i < count; i++)
+        {
+            CreateImage(
+                (int)_swapchainExtent.Width,
+                (int)_swapchainExtent.Height,
+                _swapchainFormat,
+                ImageTiling.Optimal,
+                ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.TransferSrcBit,
+                MemoryPropertyFlags.DeviceLocalBit,
+                out _taaRenderImages[i],
+                out _taaRenderMemories[i]);
+
+            _taaRenderImageViews[i] = CreateImageView(_taaRenderImages[i], _swapchainFormat);
+
+            CreateImage(
+                (int)_swapchainExtent.Width,
+                (int)_swapchainExtent.Height,
+                _swapchainFormat,
+                ImageTiling.Optimal,
+                ImageUsageFlags.SampledBit | ImageUsageFlags.TransferDstBit,
+                MemoryPropertyFlags.DeviceLocalBit,
+                out _taaHistoryImages[i],
+                out _taaHistoryMemories[i]);
+
+            _taaHistoryImageViews[i] = CreateImageView(_taaHistoryImages[i], _swapchainFormat);
+            _taaHistoryDescriptorSets[i] = AllocateTextureDescriptorSet(_taaHistoryImageViews[i], false);
+        }
+    }
+
+    private unsafe void DestroyTaaRenderTargets()
+    {
+        foreach (var view in _taaRenderImageViews)
+        {
+            if (view.Handle is not 0)
+            {
+                _vk.DestroyImageView(_device, view, null);
+            }
+        }
+
+        foreach (var image in _taaRenderImages)
+        {
+            if (image.Handle is not 0)
+            {
+                _vk.DestroyImage(_device, image, null);
+            }
+        }
+
+        foreach (var memory in _taaRenderMemories)
+        {
+            if (memory.Handle is not 0)
+            {
+                _vk.FreeMemory(_device, memory, null);
+            }
+        }
+
+        if (_descriptorPool.Handle is not 0)
+        {
+            for (var i = 0; i < _taaHistoryDescriptorSets.Length; i++)
+            {
+                var descriptorSet = _taaHistoryDescriptorSets[i];
+                if (descriptorSet.Handle is not 0)
+                {
+                    _vk.FreeDescriptorSets(_device, _descriptorPool, 1, &descriptorSet);
+                }
+            }
+        }
+
+        foreach (var view in _taaHistoryImageViews)
+        {
+            if (view.Handle is not 0)
+            {
+                _vk.DestroyImageView(_device, view, null);
+            }
+        }
+
+        foreach (var image in _taaHistoryImages)
+        {
+            if (image.Handle is not 0)
+            {
+                _vk.DestroyImage(_device, image, null);
+            }
+        }
+
+        foreach (var memory in _taaHistoryMemories)
+        {
+            if (memory.Handle is not 0)
+            {
+                _vk.FreeMemory(_device, memory, null);
+            }
+        }
+
+        _taaRenderImageViews = Array.Empty<ImageView>();
+        _taaRenderImages = Array.Empty<Image>();
+        _taaRenderMemories = Array.Empty<DeviceMemory>();
+        _taaHistoryDescriptorSets = Array.Empty<DescriptorSet>();
+        _taaHistoryImageViews = Array.Empty<ImageView>();
+        _taaHistoryImages = Array.Empty<Image>();
+        _taaHistoryMemories = Array.Empty<DeviceMemory>();
     }
 
     private unsafe void CreateSyncObjects()
@@ -2868,14 +4093,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
                 }
             }
 
-            // Mailbox: capped at monitor refresh but no tearing
-            for (var i = 0u; i < count; i++)
-            {
-                if (modes[i] == PresentModeKHR.MailboxKhr)
-                {
-                    return PresentModeKHR.MailboxKhr;
-                }
-            }
+            Console.WriteLine("[Duxel.Vulkan] VSync OFF requested but Immediate present mode is unavailable; falling back to FIFO (refresh-capped).");
         }
 
         return PresentModeKHR.FifoKhr;
