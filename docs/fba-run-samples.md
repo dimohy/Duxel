@@ -153,6 +153,31 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/image_
 
 ---
 
+## 이미지 효과 실험실 (신규)
+
+웹 PNG/JPG/GIF 소스 전환, GIF 애니메이션 재생, 이미지 효과(Zoom/Rotation/Alpha/Brightness/Contrast/Pixelate)를 실험하는 샘플입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/image_widget_effects_fba.cs -OutFile image_widget_effects_fba.cs; dotnet run image_widget_effects_fba.cs
+```
+
+**Bash**
+```bash
+curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/image_widget_effects_fba.cs && dotnet run image_widget_effects_fba.cs
+```
+
+선택적으로 로컬 이미지를 강제 지정할 수 있습니다.
+
+**PowerShell (Custom 경로 지정)**
+```powershell
+$env:DUXEL_IMAGE_PATH='C:\images\sample.gif'; dotnet run image_widget_effects_fba.cs
+```
+
+> Web PNG/JPG/GIF 자동 다운로드 · GIF 프레임 지연 기반 재생 · 접힘 시 3px 본문 peek 유지
+
+---
+
 ## 키보드/마우스 입력 쿼리
 
 키보드·마우스 상태 조회, 단축키, 클립보드 등을 시연합니다.
@@ -217,7 +242,8 @@ $base = "https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 $files = @(
     "all_features.cs", "dsl_showcase.cs", "dsl_interaction.cs",
     "menu_submenu_zorder.cs", "advanced_layout.cs", "columns_demo.cs",
-    "image_and_popups.cs", "input_queries.cs", "item_status.cs",
+    "image_and_popups.cs", "image_widget_effects_fba.cs",
+    "input_queries.cs", "item_status.cs",
     "Duxel_perf_test_fba.cs"
 )
 New-Item -ItemType Directory -Force -Path fba | Out-Null
@@ -229,7 +255,8 @@ Write-Host "`nRun: dotnet run fba/all_features.cs"
 ```bash
 BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 FILES=(all_features.cs dsl_showcase.cs dsl_interaction.cs menu_submenu_zorder.cs \
-       advanced_layout.cs columns_demo.cs image_and_popups.cs input_queries.cs item_status.cs \
+    advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
+    input_queries.cs item_status.cs \
        Duxel_perf_test_fba.cs)
 mkdir -p fba
 for f in "${FILES[@]}"; do curl -sL "$BASE/$f" -o "fba/$f" && echo "Downloaded $f"; done
