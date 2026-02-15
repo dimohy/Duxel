@@ -214,6 +214,46 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/item_s
 
 ---
 
+## 레이어 캐시/GPU 버퍼 검증 (idle_layer_validation)
+
+레이어 정적 캐시 및 GPU 상주 버퍼의 성능/정합성을 검증하는 벤치마크 샘플입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/idle_layer_validation.cs -OutFile idle_layer_validation.cs; dotnet run idle_layer_validation.cs
+```
+
+**Bash**
+```bash
+curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/idle_layer_validation.cs && dotnet run idle_layer_validation.cs
+```
+
+환경변수로 백엔드/opacity/레이아웃/입자 수 등을 제어할 수 있습니다.
+
+**PowerShell (환경변수 예시)**
+```powershell
+$env:DUXEL_LAYER_BENCH_BACKEND='texture'
+$env:DUXEL_LAYER_BENCH_OPACITY='0.5'
+$env:DUXEL_LAYER_BENCH_PARTICLES='3000,9000'
+$env:DUXEL_LAYER_BENCH_LAYOUTS='baseline,frontheavy'
+$env:DUXEL_LAYER_BENCH_PHASE_SECONDS='2'
+dotnet run idle_layer_validation.cs
+```
+
+| 환경변수 | 기본값 | 설명 |
+| --- | --- | --- |
+| `DUXEL_LAYER_BENCH_BACKEND` | `drawlist` | 레이어 캐시 백엔드 (`drawlist` / `texture`) |
+| `DUXEL_LAYER_BENCH_OPACITY` | `1.0` | 레이어 opacity (0.2 ~ 1.0) |
+| `DUXEL_LAYER_BENCH_PARTICLES` | `3000,9000,18000` | 벤치 입자 수 (콤마 구분) |
+| `DUXEL_LAYER_BENCH_LAYOUTS` | `baseline` | 레이아웃 프리셋 (`baseline`, `frontheavy`, `uniform`, `dense`) |
+| `DUXEL_LAYER_BENCH_PHASE_SECONDS` | `2.5` | 페이즈당 측정 시간(초) |
+| `DUXEL_LAYER_BENCH_DISABLE_FAST_RENDER` | `false` | 빠른 렌더 경로 비활성화 |
+| `DUXEL_LAYER_BENCH_OUT` | _(없음)_ | 벤치 결과 JSON 출력 경로 |
+
+> 레이어 캐시 ON/OFF 비교 · drawlist/texture 백엔드 · opacity 회귀 · 입자 수/레이아웃 매트릭스 벤치
+
+---
+
 ## 성능 벤치마크 (PerfTest)
 
 대량 폴리곤 물리 시뮬레이션으로 DrawList 렌더링 성능을 테스트합니다.
@@ -244,6 +284,7 @@ $files = @(
     "menu_submenu_zorder.cs", "advanced_layout.cs", "columns_demo.cs",
     "image_and_popups.cs", "image_widget_effects_fba.cs",
     "input_queries.cs", "item_status.cs",
+    "idle_layer_validation.cs",
     "Duxel_perf_test_fba.cs"
 )
 New-Item -ItemType Directory -Force -Path fba | Out-Null
@@ -257,6 +298,7 @@ BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 FILES=(all_features.cs dsl_showcase.cs dsl_interaction.cs menu_submenu_zorder.cs \
     advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
     input_queries.cs item_status.cs \
+    idle_layer_validation.cs \
        Duxel_perf_test_fba.cs)
 mkdir -p fba
 for f in "${FILES[@]}"; do curl -sL "$BASE/$f" -o "fba/$f" && echo "Downloaded $f"; done
