@@ -158,8 +158,40 @@ $env:DUXEL_APP_PROFILE='render'; ./run-fba.ps1 samples/fba/Duxel_perf_test_fba.c
 | `image_widget_effects_fba.cs` | 즉시 모드 | 웹 PNG/JPG/GIF + GIF 애니메이션 + 이미지 효과(Zoom/Rotation/Alpha/Pixelate) |
 | `input_queries.cs`       | 즉시 모드 | 키보드/마우스 상태, Shortcut, 클립보드        |
 | `item_status.cs`         | 즉시 모드 | IsItemActive/Focused/Clicked, MultiSelect     |
+| `idle_layer_validation.cs` | 즉시 모드 | 레이어 캐시/정적 GPU 버퍼 검증 — opacity·백엔드·레이아웃 벤치 |
 | `Duxel_perf_test_fba.cs` | 즉시 모드 | 대량 폴리곤 물리 시뮬레이션 성능 벤치마크     |
 | `ui_mixed_stress.cs`     | 즉시 모드 | 다중 창/텍스트/테이블/리스트/입력/드로우 복합 스트레스 |
+
+#### `idle_layer_validation` 실행 예시
+
+```powershell
+# 기본 실행 (NativeAOT, drawlist 백엔드, opacity 1.0)
+./run-fba.ps1 samples/fba/idle_layer_validation.cs -NoCache
+
+# Managed 실행
+./run-fba.ps1 samples/fba/idle_layer_validation.cs -Managed -NoCache
+
+# texture 백엔드 + opacity 0.5 벤치
+$env:DUXEL_LAYER_BENCH_BACKEND='texture'
+$env:DUXEL_LAYER_BENCH_OPACITY='0.5'
+./run-fba.ps1 samples/fba/idle_layer_validation.cs -NoCache
+
+# 입자 수/레이아웃/페이즈 시간 제어
+$env:DUXEL_LAYER_BENCH_PARTICLES='3000,9000'
+$env:DUXEL_LAYER_BENCH_LAYOUTS='baseline,frontheavy'
+$env:DUXEL_LAYER_BENCH_PHASE_SECONDS='2'
+./run-fba.ps1 samples/fba/idle_layer_validation.cs -NoCache
+```
+
+| 환경변수 | 기본값 | 설명 |
+| --- | --- | --- |
+| `DUXEL_LAYER_BENCH_BACKEND` | `drawlist` | 레이어 캐시 백엔드 (`drawlist` / `texture`) |
+| `DUXEL_LAYER_BENCH_OPACITY` | `1.0` | 레이어 opacity (0.2 ~ 1.0) |
+| `DUXEL_LAYER_BENCH_PARTICLES` | `3000,9000,18000` | 벤치 입자 수 (콤마 구분) |
+| `DUXEL_LAYER_BENCH_LAYOUTS` | `baseline` | 레이아웃 프리셋 (`baseline`, `frontheavy`, `uniform`, `dense`) |
+| `DUXEL_LAYER_BENCH_PHASE_SECONDS` | `2.5` | 페이즈당 측정 시간(초) |
+| `DUXEL_LAYER_BENCH_DISABLE_FAST_RENDER` | `false` | 빠른 렌더 경로 비활성화 |
+| `DUXEL_LAYER_BENCH_OUT` | _(없음)_ | 벤치 결과 JSON 출력 경로 |
 
 성능 자동 비교 스크립트(`./scripts/run-fba-bench.ps1`)의 기본 동작은 아래 2개 샘플을 순차 벤치합니다.
 
