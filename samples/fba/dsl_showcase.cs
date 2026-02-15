@@ -1,6 +1,6 @@
 // FBA: DSL 마크업으로 UI를 선언적으로 구성하는 방법 시연 (정적 레이아웃 중심)
 #:property TargetFramework=net10.0
-#:package Duxel.App@*-*
+#:package Duxel.Windows.App@*-*
 
 using Duxel.App;
 using Duxel.Core.Dsl;

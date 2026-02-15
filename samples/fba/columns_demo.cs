@@ -1,6 +1,6 @@
 // FBA: Legacy Columns API 전체 시연 — Columns, NextColumn, GetColumnWidth/Offset 등
 #:property TargetFramework=net10.0
-#:package Duxel.App@*-*
+#:package Duxel.Windows.App@*-*
 
 using Duxel.App;
 using Duxel.Core;

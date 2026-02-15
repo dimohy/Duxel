@@ -6,15 +6,14 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.App</PackageId>
-    <Version>0.1.7-preview</Version>
+    <Version>0.1.10-preview</Version>
     <Authors>dimohy</Authors>
-    <Description>Cross-platform, ImGui-style immediate-mode GUI framework for .NET with Vulkan and GLFW backends.</Description>
+    <Description>OS-agnostic Duxel app facade with bundled Core/GLFW/Vulkan and integrated DSL source generator analyzer.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/dimohy/Duxel</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/dimohy/Duxel</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <IncludeReferencedProjects>true</IncludeReferencedProjects>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,11 +21,43 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Duxel.Core\Duxel.Core.csproj" />
-    <ProjectReference Include="..\Duxel.Platform.Glfw\Duxel.Platform.Glfw.csproj" />
-    <ProjectReference Include="..\Duxel.Platform.Windows\Duxel.Platform.Windows.csproj" />
-    <ProjectReference Include="..\Duxel.Vulkan\Duxel.Vulkan.csproj" />
+    <ProjectReference Include="..\Duxel.Core\Duxel.Core.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\Duxel.Platform.Glfw\Duxel.Platform.Glfw.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\Duxel.Vulkan\Duxel.Vulkan.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\Duxel.Core.Dsl.Generator\Duxel.Core.Dsl.Generator.csproj"
+                      PrivateAssets="all"
+                      ReferenceOutputAssembly="false"
+                      OutputItemType="Analyzer" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.GLFW" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Maths" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Vulkan" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
+  </ItemGroup>
+
+  <Target Name="IncludeProjectReferenceOutputsInPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)"
+                            Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference' and '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="IncludeDslGeneratorAnalyzerInPackage" DependsOnTargets="Build">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="..\Duxel.Core.Dsl.Generator\bin\$(Configuration)\net10.0\Duxel.Core.Dsl.Generator.dll"
+                              PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
+
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeProjectReferenceOutputsInPackage</TargetsForTfmSpecificBuildOutput>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeDslGeneratorAnalyzerInPackage</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
 
 </Project>
 

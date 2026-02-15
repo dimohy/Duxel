@@ -2,7 +2,7 @@
 
 ## 목표
 - `.ui` 확장자의 DSL 파일로 위젯 트리를 선언적으로 정의한다.
-- 런타임 동작은 ImGui의 즉시 모드 흐름과 동일하게 유지한다.
+- 런타임 동작은 설계 문서의 호환성 기준을 유지한다.
 - 빌드 시 DSL을 C# 코드로 변환해 실행파일에 포함한다 (소스 생성기).
 - 개발 중에는 핫리로드로 `.ui` 파일 변경을 즉시 반영한다.
 
@@ -352,6 +352,8 @@ var bindings = new UiDslBindings()
 
 ### 1. 인라인 DSL (FBA/프로토타이핑)
 
+`Duxel.Windows.App` 패키지를 사용하는 경우 엔트리포인트는 `DuxelWindowsApp.Run`을 권장합니다.
+
 ```csharp
 var dslText = """
 Window "Demo"
@@ -361,7 +363,7 @@ Window "Demo"
 var doc = UiDslParser.Parse(dslText);
 var state = new UiDslState();
 
-DuxelApp.Run(new DuxelAppOptions
+DuxelWindowsApp.Run(new DuxelAppOptions
 {
     Window = new DuxelWindowOptions { Title = "Demo" },
     Dsl = new DuxelDslOptions
@@ -389,7 +391,7 @@ var bindings = new UiDslBindings()
 
 var render = UiDslAuto.Render("Main.ui");
 
-DuxelApp.Run(new DuxelAppOptions
+DuxelWindowsApp.Run(new DuxelAppOptions
 {
     Dsl = new DuxelDslOptions
     {
@@ -464,8 +466,8 @@ Window "DSL Showcase"
 - 소스 생성기(`UiDslSourceGenerator`) 구현 완료.
 - `UiDslAuto` 자동 리졸버 (AOT/핫리로드) 구현 완료.
 - `UiDslBindings` 양방향 바인딩 구현 완료.
-- 지원 위젯: 100+ 노드 (ImGui 전체 위젯 대응).
+- 지원 위젯: 100+ 노드 (호환성 목표는 설계 문서 기준).
 - 핫리로드 지원 완료.
-- `.ui` 샘플: `samples/Duxel.Sample/Ui/Main.ui`, `samples/Duxel.Sample.NativeAot/Ui/Main.ui`
+- `.ui` 샘플: `samples/Duxel.Sample/Ui/Main.ui`
 - FBA 샘플: `samples/fba/dsl_showcase.cs`, `samples/fba/dsl_interaction.cs`
 

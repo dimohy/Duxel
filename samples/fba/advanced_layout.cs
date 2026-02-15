@@ -1,7 +1,7 @@
 // FBA: 고급 레이아웃 API 시연 — PushID, PushItemWidth, Cursor 조작, AlignTextToFramePadding,
 //       Window 속성(Pos/Size/Constraints/BgAlpha/Scroll), PushStyleVar, PushTextWrapPos, ClipRect
 #:property TargetFramework=net10.0
-#:package Duxel.App@*-*
+#:package Duxel.Windows.App@*-*
 
 using System;
 using Duxel.App;

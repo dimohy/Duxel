@@ -24,6 +24,10 @@
     NativeAOT만 수행합니다.
 .PARAMETER EstimateNoPresent
     vk-prof 로그가 있을 때 present 시간을 제외한 추정 FPS를 계산합니다.
+.PARAMETER IncludeLayerCacheBench
+    Idle/Layer 캐시 벤치 샘플을 기본 목록에 추가합니다.
+.PARAMETER LayerBenchParticles
+    레이어 캐시 벤치에서 사용할 파티클 수 목록(CSV).
 .EXAMPLE
     ./scripts/run-fba-bench.ps1
 .EXAMPLE
@@ -50,13 +54,19 @@ param(
     [int]$WarmupIterations = 1,
     [string]$RuntimeIdentifier = 'win-x64',
     [switch]$NativeOnly,
-    [switch]$EstimateNoPresent
+    [switch]$EstimateNoPresent,
+    [switch]$IncludeLayerCacheBench,
+    [string]$LayerBenchParticles = '3000,9000,18000'
 )
 
 $ErrorActionPreference = 'Stop'
 
 if ($PSBoundParameters.ContainsKey('SamplePath')) {
     $SamplePaths = @($SamplePath)
+}
+
+if ($IncludeLayerCacheBench -and -not ($SamplePaths -contains 'samples/fba/idle_layer_validation.cs')) {
+    $SamplePaths += 'samples/fba/idle_layer_validation.cs'
 }
 
 if ($null -eq $SamplePaths -or $SamplePaths.Count -eq 0) {
@@ -129,10 +139,27 @@ try {
         $oldSeconds = $env:DUXEL_PERF_BENCH_SECONDS
         $oldOut = $env:DUXEL_PERF_BENCH_OUT
         $oldInitialPolygons = $env:DUXEL_PERF_INITIAL_POLYGONS
+        $oldLayerOut = $env:DUXEL_LAYER_BENCH_OUT
+        $oldLayerParticles = $env:DUXEL_LAYER_BENCH_PARTICLES
+        $oldLayerPhaseSeconds = $env:DUXEL_LAYER_BENCH_PHASE_SECONDS
         try {
-            $env:DUXEL_PERF_BENCH_SECONDS = $BenchSeconds.ToString([System.Globalization.CultureInfo]::InvariantCulture)
-            $env:DUXEL_PERF_BENCH_OUT = $outJson
-            $env:DUXEL_PERF_INITIAL_POLYGONS = $InitialPolygons.ToString([System.Globalization.CultureInfo]::InvariantCulture)
+            $isLayerBenchSample = $activeSamplePath -like '*idle_layer_validation.cs'
+            if ($isLayerBenchSample) {
+                $env:DUXEL_LAYER_BENCH_OUT = $outJson
+                $env:DUXEL_LAYER_BENCH_PARTICLES = $LayerBenchParticles
+                $env:DUXEL_LAYER_BENCH_PHASE_SECONDS = $BenchSeconds.ToString([System.Globalization.CultureInfo]::InvariantCulture)
+                Remove-Item Env:DUXEL_PERF_BENCH_SECONDS -ErrorAction SilentlyContinue
+                Remove-Item Env:DUXEL_PERF_BENCH_OUT -ErrorAction SilentlyContinue
+                Remove-Item Env:DUXEL_PERF_INITIAL_POLYGONS -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:DUXEL_PERF_BENCH_SECONDS = $BenchSeconds.ToString([System.Globalization.CultureInfo]::InvariantCulture)
+                $env:DUXEL_PERF_BENCH_OUT = $outJson
+                $env:DUXEL_PERF_INITIAL_POLYGONS = $InitialPolygons.ToString([System.Globalization.CultureInfo]::InvariantCulture)
+                Remove-Item Env:DUXEL_LAYER_BENCH_OUT -ErrorAction SilentlyContinue
+                Remove-Item Env:DUXEL_LAYER_BENCH_PARTICLES -ErrorAction SilentlyContinue
+                Remove-Item Env:DUXEL_LAYER_BENCH_PHASE_SECONDS -ErrorAction SilentlyContinue
+            }
 
             $sw = [System.Diagnostics.Stopwatch]::StartNew()
             if ($Mode -eq 'NativeAOT') {
@@ -148,16 +175,42 @@ try {
             }
 
             $json = Get-Content $outJson -Raw -Encoding UTF8 | ConvertFrom-Json
+            $isLayerResult = $null -ne $json.results
+            $avgFps = 0.0
+            $samples = 0
+            $elapsedSeconds = 0.0
+            $vsync = $false
+            $count = 0
+            if ($isLayerResult) {
+                $phaseRows = @($json.results)
+                if ($phaseRows.Count -gt 0) {
+                    $avgFps = (($phaseRows | ForEach-Object { [double]$_.avgFps }) | Measure-Object -Average).Average
+                    $samples = (($phaseRows | ForEach-Object { [int]$_.samples }) | Measure-Object -Sum).Sum
+                    $elapsedSeconds = [double]$json.phaseSeconds * $phaseRows.Count
+
+                    $phaseCsv = [System.IO.Path]::ChangeExtension($outJson, '.phases.csv')
+                    $phaseRows | Export-Csv -Path $phaseCsv -NoTypeInformation -Encoding UTF8
+                }
+            }
+            else {
+                $avgFps = [double]$json.avgFps
+                $samples = [int]$json.samples
+                $elapsedSeconds = [double]$json.elapsedSeconds
+                $vsync = [bool]$json.vsync
+                $count = [int]$json.count
+            }
+
             $avgFpsNoPresentEst = if ($EstimateNoPresent) { Get-NoPresentEstimate -LogPath $outLog } else { $null }
             return [pscustomobject]@{
                 Mode = $Mode
                 Iteration = $Index
-                AvgFps = [double]$json.avgFps
+                AvgFps = [double]$avgFps
                 AvgFpsNoPresentEst = $avgFpsNoPresentEst
-                Samples = [int]$json.samples
-                ElapsedSeconds = [double]$json.elapsedSeconds
-                VSync = [bool]$json.vsync
-                PolygonCount = [int]$json.count
+                Samples = [int]$samples
+                ElapsedSeconds = [double]$elapsedSeconds
+                VSync = [bool]$vsync
+                PolygonCount = [int]$count
+                IsLayerBench = [bool]$isLayerResult
                 WallMs = [int]$sw.ElapsedMilliseconds
                 OutputJson = $outJson
                 OutputLog = $outLog
@@ -167,6 +220,9 @@ try {
             $env:DUXEL_PERF_BENCH_SECONDS = $oldSeconds
             $env:DUXEL_PERF_BENCH_OUT = $oldOut
             $env:DUXEL_PERF_INITIAL_POLYGONS = $oldInitialPolygons
+            $env:DUXEL_LAYER_BENCH_OUT = $oldLayerOut
+            $env:DUXEL_LAYER_BENCH_PARTICLES = $oldLayerParticles
+            $env:DUXEL_LAYER_BENCH_PHASE_SECONDS = $oldLayerPhaseSeconds
         }
     }
 

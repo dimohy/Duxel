@@ -72,31 +72,47 @@ $sourcePath = Resolve-Path $Path -ErrorAction Stop
 $sourceContent = Get-Content $sourcePath -Raw -Encoding UTF8
 $baseName = [System.IO.Path]::GetFileNameWithoutExtension($sourcePath)
 
-# #:package Duxel.App@... → #:project 치환
-$projectRef = '#:project ../../src/Duxel.App/Duxel.App.csproj'
+# #:package Duxel.App@... 또는 Duxel.Windows.App@... → #:project 치환
 
 # FBA 파일이 samples/fba/ 외의 위치에 있을 수도 있으므로 상대 경로 계산
 $sourceDir = Split-Path $sourcePath -Parent
-$appCsprojAbs = Join-Path $repoRoot 'src/Duxel.App/Duxel.App.csproj'
-$relativePath = [System.IO.Path]::GetRelativePath($sourceDir, $appCsprojAbs) -replace '\\', '/'
-$projectRefForFba = $appCsprojAbs -replace '\\', '/'
-$projectRef = "#:project $projectRefForFba"
+$appCsprojAbs = (Join-Path $repoRoot 'src/Duxel.App/Duxel.App.csproj') -replace '\\', '/'
+$windowsAppCsprojAbs = (Join-Path $repoRoot 'src/Duxel.Windows.App/Duxel.Windows.App.csproj') -replace '\\', '/'
+$coreCsprojAbs = (Join-Path $repoRoot 'src/Duxel.Core/Duxel.Core.csproj') -replace '\\', '/'
 
-$pattern = '#:package\s+Duxel\.App@[^\r\n]+'
-if ($sourceContent -notmatch $pattern) {
-    Write-Host "[run-fba] #:package Duxel.App 지시문을 찾을 수 없습니다. 원본 그대로 실행합니다." -ForegroundColor Yellow
+$patternApp = '#:package\s+Duxel\.App@[^\r\n]+'
+$patternWindowsApp = '#:package\s+Duxel\.Windows\.App@[^\r\n]+'
+
+$projectRefs = $null
+$packageName = $null
+if ($sourceContent -match $patternWindowsApp) {
+    $packageName = 'Duxel.Windows.App'
+    $projectRefs = "#:project $windowsAppCsprojAbs`n#:project $coreCsprojAbs"
+    $replaced = [System.Text.RegularExpressions.Regex]::Replace($sourceContent, $patternWindowsApp, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $projectRefs }, 1)
+}
+elseif ($sourceContent -match $patternApp) {
+    $packageName = 'Duxel.App'
+    $projectRefs = "#:project $appCsprojAbs`n#:project $coreCsprojAbs"
+    $replaced = [System.Text.RegularExpressions.Regex]::Replace($sourceContent, $patternApp, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $projectRefs }, 1)
+}
+
+if ($null -eq $projectRefs) {
+    Write-Host "[run-fba] #:package Duxel.App 또는 Duxel.Windows.App 지시문을 찾을 수 없습니다. 원본 그대로 실행합니다." -ForegroundColor Yellow
     $tempPath = $null
 }
 else {
-    $replaced = $sourceContent -replace $pattern, $projectRef
+    if ($packageName -eq 'Duxel.Windows.App') {
+        Write-Host "[run-fba] 프로젝트 참조로 실행: src/Duxel.Windows.App + src/Duxel.Core" -ForegroundColor Cyan
+    }
+    else {
+        Write-Host "[run-fba] 프로젝트 참조로 실행: src/Duxel.App + src/Duxel.Core" -ForegroundColor Cyan
+    }
 
     # 임시 파일 생성 (격리된 임시 디렉토리 + 원본과 동일한 파일명)
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("run-fba-{0}" -f ([guid]::NewGuid().ToString('N')))
     New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
     $tempPath = Join-Path $tempRoot ("$baseName.cs")
     Set-Content -Path $tempPath -Value $replaced -Encoding UTF8 -NoNewline
-
-    Write-Host "[run-fba] 프로젝트 참조로 실행: $relativePath" -ForegroundColor Cyan
 }
 
 $runPath = if ($tempPath) { $tempPath } else { $sourcePath }

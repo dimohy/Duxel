@@ -9,6 +9,12 @@ public readonly record struct InputSnapshot(
     bool LeftMouseDown,
     bool RightMouseDown,
     bool MiddleMouseDown,
+    bool LeftMousePressedEvent,
+    bool LeftMouseReleasedEvent,
+    bool RightMousePressedEvent,
+    bool RightMouseReleasedEvent,
+    bool MiddleMousePressedEvent,
+    bool MiddleMouseReleasedEvent,
     float MouseWheel,
     float MouseWheelHorizontal,
     IReadOnlyList<UiKeyEvent> KeyEvents,
@@ -42,6 +48,7 @@ public interface IPlatformBackend : IDisposable
     IVulkanSurfaceSource? VulkanSurface { get; }
 
     void PollEvents();
+    void WaitEvents(int timeoutMilliseconds);
     void SetMouseCursor(UiMouseCursor cursor);
 }
 

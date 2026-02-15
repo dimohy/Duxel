@@ -1,6 +1,6 @@
 // FBA: 텍스트 입력 전용 샘플 — 단일/멀티라인 입력, 힌트, 길이 제한, 상태 표시
 #:property TargetFramework=net10.0
-#:package Duxel.App@*-*
+#:package Duxel.Windows.App@*-*
 
 using Duxel.App;
 using Duxel.Core;

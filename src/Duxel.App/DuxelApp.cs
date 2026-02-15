@@ -4,16 +4,42 @@ using System.Runtime.CompilerServices;
 using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Duxel.Core;
 using Duxel.Core.Dsl;
 using Duxel.Platform.Glfw;
-using Duxel.Platform.Windows;
 using Duxel.Vulkan;
 
 namespace Duxel.App;
 
 public static class DuxelApp
 {
+    private static AutoResetEvent? s_frameWakeSignal;
+    private static int s_pendingFrameRequests;
+
+    public static void RequestFrame()
+    {
+        Interlocked.Increment(ref s_pendingFrameRequests);
+        Volatile.Read(ref s_frameWakeSignal)?.Set();
+    }
+
+    private static bool TryConsumeFrameRequest()
+    {
+        while (true)
+        {
+            var current = Volatile.Read(ref s_pendingFrameRequests);
+            if (current <= 0)
+            {
+                return false;
+            }
+
+            if (Interlocked.CompareExchange(ref s_pendingFrameRequests, current - 1, current) == current)
+            {
+                return true;
+            }
+        }
+    }
+
     public static void Run(DuxelAppOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -51,17 +77,12 @@ public static class DuxelApp
             window.Height,
             window.Title,
             window.VSync,
-            new WindowsKeyRepeatSettingsProvider()
+            options.KeyRepeatSettingsProvider ?? DefaultKeyRepeatSettingsProvider.Shared
         ));
 
         if (options.ImageDecoder is not null)
         {
             UiImageTexture.ImageDecoder = options.ImageDecoder;
-        }
-
-        if (UiImageTexture.ImageDecoder is null && OperatingSystem.IsWindows())
-        {
-            UiImageTexture.ImageDecoder = WindowsUiImageDecoder.Shared;
         }
 
         var requestedMsaaSamples = rendererOptions.MsaaSamples > 0
@@ -242,6 +263,9 @@ public static class DuxelApp
         var previousTime = 0d;
         var pendingGlyphs = 0;
         var lastFontRebuildTime = 0d;
+        using var frameWakeSignal = new AutoResetEvent(false);
+        Volatile.Write(ref s_frameWakeSignal, frameWakeSignal);
+        Interlocked.Exchange(ref s_pendingFrameRequests, 0);
         const int imeTempAtlasCacheCapacity = 4;
         const double imeTempAtlasCacheTtlSeconds = 1.2;
         var imeTempAtlasCache = new Dictionary<ulong, (UiFontAtlas Atlas, double ExpiresAt)>();
@@ -263,18 +287,21 @@ public static class DuxelApp
         var cursorValue = (int)UiMouseCursor.Arrow;
 
         IUiImeHandler? imeHandlerForContext = null;
-        WindowsImeHandler? win32ImeHandler = null;
+        IUiImeHandler? platformImeHandler = null;
         QueuedImeHandler? queuedImeHandler = null;
 
         if (options.ImeHandler is not null)
         {
             imeHandlerForContext = options.ImeHandler;
         }
-        else if (platform is IWin32PlatformBackend win32Platform)
+        else if (options.ImeHandlerFactory is not null)
         {
-            win32ImeHandler = new WindowsImeHandler(win32Platform.WindowHandle);
-            queuedImeHandler = new QueuedImeHandler();
-            imeHandlerForContext = queuedImeHandler;
+            platformImeHandler = options.ImeHandlerFactory(platform);
+            if (platformImeHandler is not null)
+            {
+                queuedImeHandler = new QueuedImeHandler();
+                imeHandlerForContext = queuedImeHandler;
+            }
         }
 
         if (options.Dsl is { } dsl)
@@ -287,9 +314,9 @@ public static class DuxelApp
             {
                 dslClipboard = options.Clipboard;
             }
-            else if (platform is IWin32PlatformBackend)
+            else if (options.ClipboardFactory is not null)
             {
-                dslClipboard = new WindowsClipboard();
+                dslClipboard = options.ClipboardFactory(platform);
             }
         }
         else
@@ -332,6 +359,12 @@ public static class DuxelApp
                 snapshot.LeftMouseDown,
                 snapshot.RightMouseDown,
                 snapshot.MiddleMouseDown,
+                snapshot.LeftMousePressedEvent,
+                snapshot.LeftMouseReleasedEvent,
+                snapshot.RightMousePressedEvent,
+                snapshot.RightMouseReleasedEvent,
+                snapshot.MiddleMousePressedEvent,
+                snapshot.MiddleMouseReleasedEvent,
                 snapshot.MouseWheel,
                 snapshot.MouseWheelHorizontal,
                 keyEvents,
@@ -434,6 +467,7 @@ public static class DuxelApp
         var latestFramebufferSize = latestWindowSize;
         var hasSnapshot = false;
         var stopRequested = false;
+        var renderThreadWaiting = 0;
 
         static IReadOnlyList<T> MergeEvents<T>(IReadOnlyList<T> current, IReadOnlyList<T> incoming)
         {
@@ -466,6 +500,12 @@ public static class DuxelApp
                 incoming.LeftMouseDown,
                 incoming.RightMouseDown,
                 incoming.MiddleMouseDown,
+                current.LeftMousePressedEvent || incoming.LeftMousePressedEvent,
+                current.LeftMouseReleasedEvent || incoming.LeftMouseReleasedEvent,
+                current.RightMousePressedEvent || incoming.RightMousePressedEvent,
+                current.RightMouseReleasedEvent || incoming.RightMouseReleasedEvent,
+                current.MiddleMousePressedEvent || incoming.MiddleMousePressedEvent,
+                current.MiddleMouseReleasedEvent || incoming.MiddleMouseReleasedEvent,
                 current.MouseWheel + incoming.MouseWheel,
                 current.MouseWheelHorizontal + incoming.MouseWheelHorizontal,
                 MergeEvents(current.KeyEvents, incoming.KeyEvents),
@@ -476,13 +516,28 @@ public static class DuxelApp
 
         static InputSnapshot ClearEvents(InputSnapshot snapshot)
         {
-            if (snapshot.KeyEvents.Count == 0 && snapshot.CharEvents.Count == 0 && snapshot.MouseWheel == 0f && snapshot.MouseWheelHorizontal == 0f)
+            if (snapshot.KeyEvents.Count == 0
+                && snapshot.CharEvents.Count == 0
+                && snapshot.MouseWheel == 0f
+                && snapshot.MouseWheelHorizontal == 0f
+                && !snapshot.LeftMousePressedEvent
+                && !snapshot.LeftMouseReleasedEvent
+                && !snapshot.RightMousePressedEvent
+                && !snapshot.RightMouseReleasedEvent
+                && !snapshot.MiddleMousePressedEvent
+                && !snapshot.MiddleMouseReleasedEvent)
             {
                 return snapshot;
             }
 
             return snapshot with
             {
+                LeftMousePressedEvent = false,
+                LeftMouseReleasedEvent = false,
+                RightMousePressedEvent = false,
+                RightMouseReleasedEvent = false,
+                MiddleMousePressedEvent = false,
+                MiddleMouseReleasedEvent = false,
                 KeyEvents = Array.Empty<UiKeyEvent>(),
                 CharEvents = Array.Empty<UiCharEvent>(),
                 MouseWheel = 0f,
@@ -490,27 +545,84 @@ public static class DuxelApp
             };
         }
 
-        void UpdateSnapshot()
+        bool UpdateSnapshot()
         {
             var snapshot = CopySnapshot(platform.Input.Snapshot);
             var windowSize = platform.WindowSize;
             var framebufferSize = platform.FramebufferSize;
+            var hasChange = false;
             lock (snapshotLock)
             {
+                hasChange = !hasSnapshot
+                    || snapshot.KeyEvents.Count > 0
+                    || snapshot.CharEvents.Count > 0
+                    || snapshot.LeftMousePressedEvent
+                    || snapshot.LeftMouseReleasedEvent
+                    || snapshot.RightMousePressedEvent
+                    || snapshot.RightMouseReleasedEvent
+                    || snapshot.MiddleMousePressedEvent
+                    || snapshot.MiddleMouseReleasedEvent
+                    || MathF.Abs(snapshot.MouseWheel) > 0.0001f
+                    || MathF.Abs(snapshot.MouseWheelHorizontal) > 0.0001f
+                    || snapshot.LeftMouseDown != latestSnapshot.LeftMouseDown
+                    || snapshot.RightMouseDown != latestSnapshot.RightMouseDown
+                    || snapshot.MiddleMouseDown != latestSnapshot.MiddleMouseDown
+                    || MathF.Abs(snapshot.MousePosition.X - latestSnapshot.MousePosition.X) > 0.01f
+                    || MathF.Abs(snapshot.MousePosition.Y - latestSnapshot.MousePosition.Y) > 0.01f
+                    || windowSize.Width != latestWindowSize.Width
+                    || windowSize.Height != latestWindowSize.Height
+                    || framebufferSize.Width != latestFramebufferSize.Width
+                    || framebufferSize.Height != latestFramebufferSize.Height;
+
                 latestSnapshot = hasSnapshot ? MergeSnapshot(latestSnapshot, snapshot) : snapshot;
                 latestWindowSize = windowSize;
                 latestFramebufferSize = framebufferSize;
                 hasSnapshot = true;
             }
+
+            return hasChange;
         }
 
-        UpdateSnapshot();
+        _ = UpdateSnapshot();
 
         var renderThread = new Thread(() =>
         {
             var stopwatch = Stopwatch.StartNew();
             previousTime = stopwatch.Elapsed.TotalSeconds;
             lastFontRebuildTime = previousTime;
+            var lastPresentedTime = previousTime;
+            var lastObservedMousePosition = latestSnapshot.MousePosition;
+
+            static bool HasInputDrivenInvalidation(InputSnapshot snapshot, UiVector2 lastMousePosition)
+            {
+                if (snapshot.KeyEvents.Count > 0 || snapshot.CharEvents.Count > 0)
+                {
+                    return true;
+                }
+
+                if (MathF.Abs(snapshot.MouseWheel) > 0.0001f || MathF.Abs(snapshot.MouseWheelHorizontal) > 0.0001f)
+                {
+                    return true;
+                }
+
+                if (snapshot.LeftMousePressedEvent
+                    || snapshot.LeftMouseReleasedEvent
+                    || snapshot.RightMousePressedEvent
+                    || snapshot.RightMouseReleasedEvent
+                    || snapshot.MiddleMousePressedEvent
+                    || snapshot.MiddleMouseReleasedEvent)
+                {
+                    return true;
+                }
+
+                if (snapshot.LeftMouseDown || snapshot.RightMouseDown || snapshot.MiddleMouseDown)
+                {
+                    return true;
+                }
+
+                return MathF.Abs(snapshot.MousePosition.X - lastMousePosition.X) > 0.01f
+                    || MathF.Abs(snapshot.MousePosition.Y - lastMousePosition.Y) > 0.01f;
+            }
 
             while (!Volatile.Read(ref stopRequested))
             {
@@ -535,6 +647,22 @@ public static class DuxelApp
                     Thread.Yield();
                     continue;
                 }
+
+                var hasInputInvalidation = HasInputDrivenInvalidation(snapshot, lastObservedMousePosition);
+                lastObservedMousePosition = snapshot.MousePosition;
+                var hasPendingRenderWork = fontTextureDirty || pendingGlyphs > 0 || fullAtlasTask is not null || incrementalAtlasTask is not null;
+                var hasRequestedFrame = TryConsumeFrameRequest();
+                if (frameOptions.EnableIdleFrameSkip && uiContext is not null && renderedFrameNumber > 0)
+                {
+                    if (!hasInputInvalidation && !hasPendingRenderWork && !hasRequestedFrame)
+                    {
+                        Volatile.Write(ref renderThreadWaiting, 1);
+                        frameWakeSignal.WaitOne(Timeout.Infinite);
+                        continue;
+                    }
+                }
+
+                Volatile.Write(ref renderThreadWaiting, 0);
 
                 var displaySize = new UiVector2(windowSize.Width, windowSize.Height);
                 var missingGlyphsFromRender = 0;
@@ -564,8 +692,8 @@ public static class DuxelApp
                 var mouseY = scaleY > 0f ? mouse.Y / scaleY : mouse.Y;
 
                 var leftDown = snapshot.LeftMouseDown;
-                var leftPressed = leftDown && !previousLeftDown;
-                var leftReleased = !leftDown && previousLeftDown;
+                var leftPressed = snapshot.LeftMousePressedEvent || (leftDown && !previousLeftDown);
+                var leftReleased = snapshot.LeftMouseReleasedEvent || (!leftDown && previousLeftDown);
                 previousLeftDown = leftDown;
 
                 var input = new UiInputState(
@@ -789,6 +917,7 @@ public static class DuxelApp
                     var drawData = uiContext.GetDrawData();
                     var t3 = Stopwatch.GetTimestamp();
                     renderer.RenderDrawData(drawData);
+                    lastPresentedTime = stopwatch.Elapsed.TotalSeconds;
                     renderedFrameNumber++;
                     TryCaptureFrameIfRequested(renderedFrameNumber);
                     var t4 = Stopwatch.GetTimestamp();
@@ -897,6 +1026,7 @@ public static class DuxelApp
 
                 textureUpdates.Clear();
                 renderer.RenderDrawData(dslDrawData);
+                lastPresentedTime = stopwatch.Elapsed.TotalSeconds;
                 renderedFrameNumber++;
                 TryCaptureFrameIfRequested(renderedFrameNumber);
                 EmitTrace(options.Debug, ref frameCounter, dslDrawData, fps);
@@ -923,21 +1053,36 @@ public static class DuxelApp
         {
             while (!platform.ShouldClose)
             {
-                platform.PollEvents();
-                if (queuedImeHandler is not null && win32ImeHandler is not null)
+                if (frameOptions.EnableIdleFrameSkip && Volatile.Read(ref renderThreadWaiting) == 1)
                 {
-                    queuedImeHandler.Flush(win32ImeHandler);
+                    platform.WaitEvents(0);
                 }
-                UpdateSnapshot();
+                else
+                {
+                    platform.PollEvents();
+                }
+
+                if (queuedImeHandler is not null && platformImeHandler is not null)
+                {
+                    queuedImeHandler.Flush(platformImeHandler);
+                }
+                var hasInputChange = UpdateSnapshot();
+                if (hasInputChange)
+                {
+                    frameWakeSignal.Set();
+                }
                 platform.SetMouseCursor((UiMouseCursor)Volatile.Read(ref cursorValue));
             }
         }
         finally
         {
             Volatile.Write(ref stopRequested, true);
+            frameWakeSignal.Set();
             renderThread.Join();
             uiContext?.Dispose();
             UiFontAtlasBuilder.DiagnosticsLog = previousFontAtlasDiagnosticsLog;
+            Interlocked.Exchange(ref s_pendingFrameRequests, 0);
+            Volatile.Write(ref s_frameWakeSignal, null);
         }
     }
 
@@ -1137,15 +1282,31 @@ public static class DuxelApp
         {
             context.SetClipboard(options.Clipboard);
         }
-        else if (platform is IWin32PlatformBackend)
+        else if (options.ClipboardFactory is not null)
         {
-            context.SetClipboard(new WindowsClipboard());
+            var clipboard = options.ClipboardFactory(platform);
+            if (clipboard is not null)
+            {
+                context.SetClipboard(clipboard);
+            }
         }
 
         if (imeHandler is not null)
         {
             context.SetImeHandler(imeHandler);
         }
+    }
+
+    private sealed class DefaultKeyRepeatSettingsProvider : IKeyRepeatSettingsProvider
+    {
+        public static DefaultKeyRepeatSettingsProvider Shared { get; } = new();
+
+        private static readonly UiKeyRepeatSettings Settings = new(
+            InitialDelaySeconds: 0.5,
+            RepeatIntervalSeconds: 1.0 / 30.0
+        );
+
+        public UiKeyRepeatSettings GetSettings() => Settings;
     }
 
     private readonly struct ImeRequest
@@ -1328,6 +1489,9 @@ public sealed record class DuxelAppOptions
     public IUiClipboard? Clipboard { get; init; }
     public IUiImeHandler? ImeHandler { get; init; }
     public IUiImageDecoder? ImageDecoder { get; init; }
+    public IKeyRepeatSettingsProvider? KeyRepeatSettingsProvider { get; init; }
+    public Func<IPlatformBackend, IUiClipboard?>? ClipboardFactory { get; init; }
+    public Func<IPlatformBackend, IUiImeHandler?>? ImeHandlerFactory { get; init; }
 }
 
 public sealed record class DuxelDebugOptions
@@ -1398,6 +1562,12 @@ public sealed record class DuxelFrameOptions
     public bool UseBaseline { get; init; } = true;
     public double FontRebuildMinIntervalSeconds { get; init; } = 0.25;
     public int FontRebuildBatchSize { get; init; } = 16;
+    public bool EnableIdleFrameSkip { get; init; } = true;
+    public int IdleSleepMilliseconds { get; init; } = 2;
+    public int IdleWakeCheckMilliseconds { get; init; } = 1000;
+    public int IdleEventWaitMilliseconds { get; init; } = 0;
+    public IReadOnlyDictionary<string, int> WindowTargetFps { get; init; } = new Dictionary<string, int>();
+    public Func<bool>? IsAnimationActiveProvider { get; init; }
 }
 
 public sealed record class DuxelDslOptions

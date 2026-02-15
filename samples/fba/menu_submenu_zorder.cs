@@ -1,6 +1,6 @@
 // FBA: 메뉴/서브메뉴 Z-Order 동작 검증 — 중첩 메뉴가 뒤의 컨트롤을 올바르게 가리는지 테스트
 #:property TargetFramework=net10.0
-#:package Duxel.App@*-*
+#:package Duxel.Windows.App@*-*
 
 using Duxel.App;
 using Duxel.Core.Dsl;

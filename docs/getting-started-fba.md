@@ -308,7 +308,7 @@ DuxelApp.Run(new DuxelAppOptions
 | **윈도우** | `BeginWindow`, `BeginChild`, `SetNextWindowSize/Pos` |
 | **입력 쿼리** | `IsKeyDown`, `IsMouseClicked`, `Shortcut`, `GetClipboardText` |
 
-전체 API 목록: [imgui-coverage.md](https://github.com/dimohy/Duxel/blob/main/docs/imgui-coverage.md)
+호환성 기준/현황: [design.md](https://github.com/dimohy/Duxel/blob/main/docs/design.md#imgui-%ED%98%B8%ED%99%98%EC%84%B1-%ED%86%B5%ED%95%A9-%EB%AC%B8%EC%84%9C)
 
 ---
 
@@ -325,8 +325,7 @@ Duxel/
 │   └── Duxel.Vulkan/              ← Vulkan 렌더러
 ├── samples/
 │   ├── fba/                ← FBA 단일 파일 샘플
-│   ├── Duxel.Sample/       ← DSL + 소스 생성기 프로젝트 샘플
-│   └── Duxel.PerfTest/     ← 성능 벤치마크
+│   └── Duxel.Sample/       ← DSL + 소스 생성기 프로젝트 샘플
 └── docs/                   ← 설계/DSL/API 문서
 ```
 
@@ -341,5 +340,5 @@ Duxel/
 
 ---
 
-> **Duxel**은 .NET 생태계에서 Dear ImGui 수준의 즉시 모드 GUI를 순수 C#으로 구현하는 프로젝트입니다.  
+> **Duxel**은 .NET 생태계에서 고품질 즉시 모드 GUI를 순수 C#으로 구현하는 프로젝트입니다.  
 > 피드백, 이슈, PR 환영합니다! ⭐

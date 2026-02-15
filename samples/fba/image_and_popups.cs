@@ -2,7 +2,7 @@
 //       OpenPopupOnItemClick, BeginPopupContextVoid, IsPopupOpen, TextLink,
 //       BeginItemTooltip, SetTooltipV, TreeNodeV, ListBoxHeader/Footer
 #:property TargetFramework=net10.0
-#:package Duxel.App@*-*
+#:package Duxel.Windows.App@*-*
 
 using System;
 using Duxel.App;

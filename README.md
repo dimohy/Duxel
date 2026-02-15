@@ -1,45 +1,48 @@
 # Duxel
 
 **.NET 10 전용 크로스플랫폼 즉시 모드(Immediate-Mode) GUI 프레임워크.**
-Vulkan 렌더러 + GLFW 윈도우/입력 백엔드로 Dear ImGui 동등 수준의 위젯·렌더링·텍스트 품질을 목표합니다.
+Vulkan 렌더러 + GLFW 윈도우/입력 백엔드 기반으로 고품질 즉시 모드 위젯·렌더링·텍스트 품질을 목표합니다.
 
-**현재 버전: `0.1.7-preview`** · Display/Render 프로필 · 동적 MSAA(1x/2x/4x/8x) · VSync 토글
+**현재 버전: `0.1.10-preview`** · Display/Render 프로필 · 동적 MSAA(1x/2x/4x/8x) · VSync 토글
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Repository: https://github.com/dimohy/Duxel
 
-## 0.1.7-preview 개선 사항
+## 0.1.10-preview 개선 사항 (최신)
 
-- Vulkan 백엔드에 TAA/FXAA 토글 경로를 보강하고, 런타임에서 AA 방식 전환 시 리소스/파이프라인 재구성을 안전하게 처리하도록 개선했습니다.
-- 성능 샘플과 체크리스트를 정비해 MSAA/FXAA 비교 실험을 반복 가능한 절차로 수행할 수 있게 했습니다(`docs/aa-comparison-checklist.md`, `samples/fba/Duxel_perf_test_fba.cs`).
-- `Duxel.Core`에 플랫폼 중립 이미지 API(`UiImageTexture`, `UiImageEffects`, `IUiImageDecoder`)를 추가해 이미지 처리 경로를 라이브러리 API로 정리했습니다.
-- Windows 전용 디코더를 `Duxel.Platform.Windows`로 분리하고 `Duxel.App`에서 런타임 등록하도록 구성해 Core 계층의 플랫폼 종속성을 제거했습니다.
-- FBA 이미지 샘플(`samples/fba/image_widget_effects_fba.cs`)에 웹 이미지 소스 선택(PNG/JPG/GIF)과 GIF 프레임 애니메이션 재생을 추가했습니다.
-- 접힘/확장 UI 동작을 보정해 접힘 시 3px 본문 peek는 유지하면서도 비정상 캔버스 돌출이 발생하지 않도록 렌더링 클립 경로를 안정화했습니다.
+- 레이어 캐시 `Texture` 백엔드에서 opacity 태그가 포함된 정적 태그(`...:cbt:oXXXXXXXX`)를 올바르게 판별하도록 수정해 compose 재사용 경로가 안정 동작합니다.
+- `idle_layer_validation` FBA 샘플에 `DUXEL_LAYER_BENCH_OPACITY` 환경변수를 추가해 opacity 회귀 벤치를 자동화할 수 있습니다.
+- `Duxel_perf_test_fba`의 충돌 반응에 각속도/회전 방향 충격과 감쇠를 추가해 충돌 시 회전 연출이 물리 상태와 함께 변합니다.
+- 성능 샘플/벤치 실행 기본 정책(요청 프레임/아이들 스킵)에 맞춰 최신 최적화 경로를 검증했습니다.
+
+이전 버전 변경 내역은 [Version History](docs/version-history.md)에서 누적 확인할 수 있습니다.
 
 ## 주요 특징
 
-- **즉시 모드 UI** — Dear ImGui 스타일의 Begin/End 패턴 기반 위젯 API
+- **즉시 모드 UI** — Begin/End 패턴 기반 위젯 API
 - **Vulkan 렌더러** — 프로필 기반 기본값(Display=MSAA2, Render=MSAA1), VSync 토글, Triple Buffering, Persistent Mapped Buffers
 - **GLFW 윈도우/입력** — 키보드·마우스·스크롤·IME 입력 지원
 - **스크롤바/팝업** — 통합 스크롤바 렌더러 (Child/Combo/ListBox/InputMultiline), 팝업 차단 레이어
 - **NativeAOT 지원** — `PublishAot=true` 배포 가능 (리플렉션/동적 로딩 없음)
 - **UI DSL** — `.ui` 파일로 선언적 UI 정의, 소스 생성기 기반 빌드 타임 코드 생성, 핫리로드 지원
 - **폰트 아틀라스** — TTF 파싱(컴파운드 글리프 포함), HiDPI 스케일링, 빠른 시작을 위한 Built-in ASCII 폰트
-- **ImGui API 전체 커버리지** — 400+ API 구현 완료 ([상세 목록](docs/imgui-coverage.md))
+- **ImGui 호환성** — 400+ API 구현 및 동등성 목표/기준/현황 문서화 ([설계 문서](docs/design.md#imgui-호환성-통합-문서))
 
 ## 패키지 구조
 
 | 패키지                             | 설명                                                            |
 | ---------------------------------- | --------------------------------------------------------------- |
-| **Duxel.App**                | 앱 진입점 (`DuxelApp.Run`), 옵션 설정, DSL 바인딩 통합        |
-| **Duxel.Core**               | UI 컨텍스트, 위젯 API, 드로우 리스트, 폰트 아틀라스, DSL 런타임 |
-| **Duxel.Core.Dsl.Generator** | `.ui` → C# 소스 생성기 (빌드 타임)                           |
-| **Duxel.Platform.Glfw**      | GLFW 기반 윈도우/입력 백엔드                                    |
-| **Duxel.Platform.Windows**   | Windows 전용 플랫폼 지원 (키 반복, IME)                         |
-| **Duxel.Vulkan**             | Vulkan 렌더러 백엔드                                            |
+| **Duxel.App**                | OS 비종속 앱 파사드(공용 실행 파이프라인, 플랫폼 서비스 주입점) |
+| **Duxel.Windows.App**        | Windows 올인원 앱 패키지 (`DuxelWindowsApp.Run`)              |
+
+내부 구성요소(별도 NuGet 배포 안 함, 상위 패키지에 포함):
+
+- `Duxel.Core` — UI 컨텍스트, 위젯 API, 드로우 리스트, 폰트 아틀라스, DSL 런타임
+- `Duxel.Platform.Glfw` — GLFW 기반 윈도우/입력 백엔드
+- `Duxel.Platform.Windows` — Windows 전용 플랫폼 지원 (키 반복, IME)
+- `Duxel.Vulkan` — Vulkan 렌더러 백엔드
 
 ## 빠른 시작
 
@@ -48,12 +51,13 @@ Repository: https://github.com/dimohy/Duxel
 ```csharp
 // hello.cs
 #:property TargetFramework=net10.0
-#:package Duxel.App@*-*
+#:package Duxel.Windows.App@*-*
 
 using Duxel.App;
+using Duxel.Windows.App;
 using Duxel.Core;
 
-DuxelApp.Run(new DuxelAppOptions
+DuxelWindowsApp.Run(new DuxelAppOptions
 {
     Window = new DuxelWindowOptions { Title = "Hello Duxel" },
     Screen = new HelloScreen()
@@ -81,9 +85,10 @@ dotnet run hello.cs
 ```csharp
 // dsl_hello.cs
 #:property TargetFramework=net10.0
-#:package Duxel.App@*-*
+#:package Duxel.Windows.App@*-*
 
 using Duxel.App;
+using Duxel.Windows.App;
 using Duxel.Core.Dsl;
 
 var dslText = """
@@ -96,7 +101,7 @@ Window "Hello DSL"
 
 var doc = UiDslParser.Parse(dslText);
 
-DuxelApp.Run(new DuxelAppOptions
+DuxelWindowsApp.Run(new DuxelAppOptions
 {
     Window = new DuxelWindowOptions { Title = "DSL Hello" },
     Dsl = new DuxelDslOptions
@@ -111,7 +116,7 @@ DuxelApp.Run(new DuxelAppOptions
 
 ```xml
 <ItemGroup>
-  <ProjectReference Include="src/Duxel.App/Duxel.App.csproj" />
+  <ProjectReference Include="src/Duxel.Windows.App/Duxel.Windows.App.csproj" />
 </ItemGroup>
 ```
 
@@ -122,8 +127,6 @@ DuxelApp.Run(new DuxelAppOptions
 | 프로젝트                   | 설명                                      | 실행                                             |
 | -------------------------- | ----------------------------------------- | ------------------------------------------------ |
 | `Duxel.Sample`           | DSL `.ui` + 소스 생성기 + 바인딩 데모   | `dotnet run --project samples/Duxel.Sample/`   |
-| `Duxel.Sample.NativeAot` | NativeAOT 배포 검증 (DSL + AOT)           | `dotnet publish -c Release`                    |
-| `Duxel.PerfTest`         | 대량 폴리곤 물리 시뮬레이션 성능 벤치마크 | `dotnet run --project samples/Duxel.PerfTest/` |
 
 ### FBA 샘플 (`samples/fba/`)
 
@@ -251,17 +254,16 @@ dotnet build
 dotnet run --project samples/Duxel.Sample/
 ```
 
-### NativeAOT 배포
+### NativeAOT 배포 (DSL 프로젝트 샘플)
 
 ```powershell
-dotnet publish samples/Duxel.Sample.NativeAot/ -c Release
+dotnet publish samples/Duxel.Sample/ -c Release -r win-x64 /p:PublishAot=true
 ```
 
 ## 문서
 
 - [설계 문서](docs/design.md) — 아키텍처, 설계 원칙, 품질 기준
 - [UI DSL 레퍼런스](docs/ui-dsl.md) — DSL 문법, 위젯 매핑, 상태 바인딩
-- [ImGui API 커버리지](docs/imgui-coverage.md) — ImGui 전체 API 대비 구현 현황
 - [FBA 참조 가이드](docs/fba-reference-guide.md) — FBA 실행 방식 상세
 - [TODO](docs/todo.md) — 개발 로드맵
 

@@ -23,6 +23,19 @@ public readonly record struct UiColor(uint Rgba)
         : this((uint)a << 24 | (uint)b << 16 | (uint)g << 8 | r) { }
 }
 
+public enum UiLayerCacheBackend
+{
+    DrawList,
+    Texture,
+}
+
+public readonly record struct UiLayerOptions(
+    bool StaticCache,
+    float Opacity,
+    UiVector2 Translation,
+    UiLayerCacheBackend CacheBackend = UiLayerCacheBackend.DrawList
+);
+
 public readonly record struct UiTheme(
     UiColor Text,
     UiColor TextDisabled,
@@ -495,7 +508,8 @@ public sealed record class UiDrawCommand(
     uint ElementCount,
     uint VertexOffset,
     UiDrawCallback? Callback = null,
-    object? UserData = null
+    object? UserData = null,
+    UiVector2 Translation = default
 );
 
 public delegate void UiDrawCallback(UiDrawList drawList, UiDrawCommand command);

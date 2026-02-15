@@ -1,6 +1,6 @@
 // FBA: 키보드/마우스 입력 쿼리 API 시연 — IsKeyDown, Shortcut, Mouse 상태, 커서, 클립보드
 #:property TargetFramework=net10.0
-#:package Duxel.App@*-*
+#:package Duxel.Windows.App@*-*
 
 using System;
 using Duxel.App;

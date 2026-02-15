@@ -1,6 +1,6 @@
 // FBA: 대량 폴리곤 물리 시뮬레이션 성능 벤치마크 — DrawList 프리미티브 렌더링 부하 테스트
 #:property TargetFramework=net10.0
-#:package Duxel.App@*-*
+#:package Duxel.Windows.App@*-*
 
 using System;
 using System.Collections.Generic;
@@ -45,6 +45,12 @@ DuxelApp.Run(new DuxelAppOptions
 
 public sealed class PerfTestScreen : UiScreen
 {
+    private const float MinCollisionCellSize = 24f;
+    private const float CollisionHitDecayPerSecond = 2.4f;
+    private const float CollisionHitShrinkMax = 0.22f;
+    private const float CollisionHitRedWeight = 0.28f;
+    private const float CollisionAngularImpulseScale = 1.15f;
+    private const float CollisionAngularDampingPerSecond = 0.7f;
     public static readonly IReadOnlyList<string> GlyphStrings = new[]
     {
         "Duxel Performance Test (FBA)",
@@ -99,6 +105,11 @@ public sealed class PerfTestScreen : UiScreen
     private double _benchFpsSum;
     private int _benchFpsSamples;
     private bool _benchCompleted;
+    private readonly Dictionary<long, int> _collisionCellHeads = new(4096);
+    private int[] _collisionNext = [];
+    private float[] _collisionRadii = [];
+    private int[] _collisionTouchedStamp = [];
+    private int _collisionStamp = 1;
 
     public PerfTestScreen(DuxelPerformanceProfile startupProfile)
     {
@@ -119,6 +130,8 @@ public sealed class PerfTestScreen : UiScreen
         var renderBounds = DrawRenderWindow(ui, bounds, delta);
         DrawControls(ui, bounds, renderBounds);
         DrawRendererStatusOverlay(ui);
+
+        DuxelApp.RequestFrame();
     }
 
     private static double ReadBenchDurationSeconds()
@@ -258,10 +271,12 @@ public sealed class PerfTestScreen : UiScreen
         for (var i = 0; i < polygons.Length; i++)
         {
             var body = polygons[i];
-            var radius = _baseSize * body.SizeScale;
+            var hit = body.HitResponse;
+            var radiusScale = 1f - hit * CollisionHitShrinkMax;
+            var radius = _baseSize * body.SizeScale * radiusScale;
             var center = body.Position;
             var sides = Math.Max(3, _baseSides + body.SideOffset);
-            DrawPolygon(drawList, center, radius, sides, body.Rotation, body.Color);
+            DrawPolygon(drawList, center, radius, sides, body.Rotation, BlendHitColor(body.BaseColor, hit));
         }
 
         drawList.PopClipRect();
@@ -416,7 +431,9 @@ public sealed class PerfTestScreen : UiScreen
         for (var i = 0; i < polygons.Length; i++)
         {
             var body = polygons[i];
-            var radius = _baseSize * body.SizeScale;
+            var hit = MathF.Max(0f, body.HitResponse - dt * CollisionHitDecayPerSecond);
+            body.HitResponse = hit;
+            var radius = _baseSize * body.SizeScale * (1f - hit * CollisionHitShrinkMax);
             var dir = body.Direction;
             var pos = body.Position;
             var vx = dir.X * speed * body.SpeedScale;
@@ -448,6 +465,8 @@ public sealed class PerfTestScreen : UiScreen
 
             body.Direction = dir;
             body.Position = new UiVector2(px, py);
+            var angularDamping = MathF.Max(0f, 1f - dt * CollisionAngularDampingPerSecond);
+            body.AngularSpeed *= angularDamping;
             body.Rotation += (float)(body.AngularSpeed * dt);
         }
 
@@ -467,65 +486,166 @@ public sealed class PerfTestScreen : UiScreen
 
     private void ResolvePolygonCollisions(Span<PolygonBody> polygons)
     {
+        var count = polygons.Length;
+        if (count <= 1)
+        {
+            return;
+        }
+
+        if (_collisionNext.Length < count)
+        {
+            _collisionNext = new int[count];
+        }
+
+        if (_collisionRadii.Length < count)
+        {
+            _collisionRadii = new float[count];
+        }
+
+        if (_collisionTouchedStamp.Length < count)
+        {
+            _collisionTouchedStamp = new int[count];
+        }
+
+        _collisionStamp++;
+        if (_collisionStamp == int.MaxValue)
+        {
+            Array.Clear(_collisionTouchedStamp, 0, _collisionTouchedStamp.Length);
+            _collisionStamp = 1;
+        }
+
+        _collisionCellHeads.Clear();
+
+        var cellSize = MathF.Max(MinCollisionCellSize, _baseSize * 2.5f);
+        var invCellSize = 1f / cellSize;
+
+        for (var i = 0; i < count; i++)
+        {
+            var body = polygons[i];
+            var radius = _baseSize * body.SizeScale;
+            _collisionRadii[i] = radius;
+
+            var cellX = (int)MathF.Floor(body.Position.X * invCellSize);
+            var cellY = (int)MathF.Floor(body.Position.Y * invCellSize);
+            var key = PackGridKey(cellX, cellY);
+            if (_collisionCellHeads.TryGetValue(key, out var head))
+            {
+                _collisionNext[i] = head;
+                _collisionCellHeads[key] = i;
+            }
+            else
+            {
+                _collisionNext[i] = -1;
+                _collisionCellHeads.Add(key, i);
+            }
+        }
+
         for (var i = 0; i < polygons.Length; i++)
         {
             var bodyA = polygons[i];
-            var radiusA = _baseSize * bodyA.SizeScale;
+            var radiusA = _collisionRadii[i];
+            var centerA = bodyA.Position;
+            var cellAX = (int)MathF.Floor(centerA.X * invCellSize);
+            var cellAY = (int)MathF.Floor(centerA.Y * invCellSize);
 
-            for (var j = i + 1; j < polygons.Length; j++)
+            for (var ny = cellAY - 1; ny <= cellAY + 1; ny++)
             {
-                var bodyB = polygons[j];
-                var radiusB = _baseSize * bodyB.SizeScale;
-                var minDistance = radiusA + radiusB;
-
-                var dx = bodyB.Position.X - bodyA.Position.X;
-                var dy = bodyB.Position.Y - bodyA.Position.Y;
-                var distanceSquared = dx * dx + dy * dy;
-                var minDistanceSquared = minDistance * minDistance;
-                if (distanceSquared >= minDistanceSquared)
+                for (var nx = cellAX - 1; nx <= cellAX + 1; nx++)
                 {
-                    continue;
+                    if (!_collisionCellHeads.TryGetValue(PackGridKey(nx, ny), out var head))
+                    {
+                        continue;
+                    }
+
+                    for (var j = head; j >= 0; j = _collisionNext[j])
+                    {
+                        if (j <= i)
+                        {
+                            continue;
+                        }
+
+                        var bodyB = polygons[j];
+                        var radiusB = _collisionRadii[j];
+                        var minDistance = radiusA + radiusB;
+
+                        var dx = bodyB.Position.X - bodyA.Position.X;
+                        var dy = bodyB.Position.Y - bodyA.Position.Y;
+                        var distanceSquared = dx * dx + dy * dy;
+                        var minDistanceSquared = minDistance * minDistance;
+                        if (distanceSquared >= minDistanceSquared)
+                        {
+                            continue;
+                        }
+
+                        float normalX;
+                        float normalY;
+                        float distance;
+
+                        if (distanceSquared <= float.Epsilon)
+                        {
+                            var angle = (float)(_random.NextDouble() * MathF.Tau);
+                            normalX = MathF.Cos(angle);
+                            normalY = MathF.Sin(angle);
+                            distance = 0f;
+                        }
+                        else
+                        {
+                            distance = MathF.Sqrt(distanceSquared);
+                            normalX = dx / distance;
+                            normalY = dy / distance;
+                        }
+
+                        var overlap = minDistance - distance;
+                        if (overlap > 0f)
+                        {
+                            var correctionX = normalX * (overlap * 0.5f);
+                            var correctionY = normalY * (overlap * 0.5f);
+                            bodyA.Position = new UiVector2(bodyA.Position.X - correctionX, bodyA.Position.Y - correctionY);
+                            bodyB.Position = new UiVector2(bodyB.Position.X + correctionX, bodyB.Position.Y + correctionY);
+                        }
+
+                        var aAlong = bodyA.Direction.X * normalX + bodyA.Direction.Y * normalY;
+                        var bAlong = bodyB.Direction.X * normalX + bodyB.Direction.Y * normalY;
+                        var exchange = bAlong - aAlong;
+
+                        var nextDirA = new UiVector2(bodyA.Direction.X + normalX * exchange, bodyA.Direction.Y + normalY * exchange);
+                        var nextDirB = new UiVector2(bodyB.Direction.X - normalX * exchange, bodyB.Direction.Y - normalY * exchange);
+
+                        var tangentX = -normalY;
+                        var tangentY = normalX;
+                        var relativeTangentVelocity =
+                            (bodyB.Direction.X - bodyA.Direction.X) * tangentX
+                            + (bodyB.Direction.Y - bodyA.Direction.Y) * tangentY;
+                        var angularImpulse = relativeTangentVelocity * CollisionAngularImpulseScale;
+                        var maxAngularSpeed = MathF.Max(0.35f, _rotationSpeed * 2.5f);
+
+                        bodyA.Direction = nextDirA;
+                        bodyB.Direction = nextDirB;
+                        bodyA.AngularSpeed = Math.Clamp(bodyA.AngularSpeed - angularImpulse, -maxAngularSpeed, maxAngularSpeed);
+                        bodyB.AngularSpeed = Math.Clamp(bodyB.AngularSpeed + angularImpulse, -maxAngularSpeed, maxAngularSpeed);
+                        bodyA.HitResponse = 1f;
+                        bodyB.HitResponse = 1f;
+                        _collisionTouchedStamp[i] = _collisionStamp;
+                        _collisionTouchedStamp[j] = _collisionStamp;
+                    }
                 }
-
-                float normalX;
-                float normalY;
-                float distance;
-
-                if (distanceSquared <= float.Epsilon)
-                {
-                    var angle = (float)(_random.NextDouble() * MathF.Tau);
-                    normalX = MathF.Cos(angle);
-                    normalY = MathF.Sin(angle);
-                    distance = 0f;
-                }
-                else
-                {
-                    distance = MathF.Sqrt(distanceSquared);
-                    normalX = dx / distance;
-                    normalY = dy / distance;
-                }
-
-                var overlap = minDistance - distance;
-                if (overlap > 0f)
-                {
-                    var correctionX = normalX * (overlap * 0.5f);
-                    var correctionY = normalY * (overlap * 0.5f);
-                    bodyA.Position = new UiVector2(bodyA.Position.X - correctionX, bodyA.Position.Y - correctionY);
-                    bodyB.Position = new UiVector2(bodyB.Position.X + correctionX, bodyB.Position.Y + correctionY);
-                }
-
-                var aAlong = bodyA.Direction.X * normalX + bodyA.Direction.Y * normalY;
-                var bAlong = bodyB.Direction.X * normalX + bodyB.Direction.Y * normalY;
-                var exchange = bAlong - aAlong;
-
-                var nextDirA = new UiVector2(bodyA.Direction.X + normalX * exchange, bodyA.Direction.Y + normalY * exchange);
-                var nextDirB = new UiVector2(bodyB.Direction.X - normalX * exchange, bodyB.Direction.Y - normalY * exchange);
-
-                bodyA.Direction = NormalizeDirection(nextDirA);
-                bodyB.Direction = NormalizeDirection(nextDirB);
             }
         }
+
+        for (var i = 0; i < count; i++)
+        {
+            if (_collisionTouchedStamp[i] != _collisionStamp)
+            {
+                continue;
+            }
+
+            var body = polygons[i];
+            body.Direction = NormalizeDirection(body.Direction);
+        }
     }
+
+    private static long PackGridKey(int cellX, int cellY)
+        => ((long)cellX << 32) | (uint)cellY;
 
     private static UiVector2 NormalizeDirection(UiVector2 direction)
     {
@@ -537,6 +657,24 @@ public sealed class PerfTestScreen : UiScreen
 
         var invLength = 1f / MathF.Sqrt(lengthSquared);
         return new UiVector2(direction.X * invLength, direction.Y * invLength);
+    }
+
+    private static UiColor BlendHitColor(UiColor baseColor, float hit)
+    {
+        if (hit <= 0.0001f)
+        {
+            return baseColor;
+        }
+
+        var rgba = baseColor.Rgba;
+        var r = (byte)((rgba >> 16) & 0xFFu);
+        var g = (byte)((rgba >> 8) & 0xFFu);
+        var b = (byte)(rgba & 0xFFu);
+        var t = Math.Clamp(hit * CollisionHitRedWeight, 0f, 1f);
+        var outR = (byte)Math.Clamp((int)MathF.Round(r + (255f - r) * (t * 0.45f)), 0, 255);
+        var outG = (byte)Math.Clamp((int)MathF.Round(g * (1f - t * 0.22f)), 0, 255);
+        var outB = (byte)Math.Clamp((int)MathF.Round(b * (1f - t * 0.35f)), 0, 255);
+        return new UiColor(outR, outG, outB, 255);
     }
 
     private void EnsurePolygonCapacity(int additionalCount)
@@ -570,7 +708,8 @@ public sealed class PerfTestScreen : UiScreen
             SideOffset = _random.Next(-2, 3),
             Rotation = (float)(_random.NextDouble() * MathF.Tau),
             AngularSpeed = (_random.NextDouble() * 2.0 - 1.0) * _rotationSpeed,
-            Color = RandomColor()
+            BaseColor = RandomColor(),
+            HitResponse = 0f
         });
     }
 
@@ -626,7 +765,8 @@ public sealed class PerfTestScreen : UiScreen
         public int SideOffset;
         public float Rotation;
         public double AngularSpeed;
-        public UiColor Color;
+        public UiColor BaseColor;
+        public float HitResponse;
     }
 }
 

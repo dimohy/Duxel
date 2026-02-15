@@ -1,6 +1,6 @@
 // FBA: 대용량 ListBox 스크롤 테스트 샘플
 #:property TargetFramework=net10.0
-#:package Duxel.App@*-*
+#:package Duxel.Windows.App@*-*
 
 using System;
 using Duxel.App;

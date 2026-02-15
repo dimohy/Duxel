@@ -76,6 +76,7 @@ public sealed class UiDrawListBuilder
 
     public void AddRectFilled(UiRect rect, UiColor color, UiTextureId textureId, UiRect clipRect)
     {
+        clipRect = Intersect(clipRect, _currentClipRect);
         EnsureCapacityFor(4, 6);
         var startVertex = (uint)_vertices.Count;
         var startIndex = (uint)_indices.Count;
@@ -334,6 +335,7 @@ public sealed class UiDrawListBuilder
 
     public void AddCircleFilled(UiVector2 center, float radius, UiColor color, UiTextureId textureId, UiRect clipRect, int segments = 12)
     {
+        clipRect = Intersect(clipRect, _currentClipRect);
         segments = Math.Max(3, segments);
         EnsureCapacityFor(segments + 1, segments * 3);
 
@@ -362,7 +364,7 @@ public sealed class UiDrawListBuilder
         AddCommand(new UiDrawCommand(clipRect, textureId, startIndex, (uint)(segments * 3), 0));
     }
 
-    public void PushClipRect(UiRect rect, bool intersectWithCurrentClipRect = false)
+    public void PushClipRect(UiRect rect, bool intersectWithCurrentClipRect = true)
     {
         if (intersectWithCurrentClipRect)
         {
@@ -568,6 +570,7 @@ public sealed class UiDrawListBuilder
 
     public void AddTriangleFilled(UiVector2 a, UiVector2 b, UiVector2 c, UiColor color, UiTextureId textureId, UiRect clipRect)
     {
+        clipRect = Intersect(clipRect, _currentClipRect);
         EnsureCapacityFor(3, 3);
         var startVertex = (uint)_vertices.Count;
         var startIndex = (uint)_indices.Count;
@@ -1153,7 +1156,12 @@ public sealed class UiDrawListBuilder
         {
             var a = _commands[i];
             var b = _commands[i + 1];
-            if (a.TextureId == b.TextureId && a.ClipRect == b.ClipRect && a.IndexOffset + a.ElementCount == b.IndexOffset && a.Callback == b.Callback && Equals(a.UserData, b.UserData))
+            if (a.TextureId == b.TextureId
+                && a.ClipRect == b.ClipRect
+                && a.Translation == b.Translation
+                && a.IndexOffset + a.ElementCount == b.IndexOffset
+                && a.Callback == b.Callback
+                && Equals(a.UserData, b.UserData))
             {
                 _commands[i] = a with { ElementCount = a.ElementCount + b.ElementCount };
                 _commands.RemoveAt(i + 1);
@@ -1366,7 +1374,12 @@ public sealed class UiDrawListBuilder
         {
             var last = _commands[^1];
             var contiguous = last.IndexOffset + last.ElementCount == cmd.IndexOffset;
-            if (contiguous && last.TextureId == cmd.TextureId && last.ClipRect == cmd.ClipRect && last.Callback == cmd.Callback && Equals(last.UserData, cmd.UserData))
+            if (contiguous
+                && last.TextureId == cmd.TextureId
+                && last.ClipRect == cmd.ClipRect
+                && last.Translation == cmd.Translation
+                && last.Callback == cmd.Callback
+                && Equals(last.UserData, cmd.UserData))
             {
                 _commands[^1] = last with { ElementCount = last.ElementCount + cmd.ElementCount };
                 return;
@@ -1382,6 +1395,115 @@ public sealed class UiDrawListBuilder
         return _drawLists.Count == 0
             ? UiPooledList<UiDrawList>.FromArray(Array.Empty<UiDrawList>())
             : UiPooledList<UiDrawList>.RentAndCopy(_drawLists);
+    }
+
+    public void Append(UiDrawList drawList, float opacity = 1f, UiVector2 translation = default)
+    {
+        if (drawList.Vertices.Count == 0 || drawList.Indices.Count == 0 || drawList.Commands.Count == 0)
+        {
+            return;
+        }
+
+        var alphaFactor = Math.Clamp(opacity, 0f, 1f);
+        var applyAlpha = alphaFactor < 0.999f;
+        var applyTranslation = MathF.Abs(translation.X) > 0.0001f || MathF.Abs(translation.Y) > 0.0001f;
+
+        if (!applyAlpha && !applyTranslation)
+        {
+            Append(drawList.Vertices.AsSpan(), drawList.Indices.AsSpan(), drawList.Commands.AsSpan());
+            return;
+        }
+
+        EnsureCapacityFor(drawList.Vertices.Count, drawList.Indices.Count);
+
+        var vertexOffset = (uint)_vertices.Count;
+        var indexOffset = (uint)_indices.Count;
+
+        for (var i = 0; i < drawList.Vertices.Count; i++)
+        {
+            var vertex = drawList.Vertices[i];
+            if (applyTranslation)
+            {
+                vertex = vertex with
+                {
+                    Position = new UiVector2(vertex.Position.X + translation.X, vertex.Position.Y + translation.Y)
+                };
+            }
+
+            if (applyAlpha)
+            {
+                var rgba = vertex.Color.Rgba;
+                var alpha = (uint)((rgba >> 24) & 0xFFu);
+                var nextAlpha = (uint)Math.Clamp((int)MathF.Round(alpha * alphaFactor), 0, 255);
+                vertex = vertex with { Color = new UiColor((rgba & 0x00FFFFFFu) | (nextAlpha << 24)) };
+            }
+
+            _vertices.Add(vertex);
+        }
+
+        for (var i = 0; i < drawList.Indices.Count; i++)
+        {
+            _indices.Add(drawList.Indices[i] + vertexOffset);
+        }
+
+        for (var i = 0; i < drawList.Commands.Count; i++)
+        {
+            var command = drawList.Commands[i];
+            if (applyTranslation)
+            {
+                var clip = command.ClipRect;
+                command = command with
+                {
+                    ClipRect = new UiRect(clip.X + translation.X, clip.Y + translation.Y, clip.Width, clip.Height)
+                };
+            }
+
+            AddCommand(command with { IndexOffset = command.IndexOffset + indexOffset });
+        }
+    }
+
+    public void Append(ReadOnlySpan<UiDrawVertex> vertices, ReadOnlySpan<uint> indices, ReadOnlySpan<UiDrawCommand> commands)
+    {
+        if (vertices.Length == 0 || indices.Length == 0 || commands.Length == 0)
+        {
+            return;
+        }
+
+        EnsureCapacityFor(vertices.Length, indices.Length);
+
+        var vertexOffset = (uint)_vertices.Count;
+        var indexOffset = (uint)_indices.Count;
+
+        var vertexWriteStart = _vertices.Count;
+        _vertices.SetCount(vertexWriteStart + vertices.Length);
+        vertices.CopyTo(_vertices.AsSpan().Slice(vertexWriteStart, vertices.Length));
+
+        var indexWriteStart = _indices.Count;
+        _indices.SetCount(indexWriteStart + indices.Length);
+        var targetIndices = _indices.AsSpan().Slice(indexWriteStart, indices.Length);
+
+        if (vertexOffset == 0)
+        {
+            indices.CopyTo(targetIndices);
+        }
+        else
+        {
+            for (var i = 0; i < indices.Length; i++)
+            {
+                targetIndices[i] = indices[i] + vertexOffset;
+            }
+        }
+
+        for (var i = 0; i < commands.Length; i++)
+        {
+            var command = commands[i];
+            AddCommand(command with { IndexOffset = command.IndexOffset + indexOffset });
+        }
+    }
+
+    public void FlushCurrentDrawList()
+    {
+        Flush();
     }
 
     private void EnsureCapacityFor(int addVertices, int addIndices)

@@ -104,6 +104,21 @@ public sealed class GlfwPlatformBackend : IPlatformBackend, IWin32PlatformBacken
         _window.DoEvents();
     }
 
+    public void WaitEvents(int timeoutMilliseconds)
+    {
+        _inputBackend.BeginFrame();
+        if (timeoutMilliseconds <= 0)
+        {
+            _glfw.WaitEvents();
+        }
+        else
+        {
+            var timeoutSeconds = Math.Max(0.001d, timeoutMilliseconds / 1000d);
+            _glfw.WaitEventsTimeout(timeoutSeconds);
+        }
+        _window.DoEvents();
+    }
+
     [DynamicDependency(
         DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.NonPublicConstructors,
         "Silk.NET.Windowing.Glfw.GlfwPlatform",
@@ -345,6 +360,12 @@ internal sealed class GlfwInputBackend : IInputBackend
     private bool _leftDown;
     private bool _rightDown;
     private bool _middleDown;
+    private bool _leftPressedEvent;
+    private bool _leftReleasedEvent;
+    private bool _rightPressedEvent;
+    private bool _rightReleasedEvent;
+    private bool _middlePressedEvent;
+    private bool _middleReleasedEvent;
     private float _wheel;
     private float _wheelHorizontal;
 
@@ -384,6 +405,12 @@ internal sealed class GlfwInputBackend : IInputBackend
         _leftDown,
         _rightDown,
         _middleDown,
+        _leftPressedEvent,
+        _leftReleasedEvent,
+        _rightPressedEvent,
+        _rightReleasedEvent,
+        _middlePressedEvent,
+        _middleReleasedEvent,
         _wheel,
         _wheelHorizontal,
         _keyEvents,
@@ -395,6 +422,12 @@ internal sealed class GlfwInputBackend : IInputBackend
     {
         _keyEvents.Clear();
         _charEvents.Clear();
+        _leftPressedEvent = false;
+        _leftReleasedEvent = false;
+        _rightPressedEvent = false;
+        _rightReleasedEvent = false;
+        _middlePressedEvent = false;
+        _middleReleasedEvent = false;
         _wheel = 0;
         _wheelHorizontal = 0;
     }
@@ -426,12 +459,45 @@ internal sealed class GlfwInputBackend : IInputBackend
         switch (button)
         {
             case Silk.NET.Input.MouseButton.Left:
+                if (_leftDown != isDown)
+                {
+                    if (isDown)
+                    {
+                        _leftPressedEvent = true;
+                    }
+                    else
+                    {
+                        _leftReleasedEvent = true;
+                    }
+                }
                 _leftDown = isDown;
                 break;
             case Silk.NET.Input.MouseButton.Right:
+                if (_rightDown != isDown)
+                {
+                    if (isDown)
+                    {
+                        _rightPressedEvent = true;
+                    }
+                    else
+                    {
+                        _rightReleasedEvent = true;
+                    }
+                }
                 _rightDown = isDown;
                 break;
             case Silk.NET.Input.MouseButton.Middle:
+                if (_middleDown != isDown)
+                {
+                    if (isDown)
+                    {
+                        _middlePressedEvent = true;
+                    }
+                    else
+                    {
+                        _middleReleasedEvent = true;
+                    }
+                }
                 _middleDown = isDown;
                 break;
         }

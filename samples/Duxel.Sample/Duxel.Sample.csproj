@@ -1,10 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Duxel.App\Duxel.App.csproj" />
+    <ProjectReference Include="..\..\src\Duxel.Windows.App\Duxel.Windows.App.csproj" />
     <ProjectReference Include="..\..\src\Duxel.Core\Duxel.Core.csproj" />
-    <ProjectReference Include="..\..\src\Duxel.Platform.Glfw\Duxel.Platform.Glfw.csproj" />
-    <ProjectReference Include="..\..\src\Duxel.Vulkan\Duxel.Vulkan.csproj" />
   </ItemGroup>
 
   <ItemGroup>

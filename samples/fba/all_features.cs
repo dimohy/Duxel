@@ -1,6 +1,6 @@
 // FBA: Duxel 전체 위젯 종합 시연 — Immediate Mode API의 거의 모든 기능을 하나의 앱에서 데모
 #:property TargetFramework=net10.0
-#:package Duxel.App@*-*
+#:package Duxel.Windows.App@*-*
 
 using System;
 using System.Collections.Generic;
