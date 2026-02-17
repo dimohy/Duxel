@@ -1,6 +1,7 @@
 // FBA: 대량 폴리곤 물리 시뮬레이션 성능 벤치마크 — DrawList 프리미티브 렌더링 부하 테스트
 #:property TargetFramework=net10.0
-#:package Duxel.Windows.App@*-*
+#:property platform=windows
+#:package Duxel.$(platform).App@*-*
 
 using System;
 using System.Collections.Generic;
@@ -45,6 +46,7 @@ DuxelApp.Run(new DuxelAppOptions
 
 public sealed class PerfTestScreen : UiScreen
 {
+    private const string PerfGlobalStaticTag = "duxel.global.static:perf-test:backdrop:v1";
     private const float MinCollisionCellSize = 24f;
     private const float CollisionHitDecayPerSecond = 2.4f;
     private const float CollisionHitShrinkMax = 0.22f;
@@ -67,6 +69,7 @@ public sealed class PerfTestScreen : UiScreen
         "FXAA",
         "TAA Exclude Font",
         "TAA Weight",
+        "Global Static Cache",
         "Polygons",
         "Add",
         "Remove",
@@ -105,6 +108,9 @@ public sealed class PerfTestScreen : UiScreen
     private double _benchFpsSum;
     private int _benchFpsSamples;
     private bool _benchCompleted;
+    private bool _enableGlobalStaticCache = ReadGlobalStaticCacheEnabled();
+    private UiPooledList<UiDrawList>? _globalStaticCache;
+    private UiRect _globalStaticCacheBounds;
     private readonly Dictionary<long, int> _collisionCellHeads = new(4096);
     private int[] _collisionNext = [];
     private float[] _collisionRadii = [];
@@ -154,6 +160,14 @@ public sealed class PerfTestScreen : UiScreen
         }
 
         return int.TryParse(value, out var count) && count > 0 ? count : 0;
+    }
+
+    private static bool ReadGlobalStaticCacheEnabled()
+    {
+        var value = Environment.GetEnvironmentVariable("DUXEL_PERF_GLOBAL_STATIC_CACHE");
+        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase);
     }
 
     private void EnsureInitialized(UiRect bounds)
@@ -209,7 +223,7 @@ public sealed class PerfTestScreen : UiScreen
         {
             var json = string.Format(
                 CultureInfo.InvariantCulture,
-                "{{\"avgFps\":{0:0.###},\"samples\":{1},\"elapsedSeconds\":{2:0.###},\"vsync\":{3},\"msaa\":{4},\"taa\":{5},\"fxaa\":{6},\"taaExcludeFont\":{7},\"taaWeight\":{8:0.###},\"count\":{9}}}",
+                "{{\"avgFps\":{0:0.###},\"samples\":{1},\"elapsedSeconds\":{2:0.###},\"vsync\":{3},\"msaa\":{4},\"taa\":{5},\"fxaa\":{6},\"taaExcludeFont\":{7},\"taaWeight\":{8:0.###},\"count\":{9},\"globalStaticCache\":{10}}}",
                 avgFps,
                 _benchFpsSamples,
                 _benchElapsedSeconds,
@@ -219,7 +233,8 @@ public sealed class PerfTestScreen : UiScreen
                 fxaaEnabled.ToString().ToLowerInvariant(),
                 taaExcludeFont.ToString().ToLowerInvariant(),
                 taaWeight,
-                _polygons.Count
+                _polygons.Count,
+                _enableGlobalStaticCache.ToString().ToLowerInvariant()
             );
             File.WriteAllText(_benchOutputPath!, json);
         }
@@ -266,6 +281,22 @@ public sealed class PerfTestScreen : UiScreen
 
         drawList.PushTexture(whiteTexture);
         drawList.PushClipRect(clip);
+
+        if (_enableGlobalStaticCache)
+        {
+            EnsureGlobalStaticCache(clip, whiteTexture);
+            if (_globalStaticCache is not null)
+            {
+                for (var i = 0; i < _globalStaticCache.Count; i++)
+                {
+                    drawList.Append(_globalStaticCache[i]);
+                }
+            }
+        }
+        else
+        {
+            DrawStaticBackdrop(drawList, clip, whiteTexture);
+        }
 
         var polygons = CollectionsMarshal.AsSpan(_polygons);
         for (var i = 0; i < polygons.Length; i++)
@@ -323,6 +354,13 @@ public sealed class PerfTestScreen : UiScreen
         if (ui.Checkbox("FXAA", ref fxaaEnabled))
         {
             ui.SetFxaaEnabled(fxaaEnabled);
+        }
+
+        var globalStaticCache = _enableGlobalStaticCache;
+        if (ui.Checkbox("Global Static Cache", ref globalStaticCache))
+        {
+            _enableGlobalStaticCache = globalStaticCache;
+            InvalidateGlobalStaticCache();
         }
 
         var taaExcludeFont = ui.GetTaaExcludeFont();
@@ -399,6 +437,84 @@ public sealed class PerfTestScreen : UiScreen
         var pos = new UiVector2(viewport.Size.X - textSize.X - margin, 6f);
         var fg = ui.GetForegroundDrawList();
         fg.AddText(pos, new UiColor(210, 210, 210), text);
+    }
+
+    private void EnsureGlobalStaticCache(UiRect bounds, UiTextureId whiteTexture)
+    {
+        if (_globalStaticCache is not null
+            && MathF.Abs(_globalStaticCacheBounds.Width - bounds.Width) < 0.5f
+            && MathF.Abs(_globalStaticCacheBounds.Height - bounds.Height) < 0.5f)
+        {
+            return;
+        }
+
+        InvalidateGlobalStaticCache();
+
+        var builder = new UiDrawListBuilder(bounds);
+        builder.PushTexture(whiteTexture);
+        builder.PushClipRect(bounds);
+        builder.PushCommandUserData(PerfGlobalStaticTag);
+        DrawStaticBackdrop(builder, bounds, whiteTexture);
+        builder.PopCommandUserData();
+        builder.PopClipRect();
+        builder.PopTexture();
+
+        _globalStaticCache = builder.Build();
+        _globalStaticCacheBounds = bounds;
+    }
+
+    private void InvalidateGlobalStaticCache()
+    {
+        if (_globalStaticCache is null)
+        {
+            return;
+        }
+
+        for (var i = 0; i < _globalStaticCache.Count; i++)
+        {
+            _globalStaticCache[i].ReleasePooled();
+        }
+
+        _globalStaticCache.Return();
+        _globalStaticCache = null;
+    }
+
+    private static void DrawStaticBackdrop(UiDrawListBuilder drawList, UiRect bounds, UiTextureId whiteTexture)
+    {
+        drawList.AddRectFilled(bounds, new UiColor(0xFF121318), whiteTexture, bounds);
+
+        var cols = Math.Max(16, (int)(bounds.Width / 28f));
+        var rows = Math.Max(10, (int)(bounds.Height / 28f));
+        var cellWidth = MathF.Max(1f, bounds.Width / cols);
+        var cellHeight = MathF.Max(1f, bounds.Height / rows);
+
+        for (var y = 0; y < rows; y++)
+        {
+            for (var x = 0; x < cols; x++)
+            {
+                var idx = y * cols + x + 1;
+                var hash = (uint)(idx * 1103515245 + 12345);
+                var hue = (hash >> 9) & 0x3F;
+                var alpha = 34u + (hash & 0x1F);
+                var r = 22u + hue;
+                var g = 26u + ((hue * 3u) & 0x2F);
+                var b = 36u + ((hue * 5u) & 0x3F);
+
+                var x0 = bounds.X + x * cellWidth + 1f;
+                var y0 = bounds.Y + y * cellHeight + 1f;
+                var x1 = x0 + cellWidth - 2f;
+                var y1 = y0 + cellHeight - 2f;
+                drawList.AddRectFilled(new UiRect(x0, y0, MathF.Max(1f, x1 - x0), MathF.Max(1f, y1 - y0)), new UiColor((alpha << 24) | (r << 16) | (g << 8) | b), whiteTexture, bounds);
+
+                if ((idx & 3) == 0)
+                {
+                    var cx = x0 + (cellWidth * 0.5f);
+                    var cy = y0 + (cellHeight * 0.5f);
+                    var radius = MathF.Max(0.8f, MathF.Min(cellWidth, cellHeight) * 0.14f);
+                    drawList.AddCircleFilled(new UiVector2(cx, cy), radius, new UiColor(0xFF8FA6C7), whiteTexture, bounds, 10);
+                }
+            }
+        }
     }
 
     private void UpdateFps(double delta)

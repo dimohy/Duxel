@@ -13,11 +13,13 @@ public sealed class UiDrawListBuilder
     private PooledBuffer<uint> _indices = new();
     private PooledBuffer<UiDrawCommand> _commands = new();
     private List<UiDrawList> _drawLists = [];
-    private readonly UiRect _clipRect;
+    private UiRect _clipRect;
     private UiRect _currentClipRect;
     private readonly Stack<UiRect> _clipStack = new();
     private UiTextureId _currentTexture;
     private readonly Stack<UiTextureId> _textureStack = new();
+    private object? _currentCommandUserData;
+    private readonly Stack<object?> _commandUserDataStack = new();
     private readonly List<UiVector2> _path = [];
     private UiDrawListSharedData? _sharedData;
     private List<Channel>? _channels;
@@ -159,6 +161,7 @@ public sealed class UiDrawListBuilder
             }
         }
 
+        var clipMaxX = clipRect.X + clipRect.Width;
         var clipMaxY = clipRect.Y + clipRect.Height;
         var lineStart = true;
 
@@ -199,6 +202,23 @@ public sealed class UiDrawListBuilder
             if (checkClipY && lineStart && y > clipMaxY)
             {
                 break;
+            }
+
+            if (x > clipMaxX)
+            {
+                var nextLine = span.Slice(index).IndexOf('\n');
+                if (nextLine < 0)
+                {
+                    break;
+                }
+
+                index += nextLine + 1;
+                x = Snap(position.X, pixelSnap);
+                y = Snap(y + effectiveLineHeight, pixelSnap);
+                baselineY = Snap(y + baselineOffset, pixelSnap);
+                hasPrev = false;
+                lineStart = true;
+                continue;
             }
 
             // Fast BMP path: direct char iteration (avoids Rune.DecodeFromUtf16)
@@ -267,6 +287,15 @@ public sealed class UiDrawListBuilder
                 : y + baselineOffset + (glyph.OffsetY * scale);
             var x1 = Snap(x0 + (glyph.Width * scale), pixelSnap);
             var y1 = Snap(y0 + (glyph.Height * scale), pixelSnap);
+
+            var isOutsideClip = x1 <= clipRect.X || x0 >= clipMaxX || y1 <= clipRect.Y || y0 >= clipMaxY;
+            if (isOutsideClip)
+            {
+                x = Snap(x + (glyph.AdvanceX * scale), pixelSnap);
+                hasPrev = true;
+                prevChar = codepoint;
+                continue;
+            }
 
             var u0 = glyph.UvRect.X;
             var v0 = glyph.UvRect.Y;
@@ -408,6 +437,22 @@ public sealed class UiDrawListBuilder
 
         _currentTexture = _textureStack.Pop();
         _OnChangedTexture();
+    }
+
+    public void PushCommandUserData(object? userData)
+    {
+        _commandUserDataStack.Push(_currentCommandUserData);
+        _currentCommandUserData = userData;
+    }
+
+    public void PopCommandUserData()
+    {
+        if (_commandUserDataStack.Count == 0)
+        {
+            return;
+        }
+
+        _currentCommandUserData = _commandUserDataStack.Pop();
     }
 
     public void AddLine(UiVector2 p1, UiVector2 p2, UiColor color, float thickness = 1f)
@@ -1078,6 +1123,12 @@ public sealed class UiDrawListBuilder
         _sharedData = data ?? throw new ArgumentNullException(nameof(data));
     }
 
+    public void _SetClipRect(UiRect clipRect)
+    {
+        _clipRect = clipRect;
+        _currentClipRect = clipRect;
+    }
+
     public void _ResetForNewFrame()
     {
         if (_channels is not null)
@@ -1099,8 +1150,10 @@ public sealed class UiDrawListBuilder
         _path.Clear();
         _clipStack.Clear();
         _textureStack.Clear();
+        _commandUserDataStack.Clear();
         _currentClipRect = _clipRect;
         _currentTexture = default;
+        _currentCommandUserData = null;
         _channels = null;
         _currentChannel = 0;
     }
@@ -1130,6 +1183,8 @@ public sealed class UiDrawListBuilder
         _indices.TrimExcess();
         _commands.TrimExcess();
         _drawLists.TrimExcess();
+        _commandUserDataStack.Clear();
+        _currentCommandUserData = null;
     }
 
     public void _PopUnusedDrawCmd()
@@ -1370,6 +1425,11 @@ public sealed class UiDrawListBuilder
 
     private void AddCommand(UiDrawCommand cmd)
     {
+        if (cmd.UserData is null && _currentCommandUserData is not null)
+        {
+            cmd = cmd with { UserData = _currentCommandUserData };
+        }
+
         if (_commands.Count > 0)
         {
             var last = _commands[^1];

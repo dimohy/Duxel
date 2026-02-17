@@ -242,7 +242,7 @@ try {
         Write-Host "[bench] NativeAOT 게시 준비..." -ForegroundColor Cyan
         & ./run-fba.ps1 $activeSamplePath -RuntimeIdentifier $RuntimeIdentifier -Configuration $Configuration
 
-        $nativeExe = Get-ChildItem -Path $artifactDir -Filter '*.exe' -File |
+        $nativeExe = Get-ChildItem -Path $artifactDir -Filter '*.exe' -File -Recurse |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
         if ($null -eq $nativeExe) {

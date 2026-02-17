@@ -1,6 +1,7 @@
 // FBA: 균형형 UI 스트레스 샘플 — 다중 창/텍스트/테이블/리스트/입력/팝업/드로우를 동시에 부하
 #:property TargetFramework=net10.0
-#:package Duxel.Windows.App@*-*
+#:property platform=windows
+#:package Duxel.$(platform).App@*-*
 
 using System;
 using System.Collections.Generic;

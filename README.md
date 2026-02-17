@@ -3,19 +3,19 @@
 **.NET 10 전용 크로스플랫폼 즉시 모드(Immediate-Mode) GUI 프레임워크.**
 Vulkan 렌더러 + GLFW 윈도우/입력 백엔드 기반으로 고품질 즉시 모드 위젯·렌더링·텍스트 품질을 목표합니다.
 
-**현재 버전: `0.1.10-preview`** · Display/Render 프로필 · 동적 MSAA(1x/2x/4x/8x) · VSync 토글
+**현재 버전: `0.1.11-preview`** · Display/Render 프로필 · 동적 MSAA(1x/2x/4x/8x) · VSync 토글
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Repository: https://github.com/dimohy/Duxel
 
-## 0.1.10-preview 개선 사항 (최신)
+## 0.1.11-preview 개선 사항 (최신)
 
-- 레이어 캐시 `Texture` 백엔드에서 opacity 태그가 포함된 정적 태그(`...:cbt:oXXXXXXXX`)를 올바르게 판별하도록 수정해 compose 재사용 경로가 안정 동작합니다.
-- `idle_layer_validation` FBA 샘플에 `DUXEL_LAYER_BENCH_OPACITY` 환경변수를 추가해 opacity 회귀 벤치를 자동화할 수 있습니다.
-- `Duxel_perf_test_fba`의 충돌 반응에 각속도/회전 방향 충격과 감쇠를 추가해 충돌 시 회전 연출이 물리 상태와 함께 변합니다.
-- 성능 샘플/벤치 실행 기본 정책(요청 프레임/아이들 스킵)에 맞춰 최신 최적화 경로를 검증했습니다.
+- 전역 정적 캐시 전략(`duxel.global.static:*`)을 샘플/벤치 경로에 반영해 all-dynamic 대비 성능 비교 및 적용 검증이 쉬워졌습니다.
+- clip clamp A/B 자동화 스크립트와 퍼포먼스 반복 측정 스크립트를 정비해 반복 실험/요약 산출이 안정화되었습니다.
+- `run-fba.ps1` 기반 샘플 실행 검증을 강화하고, `dotnet run` 경로와의 호환성 차이(API 불일치 지점)를 명확히 분리 확인했습니다.
+- 최적화 정책/세션 로그 문서를 최신 결과 기준으로 누적 갱신했습니다.
 
 이전 버전 변경 내역은 [Version History](docs/version-history.md)에서 누적 확인할 수 있습니다.
 
@@ -159,6 +159,7 @@ $env:DUXEL_APP_PROFILE='render'; ./run-fba.ps1 samples/fba/Duxel_perf_test_fba.c
 | `input_queries.cs`       | 즉시 모드 | 키보드/마우스 상태, Shortcut, 클립보드        |
 | `item_status.cs`         | 즉시 모드 | IsItemActive/Focused/Clicked, MultiSelect     |
 | `idle_layer_validation.cs` | 즉시 모드 | 레이어 캐시/정적 GPU 버퍼 검증 — opacity·백엔드·레이아웃 벤치 |
+| `vector_primitives_bench_fba.cs` | 즉시 모드 | 벡터 primitive(라인/사각형/원) 전용 벤치 + clip clamp A/B 비교 |
 | `Duxel_perf_test_fba.cs` | 즉시 모드 | 대량 폴리곤 물리 시뮬레이션 성능 벤치마크     |
 | `ui_mixed_stress.cs`     | 즉시 모드 | 다중 창/텍스트/테이블/리스트/입력/드로우 복합 스트레스 |
 
@@ -172,6 +173,8 @@ $env:DUXEL_APP_PROFILE='render'; ./run-fba.ps1 samples/fba/Duxel_perf_test_fba.c
 ```powershell
 ./scripts/run-fba-bench.ps1 -SamplePath samples/fba/Duxel_perf_test_fba.cs
 ```
+
+clip clamp A/B 자동화(레이어 혼합/벡터 전용) 상세 사용법과 결과 해석은 [docs/fba-clip-ab-bench.md](docs/fba-clip-ab-bench.md)를 참고하세요.
 
 ## UI DSL
 
@@ -240,7 +243,8 @@ DuxelApp.Run(new DuxelAppOptions
     Font = new DuxelFontOptions
     {
         FontSize = 26,
-        FastStartup = true,    // Built-in ASCII → 비동기 TTF 전환
+      FastStartup = true,    // 시작 시 경량 atlas 사용 + 백그라운드 전체 atlas 빌드
+      UseBuiltInAsciiAtStartup = true, // 시작 atlas를 Built-in ASCII로 생성할지 여부
         InitialGlyphs = ["한글 글리프 문자열"]
     },
     Theme = UiTheme.ImGuiDark, // Dark/Light/Classic

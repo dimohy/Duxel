@@ -1,0 +1,15 @@
+<Project>
+  <Target Name="DuxelInjectAnalyzerForWindowsProjectReference"
+          BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <_DuxelWindowsAppReference Include="@(ProjectReference)"
+                                 Condition="'%(ProjectReference.Filename)' == 'Duxel.Windows.App'" />
+      <_DuxelGeneratorReference Include="@(ProjectReference)"
+                                Condition="'%(ProjectReference.Filename)' == 'Duxel.Core.Dsl.Generator'" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'@(_DuxelWindowsAppReference)' != '' and '@(_DuxelGeneratorReference)' == '' and Exists('$(MSBuildThisFileDirectory)src\Duxel.Core.Dsl.Generator\bin\$(Configuration)\net10.0\Duxel.Core.Dsl.Generator.dll')">
+      <Analyzer Include="$(MSBuildThisFileDirectory)src\Duxel.Core.Dsl.Generator\bin\$(Configuration)\net10.0\Duxel.Core.Dsl.Generator.dll" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using Duxel.Core;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
@@ -19,6 +20,7 @@ public readonly record struct VulkanRendererOptions(
     bool EnableValidationLayers,
     bool EnableVSync = true,
     int MsaaSamples = 4,
+    bool EnableGlobalStaticGeometryCache = true,
     bool EnableTaaIfSupported = false,
     bool EnableFxaaIfSupported = false,
     bool TaaExcludeFont = true,
@@ -30,7 +32,10 @@ public readonly record struct VulkanRendererOptions(
 public sealed unsafe class VulkanRendererBackend : IRendererBackend
 {
     private const string StaticLayerGeometryTagPrefix = "duxel.layer.static:";
+    private const string StaticGlobalGeometryTagPrefix = "duxel.global.static:";
     private const string TextureBackendTagMarker = ":cbt";
+    private const int StaticGeometryLruGraceFrames = 180;
+    private const int StaticGeometryPruneIntervalFrames = 32;
     private const int DefaultVertexBufferCapacity = 5_000;
     private const int DefaultIndexBufferCapacity = 10_000;
     private const int VertexBufferGrowthPadding = 5_000;
@@ -44,6 +49,8 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     [
         "VK_LAYER_KHRONOS_validation",
     ];
+    private static readonly string? VulkanFailureLogPath = Environment.GetEnvironmentVariable("DUXEL_VK_FAIL_LOG");
+    private static readonly object VulkanFailureLogLock = new();
 
     private readonly Vk _vk = Vk.GetApi();
     private VulkanRendererOptions _options;
@@ -62,7 +69,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     private PhysicalDevice _physicalDevice;
     private Device _device;
     private Queue _graphicsQueue;
+    private Queue _transferQueue;
     private uint _graphicsQueueFamily;
+    private uint _transferQueueFamily;
     private SwapchainKHR _swapchain;
     private Image[] _swapchainImages = Array.Empty<Image>();
     private ImageView[] _swapchainImageViews = Array.Empty<ImageView>();
@@ -87,6 +96,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     private CommandPool _uploadCommandPool;
     private CommandBuffer _uploadCommandBuffer;
     private Fence _uploadFence;
+    private bool _hasPendingUploadWork;
+    private int _uploadBatchDepth;
+    private bool _uploadBatchRecording;
     private FrameResources[] _frames = Array.Empty<FrameResources>();
     private Fence[] _imagesInFlight = Array.Empty<Fence>();
     private int _framesInFlight;
@@ -106,8 +118,10 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     private ulong _pipelineCacheHash;
     private readonly bool _profilingEnabled = string.Equals(Environment.GetEnvironmentVariable("DUXEL_VK_PROFILE"), "1", StringComparison.Ordinal);
     private readonly int _profilingLogInterval = ParseProfileLogInterval();
+    private readonly bool _uploadBatchingEnabled = ParseUploadBatchingEnabled();
     private readonly bool _layerTextureBackendEnabled = ParseLayerTextureBackendEnabled();
     private readonly bool _layerTextureComposeEnabled = ParseLayerTextureComposeEnabled();
+    private readonly bool _legacyClipClampPath = ParseLegacyClipClampPathEnabled();
     private int _profilingFrameCounter;
     private bool _taaEnabled;
     private bool _fxaaEnabled;
@@ -131,8 +145,10 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     private ulong _layerTextureComposeSignature;
     private bool _layerTextureComposeSignatureValid;
     private readonly Dictionary<string, StaticGeometryBuffer> _staticGeometryBuffers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _staticGeometryLastSeenFrame = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ulong> _textureLayerTagHashCache = new(StringComparer.Ordinal);
+    private readonly List<string> _staticGeometryStaleTags = new();
     private readonly Dictionary<int, StaticGeometryBuffer> _frameStaticBindings = new();
-    private readonly HashSet<string> _frameStaticActiveTags = new(StringComparer.Ordinal);
 
     private static readonly byte[] VertexShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui.vert.spv");
     private static readonly byte[] FragmentShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui.frag.spv");
@@ -400,6 +416,8 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
     private unsafe long SubmitFrame(CommandBuffer commandBuffer, VulkanSemaphore imageAvailable, VulkanSemaphore renderFinished, Fence inFlightFence)
     {
+        WaitForPendingUploadWork();
+
         var waitStage = PipelineStageFlags.ColorAttachmentOutputBit;
         var submitInfo = new SubmitInfo
         {
@@ -417,6 +435,21 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         var submitStart = _profilingEnabled ? Stopwatch.GetTimestamp() : 0;
         Check(_vk.QueueSubmit(_graphicsQueue, 1, &submitInfo, inFlightFence));
         return _profilingEnabled ? Stopwatch.GetTimestamp() - submitStart : 0L;
+    }
+
+    private unsafe void WaitForPendingUploadWork()
+    {
+        if (!_hasPendingUploadWork || _uploadFence.Handle is 0)
+        {
+            return;
+        }
+
+        fixed (Fence* fence = &_uploadFence)
+        {
+            Check(_vk.WaitForFences(_device, 1, fence, true, ulong.MaxValue));
+        }
+
+        _hasPendingUploadWork = false;
     }
 
     private unsafe Result PresentFrame(uint imageIndex, VulkanSemaphore renderFinished, out long presentTicks)
@@ -465,6 +498,39 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     private static bool ParseLayerTextureBackendEnabled()
     {
         var raw = Environment.GetEnvironmentVariable("DUXEL_LAYER_TEXTURE_BACKEND");
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        return string.Equals(raw, "1", StringComparison.Ordinal)
+            || string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "on", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ParseUploadBatchingEnabled()
+    {
+        var raw = Environment.GetEnvironmentVariable("DUXEL_VK_UPLOAD_BATCH");
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        if (string.Equals(raw, "0", StringComparison.Ordinal)
+            || string.Equals(raw, "false", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "off", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return string.Equals(raw, "1", StringComparison.Ordinal)
+            || string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "on", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ParseLegacyClipClampPathEnabled()
+    {
+        var raw = Environment.GetEnvironmentVariable("DUXEL_VK_LEGACY_CLIP_CLAMP");
         if (string.IsNullOrWhiteSpace(raw))
         {
             return false;
@@ -561,7 +627,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             throw new InvalidOperationException("No rendered frame available for capture.");
         }
 
-        _vk.DeviceWaitIdle(_device);
+        TryWaitForDeviceIdle("CaptureBackbuffer", throwOnFailure: true);
 
         width = (int)_swapchainExtent.Width;
         height = (int)_swapchainExtent.Height;
@@ -827,7 +893,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     {
         if (_device.Handle is not 0)
         {
-            _vk.DeviceWaitIdle(_device);
+            TryWaitForDeviceIdle("CreateSwapchainResources", throwOnFailure: true);
         }
 
         CreateSwapchain();
@@ -858,7 +924,10 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     {
         if (_device.Handle is not 0)
         {
-            _vk.DeviceWaitIdle(_device);
+            if (!TryWaitForDeviceIdle("DestroySwapchainDependentResources", throwOnFailure: false))
+            {
+                return;
+            }
         }
 
         FlushPendingTextureDestroysAll();
@@ -910,6 +979,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             {
                 _vk.DestroyFence(_device, _uploadFence, null);
                 _uploadFence = default;
+                _hasPendingUploadWork = false;
+                _uploadBatchDepth = 0;
+                _uploadBatchRecording = false;
             }
 
             _vk.DestroyCommandPool(_device, _uploadCommandPool, null);
@@ -1005,7 +1077,10 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     {
         if (_device.Handle is not 0)
         {
-            _vk.DeviceWaitIdle(_device);
+            if (!TryWaitForDeviceIdle("DestroyDeviceResources", throwOnFailure: false))
+            {
+                return;
+            }
         }
 
         FlushPendingTextureDestroysAll();
@@ -1258,7 +1333,48 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     {
         var message = SilkMarshal.PtrToString((nint)data->PMessage) ?? string.Empty;
         Console.Error.WriteLine($"[Vulkan][{severity}] {message}");
+        TraceValidationMessage(severity, types, message);
         return Vk.False;
+    }
+
+    private static void TraceValidationMessage(
+        DebugUtilsMessageSeverityFlagsEXT severity,
+        DebugUtilsMessageTypeFlagsEXT types,
+        string message)
+    {
+        if (string.IsNullOrWhiteSpace(VulkanFailureLogPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var path = VulkanFailureLogPath!;
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var sb = new StringBuilder(768);
+            sb.AppendLine("==== VulkanValidation ====");
+            sb.Append("Utc: ").AppendLine(DateTime.UtcNow.ToString("O"));
+            sb.Append("Severity: ").AppendLine(severity.ToString());
+            sb.Append("Types: ").AppendLine(types.ToString());
+            sb.Append("Pid: ").AppendLine(Environment.ProcessId.ToString());
+            sb.Append("ThreadId: ").AppendLine(Environment.CurrentManagedThreadId.ToString());
+            sb.Append("Message: ").AppendLine(message);
+            sb.AppendLine("Stack:");
+            sb.AppendLine(Environment.StackTrace);
+
+            lock (VulkanFailureLogLock)
+            {
+                File.AppendAllText(path, sb.ToString());
+            }
+        }
+        catch
+        {
+        }
     }
 
     private void CreateSurface()
@@ -1287,6 +1403,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             {
                 _physicalDevice = device;
                 _graphicsQueueFamily = queueFamily;
+                _transferQueueFamily = FindTransferQueueFamily(device, queueFamily);
                 return;
             }
         }
@@ -1325,16 +1442,35 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         return false;
     }
 
+    private unsafe uint FindTransferQueueFamily(PhysicalDevice device, uint graphicsQueueFamily)
+    {
+        return graphicsQueueFamily;
+    }
+
     private unsafe void CreateDevice()
     {
         var queuePriority = 1.0f;
-        var queueCreateInfo = new DeviceQueueCreateInfo
+        var queueCreateInfos = stackalloc DeviceQueueCreateInfo[2];
+        var queueCreateInfoCount = 0u;
+
+        queueCreateInfos[queueCreateInfoCount++] = new DeviceQueueCreateInfo
         {
             SType = StructureType.DeviceQueueCreateInfo,
             QueueFamilyIndex = _graphicsQueueFamily,
             QueueCount = 1,
             PQueuePriorities = &queuePriority,
         };
+
+        if (_transferQueueFamily != _graphicsQueueFamily)
+        {
+            queueCreateInfos[queueCreateInfoCount++] = new DeviceQueueCreateInfo
+            {
+                SType = StructureType.DeviceQueueCreateInfo,
+                QueueFamilyIndex = _transferQueueFamily,
+                QueueCount = 1,
+                PQueuePriorities = &queuePriority,
+            };
+        }
 
         var extensionPtr = SilkMarshal.StringArrayToPtr(BaseDeviceExtensions);
 
@@ -1343,8 +1479,8 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             var deviceCreateInfo = new DeviceCreateInfo
             {
                 SType = StructureType.DeviceCreateInfo,
-                QueueCreateInfoCount = 1,
-                PQueueCreateInfos = &queueCreateInfo,
+                QueueCreateInfoCount = queueCreateInfoCount,
+                PQueueCreateInfos = queueCreateInfos,
                 EnabledExtensionCount = (uint)BaseDeviceExtensions.Length,
                 PpEnabledExtensionNames = (byte**)extensionPtr,
             };
@@ -1355,6 +1491,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             }
 
             _vk.GetDeviceQueue(_device, _graphicsQueueFamily, 0, out _graphicsQueue);
+            _vk.GetDeviceQueue(_device, _transferQueueFamily, 0, out _transferQueue);
         }
         finally
         {
@@ -1377,7 +1514,69 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             return;
         }
 
+        TraceVulkanFailure(result);
+
         throw new InvalidOperationException($"Vulkan call failed: {result}");
+    }
+
+    private bool TryWaitForDeviceIdle(string phase, bool throwOnFailure)
+    {
+        if (_device.Handle is 0)
+        {
+            return true;
+        }
+
+        var result = _vk.DeviceWaitIdle(_device);
+        if ((int)result >= 0 || IsSuboptimal(result))
+        {
+            return true;
+        }
+
+        TraceVulkanFailure(result);
+        if (throwOnFailure)
+        {
+            throw new InvalidOperationException($"Vulkan DeviceWaitIdle failed during {phase}: {result}");
+        }
+
+        return false;
+    }
+
+    private static void TraceVulkanFailure(Result result)
+    {
+        if (string.IsNullOrWhiteSpace(VulkanFailureLogPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var path = VulkanFailureLogPath!;
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var sb = new StringBuilder(768);
+            sb.AppendLine("==== VulkanFailure ====");
+            sb.Append("Utc: ").AppendLine(DateTime.UtcNow.ToString("O"));
+            sb.Append("Result: ").AppendLine(result.ToString());
+            sb.Append("Pid: ").AppendLine(Environment.ProcessId.ToString());
+            sb.Append("ThreadId: ").AppendLine(Environment.CurrentManagedThreadId.ToString());
+            sb.Append("DUXEL_VK_UPLOAD_BATCH: ").AppendLine(Environment.GetEnvironmentVariable("DUXEL_VK_UPLOAD_BATCH") ?? "<null>");
+            sb.Append("DUXEL_VK_VALIDATION: ").AppendLine(Environment.GetEnvironmentVariable("DUXEL_VK_VALIDATION") ?? "<null>");
+            sb.Append("DUXEL_VK_PROFILE: ").AppendLine(Environment.GetEnvironmentVariable("DUXEL_VK_PROFILE") ?? "<null>");
+            sb.AppendLine("Stack:");
+            sb.AppendLine(Environment.StackTrace);
+
+            lock (VulkanFailureLogLock)
+            {
+                File.AppendAllText(path, sb.ToString());
+            }
+        }
+        catch
+        {
+        }
     }
 
     private static bool IsSuboptimal(Result result)
@@ -2192,95 +2391,103 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             return;
         }
 
-        var lastId = default(UiTextureId);
-        var hasLast = false;
-        var lastKind = UiTextureUpdateKind.Create;
-        var lastHasExisting = false;
-        var lastExisting = default(TextureResource);
-        for (var i = 0; i < updates.Length; i++)
+        BeginUploadBatch();
+        try
         {
-            var update = updates[i];
-            var sameId = hasLast && update.TextureId.Equals(lastId);
-            if (sameId && update.Kind == lastKind)
+            var lastId = default(UiTextureId);
+            var hasLast = false;
+            var lastKind = UiTextureUpdateKind.Create;
+            var lastHasExisting = false;
+            var lastExisting = default(TextureResource);
+            for (var i = 0; i < updates.Length; i++)
             {
-                continue;
-            }
+                var update = updates[i];
+                var sameId = hasLast && update.TextureId.Equals(lastId);
+                if (sameId && update.Kind == lastKind)
+                {
+                    continue;
+                }
 
-            var hasExisting = lastHasExisting;
-            var existing = lastExisting;
-            if (!sameId)
-            {
-                hasExisting = _textures.TryGetValue(update.TextureId, out existing);
-                lastHasExisting = hasExisting;
-                lastExisting = existing;
-            }
+                var hasExisting = lastHasExisting;
+                var existing = lastExisting;
+                if (!sameId)
+                {
+                    hasExisting = _textures.TryGetValue(update.TextureId, out existing);
+                    lastHasExisting = hasExisting;
+                    lastExisting = existing;
+                }
 
-            hasLast = true;
-            lastId = update.TextureId;
-            lastKind = update.Kind;
-            var expectedFormat = ToVkFormat(update.Format);
+                hasLast = true;
+                lastId = update.TextureId;
+                lastKind = update.Kind;
+                var expectedFormat = ToVkFormat(update.Format);
 
-            switch (update.Kind)
-            {
-                case UiTextureUpdateKind.Create:
-                    if (hasExisting)
-                    {
-                        if (existing.Width != update.Width
-                            || existing.Height != update.Height
-                            || existing.Format != expectedFormat)
+                switch (update.Kind)
+                {
+                    case UiTextureUpdateKind.Create:
+                        if (hasExisting)
                         {
-                            DestroyTexture(update.TextureId);
-                            lastHasExisting = false;
+                            if (existing.Width != update.Width
+                                || existing.Height != update.Height
+                                || existing.Format != expectedFormat)
+                            {
+                                DestroyTexture(update.TextureId);
+                                lastHasExisting = false;
+                                CreateOrUpdateTexture(update, true);
+                                _textures.TryGetValue(update.TextureId, out lastExisting);
+                                lastHasExisting = true;
+                            }
+                            else
+                            {
+                                CreateOrUpdateTexture(update, false);
+                                lastHasExisting = true;
+                            }
+                        }
+                        else
+                        {
                             CreateOrUpdateTexture(update, true);
                             _textures.TryGetValue(update.TextureId, out lastExisting);
                             lastHasExisting = true;
                         }
+                        break;
+                    case UiTextureUpdateKind.Update:
+                        if (hasExisting)
+                        {
+                            if (existing.Width != update.Width
+                                || existing.Height != update.Height
+                                || existing.Format != expectedFormat)
+                            {
+                                DestroyTexture(update.TextureId);
+                                lastHasExisting = false;
+                                CreateOrUpdateTexture(update, true);
+                                _textures.TryGetValue(update.TextureId, out lastExisting);
+                                lastHasExisting = true;
+                            }
+                            else
+                            {
+                                CreateOrUpdateTexture(update, false);
+                                lastHasExisting = true;
+                            }
+                        }
                         else
                         {
-                            CreateOrUpdateTexture(update, false);
-                            lastHasExisting = true;
-                        }
-                    }
-                    else
-                    {
-                        CreateOrUpdateTexture(update, true);
-                        _textures.TryGetValue(update.TextureId, out lastExisting);
-                        lastHasExisting = true;
-                    }
-                    break;
-                case UiTextureUpdateKind.Update:
-                    if (hasExisting)
-                    {
-                        if (existing.Width != update.Width
-                            || existing.Height != update.Height
-                            || existing.Format != expectedFormat)
-                        {
-                            DestroyTexture(update.TextureId);
-                            lastHasExisting = false;
                             CreateOrUpdateTexture(update, true);
                             _textures.TryGetValue(update.TextureId, out lastExisting);
                             lastHasExisting = true;
                         }
-                        else
-                        {
-                            CreateOrUpdateTexture(update, false);
-                            lastHasExisting = true;
-                        }
-                    }
-                    else
-                    {
-                        CreateOrUpdateTexture(update, true);
-                        _textures.TryGetValue(update.TextureId, out lastExisting);
-                        lastHasExisting = true;
-                    }
-                    break;
-                case UiTextureUpdateKind.Destroy:
-                    DestroyTexture(update.TextureId);
-                    lastHasExisting = false;
-                    break;
-                default:
-                    throw new InvalidOperationException($"Unsupported texture update kind: {update.Kind}.");
+                        break;
+                    case UiTextureUpdateKind.Destroy:
+                        DestroyTexture(update.TextureId);
+                        lastHasExisting = false;
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unsupported texture update kind: {update.Kind}.");
+                }
             }
+        }
+        finally
+        {
+            EndUploadBatch();
         }
     }
 
@@ -2391,13 +2598,15 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private unsafe void UploadGeometry(int frame, UiDrawData drawData, bool appendTemporalBlendQuad, Dictionary<int, StaticGeometryBuffer> staticBindings)
     {
+        BeginUploadBatch();
+        try
+        {
         var frameData = _frames[frame];
         var renderBuffers = frameData.RenderBuffers;
 
         var vertexDst = (byte*)renderBuffers.VertexMappedPtr;
         var indexDst = (byte*)renderBuffers.IndexMappedPtr;
         staticBindings.Clear();
-        _frameStaticActiveTags.Clear();
 
         for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
         {
@@ -2406,7 +2615,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
             if (hasStaticTag)
             {
-                _frameStaticActiveTags.Add(staticTag);
+                _staticGeometryLastSeenFrame[staticTag] = _frameIndex;
                 staticBindings[listIndex] = EnsureStaticGeometryBuffer(staticTag, drawList);
                 continue;
             }
@@ -2434,7 +2643,10 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             }
         }
 
-        PruneUnusedStaticGeometryBuffers(_frameStaticActiveTags);
+        if ((_frameIndex % StaticGeometryPruneIntervalFrames) is 0)
+        {
+            PruneUnusedStaticGeometryBuffers(_frameIndex);
+        }
 
         if (!appendTemporalBlendQuad)
         {
@@ -2459,6 +2671,11 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         quadIndices[3] = 0;
         quadIndices[4] = 2;
         quadIndices[5] = 3;
+        }
+        finally
+        {
+            EndUploadBatch();
+        }
     }
 
     private unsafe StaticGeometryBuffer EnsureStaticGeometryBuffer(string staticTag, UiDrawList drawList)
@@ -2528,17 +2745,24 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         return created;
     }
 
-    private void PruneUnusedStaticGeometryBuffers(HashSet<string> activeTags)
+    private void PruneUnusedStaticGeometryBuffers(int currentFrameIndex)
     {
         if (_staticGeometryBuffers.Count is 0)
         {
             return;
         }
 
-        var staleTags = new List<string>();
+        var staleTags = _staticGeometryStaleTags;
+        staleTags.Clear();
         foreach (var pair in _staticGeometryBuffers)
         {
-            if (!activeTags.Contains(pair.Key))
+            if (!_staticGeometryLastSeenFrame.TryGetValue(pair.Key, out var lastSeenFrame))
+            {
+                staleTags.Add(pair.Key);
+                continue;
+            }
+
+            if ((currentFrameIndex - lastSeenFrame) > StaticGeometryLruGraceFrames)
             {
                 staleTags.Add(pair.Key);
             }
@@ -2552,12 +2776,17 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
                 continue;
             }
 
+            _staticGeometryLastSeenFrame.Remove(staleTag);
+            _textureLayerTagHashCache.Remove(staleTag);
+
             QueueBufferDestroy(stale.VertexBuffer, stale.VertexMemory);
             QueueBufferDestroy(stale.IndexBuffer, stale.IndexMemory);
         }
+
+        staleTags.Clear();
     }
 
-    private static bool TryGetStaticDrawListTag(UiDrawList drawList, out string tag)
+    private bool TryGetStaticDrawListTag(UiDrawList drawList, out string tag)
     {
         tag = string.Empty;
         var commandCount = drawList.Commands.Count;
@@ -2589,9 +2818,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         return true;
     }
 
-    private static bool IsStaticLayerGeometryTag(object? userData, out string tag)
+    private bool IsStaticLayerGeometryTag(object? userData, out string tag)
     {
-        if (userData is string value && value.StartsWith(StaticLayerGeometryTagPrefix, StringComparison.Ordinal))
+        if (userData is string value
+            && (value.StartsWith(StaticLayerGeometryTagPrefix, StringComparison.Ordinal)
+                || (_options.EnableGlobalStaticGeometryCache
+                    && value.StartsWith(StaticGlobalGeometryTagPrefix, StringComparison.Ordinal))))
         {
             tag = value;
             return true;
@@ -2610,7 +2842,30 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         return coreTag.EndsWith(TextureBackendTagMarker.AsSpan(), StringComparison.Ordinal);
     }
 
-    private static bool TryComputeLayerComposeSignature(UiDrawData drawData, out ulong signature)
+    private ulong GetOrComputeTextureLayerTagHash(string tag)
+    {
+        if (_textureLayerTagHashCache.TryGetValue(tag, out var cachedHash))
+        {
+            return cachedHash;
+        }
+
+        var hash = 1469598103934665603UL;
+        unchecked
+        {
+            hash ^= (uint)tag.Length;
+            hash *= 1099511628211UL;
+            for (var i = 0; i < tag.Length; i++)
+            {
+                hash ^= tag[i];
+                hash *= 1099511628211UL;
+            }
+        }
+
+        _textureLayerTagHashCache[tag] = hash;
+        return hash;
+    }
+
+    private bool TryComputeLayerComposeSignature(UiDrawData drawData, out ulong signature)
     {
         signature = 1469598103934665603UL;
 
@@ -2640,48 +2895,37 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             HashUInt32(ref hash, (uint)(value >> 32));
         }
 
-        static void HashNUInt(ref ulong hash, nuint value)
-        {
-            if (IntPtr.Size == sizeof(ulong))
-            {
-                HashUInt64(ref hash, (ulong)value);
-                return;
-            }
-
-            HashUInt32(ref hash, (uint)value);
-        }
-
-        static void HashString(ref ulong hash, string value)
-        {
-            HashInt32(ref hash, value.Length);
-            for (var i = 0; i < value.Length; i++)
-            {
-                HashUInt32(ref hash, value[i]);
-            }
-        }
-
         var staticListCount = 0;
+        var seenNonStaticList = false;
         for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
         {
             var drawList = drawData.DrawLists[listIndex];
             if (!TryGetStaticDrawListTag(drawList, out var staticTag))
             {
+                seenNonStaticList = true;
                 continue;
             }
 
             if (!IsTextureLayerGeometryTag(staticTag))
             {
+                seenNonStaticList = true;
                 continue;
+            }
+
+            if (seenNonStaticList)
+            {
+                signature = 0;
+                return false;
             }
 
             staticListCount++;
             HashInt32(ref signature, listIndex);
-            HashString(ref signature, staticTag);
+            HashUInt64(ref signature, GetOrComputeTextureLayerTagHash(staticTag));
             HashInt32(ref signature, drawList.Commands.Count);
-            for (var cmdIndex = 0; cmdIndex < drawList.Commands.Count; cmdIndex++)
+
+            if (drawList.Commands.Count > 0)
             {
-                ref readonly var cmd = ref drawList.Commands.ItemRef(cmdIndex);
-                HashNUInt(ref signature, cmd.TextureId.Value);
+                ref readonly var cmd = ref drawList.Commands.ItemRef(0);
                 HashInt32(ref signature, BitConverter.SingleToInt32Bits(cmd.Translation.X));
                 HashInt32(ref signature, BitConverter.SingleToInt32Bits(cmd.Translation.Y));
             }
@@ -2702,6 +2946,196 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         EnsureStagingBuffer(destinationSize);
         Unsafe.CopyBlockUnaligned(_stagingMappedPtr, sourceData, checked((uint)sourceSize));
         CopyBuffer(_stagingBuffer, destinationBuffer, sourceSize);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool TryComputeScissorRect(
+        in UiDrawCommand cmd,
+        float clipOffsetX,
+        float clipOffsetY,
+        float clipScaleX,
+        float clipScaleY,
+        float fbWidthF,
+        float fbHeightF,
+        out int scissorX,
+        out int scissorY,
+        out uint scissorW,
+        out uint scissorH)
+    {
+        const float epsilon = 0.0001f;
+
+        var cmdTranslationX = cmd.Translation.X;
+        var cmdTranslationY = cmd.Translation.Y;
+
+        var clipMinX = (cmd.ClipRect.X + cmdTranslationX - clipOffsetX) * clipScaleX;
+        var clipMinY = (cmd.ClipRect.Y + cmdTranslationY - clipOffsetY) * clipScaleY;
+        var clipMaxX = (cmd.ClipRect.X + cmd.ClipRect.Width + cmdTranslationX - clipOffsetX) * clipScaleX;
+        var clipMaxY = (cmd.ClipRect.Y + cmd.ClipRect.Height + cmdTranslationY - clipOffsetY) * clipScaleY;
+
+        if (clipMaxX <= clipMinX || clipMaxY <= clipMinY)
+        {
+            scissorX = 0;
+            scissorY = 0;
+            scissorW = 0;
+            scissorH = 0;
+            return false;
+        }
+
+        if (_legacyClipClampPath)
+        {
+            clipMinX = Math.Clamp(clipMinX, 0f, fbWidthF);
+            clipMinY = Math.Clamp(clipMinY, 0f, fbHeightF);
+            clipMaxX = Math.Clamp(clipMaxX, 0f, fbWidthF);
+            clipMaxY = Math.Clamp(clipMaxY, 0f, fbHeightF);
+        }
+        else
+        {
+            clipMinX = clipMinX < 0f ? 0f : (clipMinX > fbWidthF ? fbWidthF : clipMinX);
+            clipMinY = clipMinY < 0f ? 0f : (clipMinY > fbHeightF ? fbHeightF : clipMinY);
+            clipMaxX = clipMaxX < 0f ? 0f : (clipMaxX > fbWidthF ? fbWidthF : clipMaxX);
+            clipMaxY = clipMaxY < 0f ? 0f : (clipMaxY > fbHeightF ? fbHeightF : clipMaxY);
+        }
+
+        if (clipMaxX <= clipMinX || clipMaxY <= clipMinY)
+        {
+            scissorX = 0;
+            scissorY = 0;
+            scissorW = 0;
+            scissorH = 0;
+            return false;
+        }
+
+        var minX = (int)MathF.Floor(clipMinX);
+        var minY = (int)MathF.Floor(clipMinY);
+        var maxX = (int)MathF.Ceiling(clipMaxX - epsilon);
+        var maxY = (int)MathF.Ceiling(clipMaxY - epsilon);
+
+        var fbWidthI = (int)fbWidthF;
+        var fbHeightI = (int)fbHeightF;
+        if (minX < 0)
+        {
+            minX = 0;
+        }
+
+        if (minY < 0)
+        {
+            minY = 0;
+        }
+
+        if (maxX > fbWidthI)
+        {
+            maxX = fbWidthI;
+        }
+
+        if (maxY > fbHeightI)
+        {
+            maxY = fbHeightI;
+        }
+
+        if (maxX <= minX || maxY <= minY)
+        {
+            scissorX = 0;
+            scissorY = 0;
+            scissorW = 0;
+            scissorH = 0;
+            return false;
+        }
+
+        scissorX = minX;
+        scissorY = minY;
+        scissorW = (uint)(maxX - minX);
+        scissorH = (uint)(maxY - minY);
+        return true;
+    }
+
+    private bool TryComputeDynamicCoverageScissor(
+        UiDrawData drawData,
+        float clipOffsetX,
+        float clipOffsetY,
+        float clipScaleX,
+        float clipScaleY,
+        float fbWidth,
+        float fbHeight,
+        out int scissorX,
+        out int scissorY,
+        out uint scissorW,
+        out uint scissorH)
+    {
+        var hasCoverage = false;
+        var minX = 0f;
+        var minY = 0f;
+        var maxX = 0f;
+        var maxY = 0f;
+
+        for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
+        {
+            var drawList = drawData.DrawLists[listIndex];
+            for (var cmdIndex = 0; cmdIndex < drawList.Commands.Count; cmdIndex++)
+            {
+                ref readonly var cmd = ref drawList.Commands.ItemRef(cmdIndex);
+                if (IsStaticLayerGeometryTag(cmd.UserData, out _))
+                {
+                    continue;
+                }
+
+                var cmdTranslationX = cmd.Translation.X;
+                var cmdTranslationY = cmd.Translation.Y;
+                var clipMinX = (cmd.ClipRect.X + cmdTranslationX - clipOffsetX) * clipScaleX;
+                var clipMinY = (cmd.ClipRect.Y + cmdTranslationY - clipOffsetY) * clipScaleY;
+                var clipMaxX = (cmd.ClipRect.X + cmd.ClipRect.Width + cmdTranslationX - clipOffsetX) * clipScaleX;
+                var clipMaxY = (cmd.ClipRect.Y + cmd.ClipRect.Height + cmdTranslationY - clipOffsetY) * clipScaleY;
+
+                if (clipMaxX <= 0f || clipMaxY <= 0f || clipMinX >= fbWidth || clipMinY >= fbHeight)
+                {
+                    continue;
+                }
+
+                if (!hasCoverage)
+                {
+                    minX = clipMinX;
+                    minY = clipMinY;
+                    maxX = clipMaxX;
+                    maxY = clipMaxY;
+                    hasCoverage = true;
+                }
+                else
+                {
+                    minX = MathF.Min(minX, clipMinX);
+                    minY = MathF.Min(minY, clipMinY);
+                    maxX = MathF.Max(maxX, clipMaxX);
+                    maxY = MathF.Max(maxY, clipMaxY);
+                }
+            }
+        }
+
+        if (!hasCoverage)
+        {
+            scissorX = 0;
+            scissorY = 0;
+            scissorW = 0;
+            scissorH = 0;
+            return false;
+        }
+
+        var minXi = (int)MathF.Max(0f, MathF.Floor(minX));
+        var minYi = (int)MathF.Max(0f, MathF.Floor(minY));
+        var maxXi = (int)MathF.Min(fbWidth, MathF.Ceiling(maxX));
+        var maxYi = (int)MathF.Min(fbHeight, MathF.Ceiling(maxY));
+
+        if (maxXi <= minXi || maxYi <= minYi)
+        {
+            scissorX = 0;
+            scissorY = 0;
+            scissorW = 0;
+            scissorH = 0;
+            return false;
+        }
+
+        scissorX = minXi;
+        scissorY = minYi;
+        scissorW = (uint)(maxXi - minXi);
+        scissorH = (uint)(maxYi - minYi);
+        return true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -2912,29 +3346,26 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
                     var cmdTranslationY = cmd.Translation.Y;
 
                     var clippingStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
-                    var clipMinX = (cmd.ClipRect.X + cmdTranslationX - clipOffsetX) * clipScaleX;
-                    var clipMinY = (cmd.ClipRect.Y + cmdTranslationY - clipOffsetY) * clipScaleY;
-                    var clipMaxX = (cmd.ClipRect.X + cmd.ClipRect.Width + cmdTranslationX - clipOffsetX) * clipScaleX;
-                    var clipMaxY = (cmd.ClipRect.Y + cmd.ClipRect.Height + cmdTranslationY - clipOffsetY) * clipScaleY;
-
-                    if (clipMaxX <= clipMinX || clipMaxY <= clipMinY)
+                    if (!TryComputeScissorRect(
+                        cmd,
+                        clipOffsetX,
+                        clipOffsetY,
+                        clipScaleX,
+                        clipScaleY,
+                        fbWidthF,
+                        fbHeightF,
+                        out var scissorX,
+                        out var scissorY,
+                        out var scissorW,
+                        out var scissorH))
                     {
                         if (profileEnabled)
                         {
                             clippingTicksLocal += Stopwatch.GetTimestamp() - clippingStart;
                         }
+
                         continue;
                     }
-
-                    clipMinX = Math.Clamp(clipMinX, 0f, fbWidthF);
-                    clipMinY = Math.Clamp(clipMinY, 0f, fbHeightF);
-                    clipMaxX = Math.Clamp(clipMaxX, 0f, fbWidthF);
-                    clipMaxY = Math.Clamp(clipMaxY, 0f, fbHeightF);
-
-                    var scissorX = (int)clipMinX;
-                    var scissorY = (int)clipMinY;
-                    var scissorW = (uint)(clipMaxX - clipMinX);
-                    var scissorH = (uint)(clipMaxY - clipMinY);
 
                     if (!hasScissor
                         || scissorX != lastScissorX
@@ -2969,12 +3400,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
                     var pushTranslateX = useTemporalJitter ? jitterTranslateX : translateX;
                     var pushTranslateY = useTemporalJitter ? jitterTranslateY : translateY;
-                    if (MathF.Abs(cmdTranslationX) > 0.0001f)
+                    if (cmdTranslationX != 0f)
                     {
                         pushTranslateX += scaleX * cmdTranslationX;
                     }
 
-                    if (MathF.Abs(cmdTranslationY) > 0.0001f)
+                    if (cmdTranslationY != 0f)
                     {
                         pushTranslateY += scaleY * cmdTranslationY;
                     }
@@ -3311,6 +3742,18 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             var swapchainImage = _swapchainImages[imageIndex];
             var layerTextureImage = _layerTextureCache.Image;
+            var hasDynamicCoverage = TryComputeDynamicCoverageScissor(
+                drawData,
+                clipOffsetX,
+                clipOffsetY,
+                clipScaleX,
+                clipScaleY,
+                fbWidthF,
+                fbHeightF,
+                out var dynamicScissorX,
+                out var dynamicScissorY,
+                out var dynamicScissorW,
+                out var dynamicScissorH);
 
             if (!canReuseLayerTexture)
             {
@@ -3373,40 +3816,53 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
                 PClearValues = null,
             };
 
-            _vk.CmdBeginRenderPass(commandBuffer, &overlayRenderPassInfo, SubpassContents.Inline);
+            if (canReuseLayerTexture || hasDynamicCoverage)
+            {
+                _vk.CmdBeginRenderPass(commandBuffer, &overlayRenderPassInfo, SubpassContents.Inline);
 
-            var viewport = new Viewport(0, 0, fbWidth, fbHeight, 0, 1);
-            _vk.CmdSetViewport(commandBuffer, 0, 1, &viewport);
+                var viewport = new Viewport(0, 0, fbWidth, fbHeight, 0, 1);
+                _vk.CmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-            var fullScissor = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)fbWidth, (uint)fbHeight));
-            _vk.CmdSetScissor(commandBuffer, 0, 1, &fullScissor);
+                if (!canReuseLayerTexture && hasDynamicCoverage)
+                {
+                    var partialScissor = new Rect2D(
+                        new Offset2D(dynamicScissorX, dynamicScissorY),
+                        new Extent2D(dynamicScissorW, dynamicScissorH));
+                    _vk.CmdSetScissor(commandBuffer, 0, 1, &partialScissor);
+                }
+                else
+                {
+                    var fullScissor = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)fbWidth, (uint)fbHeight));
+                    _vk.CmdSetScissor(commandBuffer, 0, 1, &fullScissor);
+                }
 
-            var localVertexBuffer = vertexBuffer;
-            ulong vertexOffset = 0;
-            _vk.CmdBindVertexBuffers(commandBuffer, 0, 1, &localVertexBuffer, &vertexOffset);
-            _vk.CmdBindIndexBuffer(commandBuffer, indexBuffer, 0, IndexType.Uint32);
+                var localVertexBuffer = vertexBuffer;
+                ulong vertexOffset = 0;
+                _vk.CmdBindVertexBuffers(commandBuffer, 0, 1, &localVertexBuffer, &vertexOffset);
+                _vk.CmdBindIndexBuffer(commandBuffer, indexBuffer, 0, IndexType.Uint32);
 
-            _vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, _graphicsPipeline);
-            _vk.CmdPushConstants(commandBuffer, _pipelineLayout, ShaderStageFlags.VertexBit, 0, (uint)(sizeof(float) * 4), normalPushConstants);
+                _vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, _graphicsPipeline);
+                _vk.CmdPushConstants(commandBuffer, _pipelineLayout, ShaderStageFlags.VertexBit, 0, (uint)(sizeof(float) * 4), normalPushConstants);
 
-            var descriptorSet = _layerTextureCache.DescriptorSet;
-            _vk.CmdBindDescriptorSets(
-                commandBuffer,
-                PipelineBindPoint.Graphics,
-                _pipelineLayout,
-                0,
-                1,
-                &descriptorSet,
-                0,
-                null);
+                var descriptorSet = _layerTextureCache.DescriptorSet;
+                _vk.CmdBindDescriptorSets(
+                    commandBuffer,
+                    PipelineBindPoint.Graphics,
+                    _pipelineLayout,
+                    0,
+                    1,
+                    &descriptorSet,
+                    0,
+                    null);
 
-            var composeFirstIndex = (uint)drawData.TotalIndexCount;
-            var composeVertexOffset = drawData.TotalVertexCount;
-            _vk.CmdDrawIndexed(commandBuffer, 6, 1, composeFirstIndex, composeVertexOffset, 0);
+                var composeFirstIndex = (uint)drawData.TotalIndexCount;
+                var composeVertexOffset = drawData.TotalVertexCount;
+                _vk.CmdDrawIndexed(commandBuffer, 6, 1, composeFirstIndex, composeVertexOffset, 0);
 
-            DrawCommandLists(renderFontOnly: false, renderNonFontOnly: false, renderStaticOnly: false, renderDynamicOnly: true);
+                DrawCommandLists(renderFontOnly: false, renderNonFontOnly: false, renderStaticOnly: false, renderDynamicOnly: true);
 
-            _vk.CmdEndRenderPass(commandBuffer);
+                _vk.CmdEndRenderPass(commandBuffer);
+            }
         }
 
         recordTextureLookupTicks = textureLookupTicksLocal;
@@ -3469,8 +3925,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     {
         if (_staticGeometryBuffers.Count is 0)
         {
+            _staticGeometryLastSeenFrame.Clear();
+            _textureLayerTagHashCache.Clear();
             _frameStaticBindings.Clear();
-            _frameStaticActiveTags.Clear();
             return;
         }
 
@@ -3482,8 +3939,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         }
 
         _staticGeometryBuffers.Clear();
+        _staticGeometryLastSeenFrame.Clear();
+        _textureLayerTagHashCache.Clear();
         _frameStaticBindings.Clear();
-        _frameStaticActiveTags.Clear();
     }
 
     private void QueueBufferDestroy(VkBuffer buffer, DeviceMemory memory)
@@ -3531,6 +3989,23 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             return;
         }
 
+        var hasDueDestroy = false;
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (_frameIndex >= list[i].DestroyFrame)
+            {
+                hasDueDestroy = true;
+                break;
+            }
+        }
+
+        if (!hasDueDestroy)
+        {
+            return;
+        }
+
+        WaitForAllInFlightFrameFences();
+
         var write = 0;
         for (var i = 0; i < list.Count; i++)
         {
@@ -3556,6 +4031,8 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             return;
         }
+
+        WaitForAllInFlightFrameFences();
 
         for (var i = 0; i < _frames.Length; i++)
         {
@@ -3714,6 +4191,23 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             return;
         }
 
+        var hasDueDestroy = false;
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (_frameIndex >= list[i].DestroyFrame)
+            {
+                hasDueDestroy = true;
+                break;
+            }
+        }
+
+        if (!hasDueDestroy)
+        {
+            return;
+        }
+
+        WaitForAllInFlightFrameFences();
+
         var write = 0;
         for (var i = 0; i < list.Count; i++)
         {
@@ -3739,6 +4233,8 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             return;
         }
+
+        WaitForAllInFlightFrameFences();
 
         for (var i = 0; i < _frames.Length; i++)
         {
@@ -3791,6 +4287,26 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         }
     }
 
+    private unsafe void WaitForAllInFlightFrameFences()
+    {
+        if (_frames.Length == 0)
+        {
+            return;
+        }
+
+        for (var i = 0; i < _frames.Length; i++)
+        {
+            var frame = _frames[i];
+            if (frame is null || frame.InFlight.Handle is 0)
+            {
+                continue;
+            }
+
+            var fence = frame.InFlight;
+            Check(_vk.WaitForFences(_device, 1, &fence, true, ulong.MaxValue));
+        }
+    }
+
     private unsafe void CopyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, nuint size)
     {
         if (size is 0)
@@ -3823,20 +4339,74 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             return;
         }
 
+        PrepareForStagingBufferRecreate();
+
+        var previousSize = _stagingBufferSize;
+
         DestroyStagingBuffer();
+
+        var targetSize = size;
+        if (previousSize > 0)
+        {
+            targetSize = Math.Max(targetSize, previousSize * 2);
+        }
+
         CreateBuffer(
-            size,
+            targetSize,
             BufferUsageFlags.TransferSrcBit,
             MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
             out _stagingBuffer,
             out _stagingMemory
         );
-        _stagingBufferSize = size;
+        _stagingBufferSize = targetSize;
 
         void* mapped;
-        Check(_vk.MapMemory(_device, _stagingMemory, 0, size, 0, &mapped));
+        Check(_vk.MapMemory(_device, _stagingMemory, 0, targetSize, 0, &mapped));
         _stagingMappedPtr = mapped;
         _stagingMapped = true;
+    }
+
+    private unsafe void PrepareForStagingBufferRecreate()
+    {
+        if (_uploadBatchRecording && _uploadCommandBuffer.Handle is not 0)
+        {
+            Check(_vk.EndCommandBuffer(_uploadCommandBuffer));
+
+            var commandBuffer = _uploadCommandBuffer;
+            var submitInfo = new SubmitInfo
+            {
+                SType = StructureType.SubmitInfo,
+                CommandBufferCount = 1,
+                PCommandBuffers = &commandBuffer,
+            };
+
+            Check(_vk.QueueSubmit(_transferQueue, 1, &submitInfo, _uploadFence));
+            _hasPendingUploadWork = true;
+            _uploadBatchRecording = false;
+        }
+
+        WaitForPendingUploadWork();
+
+        if (_uploadBatchDepth <= 0 || _uploadCommandBuffer.Handle is 0)
+        {
+            return;
+        }
+
+        fixed (Fence* fence = &_uploadFence)
+        {
+            Check(_vk.ResetFences(_device, 1, fence));
+        }
+
+        Check(_vk.ResetCommandBuffer(_uploadCommandBuffer, 0));
+
+        var beginInfo = new CommandBufferBeginInfo
+        {
+            SType = StructureType.CommandBufferBeginInfo,
+            Flags = CommandBufferUsageFlags.OneTimeSubmitBit,
+        };
+
+        Check(_vk.BeginCommandBuffer(_uploadCommandBuffer, &beginInfo));
+        _uploadBatchRecording = true;
     }
 
     private void DestroyStagingBuffer()
@@ -3907,13 +4477,28 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         out DeviceMemory memory
     )
     {
+        var queueFamilies = stackalloc uint[2];
+        uint queueFamilyIndexCount = 0;
+        uint* queueFamilyIndices = null;
+        var sharingMode = SharingMode.Exclusive;
+        if (_transferQueueFamily != _graphicsQueueFamily)
+        {
+            queueFamilies[0] = _graphicsQueueFamily;
+            queueFamilies[1] = _transferQueueFamily;
+            queueFamilyIndexCount = 2;
+            queueFamilyIndices = queueFamilies;
+            sharingMode = SharingMode.Concurrent;
+        }
+
         var bufferInfo = stackalloc BufferCreateInfo[1];
         bufferInfo[0] = new BufferCreateInfo
         {
             SType = StructureType.BufferCreateInfo,
             Size = size,
             Usage = usage,
-            SharingMode = SharingMode.Exclusive,
+            SharingMode = sharingMode,
+            QueueFamilyIndexCount = queueFamilyIndexCount,
+            PQueueFamilyIndices = queueFamilyIndices,
         };
 
         var localBuffer = default(VkBuffer);
@@ -3947,6 +4532,19 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         out DeviceMemory memory
     )
     {
+        var queueFamilies = stackalloc uint[2];
+        uint queueFamilyIndexCount = 0;
+        uint* queueFamilyIndices = null;
+        var sharingMode = SharingMode.Exclusive;
+        if (_transferQueueFamily != _graphicsQueueFamily)
+        {
+            queueFamilies[0] = _graphicsQueueFamily;
+            queueFamilies[1] = _transferQueueFamily;
+            queueFamilyIndexCount = 2;
+            queueFamilyIndices = queueFamilies;
+            sharingMode = SharingMode.Concurrent;
+        }
+
         var imageInfo = stackalloc ImageCreateInfo[1];
         imageInfo[0] = new ImageCreateInfo
         {
@@ -3960,7 +4558,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             InitialLayout = ImageLayout.Undefined,
             Usage = usage,
             Samples = SampleCountFlags.Count1Bit,
-            SharingMode = SharingMode.Exclusive,
+            SharingMode = sharingMode,
+            QueueFamilyIndexCount = queueFamilyIndexCount,
+            PQueueFamilyIndices = queueFamilyIndices,
         };
 
         var localImage = default(Image);
@@ -4026,6 +4626,49 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         throw new InvalidOperationException("Failed to find a suitable memory type.");
     }
 
+    private void BeginUploadBatch()
+    {
+        if (!_uploadBatchingEnabled)
+        {
+            return;
+        }
+
+        _uploadBatchDepth++;
+    }
+
+    private void EndUploadBatch()
+    {
+        if (!_uploadBatchingEnabled)
+        {
+            return;
+        }
+
+        if (_uploadBatchDepth <= 0)
+        {
+            return;
+        }
+
+        _uploadBatchDepth--;
+        if (_uploadBatchDepth != 0 || !_uploadBatchRecording)
+        {
+            return;
+        }
+
+        Check(_vk.EndCommandBuffer(_uploadCommandBuffer));
+
+        var commandBuffer = _uploadCommandBuffer;
+        var submitInfo = new SubmitInfo
+        {
+            SType = StructureType.SubmitInfo,
+            CommandBufferCount = 1,
+            PCommandBuffers = &commandBuffer,
+        };
+
+        Check(_vk.QueueSubmit(_transferQueue, 1, &submitInfo, _uploadFence));
+        _hasPendingUploadWork = true;
+        _uploadBatchRecording = false;
+    }
+
     private CommandBuffer BeginSingleTimeCommands()
     {
         if (_uploadCommandBuffer.Handle is 0)
@@ -4044,9 +4687,37 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             }
         }
 
+        if (_uploadBatchDepth > 0)
+        {
+            if (_uploadBatchRecording)
+            {
+                return _uploadCommandBuffer;
+            }
+
+            WaitForPendingUploadWork();
+
+            fixed (Fence* fence = &_uploadFence)
+            {
+                Check(_vk.ResetFences(_device, 1, fence));
+            }
+
+            Check(_vk.ResetCommandBuffer(_uploadCommandBuffer, 0));
+
+            var batchBeginInfo = new CommandBufferBeginInfo
+            {
+                SType = StructureType.CommandBufferBeginInfo,
+                Flags = CommandBufferUsageFlags.OneTimeSubmitBit,
+            };
+
+            Check(_vk.BeginCommandBuffer(_uploadCommandBuffer, &batchBeginInfo));
+            _uploadBatchRecording = true;
+            return _uploadCommandBuffer;
+        }
+
+        WaitForPendingUploadWork();
+
         fixed (Fence* fence = &_uploadFence)
         {
-            Check(_vk.WaitForFences(_device, 1, fence, true, ulong.MaxValue));
             Check(_vk.ResetFences(_device, 1, fence));
         }
 
@@ -4064,6 +4735,11 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
     private void EndSingleTimeCommands(CommandBuffer commandBuffer)
     {
+        if (_uploadBatchDepth > 0)
+        {
+            return;
+        }
+
         Check(_vk.EndCommandBuffer(commandBuffer));
 
         var submitInfo = new SubmitInfo
@@ -4073,11 +4749,8 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             PCommandBuffers = &commandBuffer,
         };
 
-        Check(_vk.QueueSubmit(_graphicsQueue, 1, &submitInfo, _uploadFence));
-        fixed (Fence* fence = &_uploadFence)
-        {
-            Check(_vk.WaitForFences(_device, 1, fence, true, ulong.MaxValue));
-        }
+        Check(_vk.QueueSubmit(_transferQueue, 1, &submitInfo, _uploadFence));
+        _hasPendingUploadWork = true;
     }
 
 
@@ -4623,7 +5296,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         var uploadPoolInfo = new CommandPoolCreateInfo
         {
             SType = StructureType.CommandPoolCreateInfo,
-            QueueFamilyIndex = _graphicsQueueFamily,
+            QueueFamilyIndex = _transferQueueFamily,
             Flags = CommandPoolCreateFlags.TransientBit | CommandPoolCreateFlags.ResetCommandBufferBit,
         };
 
@@ -4647,6 +5320,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             Check(_vk.CreateFence(_device, &fenceInfo, null, uploadFence));
         }
+        _hasPendingUploadWork = false;
+        _uploadBatchDepth = 0;
+        _uploadBatchRecording = false;
 
         var poolPtr = stackalloc CommandPool[1];
         var commandBufferPtr = stackalloc CommandBuffer[1];

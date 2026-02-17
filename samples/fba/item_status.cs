@@ -1,7 +1,8 @@
 // FBA: Item 상태 쿼리 API 시연 — IsItemActive/Focused/Clicked/Edited/Activated/Deactivated,
 //       GetItemRect, SetItemDefaultFocus, MultiSelect, SetNextItemSelectionUserData
 #:property TargetFramework=net10.0
-#:package Duxel.Windows.App@*-*
+#:property platform=windows
+#:package Duxel.$(platform).App@*-*
 
 using System;
 using Duxel.App;

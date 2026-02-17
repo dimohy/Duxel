@@ -1,7 +1,6 @@
 // FBA: Adaptive Frame Pacing + 다중 레이어 드래그 검증 샘플
 #:property TargetFramework=net10.0
-#:property platform=windows
-#:package Duxel.$(platform).App@*-*
+#:package Duxel.Windows.App@*-*
 
 using System;
 using System.Collections.Generic;
@@ -33,8 +32,6 @@ DuxelApp.Run(new DuxelAppOptions
 
 public sealed class IdleLayerValidationScreen : UiScreen
 {
-    private const string FastRenderGlobalStaticTag = "duxel.global.static:idle:fast-render:v1";
-
     private sealed class LayerCard
     {
         public required int Id { get; init; }
@@ -87,7 +84,7 @@ public sealed class IdleLayerValidationScreen : UiScreen
     private int _renderParticleCount = 6500;
     private float _renderSpeed = 1.2f;
     private bool _animateRender = true;
-    private bool _enableLayerTextureCache = ReadValidateLayerCacheEnabled();
+    private bool _enableLayerTextureCache = true;
     private UiLayerCacheBackend _layerCacheBackend = ReadBenchCacheBackend();
     private float _layerOpacity = ReadBenchLayerOpacity();
     private int _layerCacheBuildCount;
@@ -109,13 +106,8 @@ public sealed class IdleLayerValidationScreen : UiScreen
     private int _activeDragLayerId = -1;
     private UiVector2 _dragOffset;
     private int _zCounter;
-    private bool _layerOrderDirty = true;
     private readonly double _autoExitSeconds = ReadAutoExitSeconds();
     private double _elapsedSeconds;
-    private UiPooledList<UiDrawList>? _fastRenderStaticCache;
-    private UiRect _fastRenderCachedCanvas;
-    private int _fastRenderCachedParticleCount = -1;
-    private bool _fastRenderCachedDisabledState;
 
     public IdleLayerValidationScreen()
     {
@@ -315,24 +307,6 @@ public sealed class IdleLayerValidationScreen : UiScreen
             || string.Equals(raw, "on", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool ReadValidateLayerCacheEnabled()
-    {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_VALIDATE_LAYER_CACHE");
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return true;
-        }
-
-        if (string.Equals(raw, "0", StringComparison.Ordinal)
-            || string.Equals(raw, "false", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(raw, "off", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
     private static UiLayerCacheBackend ReadBenchCacheBackend()
     {
         var raw = Environment.GetEnvironmentVariable("DUXEL_LAYER_BENCH_BACKEND");
@@ -471,14 +445,8 @@ public sealed class IdleLayerValidationScreen : UiScreen
 
         ui.Text("Fast Render Window");
         ui.Checkbox("Animate", ref _animateRender);
-        if (ui.Checkbox("Disable Fast Render", ref _disableFastRender))
-        {
-            InvalidateFastRenderStaticCache();
-        }
-        if (ui.SliderInt("Particle Count", ref _renderParticleCount, 1000, 30000))
-        {
-            InvalidateFastRenderStaticCache();
-        }
+        ui.Checkbox("Disable Fast Render", ref _disableFastRender);
+        ui.SliderInt("Particle Count", ref _renderParticleCount, 1000, 30000);
         if (!string.IsNullOrWhiteSpace(_benchOutputPath))
         {
             var composition = _benchLayerCompositions[Math.Clamp(_benchAppliedCompositionIndex, 0, _benchLayerCompositions.Length - 1)].Name;
@@ -531,7 +499,7 @@ public sealed class IdleLayerValidationScreen : UiScreen
             if (ui.SliderInt($"{_layers[i].Name} Density", ref density, 300, 20000))
             {
                 _layers[i].Density = density;
-                MarkLayerBodyDirty(ui, _layers[i].Id);
+                MarkAllLayerCacheDirty(ui);
             }
         }
 
@@ -573,34 +541,22 @@ public sealed class IdleLayerValidationScreen : UiScreen
         drawList.PushTexture(white);
         drawList.PushClipRect(canvas);
 
-        EnsureFastRenderStaticCache(canvas, white);
-        if (_fastRenderStaticCache is not null)
-        {
-            for (var i = 0; i < _fastRenderStaticCache.Count; i++)
-            {
-                drawList.Append(_fastRenderStaticCache[i]);
-            }
-        }
+        drawList.AddRectFilled(canvas, new UiColor(0xFF121212), white, canvas);
 
         var t = (float)now;
         var disableFastRenderNow = _disableFastRender;
-        if (!disableFastRenderNow)
+        var count = disableFastRenderNow ? 0 : _renderParticleCount;
+        for (var i = 0; i < count; i++)
         {
+            var idx = i + 1;
+            var phase = idx * 0.017f;
             var speed = _animateRender ? _renderSpeed : 0f;
-            var cx = canvas.X + ((MathF.Sin(t * speed * 1.35f) * 0.5f + 0.5f) * MathF.Max(1f, canvas.Width - 20f)) + 10f;
-            var cy = canvas.Y + ((MathF.Cos(t * speed * 1.1f) * 0.5f + 0.5f) * MathF.Max(1f, canvas.Height - 20f)) + 10f;
-            drawList.AddCircle(new UiVector2(cx, cy), 30f, new UiColor(0xFFF0F0F0), 24, 1.5f);
-            drawList.AddCircleFilled(new UiVector2(cx, cy), 10f, new UiColor(0xFF90D8FF), white, canvas, 20);
-
-            var trailCount = Math.Max(12, _renderParticleCount / 400);
-            for (var i = 0; i < trailCount; i++)
-            {
-                var a = (float)i / trailCount * MathF.Tau + t * speed * 1.7f;
-                var radius = 42f + (i % 5) * 8f;
-                var px = cx + MathF.Cos(a) * radius;
-                var py = cy + MathF.Sin(a) * radius;
-                drawList.AddCircleFilled(new UiVector2(px, py), 2.2f + (i % 3) * 0.6f, new UiColor(0xFF58C8FF), white, canvas, 12);
-            }
+            var x = canvas.X + ((MathF.Sin(t * speed * 1.7f + phase) * 0.5f + 0.5f) * (canvas.Width - 8f));
+            var y = canvas.Y + ((MathF.Cos(t * speed * 1.3f + phase * 1.4f) * 0.5f + 0.5f) * (canvas.Height - 8f));
+            var radius = 1.5f + (idx % 4) * 0.6f;
+            var c = (uint)((idx * 23) & 0xFF);
+            var color = new UiColor(0xFF000000 | (c << 16) | ((255u - c) << 8) | (120u + (c % 120u)));
+            drawList.AddCircleFilled(new UiVector2(x, y), radius, color, white, canvas, 8);
         }
 
         drawList.PopClipRect();
@@ -609,72 +565,6 @@ public sealed class IdleLayerValidationScreen : UiScreen
         ui.SetCursorScreenPos(new UiVector2(origin.X, origin.Y));
         ui.Dummy(new UiVector2(width, height));
         ui.EndWindow();
-    }
-
-    private void EnsureFastRenderStaticCache(UiRect canvas, UiTextureId white)
-    {
-        var particleCount = _disableFastRender ? 0 : _renderParticleCount;
-        if (_fastRenderStaticCache is not null
-            && MathF.Abs(_fastRenderCachedCanvas.Width - canvas.Width) < 0.5f
-            && MathF.Abs(_fastRenderCachedCanvas.Height - canvas.Height) < 0.5f
-            && _fastRenderCachedParticleCount == particleCount
-            && _fastRenderCachedDisabledState == _disableFastRender)
-        {
-            return;
-        }
-
-        InvalidateFastRenderStaticCache();
-
-        var builder = new UiDrawListBuilder(canvas);
-        builder.PushTexture(white);
-        builder.PushClipRect(canvas);
-        builder.PushCommandUserData(FastRenderGlobalStaticTag);
-        DrawFastRenderStaticPrimitives(builder, canvas, particleCount, white);
-        builder.PopCommandUserData();
-        builder.PopClipRect();
-        builder.PopTexture();
-
-        _fastRenderStaticCache = builder.Build();
-        _fastRenderCachedCanvas = canvas;
-        _fastRenderCachedParticleCount = particleCount;
-        _fastRenderCachedDisabledState = _disableFastRender;
-    }
-
-    private void InvalidateFastRenderStaticCache()
-    {
-        if (_fastRenderStaticCache is null)
-        {
-            _fastRenderCachedParticleCount = -1;
-            return;
-        }
-
-        for (var i = 0; i < _fastRenderStaticCache.Count; i++)
-        {
-            _fastRenderStaticCache[i].ReleasePooled();
-        }
-
-        _fastRenderStaticCache.Return();
-        _fastRenderStaticCache = null;
-        _fastRenderCachedParticleCount = -1;
-    }
-
-    private static void DrawFastRenderStaticPrimitives(UiDrawListBuilder drawList, UiRect canvas, int particleCount, UiTextureId white)
-    {
-        drawList.AddRectFilled(canvas, new UiColor(0xFF121212), white, canvas);
-
-        var count = Math.Max(0, particleCount);
-        for (var i = 0; i < count; i++)
-        {
-            var idx = i + 1;
-            var u = ((idx * 37) % 1009) / 1009f;
-            var v = ((idx * 73) % 1013) / 1013f;
-            var x = canvas.X + 4f + u * MathF.Max(1f, canvas.Width - 8f);
-            var y = canvas.Y + 4f + v * MathF.Max(1f, canvas.Height - 8f);
-            var radius = 1.5f + (idx % 4) * 0.6f;
-            var c = (uint)((idx * 23) & 0xFF);
-            var color = new UiColor(0xFF000000 | (c << 16) | ((255u - c) << 8) | (120u + (c % 120u)));
-            drawList.AddCircleFilled(new UiVector2(x, y), radius, color, white, canvas, 8);
-        }
     }
 
     private void DrawLayerLabWindow(UiImmediateContext ui, UiRect bounds)
@@ -697,11 +587,7 @@ public sealed class IdleLayerValidationScreen : UiScreen
         drawList.AddRectFilled(canvas, new UiColor(0xFF1A1A1A), white, canvas);
         DrawGrid(drawList, canvas);
 
-        if (_layerOrderDirty)
-        {
-            _layers.Sort((a, b) => a.ZOrder.CompareTo(b.ZOrder));
-            _layerOrderDirty = false;
-        }
+        _layers.Sort((a, b) => a.ZOrder.CompareTo(b.ZOrder));
         for (var i = 0; i < _layers.Count; i++)
         {
             DrawLayerCard(ui, drawList, canvas, _layers[i]);
@@ -775,7 +661,6 @@ public sealed class IdleLayerValidationScreen : UiScreen
         if (ui.IsItemClicked())
         {
             layer.ZOrder = _zCounter++;
-            _layerOrderDirty = true;
             _activeDragLayerId = layer.Id;
             var mouse = ui.GetMousePos();
             _dragOffset = new UiVector2(mouse.X - layerRect.X, mouse.Y - layerRect.Y);
@@ -809,7 +694,6 @@ public sealed class IdleLayerValidationScreen : UiScreen
         _layers[2].ZOrder = 3;
 
         _zCounter = 4;
-        _layerOrderDirty = true;
         _activeDragLayerId = -1;
         MarkAllLayerCacheDirty(ui);
     }
@@ -890,13 +774,8 @@ public sealed class IdleLayerValidationScreen : UiScreen
             _benchAppliedCompositionIndex = compositionIndex;
         }
 
-        var prevParticles = _renderParticleCount;
         _renderParticleCount = _benchParticleCounts[particleIndex];
         _enableLayerTextureCache = cacheOn;
-        if (prevParticles != _renderParticleCount)
-        {
-            InvalidateFastRenderStaticCache();
-        }
         if (compositionChanged || prevCache != _enableLayerTextureCache)
         {
             MarkAllLayerCacheDirty(ui);
@@ -963,11 +842,6 @@ public sealed class IdleLayerValidationScreen : UiScreen
         ui.MarkAllLayersDirty();
     }
 
-    private static void MarkLayerBodyDirty(UiImmediateContext ui, int layerId)
-    {
-        ui.MarkLayerDirty($"layer_body_{layerId}");
-    }
-
     private void ApplyLayerComposition(LayerComposition composition)
     {
         for (var i = 0; i < _layers.Count; i++)
@@ -979,8 +853,6 @@ public sealed class IdleLayerValidationScreen : UiScreen
 
     private static void DrawLayerBodyPrimitives(UiDrawListBuilder drawList, UiRect bodyRect, UiRect clip, LayerCard layer, UiTextureId whiteTexture)
     {
-        drawList.PushClipRect(clip, true);
-
         drawList.AddRectFilled(bodyRect, new UiColor(0xCC1C1E26), whiteTexture, clip);
 
         var lineCount = Math.Max(24, layer.Density / 20);
@@ -1028,7 +900,5 @@ public sealed class IdleLayerValidationScreen : UiScreen
             var color = new UiColor((uint)(0x66C06A3Bu + (uint)((i * 13) & 0x2F)));
             drawList.AddCircleFilled(new UiVector2(x, y), radius, color, whiteTexture, clip, 12);
         }
-
-        drawList.PopClipRect();
     }
 }

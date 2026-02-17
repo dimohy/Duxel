@@ -1,6 +1,7 @@
 // FBA: DSL 마크업 + 인터랙션(Drag/Slider/Color/Child/Popup) 시연
 #:property TargetFramework=net10.0
-#:package Duxel.Windows.App@*-*
+#:property platform=windows
+#:package Duxel.$(platform).App@*-*
 
 using Duxel.App;
 using Duxel.Core.Dsl;

@@ -1,9 +1,12 @@
 using System.Runtime.InteropServices;
 using Duxel.Core;
 using System.Collections.Generic;
+using System.Runtime.Versioning;
+using System.IO;
 
 namespace Duxel.Platform.Windows;
 
+[SupportedOSPlatform("windows")]
 public sealed class WindowsImeHandler : IUiImeHandler
 {
     private readonly nint _hwnd;
@@ -18,6 +21,10 @@ public sealed class WindowsImeHandler : IUiImeHandler
     private bool _isComposing;
     private string? _activeInputId;
     private string? _compositionOwnerId;
+    private TsfUiElementSuppressor? _tsfUiElementSuppressor;
+    private readonly string? _diagnosticsLogPath = Environment.GetEnvironmentVariable("DUXEL_IME_DIAG_LOG");
+    private readonly bool _diagnosticsEnabled = ReadDiagnosticsEnabled();
+    private readonly object _diagnosticsLock = new();
 
     public WindowsImeHandler(nint hwnd)
     {
@@ -30,6 +37,8 @@ public sealed class WindowsImeHandler : IUiImeHandler
         _ownerThreadId = Environment.CurrentManagedThreadId;
         _wndProc = WindowProc;
         InstallWindowHook();
+        _tsfUiElementSuppressor = TsfUiElementSuppressor.TryCreate(DiagLog);
+        DiagLog($"ctor hwnd=0x{_hwnd:X} tsfSink={(_tsfUiElementSuppressor is not null ? "on" : "off")}");
     }
 
     public void SetCaretRect(UiRect caretRect, UiRect inputRect, float fontPixelHeight, float fontPixelWidth)
@@ -44,15 +53,18 @@ public sealed class WindowsImeHandler : IUiImeHandler
             return;
         }
 
+        TryCloseImeStatusWindow();
+
         var himc = Imm32.ImmGetContext(_hwnd);
         if (himc == 0)
         {
-            _isEnabled = false;
             return;
         }
 
         try
         {
+            TryMoveImeStatusWindowOffscreen(himc);
+
             var caretX = (int)MathF.Round(caretRect.X);
             var caretY = (int)MathF.Round(caretRect.Y);
 
@@ -70,7 +82,6 @@ public sealed class WindowsImeHandler : IUiImeHandler
 
             if (!Imm32.ImmSetCompositionWindow(himc, ref compositionForm))
             {
-                _isEnabled = false;
                 return;
             }
 
@@ -87,7 +98,6 @@ public sealed class WindowsImeHandler : IUiImeHandler
 
             if (!Imm32.ImmSetCompositionFont(himc, ref logFont))
             {
-                _isEnabled = false;
                 return;
             }
 
@@ -99,9 +109,13 @@ public sealed class WindowsImeHandler : IUiImeHandler
                 rcArea = compositionForm.rcArea
             };
 
-            if (!Imm32.ImmSetCandidateWindow(himc, ref candidateForm))
+            for (uint index = 0; index < 4; index++)
             {
-                _isEnabled = false;
+                candidateForm.dwIndex = index;
+                if (!Imm32.ImmSetCandidateWindow(himc, ref candidateForm))
+                {
+                    break;
+                }
             }
         }
         finally
@@ -190,20 +204,31 @@ public sealed class WindowsImeHandler : IUiImeHandler
     {
         if (msg == WmImeSetContext)
         {
+            DiagLog($"WM_IME_SETCONTEXT wParam={wParam} lParam=0x{(nuint)lParam:X}");
             if (wParam != 0)
             {
                 var flags = (nuint)lParam;
                 flags &= ~IscShowUiCompositionWindow;
+                flags &= ~IscShowUiGuideline;
+                flags &= ~IscShowUiSoftKbd;
                 flags &= ~IscShowUiAllCandidateWindow;
                 lParam = (nint)flags;
             }
-
-            if (_previousWndProc != 0)
-            {
-                return User32.CallWindowProc(_previousWndProc, hwnd, msg, wParam, lParam);
-            }
-
+            TryCloseImeStatusWindow();
+            TryMoveImeStatusWindowOffscreen();
             return User32.DefWindowProc(hwnd, msg, wParam, lParam);
+        }
+
+        if (msg == WmImeNotify)
+        {
+            var notify = (nuint)wParam;
+            DiagLog($"WM_IME_NOTIFY notify=0x{notify:X}");
+            if (notify is ImnOpenCandidate or ImnChangeCandidate or ImnOpenStatusWindow or ImnSetStatusWindowPos)
+            {
+                TryCloseImeStatusWindow();
+                TryMoveImeStatusWindowOffscreen();
+                return 0;
+            }
         }
 
         if (_isEnabled)
@@ -366,6 +391,105 @@ public sealed class WindowsImeHandler : IUiImeHandler
         }
     }
 
+    private void TryCloseImeStatusWindow()
+    {
+        var imeWnd = Imm32.ImmGetDefaultIMEWnd(_hwnd);
+        DiagLog($"ImmGetDefaultIMEWnd=0x{imeWnd:X}");
+        if (imeWnd == 0)
+        {
+            return;
+        }
+
+        var result = User32.SendMessage(imeWnd, WmImeControl, (nuint)ImcCloseStatusWindow, 0);
+        DiagLog($"SendMessage(IMC_CLOSESTATUSWINDOW) result=0x{(nuint)result:X}");
+    }
+
+    private void TryMoveImeStatusWindowOffscreen()
+    {
+        var himc = Imm32.ImmGetContext(_hwnd);
+        if (himc == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            TryMoveImeStatusWindowOffscreen(himc);
+        }
+        finally
+        {
+            Imm32.ImmReleaseContext(_hwnd, himc);
+        }
+    }
+
+    private static void TryMoveImeStatusWindowOffscreen(nint himc)
+    {
+        var statusPos = new POINT(-32000, -32000);
+        _ = Imm32.ImmSetStatusWindowPos(himc, ref statusPos);
+    }
+
+    private static bool ReadDiagnosticsEnabled()
+    {
+        var explicitPath = Environment.GetEnvironmentVariable("DUXEL_IME_DIAG_LOG");
+        if (!string.IsNullOrWhiteSpace(explicitPath))
+        {
+            return true;
+        }
+
+        var raw = Environment.GetEnvironmentVariable("DUXEL_IME_DIAG");
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        return raw == "1"
+            || raw.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || raw.Equals("on", StringComparison.OrdinalIgnoreCase)
+            || raw.Equals("yes", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void DiagLog(string message)
+    {
+        if (!_diagnosticsEnabled)
+        {
+            return;
+        }
+
+        var line = $"[{DateTime.Now:HH:mm:ss.fff}] IME {message}";
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(_diagnosticsLogPath))
+            {
+                lock (_diagnosticsLock)
+                {
+                    var directory = Path.GetDirectoryName(_diagnosticsLogPath);
+                    if (!string.IsNullOrWhiteSpace(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+
+                    File.AppendAllText(_diagnosticsLogPath, line + Environment.NewLine);
+                }
+            }
+            else
+            {
+                Console.WriteLine(line);
+            }
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                var fallback = Path.Combine(Path.GetTempPath(), "duxel-ime-diag-fallback.log");
+                var fallbackLine = $"[{DateTime.Now:HH:mm:ss.fff}] IME_LOG_FAIL {ex.GetType().Name}: {ex.Message} | {line}";
+                File.AppendAllText(fallback, fallbackLine + Environment.NewLine);
+            }
+            catch
+            {
+            }
+        }
+    }
+
     private const uint CfsPoint = 0x0002;
     private const uint CfsForcePosition = 0x0020;
     private const uint CfsExclude = 0x0080;
@@ -377,9 +501,18 @@ public sealed class WindowsImeHandler : IUiImeHandler
     private const uint WmImeComposition = 0x010F;
     private const uint WmImeEndComposition = 0x010E;
     private const uint WmImeSetContext = 0x0281;
+    private const uint WmImeNotify = 0x0282;
+    private const uint WmImeControl = 0x0283;
     private const uint WmChar = 0x0102;
+    private const nuint ImnOpenCandidate = 0x0005u;
+    private const nuint ImnChangeCandidate = 0x0003u;
+    private const nuint ImnOpenStatusWindow = 0x0002u;
+    private const nuint ImnSetStatusWindowPos = 0x0009u;
+    private const nuint ImcCloseStatusWindow = 0x0021u;
     private const nuint IscShowUiAllCandidateWindow = 0x0000000Fu;
     private const nuint IscShowUiCompositionWindow = 0x80000000u;
+    private const nuint IscShowUiGuideline = 0x40000000u;
+    private const nuint IscShowUiSoftKbd = 0x20000000u;
 
     private delegate nint WndProcDelegate(nint hwnd, uint msg, nint wParam, nint lParam);
 
@@ -460,6 +593,147 @@ public sealed class WindowsImeHandler : IUiImeHandler
         logFont.lfFaceName[length] = '\0';
     }
 
+    [ComVisible(true)]
+    [ClassInterface(ClassInterfaceType.None)]
+    [SupportedOSPlatform("windows")]
+    private sealed class TsfUiElementSuppressor : ITfUIElementSink
+    {
+        private readonly ITfThreadMgr _threadManager;
+        private readonly ITfUIElementMgr _uiElementManager;
+        private readonly ITfSource _source;
+        private uint _cookie;
+
+        private TsfUiElementSuppressor(ITfThreadMgr threadManager, ITfUIElementMgr uiElementManager, ITfSource source, uint cookie)
+        {
+            _threadManager = threadManager;
+            _uiElementManager = uiElementManager;
+            _source = source;
+            _cookie = cookie;
+        }
+
+        public static TsfUiElementSuppressor? TryCreate(Action<string>? diagLog)
+        {
+            try
+            {
+                var coInitHr = Ole32.CoInitializeEx(0, Ole32.CoinitApartmentThreaded);
+                diagLog?.Invoke($"CoInitializeEx hr=0x{coInitHr:X8}");
+                if (coInitHr < 0 && coInitHr != Ole32.RpcEChangedMode)
+                {
+                    return null;
+                }
+
+                var type = Type.GetTypeFromCLSID(ClsidTfThreadMgr, throwOnError: false);
+                diagLog?.Invoke($"TypeFromCLSID found={(type is not null)}");
+                if (type is null)
+                {
+                    return null;
+                }
+
+                if (Activator.CreateInstance(type) is not ITfThreadMgr threadManager)
+                {
+                    return null;
+                }
+
+                var activateHr = threadManager.Activate(out _);
+                diagLog?.Invoke($"ITfThreadMgr.Activate hr=0x{activateHr:X8}");
+                if (activateHr < 0)
+                {
+                    return null;
+                }
+
+                if (threadManager is not ITfUIElementMgr uiElementManager)
+                {
+                    return null;
+                }
+
+                if (uiElementManager is not ITfSource source)
+                {
+                    return null;
+                }
+
+                var sink = new TsfUiElementSuppressor(threadManager, uiElementManager, source, 0);
+                var iid = IidTfUiElementSink;
+                var adviseHr = source.AdviseSink(ref iid, sink, out var cookie);
+                diagLog?.Invoke($"ITfSource.AdviseSink(ITfUIElementSink) hr=0x{adviseHr:X8}");
+                if (adviseHr < 0)
+                {
+                    return null;
+                }
+
+                sink._cookie = cookie;
+                return sink;
+            }
+            catch
+            {
+                diagLog?.Invoke("TSF create exception");
+                return null;
+            }
+        }
+
+        public int BeginUIElement(uint elementId, [MarshalAs(UnmanagedType.Bool)] out bool show)
+        {
+            show = false;
+            return 0;
+        }
+
+        public int UpdateUIElement(uint elementId)
+        {
+            return 0;
+        }
+
+        public int EndUIElement(uint elementId)
+        {
+            return 0;
+        }
+
+        private static readonly Guid ClsidTfThreadMgr = new("529A9E6B-6587-4F23-AB9E-9C7D683E3C50");
+        private static readonly Guid IidTfUiElementSink = new("EA1EA136-19DF-11D7-A6D2-00065B84435C");
+    }
+
+}
+
+internal static partial class Ole32
+{
+    internal const uint CoinitApartmentThreaded = 0x2;
+    internal const int RpcEChangedMode = unchecked((int)0x80010106);
+
+    [LibraryImport("ole32.dll")]
+    internal static partial int CoInitializeEx(nint pvReserved, uint coInit);
+}
+
+[ComImport]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+[Guid("AA80E801-2021-11D2-93E0-0060B067B86E")]
+internal interface ITfThreadMgr
+{
+    int Activate(out uint clientId);
+    int Deactivate();
+}
+
+[ComImport]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+[Guid("EA1EA135-19DF-11D7-A6D2-00065B84435C")]
+internal interface ITfUIElementMgr
+{
+}
+
+[ComImport]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+[Guid("4EA48A35-60AE-446F-8FD6-E6A8D82459F7")]
+internal interface ITfSource
+{
+    int AdviseSink(ref Guid riid, [MarshalAs(UnmanagedType.IUnknown)] object sink, out uint cookie);
+    int UnadviseSink(uint cookie);
+}
+
+[ComVisible(true)]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+[Guid("EA1EA136-19DF-11D7-A6D2-00065B84435C")]
+internal interface ITfUIElementSink
+{
+    int BeginUIElement(uint elementId, [MarshalAs(UnmanagedType.Bool)] out bool show);
+    int UpdateUIElement(uint elementId);
+    int EndUIElement(uint elementId);
 }
 
 internal static partial class User32
@@ -472,10 +746,16 @@ internal static partial class User32
 
     [LibraryImport("user32.dll", EntryPoint = "DefWindowProcW")]
     internal static partial nint DefWindowProc(nint hWnd, uint msg, nint wParam, nint lParam);
+
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    internal static partial nint SendMessage(nint hWnd, uint Msg, nuint wParam, nint lParam);
 }
 
 internal static partial class Imm32
 {
+    [LibraryImport("imm32.dll", SetLastError = true)]
+    internal static partial nint ImmGetDefaultIMEWnd(nint hWnd);
+
     [LibraryImport("imm32.dll", SetLastError = true)]
     internal static partial nint ImmGetContext(nint hWnd);
 
@@ -498,6 +778,10 @@ internal static partial class Imm32
     [LibraryImport("imm32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool ImmGetOpenStatus(nint hIMC);
+
+    [LibraryImport("imm32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool ImmSetStatusWindowPos(nint hIMC, ref WindowsImeHandler.POINT lpptPos);
 
     [LibraryImport("imm32.dll", EntryPoint = "ImmGetCompositionStringW", SetLastError = true)]
     internal static partial int ImmGetCompositionString(nint hIMC, uint dwIndex, nint lpBuf, uint dwBufLen);

@@ -36,6 +36,11 @@ public sealed class UiFontAtlas
 	private uint _lastKerningKey;
 	private float _lastKerningValue;
 	private bool _lastKerningValid;
+	private const int KerningCacheSlots = 8;
+	private readonly uint[] _kerningCacheKeys = new uint[KerningCacheSlots];
+	private readonly float[] _kerningCacheValues = new float[KerningCacheSlots];
+	private readonly bool[] _kerningCacheValid = new bool[KerningCacheSlots];
+	private int _kerningCacheWriteIndex;
 
 	// Fast ASCII glyph cache (0-127)
 	private const int AsciiCacheSize = 128;
@@ -161,18 +166,42 @@ public sealed class UiFontAtlas
 			return _lastKerningValue;
 		}
 
+		for (var i = 0; i < KerningCacheSlots; i++)
+		{
+			if (_kerningCacheValid[i] && _kerningCacheKeys[i] == key)
+			{
+				var cached = _kerningCacheValues[i];
+				_lastKerningKey = key;
+				_lastKerningValue = cached;
+				_lastKerningValid = true;
+				return cached;
+			}
+		}
+
 		if (Kerning.TryGetValue(key, out var value))
 		{
 			_lastKerningKey = key;
 			_lastKerningValue = value;
 			_lastKerningValid = true;
+			StoreKerningCache(key, value);
 			return value;
 		}
 
 		_lastKerningKey = key;
 		_lastKerningValue = 0f;
 		_lastKerningValid = true;
+		StoreKerningCache(key, 0f);
 		return 0f;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private void StoreKerningCache(uint key, float value)
+	{
+		var slot = _kerningCacheWriteIndex;
+		_kerningCacheKeys[slot] = key;
+		_kerningCacheValues[slot] = value;
+		_kerningCacheValid[slot] = true;
+		_kerningCacheWriteIndex = (slot + 1) % KerningCacheSlots;
 	}
 
 	public UiTextureUpdate CreateTextureUpdate(UiTextureId textureId, UiTextureUpdateKind kind = UiTextureUpdateKind.Create) =>

@@ -27,31 +27,32 @@ public sealed partial class UiImmediateContext
     private const float ResizeGripSize = 12f;
 
     private readonly UiState _state;
-    private UiFontAtlas _fontAtlas;
-    private readonly UiTextSettings _textSettings;
+    private UiFontAtlas _fontAtlas = null!;
+    private UiTextSettings _textSettings;
     private float _lineHeight;
     private readonly UiTextureId _fontTexture;
     private readonly UiTextureId _whiteTexture;
     private UiTheme _theme;
-    private readonly UiRect _clipRect;
-    private readonly UiVector2 _mousePosition;
-    private readonly bool _leftMouseDown;
-    private readonly bool _leftMousePressed;
-    private readonly bool _leftMouseReleased;
-    private readonly float _mouseWheel;
-    private readonly float _mouseWheelHorizontal;
-    private readonly IReadOnlyList<UiKeyEvent> _keyEvents;
-    private readonly IReadOnlyList<UiCharEvent> _charEvents;
-    private readonly IUiClipboard? _clipboard;
-    private readonly UiVector2 _displaySize;
-    private readonly float _keyRepeatDelaySeconds;
-    private readonly float _keyRepeatRateSeconds;
-    private readonly IUiImeHandler? _imeHandler;
-    private readonly Action<UiTextureUpdate>? _queueTextureUpdate;
+    private UiRect _clipRect;
+    private UiVector2 _mousePosition;
+    private bool _leftMouseDown;
+    private bool _leftMousePressed;
+    private bool _leftMouseReleased;
+    private float _mouseWheel;
+    private float _mouseWheelHorizontal;
+    private IReadOnlyList<UiKeyEvent> _keyEvents = Array.Empty<UiKeyEvent>();
+    private IReadOnlyList<UiCharEvent> _charEvents = Array.Empty<UiCharEvent>();
+    private IUiClipboard? _clipboard;
+    private UiVector2 _displaySize;
+    private float _keyRepeatDelaySeconds;
+    private float _keyRepeatRateSeconds;
+    private IUiImeHandler? _imeHandler;
+    private Action<UiTextureUpdate>? _queueTextureUpdate;
 
     private readonly UiDrawListBuilder _baseBuilder;
     private readonly UiDrawListBuilder _overlayBuilder;
     private readonly UiDrawListBuilder _popupBuilder;
+    private readonly UiDrawListSharedData _drawListSharedData = new(null!, UiTextSettings.Default, 0f);
     private UiDrawListBuilder _builder;
     private readonly Stack<UiDrawListBuilder> _builderStack = new();
     private readonly Stack<UiRect> _clipStack = new();
@@ -259,16 +260,85 @@ public sealed partial class UiImmediateContext
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(fontAtlas);
-        ArgumentNullException.ThrowIfNull(keyEvents);
-        ArgumentNullException.ThrowIfNull(charEvents);
         ArgumentNullException.ThrowIfNull(style);
 
         _state = state;
+        _fontTexture = fontTexture;
+        _whiteTexture = whiteTexture;
+
+        _baseBuilder = new UiDrawListBuilder(clipRect);
+        _overlayBuilder = new UiDrawListBuilder(clipRect);
+        _popupBuilder = new UiDrawListBuilder(clipRect);
+        _baseBuilder._SetDrawListSharedData(GetDrawListSharedData());
+        _overlayBuilder._SetDrawListSharedData(GetDrawListSharedData());
+        _popupBuilder._SetDrawListSharedData(GetDrawListSharedData());
+        _builder = _baseBuilder;
+
+        ReinitializeFrame(
+            state,
+            fontAtlas,
+            textSettings,
+            lineHeight,
+            theme,
+            style,
+            clipRect,
+            mousePosition,
+            leftMouseDown,
+            leftMousePressed,
+            leftMouseReleased,
+            mouseWheel,
+            mouseWheelHorizontal,
+            keyEvents,
+            charEvents,
+            clipboard,
+            displaySize,
+            keyRepeatSettings,
+            imeHandler,
+            reserveVertices,
+            reserveIndices,
+            reserveCommands,
+            queueTextureUpdate);
+    }
+
+    public void ReinitializeFrame(
+        UiState state,
+        UiFontAtlas fontAtlas,
+        UiTextSettings textSettings,
+        float lineHeight,
+        UiTheme theme,
+        UiStyle style,
+        UiRect clipRect,
+        UiVector2 mousePosition,
+        bool leftMouseDown,
+        bool leftMousePressed,
+        bool leftMouseReleased,
+        float mouseWheel,
+        float mouseWheelHorizontal,
+        IReadOnlyList<UiKeyEvent> keyEvents,
+        IReadOnlyList<UiCharEvent> charEvents,
+        IUiClipboard? clipboard,
+        UiVector2 displaySize,
+        UiKeyRepeatSettings keyRepeatSettings,
+        IUiImeHandler? imeHandler,
+        int reserveVertices,
+        int reserveIndices,
+        int reserveCommands,
+        Action<UiTextureUpdate>? queueTextureUpdate = null)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(fontAtlas);
+        ArgumentNullException.ThrowIfNull(style);
+        ArgumentNullException.ThrowIfNull(keyEvents);
+        ArgumentNullException.ThrowIfNull(charEvents);
+
+        if (!ReferenceEquals(_state, state))
+        {
+            throw new InvalidOperationException("UiImmediateContext cannot be reused across different UiState instances.");
+        }
+
         _fontAtlas = fontAtlas;
         _textSettings = textSettings;
         _lineHeight = lineHeight;
-        _fontTexture = fontTexture;
-        _whiteTexture = whiteTexture;
         _theme = theme;
         WindowPadding = style.WindowPadding.X;
         ItemSpacingX = style.ItemSpacing.X;
@@ -286,7 +356,7 @@ public sealed partial class UiImmediateContext
         _leftMouseDown = leftMouseDown;
         _leftMousePressed = leftMousePressed;
         _leftMouseReleased = leftMouseReleased;
-        // Shift+Wheel → horizontal scroll
+
         if ((_state.Modifiers & KeyModifiers.Shift) != 0 && MathF.Abs(mouseWheel) > 0.001f && MathF.Abs(mouseWheelHorizontal) < 0.001f)
         {
             _mouseWheel = 0f;
@@ -297,6 +367,7 @@ public sealed partial class UiImmediateContext
             _mouseWheel = mouseWheel;
             _mouseWheelHorizontal = mouseWheelHorizontal;
         }
+
         _keyEvents = keyEvents;
         _charEvents = charEvents;
         _clipboard = clipboard;
@@ -306,13 +377,23 @@ public sealed partial class UiImmediateContext
         _imeHandler = imeHandler;
         _queueTextureUpdate = queueTextureUpdate;
 
-        _baseBuilder = new UiDrawListBuilder(clipRect);
-        _overlayBuilder = new UiDrawListBuilder(clipRect);
-        _popupBuilder = new UiDrawListBuilder(clipRect);
-        _builder = _baseBuilder;
-        _baseBuilder._SetDrawListSharedData(GetDrawListSharedData());
-        _overlayBuilder._SetDrawListSharedData(GetDrawListSharedData());
-        _popupBuilder._SetDrawListSharedData(GetDrawListSharedData());
+        var sharedData = GetDrawListSharedData();
+        _baseBuilder._SetDrawListSharedData(sharedData);
+        _overlayBuilder._SetDrawListSharedData(sharedData);
+        _popupBuilder._SetDrawListSharedData(sharedData);
+
+        ResetTransientState(clipRect, reserveVertices, reserveIndices, reserveCommands);
+        UpdateMouseClickState();
+    }
+
+    private void ResetTransientState(UiRect clipRect, int reserveVertices, int reserveIndices, int reserveCommands)
+    {
+        _baseBuilder._SetClipRect(clipRect);
+        _overlayBuilder._SetClipRect(clipRect);
+        _popupBuilder._SetClipRect(clipRect);
+        _baseBuilder._ResetForNewFrame();
+        _overlayBuilder._ResetForNewFrame();
+        _popupBuilder._ResetForNewFrame();
         _baseBuilder.PushTexture(_fontTexture);
         _overlayBuilder.PushTexture(_fontTexture);
         _popupBuilder.PushTexture(_fontTexture);
@@ -320,9 +401,144 @@ public sealed partial class UiImmediateContext
         {
             _baseBuilder.Reserve(reserveVertices, reserveIndices, reserveCommands);
         }
+
+        _builder = _baseBuilder;
+        _builderStack.Clear();
+        _clipStack.Clear();
         _clipStack.Push(clipRect);
 
-        UpdateMouseClickState();
+        _stateStorage.Clear();
+        _fontStack.Clear();
+        _layouts.Clear();
+        _windowStateStack.Clear();
+        _indentStack.Clear();
+        _listBoxStack.Clear();
+        _childStack.Clear();
+        _menuStack.Clear();
+        _popupStack.Clear();
+        _comboStack.Clear();
+        _itemWidthStack.Clear();
+        _itemFlagStack.Clear();
+        _openMenuPopupRects.Clear();
+        _openMenuButtonRects.Clear();
+        _styleColorStack.Clear();
+        _styleVarStack.Clear();
+        _textWrapStack.Clear();
+        _idStack.Clear();
+        _disabledStack.Clear();
+        _themeStack.Clear();
+        _windowOverlayStack.Clear();
+
+        _popupTierDepth = 0;
+        _currentItemFlags = UiItemFlags.None;
+        _idPrefix = string.Empty;
+        _nextItemWidth = 0f;
+        _currentTabBarId = null;
+        _currentTabBarActiveKey = null;
+        _inMenuBar = false;
+        _tooltipActive = false;
+        _tooltipPadding = 0f;
+        _tooltipOrigin = default;
+        _tooltipMaxRight = 0f;
+
+        _columnsActive = false;
+        _columnsCount = 0;
+        _columnsIndex = 0;
+        _columnsStartX = 0f;
+        _columnsStartY = 0f;
+        _columnsWidth = 0f;
+        _columnsMaxY = 0f;
+
+        _tableActive = false;
+        _tableColumns = 0;
+        _tableColumn = 0;
+        _tableStartX = 0f;
+        _tableRowY = 0f;
+        _tableRowMaxY = 0f;
+        _tableColumnWidth = 0f;
+        _tableColumnLabels.Clear();
+        _tableSetupIndex = 0;
+        _tableRowIndex = 0;
+        _tableId = null;
+        _tableFlags = UiTableFlags.None;
+        _tableStartY = 0f;
+        _tableRect = default;
+
+        _lastItemPos = default;
+        _lastItemSize = default;
+        _lastItemId = null;
+        _lastItemEdited = false;
+        _lastItemToggledOpen = false;
+        _lastItemToggledSelection = false;
+        _lastItemSelectionUserData = 0;
+        _hasLastItemSelectionUserData = false;
+        _lastItemFlags = UiItemFlags.None;
+
+        _windowRect = default;
+        _hasWindowRect = false;
+        _currentWindowId = null;
+        _windowContentStart = default;
+        _windowContentMax = default;
+        _windowAppearing = false;
+        _windowCollapsed = false;
+        _windowScrollX = 0f;
+        _windowScrollY = 0f;
+        _nextWindowPos = default;
+        _hasNextWindowPos = false;
+        _nextWindowSize = default;
+        _hasNextWindowSize = false;
+        _nextWindowContentSize = default;
+        _hasNextWindowContentSize = false;
+        _nextWindowMinSize = default;
+        _nextWindowMaxSize = default;
+        _hasNextWindowSizeConstraints = false;
+        _nextWindowOpen = true;
+        _hasNextWindowOpen = false;
+        _nextWindowCollapsed = false;
+        _hasNextWindowCollapsed = false;
+        _hasNextWindowFocus = false;
+        _nextWindowScrollX = 0f;
+        _nextWindowScrollY = 0f;
+        _hasNextWindowScrollX = false;
+        _hasNextWindowScrollY = false;
+        _nextWindowBgAlpha = 0f;
+        _hasNextWindowBgAlpha = false;
+
+        _nextItemShortcutKey = UiKey.None;
+        _nextItemShortcutModifiers = KeyModifiers.None;
+        _nextItemShortcutRepeat = false;
+        _hasNextItemShortcut = false;
+        _hasNextItemAllowOverlap = false;
+        _nextItemSelectionUserData = 0;
+        _hasNextItemSelectionUserData = false;
+        _hasNextItemOpen = false;
+        _nextItemOpen = false;
+        _nextItemStorageId = null;
+
+        _multiSelectActive = false;
+        _multiSelectFlags = UiMultiSelectFlags.None;
+        _multiSelectSelectionSize = 0;
+        _multiSelectItemsCount = 0;
+
+        _dragDropActive = false;
+        _dragDropWithinSource = false;
+        _dragDropWithinTarget = false;
+        _dragDropSourceFlags = UiDragDropFlags.None;
+        _dragDropAcceptFlags = UiDragDropFlags.None;
+        _dragDropSourceId = null;
+        _dragDropTargetId = null;
+        _dragDropMouseButton = (int)UiMouseButton.Left;
+        _dragDropSourceFrame = 0;
+        _dragDropAcceptFrame = 0;
+        _dragDropTargetRect = default;
+        _dragDropTargetClipRect = default;
+        _dragDropPayloadSet = false;
+        _dragDropPayload.DataType = string.Empty;
+        _dragDropPayload.Data = ReadOnlyMemory<byte>.Empty;
+        _dragDropPayload.Preview = false;
+        _dragDropPayload.Delivery = false;
+        _dragDropPayload.SourceId = null;
+        _dragDropPayload.DataFrameCount = -1;
 
         var start = new UiVector2(clipRect.X + WindowPadding, clipRect.Y + WindowPadding);
         var rootLayout = new UiLayoutState(start, false, 0f, start.X);
@@ -1198,7 +1414,10 @@ public sealed partial class UiImmediateContext
             _textSettings.PixelSnap,
             _textSettings.UseBaseline
         );
-        return new UiDrawListSharedData(_fontAtlas, scaledSettings, _lineHeight * _windowFontScale);
+        _drawListSharedData.FontAtlas = _fontAtlas;
+        _drawListSharedData.TextSettings = scaledSettings;
+        _drawListSharedData.LineHeight = _lineHeight * _windowFontScale;
+        return _drawListSharedData;
     }
 
     public void SetStateStorage(UiStateStorage storage)

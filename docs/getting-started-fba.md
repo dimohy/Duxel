@@ -276,7 +276,8 @@ DuxelApp.Run(new DuxelAppOptions
     Font = new DuxelFontOptions
     {
         FontSize = 26,          // 기본 폰트 크기
-        FastStartup = true,     // Built-in ASCII → 비동기 TTF 전환
+        FastStartup = true,     // 시작 시 경량 atlas 사용 + 백그라운드 전체 atlas 빌드
+        UseBuiltInAsciiAtStartup = true, // 시작 atlas를 Built-in ASCII로 생성할지 여부
         InitialGlyphs = ["한글 초기 글리프"]  // 시작 시 미리 로드할 문자
     },
     Theme = UiTheme.ImGuiDark,  // Dark / Light / Classic

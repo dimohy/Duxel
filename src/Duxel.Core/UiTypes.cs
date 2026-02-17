@@ -501,7 +501,7 @@ public readonly record struct UiTextureUpdate(
     ReadOnlyMemory<byte> RgbaPixels
 );
 
-public sealed record class UiDrawCommand(
+public readonly record struct UiDrawCommand(
     UiRect ClipRect,
     UiTextureId TextureId,
     uint IndexOffset,
@@ -549,7 +549,13 @@ internal sealed class PooledBuffer<T>
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void Grow(int capacity)
     {
-        var newArray = ArrayPool<T>.Shared.Rent(capacity);
+        var nextCapacity = _array.Length * 2;
+        if (nextCapacity < capacity)
+        {
+            nextCapacity = capacity;
+        }
+
+        var newArray = ArrayPool<T>.Shared.Rent(nextCapacity);
         _array.AsSpan(0, _count).CopyTo(newArray);
         ArrayPool<T>.Shared.Return(_array, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
         _array = newArray;
@@ -882,7 +888,9 @@ public sealed record class UiDrawData(
     int TotalVertexCount,
     int TotalIndexCount,
     UiPooledList<UiDrawList> DrawLists,
-    UiPooledList<UiTextureUpdate> TextureUpdates
+    UiPooledList<UiTextureUpdate> TextureUpdates,
+    UiRect DynamicDirtyRect = default,
+    bool HasDynamicDirtyRect = false
 )
 {
     public void ReleasePooled()
@@ -909,7 +917,21 @@ public sealed record class UiDrawData(
             scaled.Add(DrawLists[i].ScaleClipRects(scale));
         }
 
-        return this with { DrawLists = UiPooledList<UiDrawList>.RentAndCopy(scaled) };
+        var scaledDirtyRect = DynamicDirtyRect;
+        if (HasDynamicDirtyRect)
+        {
+            scaledDirtyRect = new UiRect(
+                DynamicDirtyRect.X * scale.X,
+                DynamicDirtyRect.Y * scale.Y,
+                DynamicDirtyRect.Width * scale.X,
+                DynamicDirtyRect.Height * scale.Y);
+        }
+
+        return this with
+        {
+            DrawLists = UiPooledList<UiDrawList>.RentAndCopy(scaled),
+            DynamicDirtyRect = scaledDirtyRect,
+        };
     }
 }
 
@@ -920,11 +942,19 @@ public readonly record struct UiViewport(
     UiVector2 WorkSize
 );
 
-public sealed record class UiDrawListSharedData(
-    UiFontAtlas FontAtlas,
-    UiTextSettings TextSettings,
-    float LineHeight
-);
+public sealed class UiDrawListSharedData
+{
+    public UiFontAtlas FontAtlas { get; set; }
+    public UiTextSettings TextSettings { get; set; }
+    public float LineHeight { get; set; }
+
+    public UiDrawListSharedData(UiFontAtlas fontAtlas, UiTextSettings textSettings, float lineHeight)
+    {
+        FontAtlas = fontAtlas;
+        TextSettings = textSettings;
+        LineHeight = lineHeight;
+    }
+}
 
 public sealed class UiDragDropPayload
 {
@@ -951,6 +981,14 @@ public sealed class UiStateStorage
     private readonly Dictionary<string, Box<float>> _floats = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Box<bool>> _bools = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Box<nint>> _voidPtrs = new(StringComparer.Ordinal);
+
+    public void Clear()
+    {
+        _ints.Clear();
+        _floats.Clear();
+        _bools.Clear();
+        _voidPtrs.Clear();
+    }
 
     public int GetInt(string key, int defaultValue = 0)
     {

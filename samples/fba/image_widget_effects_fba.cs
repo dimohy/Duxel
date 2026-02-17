@@ -1,6 +1,7 @@
 // FBA: 웹 이미지 로드 + Image 위젯/드로우리스트 기반 효과 테스트
 #:property TargetFramework=net10.0
-#:package Duxel.Windows.App@*-*
+#:property platform=windows
+#:package Duxel.$(platform).App@*-*
 
 using System;
 using System.Collections.Generic;

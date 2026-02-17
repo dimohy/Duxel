@@ -32,7 +32,7 @@ public sealed partial class UiImmediateContext
         public UiLayerCacheBackend CacheBackend = UiLayerCacheBackend.DrawList;
     }
 
-    private readonly record struct UiLayerFrame(string LayerId, bool ShouldDraw, UiLayerOptions Options, UiDrawListBuilder? LayerBuilder);
+    private readonly record struct UiLayerFrame(string LayerId, bool ShouldDraw, UiLayerOptions Options, UiDrawListBuilder? LayerBuilder, bool LocalClipPushed, UiRect LocalClip);
 
     private sealed class UiLayerCacheStore
     {
@@ -70,20 +70,27 @@ public sealed partial class UiImmediateContext
             entry.Dirty = true;
         }
 
+        var parentClip = CurrentClipRect;
+        var layerLocalClip = new UiRect(
+            parentClip.X - nextOptions.Translation.X,
+            parentClip.Y - nextOptions.Translation.Y,
+            parentClip.Width,
+            parentClip.Height);
+
         if (nextOptions.StaticCache && !entry.Dirty && entry.Lists is { Length: > 0 })
         {
-            _layerFrames.Push(new UiLayerFrame(layerId, ShouldDraw: false, nextOptions, LayerBuilder: null));
+            _layerFrames.Push(new UiLayerFrame(layerId, ShouldDraw: false, nextOptions, LayerBuilder: null, LocalClipPushed: false, LocalClip: layerLocalClip));
             return false;
         }
 
-        var layerBuilder = new UiDrawListBuilder(_clipRect);
+        var layerBuilder = new UiDrawListBuilder(layerLocalClip);
         layerBuilder._SetDrawListSharedData(GetDrawListSharedData());
         layerBuilder.PushTexture(_fontTexture);
-        layerBuilder.PushClipRect(new UiRect(-1_000_000f, -1_000_000f, 2_000_000f, 2_000_000f), false);
 
         _builderStack.Push(_builder);
         _builder = layerBuilder;
-        _layerFrames.Push(new UiLayerFrame(layerId, ShouldDraw: true, nextOptions, layerBuilder));
+        _clipStack.Push(layerLocalClip);
+        _layerFrames.Push(new UiLayerFrame(layerId, ShouldDraw: true, nextOptions, layerBuilder, LocalClipPushed: true, LocalClip: layerLocalClip));
         return true;
     }
 
@@ -109,7 +116,7 @@ public sealed partial class UiImmediateContext
                 {
                     _builder.FlushCurrentDrawList();
                     var cached = entry.Lists[i];
-                    EnsureReplay(cached, frame.Options.Opacity, frame.Options.Translation);
+                    EnsureReplay(cached, frame.Options.Opacity, frame.Options.Translation, frame.LocalClip);
                     _builder.Append(cached.ReplayVertices!, cached.LocalIndices, cached.ReplayCommands!);
                     _builder.FlushCurrentDrawList();
                 }
@@ -121,6 +128,11 @@ public sealed partial class UiImmediateContext
         var layerBuilder = frame.LayerBuilder;
         if (layerBuilder is null)
         {
+            if (frame.LocalClipPushed && _clipStack.Count > 0)
+            {
+                _clipStack.Pop();
+            }
+
             return;
         }
 
@@ -129,24 +141,37 @@ public sealed partial class UiImmediateContext
         built.CopyTo(drawLists);
         built.Return();
 
+        if (frame.LocalClipPushed && _clipStack.Count > 0)
+        {
+            _clipStack.Pop();
+        }
+
         _builder = _builderStack.Pop();
 
         if (frame.Options.StaticCache)
         {
-            entry.Lists = CaptureLayerLists(frame.LayerId, drawLists, frame.Options.CacheBackend);
-            entry.Dirty = false;
-            ReleaseLayerDrawLists(drawLists);
-
-            if (entry.Lists is { Length: > 0 })
+            if (HasRenderableLayerContent(drawLists))
             {
-                for (var i = 0; i < entry.Lists.Length; i++)
+                entry.Lists = CaptureLayerLists(frame.LayerId, drawLists, frame.Options.CacheBackend);
+                entry.Dirty = false;
+                ReleaseLayerDrawLists(drawLists);
+
+                if (entry.Lists is { Length: > 0 })
                 {
-                    _builder.FlushCurrentDrawList();
-                    var cached = entry.Lists[i];
-                    EnsureReplay(cached, frame.Options.Opacity, frame.Options.Translation);
-                    _builder.Append(cached.ReplayVertices!, cached.LocalIndices, cached.ReplayCommands!);
-                    _builder.FlushCurrentDrawList();
+                    for (var i = 0; i < entry.Lists.Length; i++)
+                    {
+                        _builder.FlushCurrentDrawList();
+                        var cached = entry.Lists[i];
+                        EnsureReplay(cached, frame.Options.Opacity, frame.Options.Translation, frame.LocalClip);
+                        _builder.Append(cached.ReplayVertices!, cached.LocalIndices, cached.ReplayCommands!);
+                        _builder.FlushCurrentDrawList();
+                    }
                 }
+            }
+            else
+            {
+                ReleaseLayerDrawLists(drawLists);
+                entry.Dirty = true;
             }
         }
         else
@@ -201,6 +226,29 @@ public sealed partial class UiImmediateContext
         }
 
         return result;
+    }
+
+    private static bool HasRenderableLayerContent(UiDrawList[] drawLists)
+    {
+        for (var i = 0; i < drawLists.Length; i++)
+        {
+            var commands = drawLists[i].Commands;
+            for (var j = 0; j < commands.Count; j++)
+            {
+                ref readonly var cmd = ref commands.ItemRef(j);
+                if (cmd.ElementCount == 0)
+                {
+                    continue;
+                }
+
+                if (cmd.ClipRect.Width > 0f && cmd.ClipRect.Height > 0f)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static string BuildStaticGeometryTag(string layerId, int listIndex, UiDrawList drawList, UiLayerCacheBackend cacheBackend)
@@ -285,46 +333,22 @@ public sealed partial class UiImmediateContext
         return $"{StaticLayerGeometryTagPrefix}{layerId}:{listIndex}:{hash:X16}{backendMarker}";
     }
 
-    private static void EnsureReplay(UiLayerCachedList cached, float opacity, UiVector2 translation)
+    private static void EnsureReplay(UiLayerCachedList cached, float opacity, UiVector2 translation, UiRect layerLocalClip)
     {
         var clampedOpacity = Math.Clamp(opacity, 0f, 1f);
         var opacityBits = BitConverter.SingleToInt32Bits(clampedOpacity);
         var replayStaticTag = clampedOpacity >= 0.999f
             ? cached.StaticGeometryTag
             : $"{cached.StaticGeometryTag}:o{opacityBits:X8}";
+        object? replayUserData = cached.CacheBackend == UiLayerCacheBackend.Texture
+            ? replayStaticTag
+            : null;
         if (cached.ReplayValid
             && MathF.Abs(cached.ReplayTranslation.X - translation.X) <= 0.0001f
             && MathF.Abs(cached.ReplayTranslation.Y - translation.Y) <= 0.0001f
             && MathF.Abs(cached.ReplayOpacity - clampedOpacity) <= 0.0001f)
         {
             return;
-        }
-
-        if (cached.ReplayValid
-            && MathF.Abs(cached.ReplayOpacity - clampedOpacity) <= 0.0001f)
-        {
-            var dx = translation.X - cached.ReplayTranslation.X;
-            var dy = translation.Y - cached.ReplayTranslation.Y;
-            if (MathF.Abs(dx) > 0.0001f || MathF.Abs(dy) > 0.0001f)
-            {
-                var replayCommandsFast = cached.ReplayCommands;
-                if (replayCommandsFast is not null)
-                {
-                    for (var i = 0; i < replayCommandsFast.Length; i++)
-                    {
-                        replayCommandsFast[i] = replayCommandsFast[i] with
-                        {
-                            Translation = translation,
-                            UserData = replayStaticTag
-                        };
-                    }
-                }
-
-                cached.ReplayTranslation = translation;
-                cached.ReplayOpacity = clampedOpacity;
-                cached.ReplayValid = true;
-                return;
-            }
         }
 
         var localVertices = cached.LocalVertices;
@@ -336,9 +360,18 @@ public sealed partial class UiImmediateContext
         }
 
         var applyAlpha = clampedOpacity < 0.999f;
+        var applyTranslation = MathF.Abs(translation.X) > 0.0001f || MathF.Abs(translation.Y) > 0.0001f;
         for (var i = 0; i < localVertices.Length; i++)
         {
             var vertex = localVertices[i];
+
+            if (applyTranslation)
+            {
+                vertex = vertex with
+                {
+                    Position = new UiVector2(vertex.Position.X + translation.X, vertex.Position.Y + translation.Y)
+                };
+            }
 
             if (applyAlpha)
             {
@@ -361,10 +394,46 @@ public sealed partial class UiImmediateContext
 
         for (var i = 0; i < localCommands.Length; i++)
         {
-            replayCommands[i] = localCommands[i] with
+            var localCommand = localCommands[i];
+            var localClip = localCommand.ClipRect;
+
+            var clipMinX = MathF.Max(localClip.X, layerLocalClip.X);
+            var clipMinY = MathF.Max(localClip.Y, layerLocalClip.Y);
+            var clipMaxX = MathF.Min(localClip.X + localClip.Width, layerLocalClip.X + layerLocalClip.Width);
+            var clipMaxY = MathF.Min(localClip.Y + localClip.Height, layerLocalClip.Y + layerLocalClip.Height);
+
+            if (clipMaxX < clipMinX)
             {
-                Translation = translation,
-                UserData = replayStaticTag
+                clipMaxX = clipMinX;
+            }
+
+            if (clipMaxY < clipMinY)
+            {
+                clipMaxY = clipMinY;
+            }
+
+            var clipWidth = clipMaxX - clipMinX;
+            var clipHeight = clipMaxY - clipMinY;
+
+            var replayCommand = localCommand;
+            if (applyTranslation)
+            {
+                replayCommand = replayCommand with
+                {
+                    ClipRect = new UiRect(clipMinX + translation.X, clipMinY + translation.Y, clipWidth, clipHeight)
+                };
+            }
+            else
+            {
+                replayCommand = replayCommand with
+                {
+                    ClipRect = new UiRect(clipMinX, clipMinY, clipWidth, clipHeight)
+                };
+            }
+
+            replayCommands[i] = replayCommand with
+            {
+                UserData = replayUserData
             };
         }
 

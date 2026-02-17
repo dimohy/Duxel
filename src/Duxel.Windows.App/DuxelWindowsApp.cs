@@ -1,6 +1,7 @@
 using Duxel.App;
 using Duxel.Core;
 using Duxel.Platform.Windows;
+using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
 namespace Duxel.Windows.App;
@@ -8,6 +9,12 @@ namespace Duxel.Windows.App;
 [SupportedOSPlatform("windows")]
 public static class DuxelWindowsApp
 {
+    [ModuleInitializer]
+    internal static void RegisterPlatformRunner()
+    {
+        DuxelApp.RegisterRunner(Run);
+    }
+
     public static void Run(DuxelAppOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -26,6 +33,6 @@ public static class DuxelWindowsApp
                 : options.ImeHandlerFactory,
         };
 
-        DuxelApp.Run(resolvedOptions);
+        DuxelApp.RunCore(resolvedOptions);
     }
 }

@@ -91,6 +91,9 @@ public static class UiTextBuilder
         var hasKerning = font.Kerning.Count > 0;
         var useFallbackGlyph = settings.UseFallbackGlyph;
         var missingGlyphObserver = settings.MissingGlyphObserver;
+        var clipMaxX = clipRect.X + clipRect.Width;
+        var clipMaxY = clipRect.Y + clipRect.Height;
+        var lineStart = true;
 
         var span = text.AsSpan();
         var hasSurrogate = false;
@@ -107,6 +110,11 @@ public static class UiTextBuilder
         {
             for (var i = 0; i < span.Length; i++)
             {
+                if (lineStart && y > clipMaxY)
+                {
+                    break;
+                }
+
                 var code = span[i];
                 if (code == '\n')
                 {
@@ -114,8 +122,11 @@ public static class UiTextBuilder
                     y = Snap(y + effectiveLineHeight, pixelSnap);
                     baselineY = Snap(y + baselineOffset, pixelSnap);
                     hasPrev = false;
+                    lineStart = true;
                     continue;
                 }
+
+                lineStart = false;
 
                 if (hasPrev && hasKerning)
                 {
@@ -146,6 +157,15 @@ public static class UiTextBuilder
                 var x1 = Snap(x0 + (glyph.Width * scale), pixelSnap);
                 var y1 = Snap(y0 + (glyph.Height * scale), pixelSnap);
 
+                var isOutsideClip = x1 <= clipRect.X || x0 >= clipMaxX || y1 <= clipRect.Y || y0 >= clipMaxY;
+                if (isOutsideClip)
+                {
+                    x = Snap(x + (glyph.AdvanceX * scale), pixelSnap);
+                    hasPrev = true;
+                    prevChar = code;
+                    continue;
+                }
+
                 var u0 = glyph.UvRect.X;
                 var v0 = glyph.UvRect.Y;
                 var u1 = u0 + glyph.UvRect.Width;
@@ -173,14 +193,22 @@ public static class UiTextBuilder
         {
             foreach (var rune in text.EnumerateRunes())
             {
+                if (lineStart && y > clipMaxY)
+                {
+                    break;
+                }
+
                 if (rune.Value == '\n')
                 {
                     x = Snap(position.X, pixelSnap);
                     y = Snap(y + effectiveLineHeight, pixelSnap);
                     baselineY = Snap(y + baselineOffset, pixelSnap);
                     hasPrev = false;
+                    lineStart = true;
                     continue;
                 }
+
+                lineStart = false;
 
                 if (hasPrev && hasKerning)
                 {
@@ -210,6 +238,15 @@ public static class UiTextBuilder
                     : y + baselineOffset + (glyph.OffsetY * scale);
                 var x1 = Snap(x0 + (glyph.Width * scale), pixelSnap);
                 var y1 = Snap(y0 + (glyph.Height * scale), pixelSnap);
+
+                var isOutsideClip = x1 <= clipRect.X || x0 >= clipMaxX || y1 <= clipRect.Y || y0 >= clipMaxY;
+                if (isOutsideClip)
+                {
+                    x = Snap(x + (glyph.AdvanceX * scale), pixelSnap);
+                    hasPrev = true;
+                    prevChar = rune.Value;
+                    continue;
+                }
 
                 var u0 = glyph.UvRect.X;
                 var v0 = glyph.UvRect.Y;

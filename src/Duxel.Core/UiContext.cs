@@ -7,10 +7,13 @@ namespace Duxel.Core;
 
 public sealed class UiContext : IUiContext
 {
+    private const string StaticLayerGeometryTagPrefix = "duxel.layer.static:";
+    private const string StaticGlobalGeometryTagPrefix = "duxel.global.static:";
     private readonly UiState _state = new();
     private UiFontAtlas _fontAtlas;
     private readonly UiTextureId _fontTexture;
     private readonly UiTextureId _whiteTexture;
+    private readonly bool _enableGlobalStaticGeometryCache;
     private readonly List<UiTextureUpdate> _textureUpdates = new();
 
     private UiFrameInfo _frameInfo;
@@ -30,6 +33,7 @@ public sealed class UiContext : IUiContext
     private bool _hasTextSettings;
     private bool _hasDrawData;
     private UiDrawData? _drawData;
+    private UiImmediateContext? _immediateContext;
     private UiScreen? _screen;
     private int _reserveVertices;
     private int _reserveIndices;
@@ -64,12 +68,14 @@ public sealed class UiContext : IUiContext
     public UiContext(
         UiFontAtlas fontAtlas,
         UiTextureId fontTexture,
-        UiTextureId whiteTexture
+        UiTextureId whiteTexture,
+        bool enableGlobalStaticGeometryCache = true
     )
     {
         _fontAtlas = fontAtlas ?? throw new ArgumentNullException(nameof(fontAtlas));
         _fontTexture = fontTexture;
         _whiteTexture = whiteTexture;
+        _enableGlobalStaticGeometryCache = enableGlobalStaticGeometryCache;
     }
 
     public UiState State => _state;
@@ -717,33 +723,66 @@ public sealed class UiContext : IUiContext
             throw new ArgumentNullException(nameof(screen));
         }
 
-        var ui = new UiImmediateContext(
-            _state,
-            _fontAtlas,
-            _textSettings,
-            _fontAtlas.LineHeight,
-            _fontTexture,
-            _whiteTexture,
-            _theme,
-            _style,
-            _clipRect,
-            _inputState.MousePosition,
-            _inputState.LeftMouseDown,
-            _inputState.LeftMousePressed,
-            _inputState.LeftMouseReleased,
-            _inputState.MouseWheel,
-            _inputState.MouseWheelHorizontal,
-            _inputState.KeyEvents,
-            _inputState.CharEvents,
-            _clipboard,
-            _displaySize,
-            _keyRepeatSettings,
-            _imeHandler,
-            _reserveVertices,
-            _reserveIndices,
-            _reserveCommands,
-            QueueTextureUpdate
-        );
+        var ui = _immediateContext;
+        if (ui is null)
+        {
+            ui = new UiImmediateContext(
+                _state,
+                _fontAtlas,
+                _textSettings,
+                _fontAtlas.LineHeight,
+                _fontTexture,
+                _whiteTexture,
+                _theme,
+                _style,
+                _clipRect,
+                _inputState.MousePosition,
+                _inputState.LeftMouseDown,
+                _inputState.LeftMousePressed,
+                _inputState.LeftMouseReleased,
+                _inputState.MouseWheel,
+                _inputState.MouseWheelHorizontal,
+                _inputState.KeyEvents,
+                _inputState.CharEvents,
+                _clipboard,
+                _displaySize,
+                _keyRepeatSettings,
+                _imeHandler,
+                _reserveVertices,
+                _reserveIndices,
+                _reserveCommands,
+                QueueTextureUpdate
+            );
+            _immediateContext = ui;
+        }
+        else
+        {
+            ui.ReinitializeFrame(
+                _state,
+                _fontAtlas,
+                _textSettings,
+                _fontAtlas.LineHeight,
+                _theme,
+                _style,
+                _clipRect,
+                _inputState.MousePosition,
+                _inputState.LeftMouseDown,
+                _inputState.LeftMousePressed,
+                _inputState.LeftMouseReleased,
+                _inputState.MouseWheel,
+                _inputState.MouseWheelHorizontal,
+                _inputState.KeyEvents,
+                _inputState.CharEvents,
+                _clipboard,
+                _displaySize,
+                _keyRepeatSettings,
+                _imeHandler,
+                _reserveVertices,
+                _reserveIndices,
+                _reserveCommands,
+                QueueTextureUpdate
+            );
+        }
 
         screen.Render(ui);
         _state.EndFrame();
@@ -770,7 +809,9 @@ public sealed class UiContext : IUiContext
             totalVertexCount,
             totalIndexCount,
             drawLists,
-            UiPooledList<UiTextureUpdate>.RentAndCopy(_textureUpdates)
+            UiPooledList<UiTextureUpdate>.RentAndCopy(_textureUpdates),
+            ComputeDynamicDirtyRect(drawLists, _clipRect, out var hasDynamicDirtyRect),
+            hasDynamicDirtyRect
         );
 
 
@@ -795,6 +836,78 @@ public sealed class UiContext : IUiContext
         _state.ReleasePooledBuffers();
         _hasDrawData = false;
         _hasFrame = false;
+    }
+
+    private UiRect ComputeDynamicDirtyRect(UiPooledList<UiDrawList> drawLists, UiRect fallbackRect, out bool hasDirtyRect)
+    {
+        var hasRect = false;
+        var minX = 0f;
+        var minY = 0f;
+        var maxX = 0f;
+        var maxY = 0f;
+
+        for (var listIndex = 0; listIndex < drawLists.Count; listIndex++)
+        {
+            var drawList = drawLists[listIndex];
+            var commandCount = drawList.Commands.Count;
+            for (var commandIndex = 0; commandIndex < commandCount; commandIndex++)
+            {
+                ref readonly var cmd = ref drawList.Commands.ItemRef(commandIndex);
+                if (IsStaticGeometryTag(cmd.UserData))
+                {
+                    continue;
+                }
+
+                var translatedClip = new UiRect(
+                    cmd.ClipRect.X + cmd.Translation.X,
+                    cmd.ClipRect.Y + cmd.Translation.Y,
+                    cmd.ClipRect.Width,
+                    cmd.ClipRect.Height);
+
+                if (translatedClip.Width > 0f && translatedClip.Height > 0f)
+                {
+                    if (!hasRect)
+                    {
+                        minX = translatedClip.X;
+                        minY = translatedClip.Y;
+                        maxX = translatedClip.X + translatedClip.Width;
+                        maxY = translatedClip.Y + translatedClip.Height;
+                        hasRect = true;
+                    }
+                    else
+                    {
+                        minX = MathF.Min(minX, translatedClip.X);
+                        minY = MathF.Min(minY, translatedClip.Y);
+                        maxX = MathF.Max(maxX, translatedClip.X + translatedClip.Width);
+                        maxY = MathF.Max(maxY, translatedClip.Y + translatedClip.Height);
+                    }
+                }
+            }
+        }
+
+        if (!hasRect)
+        {
+            hasDirtyRect = false;
+            return default;
+        }
+
+        var clampedMinX = MathF.Max(fallbackRect.X, minX);
+        var clampedMinY = MathF.Max(fallbackRect.Y, minY);
+        var clampedMaxX = MathF.Min(fallbackRect.X + fallbackRect.Width, maxX);
+        var clampedMaxY = MathF.Min(fallbackRect.Y + fallbackRect.Height, maxY);
+        var width = MathF.Max(0f, clampedMaxX - clampedMinX);
+        var height = MathF.Max(0f, clampedMaxY - clampedMinY);
+        hasDirtyRect = width > 0f && height > 0f;
+        return hasDirtyRect
+            ? new UiRect(clampedMinX, clampedMinY, width, height)
+            : default;
+    }
+
+    private bool IsStaticGeometryTag(object? userData)
+    {
+        return userData is string tag
+            && (tag.StartsWith(StaticLayerGeometryTagPrefix, StringComparison.Ordinal)
+                || (_enableGlobalStaticGeometryCache && tag.StartsWith(StaticGlobalGeometryTagPrefix, StringComparison.Ordinal)));
     }
 }
 

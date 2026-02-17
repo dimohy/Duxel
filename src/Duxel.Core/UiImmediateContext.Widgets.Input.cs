@@ -1193,9 +1193,26 @@ public sealed partial class UiImmediateContext
         }
 
         var textPos = new UiVector2(startX, startY);
-        DrawTextWithoutFallback(compositionText, textPos, _theme.Text, inputClip);
+        var compositionTextSettings = new UiTextSettings(
+            _textSettings.Scale,
+            _textSettings.LineHeightScale,
+            _textSettings.PixelSnap,
+            _textSettings.UseBaseline,
+            true,
+            _textSettings.MissingGlyphObserver
+        );
+        _builder.AddText(
+            _fontAtlas,
+            compositionText,
+            textPos,
+            _theme.Text,
+            _fontTexture,
+            inputClip,
+            compositionTextSettings,
+            _lineHeight
+        );
 
-        var compositionWidth = MeasureTextWidth(compositionText, compositionText.Length);
+        var compositionWidth = UiTextBuilder.MeasureText(_fontAtlas, compositionText, compositionTextSettings, _lineHeight).X;
         if (compositionWidth <= 0f)
         {
             return;

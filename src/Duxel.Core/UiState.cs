@@ -636,6 +636,16 @@ public sealed class UiState
         return buffer;
     }
 
+    public bool HasActiveTextInput()
+    {
+        if (!string.IsNullOrEmpty(_activeId) && _editBuffers.ContainsKey(_activeId))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrEmpty(_previousActiveId) && _editBuffers.ContainsKey(_previousActiveId);
+    }
+
     public string GetTextBuffer(string key, string fallback)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);

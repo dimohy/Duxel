@@ -16,6 +16,25 @@ public static class DuxelApp
 {
     private static AutoResetEvent? s_frameWakeSignal;
     private static int s_pendingFrameRequests;
+    private static Action<DuxelAppOptions>? s_registeredRunner;
+
+    public static void RegisterRunner(Action<DuxelAppOptions> runner)
+    {
+        ArgumentNullException.ThrowIfNull(runner);
+
+        var current = Interlocked.CompareExchange(ref s_registeredRunner, runner, null);
+        if (current is null || AreEquivalentRunner(current, runner))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException("A Duxel platform runner is already registered.");
+    }
+
+    private static bool AreEquivalentRunner(Action<DuxelAppOptions> left, Action<DuxelAppOptions> right)
+    {
+        return left.Method == right.Method && ReferenceEquals(left.Target, right.Target);
+    }
 
     public static void RequestFrame()
     {
@@ -41,6 +60,21 @@ public static class DuxelApp
     }
 
     public static void Run(DuxelAppOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var runner = Volatile.Read(ref s_registeredRunner);
+        if (runner is null)
+        {
+            throw new InvalidOperationException(
+                "No platform runner is registered. Add a platform package such as Duxel.Windows.App so that DuxelApp.Run can be routed."
+            );
+        }
+
+        runner(options);
+    }
+
+    public static void RunCore(DuxelAppOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         ValidateOptions(options);
@@ -92,12 +126,15 @@ public static class DuxelApp
                 DuxelPerformanceProfile.Render => 1,
                 _ => 4,
             };
+        var forceValidation = ParseBooleanEnvironmentFlag(Environment.GetEnvironmentVariable("DUXEL_VK_VALIDATION"));
+        var enableValidationLayers = rendererOptions.EnableValidationLayers || forceValidation;
 
         using var renderer = new VulkanRendererBackend(platform, new VulkanRendererOptions(
             rendererOptions.MinImageCount,
-            rendererOptions.EnableValidationLayers,
+            enableValidationLayers,
             window.VSync,
             requestedMsaaSamples,
+            rendererOptions.EnableGlobalStaticGeometryCache,
             rendererOptions.EnableTaaIfSupported,
             rendererOptions.EnableFxaaIfSupported,
             rendererOptions.TaaExcludeFont,
@@ -138,6 +175,8 @@ public static class DuxelApp
         }
 
         var renderedFrameNumber = 0;
+        var appStartUtc = DateTime.UtcNow;
+        var autoExitSeconds = ParseAutoExitSeconds(Environment.GetEnvironmentVariable("DUXEL_SAMPLE_AUTO_EXIT_SECONDS"));
 
         void TryCaptureFrameIfRequested(int frameNumber)
         {
@@ -321,7 +360,7 @@ public static class DuxelApp
         }
         else
         {
-            uiContext = new UiContext(fontAtlas, fontTextureId, whiteTextureId);
+            uiContext = new UiContext(fontAtlas, fontTextureId, whiteTextureId, rendererOptions.EnableGlobalStaticGeometryCache);
             uiContext.SetTheme(theme);
             uiContext.SetScreen(options.Screen!);
             ConfigureContext(uiContext, options, platform, imeHandlerForContext);
@@ -656,9 +695,20 @@ public static class DuxelApp
                 {
                     if (!hasInputInvalidation && !hasPendingRenderWork && !hasRequestedFrame)
                     {
+                        const int textInputIdleTickMs = 100;
+                        var hasImeComposition = !string.IsNullOrEmpty(imeHandlerForContext?.GetCompositionText());
+                        var hasActiveTextInput = uiContext.State.HasActiveTextInput();
+
                         Volatile.Write(ref renderThreadWaiting, 1);
-                        frameWakeSignal.WaitOne(Timeout.Infinite);
-                        continue;
+                        if (hasImeComposition || hasActiveTextInput)
+                        {
+                            frameWakeSignal.WaitOne(textInputIdleTickMs);
+                        }
+                        else
+                        {
+                            frameWakeSignal.WaitOne(Timeout.Infinite);
+                            continue;
+                        }
                     }
                 }
 
@@ -1053,9 +1103,15 @@ public static class DuxelApp
         {
             while (!platform.ShouldClose)
             {
+                if (autoExitSeconds > 0d && (DateTime.UtcNow - appStartUtc).TotalSeconds >= autoExitSeconds)
+                {
+                    break;
+                }
+
                 if (frameOptions.EnableIdleFrameSkip && Volatile.Read(ref renderThreadWaiting) == 1)
                 {
-                    platform.WaitEvents(0);
+                    var waitTimeoutMs = autoExitSeconds > 0d ? 16 : 0;
+                    platform.WaitEvents(waitTimeoutMs);
                 }
                 else
                 {
@@ -1140,6 +1196,31 @@ public static class DuxelApp
         }
 
         return frames;
+    }
+
+    private static double ParseAutoExitSeconds(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return 0d;
+        }
+
+        return double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds > 0d
+            ? seconds
+            : 0d;
+    }
+
+    private static bool ParseBooleanEnvironmentFlag(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        return string.Equals(raw, "1", StringComparison.Ordinal)
+            || string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "on", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "yes", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void WriteRgbaToBmp(string filePath, int width, int height, ReadOnlySpan<byte> rgba)
@@ -1332,8 +1413,6 @@ public static class DuxelApp
         private ImeRequest _pending;
         private bool _hasPendingOwner;
         private string? _pendingOwner;
-        private bool _hasLastSent;
-        private ImeRequest _lastSent;
         private string? _compositionText;
         private IUiImeHandler? _target;
 
@@ -1342,11 +1421,6 @@ public static class DuxelApp
             var request = new ImeRequest(caretRect, inputRect, fontPixelHeight, fontPixelWidth);
             lock (_lock)
             {
-                if (_hasLastSent && AreClose(request, _lastSent))
-                {
-                    return;
-                }
-
                 _pending = request;
                 _hasPending = true;
             }
@@ -1391,16 +1465,8 @@ public static class DuxelApp
                 target.SetCompositionOwner(pendingOwner);
             }
 
-            if (_hasLastSent && AreClose(request, _lastSent))
-            {
-                _compositionText = target.GetCompositionText();
-                return;
-            }
-
             target.SetCaretRect(request.CaretRect, request.InputRect, request.FontPixelHeight, request.FontPixelWidth);
             _compositionText = target.GetCompositionText();
-            _lastSent = request;
-            _hasLastSent = true;
         }
 
         public string? GetCompositionText() => Volatile.Read(ref _compositionText);
@@ -1431,22 +1497,6 @@ public static class DuxelApp
             return target?.ConsumeRecentCommittedText();
         }
 
-        private static bool AreClose(ImeRequest a, ImeRequest b)
-        {
-            const float epsilon = 0.25f;
-            return Close(a.CaretRect.X, b.CaretRect.X, epsilon)
-                && Close(a.CaretRect.Y, b.CaretRect.Y, epsilon)
-                && Close(a.CaretRect.Width, b.CaretRect.Width, epsilon)
-                && Close(a.CaretRect.Height, b.CaretRect.Height, epsilon)
-                && Close(a.InputRect.X, b.InputRect.X, epsilon)
-                && Close(a.InputRect.Y, b.InputRect.Y, epsilon)
-                && Close(a.InputRect.Width, b.InputRect.Width, epsilon)
-                && Close(a.InputRect.Height, b.InputRect.Height, epsilon)
-                && Close(a.FontPixelHeight, b.FontPixelHeight, epsilon)
-                && Close(a.FontPixelWidth, b.FontPixelWidth, epsilon);
-        }
-
-        private static bool Close(float a, float b, float epsilon) => MathF.Abs(a - b) <= epsilon;
     }
 
     private static void ValidateOptions(DuxelAppOptions options)
@@ -1517,6 +1567,7 @@ public sealed record class DuxelRendererOptions
     public bool EnableValidationLayers { get; init; } = Debugger.IsAttached;
     public DuxelPerformanceProfile Profile { get; init; } = DuxelPerformanceProfile.Display;
     public int MsaaSamples { get; init; } = 0;
+    public bool EnableGlobalStaticGeometryCache { get; init; } = true;
     public bool EnableTaaIfSupported { get; init; } = false;
     public bool EnableFxaaIfSupported { get; init; } = false;
     public bool TaaExcludeFont { get; init; } = true;

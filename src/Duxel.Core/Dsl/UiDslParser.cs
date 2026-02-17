@@ -35,9 +35,6 @@ public static class UiDslParser
 
     public static UiDslDocument Parse(string text, UiDslParserOptions? options = null)
     {
-#if DUX_NATIVEAOT
-    throw new NotSupportedException("Runtime DSL parsing is disabled for NativeAOT builds. Use the source generator with .ui AdditionalFiles and call the generated Render method.");
-#else
         ArgumentNullException.ThrowIfNull(text);
         options ??= new UiDslParserOptions();
 
@@ -84,7 +81,6 @@ public static class UiDslParser
 
         NormalizeBeginAliases(roots);
         return new UiDslDocument(roots);
-#endif
     }
 
     private static void NormalizeBeginAliases(List<UiDslNode> roots)

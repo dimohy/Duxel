@@ -2,6 +2,27 @@
 
 Duxel의 버전별 변경 내역을 누적 기록합니다.
 
+## 0.1.11-preview (2026-02-17)
+
+### Packaging / NuGet
+
+- NuGet 패키지 버전을 `0.1.11-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`).
+
+### Benchmark / Tooling
+
+- clip clamp A/B 자동화 스크립트(`scripts/run-vector-clip-ab.ps1`, `scripts/run-layer-widget-clip-ab.ps1`)를 타임아웃/프로세스 정리까지 포함해 안정화했습니다.
+- 퍼포먼스 반복 측정 스크립트(`scripts/run-duxel-perf-ab.ps1`)를 통해 baseline/candidate 비교 및 요약 산출을 표준화했습니다.
+
+### Samples / Rendering
+
+- 전역 정적 캐시(`duxel.global.static:*`) 전략을 샘플 벤치에 적용해 all-dynamic 대비 비교가 가능한 경로를 강화했습니다.
+- 레이어 dirty 전략 샘플/검증 흐름을 업데이트해 all vs single invalidation 비교 재현성을 높였습니다.
+
+### Documentation
+
+- `README.md` 최신 버전 섹션을 `0.1.11-preview` 기준으로 갱신했습니다.
+- 최적화 정책/세션 문서를 최신 실험 결과 기준으로 누적 업데이트했습니다.
+
 ## 0.1.10-preview (2026-02-15)
 
 ### Rendering / Layer Cache

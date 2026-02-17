@@ -144,6 +144,16 @@ public sealed partial class UiImmediateContext
         Text(FormatInvariant(format, args));
     }
 
+    public void TextV<T0>(string format, T0 arg0)
+    {
+        Text(FormatInvariant(format, arg0));
+    }
+
+    public void TextV<T0, T1>(string format, T0 arg0, T1 arg1)
+    {
+        Text(FormatInvariant(format, arg0, arg1));
+    }
+
     public void TextColored(UiColor color, string text)
     {
         RenderText(text, color);
@@ -154,6 +164,16 @@ public sealed partial class UiImmediateContext
         TextColored(color, FormatInvariant(format, args));
     }
 
+    public void TextColoredV<T0>(UiColor color, string format, T0 arg0)
+    {
+        TextColored(color, FormatInvariant(format, arg0));
+    }
+
+    public void TextColoredV<T0, T1>(UiColor color, string format, T0 arg0, T1 arg1)
+    {
+        TextColored(color, FormatInvariant(format, arg0, arg1));
+    }
+
     public void TextDisabled(string text)
     {
         RenderText(text, _theme.TextDisabled);
@@ -162,6 +182,16 @@ public sealed partial class UiImmediateContext
     public void TextDisabledV(string format, params object[] args)
     {
         TextDisabled(FormatInvariant(format, args));
+    }
+
+    public void TextDisabledV<T0>(string format, T0 arg0)
+    {
+        TextDisabled(FormatInvariant(format, arg0));
+    }
+
+    public void TextDisabledV<T0, T1>(string format, T0 arg0, T1 arg1)
+    {
+        TextDisabled(FormatInvariant(format, arg0, arg1));
     }
 
     public void TextWrapped(string text)
@@ -182,6 +212,16 @@ public sealed partial class UiImmediateContext
     public void TextWrappedV(string format, params object[] args)
     {
         TextWrapped(FormatInvariant(format, args));
+    }
+
+    public void TextWrappedV<T0>(string format, T0 arg0)
+    {
+        TextWrapped(FormatInvariant(format, arg0));
+    }
+
+    public void TextWrappedV<T0, T1>(string format, T0 arg0, T1 arg1)
+    {
+        TextWrapped(FormatInvariant(format, arg0, arg1));
     }
 
     public void TextUnformatted(string text)
@@ -285,6 +325,16 @@ public sealed partial class UiImmediateContext
         LabelText(label, FormatInvariant(format, args));
     }
 
+    public void LabelTextV<T0>(string label, string format, T0 arg0)
+    {
+        LabelText(label, FormatInvariant(format, arg0));
+    }
+
+    public void LabelTextV<T0, T1>(string label, string format, T0 arg0, T1 arg1)
+    {
+        LabelText(label, FormatInvariant(format, arg0, arg1));
+    }
+
     public void Bullet()
     {
         var size = new UiVector2(_lineHeight, _lineHeight);
@@ -306,6 +356,20 @@ public sealed partial class UiImmediateContext
         Bullet();
         SameLine();
         Text(FormatInvariant(format, args));
+    }
+
+    public void BulletTextV<T0>(string format, T0 arg0)
+    {
+        Bullet();
+        SameLine();
+        Text(FormatInvariant(format, arg0));
+    }
+
+    public void BulletTextV<T0, T1>(string format, T0 arg0, T1 arg1)
+    {
+        Bullet();
+        SameLine();
+        Text(FormatInvariant(format, arg0, arg1));
     }
 
     public void Value(string prefix, bool value)
@@ -374,6 +438,18 @@ public sealed partial class UiImmediateContext
         }
 
         return string.Format(CultureInfo.InvariantCulture, safeFormat, args);
+    }
+
+    private static string FormatInvariant<T0>(string? format, T0 arg0)
+    {
+        var safeFormat = format ?? string.Empty;
+        return string.Format(CultureInfo.InvariantCulture, safeFormat, arg0);
+    }
+
+    private static string FormatInvariant<T0, T1>(string? format, T0 arg0, T1 arg1)
+    {
+        var safeFormat = format ?? string.Empty;
+        return string.Format(CultureInfo.InvariantCulture, safeFormat, arg0, arg1);
     }
 
     private static string FormatValue(string? prefix, string value)
