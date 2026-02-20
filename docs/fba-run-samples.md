@@ -272,6 +272,150 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/Duxel_
 
 ---
 
+## Windows 계산기
+
+Windows 스타일 계산기에 사이버 backdrop, 리플 효과, FX 버튼, 반투명 UI를 적용한 데모입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/windows_calculator_fba.cs -OutFile windows_calculator_fba.cs; dotnet run windows_calculator_fba.cs
+```
+
+**Bash**
+```bash
+curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/windows_calculator_fba.cs && dotnet run windows_calculator_fba.cs
+```
+
+> 사이버 그리드 배경 · 버튼 리플 이펙트 · 네온 글로우 FX 버튼 · AnimateFloat 실시간 전환
+
+---
+
+## 계산기 쇼케이스 (RPN 트레이스)
+
+RPN 토큰 추적, 멀티베이스 동시 표시, 32비트 토글 그리드를 시연합니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/windows_calculator_duxel_showcase_fba.cs -OutFile windows_calculator_duxel_showcase_fba.cs; dotnet run windows_calculator_duxel_showcase_fba.cs
+```
+
+**Bash**
+```bash
+curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/windows_calculator_duxel_showcase_fba.cs && dotnet run windows_calculator_duxel_showcase_fba.cs
+```
+
+> Token→RPN→Eval 변환 과정 표시 · HEX/OCT/BIN 동시 표시 · 32비트 비트 토글 그리드
+
+---
+
+## 텍스트 렌더 검증
+
+텍스트 정렬, 폰트 크기, 클립 동작을 검증하는 도구입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/text_render_validation_fba.cs -OutFile text_render_validation_fba.cs; dotnet run text_render_validation_fba.cs
+```
+
+**Bash**
+```bash
+curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/text_render_validation_fba.cs && dotnet run text_render_validation_fba.cs
+```
+
+> DrawTextAligned Left/Center/Right · PushFontSize · clipToContainer ON/OFF
+
+---
+
+## 레이어 Dirty 전략 벤치
+
+레이어 dirty 전략 `all` vs `single` 분리 검증 벤치마크입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/layer_dirty_strategy_bench.cs -OutFile layer_dirty_strategy_bench.cs; dotnet run layer_dirty_strategy_bench.cs
+```
+
+**Bash**
+```bash
+curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/layer_dirty_strategy_bench.cs && dotnet run layer_dirty_strategy_bench.cs
+```
+
+> all vs single dirty 비교 · 캐시 재빌드 횟수 · FPS 차이 측정
+
+---
+
+## 레이어+위젯 혼합 벤치
+
+레이어와 위젯을 혼합한 동적 벤치마크입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/layer_widget_mix_bench_fba.cs -OutFile layer_widget_mix_bench_fba.cs; dotnet run layer_widget_mix_bench_fba.cs
+```
+
+**Bash**
+```bash
+curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/layer_widget_mix_bench_fba.cs && dotnet run layer_widget_mix_bench_fba.cs
+```
+
+> DrawLayerCardInteractive 적용 · 위젯 믹스 부하 · 카드 드래그 인터랙션
+
+---
+
+## 전역 정적 캐시 벤치
+
+전역 정적 캐시(`duxel.global.static:*`) 전략의 성능 효과를 측정합니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/global_dirty_strategy_bench.cs -OutFile global_dirty_strategy_bench.cs; dotnet run global_dirty_strategy_bench.cs
+```
+
+**Bash**
+```bash
+curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/global_dirty_strategy_bench.cs && dotnet run global_dirty_strategy_bench.cs
+```
+
+> all-dynamic 대비 정적 캐시 성능 비교 · BeginWindowCanvas API 시연
+
+---
+
+## UI 복합 스트레스
+
+다중 창/텍스트/테이블/리스트/입력/드로우를 동시에 렌더링하는 스트레스 테스트입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/ui_mixed_stress.cs -OutFile ui_mixed_stress.cs; dotnet run ui_mixed_stress.cs
+```
+
+**Bash**
+```bash
+curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/ui_mixed_stress.cs && dotnet run ui_mixed_stress.cs
+```
+
+> 다중 창 · 텍스트 · 테이블 · 리스트 · 입력 · 드로우 프리미티브 복합
+
+---
+
+## 벡터 프리미티브 벤치
+
+라인/사각형/원 벡터 프리미티브 전용 벤치마크 + clip clamp A/B 비교입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/vector_primitives_bench_fba.cs -OutFile vector_primitives_bench_fba.cs; dotnet run vector_primitives_bench_fba.cs
+```
+
+**Bash**
+```bash
+curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/vector_primitives_bench_fba.cs && dotnet run vector_primitives_bench_fba.cs
+```
+
+> 라인/사각형/원 대량 렌더 · clip clamp 전략 A/B 비교
+
+---
+
 ## 전체 한번에 다운로드
 
 모든 FBA 샘플을 한번에 받으려면:
@@ -284,8 +428,12 @@ $files = @(
     "menu_submenu_zorder.cs", "advanced_layout.cs", "columns_demo.cs",
     "image_and_popups.cs", "image_widget_effects_fba.cs",
     "input_queries.cs", "item_status.cs",
+    "windows_calculator_fba.cs", "windows_calculator_duxel_showcase_fba.cs",
+    "text_render_validation_fba.cs",
     "idle_layer_validation.cs",
-    "Duxel_perf_test_fba.cs"
+    "layer_dirty_strategy_bench.cs", "layer_widget_mix_bench_fba.cs",
+    "global_dirty_strategy_bench.cs", "vector_primitives_bench_fba.cs",
+    "Duxel_perf_test_fba.cs", "ui_mixed_stress.cs"
 )
 New-Item -ItemType Directory -Force -Path fba | Out-Null
 $files | ForEach-Object { irm "$base/$_" -OutFile "fba/$_"; Write-Host "Downloaded $_" }
@@ -298,8 +446,12 @@ BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 FILES=(all_features.cs dsl_showcase.cs dsl_interaction.cs menu_submenu_zorder.cs \
     advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
     input_queries.cs item_status.cs \
+    windows_calculator_fba.cs windows_calculator_duxel_showcase_fba.cs \
+    text_render_validation_fba.cs \
     idle_layer_validation.cs \
-       Duxel_perf_test_fba.cs)
+    layer_dirty_strategy_bench.cs layer_widget_mix_bench_fba.cs \
+    global_dirty_strategy_bench.cs vector_primitives_bench_fba.cs \
+    Duxel_perf_test_fba.cs ui_mixed_stress.cs)
 mkdir -p fba
 for f in "${FILES[@]}"; do curl -sL "$BASE/$f" -o "fba/$f" && echo "Downloaded $f"; done
 echo -e "\nRun: dotnet run fba/all_features.cs"

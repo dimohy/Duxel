@@ -95,6 +95,16 @@ cd Duxel
 | `./run-fba.ps1 samples/fba/image_widget_effects_fba.cs -NoCache` | **이미지 효과 실험실** — 웹 PNG/JPG/GIF 로드, GIF 애니메이션, Zoom/Rotation/Alpha/Pixelate |
 | `./run-fba.ps1 samples/fba/input_queries.cs` | **입력 쿼리** — 키보드/마우스 상태, Shortcut, 클립보드 |
 | `./run-fba.ps1 samples/fba/item_status.cs` | **아이템 상태** — IsItemActive/Clicked/Edited, GetItemRect |
+| `./run-fba.ps1 samples/fba/windows_calculator_fba.cs -NoCache` | **Windows 계산기** — 사이버 backdrop/리플/FX 버튼/반투명 UI |
+| `./run-fba.ps1 samples/fba/windows_calculator_duxel_showcase_fba.cs -NoCache` | **계산기 쇼케이스** — RPN 트레이스/멀티베이스/비트 그리드 |
+| `./run-fba.ps1 samples/fba/text_render_validation_fba.cs -NoCache` | **텍스트 렌더 검증** — DrawTextAligned 정렬/크기/클립 검증 |
+| `./run-fba.ps1 samples/fba/idle_layer_validation.cs -NoCache` | **레이어 캐시 검증** — opacity/백엔드/레이아웃 벤치 |
+| `./run-fba.ps1 samples/fba/layer_dirty_strategy_bench.cs -NoCache` | **Dirty 전략 벤치** — all vs single dirty 비교 |
+| `./run-fba.ps1 samples/fba/layer_widget_mix_bench_fba.cs -NoCache` | **레이어+위젯 혼합 벤치** — DrawLayerCardInteractive 적용 |
+| `./run-fba.ps1 samples/fba/global_dirty_strategy_bench.cs -NoCache` | **전역 캐시 벤치** — 정적 캐시 전략 성능 비교 |
+| `./run-fba.ps1 samples/fba/vector_primitives_bench_fba.cs -NoCache` | **벡터 벤치** — 라인/사각형/원 대량 렌더 + clip clamp A/B |
+| `./run-fba.ps1 samples/fba/Duxel_perf_test_fba.cs -NoCache` | **성능 벤치** — 대량 폴리곤 물리 시뮬레이션 |
+| `./run-fba.ps1 samples/fba/ui_mixed_stress.cs -NoCache` | **복합 스트레스** — 다중 창/텍스트/테이블/드로우 동시 렌더 |
 
 > 개발자 기본 실행은 NativeAOT 게시입니다. Managed 실행이 필요하면 `-Managed`를 사용하세요.
 
