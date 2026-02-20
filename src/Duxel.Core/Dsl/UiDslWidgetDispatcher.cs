@@ -367,7 +367,7 @@ internal static class UiDslWidgetDispatcher
                 var (id, label) = ReadIdLabel(ref reader, "Combo");
                 var preview = reader.ReadString("Preview", string.Empty);
                 var maxItems = reader.ReadInt("MaxItems", 8);
-                var open = WithId(ui, id, label, () => ui.BeginCombo(label, preview, maxItems));
+                var open = WithId(ui, id, label, () => ui.BeginCombo(preview, maxItems, label));
                 return open ? UiDslBeginResult.None : UiDslBeginResult.SkipChildren;
             }
             case "Combo":
@@ -376,7 +376,7 @@ internal static class UiDslWidgetDispatcher
                 var items = reader.ReadStringList("Items");
                 var maxItems = reader.ReadInt("MaxItems", 8);
                 var value = UiDslValues.GetInt(ctx, id, 0);
-                var changed = WithId(ui, id, label, () => ui.Combo(label, ref value, items, maxItems));
+                var changed = WithId(ui, id, label, () => ui.Combo(ref value, items, maxItems, label));
                 if (changed)
                 {
                     UiDslValues.SetInt(ctx, id, value);
@@ -388,7 +388,7 @@ internal static class UiDslWidgetDispatcher
                 var label = reader.ReadString("Label", "ListBox");
                 var size = reader.ReadVector2("Size", default);
                 var itemsCount = reader.ReadInt("ItemsCount", -1);
-                var open = ui.BeginListBox(label, size, itemsCount);
+                var open = ui.BeginListBox(size, itemsCount, label);
                 return open ? UiDslBeginResult.None : UiDslBeginResult.SkipChildren;
             }
             case "ListBox":
@@ -397,7 +397,7 @@ internal static class UiDslWidgetDispatcher
                 var items = reader.ReadStringList("Items");
                 var heightItems = reader.ReadInt("HeightItems", -1);
                 var value = UiDslValues.GetInt(ctx, id, 0);
-                var changed = WithId(ui, id, label, () => ui.ListBox(label, ref value, items, heightItems));
+                var changed = WithId(ui, id, label, () => ui.ListBox(ref value, items, heightItems, label));
                 if (changed)
                 {
                     UiDslValues.SetInt(ctx, id, value);
@@ -409,7 +409,7 @@ internal static class UiDslWidgetDispatcher
                 var label = reader.ReadString("Label", "ListBox");
                 var size = reader.ReadVector2("Size", default);
                 var itemsCount = reader.ReadInt("ItemsCount", -1);
-                var open = ui.ListBoxHeader(label, size, itemsCount);
+                var open = ui.ListBoxHeader(size, itemsCount, label);
                 return open ? UiDslBeginResult.None : UiDslBeginResult.SkipChildren;
             }
             case "ListBoxFooter":
@@ -428,6 +428,27 @@ internal static class UiDslWidgetDispatcher
                 {
                     UiDslValues.SetBool(ctx, id, selected);
                 }
+                return UiDslBeginResult.None;
+            }
+            case "ListBoxRow":
+            {
+                var (id, label) = ReadIdLabel(ref reader, "ListBoxRow");
+                var key = reader.ReadString("Key", label);
+                var size = reader.ReadVector2("Size", default);
+                var selected = UiDslValues.GetBool(ctx, id, false);
+
+                var pressed = WithId(ui, id, label, () =>
+                    size != default
+                        ? ui.ListBoxRow(key, selected, size, out _)
+                        : ui.ListBoxRow(key, selected, out _));
+
+                if (pressed)
+                {
+                    selected = !selected;
+                    UiDslValues.SetBool(ctx, id, selected);
+                    ctx.EventSink?.OnButton(id);
+                }
+
                 return UiDslBeginResult.None;
             }
             case "Image":

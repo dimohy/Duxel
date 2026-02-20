@@ -5,7 +5,7 @@
 ## 목표
 - .NET 10 전용 즉시 모드 GUI 라이브러리.
 - Vulkan 렌더러 기반, 1차 플랫폼은 Windows.
-- 입력/윈도우는 Silk.NET `Windowing`/`Input` + GLFW 백엔드 사용.
+- 입력/윈도우는 Windows 네이티브 백엔드 사용.
 - NativeAOT 게시/실행을 기본 품질 기준으로 유지.
 
 ## 설계 원칙
@@ -30,8 +30,8 @@
   - 동기화/스왑체인 재생성 경로 분리
 
 ### Platform
-- `IPlatformBackend` (GLFW/SDL 확장 가능)
-- 1차 목표: GLFW
+- `IPlatformBackend` (플랫폼별 백엔드 확장 가능)
+- 1차/현재 목표: Windows 네이티브 백엔드
 
 ## ImGui 호환성 통합 문서
 

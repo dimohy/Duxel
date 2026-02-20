@@ -35,6 +35,9 @@ public sealed class UiContext : IUiContext
     private UiDrawData? _drawData;
     private UiImmediateContext? _immediateContext;
     private UiScreen? _screen;
+    private Action? _requestFrame;
+    private Func<float, UiFontResource?>? _resolveFontResource;
+    private string? _directTextPrimaryFontPath;
     private int _reserveVertices;
     private int _reserveIndices;
     private int _reserveCommands;
@@ -130,6 +133,21 @@ public sealed class UiContext : IUiContext
     public void SetFontAtlas(UiFontAtlas fontAtlas)
     {
         _fontAtlas = fontAtlas ?? throw new ArgumentNullException(nameof(fontAtlas));
+    }
+
+    public void SetFontResourceResolver(Func<float, UiFontResource?>? resolver)
+    {
+        _resolveFontResource = resolver;
+    }
+
+    public void SetRequestFrameCallback(Action? callback)
+    {
+        _requestFrame = callback;
+    }
+
+    public void SetDirectTextPrimaryFontPath(string? fontPath)
+    {
+        _directTextPrimaryFontPath = string.IsNullOrWhiteSpace(fontPath) ? null : fontPath;
     }
 
     public void SetTheme(UiTheme theme)
@@ -751,7 +769,10 @@ public sealed class UiContext : IUiContext
                 _reserveVertices,
                 _reserveIndices,
                 _reserveCommands,
-                QueueTextureUpdate
+                requestFrame: _requestFrame,
+                queueTextureUpdate: QueueTextureUpdate,
+                resolveFontResource: _resolveFontResource,
+                directTextPrimaryFontPath: _directTextPrimaryFontPath
             );
             _immediateContext = ui;
         }
@@ -780,7 +801,9 @@ public sealed class UiContext : IUiContext
                 _reserveVertices,
                 _reserveIndices,
                 _reserveCommands,
-                QueueTextureUpdate
+                QueueTextureUpdate,
+                _resolveFontResource,
+                _directTextPrimaryFontPath
             );
         }
 

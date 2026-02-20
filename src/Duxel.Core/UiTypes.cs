@@ -36,6 +36,16 @@ public readonly record struct UiLayerOptions(
     UiLayerCacheBackend CacheBackend = UiLayerCacheBackend.DrawList
 );
 
+public readonly record struct UiLayerCardInteraction(
+    bool Clicked,
+    bool Held,
+    bool Released,
+    bool Hovered,
+    UiVector2 MousePosition
+);
+
+public readonly record struct UiFontResource(UiFontAtlas FontAtlas, UiTextureId TextureId);
+
 public readonly record struct UiTheme(
     UiColor Text,
     UiColor TextDisabled,
@@ -283,6 +293,13 @@ public enum UiStyleVar
     IndentSpacing,
 }
 
+public enum UiAnimationEasing
+{
+    Linear,
+    InOutSine,
+    OutCubic,
+}
+
 [StructLayout(LayoutKind.Sequential)]
 public readonly record struct UiDrawVertex(UiVector2 Position, UiVector2 UV, UiColor Color);
 
@@ -384,6 +401,20 @@ public enum UiDir
     Right,
     Up,
     Down,
+}
+
+public enum UiItemVerticalAlign
+{
+    Top,
+    Center,
+    Bottom,
+}
+
+public enum UiItemHorizontalAlign
+{
+    Left,
+    Center,
+    Right,
 }
 
 public enum UiMouseButton

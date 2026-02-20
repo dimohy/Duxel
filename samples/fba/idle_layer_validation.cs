@@ -198,50 +198,22 @@ public sealed class IdleLayerValidationScreen : UiScreen
 
     private static double ReadAutoExitSeconds()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_SAMPLE_AUTO_EXIT_SECONDS");
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return 0d;
-        }
-
-        return double.TryParse(raw, out var seconds) && seconds > 0d ? seconds : 0d;
+        return BenchOptions.ReadDouble("DUXEL_SAMPLE_AUTO_EXIT_SECONDS", 0d, minExclusive: 0d);
     }
 
     private static int[] ReadBenchParticleCounts()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_LAYER_BENCH_PARTICLES");
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return [3000, 9000, 18000];
-        }
-
-        var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var values = new List<int>(parts.Length);
-        for (var i = 0; i < parts.Length; i++)
-        {
-            if (int.TryParse(parts[i], out var count) && count > 0)
-            {
-                values.Add(count);
-            }
-        }
-
-        return values.Count > 0 ? values.ToArray() : [3000, 9000, 18000];
+        return BenchOptions.ReadIntCsv("DUXEL_LAYER_BENCH_PARTICLES", [3000, 9000, 18000], minInclusive: 1);
     }
 
     private static double ReadBenchPhaseSeconds()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_LAYER_BENCH_PHASE_SECONDS");
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return 2.5d;
-        }
-
-        return double.TryParse(raw, out var seconds) && seconds >= 0.5d ? seconds : 2.5d;
+        return BenchOptions.ReadDouble("DUXEL_LAYER_BENCH_PHASE_SECONDS", 2.5d, minExclusive: 0.499999d);
     }
 
     private static LayerComposition[] ReadBenchLayerCompositions()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_LAYER_BENCH_LAYOUTS");
+        var raw = BenchOptions.ReadString("DUXEL_LAYER_BENCH_LAYOUTS");
         if (string.IsNullOrWhiteSpace(raw))
         {
             return [BuiltInCompositions[0]];
@@ -304,42 +276,17 @@ public sealed class IdleLayerValidationScreen : UiScreen
 
     private static bool ReadBenchDisableFastRender()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_LAYER_BENCH_DISABLE_FAST_RENDER");
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return false;
-        }
-
-        return string.Equals(raw, "1", StringComparison.Ordinal)
-            || string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(raw, "on", StringComparison.OrdinalIgnoreCase);
+        return BenchOptions.ReadBool("DUXEL_LAYER_BENCH_DISABLE_FAST_RENDER", defaultValue: false);
     }
 
     private static bool ReadValidateLayerCacheEnabled()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_VALIDATE_LAYER_CACHE");
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return true;
-        }
-
-        if (string.Equals(raw, "0", StringComparison.Ordinal)
-            || string.Equals(raw, "false", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(raw, "off", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return true;
+        return BenchOptions.ReadBool("DUXEL_VALIDATE_LAYER_CACHE", defaultValue: true);
     }
 
     private static UiLayerCacheBackend ReadBenchCacheBackend()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_LAYER_BENCH_BACKEND");
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return UiLayerCacheBackend.DrawList;
-        }
+        var raw = BenchOptions.ReadString("DUXEL_LAYER_BENCH_BACKEND");
 
         return string.Equals(raw, "texture", StringComparison.OrdinalIgnoreCase)
             ? UiLayerCacheBackend.Texture
@@ -348,13 +295,13 @@ public sealed class IdleLayerValidationScreen : UiScreen
 
     private static float ReadBenchLayerOpacity()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_LAYER_BENCH_OPACITY");
+        var raw = BenchOptions.ReadString("DUXEL_LAYER_BENCH_OPACITY");
         if (string.IsNullOrWhiteSpace(raw))
         {
             return 1f;
         }
 
-        if (!float.TryParse(raw, out var opacity))
+        if (!float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var opacity))
         {
             return 1f;
         }
@@ -733,22 +680,25 @@ public sealed class IdleLayerValidationScreen : UiScreen
 
     private void DrawLayerCard(UiImmediateContext ui, UiDrawListBuilder drawList, UiRect canvas, LayerCard layer)
     {
-        var cursorBackup = ui.GetCursorScreenPos();
-
-        var layerRect = new UiRect(
-            canvas.X + layer.Position.X,
-            canvas.Y + layer.Position.Y,
-            layer.Size.X,
-            layer.Size.Y);
-
-        var headerHeight = 26f;
-        var headerRect = new UiRect(layerRect.X, layerRect.Y, layerRect.Width, headerHeight);
-        var bodyRect = new UiRect(layerRect.X, layerRect.Y + headerHeight, layerRect.Width, layerRect.Height - headerHeight);
+        var layerRect = ui.DrawLayerCardInteractive(
+            canvas,
+            layer.Position,
+            layer.Size,
+            layer.HeaderColor,
+            string.Format(CultureInfo.InvariantCulture, "{0} (Z:{1})", layer.Name, layer.ZOrder),
+            out _,
+            out var bodyRect,
+            out var interaction,
+            bodyBackground: new UiColor(0xCC242424),
+            borderColor: new UiColor(0xFFA0A0A0),
+            headerHeight: 26f,
+            borderThickness: 1.2f,
+            headerTextInsetX: 8f,
+            headerTextInsetY: 5f,
+            hitTestId: $"layer_drag_{layer.Id}");
         var localBodyRect = new UiRect(0f, 0f, bodyRect.Width, bodyRect.Height);
         var localClipRect = new UiRect(0f, 0f, bodyRect.Width, bodyRect.Height);
         var layerBodyId = $"layer_body_{layer.Id}";
-
-        drawList.AddRectFilled(layerRect, new UiColor(0xCC242424), ui.WhiteTextureId, canvas);
 
         var layerOptions = new UiLayerOptions(
             StaticCache: _enableLayerTextureCache,
@@ -766,24 +716,18 @@ public sealed class IdleLayerValidationScreen : UiScreen
         }
         ui.EndLayer();
 
-        drawList.AddRectFilled(headerRect, layer.HeaderColor, ui.WhiteTextureId, canvas);
-        drawList.AddRect(layerRect, new UiColor(0xFFA0A0A0), 0f, 1.2f);
-
-        ui.SetCursorScreenPos(new UiVector2(layerRect.X, layerRect.Y));
-        ui.InvisibleButton($"layer_drag_{layer.Id}", new UiVector2(layerRect.Width, layerRect.Height));
-
-        if (ui.IsItemClicked())
+        if (interaction.Clicked)
         {
             layer.ZOrder = _zCounter++;
             _layerOrderDirty = true;
             _activeDragLayerId = layer.Id;
-            var mouse = ui.GetMousePos();
+            var mouse = interaction.MousePosition;
             _dragOffset = new UiVector2(mouse.X - layerRect.X, mouse.Y - layerRect.Y);
         }
 
-        if (_activeDragLayerId == layer.Id && ui.IsMouseDown(0))
+        if (_activeDragLayerId == layer.Id && interaction.Held)
         {
-            var mouse = ui.GetMousePos();
+            var mouse = interaction.MousePosition;
             var nextX = mouse.X - canvas.X - _dragOffset.X;
             var nextY = mouse.Y - canvas.Y - _dragOffset.Y;
 
@@ -792,10 +736,10 @@ public sealed class IdleLayerValidationScreen : UiScreen
             layer.Position = new UiVector2(nextX, nextY);
         }
 
-        ui.SetCursorScreenPos(new UiVector2(layerRect.X + 8f, layerRect.Y + 5f));
-        ui.TextV("{0} (Z:{1})", layer.Name, layer.ZOrder);
-
-        ui.SetCursorScreenPos(cursorBackup);
+        if (_activeDragLayerId == layer.Id && interaction.Released)
+        {
+            _activeDragLayerId = -1;
+        }
     }
 
     private void ResetLayers(UiImmediateContext ui)

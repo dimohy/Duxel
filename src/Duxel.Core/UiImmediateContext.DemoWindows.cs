@@ -285,13 +285,15 @@ public sealed partial class UiImmediateContext
 
     public bool ShowStyleSelector(string label)
     {
+        label ??= "Style";
         var index = _state.GetCursor("style.selector", 0);
         if (index < 0 || index >= DemoStyleNames.Length)
         {
             index = 0;
         }
 
-        var changed = Combo(label, ref index, DemoStyleNames, 4);
+        Text(label);
+        var changed = Combo(ref index, DemoStyleNames, 4, $"style.selector/{label}");
         _state.SetCursor("style.selector", index);
 
         if (changed)

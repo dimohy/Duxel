@@ -1,21 +1,22 @@
 # Duxel
 
 **.NET 10 전용 크로스플랫폼 즉시 모드(Immediate-Mode) GUI 프레임워크.**
-Vulkan 렌더러 + GLFW 윈도우/입력 백엔드 기반으로 고품질 즉시 모드 위젯·렌더링·텍스트 품질을 목표합니다.
+Vulkan 렌더러 + Windows 네이티브 윈도우/입력 백엔드 기반으로 고품질 즉시 모드 위젯·렌더링·텍스트 품질을 목표합니다.
 
-**현재 버전: `0.1.11-preview`** · Display/Render 프로필 · 동적 MSAA(1x/2x/4x/8x) · VSync 토글
+**현재 버전: `0.1.12-preview`** · Display/Render 프로필 · 동적 MSAA(1x/2x/4x/8x) · VSync 토글
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Repository: https://github.com/dimohy/Duxel
 
-## 0.1.11-preview 개선 사항 (최신)
+## 0.1.12-preview 개선 사항 (최신)
 
-- 전역 정적 캐시 전략(`duxel.global.static:*`)을 샘플/벤치 경로에 반영해 all-dynamic 대비 성능 비교 및 적용 검증이 쉬워졌습니다.
-- clip clamp A/B 자동화 스크립트와 퍼포먼스 반복 측정 스크립트를 정비해 반복 실험/요약 산출이 안정화되었습니다.
-- `run-fba.ps1` 기반 샘플 실행 검증을 강화하고, `dotnet run` 경로와의 호환성 차이(API 불일치 지점)를 명확히 분리 확인했습니다.
-- 최적화 정책/세션 로그 문서를 최신 결과 기준으로 누적 갱신했습니다.
+- **[기능]** DirectWrite 기반 텍스트 렌더링 시스템 추가 — Direct Text 런타임 토글, 텍스트 캐시, `PushFontSize`/`PopFontSize` 지원
+- **[기능]** Windows 플랫폼 백엔드 독립 분리(GLFW 제거), 즉시 모드 애니메이션 프레임워크(`AnimateFloat`), 아이콘 시스템 추가
+- **[기능]** 위젯/벤치 헬퍼 API 대량 승격 — `BeginWindowCanvas`, `DrawOverlayText`, `UiFpsCounter`, `DrawKeyValueRow`, `BenchOptions`, `DrawLayerCard`/`DrawLayerCardInteractive` 등
+- **[기능]** Windows 계산기 FBA(사이버 효과), 계산기 쇼케이스 FBA, 텍스트 렌더 검증 FBA 등 신규 샘플 추가
+- **[개선]** Combo/ListBox/Table/Tree 위젯 API 시그니처 통일, IME 처리 안정성 개선, 10개+ 샘플 보일러플레이트를 라이브러리 API로 전환
 
 이전 버전 변경 내역은 [Version History](docs/version-history.md)에서 누적 확인할 수 있습니다.
 
@@ -23,7 +24,7 @@ Repository: https://github.com/dimohy/Duxel
 
 - **즉시 모드 UI** — Begin/End 패턴 기반 위젯 API
 - **Vulkan 렌더러** — 프로필 기반 기본값(Display=MSAA2, Render=MSAA1), VSync 토글, Triple Buffering, Persistent Mapped Buffers
-- **GLFW 윈도우/입력** — 키보드·마우스·스크롤·IME 입력 지원
+- **Windows 윈도우/입력** — 키보드·마우스·스크롤·IME 입력 지원
 - **스크롤바/팝업** — 통합 스크롤바 렌더러 (Child/Combo/ListBox/InputMultiline), 팝업 차단 레이어
 - **NativeAOT 지원** — `PublishAot=true` 배포 가능 (리플렉션/동적 로딩 없음)
 - **UI DSL** — `.ui` 파일로 선언적 UI 정의, 소스 생성기 기반 빌드 타임 코드 생성, 핫리로드 지원
@@ -40,8 +41,7 @@ Repository: https://github.com/dimohy/Duxel
 내부 구성요소(별도 NuGet 배포 안 함, 상위 패키지에 포함):
 
 - `Duxel.Core` — UI 컨텍스트, 위젯 API, 드로우 리스트, 폰트 아틀라스, DSL 런타임
-- `Duxel.Platform.Glfw` — GLFW 기반 윈도우/입력 백엔드
-- `Duxel.Platform.Windows` — Windows 전용 플랫폼 지원 (키 반복, IME)
+- `Duxel.Platform.Windows` — Windows 전용 플랫폼 백엔드 (윈도우/입력/키 반복/IME/클립보드)
 - `Duxel.Vulkan` — Vulkan 렌더러 백엔드
 
 ## 빠른 시작
@@ -158,7 +158,15 @@ $env:DUXEL_APP_PROFILE='render'; ./run-fba.ps1 samples/fba/Duxel_perf_test_fba.c
 | `image_widget_effects_fba.cs` | 즉시 모드 | 웹 PNG/JPG/GIF + GIF 애니메이션 + 이미지 효과(Zoom/Rotation/Alpha/Pixelate) |
 | `input_queries.cs`       | 즉시 모드 | 키보드/마우스 상태, Shortcut, 클립보드        |
 | `item_status.cs`         | 즉시 모드 | IsItemActive/Focused/Clicked, MultiSelect     |
+| `windows_calculator_fba.cs` | 즉시 모드 | Windows 계산기 — 사이버 backdrop/리플 효과/FX 버튼 |
+| `windows_calculator_duxel_showcase_fba.cs` | 즉시 모드 | 계산기 쇼케이스 — RPN 토큰 추적/멀티베이스/비트 그리드 |
+| `text_render_validation_fba.cs` | 즉시 모드 | 텍스트 렌더링 정렬/크기/클립 검증 도구 |
+| `text_input_only.cs`     | 즉시 모드 | 텍스트 입력 전용 테스트                       |
+| `listbox_scroll_test_fba.cs` | 즉시 모드 | ListBox 스크롤 동작 테스트                    |
 | `idle_layer_validation.cs` | 즉시 모드 | 레이어 캐시/정적 GPU 버퍼 검증 — opacity·백엔드·레이아웃 벤치 |
+| `layer_dirty_strategy_bench.cs` | 즉시 모드 | 레이어 dirty 전략 all vs single 벤치          |
+| `layer_widget_mix_bench_fba.cs` | 즉시 모드 | 레이어+위젯 혼합 벤치 — DrawLayerCardInteractive 적용 |
+| `global_dirty_strategy_bench.cs` | 즉시 모드 | 전역 정적 캐시 전략 벤치 — all-dynamic 대비 비교 |
 | `vector_primitives_bench_fba.cs` | 즉시 모드 | 벡터 primitive(라인/사각형/원) 전용 벤치 + clip clamp A/B 비교 |
 | `Duxel_perf_test_fba.cs` | 즉시 모드 | 대량 폴리곤 물리 시뮬레이션 성능 벤치마크     |
 | `ui_mixed_stress.cs`     | 즉시 모드 | 다중 창/텍스트/테이블/리스트/입력/드로우 복합 스트레스 |
@@ -216,7 +224,7 @@ DSL 상세 문서: [docs/ui-dsl.md](docs/ui-dsl.md)
 │  Vulkan      │  ← 렌더러 (DrawData 소비, 파이프라인/버퍼/텍스처 관리)
 │  Renderer    │
 ├──────────────┤
-│  GLFW        │  ← 윈도우/입력 백엔드
+│  Windows     │  ← 윈도우/입력 백엔드
 │  Platform    │
 └──────────────┘
 ```

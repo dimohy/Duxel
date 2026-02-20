@@ -51,9 +51,8 @@ public sealed class MixedUiStressScreen : UiScreen
 
     private bool _paused;
     private double _lastTime;
+    private readonly UiFpsCounter _fpsCounter = new(0.5d);
     private float _fps;
-    private int _fpsFrames;
-    private double _fpsTime;
 
     private int _windowCount = 6;
     private int _tableRows = 220;
@@ -117,13 +116,7 @@ public sealed class MixedUiStressScreen : UiScreen
 
     private static double ReadBenchDurationSeconds()
     {
-        var value = Environment.GetEnvironmentVariable("DUXEL_PERF_BENCH_SECONDS");
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return 0d;
-        }
-
-        return double.TryParse(value, out var seconds) && seconds > 0d ? seconds : 0d;
+        return BenchOptions.ReadDouble("DUXEL_PERF_BENCH_SECONDS", 0d, minExclusive: 0d);
     }
 
     private void TickBenchMode(UiImmediateContext ui, double delta)
@@ -176,14 +169,7 @@ public sealed class MixedUiStressScreen : UiScreen
             return;
         }
 
-        _fpsFrames++;
-        _fpsTime += delta;
-        if (_fpsTime >= 0.5)
-        {
-            _fps = (float)(_fpsFrames / _fpsTime);
-            _fpsFrames = 0;
-            _fpsTime = 0;
-        }
+        _fps = _fpsCounter.Tick(delta).Fps;
     }
 
     private void DrawControlWindow(UiImmediateContext ui, UiRect bounds)
@@ -301,7 +287,8 @@ public sealed class MixedUiStressScreen : UiScreen
         ui.SetNextWindowSize(new UiVector2(350f, 620f));
         ui.BeginWindow("Lists");
 
-        if (ui.BeginListBox("Rows", new UiVector2(0f, 560f)))
+        ui.Text("Rows");
+        if (ui.BeginListBox(new UiVector2(0f, 560f), id: "Rows"))
         {
             for (var i = 0; i < _listItems; i++)
             {

@@ -33,6 +33,43 @@ public static class DuxelWindowsApp
                 : options.ImeHandlerFactory,
         };
 
-        DuxelApp.RunCore(resolvedOptions);
+        const int minWidth = 0;
+        const int minHeight = 0;
+        var initialWidth = resolvedOptions.Window.Width;
+        var initialHeight = resolvedOptions.Window.Height;
+        var enableDWriteText = ResolveDWriteTextEnabled(resolvedOptions.Renderer.EnableDWriteText);
+
+        using var platform = new WindowsPlatformBackend(new WindowsPlatformBackendOptions(
+            initialWidth,
+            initialHeight,
+            minWidth,
+            minHeight,
+            resolvedOptions.Window.Title,
+            resolvedOptions.Window.VSync,
+            enableDWriteText,
+            resolvedOptions.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
+            DuxelApp.RequestFrame
+        ));
+
+        DuxelApp.RunCore(resolvedOptions, platform);
+    }
+
+    private static bool ResolveDWriteTextEnabled(bool defaultValue)
+    {
+        var value = Environment.GetEnvironmentVariable("DUXEL_DIRECT_TEXT");
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return defaultValue;
+        }
+
+        var normalized = value.Trim();
+        if (normalized == "0")
+        {
+            return false;
+        }
+
+        return !normalized.Equals("false", StringComparison.OrdinalIgnoreCase)
+            && !normalized.Equals("off", StringComparison.OrdinalIgnoreCase)
+            && !normalized.Equals("no", StringComparison.OrdinalIgnoreCase);
     }
 }

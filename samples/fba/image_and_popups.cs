@@ -168,7 +168,8 @@ public sealed class ImageAndPopupScreen : UiScreen
         ui.BeginWindow("ListBox Custom");
 
         ui.SeparatorText("ListBoxHeader / ListBoxFooter");
-        if (ui.ListBoxHeader("Custom List", new UiVector2(0f, 0f), 5))
+        ui.Text("Custom List");
+        if (ui.ListBoxHeader(new UiVector2(0f, 0f), 5, "Custom List"))
         {
             for (var i = 0; i < 10; i++)
             {

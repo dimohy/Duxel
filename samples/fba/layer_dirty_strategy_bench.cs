@@ -129,18 +129,22 @@ public sealed class LayerDirtyStrategyBenchScreen : UiScreen
 
     private void DrawLayer(UiImmediateContext ui, UiDrawListBuilder drawList, UiRect canvas, LayerInfo layer)
     {
-        var layerRect = new UiRect(
-            canvas.X + layer.Position.X,
-            canvas.Y + layer.Position.Y,
-            layer.Size.X,
-            layer.Size.Y);
-
-        var headerHeight = 22f;
-        var headerRect = new UiRect(layerRect.X, layerRect.Y, layerRect.Width, headerHeight);
-        var bodyRect = new UiRect(layerRect.X, layerRect.Y + headerHeight, layerRect.Width, layerRect.Height - headerHeight);
-
-        drawList.AddRectFilled(layerRect, new UiColor(0xCC202020), ui.WhiteTextureId, canvas);
-        drawList.AddRectFilled(headerRect, layer.HeaderColor, ui.WhiteTextureId, canvas);
+        ui.DrawLayerCardInteractive(
+            canvas,
+            layer.Position,
+            layer.Size,
+            layer.HeaderColor,
+            layer.Name,
+            out _,
+            out var bodyRect,
+            out _,
+            bodyBackground: new UiColor(0xCC202020),
+            borderColor: new UiColor(0xFF8A8A8A),
+            headerHeight: 22f,
+            borderThickness: 1f,
+            headerTextInsetX: 6f,
+            headerTextInsetY: 3f,
+            hitTestId: $"layer_card_{layer.Id}");
 
         var layerOptions = new UiLayerOptions(
             StaticCache: true,
@@ -156,11 +160,6 @@ public sealed class LayerDirtyStrategyBenchScreen : UiScreen
             _cacheBuildCount++;
         }
         ui.EndLayer();
-
-        drawList.AddRect(layerRect, new UiColor(0xFF8A8A8A), 0f, 1f);
-
-        ui.SetCursorScreenPos(new UiVector2(layerRect.X + 6f, layerRect.Y + 3f));
-        ui.Text(layer.Name);
     }
 
     private static void DrawHeavyLayerBody(UiDrawListBuilder drawList, UiRect rect, int density, UiTextureId white)
@@ -350,46 +349,22 @@ public sealed class LayerDirtyStrategyBenchScreen : UiScreen
 
     private static double ReadPhaseSeconds()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_DIRTY_BENCH_PHASE_SECONDS");
-        if (!string.IsNullOrWhiteSpace(raw)
-            && double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
-            && value > 0.1d)
-        {
-            return value;
-        }
-
-        return 2d;
+        return BenchOptions.ReadDouble("DUXEL_DIRTY_BENCH_PHASE_SECONDS", 2d, minExclusive: 0.1d);
     }
 
     private static int ReadLayerCount()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_DIRTY_BENCH_LAYERS");
-        if (!string.IsNullOrWhiteSpace(raw)
-            && int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            && value >= 4 && value <= 128)
-        {
-            return value;
-        }
-
-        return 36;
+        return BenchOptions.ReadInt("DUXEL_DIRTY_BENCH_LAYERS", 36, minInclusive: 4, maxInclusive: 128);
     }
 
     private static int ReadDensityPerLayer()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_DIRTY_BENCH_DENSITY");
-        if (!string.IsNullOrWhiteSpace(raw)
-            && int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            && value >= 200 && value <= 12000)
-        {
-            return value;
-        }
-
-        return 2200;
+        return BenchOptions.ReadInt("DUXEL_DIRTY_BENCH_DENSITY", 2200, minInclusive: 200, maxInclusive: 12000);
     }
 
     private static UiLayerCacheBackend ReadCacheBackend()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_DIRTY_BENCH_BACKEND");
+        var raw = BenchOptions.ReadString("DUXEL_DIRTY_BENCH_BACKEND");
         if (string.Equals(raw, "texture", StringComparison.OrdinalIgnoreCase))
         {
             return UiLayerCacheBackend.Texture;

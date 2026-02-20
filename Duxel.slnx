@@ -6,7 +6,6 @@
     <Project Path="src/Duxel.App/Duxel.App.csproj" />
     <Project Path="src/Duxel.Core/Duxel.Core.csproj" />
     <Project Path="src/Duxel.Core.Dsl.Generator/Duxel.Core.Dsl.Generator.csproj" />
-    <Project Path="src/Duxel.Platform.Glfw/Duxel.Platform.Glfw.csproj" />
     <Project Path="src/Duxel.Platform.Windows/Duxel.Platform.Windows.csproj" />
     <Project Path="src/Duxel.Vulkan/Duxel.Vulkan.csproj" />
     <Project Path="src/Duxel.Windows.App/Duxel.Windows.App.csproj" />

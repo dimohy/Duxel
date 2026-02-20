@@ -229,6 +229,405 @@ public sealed partial class UiImmediateContext
         RenderText(text, _theme.Text);
     }
 
+    public void DrawTextAligned(
+        UiRect containerRect,
+        string text,
+        UiColor color,
+        UiItemHorizontalAlign horizontalAlign = UiItemHorizontalAlign.Left,
+        UiItemVerticalAlign verticalAlign = UiItemVerticalAlign.Top,
+        float? fontSize = null,
+        bool clipToContainer = true)
+    {
+        text ??= string.Empty;
+        if (string.IsNullOrEmpty(text) || containerRect.Width <= 0f || containerRect.Height <= 0f)
+        {
+            return;
+        }
+
+        var pushedFont = false;
+        if (fontSize is float targetSize && targetSize > 0f)
+        {
+            PushFontSize(targetSize);
+            pushedFont = true;
+        }
+
+        try
+        {
+            var textSize = UiTextBuilder.MeasureText(_fontAtlas, text, _textSettings, _lineHeight);
+            var position = AlignRect(containerRect, textSize, horizontalAlign, verticalAlign);
+
+            var itemClip = ResolveItemClipRect();
+            var clipRect = clipToContainer ? IntersectRect(itemClip, containerRect) : itemClip;
+            var clipped = IntersectRect(clipRect, new UiRect(position.X, position.Y, textSize.X, textSize.Y));
+            if (clipped.Width <= 0f || clipped.Height <= 0f)
+            {
+                return;
+            }
+
+            _builder.AddText(
+                _fontAtlas,
+                text,
+                position,
+                color,
+                _fontTexture,
+                clipRect,
+                _textSettings,
+                _lineHeight
+            );
+        }
+        finally
+        {
+            if (pushedFont)
+            {
+                PopFontSize();
+            }
+        }
+    }
+
+    public UiRect BeginWindowCanvas(UiColor? background = null, UiTextureId? textureId = null, bool clipToCanvas = true)
+    {
+        var origin = GetCursorScreenPos();
+        var avail = GetContentRegionAvail();
+        var canvas = new UiRect(origin.X, origin.Y, MathF.Max(1f, avail.X), MathF.Max(1f, avail.Y));
+        var drawList = GetWindowDrawList();
+        var texture = textureId ?? WhiteTextureId;
+
+        drawList.PushTexture(texture);
+        if (clipToCanvas)
+        {
+            drawList.PushClipRect(canvas);
+        }
+
+        if (background is UiColor backgroundColor)
+        {
+            var clipRect = clipToCanvas ? canvas : CurrentClipRect;
+            drawList.AddRectFilled(canvas, backgroundColor, texture, clipRect);
+        }
+
+        _windowCanvasStack.Push(new UiWindowCanvasState(drawList, origin, canvas, clipToCanvas));
+        return canvas;
+    }
+
+    public UiRect EndWindowCanvas()
+    {
+        if (_windowCanvasStack.Count == 0)
+        {
+            return default;
+        }
+
+        var state = _windowCanvasStack.Pop();
+        if (state.HasClipRect)
+        {
+            state.DrawList.PopClipRect();
+        }
+
+        state.DrawList.PopTexture();
+        SetCursorScreenPos(state.Origin);
+        Dummy(new UiVector2(state.Rect.Width, state.Rect.Height));
+        return state.Rect;
+    }
+
+    public void DrawOverlayText(
+        string text,
+        UiColor color,
+        UiItemHorizontalAlign horizontalAlign = UiItemHorizontalAlign.Right,
+        UiItemVerticalAlign verticalAlign = UiItemVerticalAlign.Top,
+        UiColor? background = null,
+        UiVector2? margin = null,
+        UiVector2? padding = null,
+        float? fontSize = null)
+    {
+        text ??= string.Empty;
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        var viewport = GetMainViewport();
+        var marginValue = margin ?? new UiVector2(8f, 8f);
+        var paddingValue = padding ?? new UiVector2(6f, 4f);
+        var viewportRect = new UiRect(viewport.WorkPos.X, viewport.WorkPos.Y, viewport.WorkSize.X, viewport.WorkSize.Y);
+        var containerRect = new UiRect(
+            viewportRect.X + marginValue.X,
+            viewportRect.Y + marginValue.Y,
+            MathF.Max(0f, viewportRect.Width - marginValue.X * 2f),
+            MathF.Max(0f, viewportRect.Height - marginValue.Y * 2f)
+        );
+
+        var pushedFont = false;
+        if (fontSize is float targetSize && targetSize > 0f)
+        {
+            PushFontSize(targetSize);
+            pushedFont = true;
+        }
+
+        try
+        {
+            var textSize = UiTextBuilder.MeasureText(_fontAtlas, text, _textSettings, _lineHeight);
+            var textPos = AlignRect(containerRect, textSize, horizontalAlign, verticalAlign);
+            var drawList = GetForegroundDrawList();
+
+            if (background is UiColor backgroundColor)
+            {
+                var bgRect = new UiRect(
+                    textPos.X - paddingValue.X,
+                    textPos.Y - paddingValue.Y,
+                    textSize.X + paddingValue.X * 2f,
+                    textSize.Y + paddingValue.Y * 2f
+                );
+                var clippedBg = IntersectRect(viewportRect, bgRect);
+                if (clippedBg.Width > 0f && clippedBg.Height > 0f)
+                {
+                    drawList.AddRectFilled(clippedBg, backgroundColor, WhiteTextureId, viewportRect);
+                }
+            }
+
+            drawList.AddText(
+                _fontAtlas,
+                text,
+                textPos,
+                color,
+                _fontTexture,
+                viewportRect,
+                _textSettings,
+                _lineHeight
+            );
+        }
+        finally
+        {
+            if (pushedFont)
+            {
+                PopFontSize();
+            }
+        }
+    }
+
+    public void DrawKeyValueRow(
+        UiRect rowRect,
+        string key,
+        string value,
+        bool selected = false,
+        UiColor? keyColor = null,
+        UiColor? valueColor = null,
+        UiColor? accent = null,
+        float keyWidth = 42f,
+        float horizontalPadding = 12f,
+        float verticalPadding = 4f,
+        bool clipToRow = true)
+    {
+        if (rowRect.Width <= 0f || rowRect.Height <= 0f)
+        {
+            return;
+        }
+
+        key ??= string.Empty;
+        value ??= string.Empty;
+
+        if (selected)
+        {
+            var accentColor = accent ?? new UiColor(0xFF39AFFF);
+            var indicatorRect = new UiRect(rowRect.X + 2f, rowRect.Y + 3f, 3f, MathF.Max(6f, rowRect.Height - 6f));
+            GetWindowDrawList().AddRectFilled(indicatorRect, accentColor, WhiteTextureId, clipToRow ? rowRect : CurrentClipRect);
+        }
+
+        var insetX = MathF.Max(0f, horizontalPadding);
+        var insetY = MathF.Max(0f, verticalPadding);
+        var contentRect = new UiRect(
+            rowRect.X + insetX,
+            rowRect.Y + insetY,
+            MathF.Max(0f, rowRect.Width - insetX * 2f),
+            MathF.Max(0f, rowRect.Height - insetY * 2f));
+
+        if (contentRect.Width <= 0f || contentRect.Height <= 0f)
+        {
+            return;
+        }
+
+        var keyAreaWidth = MathF.Min(MathF.Max(0f, keyWidth), contentRect.Width);
+        var keyRect = new UiRect(contentRect.X, contentRect.Y, keyAreaWidth, contentRect.Height);
+        var valueRect = new UiRect(
+            contentRect.X + keyAreaWidth,
+            contentRect.Y,
+            MathF.Max(0f, contentRect.Width - keyAreaWidth),
+            contentRect.Height);
+
+        DrawTextAligned(
+            keyRect,
+            key,
+            keyColor ?? _theme.Text,
+            UiItemHorizontalAlign.Left,
+            UiItemVerticalAlign.Center,
+            fontSize: null,
+            clipToContainer: clipToRow);
+
+        DrawTextAligned(
+            valueRect,
+            value,
+            valueColor ?? _theme.TextDisabled,
+            UiItemHorizontalAlign.Left,
+            UiItemVerticalAlign.Center,
+            fontSize: null,
+            clipToContainer: clipToRow);
+    }
+
+    public UiRect DrawLayerCardSkeleton(
+        UiRect canvas,
+        UiVector2 position,
+        UiVector2 size,
+        UiColor headerColor,
+        out UiRect headerRect,
+        out UiRect bodyRect,
+        UiColor? bodyBackground = null,
+        UiColor? borderColor = null,
+        float headerHeight = 24f,
+        float borderThickness = 1f)
+    {
+        var layerRect = new UiRect(
+            canvas.X + position.X,
+            canvas.Y + position.Y,
+            MathF.Max(1f, size.X),
+            MathF.Max(1f, size.Y));
+
+        var clampedHeaderHeight = Math.Clamp(headerHeight, 1f, layerRect.Height);
+        headerRect = new UiRect(layerRect.X, layerRect.Y, layerRect.Width, clampedHeaderHeight);
+        bodyRect = new UiRect(layerRect.X, layerRect.Y + clampedHeaderHeight, layerRect.Width, layerRect.Height - clampedHeaderHeight);
+
+        var drawList = GetWindowDrawList();
+        drawList.AddRectFilled(layerRect, bodyBackground ?? new UiColor(0xCC202020), WhiteTextureId, canvas);
+        drawList.AddRectFilled(headerRect, headerColor, WhiteTextureId, canvas);
+
+        var thickness = MathF.Max(0f, borderThickness);
+        if (thickness > 0f)
+        {
+            drawList.AddRect(layerRect, borderColor ?? new UiColor(0xFFA0A0A0), 0f, thickness);
+        }
+
+        return layerRect;
+    }
+
+    public UiRect DrawLayerCard(
+        UiRect canvas,
+        UiVector2 position,
+        UiVector2 size,
+        UiColor headerColor,
+        string? headerText,
+        out UiRect headerRect,
+        out UiRect bodyRect,
+        out bool hitClicked,
+        UiColor? bodyBackground = null,
+        UiColor? borderColor = null,
+        UiColor? headerTextColor = null,
+        float headerHeight = 24f,
+        float borderThickness = 1f,
+        float headerTextInsetX = 8f,
+        float headerTextInsetY = 5f,
+        float? headerMarkerCenterX = null,
+        float headerMarkerRadius = 0f,
+        UiColor? headerMarkerColor = null,
+        string? hitTestId = null)
+    {
+        var cursorBackup = GetCursorScreenPos();
+
+        var layerRect = DrawLayerCardSkeleton(
+            canvas,
+            position,
+            size,
+            headerColor,
+            out headerRect,
+            out bodyRect,
+            bodyBackground,
+            borderColor,
+            headerHeight,
+            borderThickness);
+
+        if (headerMarkerCenterX is float markerX && headerMarkerRadius > 0f)
+        {
+            var markerCenter = new UiVector2(markerX, headerRect.Y + headerRect.Height * 0.5f);
+            GetWindowDrawList().AddCircleFilled(
+                markerCenter,
+                headerMarkerRadius,
+                headerMarkerColor ?? new UiColor(0xFFFCF18B),
+                WhiteTextureId,
+                canvas,
+                12);
+        }
+
+        if (!string.IsNullOrEmpty(headerText))
+        {
+            SetCursorScreenPos(new UiVector2(layerRect.X + headerTextInsetX, layerRect.Y + headerTextInsetY));
+            TextColored(headerTextColor ?? _theme.Text, headerText);
+        }
+
+        hitClicked = false;
+        if (!string.IsNullOrWhiteSpace(hitTestId))
+        {
+            SetCursorScreenPos(new UiVector2(layerRect.X, layerRect.Y));
+            InvisibleButton(hitTestId, new UiVector2(layerRect.Width, layerRect.Height));
+            hitClicked = IsItemClicked();
+        }
+
+        SetCursorScreenPos(cursorBackup);
+        return layerRect;
+    }
+
+    public UiRect DrawLayerCardInteractive(
+        UiRect canvas,
+        UiVector2 position,
+        UiVector2 size,
+        UiColor headerColor,
+        string? headerText,
+        out UiRect headerRect,
+        out UiRect bodyRect,
+        out UiLayerCardInteraction interaction,
+        UiColor? bodyBackground = null,
+        UiColor? borderColor = null,
+        UiColor? headerTextColor = null,
+        float headerHeight = 24f,
+        float borderThickness = 1f,
+        float headerTextInsetX = 8f,
+        float headerTextInsetY = 5f,
+        float? headerMarkerCenterX = null,
+        float headerMarkerRadius = 0f,
+        UiColor? headerMarkerColor = null,
+        string? hitTestId = null)
+    {
+        var layerRect = DrawLayerCard(
+            canvas,
+            position,
+            size,
+            headerColor,
+            headerText,
+            out headerRect,
+            out bodyRect,
+            out var hitClicked,
+            bodyBackground,
+            borderColor,
+            headerTextColor,
+            headerHeight,
+            borderThickness,
+            headerTextInsetX,
+            headerTextInsetY,
+            headerMarkerCenterX,
+            headerMarkerRadius,
+            headerMarkerColor,
+            hitTestId);
+
+        if (string.IsNullOrWhiteSpace(hitTestId))
+        {
+            interaction = default;
+            return layerRect;
+        }
+
+        interaction = new UiLayerCardInteraction(
+            Clicked: hitClicked,
+            Held: IsItemActive() && IsMouseDown((int)UiMouseButton.Left),
+            Released: IsItemDeactivated(),
+            Hovered: IsItemHovered(),
+            MousePosition: GetMousePos());
+
+        return layerRect;
+    }
+
     public bool TextLink(string label)
     {
         label ??= "Link";

@@ -99,7 +99,8 @@ public sealed class ListBoxScrollTestScreen : UiScreen
         }
 
         _selectedIndex = Math.Clamp(_selectedIndex, 0, _items.Length - 1);
-        ui.ListBox("Huge ListBox", ref _selectedIndex, _items, _visibleRows);
+        ui.Text("Huge ListBox");
+        ui.ListBox(ref _selectedIndex, _items, _visibleRows, "Huge ListBox");
 
         ui.EndWindow();
     }

@@ -2,32 +2,16 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
-    public bool BeginCombo(string label, string previewValue, int popupMaxHeightInItems = 8)
+    public bool BeginCombo(string previewValue, int popupMaxHeightInItems = 8, string? id = null)
     {
-        label ??= "Combo";
         previewValue ??= string.Empty;
-        var id = ResolveId(label);
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+        var comboId = string.IsNullOrWhiteSpace(id) ? "Combo" : id;
+        var resolvedId = ResolveId(comboId);
         var frameHeight = GetFrameHeight();
-        var height = MathF.Max(textSize.Y, frameHeight);
         var comboWidth = ResolveItemWidth(InputWidth);
-        var totalSize = new UiVector2(textSize.X + ItemSpacingX + comboWidth, height);
-        var cursor = AdvanceCursor(totalSize);
-
-        var labelPos = new UiVector2(cursor.X, cursor.Y + (height - textSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
-            label,
-            labelPos,
-            _theme.Text,
-            _fontTexture,
-            CurrentClipRect,
-            _textSettings,
-            _lineHeight
-        );
-
-        var comboRect = new UiRect(cursor.X + textSize.X + ItemSpacingX, cursor.Y + (height - frameHeight) * 0.5f, comboWidth, frameHeight);
-        var pressed = ButtonBehavior(label, comboRect, out var hovered, out var held);
+        var cursor = AdvanceCursor(new UiVector2(comboWidth, frameHeight));
+        var comboRect = new UiRect(cursor.X, cursor.Y, comboWidth, frameHeight);
+        var pressed = ButtonBehavior(comboId, comboRect, out var hovered, out var held);
         var bg = held ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : _theme.FrameBg;
         AddRectFilled(comboRect, bg, _whiteTexture);
 
@@ -46,10 +30,10 @@ public sealed partial class UiImmediateContext
 
         if (pressed)
         {
-            _state.OpenComboId = _state.OpenComboId == id ? null : id;
+            _state.OpenComboId = _state.OpenComboId == resolvedId ? null : resolvedId;
         }
 
-        if (_state.OpenComboId != id)
+        if (_state.OpenComboId != resolvedId)
         {
             return false;
         }
@@ -89,11 +73,11 @@ public sealed partial class UiImmediateContext
         _comboStack.Pop();
     }
 
-    public bool Combo(string label, ref int currentIndex, IReadOnlyList<string> items, int popupMaxHeightInItems = 8)
+    public bool Combo(ref int currentIndex, IReadOnlyList<string> items, int popupMaxHeightInItems = 8, string? id = null)
     {
-        label ??= "Combo";
         ArgumentNullException.ThrowIfNull(items);
-        var id = ResolveId(label);
+        var comboId = string.IsNullOrWhiteSpace(id) ? "Combo" : id;
+        var resolvedId = ResolveId(comboId);
 
         if (items.Count == 0)
         {
@@ -104,27 +88,11 @@ public sealed partial class UiImmediateContext
             currentIndex = Math.Clamp(currentIndex, 0, items.Count - 1);
         }
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
-        var height = MathF.Max(textSize.Y, frameHeight);
         var comboWidth = ResolveItemWidth(InputWidth);
-        var totalSize = new UiVector2(textSize.X + ItemSpacingX + comboWidth, height);
-        var cursor = AdvanceCursor(totalSize);
-
-        var labelPos = new UiVector2(cursor.X, cursor.Y + (height - textSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
-            label,
-            labelPos,
-            _theme.Text,
-            _fontTexture,
-            CurrentClipRect,
-            _textSettings,
-            _lineHeight
-        );
-
-        var comboRect = new UiRect(cursor.X + textSize.X + ItemSpacingX, cursor.Y + (height - frameHeight) * 0.5f, comboWidth, frameHeight);
-        var pressed = ButtonBehavior(label, comboRect, out var hovered, out var held);
+        var cursor = AdvanceCursor(new UiVector2(comboWidth, frameHeight));
+        var comboRect = new UiRect(cursor.X, cursor.Y, comboWidth, frameHeight);
+        var pressed = ButtonBehavior(comboId, comboRect, out var hovered, out var held);
         var bg = held ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : _theme.FrameBg;
         AddRectFilled(comboRect, bg, _whiteTexture);
 
@@ -144,11 +112,11 @@ public sealed partial class UiImmediateContext
 
         if (pressed)
         {
-            _state.OpenComboId = _state.OpenComboId == id ? null : id;
+            _state.OpenComboId = _state.OpenComboId == resolvedId ? null : resolvedId;
         }
 
         var changed = false;
-        if (_state.OpenComboId == id)
+        if (_state.OpenComboId == resolvedId)
         {
             var maxVisible = Math.Clamp(popupMaxHeightInItems, 1, 12);
             var displayCount = Math.Min(maxVisible, items.Count);
@@ -156,7 +124,7 @@ public sealed partial class UiImmediateContext
             var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
             var contentHeight = items.Count * frameHeight;
             var maxScroll = MathF.Max(0f, contentHeight - popupHeight);
-            var comboScrollId = $"{id}##comboscroll";
+            var comboScrollId = $"{resolvedId}##comboscroll";
             var scrollY = _state.GetScrollY(comboScrollId);
             scrollY = Math.Clamp(scrollY, 0f, maxScroll);
 
@@ -190,7 +158,7 @@ public sealed partial class UiImmediateContext
                 }
 
                 var itemRect = new UiRect(popupRect.X, itemY, popupRect.Width, frameHeight);
-                var itemId = ResolveId($"{label}##item{i}");
+                var itemId = ResolveId($"{comboId}##item{i}");
                 var itemHovered = ItemHoverable(itemId, itemRect);
                 if (itemHovered)
                 {
@@ -229,7 +197,7 @@ public sealed partial class UiImmediateContext
                     ScrollbarSize,
                     popupRect.Height
                 );
-                scrollY = RenderScrollbarV($"{id}##comboscrollbar", trackRect, scrollY, maxScroll, contentHeight, popupRect);
+                scrollY = RenderScrollbarV($"{resolvedId}##comboscrollbar", trackRect, scrollY, maxScroll, contentHeight, popupRect);
             }
 
             _state.SetScrollY(comboScrollId, scrollY);
@@ -239,12 +207,11 @@ public sealed partial class UiImmediateContext
         return changed;
     }
 
-    public bool Combo(string label, ref int currentIndex, int itemsCount, Func<int, string> itemsGetter, int popupMaxHeightInItems = 8)
+    public bool Combo(ref int currentIndex, int itemsCount, Func<int, string> itemsGetter, int popupMaxHeightInItems = 8, string? id = null)
     {
-        label ??= "Combo";
         ArgumentNullException.ThrowIfNull(itemsGetter);
-
-        var id = ResolveId(label);
+        var comboId = string.IsNullOrWhiteSpace(id) ? "Combo" : id;
+        var resolvedId = ResolveId(comboId);
 
         if (itemsCount <= 0)
         {
@@ -255,27 +222,11 @@ public sealed partial class UiImmediateContext
             currentIndex = Math.Clamp(currentIndex, 0, itemsCount - 1);
         }
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
-        var height = MathF.Max(textSize.Y, frameHeight);
         var comboWidth = ResolveItemWidth(InputWidth);
-        var totalSize = new UiVector2(textSize.X + ItemSpacingX + comboWidth, height);
-        var cursor = AdvanceCursor(totalSize);
-
-        var labelPos = new UiVector2(cursor.X, cursor.Y + (height - textSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
-            label,
-            labelPos,
-            _theme.Text,
-            _fontTexture,
-            CurrentClipRect,
-            _textSettings,
-            _lineHeight
-        );
-
-        var comboRect = new UiRect(cursor.X + textSize.X + ItemSpacingX, cursor.Y + (height - frameHeight) * 0.5f, comboWidth, frameHeight);
-        var pressed = ButtonBehavior(label, comboRect, out var hovered, out var held);
+        var cursor = AdvanceCursor(new UiVector2(comboWidth, frameHeight));
+        var comboRect = new UiRect(cursor.X, cursor.Y, comboWidth, frameHeight);
+        var pressed = ButtonBehavior(comboId, comboRect, out var hovered, out var held);
         var bg = held ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : _theme.FrameBg;
         AddRectFilled(comboRect, bg, _whiteTexture);
 
@@ -295,11 +246,11 @@ public sealed partial class UiImmediateContext
 
         if (pressed)
         {
-            _state.OpenComboId = _state.OpenComboId == id ? null : id;
+            _state.OpenComboId = _state.OpenComboId == resolvedId ? null : resolvedId;
         }
 
         var changed = false;
-        if (_state.OpenComboId == id)
+        if (_state.OpenComboId == resolvedId)
         {
             var maxVisible = Math.Clamp(popupMaxHeightInItems, 1, 12);
             var displayCount = Math.Min(maxVisible, itemsCount);
@@ -307,7 +258,7 @@ public sealed partial class UiImmediateContext
             var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
             var contentHeight = itemsCount * frameHeight;
             var maxScroll = MathF.Max(0f, contentHeight - popupHeight);
-            var comboScrollId = $"{id}##comboscroll";
+            var comboScrollId = $"{resolvedId}##comboscroll";
             var scrollY = _state.GetScrollY(comboScrollId);
             scrollY = Math.Clamp(scrollY, 0f, maxScroll);
 
@@ -341,7 +292,7 @@ public sealed partial class UiImmediateContext
                 }
 
                 var itemRect = new UiRect(popupRect.X, itemY, popupRect.Width, frameHeight);
-                var itemId = ResolveId($"{label}##item{i}");
+                var itemId = ResolveId($"{comboId}##item{i}");
                 var itemHovered = ItemHoverable(itemId, itemRect);
                 if (itemHovered)
                 {
@@ -380,7 +331,7 @@ public sealed partial class UiImmediateContext
                     ScrollbarSize,
                     popupRect.Height
                 );
-                scrollY = RenderScrollbarV($"{id}##comboscrollbar", trackRect, scrollY, maxScroll, contentHeight, popupRect);
+                scrollY = RenderScrollbarV($"{resolvedId}##comboscrollbar", trackRect, scrollY, maxScroll, contentHeight, popupRect);
             }
 
             _state.SetScrollY(comboScrollId, scrollY);

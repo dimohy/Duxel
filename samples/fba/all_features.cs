@@ -7,7 +7,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Text;
 using Duxel.App;
 using Duxel.Core;
@@ -142,10 +141,8 @@ public sealed class AllFeaturesScreen : UiScreen
 
     // ── Misc ──
     private int _frameCounter;
-    private readonly Stopwatch _fpsStopwatch = Stopwatch.StartNew();
+    private readonly UiFpsCounter _fpsCounter = new(0.5d);
     private float _fps;
-    private int _fpsFrameCount;
-    private long _fpsLastTick;
 
     public AllFeaturesScreen()
     {
@@ -433,11 +430,14 @@ public sealed class AllFeaturesScreen : UiScreen
         ui.BeginWindow("Combo & ListBox");
 
         ui.SeparatorText("Combo");
-        ui.Combo("Combo", ref _comboIdx, _items, 5);
-        ui.Combo("Combo(getter)", ref _comboGetterIdx, _items.Length, i => _items[i], 5);
+        ui.Text("Combo");
+        ui.Combo(ref _comboIdx, _items, 5, "Combo");
+        ui.Text("Combo(getter)");
+        ui.Combo(ref _comboGetterIdx, _items.Length, i => _items[i], 5, "Combo(getter)");
 
         _beginComboIdx = Math.Clamp(_beginComboIdx, 0, _items.Length - 1);
-        if (ui.BeginCombo("BeginCombo", _items[_beginComboIdx], 5))
+        ui.Text("BeginCombo");
+        if (ui.BeginCombo(_items[_beginComboIdx], 5, "BeginCombo"))
         {
             for (var i = 0; i < _items.Length; i++)
             {
@@ -448,10 +448,13 @@ public sealed class AllFeaturesScreen : UiScreen
         }
 
         ui.SeparatorText("ListBox");
-        ui.ListBox("ListBox", ref _listBoxIdx, _items, 4);
-        ui.ListBox("ListBox(getter)", ref _listBoxGetterIdx, _items.Length, i => _items[i], 4);
+        ui.Text("ListBox");
+        ui.ListBox(ref _listBoxIdx, _items, 4, "ListBox");
+        ui.Text("ListBox(getter)");
+        ui.ListBox(ref _listBoxGetterIdx, _items.Length, i => _items[i], 4, "ListBox(getter)");
 
-        if (ui.BeginListBox("BeginListBox", new UiVector2(0f, 0f), 4))
+        ui.Text("BeginListBox");
+        if (ui.BeginListBox(new UiVector2(0f, 0f), 4, "BeginListBox"))
         {
             for (var i = 0; i < _items.Length; i++)
             {
@@ -933,15 +936,7 @@ public sealed class AllFeaturesScreen : UiScreen
     // ─────────────────────────── FPS ───────────────────────────
     private void UpdateFps()
     {
-        _fpsFrameCount++;
-        var now = _fpsStopwatch.ElapsedMilliseconds;
-        var elapsed = now - _fpsLastTick;
-        if (elapsed >= 500)
-        {
-            _fps = _fpsFrameCount * 1000f / elapsed;
-            _fpsFrameCount = 0;
-            _fpsLastTick = now;
-        }
+        _fps = _fpsCounter.Tick().Fps;
     }
 
     private void RenderFpsOverlay(UiImmediateContext ui)
@@ -957,9 +952,22 @@ public sealed class AllFeaturesScreen : UiScreen
         var margin = 8f;
         var lineHeight = ui.GetTextLineHeight();
         var pos = new UiVector2(viewport.Size.X - maxWidth - margin, 4f);
-        var fg = ui.GetForegroundDrawList();
-        fg.AddText(pos, new UiColor(200, 200, 200), fpsText);
-        fg.AddText(new UiVector2(pos.X, pos.Y + lineHeight + 2f), new UiColor(160, 160, 160), timingText);
+
+        ui.DrawOverlayText(
+            fpsText,
+            new UiColor(200, 200, 200),
+            UiItemHorizontalAlign.Right,
+            UiItemVerticalAlign.Top,
+            background: null,
+            margin: new UiVector2(margin, 4f));
+
+        ui.DrawOverlayText(
+            timingText,
+            new UiColor(160, 160, 160),
+            UiItemHorizontalAlign.Right,
+            UiItemVerticalAlign.Top,
+            background: null,
+            margin: new UiVector2(margin, 4f + lineHeight + 2f));
 
         // Click detection on vsync label
         var mouse = ui.GetMousePos();

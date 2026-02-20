@@ -1,7 +1,7 @@
 # Duxel FBA 빠른 시작 가이드
 
 > **Duxel** — .NET 10 전용 즉시 모드(Immediate-Mode) GUI 프레임워크  
-> Vulkan 렌더러 + GLFW 백엔드 · 프로필 기반 MSAA(Display=2x/Render=1x) · NativeAOT 지원
+> Vulkan 렌더러 + Windows 네이티브 백엔드 · 프로필 기반 MSAA(Display=2x/Render=1x) · NativeAOT 지원
 
 단일 `.cs` 파일 하나로 GUI 앱을 바로 실행할 수 있는 **FBA(File-Based App)** 방식을 소개합니다.
 
@@ -143,7 +143,8 @@ Window "My App"
     Button Id="bye" Text="Say Bye"
   SliderFloat Id="volume" Text="Volume" Min=0 Max=1
   Checkbox Id="mute" Text="Mute" Default=false
-  Combo Id="quality" Text="Quality" Items="Low|Medium|High"
+    Text "Quality"
+    Combo Id="quality" Items="Low|Medium|High"
 """;
 
 var doc = UiDslParser.Parse(dslText);
@@ -238,7 +239,8 @@ public sealed class MyScreen : UiScreen
 
         // 콤보박스
         string[] items = ["Option A", "Option B", "Option C"];
-        ui.Combo("Select", ref _comboIdx, items);
+        ui.Text("Select");
+        ui.Combo(ref _comboIdx, items, id: "select_combo");
 
         // 버튼
         if (ui.Button("Reset"))
@@ -321,8 +323,7 @@ Duxel/
 │   ├── Duxel.App/          ← 앱 진입점, DSL 바인딩
 │   ├── Duxel.Core/         ← UI 컨텍스트, 위젯, 드로우리스트
 │   ├── Duxel.Core.Dsl.Generator/  ← .ui → C# 소스 생성기
-│   ├── Duxel.Platform.Glfw/       ← GLFW 윈도우/입력
-│   ├── Duxel.Platform.Windows/    ← Windows 전용 (IME)
+│   ├── Duxel.Platform.Windows/    ← Windows 네이티브 플랫폼(윈도우/입력/IME)
 │   └── Duxel.Vulkan/              ← Vulkan 렌더러
 ├── samples/
 │   ├── fba/                ← FBA 단일 파일 샘플

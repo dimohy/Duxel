@@ -23,12 +23,6 @@ var taaName = Environment.GetEnvironmentVariable("DUXEL_TAA");
 var enableTaa = string.Equals(taaName, "1", StringComparison.OrdinalIgnoreCase)
     || string.Equals(taaName, "true", StringComparison.OrdinalIgnoreCase)
     || string.Equals(taaName, "on", StringComparison.OrdinalIgnoreCase);
-var dwriteName = Environment.GetEnvironmentVariable("DUXEL_DIRECT_TEXT");
-var enableDWriteText = string.IsNullOrWhiteSpace(dwriteName)
-    || !(string.Equals(dwriteName, "0", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(dwriteName, "false", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(dwriteName, "off", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(dwriteName, "no", StringComparison.OrdinalIgnoreCase));
 
 DuxelApp.Run(new DuxelAppOptions
 {
@@ -41,14 +35,13 @@ DuxelApp.Run(new DuxelAppOptions
     {
         Profile = profile,
         EnableTaaIfSupported = enableTaa,
-        EnableFxaaIfSupported = enableFxaa,
-        EnableDWriteText = enableDWriteText
+        EnableFxaaIfSupported = enableFxaa
     },
     Font = new DuxelFontOptions
     {
         InitialGlyphs = PerfTestScreen.GlyphStrings
     },
-    Screen = new PerfTestScreen(profile, enableDWriteText)
+    Screen = new PerfTestScreen(profile)
 });
 
 public sealed class PerfTestScreen : UiScreen
@@ -76,8 +69,6 @@ public sealed class PerfTestScreen : UiScreen
         "FXAA",
         "TAA Exclude Font",
         "TAA Weight",
-        "DWrite Text",
-        "DWrite Text (restart required)",
         "Global Static Cache",
         "Polygons",
         "Add",
@@ -104,14 +95,14 @@ public sealed class PerfTestScreen : UiScreen
     private float _rotationSpeed = 1.8f;
     private bool _paused;
     private double _lastTime;
-    private readonly UiFpsCounter _fpsCounter = new(0.5d);
     private float _fps;
+    private int _fpsFrames;
+    private double _fpsTime;
     private readonly double _benchDurationSeconds = ReadBenchDurationSeconds();
     private readonly string? _benchOutputPath = Environment.GetEnvironmentVariable("DUXEL_PERF_BENCH_OUT");
     private readonly int _initialPolygons = ReadInitialPolygonCount();
     private readonly DuxelPerformanceProfile _startupProfile;
     private bool _renderProfileForNextLaunch;
-    private bool _dwriteTextForNextLaunch;
     private bool _initialized;
     private double _benchElapsedSeconds;
     private double _benchFpsSum;
@@ -126,11 +117,10 @@ public sealed class PerfTestScreen : UiScreen
     private int[] _collisionTouchedStamp = [];
     private int _collisionStamp = 1;
 
-    public PerfTestScreen(DuxelPerformanceProfile startupProfile, bool startupDWriteText)
+    public PerfTestScreen(DuxelPerformanceProfile startupProfile)
     {
         _startupProfile = startupProfile;
         _renderProfileForNextLaunch = startupProfile == DuxelPerformanceProfile.Render;
-        _dwriteTextForNextLaunch = startupDWriteText;
     }
 
     public override void Render(UiImmediateContext ui)
@@ -152,17 +142,32 @@ public sealed class PerfTestScreen : UiScreen
 
     private static double ReadBenchDurationSeconds()
     {
-        return BenchOptions.ReadDouble("DUXEL_PERF_BENCH_SECONDS", 0d, minExclusive: 0d);
+        var value = Environment.GetEnvironmentVariable("DUXEL_PERF_BENCH_SECONDS");
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0d;
+        }
+
+        return double.TryParse(value, out var seconds) && seconds > 0d ? seconds : 0d;
     }
 
     private static int ReadInitialPolygonCount()
     {
-        return BenchOptions.ReadInt("DUXEL_PERF_INITIAL_POLYGONS", 0, minInclusive: 1);
+        var value = Environment.GetEnvironmentVariable("DUXEL_PERF_INITIAL_POLYGONS");
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0;
+        }
+
+        return int.TryParse(value, out var count) && count > 0 ? count : 0;
     }
 
     private static bool ReadGlobalStaticCacheEnabled()
     {
-        return BenchOptions.ReadBool("DUXEL_PERF_GLOBAL_STATIC_CACHE", defaultValue: false);
+        var value = Environment.GetEnvironmentVariable("DUXEL_PERF_GLOBAL_STATIC_CACHE");
+        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase);
     }
 
     private void EnsureInitialized(UiRect bounds)
@@ -374,8 +379,6 @@ public sealed class PerfTestScreen : UiScreen
         ui.TextV("Current: {0}", _startupProfile == DuxelPerformanceProfile.Render ? "Render" : "Display");
         ui.Checkbox("Render Profile", ref _renderProfileForNextLaunch);
         ui.Text("Restart required to apply");
-        ui.Checkbox("DWrite Text", ref _dwriteTextForNextLaunch);
-        ui.Text("DWrite Text (restart required)");
         if (ui.Checkbox("Paused", ref _paused))
         {
             if (_paused)
@@ -422,19 +425,18 @@ public sealed class PerfTestScreen : UiScreen
 
     private static void DrawRendererStatusOverlay(UiImmediateContext ui)
     {
+        var viewport = ui.GetMainViewport();
         var vsync = ui.GetVSync() ? "ON" : "OFF";
         var taa = ui.GetTaaEnabled() ? "ON" : "OFF";
         var fxaa = ui.GetFxaaEnabled() ? "ON" : "OFF";
         var weight = ui.GetTaaCurrentFrameWeight();
         var msaa = ui.GetMsaaSamples();
         var text = $"Renderer: VSync {vsync} | MSAA {msaa}x | TAA {taa} | FXAA {fxaa} | AA W {weight:0.00}";
-        ui.DrawOverlayText(
-            text,
-            new UiColor(210, 210, 210),
-            UiItemHorizontalAlign.Right,
-            UiItemVerticalAlign.Top,
-            background: null,
-            margin: new UiVector2(8f, 6f));
+        var margin = 8f;
+        var textSize = ui.CalcTextSize(text);
+        var pos = new UiVector2(viewport.Size.X - textSize.X - margin, 6f);
+        var fg = ui.GetForegroundDrawList();
+        fg.AddText(pos, new UiColor(210, 210, 210), text);
     }
 
     private void EnsureGlobalStaticCache(UiRect bounds, UiTextureId whiteTexture)
@@ -517,7 +519,14 @@ public sealed class PerfTestScreen : UiScreen
 
     private void UpdateFps(double delta)
     {
-        _fps = _fpsCounter.Tick(delta).Fps;
+        _fpsFrames++;
+        _fpsTime += delta;
+        if (_fpsTime >= 0.5)
+        {
+            _fps = (float)(_fpsFrames / _fpsTime);
+            _fpsFrames = 0;
+            _fpsTime = 0;
+        }
     }
 
     private void UpdatePolygons(double delta, UiRect bounds)

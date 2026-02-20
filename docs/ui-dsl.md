@@ -112,8 +112,8 @@ var bindings = new UiDslBindings()
 | `Row` | — | 수평 레이아웃 (`BeginRow`/`EndRow`) |
 | `BeginGroup` | — | 그룹 |
 | `BeginChild` | `Id`, `Size`, `Border` | 자식 영역 |
-| `BeginCombo` | `Id`, `Text`, `Preview` | 콤보박스 (자식 블록 방식) |
-| `BeginListBox` | `Id`, `Text`, `Size` | 리스트박스 (자식 블록 방식) |
+| `BeginCombo` | `Id`, `Preview` | 콤보박스 (자식 블록 방식, 라벨은 `Text`로 별도 표시) |
+| `BeginListBox` | `Id`, `Size` | 리스트박스 (자식 블록 방식, 라벨은 `Text`로 별도 표시) |
 | `BeginDisabled` | `Disabled` | 비활성 영역 |
 | `BeginMultiSelect` | `Flags` | 다중 선택 |
 
@@ -211,8 +211,8 @@ var bindings = new UiDslBindings()
 
 | 위젯 | 주요 인자 | 설명 |
 |---|---|---|
-| `Combo` | `Id`, `Text`, `Items` | 콤보박스 (items를 `\|`로 구분) |
-| `ListBox` | `Id`, `Text`, `Items`, `HeightItems` | 리스트박스 |
+| `Combo` | `Id`, `Items` | 콤보박스 (items를 `\|`로 구분, 라벨은 `Text`로 별도 표시) |
+| `ListBox` | `Id`, `Items`, `HeightItems` | 리스트박스 (라벨은 `Text`로 별도 표시) |
 | `Selectable` | `Id`, `Text`, `Selected`, `Flags`, `Size` | 선택 가능 항목 |
 
 ### 메뉴
@@ -431,7 +431,8 @@ Window "DSL Showcase"
   InputFloat Id="speed" Text="Speed" Format="0.00"
   Checkbox Id="vsync" Text="VSync" Default=true
   SliderFloat Id="volume" Text="Volume" Min=0 Max=1
-  Combo Id="preset" Text="Preset" Items="Low|Medium|High"
+  Text "Preset"
+  Combo Id="preset" Items="Low|Medium|High"
   SeparatorText "Tabs"
   TabBar "tabs"
     TabItem "Tab A"

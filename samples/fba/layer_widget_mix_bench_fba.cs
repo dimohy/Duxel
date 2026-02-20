@@ -64,9 +64,8 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
     private int _phaseSampleCount;
 
     private double _lastTime;
+    private readonly UiFpsCounter _fpsCounter = new(0.25d);
     private float _fps;
-    private int _fpsFrameCount;
-    private double _fpsAccum;
 
     private int _sliderValue = 36;
     private bool _checkA = true;
@@ -109,34 +108,12 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
 
     private static int[] ReadDensityScales()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_LAYER_WIDGET_DENSITY_SCALES");
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return [100, 170];
-        }
-
-        var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var values = new List<int>(parts.Length);
-        for (var i = 0; i < parts.Length; i++)
-        {
-            if (int.TryParse(parts[i], out var value) && value >= 50 && value <= 400)
-            {
-                values.Add(value);
-            }
-        }
-
-        return values.Count > 0 ? values.ToArray() : [100, 170];
+        return BenchOptions.ReadIntCsv("DUXEL_LAYER_WIDGET_DENSITY_SCALES", [100, 170], minInclusive: 50, maxInclusive: 400);
     }
 
     private static double ReadPhaseSeconds()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_LAYER_WIDGET_PHASE_SECONDS");
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return 2.2d;
-        }
-
-        return double.TryParse(raw, out var seconds) && seconds >= 0.8d ? seconds : 2.2d;
+        return BenchOptions.ReadDouble("DUXEL_LAYER_WIDGET_PHASE_SECONDS", 2.2d, minExclusive: 0.8d);
     }
 
     private void BuildPhases()
@@ -231,16 +208,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
 
     private void UpdateFps(double delta)
     {
-        _fpsAccum += delta;
-        _fpsFrameCount++;
-        if (_fpsAccum < 0.25d)
-        {
-            return;
-        }
-
-        _fps = (float)(_fpsFrameCount / _fpsAccum);
-        _fpsFrameCount = 0;
-        _fpsAccum = 0d;
+        _fps = _fpsCounter.Tick(delta).Fps;
     }
 
     private void DrawControlWindow(UiImmediateContext ui, UiRect bounds)
@@ -278,7 +246,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
 
         for (var i = 0; i < _layers.Count; i++)
         {
-            DrawLayerCard(ui, drawList, canvas, _layers[i], now);
+            DrawLayerCard(ui, canvas, _layers[i], now);
         }
 
         ui.Dummy(new UiVector2(canvas.Width, canvas.Height));
@@ -305,19 +273,28 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
         ui.EndWindow();
     }
 
-    private void DrawLayerCard(UiImmediateContext ui, UiDrawListBuilder drawList, UiRect canvas, LayerCard layer, double now)
+    private void DrawLayerCard(UiImmediateContext ui, UiRect canvas, LayerCard layer, double now)
     {
-        var layerRect = new UiRect(
-            canvas.X + layer.Position.X,
-            canvas.Y + layer.Position.Y,
-            layer.Size.X,
-            layer.Size.Y);
-
-        var headerHeight = 25f;
-        var headerRect = new UiRect(layerRect.X, layerRect.Y, layerRect.Width, headerHeight);
-        var bodyRect = new UiRect(layerRect.X, layerRect.Y + headerHeight, layerRect.Width, layerRect.Height - headerHeight);
-
-        drawList.AddRectFilled(layerRect, new UiColor(0xC91E2026), ui.WhiteTextureId, canvas);
+        var pulse = (MathF.Sin((float)now * 2.1f + layer.Position.X * 0.01f) + 1f) * 0.5f;
+        var markerX = canvas.X + layer.Position.X + 10f + pulse * (MathF.Max(1f, layer.Size.X) - 20f);
+        ui.DrawLayerCardInteractive(
+            canvas,
+            layer.Position,
+            layer.Size,
+            layer.HeaderColor,
+            string.Format(CultureInfo.InvariantCulture, "{0} ({1}%)", layer.Id, _densityScale),
+            out _,
+            out var bodyRect,
+            out _,
+            bodyBackground: new UiColor(0xC91E2026),
+            borderColor: new UiColor(0xFFA6A6A6),
+            headerHeight: 25f,
+            borderThickness: 1.1f,
+            headerTextInsetX: 8f,
+            headerTextInsetY: 5f,
+            headerMarkerCenterX: markerX,
+            headerMarkerRadius: 3.2f,
+            hitTestId: $"mix_layer_card_{layer.Id}");
 
         var options = new UiLayerOptions(
             StaticCache: _cacheEnabled,
@@ -332,18 +309,6 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
             DrawLayerBody(ui.GetWindowDrawList(), localBody, layer, _densityScale, ui.WhiteTextureId);
         }
         ui.EndLayer();
-
-        drawList.AddRectFilled(headerRect, layer.HeaderColor, ui.WhiteTextureId, canvas);
-        drawList.AddRect(layerRect, new UiColor(0xFFA6A6A6), 0f, 1.1f);
-
-        var pulse = (MathF.Sin((float)now * 2.1f + layerRect.X * 0.01f) + 1f) * 0.5f;
-        var markerX = layerRect.X + 10f + pulse * (layerRect.Width - 20f);
-        drawList.AddCircleFilled(new UiVector2(markerX, layerRect.Y + 12f), 3.2f, new UiColor(0xFFFCF18B), ui.WhiteTextureId, canvas, 12);
-
-        var backup = ui.GetCursorScreenPos();
-        ui.SetCursorScreenPos(new UiVector2(layerRect.X + 8f, layerRect.Y + 5f));
-        ui.TextV("{0} ({1}%)", layer.Id, _densityScale);
-        ui.SetCursorScreenPos(backup);
     }
 
     private static void DrawGrid(UiDrawListBuilder drawList, UiRect canvas)

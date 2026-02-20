@@ -125,7 +125,8 @@ public sealed class UiDslImmediateEmitter : IUiDslEmitter
             context.ImeHandler,
             context.ReserveVertices,
             context.ReserveIndices,
-            context.ReserveCommands
+            context.ReserveCommands,
+            null
         );
     }
 

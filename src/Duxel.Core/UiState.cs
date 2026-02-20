@@ -24,6 +24,7 @@ public sealed class UiState
     private readonly Dictionary<string, UiVector2> _windowExpandedSizes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiVector2> _popupOpenMousePos = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiVector2> _menuSizes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, UiFloatAnimationTrack> _floatAnimations = new(StringComparer.Ordinal);
     private readonly List<string> _windowOrder = new();
     private readonly List<string> _debugLogEntries = new();
     private string? _activeWindowId;
@@ -57,9 +58,17 @@ public sealed class UiState
     private float _taaCurrentFrameWeight = 0.18f;
     private int _msaaSamples = 4;
     private bool _rendererAaSettingsDirty;
+    private bool _hasActiveAnimations;
     private List<UiRect> _popupBlockingRects = [];
     private List<UiRect> _prevPopupBlockingRects = [];
     private string? _pendingTextInputFocusId;
+
+    private readonly record struct UiFloatAnimationTrack(
+        float From,
+        float To,
+        double StartTimeSeconds,
+        double DurationSeconds
+    );
 
     // Frame timing (set by the app loop, read by UI)
     public float NewFrameTimeMs { get; set; }
@@ -326,6 +335,67 @@ public sealed class UiState
         _menuSizes[key] = size;
     }
 
+    public float AnimateFloat(string key, float target, float durationSeconds = 0.16f, UiAnimationEasing easing = UiAnimationEasing.OutCubic)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        var duration = Math.Clamp(durationSeconds, 0.001f, 10f);
+        var now = _timeSeconds;
+
+        if (!_floatAnimations.TryGetValue(key, out var track))
+        {
+            track = new UiFloatAnimationTrack(target, target, now, duration);
+            _floatAnimations[key] = track;
+            return target;
+        }
+
+        var current = EvaluateTrack(track, now, easing);
+        if (MathF.Abs(track.To - target) > 0.0001f)
+        {
+            track = new UiFloatAnimationTrack(current, target, now, duration);
+            _floatAnimations[key] = track;
+            _hasActiveAnimations = true;
+            return current;
+        }
+
+        if ((now - track.StartTimeSeconds) >= track.DurationSeconds)
+        {
+            if (MathF.Abs(current - track.To) > 0.0001f)
+            {
+                _floatAnimations[key] = track with { From = track.To, StartTimeSeconds = now };
+            }
+            return track.To;
+        }
+
+        _hasActiveAnimations = true;
+        return current;
+    }
+
+    public bool HasActiveAnimations => _hasActiveAnimations;
+
+    private static float EvaluateTrack(UiFloatAnimationTrack track, double nowSeconds, UiAnimationEasing easing)
+    {
+        if (track.DurationSeconds <= 0d)
+        {
+            return track.To;
+        }
+
+        var t = (float)((nowSeconds - track.StartTimeSeconds) / track.DurationSeconds);
+        t = Math.Clamp(t, 0f, 1f);
+        var eased = Ease(t, easing);
+        return track.From + ((track.To - track.From) * eased);
+    }
+
+    private static float Ease(float t, UiAnimationEasing easing)
+    {
+        return easing switch
+        {
+            UiAnimationEasing.Linear => t,
+            UiAnimationEasing.InOutSine => 0.5f - (MathF.Cos(MathF.PI * t) * 0.5f),
+            _ => 1f - MathF.Pow(1f - t, 3f),
+        };
+    }
+
     public void AdvanceTime(float deltaTime)
     {
         _timeSeconds += deltaTime;
@@ -334,6 +404,7 @@ public sealed class UiState
     public void BeginFrame()
     {
         _frameCount++;
+        _hasActiveAnimations = false;
         _previousActiveId = _activeId;
         _previousHoveredId = _hoveredId;
         _hoverLoggedThisFrame = false;

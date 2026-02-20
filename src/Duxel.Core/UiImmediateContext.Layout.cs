@@ -36,6 +36,29 @@ public sealed partial class UiImmediateContext
         return _layouts.Peek().Cursor;
     }
 
+    public void EnableRootViewportContentLayout(bool enabled = true)
+    {
+        if (_currentWindowId is not null)
+        {
+            return;
+        }
+
+        if (!enabled)
+        {
+            _windowRect = default;
+            _hasWindowRect = false;
+            _windowContentStart = default;
+            _windowContentMax = default;
+            return;
+        }
+
+        var viewport = GetMainViewport();
+        _windowRect = new UiRect(viewport.WorkPos.X, viewport.WorkPos.Y, viewport.WorkSize.X, viewport.WorkSize.Y);
+        _hasWindowRect = true;
+        _windowContentStart = new UiVector2(_windowRect.X + WindowPadding, _windowRect.Y + WindowPadding);
+        _windowContentMax = new UiVector2(_windowRect.X + _windowRect.Width - WindowPadding, _windowRect.Y + _windowRect.Height - WindowPadding);
+    }
+
     public void SetCursorPos(UiVector2 position)
     {
         var current = _layouts.Pop();
@@ -480,7 +503,38 @@ public sealed partial class UiImmediateContext
     public UiVector2 CalcTextSize(string text)
     {
         text ??= string.Empty;
-        return UiTextBuilder.MeasureText(_fontAtlas, text, _textSettings, _lineHeight);
+        var baseFontSize = _lineHeight * _textSettings.Scale;
+        var fontScale = baseFontSize > 0f
+            ? GetFontSize() / baseFontSize
+            : 1f;
+        var scaledSettings = new UiTextSettings(
+            _textSettings.Scale * fontScale,
+            _textSettings.LineHeightScale,
+            _textSettings.PixelSnap,
+            _textSettings.UseBaseline,
+            _textSettings.UseFallbackGlyph,
+            _textSettings.MissingGlyphObserver
+        );
+        return UiTextBuilder.MeasureText(_fontAtlas, text, scaledSettings, _lineHeight);
+    }
+
+    public UiVector2 AlignRect(UiRect containerRect, UiVector2 contentSize, UiItemHorizontalAlign horizontalAlign = UiItemHorizontalAlign.Left, UiItemVerticalAlign verticalAlign = UiItemVerticalAlign.Top)
+    {
+        var x = horizontalAlign switch
+        {
+            UiItemHorizontalAlign.Center => containerRect.X + MathF.Max(0f, (containerRect.Width - contentSize.X) * 0.5f),
+            UiItemHorizontalAlign.Right => containerRect.X + MathF.Max(0f, containerRect.Width - contentSize.X),
+            _ => containerRect.X,
+        };
+
+        var y = verticalAlign switch
+        {
+            UiItemVerticalAlign.Center => containerRect.Y + MathF.Max(0f, (containerRect.Height - contentSize.Y) * 0.5f),
+            UiItemVerticalAlign.Bottom => containerRect.Y + MathF.Max(0f, containerRect.Height - contentSize.Y),
+            _ => containerRect.Y,
+        };
+
+        return new UiVector2(x, y);
     }
 
     public void BeginGroup()
@@ -806,7 +860,14 @@ public sealed partial class UiImmediateContext
         }
 
         var resizeBorder = MathF.Max(4f, ResizeGripSize * 0.6f - 2f);
-        var gripRect = new UiRect(rect.X + rect.Width - ResizeGripSize, rect.Y + rect.Height - ResizeGripSize, ResizeGripSize, ResizeGripSize);
+        var gripInset = _windowCollapsed ? 0f : MathF.Min(ResizeGripSize * 0.5f, GetWindowCornerRadius());
+        const float gripOffset = 3f;
+        var gripRect = new UiRect(
+            rect.X + rect.Width - ResizeGripSize - gripInset + gripOffset,
+            rect.Y + rect.Height - ResizeGripSize - gripInset + gripOffset,
+            ResizeGripSize,
+            ResizeGripSize
+        );
         var canResize = !_windowCollapsed;
         var resizeMask = 0;
         var hoverResize = false;
@@ -956,48 +1017,56 @@ public sealed partial class UiImmediateContext
             _hasNextWindowBgAlpha = false;
         }
 
-        AddRectFilled(rect, windowBg, _whiteTexture);
-        AddRectFilled(new UiRect(rect.X, rect.Y, rect.Width, titleBarHeight), _theme.TitleBgActive, _whiteTexture);
-        AddRectFilled(new UiRect(rect.X, rect.Y, rect.Width, 1f), _theme.Border, _whiteTexture);
-        AddRectFilled(new UiRect(rect.X, rect.Y + rect.Height - 1f, rect.Width, 1f), _theme.Border, _whiteTexture);
-        AddRectFilled(new UiRect(rect.X, rect.Y, 1f, rect.Height), _theme.Border, _whiteTexture);
-        AddRectFilled(new UiRect(rect.X + rect.Width - 1f, rect.Y, 1f, rect.Height), _theme.Border, _whiteTexture);
+        const float windowBorderThickness = 1f;
+        var windowCornerRadius = GetWindowCornerRadius();
+        if (_windowCollapsed)
+        {
+            AddRoundedTopRectFilled(rect, _theme.Border, windowCornerRadius);
+        }
+        else
+        {
+            AddRoundedRectFilled(rect, _theme.Border, windowCornerRadius);
+        }
+
+        var innerRect = new UiRect(
+            rect.X + windowBorderThickness,
+            rect.Y + windowBorderThickness,
+            MathF.Max(0f, rect.Width - (windowBorderThickness * 2f)),
+            MathF.Max(0f, rect.Height - (windowBorderThickness * 2f))
+        );
+        var innerRadius = MathF.Max(0f, windowCornerRadius - windowBorderThickness);
+        if (_windowCollapsed)
+        {
+            AddRoundedTopRectFilled(innerRect, windowBg, innerRadius);
+        }
+        else
+        {
+            AddRoundedRectFilled(innerRect, windowBg, innerRadius);
+        }
+
+        var titleInnerRect = new UiRect(innerRect.X, innerRect.Y, innerRect.Width, MathF.Max(0f, titleBarHeight - windowBorderThickness));
+        AddRoundedTopRectFilled(titleInnerRect, _theme.TitleBgActive, innerRadius);
 
         if (collapseHovered || collapseHeld)
         {
             var collapseBg = collapseHeld ? _theme.ButtonActive : _theme.ButtonHovered;
-            AddRectFilled(collapseRect, collapseBg, _whiteTexture);
+            AddRoundedRectFilled(collapseRect, collapseBg, MathF.Min(4f, collapseRect.Width * 0.3f));
         }
 
-        // Filled triangle icon
-        var trianglePad = MathF.Max(4f, collapseRect.Width * 0.26f);
-        var tLeft = collapseRect.X + trianglePad;
-        var tRight = collapseRect.X + collapseRect.Width - trianglePad;
-        var tTop = collapseRect.Y + trianglePad;
-        var tBottom = collapseRect.Y + collapseRect.Height - trianglePad;
-        var tCenterX = (tLeft + tRight) * 0.5f;
-        var tCenterY = (tTop + tBottom) * 0.5f;
-        Span<UiVector2> triangle = stackalloc UiVector2[3];
-        if (_windowCollapsed)
-        {
-            // ▶
-            triangle[0] = new UiVector2(tLeft, tTop);
-            triangle[1] = new UiVector2(tLeft, tBottom);
-            triangle[2] = new UiVector2(tRight, tCenterY);
-        }
-        else
-        {
-            // ▼
-            triangle[0] = new UiVector2(tLeft, tTop);
-            triangle[1] = new UiVector2(tRight, tTop);
-            triangle[2] = new UiVector2(tCenterX, tBottom);
-        }
-        _builder.AddConvexPolyFilled(triangle, _theme.Text);
+        var collapseRotationDegrees = AnimateToggleRotationDegrees(
+            $"{title}##window_collapse",
+            expanded: _windowCollapsed,
+            collapsedDegrees: 0f,
+            expandedDegrees: 180f,
+            durationSeconds: 0.14f,
+            easing: UiAnimationEasing.OutCubic
+        );
+        DrawChevronIcon(collapseRect, collapseRotationDegrees, scale: 2f / 3f, thickness: 1.2f, color: _theme.Text);
 
         if (closeHovered || closeHeld)
         {
             var closeBg = closeHeld ? _theme.ButtonActive : _theme.ButtonHovered;
-            AddRectFilled(closeRect, closeBg, _whiteTexture);
+            AddRoundedRectFilled(closeRect, closeBg, MathF.Min(4f, closeRect.Width * 0.3f));
         }
 
         var closeInset = MathF.Max(2f, closeRect.Width * 0.28f);
@@ -1051,6 +1120,70 @@ public sealed partial class UiImmediateContext
         );
         _layouts.Push(new UiLayoutState(cursor, false, 0f, cursor.X));
         // Grip rendering is deferred to EndWindow (after scrollbars) for correct z-order
+    }
+
+    private static UiVector2 RotatePoint(UiVector2 point, UiVector2 center, float sin, float cos)
+    {
+        var dx = point.X - center.X;
+        var dy = point.Y - center.Y;
+        return new UiVector2(
+            center.X + (dx * cos) - (dy * sin),
+            center.Y + (dx * sin) + (dy * cos)
+        );
+    }
+
+    private float GetWindowCornerRadius()
+    {
+        return MathF.Min(12f, MathF.Max(6f, (_lineHeight * 0.45f) + 2f)) * 0.5f;
+    }
+
+    private void AddRoundedRectFilled(UiRect rect, UiColor color, float radius)
+    {
+        var w = MathF.Max(0f, rect.Width);
+        var h = MathF.Max(0f, rect.Height);
+        if (w <= 0f || h <= 0f)
+        {
+            return;
+        }
+
+        var r = MathF.Min(radius, MathF.Min(w, h) * 0.5f);
+        if (r <= 0.01f)
+        {
+            AddRectFilled(rect, color, _whiteTexture);
+            return;
+        }
+
+        AddRectFilled(new UiRect(rect.X + r, rect.Y, w - (r * 2f), h), color, _whiteTexture);
+        AddRectFilled(new UiRect(rect.X, rect.Y + r, r, h - (r * 2f)), color, _whiteTexture);
+        AddRectFilled(new UiRect(rect.X + w - r, rect.Y + r, r, h - (r * 2f)), color, _whiteTexture);
+
+        AddCircleFilled(new UiVector2(rect.X + r, rect.Y + r), r, color, _whiteTexture, 10);
+        AddCircleFilled(new UiVector2(rect.X + w - r, rect.Y + r), r, color, _whiteTexture, 10);
+        AddCircleFilled(new UiVector2(rect.X + r, rect.Y + h - r), r, color, _whiteTexture, 10);
+        AddCircleFilled(new UiVector2(rect.X + w - r, rect.Y + h - r), r, color, _whiteTexture, 10);
+    }
+
+    private void AddRoundedTopRectFilled(UiRect rect, UiColor color, float radius)
+    {
+        var w = MathF.Max(0f, rect.Width);
+        var h = MathF.Max(0f, rect.Height);
+        if (w <= 0f || h <= 0f)
+        {
+            return;
+        }
+
+        var r = MathF.Min(radius, MathF.Min(w * 0.5f, h));
+        if (r <= 0.01f)
+        {
+            AddRectFilled(rect, color, _whiteTexture);
+            return;
+        }
+
+        AddRectFilled(new UiRect(rect.X, rect.Y + r, w, h - r), color, _whiteTexture);
+        AddRectFilled(new UiRect(rect.X + r, rect.Y, w - (r * 2f), r), color, _whiteTexture);
+
+        AddCircleFilled(new UiVector2(rect.X + r, rect.Y + r), r, color, _whiteTexture, 10);
+        AddCircleFilled(new UiVector2(rect.X + w - r, rect.Y + r), r, color, _whiteTexture, 10);
     }
 
     private bool IsWindowTopmostAtMouse(string title, UiRect rect)
@@ -1179,9 +1312,11 @@ public sealed partial class UiImmediateContext
 
             // Render resize grip AFTER scrollbars (correct z-order)
             // 6 dots in triangular pattern: · / · · / · · ·
+            var gripInset = _windowCollapsed ? 0f : MathF.Min(ResizeGripSize * 0.5f, GetWindowCornerRadius());
+            const float gripOffset = 3f;
             var gripRect = new UiRect(
-                _windowRect.X + _windowRect.Width - ResizeGripSize,
-                _windowRect.Y + _windowRect.Height - ResizeGripSize,
+                _windowRect.X + _windowRect.Width - ResizeGripSize - gripInset + gripOffset,
+                _windowRect.Y + _windowRect.Height - ResizeGripSize - gripInset + gripOffset,
                 ResizeGripSize, ResizeGripSize);
             var resId = $"{_currentWindowId}##window_resize";
             var gripColor = _state.ActiveId == resId ? _theme.ButtonActive : IsHovering(gripRect) ? _theme.ButtonHovered : _theme.Button;
@@ -1192,6 +1327,7 @@ public sealed partial class UiImmediateContext
             // Center pattern in gripRect (with 1px border offset)
             var patternStartX = gripRect.X + (gripRect.Width - 1f - patternSize) * 0.5f;
             var patternStartY = gripRect.Y + (gripRect.Height - 1f - patternSize) * 0.5f;
+            PushClipRect(_windowRect, false);
             // row 0: 1 dot (col 2)
             // row 1: 2 dots (col 1, 2)
             // row 2: 3 dots (col 0, 1, 2)
@@ -1204,6 +1340,7 @@ public sealed partial class UiImmediateContext
                     _builder.AddRectFilled(new UiRect(dx, dy, dotSize, dotSize), gripColor, _whiteTexture, _windowRect);
                 }
             }
+            PopClipRect();
         }
 
         _layouts.Pop();
@@ -1281,13 +1418,24 @@ public sealed partial class UiImmediateContext
         _layouts.Push(parent);
     }
 
-    public void SameLine(float spacing = -1f)
+    public void SetNextItemVerticalAlign(UiItemVerticalAlign align)
+    {
+        _nextItemVerticalAlign = align;
+        _hasNextItemVerticalAlign = align != UiItemVerticalAlign.Top;
+    }
+
+    public void SameLine(float spacing = -1f, UiItemVerticalAlign verticalAlign = UiItemVerticalAlign.Top)
     {
         var current = _layouts.Pop();
         var gap = spacing < 0f ? ItemSpacingX : spacing;
         var cursor = new UiVector2(_lastItemPos.X + _lastItemSize.X + gap, _lastItemPos.Y);
         current = current with { Cursor = cursor };
         _layouts.Push(current);
+
+        if (verticalAlign != UiItemVerticalAlign.Top)
+        {
+            SetNextItemVerticalAlign(verticalAlign);
+        }
     }
 
     public void NewLine()

@@ -225,7 +225,7 @@ public static class UiFontAtlasBuilder
 	private static readonly object CacheLock = new();
 	private static readonly Dictionary<string, UiFontAtlas> AtlasCache = new();
 	private static readonly Dictionary<string, CachedFont> FontCache = new(StringComparer.OrdinalIgnoreCase);
-	private static readonly Dictionary<GlyphCacheKey, GlyphBitmap> GlyphBitmapCache = new();
+	private static readonly Dictionary<GlyphCacheKey, CachedGlyph> GlyphBitmapCache = new();
 	private static readonly Queue<string> AtlasCacheOrder = new();
 	private static readonly Queue<string> FontCacheOrder = new();
 	private static readonly Queue<GlyphCacheKey> GlyphCacheOrder = new();
@@ -233,12 +233,14 @@ public static class UiFontAtlasBuilder
 	private const int MaxFontCacheEntries = 32;
 	private const int MaxGlyphCacheEntries = 4096;
 	private const int MaxKerningGlyphs = 384;
-	private const int DiskCacheVersion = 1;
+	private const int DiskCacheVersion = 3;
 	private static readonly byte[] DiskCacheMagic = System.Text.Encoding.ASCII.GetBytes("DUXFNT");
 	private static readonly string DiskCacheRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Duxel", "FontAtlasCache");
+	private static Func<IPlatformGlyphBitmapRasterizer?>? PlatformGlyphRasterizerFactory;
 
 	private readonly record struct CachedFont(TtfFont Font, DateTime LastWriteTimeUtc);
-	private readonly record struct GlyphCacheKey(string FontPath, int Codepoint, int FontSize, int Oversample, float Scale);
+	private readonly record struct GlyphCacheKey(string FontPath, int Codepoint, int FontSize, int Oversample, float Scale, string RasterizerTag);
+	private readonly record struct CachedGlyph(GlyphBitmap Bitmap, bool HasPlacementMetrics, float OffsetX, float OffsetY, float Advance);
 	private readonly record struct PreparedGlyphEntry(int Codepoint, float Advance, float OffsetX, float OffsetY, GlyphBitmap Bitmap, bool HasBitmap);
 
 	private static void EmitDiagnostics(string message)
@@ -250,6 +252,11 @@ public static class UiFontAtlasBuilder
 		catch
 		{
 		}
+	}
+
+	public static void ConfigurePlatformGlyphRasterizerFactory(Func<IPlatformGlyphBitmapRasterizer?>? factory)
+	{
+		PlatformGlyphRasterizerFactory = factory;
 	}
 
 	public static bool TryCreateFromTtfMergedCached(
@@ -275,7 +282,8 @@ public static class UiFontAtlasBuilder
 		}
 		orderedSources.Sort(static (left, right) => left.Priority.CompareTo(right.Priority));
 
-		var cacheKey = BuildCacheKey(orderedSources, fontSize, atlasWidth, atlasHeight, padding, oversample, includeKerning: true);
+		var glyphRasterizer = ResolveGlyphRasterizer();
+		var cacheKey = BuildCacheKey(orderedSources, fontSize, atlasWidth, atlasHeight, padding, oversample, includeKerning: true, glyphRasterizer.CacheKeyTag);
 		lock (CacheLock)
 		{
 			if (AtlasCache.TryGetValue(cacheKey, out var cached))
@@ -353,15 +361,15 @@ public static class UiFontAtlasBuilder
 		return font;
 	}
 
-	private static bool TryGetCachedBitmap(GlyphCacheKey key, out GlyphBitmap bitmap)
+	private static bool TryGetCachedBitmap(GlyphCacheKey key, out CachedGlyph glyph)
 	{
 		lock (CacheLock)
 		{
-			return GlyphBitmapCache.TryGetValue(key, out bitmap);
+			return GlyphBitmapCache.TryGetValue(key, out glyph);
 		}
 	}
 
-	private static void StoreCachedBitmap(GlyphCacheKey key, GlyphBitmap bitmap)
+	private static void StoreCachedBitmap(GlyphCacheKey key, CachedGlyph glyph)
 	{
 		lock (CacheLock)
 		{
@@ -369,7 +377,7 @@ public static class UiFontAtlasBuilder
 			{
 				GlyphCacheOrder.Enqueue(key);
 			}
-			GlyphBitmapCache[key] = bitmap;
+			GlyphBitmapCache[key] = glyph;
 			TrimCache(GlyphBitmapCache, GlyphCacheOrder, MaxGlyphCacheEntries);
 		}
 	}
@@ -412,58 +420,69 @@ public static class UiFontAtlasBuilder
 			return false;
 		}
 
-		using var stream = File.OpenRead(path);
-		using var reader = new BinaryReader(stream);
-		var magic = reader.ReadBytes(DiskCacheMagic.Length);
-		if (!magic.AsSpan().SequenceEqual(DiskCacheMagic))
+		try
 		{
-			throw new InvalidDataException("Invalid font atlas cache header.");
-		}
+			using var stream = File.OpenRead(path);
+			using var reader = new BinaryReader(stream);
+			var magic = reader.ReadBytes(DiskCacheMagic.Length);
+			if (!magic.AsSpan().SequenceEqual(DiskCacheMagic))
+			{
+				atlas = null!;
+				return false;
+			}
 
-		var version = reader.ReadInt32();
-		if (version != DiskCacheVersion)
+			var version = reader.ReadInt32();
+			if (version != DiskCacheVersion)
+			{
+				atlas = null!;
+				return false;
+			}
+
+			var width = reader.ReadInt32();
+			var height = reader.ReadInt32();
+			var format = (UiTextureFormat)reader.ReadInt32();
+			var fallback = reader.ReadInt32();
+			var ascent = reader.ReadSingle();
+			var descent = reader.ReadSingle();
+			var lineGap = reader.ReadSingle();
+			var pixelLength = reader.ReadInt32();
+			var pixels = reader.ReadBytes(pixelLength);
+
+			var glyphCount = reader.ReadInt32();
+			var glyphs = new Dictionary<int, UiGlyphInfo>(glyphCount);
+			for (var i = 0; i < glyphCount; i++)
+			{
+				var codepoint = reader.ReadInt32();
+				var advance = reader.ReadSingle();
+				var offsetX = reader.ReadSingle();
+				var offsetY = reader.ReadSingle();
+				var widthF = reader.ReadSingle();
+				var heightF = reader.ReadSingle();
+				var uvX = reader.ReadSingle();
+				var uvY = reader.ReadSingle();
+				var uvW = reader.ReadSingle();
+				var uvH = reader.ReadSingle();
+				glyphs[codepoint] = new UiGlyphInfo(advance, offsetX, offsetY, widthF, heightF, new UiRect(uvX, uvY, uvW, uvH));
+			}
+
+			var kerningCount = reader.ReadInt32();
+			var kerning = new Dictionary<uint, float>(kerningCount);
+			for (var i = 0; i < kerningCount; i++)
+			{
+				var key = reader.ReadUInt32();
+				var value = reader.ReadSingle();
+				kerning[key] = value;
+			}
+
+			atlas = new UiFontAtlas(width, height, format, pixels, glyphs, kerning, ascent, descent, lineGap, fallback);
+			EmitDiagnostics("FontAtlasCache[DiskHit]");
+			return true;
+		}
+		catch (Exception ex) when (ex is IOException or InvalidDataException or EndOfStreamException)
 		{
-			throw new InvalidDataException("Unsupported font atlas cache version.");
+			atlas = null!;
+			return false;
 		}
-
-		var width = reader.ReadInt32();
-		var height = reader.ReadInt32();
-		var format = (UiTextureFormat)reader.ReadInt32();
-		var fallback = reader.ReadInt32();
-		var ascent = reader.ReadSingle();
-		var descent = reader.ReadSingle();
-		var lineGap = reader.ReadSingle();
-		var pixelLength = reader.ReadInt32();
-		var pixels = reader.ReadBytes(pixelLength);
-
-		var glyphCount = reader.ReadInt32();
-		var glyphs = new Dictionary<int, UiGlyphInfo>(glyphCount);
-		for (var i = 0; i < glyphCount; i++)
-		{
-			var codepoint = reader.ReadInt32();
-			var advance = reader.ReadSingle();
-			var offsetX = reader.ReadSingle();
-			var offsetY = reader.ReadSingle();
-			var widthF = reader.ReadSingle();
-			var heightF = reader.ReadSingle();
-			var uvX = reader.ReadSingle();
-			var uvY = reader.ReadSingle();
-			var uvW = reader.ReadSingle();
-			var uvH = reader.ReadSingle();
-			glyphs[codepoint] = new UiGlyphInfo(advance, offsetX, offsetY, widthF, heightF, new UiRect(uvX, uvY, uvW, uvH));
-		}
-
-		var kerningCount = reader.ReadInt32();
-		var kerning = new Dictionary<uint, float>(kerningCount);
-		for (var i = 0; i < kerningCount; i++)
-		{
-			var key = reader.ReadUInt32();
-			var value = reader.ReadSingle();
-			kerning[key] = value;
-		}
-
-		atlas = new UiFontAtlas(width, height, format, pixels, glyphs, kerning, ascent, descent, lineGap, fallback);
-		return true;
 	}
 
 	private static void SaveAtlasToDisk(string cacheKey, UiFontAtlas atlas)
@@ -518,7 +537,8 @@ public static class UiFontAtlasBuilder
 			orderedSources.Add(sources[i]);
 		}
 		orderedSources.Sort(static (left, right) => left.Priority.CompareTo(right.Priority));
-		var cacheKey = BuildCacheKey(orderedSources, fontSize, atlasWidth, atlasHeight, padding, oversample, includeKerning: true);
+		var glyphRasterizer = ResolveGlyphRasterizer();
+		var cacheKey = BuildCacheKey(orderedSources, fontSize, atlasWidth, atlasHeight, padding, oversample, includeKerning: true, glyphRasterizer.CacheKeyTag);
 		lock (CacheLock)
 		{
 			return AtlasCache.Remove(cacheKey);
@@ -624,7 +644,8 @@ public static class UiFontAtlasBuilder
 			orderedSources.Add(sources[i]);
 		}
 		orderedSources.Sort(static (left, right) => left.Priority.CompareTo(right.Priority));
-		var cacheKey = BuildCacheKey(orderedSources, fontSize, atlasWidth, atlasHeight, padding, oversample, includeKerning);
+		var glyphRasterizer = ResolveGlyphRasterizer();
+		var cacheKey = BuildCacheKey(orderedSources, fontSize, atlasWidth, atlasHeight, padding, oversample, includeKerning, glyphRasterizer.CacheKeyTag);
 		lock (CacheLock)
 		{
 			if (AtlasCache.TryGetValue(cacheKey, out var cached))
@@ -657,8 +678,8 @@ public static class UiFontAtlasBuilder
 			}
 
 			var font = GetCachedFont(source.FontPath);
-			var renderScale = font.GetScaleForPixelHeight((int)(fontSize * source.Scale * oversample));
-			var pixelScale = font.GetScaleForPixelHeight((int)(fontSize * source.Scale));
+			var renderScale = font.GetScaleForPixelHeight((int)MathF.Max(1f, fontSize * source.Scale * oversample));
+			var pixelScale = font.GetScaleForPixelHeight((int)MathF.Max(1f, fontSize * source.Scale));
 			var sourceAscent = font.Ascender * pixelScale;
 			fonts.Add(font);
 			renderScales.Add(renderScale);
@@ -738,18 +759,36 @@ public static class UiFontAtlasBuilder
 					return;
 				}
 
-				var glyphCacheKey = new GlyphCacheKey(source.FontPath, codepoint, fontSize, oversample, source.Scale);
-				if (!TryGetCachedBitmap(glyphCacheKey, out var bitmap))
+				var glyphCacheKey = new GlyphCacheKey(source.FontPath, codepoint, fontSize, oversample, source.Scale, glyphRasterizer.CacheKeyTag);
+				if (!TryGetCachedBitmap(glyphCacheKey, out var cachedGlyph))
 				{
-					bitmap = glyph.Rasterize(renderScale);
-					if (oversample > 1)
+					var rasterInput = new GlyphRasterizationInput(source.FontPath, codepoint, glyphIndex, fontSize, oversample, source.Scale, glyph, renderScale);
+					if (!glyphRasterizer.TryRasterize(rasterInput, out var rasterizedGlyph))
 					{
-						bitmap = Downsample(bitmap, oversample);
+						throw new InvalidOperationException($"Failed to rasterize glyph U+{codepoint:X4} for font '{source.FontPath}'.");
 					}
-					StoreCachedBitmap(glyphCacheKey, bitmap);
+
+					cachedGlyph = new CachedGlyph(
+						rasterizedGlyph.Bitmap,
+						rasterizedGlyph.HasPlacementMetrics,
+						rasterizedGlyph.OffsetX,
+						rasterizedGlyph.OffsetY,
+						rasterizedGlyph.Advance
+					);
+					StoreCachedBitmap(glyphCacheKey, cachedGlyph);
 				}
 
-				prepared[i] = new PreparedGlyphEntry(codepoint, advance, offsetX, offsetY, bitmap, true);
+				if (cachedGlyph.HasPlacementMetrics)
+				{
+					offsetX = cachedGlyph.OffsetX;
+					offsetY = cachedGlyph.OffsetY + baselineDelta;
+					if (cachedGlyph.Advance > 0f)
+					{
+						advance = cachedGlyph.Advance;
+					}
+				}
+
+				prepared[i] = new PreparedGlyphEntry(codepoint, advance, offsetX, offsetY, cachedGlyph.Bitmap, true);
 			});
 
 			for (var i = 0; i < prepared.Length; i++)
@@ -835,7 +874,8 @@ public static class UiFontAtlasBuilder
 		int atlasHeight,
 		int padding,
 		int oversample,
-		bool includeKerning
+		bool includeKerning,
+		string rasterizerTag
 	)
 	{
 		var builder = new System.Text.StringBuilder();
@@ -844,7 +884,8 @@ public static class UiFontAtlasBuilder
 			.Append(atlasHeight).Append('|')
 			.Append(padding).Append('|')
 			.Append(oversample).Append('|')
-			.Append(includeKerning ? '1' : '0');
+			.Append(includeKerning ? '1' : '0')
+			.Append('|').Append(rasterizerTag);
 		for (var i = 0; i < sources.Count; i++)
 		{
 			var source = sources[i];
@@ -855,6 +896,17 @@ public static class UiFontAtlasBuilder
 				.Append('|').Append(HashCodepoints(source.Codepoints));
 		}
 		return builder.ToString();
+	}
+
+	private static IGlyphBitmapRasterizer ResolveGlyphRasterizer()
+	{
+		var platformRasterizer = PlatformGlyphRasterizerFactory?.Invoke();
+		if (platformRasterizer is not null)
+		{
+			return new CompositeGlyphBitmapRasterizer(new PlatformGlyphBitmapRasterizerAdapter(platformRasterizer), TtfGlyphBitmapRasterizer.Instance);
+		}
+
+		return TtfGlyphBitmapRasterizer.Instance;
 	}
 
 	private static long GetFileStamp(string path)

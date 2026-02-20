@@ -186,17 +186,22 @@ public sealed class SampleScreen : UiScreen
 
         if (ui.CollapsingHeader("Lists/Combo", UiTreeNodeFlags.DefaultOpen))
         {
-            ui.Combo("Combo", ref _comboIndex, _items, 5);
-            ui.Combo("ComboGetter", ref _comboIndexGetter, _items.Length, i => _items[i], 5);
+            ui.Text("Combo");
+            ui.Combo(ref _comboIndex, _items, 5, "Combo");
+            ui.Text("ComboGetter");
+            ui.Combo(ref _comboIndexGetter, _items.Length, i => _items[i], 5, "ComboGetter");
 
-            ui.ListBox("ListBox", ref _listIndex, _items, 4);
-            ui.ListBox("ListBoxGetter", ref _listIndexGetter, _items.Length, i => _items[i], 4);
+            ui.Text("ListBox");
+            ui.ListBox(ref _listIndex, _items, 4, "ListBox");
+            ui.Text("ListBoxGetter");
+            ui.ListBox(ref _listIndexGetter, _items.Length, i => _items[i], 4, "ListBoxGetter");
 
             if (_items.Length > 0)
             {
                 _comboIndex = Math.Clamp(_comboIndex, 0, _items.Length - 1);
             }
-            if (ui.BeginCombo("BeginCombo", _items[_comboIndex], 5))
+            ui.Text("BeginCombo");
+            if (ui.BeginCombo(_items[_comboIndex], 5, "BeginCombo"))
             {
                 for (var i = 0; i < _items.Length; i++)
                 {
@@ -209,7 +214,8 @@ public sealed class SampleScreen : UiScreen
                 ui.EndCombo();
             }
 
-            if (ui.BeginListBox("BeginListBox", new UiVector2(0f, 0f), 4))
+            ui.Text("BeginListBox");
+            if (ui.BeginListBox(new UiVector2(0f, 0f), 4, "BeginListBox"))
             {
                 for (var i = 0; i < _items.Length; i++)
                 {

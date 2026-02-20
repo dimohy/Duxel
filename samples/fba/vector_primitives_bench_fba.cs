@@ -35,9 +35,8 @@ public sealed class VectorPrimitivesBenchScreen : UiScreen
     private int _phaseSamples;
 
     private double _lastTime;
+    private readonly UiFpsCounter _fpsCounter = new(0.25d);
     private float _fps;
-    private int _fpsFrames;
-    private double _fpsAccum;
 
     public override void Render(UiImmediateContext ui)
     {
@@ -59,48 +58,17 @@ public sealed class VectorPrimitivesBenchScreen : UiScreen
 
     private static int[] ReadPrimitiveCounts()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_VECTOR_BENCH_COUNTS");
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return [6000, 12000, 24000];
-        }
-
-        var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var list = new List<int>(parts.Length);
-        for (var i = 0; i < parts.Length; i++)
-        {
-            if (int.TryParse(parts[i], out var value) && value >= 1000)
-            {
-                list.Add(value);
-            }
-        }
-
-        return list.Count > 0 ? list.ToArray() : [6000, 12000, 24000];
+        return BenchOptions.ReadIntCsv("DUXEL_VECTOR_BENCH_COUNTS", [6000, 12000, 24000], minInclusive: 1000);
     }
 
     private static double ReadPhaseSeconds()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_VECTOR_BENCH_PHASE_SECONDS");
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return 1.2d;
-        }
-
-        return double.TryParse(raw, out var value) && value >= 0.8d ? value : 1.2d;
+        return BenchOptions.ReadDouble("DUXEL_VECTOR_BENCH_PHASE_SECONDS", 1.2d, minExclusive: 0.8d);
     }
 
     private void UpdateFps(double delta)
     {
-        _fpsAccum += delta;
-        _fpsFrames++;
-        if (_fpsAccum < 0.25d)
-        {
-            return;
-        }
-
-        _fps = (float)(_fpsFrames / _fpsAccum);
-        _fpsFrames = 0;
-        _fpsAccum = 0d;
+        _fps = _fpsCounter.Tick(delta).Fps;
     }
 
     private void TickBench(double delta)

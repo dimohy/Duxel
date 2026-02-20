@@ -261,11 +261,38 @@ public sealed partial class UiImmediateContext
                 AddRectFilled(cellRect, bg, _whiteTexture);
             }
 
+            var activeSpecs = _state.GetTableSortSpecs(sortKey);
+            var specIndex = FindSortSpecIndex(activeSpecs, i);
+            var hasSortIcon = specIndex >= 0;
+            var iconSize = MathF.Max(8f, MathF.Min(12f, headerHeight - 8f));
+            var iconRect = new UiRect(
+                cellRect.X + columnWidth - ButtonPaddingX - iconSize,
+                cellRect.Y + (headerHeight - iconSize) * 0.5f,
+                iconSize,
+                iconSize
+            );
+
+            var hasSortOrder = hasSortIcon && activeSpecs.Count > 1;
+            var orderText = hasSortOrder ? FormattableString.Invariant($"{specIndex + 1}") : string.Empty;
+            var orderSize = hasSortOrder
+                ? UiTextBuilder.MeasureText(_fontAtlas, orderText, _textSettings, _lineHeight)
+                : default;
+
             if (!string.IsNullOrEmpty(label))
             {
                 var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
                 var align = i < columnAlign.Length ? columnAlign[i] : 0f;
-                var available = MathF.Max(0f, columnWidth - (ButtonPaddingX * 2f));
+                var reservedRight = ButtonPaddingX;
+                if (hasSortIcon)
+                {
+                    reservedRight += iconSize + 4f;
+                }
+                if (hasSortOrder)
+                {
+                    reservedRight += orderSize.X + 4f;
+                }
+
+                var available = MathF.Max(0f, columnWidth - ButtonPaddingX - reservedRight);
                 var cellX = cellRect.X + ButtonPaddingX + MathF.Max(0f, available - textSize.X) * align;
                 var cellY = cellRect.Y + (headerHeight - textSize.Y) * 0.5f;
                 _builder.AddText(
@@ -280,31 +307,23 @@ public sealed partial class UiImmediateContext
                 );
             }
 
-            var activeSpecs = _state.GetTableSortSpecs(sortKey);
-            var specIndex = FindSortSpecIndex(activeSpecs, i);
-            if (specIndex >= 0)
+            if (hasSortIcon)
             {
                 var active = activeSpecs[specIndex];
-                var arrow = active.Ascending ? "^" : "v";
-                var arrowSize = UiTextBuilder.MeasureText(_fontAtlas, arrow, _textSettings, _lineHeight);
-                var arrowX = cellRect.X + columnWidth - ButtonPaddingX - arrowSize.X;
-                var arrowY = cellRect.Y + (headerHeight - arrowSize.Y) * 0.5f;
-                _builder.AddText(
-                    _fontAtlas,
-                    arrow,
-                    new UiVector2(arrowX, arrowY),
-                    _theme.Text,
-                    _fontTexture,
-                    CurrentClipRect,
-                    _textSettings,
-                    _lineHeight
-                );
 
-                if (activeSpecs.Count > 1)
+                var iconRotationDegrees = AnimateToggleRotationDegrees(
+                    $"{sortKey}##col{i}##sort_chevron",
+                    expanded: active.Ascending,
+                    collapsedDegrees: 0f,
+                    expandedDegrees: 180f,
+                    durationSeconds: 0.12f,
+                    easing: UiAnimationEasing.OutCubic
+                );
+                DrawChevronIcon(iconRect, iconRotationDegrees, scale: 2f / 3f, thickness: 1.2f, color: _theme.Text);
+
+                if (hasSortOrder)
                 {
-                    var orderText = FormattableString.Invariant($"{specIndex + 1}");
-                    var orderSize = UiTextBuilder.MeasureText(_fontAtlas, orderText, _textSettings, _lineHeight);
-                    var orderX = arrowX - orderSize.X - 4f;
+                    var orderX = iconRect.X - orderSize.X - 4f;
                     var orderY = cellRect.Y + (headerHeight - orderSize.Y) * 0.5f;
                     _builder.AddText(
                         _fontAtlas,

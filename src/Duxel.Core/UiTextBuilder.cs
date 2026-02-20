@@ -335,9 +335,12 @@ public static class UiTextBuilder
     )
     {
         var scale = settings.Scale;
+        var pixelSnap = settings.PixelSnap;
         var lineHeight = (lineHeightOverride ?? (font.LineHeight * settings.LineHeightScale)) * scale;
         var maxWidth = 0f;
         var lineWidth = 0f;
+        var lineMinX = 0f;
+        var lineMaxX = 0f;
         var height = lineHeight;
         var hasPrev = false;
         var prevChar = 0;
@@ -363,8 +366,11 @@ public static class UiTextBuilder
                 var code = span[i];
                 if (code == '\n')
                 {
-                    maxWidth = MathF.Max(maxWidth, lineWidth);
+                    var visualWidth = MathF.Max(lineWidth, lineMaxX) - MathF.Min(0f, lineMinX);
+                    maxWidth = MathF.Max(maxWidth, visualWidth);
                     lineWidth = 0f;
+                    lineMinX = 0f;
+                    lineMaxX = 0f;
                     height += lineHeight;
                     hasPrev = false;
                     continue;
@@ -372,7 +378,7 @@ public static class UiTextBuilder
 
                 if (hasPrev && hasKerning)
                 {
-                    lineWidth += font.GetKerning(prevChar, code) * scale;
+                    lineWidth = Snap(lineWidth + (font.GetKerning(prevChar, code) * scale), pixelSnap);
                 }
 
                 var allowFallbackForCodepoint = useFallbackGlyph && !IsHangulCodepoint(code);
@@ -382,12 +388,18 @@ public static class UiTextBuilder
                 if (!hasGlyph)
                 {
                     missingGlyphObserver?.Invoke(code);
-                    lineWidth += lineHeight * 0.5f;
+                    lineMaxX = MathF.Max(lineMaxX, lineWidth + (lineHeight * 0.5f));
+                    lineWidth = Snap(lineWidth + (lineHeight * 0.5f), pixelSnap);
                     hasPrev = false;
                     continue;
                 }
 
-                lineWidth += glyph.AdvanceX * scale;
+                var glyphLeft = Snap(lineWidth + (glyph.OffsetX * scale), pixelSnap);
+                var glyphRight = Snap(glyphLeft + (glyph.Width * scale), pixelSnap);
+                lineMinX = MathF.Min(lineMinX, glyphLeft);
+                lineMaxX = MathF.Max(lineMaxX, glyphRight);
+
+                lineWidth = Snap(lineWidth + (glyph.AdvanceX * scale), pixelSnap);
                 hasPrev = true;
                 prevChar = code;
             }
@@ -398,8 +410,11 @@ public static class UiTextBuilder
             {
                 if (rune.Value == '\n')
                 {
-                    maxWidth = MathF.Max(maxWidth, lineWidth);
+                    var visualWidth = MathF.Max(lineWidth, lineMaxX) - MathF.Min(0f, lineMinX);
+                    maxWidth = MathF.Max(maxWidth, visualWidth);
                     lineWidth = 0f;
+                    lineMinX = 0f;
+                    lineMaxX = 0f;
                     height += lineHeight;
                     hasPrev = false;
                     continue;
@@ -407,7 +422,7 @@ public static class UiTextBuilder
 
                 if (hasPrev && hasKerning)
                 {
-                    lineWidth += font.GetKerning(prevChar, rune.Value) * scale;
+                    lineWidth = Snap(lineWidth + (font.GetKerning(prevChar, rune.Value) * scale), pixelSnap);
                 }
 
                 var allowFallbackForCodepoint = useFallbackGlyph && !IsHangulCodepoint(rune.Value);
@@ -417,18 +432,25 @@ public static class UiTextBuilder
                 if (!hasGlyph)
                 {
                     missingGlyphObserver?.Invoke(rune.Value);
-                    lineWidth += lineHeight * 0.5f;
+                    lineMaxX = MathF.Max(lineMaxX, lineWidth + (lineHeight * 0.5f));
+                    lineWidth = Snap(lineWidth + (lineHeight * 0.5f), pixelSnap);
                     hasPrev = false;
                     continue;
                 }
 
-                lineWidth += glyph.AdvanceX * scale;
+                var glyphLeft = Snap(lineWidth + (glyph.OffsetX * scale), pixelSnap);
+                var glyphRight = Snap(glyphLeft + (glyph.Width * scale), pixelSnap);
+                lineMinX = MathF.Min(lineMinX, glyphLeft);
+                lineMaxX = MathF.Max(lineMaxX, glyphRight);
+
+                lineWidth = Snap(lineWidth + (glyph.AdvanceX * scale), pixelSnap);
                 hasPrev = true;
                 prevChar = rune.Value;
             }
         }
 
-        maxWidth = MathF.Max(maxWidth, lineWidth);
+        var finalVisualWidth = MathF.Max(lineWidth, lineMaxX) - MathF.Min(0f, lineMinX);
+        maxWidth = MathF.Max(maxWidth, finalVisualWidth);
         return new UiVector2(maxWidth, height);
     }
 

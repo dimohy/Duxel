@@ -2,11 +2,11 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
-    public bool ListBox(string label, ref int currentIndex, int itemsCount, Func<int, string> itemsGetter, int visibleItems = 6)
+    public bool ListBox(ref int currentIndex, int itemsCount, Func<int, string> itemsGetter, int visibleItems = 6, string? id = null)
     {
-        label ??= "ListBox";
         ArgumentNullException.ThrowIfNull(itemsGetter);
-        var id = ResolveId(label);
+        var listId = string.IsNullOrWhiteSpace(id) ? "ListBox" : id;
+        var resolvedId = ResolveId(listId);
 
         if (itemsCount <= 0)
         {
@@ -19,30 +19,15 @@ public sealed partial class UiImmediateContext
 
         visibleItems = Math.Max(1, visibleItems);
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
         var boxHeight = (frameHeight * visibleItems) + 4f;
         var listWidth = ResolveItemWidth(InputWidth);
-        var totalSize = new UiVector2(textSize.X + ItemSpacingX + listWidth, MathF.Max(textSize.Y, boxHeight));
-        var cursor = AdvanceCursor(totalSize);
-
-        var labelPos = new UiVector2(cursor.X, cursor.Y + (totalSize.Y - textSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
-            label,
-            labelPos,
-            _theme.Text,
-            _fontTexture,
-            CurrentClipRect,
-            _textSettings,
-            _lineHeight
-        );
-
-        var listRect = new UiRect(cursor.X + textSize.X + ItemSpacingX, cursor.Y + (totalSize.Y - boxHeight) * 0.5f, listWidth, boxHeight);
+        var cursor = AdvanceCursor(new UiVector2(listWidth, boxHeight));
+        var listRect = new UiRect(cursor.X, cursor.Y, listWidth, boxHeight);
         AddRectFilled(listRect, _theme.FrameBg, _whiteTexture);
 
         var hovered = IsHovering(listRect);
-        var scrollY = _state.GetScrollY(id);
+        var scrollY = _state.GetScrollY(resolvedId);
         var contentHeight = itemsCount * frameHeight;
         var maxScroll = MathF.Max(0f, contentHeight - (listRect.Height - 4f));
         if (hovered && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f && !(_popupTierDepth == 0 && IsMouseOverAnyBlockingPopup()))
@@ -61,7 +46,7 @@ public sealed partial class UiImmediateContext
                 continue;
             }
 
-            var itemId = ResolveId($"{label}##item{i}");
+            var itemId = ResolveId($"{listId}##item{i}");
             var itemHovered = ItemHoverable(itemId, itemRect);
 
             if (i == currentIndex)
@@ -102,19 +87,19 @@ public sealed partial class UiImmediateContext
                 ScrollbarSize,
                 listRect.Height
             );
-            scrollY = RenderScrollbarV($"{id}##lbscroll", trackRect, scrollY, maxScroll, contentHeight, CurrentClipRect);
+            scrollY = RenderScrollbarV($"{resolvedId}##lbscroll", trackRect, scrollY, maxScroll, contentHeight, CurrentClipRect);
         }
         PopClipRect();
 
-        _state.SetScrollY(id, scrollY);
+        _state.SetScrollY(resolvedId, scrollY);
         return changed;
     }
 
-    public bool ListBox(string label, ref int currentIndex, IReadOnlyList<string> items, int visibleItems = 6)
+    public bool ListBox(ref int currentIndex, IReadOnlyList<string> items, int visibleItems = 6, string? id = null)
     {
-        label ??= "ListBox";
         ArgumentNullException.ThrowIfNull(items);
-        var id = ResolveId(label);
+        var listId = string.IsNullOrWhiteSpace(id) ? "ListBox" : id;
+        var resolvedId = ResolveId(listId);
 
         if (items.Count == 0)
         {
@@ -127,30 +112,15 @@ public sealed partial class UiImmediateContext
 
         visibleItems = Math.Max(1, visibleItems);
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
         var boxHeight = (frameHeight * visibleItems) + 4f;
         var listWidth = ResolveItemWidth(InputWidth);
-        var totalSize = new UiVector2(textSize.X + ItemSpacingX + listWidth, MathF.Max(textSize.Y, boxHeight));
-        var cursor = AdvanceCursor(totalSize);
-
-        var labelPos = new UiVector2(cursor.X, cursor.Y + (totalSize.Y - textSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
-            label,
-            labelPos,
-            _theme.Text,
-            _fontTexture,
-            CurrentClipRect,
-            _textSettings,
-            _lineHeight
-        );
-
-        var listRect = new UiRect(cursor.X + textSize.X + ItemSpacingX, cursor.Y + (totalSize.Y - boxHeight) * 0.5f, listWidth, boxHeight);
+        var cursor = AdvanceCursor(new UiVector2(listWidth, boxHeight));
+        var listRect = new UiRect(cursor.X, cursor.Y, listWidth, boxHeight);
         AddRectFilled(listRect, _theme.FrameBg, _whiteTexture);
 
         var hovered = IsHovering(listRect);
-        var scrollY = _state.GetScrollY(id);
+        var scrollY = _state.GetScrollY(resolvedId);
         var contentHeight = items.Count * frameHeight;
         var maxScroll = MathF.Max(0f, contentHeight - (listRect.Height - 4f));
         if (hovered && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f && !(_popupTierDepth == 0 && IsMouseOverAnyBlockingPopup()))
@@ -169,7 +139,7 @@ public sealed partial class UiImmediateContext
                 continue;
             }
 
-            var itemId = ResolveId($"{label}##item{i}");
+            var itemId = ResolveId($"{listId}##item{i}");
             var itemHovered = ItemHoverable(itemId, itemRect);
 
             if (i == currentIndex)
@@ -210,11 +180,11 @@ public sealed partial class UiImmediateContext
                 ScrollbarSize,
                 listRect.Height
             );
-            scrollY = RenderScrollbarV($"{id}##lbscroll", trackRect, scrollY, maxScroll, contentHeight, CurrentClipRect);
+            scrollY = RenderScrollbarV($"{resolvedId}##lbscroll", trackRect, scrollY, maxScroll, contentHeight, CurrentClipRect);
         }
         PopClipRect();
 
-        _state.SetScrollY(id, scrollY);
+        _state.SetScrollY(resolvedId, scrollY);
         return changed;
     }
 }

@@ -26,7 +26,6 @@ public sealed class AdvancedLayoutScreen : UiScreen
     private float _scrollTarget = 0f;
     private float _itemWidth = 200f;
     private float _wrapWidth = 300f;
-    private float _fontScale = 1.0f;
 
     public override void Render(UiImmediateContext ui)
     {
@@ -244,15 +243,12 @@ public sealed class AdvancedLayoutScreen : UiScreen
             ui.SetNextWindowSize(new UiVector2(350f, 180f));
         ui.BeginWindow("Font Scale");
 
-        ui.SeparatorText("SetWindowFontScale");
-        ui.SliderFloat("Scale", ref _fontScale, 0.5f, 2.0f, 0f, "0.00");
-        ui.SetWindowFontScale(_fontScale);
+        ui.SeparatorText("Font Metrics");
         ui.Text($"Current font size: {ui.GetFontSize():0.0}");
         ui.Text($"Line height: {ui.GetTextLineHeight():0.0}");
         ui.Text($"Line+spacing: {ui.GetTextLineHeightWithSpacing():0.0}");
         ui.Text($"Frame height: {ui.GetFrameHeight():0.0}");
         ui.Button("Scaled Button");
-        ui.SetWindowFontScale(1.0f);
 
         ui.EndWindow();
     }

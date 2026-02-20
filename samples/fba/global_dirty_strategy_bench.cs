@@ -94,15 +94,10 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
         ui.SetNextWindowSize(new UiVector2(bounds.Width - 24f, bounds.Height - 220f));
         ui.BeginWindow("Global Dirty Canvas");
 
-        var origin = ui.GetCursorScreenPos();
-        var avail = ui.GetContentRegionAvail();
-        var canvas = new UiRect(origin.X, origin.Y, MathF.Max(1f, avail.X), MathF.Max(1f, avail.Y));
+        var canvas = ui.BeginWindowCanvas(new UiColor(0xFF111111), ui.WhiteTextureId, clipToCanvas: true);
 
         var drawList = ui.GetWindowDrawList();
         var white = ui.WhiteTextureId;
-        drawList.PushTexture(white);
-        drawList.PushClipRect(canvas);
-        drawList.AddRectFilled(canvas, new UiColor(0xFF111111), white, canvas);
 
         drawList.Split(2);
 
@@ -131,11 +126,7 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
 
         drawList.Merge();
 
-        drawList.PopClipRect();
-        drawList.PopTexture();
-
-        ui.SetCursorScreenPos(new UiVector2(origin.X, origin.Y));
-        ui.Dummy(new UiVector2(canvas.Width, canvas.Height));
+        _ = ui.EndWindowCanvas();
         ui.EndWindow();
     }
 
@@ -384,53 +375,21 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
 
     private static double ReadPhaseSeconds()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_GLOBAL_DIRTY_BENCH_PHASE_SECONDS");
-        if (!string.IsNullOrWhiteSpace(raw)
-            && double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
-            && value > 0.1d)
-        {
-            return value;
-        }
-
-        return 2d;
+        return BenchOptions.ReadDouble("DUXEL_GLOBAL_DIRTY_BENCH_PHASE_SECONDS", 2d, minExclusive: 0.1d);
     }
 
     private static int ReadDensity()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_GLOBAL_DIRTY_BENCH_DENSITY");
-        if (!string.IsNullOrWhiteSpace(raw)
-            && int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            && value >= 400 && value <= 32000)
-        {
-            return value;
-        }
-
-        return 9600;
+        return BenchOptions.ReadInt("DUXEL_GLOBAL_DIRTY_BENCH_DENSITY", 9600, minInclusive: 400, maxInclusive: 32000);
     }
 
     private static int ReadTileColumns()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_GLOBAL_DIRTY_BENCH_COLS");
-        if (!string.IsNullOrWhiteSpace(raw)
-            && int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            && value >= 2 && value <= 16)
-        {
-            return value;
-        }
-
-        return 8;
+        return BenchOptions.ReadInt("DUXEL_GLOBAL_DIRTY_BENCH_COLS", 8, minInclusive: 2, maxInclusive: 16);
     }
 
     private static int ReadTileRows()
     {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_GLOBAL_DIRTY_BENCH_ROWS");
-        if (!string.IsNullOrWhiteSpace(raw)
-            && int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            && value >= 2 && value <= 12)
-        {
-            return value;
-        }
-
-        return 6;
+        return BenchOptions.ReadInt("DUXEL_GLOBAL_DIRTY_BENCH_ROWS", 6, minInclusive: 2, maxInclusive: 12);
     }
 }

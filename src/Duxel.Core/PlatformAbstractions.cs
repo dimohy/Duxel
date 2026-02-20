@@ -42,6 +42,7 @@ public interface IPlatformBackend : IDisposable
 {
     PlatformSize WindowSize { get; }
     PlatformSize FramebufferSize { get; }
+    bool IsInteractingResize { get; }
     bool ShouldClose { get; }
     double TimeSeconds { get; }
     IInputBackend Input { get; }

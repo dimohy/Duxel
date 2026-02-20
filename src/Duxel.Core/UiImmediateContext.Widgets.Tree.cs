@@ -47,11 +47,22 @@ public sealed partial class UiImmediateContext
         }
         _lastItemToggledOpen = pressed;
 
-        var bg = held ? _theme.HeaderActive : hovered ? _theme.HeaderHovered : _theme.Header;
-        AddRectFilled(rect, bg, _whiteTexture);
+        var headerBlend = AnimateFloat(
+            $"{id}##header_blend",
+            held ? 1f : hovered ? 0.65f : 0f,
+            durationSeconds: 0.12f,
+            easing: UiAnimationEasing.OutCubic
+        );
+        var bgBase = ApplyAlpha(_theme.Header, 0.90f);
+        AddRectFilled(rect, bgBase, _whiteTexture);
+        if (headerBlend > 0.001f)
+        {
+            var accent = held ? _theme.HeaderActive : _theme.HeaderHovered;
+            AddRectFilled(rect, ApplyAlpha(accent, headerBlend), _whiteTexture);
+        }
 
         var arrowRect = new UiRect(rect.X + ButtonPaddingX, rect.Y + (height - arrowSize) * 0.5f, arrowSize, arrowSize);
-        DrawTreeArrow(arrowRect, isOpen, _theme.Text);
+        DrawTreeArrow(arrowRect, isOpen, id, _theme.Text);
 
         var textPos = new UiVector2(arrowRect.X + arrowRect.Width + 6f, rect.Y + (height - textSize.Y) * 0.5f);
         _builder.AddText(
@@ -124,13 +135,19 @@ public sealed partial class UiImmediateContext
         }
         _lastItemToggledOpen = pressed;
 
-        if (hovered)
+        var hoverBlend = AnimateFloat(
+            $"{id}##tree_hover",
+            hovered ? 1f : 0f,
+            durationSeconds: 0.10f,
+            easing: UiAnimationEasing.OutCubic
+        );
+        if (hoverBlend > 0.001f)
         {
-            AddRectFilled(rect, _theme.HeaderHovered, _whiteTexture);
+            AddRectFilled(rect, ApplyAlpha(_theme.HeaderHovered, hoverBlend * 0.75f), _whiteTexture);
         }
 
         var arrowRect = new UiRect(rect.X + ButtonPaddingX, rect.Y + (height - arrowSize) * 0.5f, arrowSize, arrowSize);
-        DrawTreeArrow(arrowRect, isOpen, _theme.Text);
+        DrawTreeArrow(arrowRect, isOpen, id, _theme.Text);
 
         var textPos = new UiVector2(arrowRect.X + arrowRect.Width + 6f, rect.Y + (height - textSize.Y) * 0.5f);
         _builder.AddText(
@@ -190,24 +207,17 @@ public sealed partial class UiImmediateContext
         PopIndent();
     }
 
-    private void DrawTreeArrow(UiRect rect, bool isOpen, UiColor color)
+    private void DrawTreeArrow(UiRect rect, bool isOpen, string animationId, UiColor color)
     {
-        var center = new UiVector2(rect.X + rect.Width * 0.5f, rect.Y + rect.Height * 0.5f);
-        var half = MathF.Max(2f, MathF.Min(rect.Width, rect.Height) * 0.38f);
-
-        if (isOpen)
-        {
-            var a = new UiVector2(center.X - half, center.Y - half * 0.6f);
-            var b = new UiVector2(center.X + half, center.Y - half * 0.6f);
-            var c = new UiVector2(center.X, center.Y + half);
-            _builder.AddTriangleFilled(a, b, c, color, _whiteTexture, CurrentClipRect);
-            return;
-        }
-
-        var p1 = new UiVector2(center.X - half * 0.6f, center.Y - half);
-        var p2 = new UiVector2(center.X - half * 0.6f, center.Y + half);
-        var p3 = new UiVector2(center.X + half, center.Y);
-        _builder.AddTriangleFilled(p1, p2, p3, color, _whiteTexture, CurrentClipRect);
+        var rotation = AnimateToggleRotationDegrees(
+            $"{animationId}##tree_chevron",
+            expanded: isOpen,
+            collapsedDegrees: -90f,
+            expandedDegrees: 0f,
+            durationSeconds: 0.14f,
+            easing: UiAnimationEasing.OutCubic
+        );
+        DrawChevronIcon(rect, rotation, scale: 2f / 3f, thickness: 1.2f, color: color, opticalOffsetY: _lineHeight * 0.06f);
     }
 }
 

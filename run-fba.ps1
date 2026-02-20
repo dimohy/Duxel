@@ -233,6 +233,34 @@ else {
             'DuxelWindowsApp.Run(',
             [System.Text.RegularExpressions.RegexOptions]::None
         )
+
+        $targetFrameworkLine = '#:property TargetFramework=net10.0-windows7.0'
+        if ($replaced -match '(?im)^\s*#:property\s+TargetFramework\s*=\s*([^\r\n]+)\s*$') {
+            $replaced = [System.Text.RegularExpressions.Regex]::Replace(
+                $replaced,
+                '(?im)^\s*#:property\s+TargetFramework\s*=\s*([^\r\n]+)\s*$',
+                $targetFrameworkLine,
+                1
+            )
+        }
+        else {
+            $replaced = "$targetFrameworkLine`n$replaced"
+        }
+
+        $outputTypeLine = '#:property OutputType=WinExe'
+        if ($replaced -notmatch '(?im)^\s*#:property\s+OutputType\s*=\s*WinExe\s*$') {
+            if ($replaced -match '(?im)^\s*#:property\s+OutputType\s*=\s*[^\r\n]+\s*$') {
+                $replaced = [System.Text.RegularExpressions.Regex]::Replace(
+                    $replaced,
+                    '(?im)^\s*#:property\s+OutputType\s*=\s*[^\r\n]+\s*$',
+                    $outputTypeLine,
+                    1
+                )
+            }
+            else {
+                $replaced = "$outputTypeLine`n$replaced"
+            }
+        }
     }
 
     if ($packageName -eq 'Duxel.Windows.App') {

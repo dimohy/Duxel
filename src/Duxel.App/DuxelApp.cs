@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Duxel.Core;
 using Duxel.Core.Dsl;
-using Duxel.Platform.Glfw;
 using Duxel.Vulkan;
 
 namespace Duxel.App;
@@ -74,9 +73,10 @@ public static class DuxelApp
         runner(options);
     }
 
-    public static void RunCore(DuxelAppOptions options)
+    public static void RunCore(DuxelAppOptions options, IPlatformBackend platform)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(platform);
         ValidateOptions(options);
 
         var window = options.Window;
@@ -105,14 +105,6 @@ public static class DuxelApp
 
             startupLog($"StartupTiming[{phase}]={startupStopwatch.Elapsed.TotalMilliseconds:0.00}ms");
         }
-
-        using var platform = new GlfwPlatformBackend(new GlfwPlatformBackendOptions(
-            window.Width,
-            window.Height,
-            window.Title,
-            window.VSync,
-            options.KeyRepeatSettingsProvider ?? DefaultKeyRepeatSettingsProvider.Shared
-        ));
 
         if (options.ImageDecoder is not null)
         {
@@ -328,6 +320,162 @@ public static class DuxelApp
         IUiImeHandler? imeHandlerForContext = null;
         IUiImeHandler? platformImeHandler = null;
         QueuedImeHandler? queuedImeHandler = null;
+        var dynamicFontResourceCache = new Dictionary<int, UiFontResource>();
+        var dynamicFontBuildInFlight = new HashSet<int>();
+        var dynamicFontCacheLock = new object();
+        nuint nextDynamicFontTextureId = 1_100_000_000;
+        const float dynamicFontRequestBucketStep = 0.25f;
+        const float dynamicFontSwitchThresholdRatio = 0.10f;
+
+        static float QuantizeFontSize(float requestedSize, float step)
+        {
+            if (step <= 0f)
+            {
+                return requestedSize;
+            }
+
+            return MathF.Round(requestedSize / step) * step;
+        }
+
+        int SelectClosestCachedFontSize(float requestedSize)
+        {
+            lock (dynamicFontCacheLock)
+            {
+                if (dynamicFontResourceCache.Count == 0)
+                {
+                    return 0;
+                }
+
+                var bestSize = 0;
+                var bestDistance = float.MaxValue;
+                foreach (var cachedSize in dynamicFontResourceCache.Keys)
+                {
+                    var distance = MathF.Abs(cachedSize - requestedSize);
+                    if (distance < bestDistance)
+                    {
+                        bestDistance = distance;
+                        bestSize = cachedSize;
+                    }
+                }
+
+                return bestSize;
+            }
+        }
+
+        UiFontResource? BuildDynamicFontResource(int targetSize, HashSet<int> codepoints)
+        {
+            if (codepoints.Count == 0)
+            {
+                return null;
+            }
+
+            UiFontAtlas sizedAtlas;
+            try
+            {
+                sizedAtlas = BuildFontAtlasWithSize(fontOptions, codepoints, targetSize);
+            }
+            catch
+            {
+                return null;
+            }
+
+            lock (dynamicFontCacheLock)
+            {
+                if (dynamicFontResourceCache.TryGetValue(targetSize, out var cached))
+                {
+                    return cached;
+                }
+
+                var resource = new UiFontResource(sizedAtlas, new UiTextureId(nextDynamicFontTextureId++));
+                dynamicFontResourceCache[targetSize] = resource;
+                return resource;
+            }
+        }
+
+        void QueueDynamicFontPrewarm(int targetSize, HashSet<int> codepoints)
+        {
+            if (targetSize < 8 || targetSize > 96)
+            {
+                return;
+            }
+
+            lock (dynamicFontCacheLock)
+            {
+                if (dynamicFontResourceCache.ContainsKey(targetSize) || dynamicFontBuildInFlight.Contains(targetSize))
+                {
+                    return;
+                }
+
+                dynamicFontBuildInFlight.Add(targetSize);
+            }
+
+            var snapshot = new HashSet<int>(codepoints);
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    var built = BuildDynamicFontResource(targetSize, snapshot);
+                    if (built is not null)
+                    {
+                        RequestFrame();
+                    }
+                }
+                finally
+                {
+                    lock (dynamicFontCacheLock)
+                    {
+                        dynamicFontBuildInFlight.Remove(targetSize);
+                    }
+                }
+            });
+        }
+
+        UiFontResource? ResolveDynamicFontResource(float requestedSize)
+        {
+            if (requestedSize <= 0f)
+            {
+                return null;
+            }
+
+            var bucketedSize = QuantizeFontSize(requestedSize, dynamicFontRequestBucketStep);
+            bucketedSize = Math.Clamp(bucketedSize, 8f, 96f);
+            var targetSize = Math.Clamp((int)MathF.Round(bucketedSize), 8, 96);
+
+            var nearestCachedSize = SelectClosestCachedFontSize(bucketedSize);
+            if (nearestCachedSize > 0)
+            {
+                var relativeError = MathF.Abs(nearestCachedSize - bucketedSize) / MathF.Max(1f, bucketedSize);
+                if (relativeError <= dynamicFontSwitchThresholdRatio)
+                {
+                    lock (dynamicFontCacheLock)
+                    {
+                        if (dynamicFontResourceCache.TryGetValue(nearestCachedSize, out var nearest))
+                        {
+                            return nearest;
+                        }
+                    }
+                }
+            }
+
+            var codepoints = new HashSet<int>(activeCodepointSet);
+            lock (dynamicFontCacheLock)
+            {
+                if (dynamicFontResourceCache.TryGetValue(targetSize, out var cached))
+                {
+                    return cached;
+                }
+            }
+
+            var resource = BuildDynamicFontResource(targetSize, codepoints);
+            if (resource is null)
+            {
+                return null;
+            }
+
+            QueueDynamicFontPrewarm(targetSize - 1, codepoints);
+            QueueDynamicFontPrewarm(targetSize + 1, codepoints);
+            return resource;
+        }
 
         if (options.ImeHandler is not null)
         {
@@ -361,6 +509,9 @@ public static class DuxelApp
         else
         {
             uiContext = new UiContext(fontAtlas, fontTextureId, whiteTextureId, rendererOptions.EnableGlobalStaticGeometryCache);
+            uiContext.SetRequestFrameCallback(RequestFrame);
+            uiContext.SetFontResourceResolver(ResolveDynamicFontResource);
+            uiContext.SetDirectTextPrimaryFontPath(fontOptions.PrimaryFontPath);
             uiContext.SetTheme(theme);
             uiContext.SetScreen(options.Screen!);
             ConfigureContext(uiContext, options, platform, imeHandlerForContext);
@@ -690,10 +841,12 @@ public static class DuxelApp
                 var hasInputInvalidation = HasInputDrivenInvalidation(snapshot, lastObservedMousePosition);
                 lastObservedMousePosition = snapshot.MousePosition;
                 var hasPendingRenderWork = fontTextureDirty || pendingGlyphs > 0 || fullAtlasTask is not null || incrementalAtlasTask is not null;
+                var hasAnimationWork = (frameOptions.IsAnimationActiveProvider?.Invoke() ?? false)
+                    || (uiContext?.State.HasActiveAnimations ?? false);
                 var hasRequestedFrame = TryConsumeFrameRequest();
                 if (frameOptions.EnableIdleFrameSkip && uiContext is not null && renderedFrameNumber > 0)
                 {
-                    if (!hasInputInvalidation && !hasPendingRenderWork && !hasRequestedFrame)
+                    if (!hasInputInvalidation && !hasPendingRenderWork && !hasAnimationWork && !hasRequestedFrame)
                     {
                         const int textInputIdleTickMs = 100;
                         var hasImeComposition = !string.IsNullOrEmpty(imeHandlerForContext?.GetCompositionText());
@@ -1125,6 +1278,7 @@ public static class DuxelApp
                 var hasInputChange = UpdateSnapshot();
                 if (hasInputChange)
                 {
+                    RequestFrame();
                     frameWakeSignal.Set();
                 }
                 platform.SetMouseCursor((UiMouseCursor)Volatile.Read(ref cursorValue));
@@ -1323,6 +1477,77 @@ public static class DuxelApp
         var atlasHeight = useStartupSettings ? options.StartupAtlasHeight : options.AtlasHeight;
         var padding = useStartupSettings ? options.StartupPadding : options.Padding;
         var oversample = useStartupSettings ? options.StartupOversample : options.Oversample;
+        const bool includeKerning = false;
+
+        if (!string.IsNullOrWhiteSpace(options.SecondaryFontPath) && nonAscii.Count > 0)
+        {
+            var sources = new List<UiFontSource>
+            {
+                new(options.PrimaryFontPath, ascii, 0, 1f),
+                new(options.SecondaryFontPath, nonAscii, 1, options.SecondaryScale)
+            };
+
+            return UiFontAtlasBuilder.CreateFromTtfMerged(
+                sources,
+                fontSize,
+                atlasWidth,
+                atlasHeight,
+                padding,
+                oversample,
+                includeKerning
+            );
+        }
+
+        return UiFontAtlasBuilder.CreateFromTtf(
+            options.PrimaryFontPath,
+            ascii,
+            fontSize,
+            atlasWidth,
+            atlasHeight,
+            padding,
+            oversample,
+            includeKerning
+        );
+    }
+
+    private static UiFontAtlas BuildFontAtlasWithSize(DuxelFontOptions options, HashSet<int> codepoints, int fontSize)
+    {
+        if (string.IsNullOrWhiteSpace(options.PrimaryFontPath))
+        {
+            throw new InvalidOperationException("Primary font path must be provided.");
+        }
+
+        if (!File.Exists(options.PrimaryFontPath))
+        {
+            throw new FileNotFoundException("Primary font file not found.", options.PrimaryFontPath);
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.SecondaryFontPath) && !File.Exists(options.SecondaryFontPath))
+        {
+            throw new FileNotFoundException("Secondary font file not found.", options.SecondaryFontPath);
+        }
+
+        var ascii = new List<int>(codepoints.Count);
+        var nonAscii = new List<int>();
+        foreach (var codepoint in codepoints)
+        {
+            if (codepoint <= 0x7E)
+            {
+                ascii.Add(codepoint);
+            }
+            else
+            {
+                nonAscii.Add(codepoint);
+            }
+        }
+
+        ascii.Sort();
+        nonAscii.Sort();
+
+        var atlasWidth = options.AtlasWidth;
+        var atlasHeight = options.AtlasHeight;
+        var padding = options.Padding;
+        var oversample = options.Oversample;
         const bool includeKerning = false;
 
         if (!string.IsNullOrWhiteSpace(options.SecondaryFontPath) && nonAscii.Count > 0)
@@ -1570,6 +1795,7 @@ public sealed record class DuxelRendererOptions
     public bool EnableGlobalStaticGeometryCache { get; init; } = true;
     public bool EnableTaaIfSupported { get; init; } = false;
     public bool EnableFxaaIfSupported { get; init; } = false;
+    public bool EnableDWriteText { get; init; } = true;
     public bool TaaExcludeFont { get; init; } = true;
     public float TaaCurrentFrameWeight { get; init; } = 0.18f;
     public bool FontLinearSampling { get; init; } = false;
