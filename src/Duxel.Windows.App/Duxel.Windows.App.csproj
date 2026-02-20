@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CA2255</NoWarn>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.Windows.App</PackageId>
-    <Version>0.1.12-preview</Version>
+    <Version>0.1.13-preview</Version>
     <Authors>dimohy</Authors>
     <Description>Windows all-in-one Duxel package. Install this single package to build and run Duxel apps on Windows.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

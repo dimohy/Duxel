@@ -3,7 +3,7 @@
 **.NET 10 전용 크로스플랫폼 즉시 모드(Immediate-Mode) GUI 프레임워크.**
 Vulkan 렌더러 + Windows 네이티브 윈도우/입력 백엔드 기반으로 고품질 즉시 모드 위젯·렌더링·텍스트 품질을 목표합니다.
 
-**현재 버전: `0.1.12-preview`** · Display/Render 프로필 · 동적 MSAA(1x/2x/4x/8x) · VSync 토글
+**현재 버전: `0.1.13-preview`** · Display/Render 프로필 · 동적 MSAA(1x/2x/4x/8x) · VSync 토글
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)

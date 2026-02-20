@@ -2,6 +2,16 @@
 
 Duxel의 버전별 변경 내역을 누적 기록합니다.
 
+## 0.1.13-preview (2026-02-20)
+
+### 변경 내역
+
+- **[버그]** `Duxel.Windows.App`/`Duxel.Platform.Windows` TargetFramework를 `net10.0-windows` → `net10.0`으로 변경 — FBA 샘플(`net10.0`)에서 `dotnet run` 시 NU1202 호환성 오류 해소, 향후 리눅스 크로스플랫폼 FBA 테스트 경로 확보
+
+### Packaging / Release
+
+- NuGet 패키지 버전을 `0.1.13-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`).
+
 ## 0.1.12-preview (2026-02-20)
 
 ### 변경 내역

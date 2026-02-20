@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.App</PackageId>
-    <Version>0.1.12-preview</Version>
+    <Version>0.1.13-preview</Version>
     <Authors>dimohy</Authors>
     <Description>Duxel app facade with bundled Core/Platform/Vulkan and integrated DSL source generator analyzer.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

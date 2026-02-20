@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>false</IsPackable>
     <PackageId>Duxel.Platform.Windows</PackageId>
-    <Version>0.1.12-preview</Version>
+    <Version>0.1.13-preview</Version>
     <Authors>dimohy</Authors>
     <Description>Windows platform services for Duxel (clipboard/IME).</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
