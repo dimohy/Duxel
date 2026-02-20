@@ -16,13 +16,13 @@
 ### PowerShell
 
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/<파일명> -OutFile <파일명>; dotnet run <파일명>
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/<파일명> -o - | dotnet run -
 ```
 
 ### Bash / macOS / Linux
 
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/<파일명> && dotnet run <파일명>
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/<파일명> -o - | dotnet run -
 ```
 
 ---
@@ -33,12 +33,12 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/<파�
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/all_features.cs -OutFile all_features.cs; dotnet run all_features.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/all_features.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/all_features.cs && dotnet run all_features.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/all_features.cs -o - | dotnet run -
 ```
 
 > 메뉴바 · 슬라이더 · 드래그 · 입력 · 컬러 피커 · 콤보/리스트박스 · 트리/탭 · 테이블 · 팝업/모달 · 툴팁 · 드로잉 프리미티브 · 드래그앤드롭 · ListClipper(10K) · 시간/FPS/VSync 토글
@@ -51,12 +51,12 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/all_fe
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/dsl_showcase.cs -OutFile dsl_showcase.cs; dotnet run dsl_showcase.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_showcase.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/dsl_showcase.cs && dotnet run dsl_showcase.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_showcase.cs -o - | dotnet run -
 ```
 
 > DSL 마크업으로 Text · Button · Input · Checkbox · Slider · Combo · TabBar · Table · TreeNode 구성
@@ -69,12 +69,12 @@ DSL 바인딩으로 상태 연동 · 동적 표시를 시연합니다.
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/dsl_interaction.cs -OutFile dsl_interaction.cs; dotnet run dsl_interaction.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_interaction.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/dsl_interaction.cs && dotnet run dsl_interaction.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_interaction.cs -o - | dotnet run -
 ```
 
 > Drag · Slider · Color · Child · Popup · 상태 바인딩
@@ -87,12 +87,12 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/dsl_in
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/menu_submenu_zorder.cs -OutFile menu_submenu_zorder.cs; dotnet run menu_submenu_zorder.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/menu_submenu_zorder.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/menu_submenu_zorder.cs && dotnet run menu_submenu_zorder.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/menu_submenu_zorder.cs -o - | dotnet run -
 ```
 
 > MainMenuBar · 2단 서브메뉴 · 팝업 차단 레이어
@@ -105,12 +105,12 @@ PushID, ItemWidth, Cursor, ScrollControl, StyleVar, TextWrap, FontScale 등을 �
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/advanced_layout.cs -OutFile advanced_layout.cs; dotnet run advanced_layout.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/advanced_layout.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/advanced_layout.cs && dotnet run advanced_layout.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/advanced_layout.cs -o - | dotnet run -
 ```
 
 > PushID · PushItemWidth · SetNextWindowBgAlpha · Scroll · PushStyleVar · PushTextWrapPos · Font Scale
@@ -123,12 +123,12 @@ Columns API 전체 사용법을 보여줍니다.
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/columns_demo.cs -OutFile columns_demo.cs; dotnet run columns_demo.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/columns_demo.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/columns_demo.cs && dotnet run columns_demo.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/columns_demo.cs -o - | dotnet run -
 ```
 
 > 2열/3열 · Border · ColumnWidth/Offset 쿼리 · 혼합 위젯
@@ -141,12 +141,12 @@ Image, ImageButton, 고급 Popup, Tooltip, TextLink, TreeNodeV 등을 시연합�
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/image_and_popups.cs -OutFile image_and_popups.cs; dotnet run image_and_popups.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/image_and_popups.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/image_and_popups.cs && dotnet run image_and_popups.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/image_and_popups.cs -o - | dotnet run -
 ```
 
 > Image · ImageWithBg · ImageButton · OpenPopupOnItemClick · ContextVoid · TextLink · BeginItemTooltip · ListBoxHeader/Footer
@@ -159,19 +159,19 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/image_
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/image_widget_effects_fba.cs -OutFile image_widget_effects_fba.cs; dotnet run image_widget_effects_fba.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/image_widget_effects_fba.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/image_widget_effects_fba.cs && dotnet run image_widget_effects_fba.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/image_widget_effects_fba.cs -o - | dotnet run -
 ```
 
 선택적으로 로컬 이미지를 강제 지정할 수 있습니다.
 
 **PowerShell (Custom 경로 지정)**
 ```powershell
-$env:DUXEL_IMAGE_PATH='C:\images\sample.gif'; dotnet run image_widget_effects_fba.cs
+$env:DUXEL_IMAGE_PATH='C:\images\sample.gif'; curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/image_widget_effects_fba.cs -o - | dotnet run -
 ```
 
 > Web PNG/JPG/GIF 자동 다운로드 · GIF 프레임 지연 기반 재생 · 접힘 시 3px 본문 peek 유지
@@ -184,12 +184,12 @@ $env:DUXEL_IMAGE_PATH='C:\images\sample.gif'; dotnet run image_widget_effects_fb
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/input_queries.cs -OutFile input_queries.cs; dotnet run input_queries.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/input_queries.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/input_queries.cs && dotnet run input_queries.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/input_queries.cs -o - | dotnet run -
 ```
 
 > IsKeyDown · IsKeyPressed · IsMouseDragging · Shortcut(Ctrl+S) · GetClipboardText
@@ -202,12 +202,12 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/input_
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/item_status.cs -OutFile item_status.cs; dotnet run item_status.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/item_status.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/item_status.cs && dotnet run item_status.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/item_status.cs -o - | dotnet run -
 ```
 
 > IsItemActive · Activated · Deactivated · DeactivatedAfterEdit · GetItemRectMin/Max/Size · IsRectVisible
@@ -220,12 +220,12 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/item_s
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/idle_layer_validation.cs -OutFile idle_layer_validation.cs; dotnet run idle_layer_validation.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/idle_layer_validation.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/idle_layer_validation.cs && dotnet run idle_layer_validation.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/idle_layer_validation.cs -o - | dotnet run -
 ```
 
 환경변수로 백엔드/opacity/레이아웃/입자 수 등을 제어할 수 있습니다.
@@ -237,7 +237,7 @@ $env:DUXEL_LAYER_BENCH_OPACITY='0.5'
 $env:DUXEL_LAYER_BENCH_PARTICLES='3000,9000'
 $env:DUXEL_LAYER_BENCH_LAYOUTS='baseline,frontheavy'
 $env:DUXEL_LAYER_BENCH_PHASE_SECONDS='2'
-dotnet run idle_layer_validation.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/idle_layer_validation.cs -o - | dotnet run -
 ```
 
 | 환경변수 | 기본값 | 설명 |
@@ -260,12 +260,12 @@ dotnet run idle_layer_validation.cs
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/Duxel_perf_test_fba.cs -OutFile Duxel_perf_test_fba.cs; dotnet run Duxel_perf_test_fba.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/Duxel_perf_test_fba.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/Duxel_perf_test_fba.cs && dotnet run Duxel_perf_test_fba.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/Duxel_perf_test_fba.cs -o - | dotnet run -
 ```
 
 > 다각형 추가/제거 · 속도/크기/면수/회전 슬라이더 · FPS 표시 · 바운딩 충돌
@@ -278,12 +278,12 @@ Windows 스타일 계산기에 사이버 backdrop, 리플 효과, FX 버튼, 반
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/windows_calculator_fba.cs -OutFile windows_calculator_fba.cs; dotnet run windows_calculator_fba.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/windows_calculator_fba.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/windows_calculator_fba.cs && dotnet run windows_calculator_fba.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/windows_calculator_fba.cs -o - | dotnet run -
 ```
 
 > 사이버 그리드 배경 · 버튼 리플 이펙트 · 네온 글로우 FX 버튼 · AnimateFloat 실시간 전환
@@ -296,12 +296,12 @@ RPN 토큰 추적, 멀티베이스 동시 표시, 32비트 토글 그리드를 �
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/windows_calculator_duxel_showcase_fba.cs -OutFile windows_calculator_duxel_showcase_fba.cs; dotnet run windows_calculator_duxel_showcase_fba.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/windows_calculator_duxel_showcase_fba.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/windows_calculator_duxel_showcase_fba.cs && dotnet run windows_calculator_duxel_showcase_fba.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/windows_calculator_duxel_showcase_fba.cs -o - | dotnet run -
 ```
 
 > Token→RPN→Eval 변환 과정 표시 · HEX/OCT/BIN 동시 표시 · 32비트 비트 토글 그리드
@@ -314,12 +314,12 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/window
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/text_render_validation_fba.cs -OutFile text_render_validation_fba.cs; dotnet run text_render_validation_fba.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/text_render_validation_fba.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/text_render_validation_fba.cs && dotnet run text_render_validation_fba.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/text_render_validation_fba.cs -o - | dotnet run -
 ```
 
 > DrawTextAligned Left/Center/Right · PushFontSize · clipToContainer ON/OFF
@@ -332,12 +332,12 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/text_r
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/layer_dirty_strategy_bench.cs -OutFile layer_dirty_strategy_bench.cs; dotnet run layer_dirty_strategy_bench.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/layer_dirty_strategy_bench.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/layer_dirty_strategy_bench.cs && dotnet run layer_dirty_strategy_bench.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/layer_dirty_strategy_bench.cs -o - | dotnet run -
 ```
 
 > all vs single dirty 비교 · 캐시 재빌드 횟수 · FPS 차이 측정
@@ -350,12 +350,12 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/layer_
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/layer_widget_mix_bench_fba.cs -OutFile layer_widget_mix_bench_fba.cs; dotnet run layer_widget_mix_bench_fba.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/layer_widget_mix_bench_fba.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/layer_widget_mix_bench_fba.cs && dotnet run layer_widget_mix_bench_fba.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/layer_widget_mix_bench_fba.cs -o - | dotnet run -
 ```
 
 > DrawLayerCardInteractive 적용 · 위젯 믹스 부하 · 카드 드래그 인터랙션
@@ -368,12 +368,12 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/layer_
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/global_dirty_strategy_bench.cs -OutFile global_dirty_strategy_bench.cs; dotnet run global_dirty_strategy_bench.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/global_dirty_strategy_bench.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/global_dirty_strategy_bench.cs && dotnet run global_dirty_strategy_bench.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/global_dirty_strategy_bench.cs -o - | dotnet run -
 ```
 
 > all-dynamic 대비 정적 캐시 성능 비교 · BeginWindowCanvas API 시연
@@ -386,12 +386,12 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/global
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/ui_mixed_stress.cs -OutFile ui_mixed_stress.cs; dotnet run ui_mixed_stress.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/ui_mixed_stress.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/ui_mixed_stress.cs && dotnet run ui_mixed_stress.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/ui_mixed_stress.cs -o - | dotnet run -
 ```
 
 > 다중 창 · 텍스트 · 테이블 · 리스트 · 입력 · 드로우 프리미티브 복합
@@ -404,12 +404,12 @@ curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/ui_mix
 
 **PowerShell**
 ```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/vector_primitives_bench_fba.cs -OutFile vector_primitives_bench_fba.cs; dotnet run vector_primitives_bench_fba.cs
+curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/vector_primitives_bench_fba.cs -o - | dotnet run -
 ```
 
 **Bash**
 ```bash
-curl -sLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/vector_primitives_bench_fba.cs && dotnet run vector_primitives_bench_fba.cs
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/vector_primitives_bench_fba.cs -o - | dotnet run -
 ```
 
 > 라인/사각형/원 대량 렌더 · clip clamp 전략 A/B 비교
@@ -467,3 +467,4 @@ echo -e "\nRun: dotnet run fba/all_features.cs"
 | **NuGet** | https://www.nuget.org/packages/Duxel.App |
 | **DSL 문서** | [docs/ui-dsl.md](https://github.com/dimohy/Duxel/blob/main/docs/ui-dsl.md) |
 | **FBA 가이드** | [docs/getting-started-fba.md](https://github.com/dimohy/Duxel/blob/main/docs/getting-started-fba.md) |
+
