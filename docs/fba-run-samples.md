@@ -16,7 +16,7 @@
 ### PowerShell
 
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/<파일명> -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/<파일명> | dotnet run -
 ```
 
 ### Bash / macOS / Linux
@@ -33,7 +33,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/all_features.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/all_features.cs | dotnet run -
 ```
 
 **Bash**
@@ -51,7 +51,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_showcase.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_showcase.cs | dotnet run -
 ```
 
 **Bash**
@@ -69,7 +69,7 @@ DSL 바인딩으로 상태 연동 · 동적 표시를 시연합니다.
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_interaction.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_interaction.cs | dotnet run -
 ```
 
 **Bash**
@@ -87,7 +87,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/menu_submenu_zorder.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/menu_submenu_zorder.cs | dotnet run -
 ```
 
 **Bash**
@@ -105,7 +105,7 @@ PushID, ItemWidth, Cursor, ScrollControl, StyleVar, TextWrap, FontScale 등을 �
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/advanced_layout.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/advanced_layout.cs | dotnet run -
 ```
 
 **Bash**
@@ -123,7 +123,7 @@ Columns API 전체 사용법을 보여줍니다.
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/columns_demo.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/columns_demo.cs | dotnet run -
 ```
 
 **Bash**
@@ -141,7 +141,7 @@ Image, ImageButton, 고급 Popup, Tooltip, TextLink, TreeNodeV 등을 시연합�
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/image_and_popups.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/image_and_popups.cs | dotnet run -
 ```
 
 **Bash**
@@ -159,7 +159,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/image_widget_effects_fba.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/image_widget_effects_fba.cs | dotnet run -
 ```
 
 **Bash**
@@ -171,7 +171,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell (Custom 경로 지정)**
 ```powershell
-$env:DUXEL_IMAGE_PATH='C:\images\sample.gif'; curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/image_widget_effects_fba.cs -o - | dotnet run -
+$env:DUXEL_IMAGE_PATH='C:\images\sample.gif'; irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/image_widget_effects_fba.cs | dotnet run -
 ```
 
 > Web PNG/JPG/GIF 자동 다운로드 · GIF 프레임 지연 기반 재생 · 접힘 시 3px 본문 peek 유지
@@ -184,7 +184,7 @@ $env:DUXEL_IMAGE_PATH='C:\images\sample.gif'; curl.exe -sL https://raw.githubuse
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/input_queries.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/input_queries.cs | dotnet run -
 ```
 
 **Bash**
@@ -202,7 +202,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/item_status.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/item_status.cs | dotnet run -
 ```
 
 **Bash**
@@ -220,7 +220,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/idle_layer_validation.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/idle_layer_validation.cs | dotnet run -
 ```
 
 **Bash**
@@ -237,7 +237,7 @@ $env:DUXEL_LAYER_BENCH_OPACITY='0.5'
 $env:DUXEL_LAYER_BENCH_PARTICLES='3000,9000'
 $env:DUXEL_LAYER_BENCH_LAYOUTS='baseline,frontheavy'
 $env:DUXEL_LAYER_BENCH_PHASE_SECONDS='2'
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/idle_layer_validation.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/idle_layer_validation.cs | dotnet run -
 ```
 
 | 환경변수 | 기본값 | 설명 |
@@ -260,7 +260,7 @@ curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samp
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/Duxel_perf_test_fba.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/Duxel_perf_test_fba.cs | dotnet run -
 ```
 
 **Bash**
@@ -278,7 +278,7 @@ Windows 스타일 계산기에 사이버 backdrop, 리플 효과, FX 버튼, 반
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/windows_calculator_fba.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/windows_calculator_fba.cs | dotnet run -
 ```
 
 **Bash**
@@ -296,7 +296,7 @@ RPN 토큰 추적, 멀티베이스 동시 표시, 32비트 토글 그리드를 �
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/windows_calculator_duxel_showcase_fba.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/windows_calculator_duxel_showcase_fba.cs | dotnet run -
 ```
 
 **Bash**
@@ -314,7 +314,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/text_render_validation_fba.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/text_render_validation_fba.cs | dotnet run -
 ```
 
 **Bash**
@@ -332,7 +332,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/layer_dirty_strategy_bench.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/layer_dirty_strategy_bench.cs | dotnet run -
 ```
 
 **Bash**
@@ -350,7 +350,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/layer_widget_mix_bench_fba.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/layer_widget_mix_bench_fba.cs | dotnet run -
 ```
 
 **Bash**
@@ -368,7 +368,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/global_dirty_strategy_bench.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/global_dirty_strategy_bench.cs | dotnet run -
 ```
 
 **Bash**
@@ -386,7 +386,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/ui_mixed_stress.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/ui_mixed_stress.cs | dotnet run -
 ```
 
 **Bash**
@@ -404,7 +404,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 **PowerShell**
 ```powershell
-curl.exe -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/vector_primitives_bench_fba.cs -o - | dotnet run -
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/vector_primitives_bench_fba.cs | dotnet run -
 ```
 
 **Bash**
@@ -467,4 +467,5 @@ echo -e "\nRun: dotnet run fba/all_features.cs"
 | **NuGet** | https://www.nuget.org/packages/Duxel.App |
 | **DSL 문서** | [docs/ui-dsl.md](https://github.com/dimohy/Duxel/blob/main/docs/ui-dsl.md) |
 | **FBA 가이드** | [docs/getting-started-fba.md](https://github.com/dimohy/Duxel/blob/main/docs/getting-started-fba.md) |
+
 
