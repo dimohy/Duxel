@@ -1,0 +1,72 @@
+<svg width="820" height="220" viewBox="0 0 820 220" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Background -->
+  <rect width="820" height="220" fill="#F4F6FB"/>
+
+  <!-- Gradient -->
+  <defs>
+    <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9D8CFF"/>
+      <stop offset="100%" stop-color="#5B4DCC"/>
+    </linearGradient>
+
+    <linearGradient id="flowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#AFA3FF"/>
+      <stop offset="100%" stop-color="#6E56CF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Back Layer -->
+  <rect x="60" y="50" width="140" height="140" rx="28"
+        fill="#E6E9F8"/>
+
+  <!-- Middle Layer -->
+  <rect x="75" y="65" width="140" height="140" rx="28"
+        fill="url(#mainGrad)"
+        opacity="0.95"/>
+
+  <!-- Subtle Grid Lines -->
+  <line x1="145" y1="65" x2="145" y2="205"
+        stroke="white"
+        stroke-opacity="0.15"
+        stroke-width="2"/>
+  <line x1="75" y1="135" x2="215" y2="135"
+        stroke="white"
+        stroke-opacity="0.15"
+        stroke-width="2"/>
+
+  <!-- Immediate Flow Stroke -->
+  <path d="M90 190 Q150 90 200 80"
+        stroke="url(#flowGrad)"
+        stroke-width="6"
+        fill="none"
+        stroke-linecap="round"/>
+
+  <!-- Stylized D Monogram -->
+  <path d="M115 95 
+           L140 95 
+           C170 95 185 115 185 135 
+           C185 155 170 175 140 175 
+           L115 175 Z"
+        fill="white"
+        opacity="0.95"/>
+
+  <!-- Brand Text -->
+  <text x="260" y="130"
+        font-family="Segoe UI Variable, Segoe UI, sans-serif"
+        font-size="76"
+        font-weight="600"
+        fill="#111827"
+        letter-spacing="0.5">
+    Duxel
+  </text>
+
+  <!-- Tagline -->
+  <text x="262" y="165"
+        font-family="Segoe UI Variable, Segoe UI, sans-serif"
+        font-size="24"
+        fill="#667085">
+    Immediate GUI for .NET
+  </text>
+
+</svg>

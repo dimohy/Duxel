@@ -1,20 +1,19 @@
-# Duxel FBA 빠른 시작 가이드
+# Duxel FBA Quick Start
 
-> 마지막 동기화: 2026-02-26
+> Synced: 2026-02-26  
+> Korean original: [getting-started-fba.md](getting-started-fba.md)
 
-단일 `.cs` 파일로 Duxel 앱을 실행하는 FBA(File-Based App) 기준 가이드입니다.
+## Requirements
 
-## 필수 환경
-
-| 항목 | 요구 사항 |
+| Item | Requirement |
 |---|---|
-| .NET SDK | 10.0 이상 |
+| .NET SDK | 10.0+ |
 | OS | Windows 10/11 |
-| GPU | Vulkan 1.0+ 지원 |
+| GPU | Vulkan 1.0+ |
 
-## 30초 실행
+## 30-Second Run
 
-`hello.cs`:
+Create `hello.cs`:
 
 ```csharp
 #:property TargetFramework=net10.0
@@ -42,13 +41,13 @@ public sealed class HelloScreen : UiScreen
 }
 ```
 
+Run:
+
 ```powershell
 dotnet run hello.cs
 ```
 
-## 샘플 실행
-
-레포 샘플은 `samples/fba/`에 있습니다.
+## Sample Execution
 
 ```powershell
 dotnet run samples/fba/all_features.cs
@@ -56,29 +55,10 @@ dotnet run samples/fba/all_features.cs
 ./run-fba.ps1 samples/fba/all_features.cs -Managed
 ```
 
-- `dotnet run ...`: NuGet 패키지 기준 실행
-- `run-fba.ps1`: 로컬 프로젝트 참조로 치환해 실행(기본 NativeAOT)
+- `dotnet run`: NuGet package execution path.
+- `run-fba.ps1`: local project-reference path (NativeAOT by default).
 
-### 자주 쓰는 샘플
-
-| 파일 | 설명 |
-|---|---|
-| `all_features.cs` | 전체 위젯 종합 데모 |
-| `dsl_showcase.cs` | DSL 레이아웃 데모 |
-| `dsl_interaction.cs` | DSL 상태/이벤트 데모 |
-| `windows_calculator_fba.cs` | 계산기 UI 데모 |
-| `text_render_validation_fba.cs` | 텍스트 렌더 검증 |
-| `Duxel_perf_test_fba.cs` | 대량 폴리곤 벤치 |
-
-## 프로필/환경 변수
-
-```powershell
-$env:DUXEL_APP_PROFILE='render'
-./run-fba.ps1 samples/fba/Duxel_perf_test_fba.cs -Managed
-Remove-Item Env:DUXEL_APP_PROFILE
-```
-
-## DSL 방식
+## DSL Example
 
 ```csharp
 #:property TargetFramework=net10.0
@@ -108,8 +88,8 @@ DuxelWindowsApp.Run(new DuxelAppOptions
 });
 ```
 
-## 참고 문서
+## More Docs
 
-- [docs/fba-reference-guide.md](docs/fba-reference-guide.md)
-- [docs/fba-run-samples.md](docs/fba-run-samples.md)
-- [docs/ui-dsl.md](docs/ui-dsl.md)
+- [fba-reference-guide.en.md](fba-reference-guide.en.md)
+- [fba-run-samples.md](fba-run-samples.md)
+- [ui-dsl.en.md](ui-dsl.en.md)

@@ -1,5 +1,7 @@
 # FBA clip clamp A/B 벤치 가이드
 
+> 마지막 동기화: 2026-02-26
+
 이 문서는 `DUXEL_VK_LEGACY_CLIP_CLAMP` 토글 기반으로 legacy/optimized 경로를 같은 샘플에서 비교하는 방법을 정리합니다.
 
 ## 대상 스크립트

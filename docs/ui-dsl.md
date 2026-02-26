@@ -1,263 +1,153 @@
 # UI DSL 레퍼런스
 
-## 목표
-- `.ui` 확장자의 DSL 파일로 위젯 트리를 선언적으로 정의한다.
-- 런타임 동작은 설계 문서의 호환성 기준을 유지한다.
-- 빌드 시 DSL을 C# 코드로 변환해 실행파일에 포함한다 (소스 생성기).
-- 개발 중에는 핫리로드로 `.ui` 파일 변경을 즉시 반영한다.
+이 문서는 현재 코드(`UiDslParser`, `UiDslWidgetDispatcher`, `UiDslPipeline`) 기준으로 정리한 DSL 문법입니다.
 
-## DSL 문법
+## 핵심 요약
 
-### 기본 구조
-- **들여쓰기 기반** 트리 구조 (공백/탭 중 하나만 사용, 혼용 금지).
-- 각 줄은 `NodeName` + 선택적 인자로 구성.
-- 빈 줄 및 주석(`//` 또는 `#`) 허용.
+- 파일 형식: `.ui` (들여쓰기 기반 트리)
+- 파서: `Duxel.Core.Dsl.UiDslParser`
+- 런타임 실행: `UiDslDocument.Emit(...)` → `UiDslImmediateEmitter`
+- 상태 저장: `UiDslState` 또는 `IUiDslValueSource`
+- 이벤트 연결: `IUiDslEventSink` / `UiDslBindings`
 
-```
+## 문법 규칙
+
+### 1) 들여쓰기
+
+- 기본 들여쓰기 크기는 2칸입니다.
+- 기본 옵션에서 탭은 허용되지 않습니다(`AllowTabs=false`).
+- 들여쓰기 폭이 2칸 단위가 아니면 파서 예외가 발생합니다.
+
+```text
 Window "Main"
   Row
     Button Id="ok" Text="OK"
-    Button Id="cancel" Text="Cancel"
 ```
 
-### 컨테이너 위젯
-컨테이너 위젯은 들여쓰기로 자식 블록을 표현하며, `Begin` 접두사는 **생략 가능**합니다.
+### 2) 라인/토큰
 
-| DSL 노드 | Begin/End 매핑 |
-|---|---|
-| `Window` | `BeginWindow`/`EndWindow` |
-| `Row` | `BeginRow`/`EndRow` |
-| `Group` | `BeginGroup`/`EndGroup` |
-| `Child` | `BeginChild`/`EndChild` |
-| `MenuBar` | `BeginMenuBar`/`EndMenuBar` |
-| `MainMenuBar` | `BeginMainMenuBar`/`EndMainMenuBar` |
-| `Menu` | `BeginMenu`/`EndMenu` |
-| `TabBar` | `BeginTabBar`/`EndTabBar` |
-| `TabItem` | `BeginTabItem`/`EndTabItem` |
-| `Table` | `BeginTable`/`EndTable` |
-| `Combo` | 자식 블록 있으면 `BeginCombo`/`EndCombo` |
-| `ListBox` | 자식 블록 있으면 `BeginListBox`/`EndListBox` |
-| `Popup` | `BeginPopup`/`EndPopup` |
-| `PopupModal` | `BeginPopupModal`/`EndPopupModal` |
-| `PopupContextItem` | `BeginPopupContextItem`/`EndPopup` |
-| `PopupContextWindow` | `BeginPopupContextWindow`/`EndPopup` |
-| `PopupContextVoid` | `BeginPopupContextVoid`/`EndPopup` |
-| `Tooltip` | `BeginTooltip`/`EndTooltip` |
-| `ItemTooltip` | `BeginItemTooltip`/`EndTooltip` |
-| `DragDropSource` | `BeginDragDropSource`/`EndDragDropSource` |
-| `DragDropTarget` | `BeginDragDropTarget`/`EndDragDropTarget` |
-| `Disabled` | `BeginDisabled`/`EndDisabled` |
-| `MultiSelect` | `BeginMultiSelect`/`EndMultiSelect` |
-| `TreeNode` | `TreeNode`/`TreePop` |
-| `TreeNodeEx` | `TreeNodeEx`/`TreePop` |
+- 한 줄은 `NodeName` + 인자들로 구성됩니다.
+- 문자열은 큰따옴표(`"`)를 사용합니다.
+- 공백 기준 토큰 분리이며, 문자열 내부 공백은 유지됩니다.
+- 주석은 `#` 또는 `//`를 지원합니다(문자열 바깥에서만).
 
-### 인자 규칙
+### 3) 인자 형식
 
-**명명 인자 (권장)**
-```
+- 명명 인자: `Key=Value`
+- 위치 인자: 순서 기반
+- 혼용 가능
+
+```text
 Button Id="play" Text="Play" Size="120,32"
-SliderFloat Id="volume" Text="Volume" Min=0 Max=1 Format="%.2f"
+Button "play" "Play"
 ```
 
-**위치 기반 인자**
-```
-Button "play" "Play"          // Id, Text 순서
-Checkbox "vsync" "VSync" true // Id, Text, Default
-```
+`Button`처럼 `Id`/`Text`를 받는 노드는 다음 규칙을 따릅니다.
 
-- 명명 인자와 위치 기반 인자를 **혼용 가능**.
-- 모든 인자는 `Key=Value` 형태로 표기 가능, **순서 무관**.
+1. `Id`와 `Text`가 모두 없으면 위치 인자 1개는 `(Id=Text=값)`으로 해석
+2. 위치 인자 2개면 `(Id, Text)` 순서로 해석
+3. `Id`만 있으면 `Text=Id`, `Text`만 있으면 `Id=Text`
 
-### 값 타입 파싱
+## Begin 별칭(normalization)
 
-| 타입 | 형식 | 예시 |
-|---|---|---|
-| `string` | 큰따옴표 | `"Hello"` |
-| `int` | 정수 | `42` |
-| `float` | 소수점/접미사 | `0.5`, `3.14` |
-| `double` | 소수점 | `2.718` |
-| `bool` | true/false | `true` |
-| `UiVector2` | `"x,y"` | `"120,32"` |
-| `UiVector4` | `"x,y,z,w"` | `"0.1,0.2,0.3,1.0"` |
-| `UiColor` | `#RRGGBB[AA]`, `0xAARRGGBB`, 정수 | `"#33AAFF"`, `"#33AAFFCC"` |
-| `float[]`/`int[]` | `"1,2,3"` | `"0.1,0.5,0.8"` |
-| 열거형/플래그 | 이름 문자열 | `"NoArrowButton"` |
+파싱 후 아래 노드는 자동으로 `Begin*` 이름으로 정규화됩니다.
 
-### 상태 바인딩
+- `Group` → `BeginGroup`
+- `Child` → `BeginChild`
+- `MenuBar` → `BeginMenuBar`
+- `MainMenuBar` → `BeginMainMenuBar`
+- `Menu` → `BeginMenu`
+- `Popup` → `BeginPopup`
+- `PopupModal` → `BeginPopupModal`
+- `PopupContextItem` → `BeginPopupContextItem`
+- `PopupContextWindow` → `BeginPopupContextWindow`
+- `PopupContextVoid` → `BeginPopupContextVoid`
+- `TabBar` → `BeginTabBar`
+- `TabItem` → `BeginTabItem`
+- `Table` → `BeginTable`
+- `Tooltip` → `BeginTooltip`
+- `ItemTooltip` → `BeginItemTooltip`
+- `DragDropSource` → `BeginDragDropSource`
+- `DragDropTarget` → `BeginDragDropTarget`
+- `Disabled` → `BeginDisabled`
+- `MultiSelect` → `BeginMultiSelect`
 
-상태를 가지는 위젯은 `Id`를 키로 `UiDslState` 또는 `IUiDslValueSource`에 값을 저장/조회합니다.
+추가 규칙:
 
-```
-Checkbox Id="vsync" Text="VSync" Default=true
-SliderFloat Id="volume" Text="Volume" Min=0 Max=1
-InputText Id="name" Text="Name" MaxLength=64
-```
+- `Combo`/`ListBox`는 **자식 블록이 있을 때만** `BeginCombo`/`BeginListBox`로 정규화됩니다.
+- 자식이 없으면 단일 위젯 호출(`Combo`/`ListBox`)로 처리됩니다.
 
-`UiDslBindings`로 C# 코드에서 양방향 바인딩:
+## 값 파싱 규칙
+
+`UiDslArgReader` 기준:
+
+- `bool`: `true/false` 또는 `0/1`
+- `int/uint/float/double`: invariant culture 숫자
+- `UiVector2/UiVector4`: `x,y` 또는 `x;y` 또는 `x|y` 형식
+- `UiColor`: `#RRGGBB`, `#RRGGBBAA`, `0x...`, 정수
+- 목록형(`Items`, 배열): `|`, `,`, `;` 구분자 지원
+- enum: 이름 문자열 (`Enum.TryParse`, 대소문자 무시)
+
+## 상태/이벤트 바인딩
+
+상태성 위젯(`Checkbox`, `Slider*`, `Input*`, `Combo`, `ListBox` 등)은 `Id`를 키로 값을 읽고 씁니다.
+
+- 기본 저장소: `UiDslState`
+- 외부 바인딩: `IUiDslValueSource`
+- 이벤트: `IUiDslEventSink`
+
+`Duxel.App` 사용 시 `UiDslBindings`로 쉽게 연결할 수 있습니다.
+
 ```csharp
 var bindings = new UiDslBindings()
-    .BindButton("play", () => Console.WriteLine("Play!"))
+    .BindButton("apply", () => Console.WriteLine("apply"))
     .BindBool("vsync", () => vsync, v => vsync = v)
     .BindFloat("volume", () => volume, v => volume = v)
     .BindString("name", () => name, v => name = v);
 ```
 
-## 지원 위젯 전체 목록
+## 최소 실행 예제
 
-### 컨테이너
+```csharp
+#:property TargetFramework=net10.0
+#:property platform=windows
+#:package Duxel.$(platform).App@*-*
 
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `Window` | `Title` | 윈도우 (`Begin` 생략 가능) |
-| `Row` | — | 수평 레이아웃 (`BeginRow`/`EndRow`) |
-| `BeginGroup` | — | 그룹 |
-| `BeginChild` | `Id`, `Size`, `Border` | 자식 영역 |
-| `BeginCombo` | `Id`, `Preview` | 콤보박스 (자식 블록 방식, 라벨은 `Text`로 별도 표시) |
-| `BeginListBox` | `Id`, `Size` | 리스트박스 (자식 블록 방식, 라벨은 `Text`로 별도 표시) |
-| `BeginDisabled` | `Disabled` | 비활성 영역 |
-| `BeginMultiSelect` | `Flags` | 다중 선택 |
+using Duxel.App;
+using Duxel.Core.Dsl;
+using Duxel.Windows.App;
 
-### 텍스트
+var text = """
+Window "DSL"
+  Text "Hello"
+  Checkbox Id="dark" Text="Dark" Default=true
+  SliderFloat Id="volume" Text="Volume" Min=0 Max=1
+""";
 
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `Text` | (텍스트) | 기본 텍스트 |
-| `TextV` | `Format`, ... | 포맷 텍스트 |
-| `TextColored` | `Color`, (텍스트) | 색상 텍스트 |
-| `TextDisabled` | (텍스트) | 비활성 텍스트 |
-| `TextWrapped` | (텍스트) | 줄바꿈 텍스트 |
-| `TextUnformatted` | (텍스트) | 순수 텍스트 |
-| `TextLink` | `Id`, `Text` | 하이퍼링크 텍스트 |
-| `TextLinkOpenURL` | `Text`, `Url` | URL 링크 |
-| `LabelText` | `Label`, `Text` | 라벨+텍스트 |
-| `BulletText` | (텍스트) | 불릿 텍스트 |
-| `SeparatorText` | (텍스트) | 구분선+텍스트 |
-| `Value` | `Label`, `Value` | 값 표시 |
+var doc = UiDslParser.Parse(text);
 
-### 버튼
+DuxelWindowsApp.Run(new DuxelAppOptions
+{
+    Window = new DuxelWindowOptions { Title = "DSL Demo" },
+    Dsl = new DuxelDslOptions
+    {
+        State = new UiDslState(),
+        Render = emitter => doc.Emit(emitter)
+    }
+});
+```
 
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `Button` | `Id`, `Text`, `Size` | 기본 버튼 |
-| `SmallButton` | `Id`, `Text` | 작은 버튼 |
-| `InvisibleButton` | `Id`, `Size` | 투명 버튼 |
-| `ArrowButton` | `Id`, `Direction` | 방향 화살표 버튼 |
+## 핫리로드/생성기
 
-### 체크/라디오/프로그레스
+- 런타임 핫리로드: `UiDslPipeline.CreateHotReloadRenderer(...)`
+- 생성기 렌더러: `UiDslPipeline.CreateGeneratedRenderer(...)`
+- NativeAOT 빌드(`DUX_NATIVEAOT`)에서는 런타임 핫리로드가 비활성화됩니다.
 
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `Checkbox` | `Id`, `Text`, `Default` | 체크박스 |
-| `CheckboxFlags` | `Id`, `Text`, `Flags`, `FlagValue` | 플래그 체크박스 |
-| `RadioButton` | `Id`, `Text`, `Value` | 라디오 버튼 |
-| `ProgressBar` | `Fraction`, `Size`, `Overlay` | 프로그레스 바 |
+## 지원 노드 확인 방법
 
-### 입력
+지원 위젯/노드의 최종 기준은 `Duxel.Core.Dsl.UiDslWidgetDispatcher.BeginOrInvoke(...)`의 `switch` 케이스입니다.
 
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `InputText` | `Id`, `Text`, `MaxLength` | 텍스트 입력 |
-| `InputTextWithHint` | `Id`, `Text`, `Hint`, `MaxLength` | 힌트 텍스트 입력 |
-| `InputTextMultiline` | `Id`, `Text`, `MaxLength`, `Size` | 멀티라인 텍스트 |
-| `InputInt` | `Id`, `Text`, `Value` | 정수 입력 |
-| `InputInt2`/`3`/`4` | `Id`, `Text` | 정수 N-벡터 입력 |
-| `InputFloat` | `Id`, `Text`, `Value`, `Format` | 실수 입력 |
-| `InputFloat2`/`3`/`4` | `Id`, `Text`, `Format` | 실수 N-벡터 입력 |
-| `InputDouble` | `Id`, `Text`, `Value`, `Format` | double 입력 |
-| `InputDouble2`/`3`/`4` | `Id`, `Text`, `Format` | double N-벡터 입력 |
-| `InputScalar` | `Id`, `Text`, `DataType` | 범용 스칼라 입력 |
-| `InputScalarN` | `Id`, `Text`, `DataType`, `Components` | 범용 N-스칼라 입력 |
-
-### 드래그
-
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `DragFloat` | `Id`, `Text`, `Value`, `Speed`, `Min`, `Max` | float 드래그 |
-| `DragFloat2`/`3`/`4` | `Id`, `Text`, `Speed`, `Min`, `Max` | float N-벡터 드래그 |
-| `DragInt` | `Id`, `Text`, `Value`, `Speed`, `Min`, `Max` | int 드래그 |
-| `DragInt2`/`3`/`4` | `Id`, `Text`, `Speed`, `Min`, `Max` | int N-벡터 드래그 |
-| `DragFloatRange2` | `Id`, `Text`, `Speed`, `Min`, `Max` | float 범위 드래그 |
-| `DragIntRange2` | `Id`, `Text`, `Speed`, `Min`, `Max` | int 범위 드래그 |
-| `DragScalar` | `Id`, `Text`, `DataType`, `Speed` | 범용 스칼라 드래그 |
-| `DragScalarN` | `Id`, `Text`, `DataType`, `Components`, `Speed` | 범용 N-스칼라 드래그 |
-
-### 슬라이더
-
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `SliderFloat` | `Id`, `Text`, `Min`, `Max`, `Format` | float 슬라이더 |
-| `SliderFloat2`/`3`/`4` | `Id`, `Text`, `Min`, `Max` | float N-벡터 슬라이더 |
-| `SliderInt` | `Id`, `Text`, `Min`, `Max` | int 슬라이더 |
-| `SliderInt2`/`3`/`4` | `Id`, `Text`, `Min`, `Max` | int N-벡터 슬라이더 |
-| `SliderAngle` | `Id`, `Text`, `Min`, `Max` | 각도 슬라이더 |
-| `SliderScalar` | `Id`, `Text`, `DataType`, `Min`, `Max` | 범용 스칼라 슬라이더 |
-| `SliderScalarN` | `Id`, `Text`, `DataType`, `Components` | 범용 N-스칼라 슬라이더 |
-| `VSliderFloat` | `Id`, `Text`, `Size`, `Min`, `Max` | 수직 float 슬라이더 |
-| `VSliderInt` | `Id`, `Text`, `Size`, `Min`, `Max` | 수직 int 슬라이더 |
-| `VSliderScalar` | `Id`, `Text`, `Size`, `DataType` | 수직 범용 스칼라 슬라이더 |
-
-### 색상
-
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `ColorEdit3` | `Id`, `Text` | RGB 색상 편집 |
-| `ColorEdit4` | `Id`, `Text` | RGBA 색상 편집 |
-| `ColorPicker3` | `Id`, `Text` | RGB 색상 선택기 |
-| `ColorPicker4` | `Id`, `Text` | RGBA 색상 선택기 |
-| `ColorButton` | `Id`, `Color`, `Size` | 색상 버튼 |
-| `SetColorEditOptions` | `Flags` | 색상 편집 옵션 |
-
-### 콤보/리스트박스
-
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `Combo` | `Id`, `Items` | 콤보박스 (items를 `\|`로 구분, 라벨은 `Text`로 별도 표시) |
-| `ListBox` | `Id`, `Items`, `HeightItems` | 리스트박스 (라벨은 `Text`로 별도 표시) |
-| `Selectable` | `Id`, `Text`, `Selected`, `Flags`, `Size` | 선택 가능 항목 |
-
-### 메뉴
-
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `MenuBar` | — | 메뉴바 (`BeginMenuBar` 생략) |
-| `MainMenuBar` | — | 메인 메뉴바 |
-| `Menu` | `Label` | 메뉴 항목 (`BeginMenu` 생략) |
-| `MenuItem` | `Id`, `Text`, `Shortcut`, `Enabled` | 메뉴 아이템 |
-
-### 트리/헤더
-
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `TreeNode` | `Label`, `DefaultOpen` | 트리 노드 |
-| `TreeNodeEx` | `Label`, `Flags` | 확장 트리 노드 |
-| `TreeNodeV` | `Format`, ... | 포맷 트리 노드 |
-| `TreeNodeExV` | `Format`, `Flags`, ... | 포맷 확장 트리 노드 |
-| `TreeNodePush` | `Label` | 트리 노드 (Push 방식) |
-| `CollapsingHeader` | `Id`, `Text`, `DefaultOpen`, `Flags` | 접히는 헤더 |
-| `SetNextItemOpen` | `IsOpen` | 다음 트리 항목 열기 설정 |
-| `SetNextItemStorageID` | `Id` | 다음 트리 항목 저장 ID |
-
-### 탭
-
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `TabBar` | `Id`, `Flags` | 탭 바 (`BeginTabBar` 생략) |
-| `TabItem` | `Label`, `Flags` | 탭 항목 (`BeginTabItem` 생략) |
-| `TabItemButton` | `Label`, `Flags` | 탭 버튼 |
-| `SetTabItemClosed` | `Label` | 탭 닫기 |
-
-### 테이블
-
-| 위젯 | 주요 인자 | 설명 |
-|---|---|---|
-| `Table` | `Id`, `Columns`, `Flags`, `Size` | 테이블 (`BeginTable` 생략) |
-| `TableSetupColumn` | `Label`, `Flags`, `InitWidth` | 컬럼 설정 |
-| `TableSetupScrollFreeze` | `Cols`, `Rows` | 스크롤 고정 |
-| `TableHeadersRow` | — | 헤더 행 |
-| `TableAngledHeadersRow` | — | 기울어진 헤더 행 |
-| `TableNextRow` | `Flags`, `MinHeight` | 다음 행 |
-| `TableNextColumn` | — | 다음 컬럼 |
-| `TableSetColumnIndex` | `Index` | 컬럼 인덱스 이동 |
+실행 가능한 샘플은 `samples/fba/dsl_showcase.cs`, `samples/fba/dsl_interaction.cs`, `samples/Duxel.Sample`를 참고하세요.
 | `TableSetBgColor` | `Target`, `Color`, `Column` | 배경색 설정 |
 | `TableSetColumnEnabled` | `Index`, `Enabled` | 컬럼 활성/비활성 |
 | `TableRowBg` | `Color` | 행 배경 |

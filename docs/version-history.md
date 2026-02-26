@@ -2,6 +2,15 @@
 
 Duxel의 버전별 변경 내역을 누적 기록합니다.
 
+## Documentation Update (2026-02-26)
+
+### 변경 내역
+
+- **[개선]** `README.md`를 영문 중심으로 재구성하고 `README.ko.md`를 추가했습니다.
+- **[개선]** `docs/ui-dsl.md`를 현재 파서/런타임(`UiDslParser`, `UiDslWidgetDispatcher`, `UiDslPipeline`) 기준으로 재작성했습니다.
+- **[개선]** FBA 가이드 문서(`docs/getting-started-fba.md`, `docs/fba-reference-guide.md`, `docs/fba-run-samples.md`)를 현재 샘플 지시문(`Duxel.$(platform).App`) 기준으로 정합화했습니다.
+- **[개선]** 나머지 주요 `docs` 문서에 동기화 시점을 명시해 최신화 기준일을 명확히 했습니다.
+
 ## 0.1.13-preview (2026-02-20)
 
 ### 변경 내역

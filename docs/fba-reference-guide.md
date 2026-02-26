@@ -1,57 +1,49 @@
 # FBA 프로젝트/패키지 참조 전환 가이드
 
-## 구조
+> 마지막 동기화: 2026-02-26
 
-- **FBA 파일 기본값**: `#:package Duxel.App@*-*` (외부 사용자가 바로 `dotnet run` 가능)
-- **개발자 실행**: `./run-fba.ps1` (자동으로 `#:project`로 치환, 기본 NativeAOT 게시)
+## 기본 원칙
 
-## 사용법
+- FBA 샘플은 현재 `#:package Duxel.$(platform).App@*-*` 패턴을 사용합니다.
+- 일반 사용자: `dotnet run <file>.cs`로 NuGet 패키지 실행
+- 개발자: `./run-fba.ps1`로 로컬 프로젝트 참조 실행
 
-### 외부 사용자 (NuGet 패키지)
+## 가장 많이 쓰는 실행
 
 ```powershell
+# NuGet 패키지 방식
 dotnet run samples/fba/all_features.cs
+
+# 로컬 프로젝트 참조 (기본 NativeAOT)
+./run-fba.ps1 samples/fba/all_features.cs
+
+# 로컬 프로젝트 참조 (Managed)
+./run-fba.ps1 samples/fba/all_features.cs -Managed
 ```
 
-FBA 파일에 `#:package Duxel.App@*-*`가 있으므로 자동으로 최신 NuGet 패키지를 가져옵니다.
+## `run-fba.ps1` 동작
 
-### 개발자 (로컬 프로젝트 참조)
+스크립트는 원본 FBA 파일을 수정하지 않고 임시 파일을 만들어 실행합니다.
 
-```powershell
-./run-fba.ps1 samples/fba/all_features.cs                     # 기본: 프로젝트 참조 + NativeAOT 게시
-./run-fba.ps1 samples/fba/all_features.cs -Managed            # Managed(dotnet run) 실행
-./run-fba.ps1 samples/fba/all_features.cs -RuntimeIdentifier win-x64
-./run-fba.ps1 samples/fba/all_features.cs -Launch             # 게시 후 실행 파일 자동 실행
-./run-fba.ps1 samples/fba/all_features.cs -NoCache
-```
+1. `#:package`를 감지해 `#:project`로 치환
+	- `Duxel.App` → `src/Duxel.App`
+	- `Duxel.Windows.App` 또는 `Duxel.$(platform).App`(windows) → `src/Duxel.Windows.App`
+2. Windows 경로에서는 `DuxelWindowsApp.Run(...)` 호출 형태로 맞춤 변환
+3. 기본은 `dotnet publish -p:PublishAot=true`
+4. `-Managed` 사용 시 `dotnet run`
+5. 실행 후 임시 파일 삭제
 
-### 신규 이미지 효과 샘플 실행
+## 주요 옵션
 
-```powershell
-# 기본 실행 (웹 PNG/JPG/GIF 자동 다운로드 + NativeAOT 게시)
-./run-fba.ps1 samples/fba/image_widget_effects_fba.cs -NoCache
+| 옵션 | 설명 |
+|---|---|
+| `-Managed` | NativeAOT 대신 managed 실행 |
+| `-RuntimeIdentifier win-x64` | NativeAOT RID 지정 |
+| `-NoCache` | `dotnet` 캐시 비활성화 인수 전달 |
+| `-NoBuild` | 빌드 생략 인수 전달 |
+| `-Platform windows` 또는 `--platform windows` | 템플릿 패키지 플랫폼 값 지정 |
 
-# 로컬 이미지 강제 지정(선택)
-$env:DUXEL_IMAGE_PATH='C:\images\sample.png'
-./run-fba.ps1 samples/fba/image_widget_effects_fba.cs -NoCache
-Remove-Item Env:DUXEL_IMAGE_PATH
-```
-
-- 기본 모드는 `Web PNG / Web JPG / Web GIF`를 자동 준비합니다.
-- `DUXEL_IMAGE_PATH`를 지정하면 `Custom` 옵션으로 로컬 파일을 우선 확인할 수 있습니다.
-- GIF를 선택하면 프레임 지연값을 사용해 애니메이션이 재생됩니다.
-
-스크립트가:
-1. `#:package Duxel.App@*-*` → `#:project ../../src/Duxel.App/Duxel.App.csproj` 치환
-2. 임시 파일로 기본 `dotnet publish -p:PublishAot=true` 실행
-3. 필요 시 `-Managed`로 `dotnet run` 실행
-4. 실행 후 임시 파일 자동 삭제
-5. 원본 파일은 절대 변경하지 않음
-
-## 기본 동작 프로필
-
-- 기본값: `Display` 프로필
-- 전환: `DUXEL_APP_PROFILE=render` 환경변수 지정
+## 프로필 전환
 
 ```powershell
 $env:DUXEL_APP_PROFILE='render'
@@ -59,14 +51,10 @@ $env:DUXEL_APP_PROFILE='render'
 Remove-Item Env:DUXEL_APP_PROFILE
 ```
 
-### NuGet 패키지 배포 시
-
-CI가 `@*-*`를 구체적 버전(예: `@0.2.0-preview`)으로 치환하여 배포 가능.
-
-## NuGet floating version
+## 버전 표기 예시
 
 ```csharp
-#:package Duxel.App@*-*     // 최신 프리릴리즈 포함
-#:package Duxel.App@0.*-*   // 0.x 대의 최신 프리릴리즈
-#:package Duxel.App@*        // 최신 stable만
+#:package Duxel.$(platform).App@*-*   // 최신 프리릴리즈 포함
+#:package Duxel.$(platform).App@0.*-* // 0.x 최신 프리릴리즈
+#:package Duxel.$(platform).App@*     // 최신 stable만
 ```
