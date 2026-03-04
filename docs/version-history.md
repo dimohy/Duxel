@@ -1,124 +1,169 @@
 # Version History
 
-Duxel의 버전별 변경 내역을 누적 기록합니다.
+This document accumulates version-by-version changes for Duxel.
+
+## 0.1.15-preview (2026-03-05)
+
+### Changes
+
+- **[Feature]** Added platform text backend abstraction — `IPlatformTextBackend` / `PlatformTextRasterizeRequest` / `PlatformTextRasterizeResult` interfaces for cross-platform text rasterization decoupled from the atlas pipeline.
+- **[Feature]** Added DWrite text-run rasterization backend — `WindowsPlatformTextBackend` rasterizes entire font runs with a single DWrite COM call per run (vs. per-glyph), with `BuildFontRuns` for mixed-script (e.g. Latin+Hangul) text splitting.
+- **[Feature]** Added `SetDirectTextBaseFontSize` API — new setter on `UiContext` / `UiImmediateContext` to control the DWrite base em-size independently of line height, wired from `DuxelFontOptions.FontSize`.
+- **[Improvement]** Migrated all widget text rendering to DWrite direct-text path — every widget (Button, Tree, Tab, Table, Menu, Slider, Input, ListBox, Selectable, Separator, Tooltip, Combo, Drag) now uses `MeasureTextInternal` / `AddTextInternal` which automatically leverages DWrite when available.
+- **[Improvement]** Eliminated double-rasterization in DWrite text path — `TryMeasureDirectText` now pre-caches the rasterized result so that `TryRenderDirectText` always hits the cache.
+- **[Improvement]** Replaced per-glyph DWrite rasterization with text-run API — single COM call per font run instead of per-glyph, significantly reducing COM overhead.
+- **[Improvement]** Reduced allocations in `TrimDirectTextCache` — replaced `List<>` with fixed arrays and added `hasStale` early-exit check to avoid iteration when no entries are stale.
+- **[Improvement]** Added font atlas disk cache toggle — `DUXEL_FONT_DISK_CACHE` environment variable to enable/disable font atlas serialization.
+- **[Improvement]** Added font atlas diagnostics — `DUXEL_FONT_ATLAS_DIAG`, `DUXEL_FONT_ATLAS_DIAG_LOG`, `DUXEL_FONT_ATLAS_DUMP_DIR` environment variables for atlas build tracing and texture dump.
+- **[Improvement]** Added Vulkan font command diagnostics — `DUXEL_VK_FONT_CMD_DIAG`, `DUXEL_VK_FONT_CMD_DIAG_LOG`, `DUXEL_VK_FONT_BOUNDS_ASSERT` environment variables for font texture command tracing and bounds validation.
+- **[Improvement]** Added `CodepointSignature` to `UiFontResource` — FNV-1a hash of atlas pixel data for cache invalidation when codepoint set changes.
+- **[Improvement]** Added per-frame frozen codepoint snapshot — `frameCodepointSnapshot` prevents mid-frame codepoint drift from `OnMissingGlyph` mutating the active set.
+- **[Bug]** Fixed texture ID collision between dynamic atlas and DWrite text — separated ID ranges (dynamic atlas from `1_100_000_000`, DWrite text from `2_100_000_000`).
+- **[Bug]** Fixed staging buffer data race in `VulkanRendererBackend.UploadTextureData` — reordered so fence wait completes before host memory write.
+- **[Bug]** Fixed Korean text not displaying with text-run API — whitespace in `BuildFontRuns` no longer triggers a font switch, preventing empty alpha bounds on whitespace-only runs.
+- **[Bug]** Fixed DWrite base font size using `LineHeight` (~21px) instead of actual build font size (16px) — `_directTextBaseFontSize` now stores the correct em-size.
+- **[Bug]** Fixed DWrite text vertical centering — added Y offset to center the rasterized bitmap within the measured line height.
+- **[Bug]** Fixed `TryRecreateSwapchain` surface-lost handling — `RecreateSwapchain()` replaced with `TryRecreateSwapchain()` that returns `false` on failure, preventing cascading Vulkan errors.
+- **[Bug]** Fixed normalized staging buffer size validation — `GetExpectedTextureDataSize` computes exact byte count per format, and `UploadTextureData` pads undersized pixel buffers instead of crashing.
+
+### Packaging / Release
+
+- Bumped NuGet package version to `0.1.15-preview` (all packages: `Duxel.App`, `Duxel.Windows.App`, `Duxel.Core`, `Duxel.Vulkan`, `Duxel.Platform.Windows`).
+
+## 0.1.14-preview (2026-02-28)
+
+### Changes
+
+- **[Bug]** Fixed Hangul fallback font blocked — `UiTextBuilder` had `IsHangulCodepoint()` guard that prevented secondary font lookup (e.g. `malgun.ttf`) for Korean codepoints, causing broken glyphs when the primary font lacked Hangul coverage.
+- **[Bug]** Fixed DWrite atlas rasterizer disabled by `DUXEL_DIRECT_TEXT=0` — previously the environment variable switched both the direct-text rendering path **and** the atlas glyph rasterizer to software TTF, losing hinting and producing low-quality Hangul at small sizes. Now `DUXEL_DIRECT_TEXT` only controls the direct-text path; atlas rasterizer always uses DWrite on Windows (explicit `DUXEL_ENABLE_TTF_GLYPH_RASTERIZER=1` to opt in to TTF).
+- **[Bug]** Fixed stale dynamic font atlas reuse — `ResolveDynamicFontResource` returned cached atlases even when the codepoint set had grown (e.g. 109 → 115 glyphs), causing missing Hangul characters at certain sizes. Added `CodepointSignature` to `UiFontResource` for cache validation.
+- **[Bug]** Fixed `SelectClosestCachedFontSize` size mismatch — a 10% threshold allowed reuse of a 58px atlas for 64px requests, causing glyph metric/UV misalignment. Removed the fuzzy-match logic; each integer size now always builds its own atlas.
+- **[Bug]** Fixed mid-frame codepoint drift — `OnMissingGlyph` could mutate `activeCodepointSet` between `PushFontSize` calls within the same frame, causing atlas inconsistency. Introduced per-frame frozen `frameCodepointSnapshot` taken once at frame start.
+- **[Bug]** Fixed dynamic font cache not invalidated on new glyphs — added `InvalidateDynamicFontResourceCache()` that destroys stale textures whenever `pendingGlyphs` grows or renderer reports missing glyphs.
+- **[Bug]** Fixed Vulkan `ErrorSurfaceLostKhr` crash on window close — `RecreateSwapchain()` replaced with `TryRecreateSwapchain()` that catches surface-lost exceptions gracefully; render thread wrapped in `try/catch` for shutdown-time Vulkan errors.
+- **[Improvement]** Added early render loop break on `ShouldClose`/`stopRequested` to prevent extra frames after window close signal.
+
+### Packaging / Release
+
+- Bumped NuGet package version to `0.1.14-preview` (`Duxel.App`, `Duxel.Windows.App`).
 
 ## Documentation Update (2026-02-26)
 
-### 변경 내역
+### Changes
 
-- **[개선]** `README.md`를 영문 중심으로 재구성하고 `README.ko.md`를 추가했습니다.
-- **[개선]** `docs/ui-dsl.md`를 현재 파서/런타임(`UiDslParser`, `UiDslWidgetDispatcher`, `UiDslPipeline`) 기준으로 재작성했습니다.
-- **[개선]** FBA 가이드 문서(`docs/getting-started-fba.md`, `docs/fba-reference-guide.md`, `docs/fba-run-samples.md`)를 현재 샘플 지시문(`Duxel.$(platform).App`) 기준으로 정합화했습니다.
-- **[개선]** 나머지 주요 `docs` 문서에 동기화 시점을 명시해 최신화 기준일을 명확히 했습니다.
+- **[Improvement]** Reworked `README.md` as English-first and added `README.ko.md`.
+- **[Improvement]** Rewrote `docs/ui-dsl.md` based on current parser/runtime (`UiDslParser`, `UiDslWidgetDispatcher`, `UiDslPipeline`).
+- **[Improvement]** Synchronized FBA guide docs (`docs/getting-started-fba.md`, `docs/fba-reference-guide.md`, `docs/fba-run-samples.md`) to the current sample directive (`Duxel.$(platform).App`).
+- **[Improvement]** Added synchronization timestamps to major docs for clearer update baselines.
 
 ## 0.1.13-preview (2026-02-20)
 
-### 변경 내역
+### Changes
 
-- **[버그]** `Duxel.Windows.App`/`Duxel.Platform.Windows` TargetFramework를 `net10.0-windows` → `net10.0`으로 변경 — FBA 샘플(`net10.0`)에서 `dotnet run` 시 NU1202 호환성 오류 해소, 향후 리눅스 크로스플랫폼 FBA 테스트 경로 확보
+- **[Bug]** Changed `Duxel.Windows.App`/`Duxel.Platform.Windows` target framework from `net10.0-windows` to `net10.0` to resolve NU1202 compatibility errors in `net10.0` FBA runs and preserve future Linux cross-platform FBA test paths.
 
 ### Packaging / Release
 
-- NuGet 패키지 버전을 `0.1.13-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`).
+- Bumped NuGet package version to `0.1.13-preview` (`Duxel.App`, `Duxel.Windows.App`).
 
 ## 0.1.12-preview (2026-02-20)
 
-### 변경 내역
+### Changes
 
-- **[기능]** DirectWrite 기반 텍스트 렌더링 시스템 추가 — `WindowsDirectWriteGlyphRasterizer` 신규 구현, Direct Text 런타임 토글 API(`SetDirectTextEnabled`/`GetDirectTextEnabled`), `DUXEL_DIRECT_TEXT` 환경변수 지원, 텍스트 캐시 관리(LRU 256엔트리)
-- **[기능]** Windows 플랫폼 백엔드 독립 분리 — `WindowsPlatformBackend`(975줄) 신규 구현, GLFW 플랫폼(`Duxel.Platform.Glfw`) 완전 제거
-- **[기능]** 즉시 모드 애니메이션 프레임워크 추가 — `AnimateFloat` API(easing: OutCubic 등), `RequestFrame` 연속 렌더 요청, 애니메이션 트랙 상태 관리
-- **[기능]** 폰트 크기 런타임 제어 API 추가 — `PushFontSize`/`PopFontSize`, `DrawTextAligned`의 `fontSize` 파라미터, 폰트 아틀라스 래스터라이저 분리(`UiFontAtlas.Rasterizers.cs`)
-- **[기능]** 위젯/벤치 헬퍼 API 대량 승격 — `BeginWindowCanvas`/`EndWindowCanvas`, `DrawOverlayText`, `UiFpsCounter`, `DrawKeyValueRow`, `BenchOptions`, `DrawLayerCardSkeleton`/`DrawLayerCard`/`DrawLayerCardInteractive`(`UiLayerCardInteraction` 구조체)
-- **[기능]** 레이아웃 시스템 확장 — `EnableRootViewportContentLayout`, `AlignRect`, `SetNextItemVerticalAlign`, `SameLine` 수직 정렬 지원
-- **[기능]** 아이콘 시스템 추가 — `UiImmediateContext.Icons` 내장 아이콘 렌더 지원
-- **[기능]** Windows 계산기 FBA — 사이버 backdrop/리플 효과/FX 버튼/반투명 UI 시연(`windows_calculator_fba.cs`), RPN 트레이스/멀티베이스 쇼케이스(`windows_calculator_duxel_showcase_fba.cs`)
-- **[개선]** 위젯 API 시그니처 통일 — Combo/ListBox/Table/Tree에 `string? id` 파라미터 추가로 ID 충돌 방지
-- **[개선]** IME 처리 안정성 개선 — `WindowsImeHandler` 리팩토링
-- **[개선]** 10개+ FBA 샘플에서 보일러플레이트(FPS 측정/오버레이/벤치파서/카드렌더)를 라이브러리 API 호출로 전환, 코드 간결성 대폭 향상
-- **[개선]** Direct Text ON/OFF A/B 벤치에서 평균 FPS +5.87% 개선 확인 (375→397 FPS)
+- **[Feature]** Added DirectWrite text rendering system — new `WindowsDirectWriteGlyphRasterizer`, runtime direct-text toggle API (`SetDirectTextEnabled`/`GetDirectTextEnabled`), `DUXEL_DIRECT_TEXT` environment variable support, and text cache management (LRU 256 entries).
+- **[Feature]** Completed Windows platform backend separation — new `WindowsPlatformBackend` (975 lines), full removal of GLFW platform (`Duxel.Platform.Glfw`).
+- **[Feature]** Added immediate-mode animation framework — `AnimateFloat` API (easing such as OutCubic), continuous render request via `RequestFrame`, and animation track state management.
+- **[Feature]** Added runtime font-size control APIs — `PushFontSize`/`PopFontSize`, `fontSize` parameter on `DrawTextAligned`, and font atlas rasterizer split (`UiFontAtlas.Rasterizers.cs`).
+- **[Feature]** Promoted many widget/benchmark helper APIs — `BeginWindowCanvas`/`EndWindowCanvas`, `DrawOverlayText`, `UiFpsCounter`, `DrawKeyValueRow`, `BenchOptions`, `DrawLayerCardSkeleton`/`DrawLayerCard`/`DrawLayerCardInteractive` (`UiLayerCardInteraction` struct).
+- **[Feature]** Extended layout system — `EnableRootViewportContentLayout`, `AlignRect`, `SetNextItemVerticalAlign`, vertical alignment support for `SameLine`.
+- **[Feature]** Added icon system — built-in icon rendering in `UiImmediateContext.Icons`.
+- **[Feature]** Added Windows calculator FBA — cyber backdrop/ripple/FX button/translucent UI showcase (`windows_calculator_fba.cs`) and RPN trace/multi-base showcase (`windows_calculator_duxel_showcase_fba.cs`).
+- **[Improvement]** Unified widget API signatures — added `string? id` parameters to Combo/ListBox/Table/Tree to prevent ID collisions.
+- **[Improvement]** Improved IME handling stability — refactored `WindowsImeHandler`.
+- **[Improvement]** Switched 10+ FBA samples from boilerplate (FPS/overlay/bench parser/card rendering) to library APIs, significantly simplifying code.
+- **[Improvement]** Verified average +5.87% FPS improvement in Direct Text ON/OFF A/B benchmark (375→397 FPS).
 
 ### Packaging / Release
 
-- NuGet 패키지 버전을 `0.1.12-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`).
+- Bumped NuGet package version to `0.1.12-preview` (`Duxel.App`, `Duxel.Windows.App`).
 
 ## 0.1.11-preview (2026-02-17)
 
 ### Performance Highlights
 
-- 전역 정적 캐시(`duxel.global.static:*`) 전략을 벤치 샘플에 적용해 정적 배경 재생성 비용을 줄이고, all-dynamic 대비 성능 차이를 재현 가능한 형태로 정리했습니다.
-- 레이어 dirty 전략을 `all` vs `single`로 분리 검증해, 무효화 범위를 줄였을 때 캐시 재빌드 횟수와 FPS가 크게 개선되는 경로를 확인했습니다.
-- 텍스트/레이어/클립 경로의 핫패스 실험을 통해 유효한 최적화는 유지하고, 성능 악화가 확인된 시도는 즉시 롤백해 기준 성능을 보호했습니다.
+- Applied global static cache strategy (`duxel.global.static:*`) to benchmark samples, reducing static background regeneration cost and documenting reproducible differences against all-dynamic rendering.
+- Validated layer dirty strategy as `all` vs `single`, confirming improved cache rebuild count and FPS when invalidation scope is reduced.
+- Ran hot-path experiments for text/layer/clip paths; retained valid optimizations and immediately rolled back attempts with measured regressions.
 
 ### Benchmark & Measurement
 
-- clip clamp A/B 자동화(`scripts/run-vector-clip-ab.ps1`, `scripts/run-layer-widget-clip-ab.ps1`)에 타임아웃/프로세스 정리를 포함해 장시간 측정 안정성을 높였습니다.
-- 반복 성능 비교 자동화(`scripts/run-duxel-perf-ab.ps1`)를 추가해 baseline/candidate 평균, 분산, 개선율 산출을 표준화했습니다.
-- 성능 기록 정책과 세션 로그를 보강해 변경-검증-결과를 추적 가능한 형태로 문서화했습니다.
+- Improved long-run stability of clip clamp A/B automation (`scripts/run-vector-clip-ab.ps1`, `scripts/run-layer-widget-clip-ab.ps1`) with timeout/process cleanup.
+- Added repeated performance comparison automation (`scripts/run-duxel-perf-ab.ps1`) to standardize baseline/candidate averages, variance, and improvement rates.
+- Strengthened performance logging policy and session logs for traceable change-validation-result records.
 
 ### Packaging / Release
 
-- NuGet 패키지 버전을 `0.1.11-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`).
+- Bumped NuGet package version to `0.1.11-preview` (`Duxel.App`, `Duxel.Windows.App`).
 
 ## 0.1.10-preview (2026-02-15)
 
 ### Rendering / Layer Cache
 
-- Vulkan 렌더러의 texture 레이어 정적 태그 판별을 보강해 opacity suffix(`:oXXXXXXXX`)가 있는 경우에도 texture compose 재사용 경로가 정상 동작하도록 수정했습니다.
-- layer static-cache 검증 시 backend/opacity 조합에서 재사용 태그 정합성을 재검토하고 회귀 포인트를 정리했습니다.
+- Improved static tag detection for Vulkan texture layers so texture compose reuse works correctly even when opacity suffix (`:oXXXXXXXX`) is present.
+- Revalidated reused-tag consistency for backend/opacity combinations in layer static-cache checks and documented regression points.
 
 ### Samples / Bench
 
-- `samples/fba/idle_layer_validation.cs`에 `DUXEL_LAYER_BENCH_OPACITY` 환경변수를 추가해 opacity 고정 회귀 벤치 자동화를 지원합니다.
-- `samples/fba/Duxel_perf_test_fba.cs`에서 충돌 시 각속도/회전 방향도 영향을 받도록 반응 모델(충격 + 감쇠)을 확장했습니다.
+- Added `DUXEL_LAYER_BENCH_OPACITY` environment variable to `samples/fba/idle_layer_validation.cs` for fixed-opacity regression benchmark automation.
+- Extended collision response model in `samples/fba/Duxel_perf_test_fba.cs` so angular velocity/rotation direction also react on impacts (impulse + damping).
 
 ### Packaging / NuGet
 
-- NuGet 패키지 버전을 `0.1.10-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`).
+- Bumped NuGet package version to `0.1.10-preview` (`Duxel.App`, `Duxel.Windows.App`).
 
 ## 0.1.9-preview (2026-02-15)
 
 ### Packaging / NuGet
 
-- `Duxel.App`, `Duxel.Windows.App` 패키지 설명(Description)을 최신 배포 구조 기준으로 정리했습니다.
-- NuGet 배포는 `Duxel.App`, `Duxel.Windows.App` 두 패키지(0.1.9-preview)만 배포하도록 유지했습니다.
+- Updated package descriptions for `Duxel.App` and `Duxel.Windows.App` to reflect the current distribution structure.
+- Kept NuGet distribution to two packages only (`Duxel.App`, `Duxel.Windows.App` at 0.1.9-preview).
 
 ### Samples
 
-- 프로젝트 샘플을 DSL 검증 중심으로 단순화해 `samples/Duxel.Sample`만 유지했습니다.
-- 삭제: `samples/Duxel.PerfTest`, `samples/Duxel.Sample.NativeAot`
-- FBA 샘플의 패키지 지시자를 `Duxel.Windows.App` 기준으로 일괄 전환했습니다.
+- Simplified project samples to DSL-focused validation with only `samples/Duxel.Sample` retained.
+- Removed: `samples/Duxel.PerfTest`, `samples/Duxel.Sample.NativeAot`.
+- Switched FBA sample package directives to `Duxel.Windows.App` baseline.
 
 ### Documentation
 
-- README의 프로젝트 샘플 표와 빌드/배포 안내를 현행 샘플 구조에 맞게 갱신했습니다.
-- 관련 문서(`docs/ui-dsl.md`, `docs/getting-started-fba.md`)의 삭제 샘플 참조를 정리했습니다.
-- ImGui 관련 분산 문서를 `docs/design.md`로 통합하고, `docs/imgui-coverage.md`를 삭제했습니다.
-- `docs/todo.md`를 완료 항목 제거 후 "남은 일감" 전용 문서로 재구성했습니다.
+- Updated README project sample table and build/distribution guidance to match the current sample structure.
+- Cleaned references to removed samples in related docs (`docs/ui-dsl.ko.md`, `docs/getting-started-fba.ko.md`).
+- Consolidated ImGui-related split docs into `docs/design.ko.md` and removed `docs/imgui-coverage.md`.
+- Reorganized `docs/todo.md` into a remaining-work-only document by removing completed items.
 
 ## 0.1.8-preview (2026-02-15)
 
 ### Packaging / Distribution
 
-- 배포 패키지 전략을 `Duxel.App`, `Duxel.Windows.App` 2개로 단순화했습니다.
-- `Duxel.Core`, `Duxel.Vulkan`, `Duxel.Platform.Windows`는 독립 NuGet 배포를 중단하고 상위 패키지에 번들링되도록 전환했습니다.
-- `Duxel.Windows.App`에 `Duxel.Platform.Windows`를 포함해 Windows 앱 사용자는 패키지 하나만 설치하면 되도록 구성했습니다.
+- Simplified package distribution strategy to two packages: `Duxel.App` and `Duxel.Windows.App`.
+- Stopped standalone NuGet distribution for `Duxel.Core`, `Duxel.Vulkan`, `Duxel.Platform.Windows`; bundled them into upper-level packages.
+- Included `Duxel.Platform.Windows` inside `Duxel.Windows.App`, so Windows app users can install a single package.
 
 ### Architecture
 
-- `Duxel.App`에서 Windows 직접 종속(`WindowsClipboard`, `WindowsImeHandler`, `WindowsUiImageDecoder`, `WindowsKeyRepeatSettingsProvider`)을 제거했습니다.
-- 플랫폼별 구현 주입을 위한 옵션 훅을 추가했습니다:
-  - `KeyRepeatSettingsProvider`
-  - `ClipboardFactory`
-  - `ImeHandlerFactory`
+- Removed direct Windows dependencies from `Duxel.App` (`WindowsClipboard`, `WindowsImeHandler`, `WindowsUiImageDecoder`, `WindowsKeyRepeatSettingsProvider`).
+- Added option hooks for platform-specific injection:
+	- `KeyRepeatSettingsProvider`
+	- `ClipboardFactory`
+	- `ImeHandlerFactory`
 
 ### DSL / Source Generator
 
-- `Duxel.Core.Dsl.Generator`를 `Duxel.App` 패키지의 analyzer(`analyzers/dotnet/cs`)로 포함해 단일 설치에서도 소스 생성이 동작하도록 구성했습니다.
+- Included `Duxel.Core.Dsl.Generator` as an analyzer in `Duxel.App` (`analyzers/dotnet/cs`) so source generation works from a single package installation.
 
 ### Documentation
 
-- `README.md`는 최신 버전 개선사항만 유지하고, 누적 이력은 본 문서로 분리했습니다.
+- Kept only latest-version highlights in `README.md` and moved cumulative history to this document.
 
 ---
 
@@ -126,15 +171,15 @@ Duxel의 버전별 변경 내역을 누적 기록합니다.
 
 ### Rendering / Performance
 
-- Vulkan 백엔드에 TAA/FXAA 토글 경로를 보강하고, 런타임 AA 전환 시 리소스/파이프라인 재구성을 안전하게 처리하도록 개선했습니다.
-- 성능 샘플과 체크리스트를 정비해 MSAA/FXAA 비교 실험을 반복 가능한 절차로 수행할 수 있게 했습니다.
+- Improved TAA/FXAA toggle path in Vulkan backend and made runtime AA switching safely reconfigure resources/pipelines.
+- Refined performance samples/checklists for repeatable MSAA/FXAA comparison experiments.
 
 ### Core / Platform
 
-- `Duxel.Core`에 플랫폼 중립 이미지 API(`UiImageTexture`, `UiImageEffects`, `IUiImageDecoder`)를 추가했습니다.
-- Windows 전용 디코더를 `Duxel.Platform.Windows`로 분리하고 `Duxel.App`에서 런타임 등록하도록 구성해 Core 계층의 플랫폼 종속성을 제거했습니다.
+- Added platform-neutral image APIs to `Duxel.Core` (`UiImageTexture`, `UiImageEffects`, `IUiImageDecoder`).
+- Split Windows-specific decoder into `Duxel.Platform.Windows` and registered it at runtime in `Duxel.App`, removing platform dependency from Core.
 
 ### Samples / UI
 
-- FBA 이미지 샘플에 웹 이미지 소스 선택(PNG/JPG/GIF)과 GIF 프레임 애니메이션 재생을 추가했습니다.
-- 접힘/확장 UI 동작을 보정해 접힘 시 3px 본문 peek를 유지하면서 캔버스 돌출을 방지했습니다.
+- Added web image source selection (PNG/JPG/GIF) and GIF frame animation playback to FBA image sample.
+- Adjusted collapse/expand UI behavior to keep a 3px body peek when collapsed while preventing canvas overflow.

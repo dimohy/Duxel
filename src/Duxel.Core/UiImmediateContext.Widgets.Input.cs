@@ -17,7 +17,7 @@ public sealed partial class UiImmediateContext
         var history = _state.GetHistory(id, text);
         var selection = _state.GetSelection(id);
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
         var height = MathF.Max(textSize.Y, frameHeight);
         var inputWidth = ResolveItemWidth(InputWidth);
@@ -25,12 +25,10 @@ public sealed partial class UiImmediateContext
         var cursor = AdvanceCursor(totalSize);
 
         var labelPos = new UiVector2(cursor.X, cursor.Y + (height - textSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             label,
             labelPos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -358,12 +356,10 @@ public sealed partial class UiImmediateContext
         }
         else
         {
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 text,
                 textPos,
                 _theme.Text,
-                _fontTexture,
                 inputClip,
                 _textSettings,
                 _lineHeight
@@ -429,21 +425,19 @@ public sealed partial class UiImmediateContext
         var changed = InputText(label, ref value, maxLength);
         if (string.IsNullOrEmpty(value) && _state.ActiveId != label && !string.IsNullOrWhiteSpace(hint))
         {
-            var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+            var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
             var frameHeight = GetFrameHeight();
             var height = MathF.Max(textSize.Y, frameHeight);
             var cursor = _lastItemPos;
             var inputWidth = MathF.Max(0f, _lastItemSize.X - (textSize.X + ItemSpacingX));
             var inputRect = new UiRect(cursor.X + textSize.X + ItemSpacingX, cursor.Y + (height - frameHeight) * 0.5f, inputWidth, frameHeight);
 
-            var hintSize = UiTextBuilder.MeasureText(_fontAtlas, hint, _textSettings, _lineHeight);
+            var hintSize = MeasureTextInternal(hint, _textSettings, _lineHeight);
             var hintPos = new UiVector2(inputRect.X + 6f, inputRect.Y + (inputRect.Height - hintSize.Y) * 0.5f);
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 hint,
                 hintPos,
                 _theme.TextDisabled,
-                _fontTexture,
                 IntersectRect(CurrentClipRect, inputRect),
                 _textSettings,
                 _lineHeight
@@ -726,18 +720,16 @@ public sealed partial class UiImmediateContext
         var history = _state.GetHistory(id, text);
         var selection = _state.GetSelection(id);
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
         var inputWidth = ResolveItemWidth(InputWidth);
         var totalSize = new UiVector2(textSize.X + ItemSpacingX + inputWidth, height);
         var cursor = AdvanceCursor(totalSize);
 
         var labelPos = new UiVector2(cursor.X, cursor.Y + ButtonPaddingY);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             label,
             labelPos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -1112,12 +1104,10 @@ public sealed partial class UiImmediateContext
         }
         else
         {
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 text,
                 textPos,
                 _theme.Text,
-                _fontTexture,
                 inputClip,
                 _textSettings,
                 _lineHeight
@@ -1201,18 +1191,16 @@ public sealed partial class UiImmediateContext
             true,
             _textSettings.MissingGlyphObserver
         );
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             compositionText,
             textPos,
             _theme.Text,
-            _fontTexture,
             inputClip,
             compositionTextSettings,
             _lineHeight
         );
 
-        var compositionWidth = UiTextBuilder.MeasureText(_fontAtlas, compositionText, compositionTextSettings, _lineHeight).X;
+        var compositionWidth = MeasureTextInternal(compositionText, compositionTextSettings, _lineHeight).X;
         if (compositionWidth <= 0f)
         {
             return;
@@ -1260,12 +1248,10 @@ public sealed partial class UiImmediateContext
             var advance = MeasureTextWidth(runeText, runeText.Length);
             if (_fontAtlas.TryGetGlyph(rune.Value, out _))
             {
-                _builder.AddText(
-                    _fontAtlas,
+                AddTextInternal(_builder,
                     runeText,
                     new UiVector2(x, y),
                     color,
-                    _fontTexture,
                     clipRect,
                     _textSettings,
                     _lineHeight

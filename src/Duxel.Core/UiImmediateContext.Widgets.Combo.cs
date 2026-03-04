@@ -15,14 +15,12 @@ public sealed partial class UiImmediateContext
         var bg = held ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : _theme.FrameBg;
         AddRectFilled(comboRect, bg, _whiteTexture);
 
-        var valueSize = UiTextBuilder.MeasureText(_fontAtlas, previewValue, _textSettings, _lineHeight);
+        var valueSize = MeasureTextInternal(previewValue, _textSettings, _lineHeight);
         var valuePos = new UiVector2(comboRect.X + 6f, comboRect.Y + (comboRect.Height - valueSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             previewValue,
             valuePos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -97,14 +95,12 @@ public sealed partial class UiImmediateContext
         AddRectFilled(comboRect, bg, _whiteTexture);
 
         var currentText = items.Count > 0 ? items[currentIndex] : string.Empty;
-        var valueSize = UiTextBuilder.MeasureText(_fontAtlas, currentText, _textSettings, _lineHeight);
+        var valueSize = MeasureTextInternal(currentText, _textSettings, _lineHeight);
         var valuePos = new UiVector2(comboRect.X + 6f, comboRect.Y + (comboRect.Height - valueSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             currentText,
             valuePos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -173,14 +169,12 @@ public sealed partial class UiImmediateContext
                 }
 
                 var itemText = items[i];
-                var itemSize = UiTextBuilder.MeasureText(_fontAtlas, itemText, _textSettings, _lineHeight);
+                var itemSize = MeasureTextInternal(itemText, _textSettings, _lineHeight);
                 var itemPos = new UiVector2(itemRect.X + 6f, itemRect.Y + (itemRect.Height - itemSize.Y) * 0.5f);
-                _builder.AddText(
-                    _fontAtlas,
+                AddTextInternal(_builder,
                     itemText,
                     itemPos,
                     _theme.Text,
-                    _fontTexture,
                     CurrentClipRect,
                     _textSettings,
                     _lineHeight
@@ -231,14 +225,12 @@ public sealed partial class UiImmediateContext
         AddRectFilled(comboRect, bg, _whiteTexture);
 
         var currentText = itemsCount > 0 ? itemsGetter(currentIndex) ?? string.Empty : string.Empty;
-        var valueSize = UiTextBuilder.MeasureText(_fontAtlas, currentText, _textSettings, _lineHeight);
+        var valueSize = MeasureTextInternal(currentText, _textSettings, _lineHeight);
         var valuePos = new UiVector2(comboRect.X + 6f, comboRect.Y + (comboRect.Height - valueSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             currentText,
             valuePos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -307,14 +299,12 @@ public sealed partial class UiImmediateContext
                 }
 
                 var itemText = itemsGetter(i) ?? string.Empty;
-                var itemSize = UiTextBuilder.MeasureText(_fontAtlas, itemText, _textSettings, _lineHeight);
+                var itemSize = MeasureTextInternal(itemText, _textSettings, _lineHeight);
                 var itemPos = new UiVector2(itemRect.X + 6f, itemRect.Y + (itemRect.Height - itemSize.Y) * 0.5f);
-                _builder.AddText(
-                    _fontAtlas,
+                AddTextInternal(_builder,
                     itemText,
                     itemPos,
                     _theme.Text,
-                    _fontTexture,
                     CurrentClipRect,
                     _textSettings,
                     _lineHeight

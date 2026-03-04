@@ -58,7 +58,7 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, text, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(text, _textSettings, _lineHeight);
         var padding = 6f;
         var rect = ClampRectToDisplay(new UiRect(
             _mousePosition.X + 16f,
@@ -72,12 +72,10 @@ public sealed partial class UiImmediateContext
         AddRectFilled(rect, _theme.PopupBg, _whiteTexture);
 
         var textPos = new UiVector2(rect.X + padding, rect.Y + padding);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             text,
             textPos,
             _theme.Text,
-            _fontTexture,
             rect,
             _textSettings,
             _lineHeight

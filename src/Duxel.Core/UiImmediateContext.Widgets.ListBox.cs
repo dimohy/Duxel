@@ -65,14 +65,12 @@ public sealed partial class UiImmediateContext
             }
 
             var itemText = itemsGetter(i) ?? string.Empty;
-            var itemSize = UiTextBuilder.MeasureText(_fontAtlas, itemText, _textSettings, _lineHeight);
+            var itemSize = MeasureTextInternal(itemText, _textSettings, _lineHeight);
             var itemPos = new UiVector2(itemRect.X + ButtonPaddingX, itemRect.Y + (frameHeight - itemSize.Y) * 0.5f);
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 itemText,
                 itemPos,
                 _theme.Text,
-                _fontTexture,
                 IntersectRect(CurrentClipRect, listRect),
                 _textSettings,
                 _lineHeight
@@ -158,14 +156,12 @@ public sealed partial class UiImmediateContext
             }
 
             var itemText = items[i];
-            var itemSize = UiTextBuilder.MeasureText(_fontAtlas, itemText, _textSettings, _lineHeight);
+            var itemSize = MeasureTextInternal(itemText, _textSettings, _lineHeight);
             var itemPos = new UiVector2(itemRect.X + ButtonPaddingX, itemRect.Y + (frameHeight - itemSize.Y) * 0.5f);
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 itemText,
                 itemPos,
                 _theme.Text,
-                _fontTexture,
                 IntersectRect(CurrentClipRect, listRect),
                 _textSettings,
                 _lineHeight

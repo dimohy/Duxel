@@ -6,7 +6,7 @@ public sealed partial class UiImmediateContext
     {
         text ??= string.Empty;
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, text, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(text, _textSettings, _lineHeight);
         var frameHeight = MathF.Max(_lineHeight, textSize.Y);
         var cursor = AdvanceCursor(new UiVector2(0f, frameHeight));
 
@@ -25,12 +25,10 @@ public sealed partial class UiImmediateContext
         if (!string.IsNullOrWhiteSpace(text))
         {
             var textPos = new UiVector2(leftEnd + 6f, cursor.Y + (frameHeight - textSize.Y) * 0.5f);
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 text,
                 textPos,
                 _theme.Text,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight

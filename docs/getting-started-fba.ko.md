@@ -1,19 +1,18 @@
-# Duxel FBA Quick Start Guide
+# Duxel FBA 빠른 시작 가이드
 
-> Last synced: 2026-03-05  
-> Korean original: [getting-started-fba.ko.md](getting-started-fba.ko.md)
+> 마지막 동기화: 2026-03-05
 
-This guide covers the FBA (File-Based App) flow to run Duxel with a single `.cs` file.
+단일 `.cs` 파일로 Duxel 앱을 실행하는 FBA(File-Based App) 기준 가이드입니다.
 
-## Requirements
+## 필수 환경
 
-| Item | Requirement |
+| 항목 | 요구 사항 |
 |---|---|
-| .NET SDK | 10.0 or newer |
+| .NET SDK | 10.0 이상 |
 | OS | Windows 10/11 |
-| GPU | Vulkan 1.0+ support |
+| GPU | Vulkan 1.0+ 지원 |
 
-## 30-Second Run
+## 30초 실행
 
 `hello.cs`:
 
@@ -47,9 +46,9 @@ public sealed class HelloScreen : UiScreen
 dotnet run hello.cs
 ```
 
-## Running Samples
+## 샘플 실행
 
-Repo samples are in `samples/fba/`.
+레포 샘플은 `samples/fba/`에 있습니다.
 
 ```powershell
 dotnet run samples/fba/all_features.cs
@@ -57,22 +56,22 @@ dotnet run samples/fba/all_features.cs
 ./run-fba.ps1 samples/fba/all_features.cs -Managed
 ```
 
-- `dotnet run ...`: NuGet package execution path.
-- `run-fba.ps1`: rewrites to local project references (NativeAOT by default).
+- `dotnet run ...`: NuGet 패키지 기준 실행
+- `run-fba.ps1`: 로컬 프로젝트 참조로 치환해 실행(기본 NativeAOT)
 
-### Frequently Used Samples
+### 자주 쓰는 샘플
 
-| File | Description |
+| 파일 | 설명 |
 |---|---|
-| `all_features.cs` | Full widget showcase demo |
-| `dsl_showcase.cs` | DSL layout demo |
-| `dsl_interaction.cs` | DSL state/event demo |
-| `windows_calculator_fba.cs` | Calculator UI demo |
-| `text_render_validation_fba.cs` | Text rendering validation |
-| `font_style_validation_fba.cs` | Font style/size rendering validation |
-| `Duxel_perf_test_fba.cs` | High-polygon benchmark |
+| `all_features.cs` | 전체 위젯 종합 데모 |
+| `dsl_showcase.cs` | DSL 레이아웃 데모 |
+| `dsl_interaction.cs` | DSL 상태/이벤트 데모 |
+| `windows_calculator_fba.cs` | 계산기 UI 데모 |
+| `text_render_validation_fba.cs` | 텍스트 렌더 검증 |
+| `font_style_validation_fba.cs` | 폰트 스타일/크기 렌더링 검증 |
+| `Duxel_perf_test_fba.cs` | 대량 폴리곤 벤치 |
 
-## Profile / Environment Variable
+## 프로필/환경 변수
 
 ```powershell
 $env:DUXEL_APP_PROFILE='render'
@@ -80,7 +79,7 @@ $env:DUXEL_APP_PROFILE='render'
 Remove-Item Env:DUXEL_APP_PROFILE
 ```
 
-## DSL Style
+## DSL 방식
 
 ```csharp
 #:property TargetFramework=net10.0
@@ -110,8 +109,8 @@ DuxelWindowsApp.Run(new DuxelAppOptions
 });
 ```
 
-## Related Docs
+## 참고 문서
 
-- [docs/fba-reference-guide.md](fba-reference-guide.md)
-- [docs/fba-run-samples.md](fba-run-samples.md) · [한국어](fba-run-samples.ko.md)
-- [docs/ui-dsl.md](ui-dsl.md)
+- [docs/fba-reference-guide.ko.md](docs/fba-reference-guide.ko.md)
+- [docs/fba-run-samples.ko.md](docs/fba-run-samples.ko.md) · [English](docs/fba-run-samples.md)
+- [docs/ui-dsl.ko.md](docs/ui-dsl.ko.md)

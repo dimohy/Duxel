@@ -51,6 +51,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     ];
     private static readonly string? VulkanFailureLogPath = Environment.GetEnvironmentVariable("DUXEL_VK_FAIL_LOG");
     private static readonly object VulkanFailureLogLock = new();
+    private static readonly object FontCommandDiagLogLock = new();
 
     private readonly Vk _vk = Vk.GetApi();
     private VulkanRendererOptions _options;
@@ -118,6 +119,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     private ulong _pipelineCacheHash;
     private readonly bool _profilingEnabled = string.Equals(Environment.GetEnvironmentVariable("DUXEL_VK_PROFILE"), "1", StringComparison.Ordinal);
     private readonly int _profilingLogInterval = ParseProfileLogInterval();
+    private readonly bool _fontCommandDiagEnabled = string.Equals(Environment.GetEnvironmentVariable("DUXEL_VK_FONT_CMD_DIAG"), "1", StringComparison.Ordinal);
+    private readonly string? _fontCommandDiagLogPath = Environment.GetEnvironmentVariable("DUXEL_VK_FONT_CMD_DIAG_LOG");
+    private readonly bool _fontCommandBoundsAssertEnabled = string.Equals(Environment.GetEnvironmentVariable("DUXEL_VK_FONT_BOUNDS_ASSERT"), "1", StringComparison.Ordinal);
     private readonly bool _uploadBatchingEnabled = ParseUploadBatchingEnabled();
     private readonly bool _layerTextureBackendEnabled = ParseLayerTextureBackendEnabled();
     private readonly bool _layerTextureComposeEnabled = ParseLayerTextureComposeEnabled();
@@ -262,7 +266,11 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         var expectedFbHeight = (int)(drawData.DisplaySize.Y * drawData.FramebufferScale.Y);
         if (expectedFbWidth != (int)_swapchainExtent.Width || expectedFbHeight != (int)_swapchainExtent.Height)
         {
-            RecreateSwapchain();
+            if (!TryRecreateSwapchain())
+            {
+                return;
+            }
+
             if (expectedFbWidth != (int)_swapchainExtent.Width || expectedFbHeight != (int)_swapchainExtent.Height)
             {
                 return;
@@ -298,11 +306,15 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         var imageAvailable = semaphores.ImageAvailable;
         uint imageIndex = 0;
         var acquireResult = _khrSwapchain.AcquireNextImage(_device, _swapchain, ulong.MaxValue, imageAvailable, default, &imageIndex);
-        if (acquireResult == Result.ErrorOutOfDateKhr)
+        if (acquireResult == Result.ErrorOutOfDateKhr || IsSurfaceLost(acquireResult))
         {
-            RecreateSwapchain();
+            if (!TryRecreateSwapchain())
+            {
+                return;
+            }
+
             acquireResult = _khrSwapchain.AcquireNextImage(_device, _swapchain, ulong.MaxValue, imageAvailable, default, &imageIndex);
-            if (acquireResult == Result.ErrorOutOfDateKhr)
+            if (acquireResult == Result.ErrorOutOfDateKhr || IsSurfaceLost(acquireResult))
             {
                 return;
             }
@@ -390,9 +402,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
                 submitTicks,
                 presentTicks);
         }
-        if (presentResult == Result.ErrorOutOfDateKhr || IsSuboptimal(presentResult))
+        if (presentResult == Result.ErrorOutOfDateKhr || IsSuboptimal(presentResult) || IsSurfaceLost(presentResult))
         {
-            RecreateSwapchain();
+            _ = TryRecreateSwapchain();
             return;
         }
 
@@ -615,6 +627,39 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         return ticks * (1000000.0 / Stopwatch.Frequency);
     }
 
+    private void EmitFontCommandDiag(string message)
+    {
+        if (!_fontCommandDiagEnabled)
+        {
+            return;
+        }
+
+        var line = $"[duxel-vk-font-cmd] {message}";
+        Console.WriteLine(line);
+
+        if (string.IsNullOrWhiteSpace(_fontCommandDiagLogPath))
+        {
+            return;
+        }
+
+        try
+        {
+            lock (FontCommandDiagLogLock)
+            {
+                var directory = Path.GetDirectoryName(_fontCommandDiagLogPath);
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                File.AppendAllText(_fontCommandDiagLogPath, $"{DateTime.UtcNow:O} {line}{Environment.NewLine}");
+            }
+        }
+        catch
+        {
+        }
+    }
+
     public byte[] CaptureBackbuffer(out int width, out int height, out Format format)
     {
         if (_swapchainImages.Length is 0)
@@ -730,7 +775,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             _frameIndex = 0;
             Array.Clear(_imagesInFlight, 0, _imagesInFlight.Length);
-            RecreateSwapchain();
+            _ = TryRecreateSwapchain();
         }
     }
 
@@ -746,7 +791,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             _frameIndex = 0;
             Array.Clear(_imagesInFlight, 0, _imagesInFlight.Length);
-            RecreateSwapchain();
+            _ = TryRecreateSwapchain();
         }
     }
 
@@ -778,7 +823,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             _frameIndex = 0;
             Array.Clear(_imagesInFlight, 0, _imagesInFlight.Length);
-            RecreateSwapchain();
+            _ = TryRecreateSwapchain();
         }
     }
 
@@ -860,7 +905,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             _frameIndex = 0;
             Array.Clear(_imagesInFlight, 0, _imagesInFlight.Length);
-            RecreateSwapchain();
+            _ = TryRecreateSwapchain();
         }
     }
 
@@ -918,6 +963,19 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     {
         DestroySwapchainDependentResources();
         CreateSwapchainResources();
+    }
+
+    private bool TryRecreateSwapchain()
+    {
+        try
+        {
+            RecreateSwapchain();
+            return true;
+        }
+        catch (InvalidOperationException ex) when (IsSurfaceLostException(ex))
+        {
+            return false;
+        }
     }
 
     private void DestroySwapchainDependentResources()
@@ -1589,6 +1647,24 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
         var name = result.ToString();
         return name.Contains("Suboptimal", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSurfaceLost(Result result)
+    {
+        const Result errorSurfaceLostKhr = (Result)(-1000000000);
+        if (result == Result.ErrorSurfaceLostKhr || result == errorSurfaceLostKhr)
+        {
+            return true;
+        }
+
+        var name = result.ToString();
+        return name.Contains("SurfaceLost", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSurfaceLostException(InvalidOperationException ex)
+    {
+        return ex.Message.Contains("ErrorSurfaceLostKhr", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("SurfaceLost", StringComparison.OrdinalIgnoreCase);
     }
 
     private unsafe void CreateSwapchain()
@@ -2623,12 +2699,21 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             var vertices = drawList.Vertices.AsSpan();
             if (!vertices.IsEmpty)
             {
-                fixed (UiDrawVertex* vertexSrc = vertices)
+                var vertexOut = (UiVertex*)vertexDst;
+                for (var i = 0; i < vertices.Length; i++)
                 {
-                    var vertexBytes = (uint)(vertices.Length * sizeof(UiDrawVertex));
-                    Unsafe.CopyBlockUnaligned(vertexDst, vertexSrc, vertexBytes);
-                    vertexDst += vertexBytes;
+                    ref readonly var src = ref vertices[i];
+                    vertexOut[i] = new UiVertex
+                    {
+                        PositionX = src.Position.X,
+                        PositionY = src.Position.Y,
+                        UVx = src.UV.X,
+                        UVy = src.UV.Y,
+                        Color = src.Color.Rgba,
+                    };
                 }
+
+                vertexDst += (uint)(vertices.Length * sizeof(UiVertex));
             }
 
             var indices = drawList.Indices.AsSpan();
@@ -2695,7 +2780,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             QueueBufferDestroy(existing.IndexBuffer, existing.IndexMemory);
         }
 
-        var vertexSize = (nuint)(Math.Max(1, vertexCount) * sizeof(UiDrawVertex));
+        var vertexSize = (nuint)(Math.Max(1, vertexCount) * sizeof(UiVertex));
         var indexSize = (nuint)(Math.Max(1, indexCount) * sizeof(uint));
         CreateBuffer(
             vertexSize,
@@ -2716,9 +2801,23 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         var vertices = drawList.Vertices.AsSpan();
         if (!vertices.IsEmpty)
         {
-            fixed (UiDrawVertex* vertexSrc = vertices)
+            var convertedVertices = new UiVertex[vertices.Length];
+            for (var i = 0; i < vertices.Length; i++)
             {
-                UploadStaticBufferData(vertexBuffer, vertexSize, vertexSrc, (nuint)(vertices.Length * sizeof(UiDrawVertex)));
+                ref readonly var src = ref vertices[i];
+                convertedVertices[i] = new UiVertex
+                {
+                    PositionX = src.Position.X,
+                    PositionY = src.Position.Y,
+                    UVx = src.UV.X,
+                    UVy = src.UV.Y,
+                    Color = src.Color.Rgba,
+                };
+            }
+
+            fixed (UiVertex* vertexSrc = convertedVertices)
+            {
+                UploadStaticBufferData(vertexBuffer, vertexSize, vertexSrc, (nuint)(convertedVertices.Length * sizeof(UiVertex)));
             }
         }
 
@@ -3212,7 +3311,6 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         var clipOffsetY = clipOffset.Y;
         var clipScaleX = clipScale.X;
         var clipScaleY = clipScale.Y;
-        var fontTextureId = _options.FontTextureId.Value is 0 ? new UiTextureId(1) : _options.FontTextureId;
         var fbWidthF = (float)fbWidth;
         var fbHeightF = (float)fbHeight;
 
@@ -3263,6 +3361,108 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             var dynamicPushConstants = stackalloc float[4];
             dynamicPushConstants[0] = scaleX;
             dynamicPushConstants[1] = scaleY;
+            var emittedFontCommandDiag = 0;
+            const int maxFontCommandDiagPerPass = 256;
+
+            bool ShouldAnalyzeFontCommandBounds(bool isFontCommand)
+            {
+                return isFontCommand && (_fontCommandDiagEnabled || _fontCommandBoundsAssertEnabled);
+            }
+
+            void AnalyzeAndValidateFontCommandBounds(UiDrawList drawList, ref readonly UiDrawCommand cmd, bool isFontCommand, int listIndex, int cmdIndex)
+            {
+                if (!ShouldAnalyzeFontCommandBounds(isFontCommand))
+                {
+                    return;
+                }
+
+                var indexStart = (int)cmd.IndexOffset;
+                var indexEndExclusive = indexStart + (int)cmd.ElementCount;
+                var indexCount = drawList.Indices.Count;
+                var vertexCount = drawList.Vertices.Count;
+                var indexRangeInvalid = indexStart < 0 || indexEndExclusive < indexStart || indexEndExclusive > indexCount;
+
+                var rawIndexMin = int.MaxValue;
+                var rawIndexMax = int.MinValue;
+                var invalidVertexRefCount = 0;
+                var uvMinX = float.PositiveInfinity;
+                var uvMinY = float.PositiveInfinity;
+                var uvMaxX = float.NegativeInfinity;
+                var uvMaxY = float.NegativeInfinity;
+                var uvOutOfRangeCount = 0;
+                var scannedIndexCount = 0;
+
+                if (!indexRangeInvalid)
+                {
+                    for (var i = indexStart; i < indexEndExclusive; i++)
+                    {
+                        var localVertexIndex = (int)drawList.Indices[i];
+                        scannedIndexCount++;
+                        if (localVertexIndex < rawIndexMin)
+                        {
+                            rawIndexMin = localVertexIndex;
+                        }
+
+                        if (localVertexIndex > rawIndexMax)
+                        {
+                            rawIndexMax = localVertexIndex;
+                        }
+
+                        if ((uint)localVertexIndex >= (uint)vertexCount)
+                        {
+                            invalidVertexRefCount++;
+                            continue;
+                        }
+
+                        var vertex = drawList.Vertices[localVertexIndex];
+                        var uv = vertex.UV;
+                        if (uv.X < uvMinX)
+                        {
+                            uvMinX = uv.X;
+                        }
+
+                        if (uv.Y < uvMinY)
+                        {
+                            uvMinY = uv.Y;
+                        }
+
+                        if (uv.X > uvMaxX)
+                        {
+                            uvMaxX = uv.X;
+                        }
+
+                        if (uv.Y > uvMaxY)
+                        {
+                            uvMaxY = uv.Y;
+                        }
+
+                        if (uv.X < 0f || uv.X > 1f || uv.Y < 0f || uv.Y > 1f)
+                        {
+                            uvOutOfRangeCount++;
+                        }
+                    }
+                }
+
+                var hasUvBounds = !float.IsPositiveInfinity(uvMinX) && !float.IsNegativeInfinity(uvMaxX);
+                if ((_fontCommandDiagEnabled || _fontCommandBoundsAssertEnabled) && emittedFontCommandDiag < maxFontCommandDiagPerPass)
+                {
+                    var uvBoundsText = hasUvBounds
+                        ? $"({uvMinX:0.######},{uvMinY:0.######})-({uvMaxX:0.######},{uvMaxY:0.######})"
+                        : "(n/a)";
+                    var rawIndexText = rawIndexMin <= rawIndexMax
+                        ? $"{rawIndexMin}..{rawIndexMax}"
+                        : "n/a";
+                    EmitFontCommandDiag(
+                        $"frame={_frameIndex} image={imageIndex} list={listIndex} cmd={cmdIndex} tex={cmd.TextureId.Value} isFont=1 bounds idxRange={indexStart}..{indexEndExclusive - 1} idxCount={indexCount} scanned={scannedIndexCount} rawIdx={rawIndexText} vtxCount={vertexCount} idxRangeInvalid={(indexRangeInvalid ? 1 : 0)} invalidVtxRef={invalidVertexRefCount} uvBounds={uvBoundsText} uvOutOfRange={uvOutOfRangeCount}");
+                    emittedFontCommandDiag++;
+                }
+
+                if (_fontCommandBoundsAssertEnabled && (indexRangeInvalid || invalidVertexRefCount > 0 || uvOutOfRangeCount > 0))
+                {
+                    throw new InvalidOperationException(
+                        $"Font draw command bounds validation failed: frame={_frameIndex} image={imageIndex} list={listIndex} cmd={cmdIndex} tex={cmd.TextureId.Value} idxRangeInvalid={indexRangeInvalid} invalidVtxRef={invalidVertexRefCount} uvOutOfRange={uvOutOfRangeCount}");
+                }
+            }
             
 
             for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
@@ -3299,7 +3499,7 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
                 for (var cmdIndex = 0; cmdIndex < commandCount; cmdIndex++)
                 {
                     ref readonly var cmd = ref drawList.Commands.ItemRef(cmdIndex);
-                    var isFontCommand = cmd.TextureId.Equals(fontTextureId);
+                    var isFontCommand = IsFontTextureId(cmd.TextureId);
                     if (renderFontOnly && !isFontCommand)
                     {
                         continue;
@@ -3317,6 +3517,12 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
                         hasLastTexture = true;
                         if (!_textures.TryGetValue(cmd.TextureId, out lastTexture))
                         {
+                            if (_fontCommandDiagEnabled && emittedFontCommandDiag < maxFontCommandDiagPerPass)
+                            {
+                                EmitFontCommandDiag($"frame={_frameIndex} image={imageIndex} list={listIndex} cmd={cmdIndex} tex={cmd.TextureId.Value} isFont={isFontCommand} missingTexture=1 elem={cmd.ElementCount} idxOff={cmd.IndexOffset} vtxOff={cmd.VertexOffset}");
+                                emittedFontCommandDiag++;
+                            }
+
                             lastTextureValid = false;
                             if (profileEnabled)
                             {
@@ -3340,6 +3546,14 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
                     {
                             textureLookupTicksLocal += Stopwatch.GetTimestamp() - textureLookupStart;
                     }
+
+                    if (_fontCommandDiagEnabled && isFontCommand && emittedFontCommandDiag < maxFontCommandDiagPerPass)
+                    {
+                        EmitFontCommandDiag($"frame={_frameIndex} image={imageIndex} list={listIndex} cmd={cmdIndex} tex={cmd.TextureId.Value} isFont=1 elem={cmd.ElementCount} idxOff={cmd.IndexOffset} vtxOff={cmd.VertexOffset} clip=({cmd.ClipRect.X:0.###},{cmd.ClipRect.Y:0.###},{cmd.ClipRect.Width:0.###},{cmd.ClipRect.Height:0.###}) trans=({cmd.Translation.X:0.###},{cmd.Translation.Y:0.###})");
+                        emittedFontCommandDiag++;
+                    }
+
+                    AnalyzeAndValidateFontCommandBounds(drawList, in cmd, isFontCommand, listIndex, cmdIndex);
 
                     var texture = lastTexture;
                     var cmdTranslationX = cmd.Translation.X;
@@ -4100,11 +4314,17 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         UploadTextureData(image, update, initialLayout);
 
         var view = CreateImageView(image, format);
-        var fontTextureId = _options.FontTextureId.Value is 0 ? new UiTextureId(1) : _options.FontTextureId;
-        var isFontTexture = update.TextureId.Equals(fontTextureId);
+        var isFontTexture = IsFontTextureId(update.TextureId);
         var descriptorSet = AllocateTextureDescriptorSet(view, isFontTexture);
 
         return new TextureResource(image, memory, view, descriptorSet, update.Width, update.Height, format);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsFontTextureId(UiTextureId textureId)
+    {
+        var baseFontTextureId = _options.FontTextureId.Value is 0 ? new UiTextureId(1) : _options.FontTextureId;
+        return textureId.Equals(baseFontTextureId) || textureId.Value >= 1_100_000_000;
     }
 
     private void DestroyTextureResources()
@@ -4250,13 +4470,28 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
     private void UploadTextureData(Image image, UiTextureUpdate update, ImageLayout initialLayout)
     {
-        var data = update.RgbaPixels.Span;
-        var bufferSize = (nuint)data.Length;
+        var expectedBytes = GetExpectedTextureDataSize(update.Format, update.Width, update.Height);
+        var source = update.RgbaPixels.Span;
+        byte[]? normalizedPixels = null;
+        ReadOnlySpan<byte> data;
+
+        if ((nuint)source.Length == expectedBytes)
+        {
+            data = source;
+        }
+        else
+        {
+            normalizedPixels = new byte[(int)expectedBytes];
+            source[..Math.Min(source.Length, normalizedPixels.Length)].CopyTo(normalizedPixels);
+            data = normalizedPixels;
+        }
+
+        var bufferSize = expectedBytes;
         EnsureStagingBuffer(bufferSize);
 
-        data.CopyTo(new Span<byte>(_stagingMappedPtr, data.Length));
-
         var commandBuffer = BeginSingleTimeCommands();
+
+        data.CopyTo(new Span<byte>(_stagingMappedPtr, data.Length));
 
         try
         {
@@ -4285,6 +4520,23 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             EndSingleTimeCommands(commandBuffer);
         }
+    }
+
+    private static nuint GetExpectedTextureDataSize(UiTextureFormat format, int width, int height)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            return 0;
+        }
+
+        var bytesPerPixel = format switch
+        {
+            UiTextureFormat.Rgba8Unorm => 4,
+            UiTextureFormat.Rgba8Srgb => 4,
+            _ => throw new InvalidOperationException($"Unsupported texture format: {format}.")
+        };
+
+        return (nuint)width * (nuint)height * (nuint)bytesPerPixel;
     }
 
     private unsafe void WaitForAllInFlightFrameFences()

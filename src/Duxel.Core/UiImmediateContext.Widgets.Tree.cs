@@ -28,7 +28,7 @@ public sealed partial class UiImmediateContext
             _state.SetBool(id, isOpen);
             _hasNextItemOpen = false;
         }
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
         var height = MathF.Max(textSize.Y, frameHeight);
         var arrowSize = MathF.Min(height, 12f);
@@ -65,12 +65,10 @@ public sealed partial class UiImmediateContext
         DrawTreeArrow(arrowRect, isOpen, id, _theme.Text);
 
         var textPos = new UiVector2(arrowRect.X + arrowRect.Width + 6f, rect.Y + (height - textSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             label,
             textPos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -116,7 +114,7 @@ public sealed partial class UiImmediateContext
             _state.SetBool(id, isOpen);
             _hasNextItemOpen = false;
         }
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
         var height = MathF.Max(textSize.Y, frameHeight);
         var arrowSize = MathF.Min(height, 12f);
@@ -150,12 +148,10 @@ public sealed partial class UiImmediateContext
         DrawTreeArrow(arrowRect, isOpen, id, _theme.Text);
 
         var textPos = new UiVector2(arrowRect.X + arrowRect.Width + 6f, rect.Y + (height - textSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             label,
             textPos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight

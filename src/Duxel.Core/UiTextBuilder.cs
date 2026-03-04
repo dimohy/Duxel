@@ -133,10 +133,7 @@ public static class UiTextBuilder
                     x += font.GetKerning(prevChar, code) * scale;
                 }
 
-                var allowFallbackForCodepoint = useFallbackGlyph && !IsHangulCodepoint(code);
-                var hasGlyph = allowFallbackForCodepoint
-                    ? font.GetGlyphOrFallback(code, out var glyph)
-                    : font.TryGetGlyph(code, out glyph);
+                var hasGlyph = font.TryGetGlyph(code, out var glyph);
                 if (!hasGlyph)
                 {
                     missingGlyphObserver?.Invoke(code);
@@ -215,10 +212,7 @@ public static class UiTextBuilder
                     x += font.GetKerning(prevChar, rune.Value) * scale;
                 }
 
-                var allowFallbackForCodepoint = useFallbackGlyph && !IsHangulCodepoint(rune.Value);
-                var hasGlyph = allowFallbackForCodepoint
-                    ? font.GetGlyphOrFallback(rune.Value, out var glyph)
-                    : font.TryGetGlyph(rune.Value, out glyph);
+                var hasGlyph = font.TryGetGlyph(rune.Value, out var glyph);
                 if (!hasGlyph)
                 {
                     missingGlyphObserver?.Invoke(rune.Value);
@@ -381,10 +375,7 @@ public static class UiTextBuilder
                     lineWidth = Snap(lineWidth + (font.GetKerning(prevChar, code) * scale), pixelSnap);
                 }
 
-                var allowFallbackForCodepoint = useFallbackGlyph && !IsHangulCodepoint(code);
-                var hasGlyph = allowFallbackForCodepoint
-                    ? font.GetGlyphOrFallback(code, out var glyph)
-                    : font.TryGetGlyph(code, out glyph);
+                var hasGlyph = font.TryGetGlyph(code, out var glyph);
                 if (!hasGlyph)
                 {
                     missingGlyphObserver?.Invoke(code);
@@ -425,10 +416,7 @@ public static class UiTextBuilder
                     lineWidth = Snap(lineWidth + (font.GetKerning(prevChar, rune.Value) * scale), pixelSnap);
                 }
 
-                var allowFallbackForCodepoint = useFallbackGlyph && !IsHangulCodepoint(rune.Value);
-                var hasGlyph = allowFallbackForCodepoint
-                    ? font.GetGlyphOrFallback(rune.Value, out var glyph)
-                    : font.TryGetGlyph(rune.Value, out glyph);
+                var hasGlyph = font.TryGetGlyph(rune.Value, out var glyph);
                 if (!hasGlyph)
                 {
                     missingGlyphObserver?.Invoke(rune.Value);
@@ -484,14 +472,6 @@ public static class UiTextBuilder
         float LineHeightOverride,
         string Text
     );
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsHangulCodepoint(int codepoint)
-    {
-        return (codepoint >= 0xAC00 && codepoint <= 0xD7A3)
-            || (codepoint >= 0x1100 && codepoint <= 0x11FF)
-            || (codepoint >= 0x3130 && codepoint <= 0x318F);
-    }
 
     private static float Snap(float value, bool enabled) => enabled ? MathF.Round(value) : value;
 }

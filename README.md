@@ -6,13 +6,13 @@
 
 Immediate-mode GUI framework for .NET 10, using a Vulkan renderer with a Windows-native platform backend.
 
-**Current package version:** `0.1.13-preview`
+**Current package version:** `0.1.15-preview`
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 - 한국어 문서: [README.ko.md](README.ko.md)
-- Version history: [docs/version-history.en.md](docs/version-history.en.md) · [한국어](docs/version-history.md)
+- Version history: [docs/version-history.md](docs/version-history.md) · [한국어](docs/version-history.ko.md)
 
 ## What it provides
 
@@ -77,9 +77,9 @@ dotnet run hello.cs
 
 Duxel supports declarative `.ui` files (indent-based tree) and runtime/state bindings.
 
-- DSL reference: [docs/ui-dsl.en.md](docs/ui-dsl.en.md) · [한국어](docs/ui-dsl.md)
-- FBA getting started: [docs/getting-started-fba.en.md](docs/getting-started-fba.en.md) · [한국어](docs/getting-started-fba.md)
-- FBA reference guide: [docs/fba-reference-guide.en.md](docs/fba-reference-guide.en.md) · [한국어](docs/fba-reference-guide.md)
+- DSL reference: [docs/ui-dsl.md](docs/ui-dsl.md) · [한국어](docs/ui-dsl.ko.md)
+- FBA getting started: [docs/getting-started-fba.md](docs/getting-started-fba.md) · [한국어](docs/getting-started-fba.ko.md)
+- FBA reference guide: [docs/fba-reference-guide.md](docs/fba-reference-guide.md) · [한국어](docs/fba-reference-guide.ko.md)
 
 ## Build
 

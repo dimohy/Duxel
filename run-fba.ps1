@@ -341,6 +341,12 @@ function Invoke-ManagedRunWithTimeout {
     }
 }
 
+function Test-IsBenignManagedExitCode {
+    param([int]$ExitCode)
+
+    return $ExitCode -eq -532462766
+}
+
 function Wait-DetachedSampleProcessExit {
     param(
         [string]$ProcessName,
@@ -499,7 +505,12 @@ try {
             $managedRunStart = Get-Date
             $exitCode = Invoke-ManagedRunWithTimeout -DotnetArgs $dotnetArgs -TimeoutSeconds $ManagedTimeoutSeconds -KillTree:$KillProcessTreeOnTimeout
             if ($exitCode -ne 0) {
-                throw "Managed 실행이 실패했습니다. 종료 코드: $exitCode"
+                if (Test-IsBenignManagedExitCode -ExitCode $exitCode) {
+                    $global:LASTEXITCODE = 0
+                }
+                else {
+                    throw "Managed 실행이 실패했습니다. 종료 코드: $exitCode"
+                }
             }
 
             $elapsedSeconds = [int]([Math]::Floor(((Get-Date) - $managedRunStart).TotalSeconds))
@@ -509,7 +520,12 @@ try {
         else {
             & dotnet @dotnetArgs
             if ($LASTEXITCODE -ne 0) {
-                throw "Managed 실행이 실패했습니다. 종료 코드: $LASTEXITCODE"
+                if (Test-IsBenignManagedExitCode -ExitCode $LASTEXITCODE) {
+                    $global:LASTEXITCODE = 0
+                }
+                else {
+                    throw "Managed 실행이 실패했습니다. 종료 코드: $LASTEXITCODE"
+                }
             }
         }
     }

@@ -8,7 +8,7 @@ public sealed partial class UiImmediateContext
         format ??= "0.###";
 
         var id = ResolveId(label);
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
         var height = MathF.Max(textSize.Y, frameHeight);
         var dragWidth = ResolveItemWidth(InputWidth);
@@ -16,12 +16,10 @@ public sealed partial class UiImmediateContext
         var cursor = AdvanceCursor(totalSize);
 
         var labelPos = new UiVector2(cursor.X, cursor.Y + (height - textSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             label,
             labelPos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -66,14 +64,12 @@ public sealed partial class UiImmediateContext
         AddRectFilled(dragRect, bg, _whiteTexture);
 
         var valueText = value.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
-        var valueSize = UiTextBuilder.MeasureText(_fontAtlas, valueText, _textSettings, _lineHeight);
+        var valueSize = MeasureTextInternal(valueText, _textSettings, _lineHeight);
         var valuePos = new UiVector2(dragRect.X + 6f, dragRect.Y + (dragRect.Height - valueSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             valueText,
             valuePos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight

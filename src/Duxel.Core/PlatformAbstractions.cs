@@ -47,6 +47,7 @@ public interface IPlatformBackend : IDisposable
     double TimeSeconds { get; }
     IInputBackend Input { get; }
     IVulkanSurfaceSource? VulkanSurface { get; }
+    IPlatformTextBackend? TextBackend { get; }
 
     void PollEvents();
     void WaitEvents(int timeoutMilliseconds);

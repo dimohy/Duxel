@@ -6,10 +6,13 @@
 
 .NET 10 기반 즉시 모드 GUI 프레임워크로, Vulkan 렌더러와 Windows 네이티브 플랫폼 백엔드를 사용합니다.
 
-**현재 패키지 버전:** `0.1.13-preview`
+**현재 패키지 버전:** `0.1.15-preview`
+
+[![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 - English: [README.md](README.md)
-- 버전 이력: [docs/version-history.md](docs/version-history.md) · [English](docs/version-history.en.md)
+- 버전 이력: [docs/version-history.ko.md](docs/version-history.ko.md) · [English](docs/version-history.md)
 
 ## 제공 기능
 
@@ -74,9 +77,9 @@ dotnet run hello.cs
 
 `.ui` 선언형 문법과 상태 바인딩을 지원합니다.
 
-- DSL 문서: [docs/ui-dsl.md](docs/ui-dsl.md) · [English](docs/ui-dsl.en.md)
-- FBA 시작 가이드: [docs/getting-started-fba.md](docs/getting-started-fba.md) · [English](docs/getting-started-fba.en.md)
-- FBA 참조 가이드: [docs/fba-reference-guide.md](docs/fba-reference-guide.md) · [English](docs/fba-reference-guide.en.md)
+- DSL 문서: [docs/ui-dsl.ko.md](docs/ui-dsl.ko.md) · [English](docs/ui-dsl.md)
+- FBA 시작 가이드: [docs/getting-started-fba.ko.md](docs/getting-started-fba.ko.md) · [English](docs/getting-started-fba.md)
+- FBA 참조 가이드: [docs/fba-reference-guide.ko.md](docs/fba-reference-guide.ko.md) · [English](docs/fba-reference-guide.md)
 
 ## 빌드
 

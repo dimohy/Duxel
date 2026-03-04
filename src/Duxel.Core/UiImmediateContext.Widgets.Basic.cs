@@ -15,7 +15,7 @@ public sealed partial class UiImmediateContext
         label ??= "Button";
 
         var displayLabel = GetDisplayLabel(label);
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, displayLabel, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
         var width = size.X > 0f ? size.X : textSize.X + ButtonPaddingX * 2f;
         var height = size.Y > 0f ? size.Y : textSize.Y + ButtonPaddingY * 2f;
         var cursor = AdvanceCursor(new UiVector2(width, height));
@@ -32,12 +32,10 @@ public sealed partial class UiImmediateContext
         );
         if (!string.IsNullOrEmpty(displayLabel))
         {
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 displayLabel,
                 textPos,
                 _theme.Text,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -54,7 +52,7 @@ public sealed partial class UiImmediateContext
         const float smallPadX = 4f;
         const float smallPadY = 2f;
         var displayLabel = GetDisplayLabel(label);
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, displayLabel, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
         var size = new UiVector2(textSize.X + smallPadX * 2f, textSize.Y + smallPadY * 2f);
         var cursor = AdvanceCursor(size);
         var rect = new UiRect(cursor.X, cursor.Y, size.X, size.Y);
@@ -69,12 +67,10 @@ public sealed partial class UiImmediateContext
         );
         if (!string.IsNullOrEmpty(displayLabel))
         {
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 displayLabel,
                 textPos,
                 _theme.Text,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -115,17 +111,15 @@ public sealed partial class UiImmediateContext
             UiDir.Down => "v",
             _ => ">",
         };
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, arrow, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(arrow, _textSettings, _lineHeight);
         var textPos = new UiVector2(
             rect.X + (rect.Width - textSize.X) * 0.5f,
             rect.Y + (rect.Height - textSize.Y) * 0.5f
         );
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             arrow,
             textPos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -253,7 +247,7 @@ public sealed partial class UiImmediateContext
 
         try
         {
-            var textSize = UiTextBuilder.MeasureText(_fontAtlas, text, _textSettings, _lineHeight);
+            var textSize = MeasureTextInternal(text, _textSettings, _lineHeight);
             var position = AlignRect(containerRect, textSize, horizontalAlign, verticalAlign);
 
             var itemClip = ResolveItemClipRect();
@@ -264,12 +258,11 @@ public sealed partial class UiImmediateContext
                 return;
             }
 
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(
+                _builder,
                 text,
                 position,
                 color,
-                _fontTexture,
                 clipRect,
                 _textSettings,
                 _lineHeight
@@ -363,7 +356,7 @@ public sealed partial class UiImmediateContext
 
         try
         {
-            var textSize = UiTextBuilder.MeasureText(_fontAtlas, text, _textSettings, _lineHeight);
+            var textSize = MeasureTextInternal(text, _textSettings, _lineHeight);
             var textPos = AlignRect(containerRect, textSize, horizontalAlign, verticalAlign);
             var drawList = GetForegroundDrawList();
 
@@ -382,12 +375,11 @@ public sealed partial class UiImmediateContext
                 }
             }
 
-            drawList.AddText(
-                _fontAtlas,
+            AddTextInternal(
+                drawList,
                 text,
                 textPos,
                 color,
-                _fontTexture,
                 viewportRect,
                 _textSettings,
                 _lineHeight
@@ -633,7 +625,7 @@ public sealed partial class UiImmediateContext
         label ??= "Link";
 
         var displayLabel = GetDisplayLabel(label);
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, displayLabel, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
         var size = new UiVector2(textSize.X, textSize.Y);
         var cursor = AdvanceCursor(size);
         var rect = new UiRect(cursor.X, cursor.Y, size.X, size.Y);
@@ -642,12 +634,11 @@ public sealed partial class UiImmediateContext
         var color = hovered ? _theme.SliderGrabActive : _theme.SliderGrab;
         if (!string.IsNullOrEmpty(displayLabel))
         {
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(
+                _builder,
                 displayLabel,
                 cursor,
                 color,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -684,19 +675,18 @@ public sealed partial class UiImmediateContext
         var labelText = string.IsNullOrEmpty(displayLabel) ? text : FormattableString.Invariant($"{displayLabel}: ");
         var valueText = string.IsNullOrEmpty(displayLabel) ? string.Empty : text;
 
-        var labelSize = UiTextBuilder.MeasureText(_fontAtlas, labelText, _textSettings, _lineHeight);
-        var valueSize = UiTextBuilder.MeasureText(_fontAtlas, valueText, _textSettings, _lineHeight);
+        var labelSize = MeasureTextInternal(labelText, _textSettings, _lineHeight);
+        var valueSize = MeasureTextInternal(valueText, _textSettings, _lineHeight);
         var totalSize = new UiVector2(labelSize.X + valueSize.X, MathF.Max(labelSize.Y, valueSize.Y));
         var cursor = AdvanceCursor(totalSize);
 
         if (!string.IsNullOrEmpty(labelText))
         {
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(
+                _builder,
                 labelText,
                 cursor,
                 _theme.TextDisabled,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -706,12 +696,11 @@ public sealed partial class UiImmediateContext
         if (!string.IsNullOrEmpty(valueText))
         {
             var valuePos = new UiVector2(cursor.X + labelSize.X, cursor.Y);
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(
+                _builder,
                 valueText,
                 valuePos,
                 _theme.Text,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -797,7 +786,7 @@ public sealed partial class UiImmediateContext
     {
         text ??= string.Empty;
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, text, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(text, _textSettings, _lineHeight);
         var cursor = AdvanceCursor(new UiVector2(textSize.X, textSize.Y));
         if (_tableActive && _tableColumns > 0)
         {
@@ -816,12 +805,11 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(
+            _builder,
             text,
             cursor,
             color,
-            _fontTexture,
             clipRect,
             _textSettings,
             _lineHeight
@@ -927,7 +915,7 @@ public sealed partial class UiImmediateContext
         label ??= "Checkbox";
 
         var displayLabel = GetDisplayLabel(label);
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, displayLabel, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
         var glyphHeight = (_fontAtlas.Ascent - _fontAtlas.Descent) * _textSettings.Scale;
         var frameHeight = GetFrameHeight();
         var checkboxSize = frameHeight;
@@ -962,12 +950,10 @@ public sealed partial class UiImmediateContext
         if (!string.IsNullOrEmpty(displayLabel))
         {
             var textPos = new UiVector2(cursor.X + checkboxSize + CheckboxSpacing, textTop);
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 displayLabel,
                 textPos,
                 _theme.Text,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -1001,7 +987,7 @@ public sealed partial class UiImmediateContext
         label ??= "Radio";
 
         var displayLabel = GetDisplayLabel(label);
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, displayLabel, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
         var glyphHeight = (_fontAtlas.Ascent - _fontAtlas.Descent) * _textSettings.Scale;
         var frameHeight = GetFrameHeight();
         var radioSize = frameHeight;
@@ -1026,12 +1012,10 @@ public sealed partial class UiImmediateContext
         if (!string.IsNullOrEmpty(displayLabel))
         {
             var textPos = new UiVector2(cursor.X + radioSize + CheckboxSpacing, textTop);
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 displayLabel,
                 textPos,
                 _theme.Text,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -1076,17 +1060,15 @@ public sealed partial class UiImmediateContext
         var text = overlay ?? FormattableString.Invariant($"{fraction * 100f:0}%");
         if (!string.IsNullOrWhiteSpace(text))
         {
-            var textSize = UiTextBuilder.MeasureText(_fontAtlas, text, _textSettings, _lineHeight);
+            var textSize = MeasureTextInternal(text, _textSettings, _lineHeight);
             var textPos = new UiVector2(
                 rect.X + (rect.Width - textSize.X) * 0.5f,
                 rect.Y + (rect.Height - textSize.Y) * 0.5f
             );
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 text,
                 textPos,
                 _theme.Text,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -1170,14 +1152,12 @@ public sealed partial class UiImmediateContext
 
         if (!string.IsNullOrWhiteSpace(label))
         {
-            var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+            var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
             var textPos = new UiVector2(rect.X + 4f, rect.Y + 2f);
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 label,
                 textPos,
                 _theme.TextDisabled,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -1186,14 +1166,12 @@ public sealed partial class UiImmediateContext
 
         if (!string.IsNullOrWhiteSpace(overlayText))
         {
-            var overlaySize = UiTextBuilder.MeasureText(_fontAtlas, overlayText, _textSettings, _lineHeight);
+            var overlaySize = MeasureTextInternal(overlayText, _textSettings, _lineHeight);
             var overlayPos = new UiVector2(rect.X + (rect.Width - overlaySize.X) * 0.5f, rect.Y + (rect.Height - overlaySize.Y) * 0.5f);
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 overlayText,
                 overlayPos,
                 _theme.Text,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight

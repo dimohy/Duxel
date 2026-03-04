@@ -515,7 +515,7 @@ public sealed partial class UiImmediateContext
             _textSettings.UseFallbackGlyph,
             _textSettings.MissingGlyphObserver
         );
-        return UiTextBuilder.MeasureText(_fontAtlas, text, scaledSettings, _lineHeight);
+        return MeasureTextInternal(text, scaledSettings, _lineHeight);
     }
 
     public UiVector2 AlignRect(UiRect containerRect, UiVector2 contentSize, UiItemHorizontalAlign horizontalAlign = UiItemHorizontalAlign.Left, UiItemVerticalAlign verticalAlign = UiItemVerticalAlign.Top)
@@ -1078,12 +1078,10 @@ public sealed partial class UiImmediateContext
         _builder.AddLine(new UiVector2(closeX1, closeY2), new UiVector2(closeX2, closeY1), _theme.Text, 1.5f, _whiteTexture);
 
         var titlePos = new UiVector2(collapseRect.X + collapseRect.Width + 6f, rect.Y + (titleBarHeight - _lineHeight) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             title,
             titlePos,
             _theme.Text,
-            _fontTexture,
             rect,
             _textSettings,
             _lineHeight

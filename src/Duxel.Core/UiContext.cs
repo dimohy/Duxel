@@ -38,6 +38,9 @@ public sealed class UiContext : IUiContext
     private Action? _requestFrame;
     private Func<float, UiFontResource?>? _resolveFontResource;
     private string? _directTextPrimaryFontPath;
+    private string? _directTextSecondaryFontPath;
+    private float _directTextBaseFontSize;
+    private IPlatformTextBackend? _platformTextBackend;
     private int _reserveVertices;
     private int _reserveIndices;
     private int _reserveCommands;
@@ -148,6 +151,21 @@ public sealed class UiContext : IUiContext
     public void SetDirectTextPrimaryFontPath(string? fontPath)
     {
         _directTextPrimaryFontPath = string.IsNullOrWhiteSpace(fontPath) ? null : fontPath;
+    }
+
+    public void SetDirectTextSecondaryFontPath(string? fontPath)
+    {
+        _directTextSecondaryFontPath = string.IsNullOrWhiteSpace(fontPath) ? null : fontPath;
+    }
+
+    public void SetDirectTextBaseFontSize(float size)
+    {
+        _directTextBaseFontSize = size;
+    }
+
+    public void SetPlatformTextBackend(IPlatformTextBackend? textBackend)
+    {
+        _platformTextBackend = textBackend;
     }
 
     public void SetTheme(UiTheme theme)
@@ -772,7 +790,9 @@ public sealed class UiContext : IUiContext
                 requestFrame: _requestFrame,
                 queueTextureUpdate: QueueTextureUpdate,
                 resolveFontResource: _resolveFontResource,
-                directTextPrimaryFontPath: _directTextPrimaryFontPath
+                directTextPrimaryFontPath: _directTextPrimaryFontPath,
+                directTextSecondaryFontPath: _directTextSecondaryFontPath,
+                platformTextBackend: _platformTextBackend
             );
             _immediateContext = ui;
         }
@@ -803,10 +823,13 @@ public sealed class UiContext : IUiContext
                 _reserveCommands,
                 QueueTextureUpdate,
                 _resolveFontResource,
-                _directTextPrimaryFontPath
+                _directTextPrimaryFontPath,
+                _directTextSecondaryFontPath,
+                _platformTextBackend
             );
         }
 
+        ui.SetDirectTextBaseFontSize(_directTextBaseFontSize);
         screen.Render(ui);
         _state.EndFrame();
         var drawLists = ui.BuildDrawLists();

@@ -36,7 +36,7 @@ public sealed partial class UiImmediateContext
     {
         label ??= "Selectable";
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
         var height = MathF.Max(textSize.Y, frameHeight);
         var width = textSize.X + (ButtonPaddingX * 2f);
@@ -71,12 +71,10 @@ public sealed partial class UiImmediateContext
         }
 
         var textPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (height - textSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             label,
             textPos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -89,7 +87,7 @@ public sealed partial class UiImmediateContext
     {
         label ??= "Selectable";
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
         var height = size.Y > 0f ? size.Y : MathF.Max(textSize.Y, frameHeight);
         var width = size.X > 0f ? size.X : textSize.X + (ButtonPaddingX * 2f);
@@ -109,12 +107,10 @@ public sealed partial class UiImmediateContext
         }
 
         var textPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (height - textSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             label,
             textPos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight

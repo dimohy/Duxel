@@ -48,7 +48,7 @@ public sealed partial class UiImmediateContext
         var menuSetOpen = parentMenuOpen || !string.IsNullOrEmpty(openMenuId);
         var isOpen = string.Equals(openMenuId, id, StringComparison.Ordinal);
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
         UiVector2 size;
         if (_inMenuBar)
         {
@@ -56,7 +56,7 @@ public sealed partial class UiImmediateContext
         }
         else
         {
-            var arrowSize = UiTextBuilder.MeasureText(_fontAtlas, ">", _textSettings, _lineHeight);
+            var arrowSize = MeasureTextInternal(">", _textSettings, _lineHeight);
             var minWidth = textSize.X + arrowSize.X + (ButtonPaddingX * 4f);
             var targetWidth = MathF.Max(MenuMinWidth, minWidth);
             if (_menuStack.Count > 0)
@@ -113,12 +113,10 @@ public sealed partial class UiImmediateContext
         AddRectFilled(buttonRect, bg, _whiteTexture);
 
         var textPos = new UiVector2(buttonRect.X + ButtonPaddingX, buttonRect.Y + (buttonRect.Height - textSize.Y) * 0.5f);
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             label,
             textPos,
             _theme.Text,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -127,17 +125,15 @@ public sealed partial class UiImmediateContext
         if (!_inMenuBar)
         {
             var arrowText = ">";
-            var arrowSize = UiTextBuilder.MeasureText(_fontAtlas, arrowText, _textSettings, _lineHeight);
+            var arrowSize = MeasureTextInternal(arrowText, _textSettings, _lineHeight);
             var arrowPos = new UiVector2(
                 buttonRect.X + buttonRect.Width - ButtonPaddingX - arrowSize.X,
                 buttonRect.Y + (buttonRect.Height - arrowSize.Y) * 0.5f
             );
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 arrowText,
                 arrowPos,
                 _theme.Text,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -208,10 +204,10 @@ public sealed partial class UiImmediateContext
     {
         label ??= "Item";
 
-        var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+        var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
         var height = GetFrameHeight();
         var checkText = "✓";
-        var checkSize = UiTextBuilder.MeasureText(_fontAtlas, checkText, _textSettings, _lineHeight);
+        var checkSize = MeasureTextInternal(checkText, _textSettings, _lineHeight);
         var checkSpace = checkSize.X + 4f;
         var width = MathF.Max(140f, textSize.X + checkSpace + (ButtonPaddingX * 2f));
         if (_menuStack.Count > 0)
@@ -246,23 +242,19 @@ public sealed partial class UiImmediateContext
         if (selected)
         {
             var checkPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (rect.Height - checkSize.Y) * 0.5f);
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 checkText,
                 checkPos,
                 textColor,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
             );
         }
-        _builder.AddText(
-            _fontAtlas,
+        AddTextInternal(_builder,
             label,
             textPos,
             textColor,
-            _fontTexture,
             CurrentClipRect,
             _textSettings,
             _lineHeight

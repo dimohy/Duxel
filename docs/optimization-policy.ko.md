@@ -26,7 +26,7 @@
 
 ## 3) 로그 저장 위치
 
-- 정책 문서: `docs/optimization-policy.md`
+- 정책 문서: `docs/optimization-policy.ko.md`
 - 세션 로그: `docs/optimization-session-YYYY-MM-DD.md`
 
 ## 4) 검증 기준

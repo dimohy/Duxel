@@ -132,18 +132,19 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     {
         ArgumentNullException.ThrowIfNull(options.KeyRepeatSettingsProvider);
         var ttfOptIn = IsTtfGlyphRasterizerEnabled();
-        var directTextEnabled = options.EnableDWriteText;
-        if (ttfOptIn || !directTextEnabled)
+        if (ttfOptIn)
         {
             UiFontAtlasBuilder.ConfigurePlatformGlyphRasterizerFactory(factory: null);
-            LogGlyphRasterizerWiring(ttfOptIn
-                ? "GlyphRasterizerPolicy=TTF(opt-in)"
-                : "GlyphRasterizerPolicy=TTF(direct-text-off)");
+            LogGlyphRasterizerWiring("GlyphRasterizerPolicy=TTF(opt-in)");
         }
         else
         {
+            // Atlas glyph rasterizer always uses DWrite on Windows regardless of DUXEL_DIRECT_TEXT.
+            // DUXEL_DIRECT_TEXT only controls the direct text rendering path (bypassing atlas).
             UiFontAtlasBuilder.ConfigurePlatformGlyphRasterizerFactory(static () => WindowsDirectWriteGlyphRasterizer.Instance);
-            LogGlyphRasterizerWiring("GlyphRasterizerPolicy=DWrite(default)");
+            LogGlyphRasterizerWiring(options.EnableDWriteText
+                ? "GlyphRasterizerPolicy=DWrite(default)"
+                : "GlyphRasterizerPolicy=DWrite(atlas-only,direct-text-off)");
         }
 
         _inputBackend = new WindowsInputBackend(options.KeyRepeatSettingsProvider.GetSettings());
@@ -320,6 +321,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     public IInputBackend Input => _inputBackend;
 
     public IVulkanSurfaceSource? VulkanSurface => _vulkanSurface;
+
+    public IPlatformTextBackend? TextBackend => WindowsPlatformTextBackend.Instance;
 
     public nint WindowHandle => _windowHandle;
 

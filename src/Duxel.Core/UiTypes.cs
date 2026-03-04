@@ -44,7 +44,7 @@ public readonly record struct UiLayerCardInteraction(
     UiVector2 MousePosition
 );
 
-public readonly record struct UiFontResource(UiFontAtlas FontAtlas, UiTextureId TextureId);
+public readonly record struct UiFontResource(UiFontAtlas FontAtlas, UiTextureId TextureId, ulong CodepointSignature = 0UL);
 
 public readonly record struct UiTheme(
     UiColor Text,

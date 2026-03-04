@@ -52,11 +52,15 @@ public sealed partial class UiImmediateContext
     private readonly Action? _requestFrame;
     private Func<float, UiFontResource?>? _resolveFontResource;
     private string? _directTextPrimaryFontPath;
+    private string? _directTextSecondaryFontPath;
+    private IPlatformTextBackend? _platformTextBackend;
     private bool _directTextEnabled;
+    private float _directTextBaseFontSize;
     private readonly Dictionary<DirectTextCacheKey, DirectTextCacheEntry> _directTextCache = new();
-    private ulong _nextDirectTextTextureId = 900_000_000;
+    private nuint _nextDirectTextTextureId = 2_100_000_000;
     private const int DirectTextCacheMaxEntries = 256;
     private const int DirectTextCacheMaxIdleFrames = 600;
+    private static int _directTextDumpSequence;
 
     private readonly UiDrawListBuilder _baseBuilder;
     private readonly UiDrawListBuilder _overlayBuilder;
@@ -277,7 +281,9 @@ public sealed partial class UiImmediateContext
         Action? requestFrame = null,
         Action<UiTextureUpdate>? queueTextureUpdate = null,
         Func<float, UiFontResource?>? resolveFontResource = null,
-        string? directTextPrimaryFontPath = null
+        string? directTextPrimaryFontPath = null,
+        string? directTextSecondaryFontPath = null,
+        IPlatformTextBackend? platformTextBackend = null
     )
     {
         ArgumentNullException.ThrowIfNull(state);
@@ -326,7 +332,9 @@ public sealed partial class UiImmediateContext
             reserveCommands,
             queueTextureUpdate,
             resolveFontResource,
-            directTextPrimaryFontPath);
+            directTextPrimaryFontPath,
+            directTextSecondaryFontPath,
+            platformTextBackend);
     }
 
     public void ReinitializeFrame(
@@ -354,7 +362,9 @@ public sealed partial class UiImmediateContext
         int reserveCommands,
         Action<UiTextureUpdate>? queueTextureUpdate = null,
         Func<float, UiFontResource?>? resolveFontResource = null,
-        string? directTextPrimaryFontPath = null)
+        string? directTextPrimaryFontPath = null,
+        string? directTextSecondaryFontPath = null,
+        IPlatformTextBackend? platformTextBackend = null)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(fontAtlas);
@@ -401,6 +411,8 @@ public sealed partial class UiImmediateContext
         _queueTextureUpdate = queueTextureUpdate;
         _resolveFontResource = resolveFontResource;
         _directTextPrimaryFontPath = directTextPrimaryFontPath;
+        _directTextSecondaryFontPath = directTextSecondaryFontPath;
+        _platformTextBackend = platformTextBackend;
         _fontTexture = _baseFontTexture;
         TrimDirectTextCache();
 
@@ -590,6 +602,11 @@ public sealed partial class UiImmediateContext
 
     public bool GetDirectTextEnabled() => _directTextEnabled;
 
+    public void SetDirectTextBaseFontSize(float size)
+    {
+        _directTextBaseFontSize = size;
+    }
+
     private static bool ResolveDirectTextDefaultEnabled()
     {
         var env = Environment.GetEnvironmentVariable("DUXEL_DIRECT_TEXT");
@@ -611,27 +628,40 @@ public sealed partial class UiImmediateContext
 
     private void TrimDirectTextCache()
     {
-        if (_directTextCache.Count == 0)
+        var count = _directTextCache.Count;
+        if (count == 0)
         {
             return;
         }
 
         var currentFrame = _state.FrameCount;
-        List<DirectTextCacheKey>? staleKeys = null;
+        var hasStale = false;
+
         foreach (var pair in _directTextCache)
         {
             if (currentFrame - pair.Value.LastUsedFrame > DirectTextCacheMaxIdleFrames)
             {
-                staleKeys ??= [];
-                staleKeys.Add(pair.Key);
+                hasStale = true;
+                break;
             }
         }
 
-        if (staleKeys is not null)
+        if (hasStale)
         {
-            for (var i = 0; i < staleKeys.Count; i++)
+            var staleBuffer = new DirectTextCacheKey[count];
+            var staleCount = 0;
+
+            foreach (var pair in _directTextCache)
             {
-                RemoveDirectTextCacheEntry(staleKeys[i]);
+                if (currentFrame - pair.Value.LastUsedFrame > DirectTextCacheMaxIdleFrames)
+                {
+                    staleBuffer[staleCount++] = pair.Key;
+                }
+            }
+
+            for (var i = 0; i < staleCount; i++)
+            {
+                RemoveDirectTextCacheEntry(staleBuffer[i]);
             }
         }
 
@@ -641,16 +671,20 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        var leastRecentlyUsed = new List<(DirectTextCacheKey Key, int LastUsedFrame)>(_directTextCache.Count);
+        count = _directTextCache.Count;
+        var lruBuffer = new (DirectTextCacheKey Key, int LastUsedFrame)[count];
+        var lruCount = 0;
+
         foreach (var pair in _directTextCache)
         {
-            leastRecentlyUsed.Add((pair.Key, pair.Value.LastUsedFrame));
+            lruBuffer[lruCount++] = (pair.Key, pair.Value.LastUsedFrame);
         }
 
-        leastRecentlyUsed.Sort(static (left, right) => left.LastUsedFrame.CompareTo(right.LastUsedFrame));
-        for (var i = 0; i < overflow && i < leastRecentlyUsed.Count; i++)
+        Array.Sort(lruBuffer, 0, lruCount, Comparer<(DirectTextCacheKey Key, int LastUsedFrame)>.Create(
+            static (left, right) => left.LastUsedFrame.CompareTo(right.LastUsedFrame)));
+        for (var i = 0; i < overflow && i < lruCount; i++)
         {
-            RemoveDirectTextCacheEntry(leastRecentlyUsed[i].Key);
+            RemoveDirectTextCacheEntry(lruBuffer[i].Key);
         }
     }
 
@@ -668,6 +702,226 @@ public sealed partial class UiImmediateContext
             entry.Width,
             entry.Height,
             ReadOnlyMemory<byte>.Empty));
+    }
+
+    private bool TryMeasureDirectText(string text, UiTextSettings settings, out UiVector2 measured)
+    {
+        measured = default;
+        if (!_directTextEnabled || _platformTextBackend is null || string.IsNullOrWhiteSpace(_directTextPrimaryFontPath))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(text))
+        {
+            measured = new UiVector2(0f, _lineHeight * settings.LineHeightScale);
+            return true;
+        }
+
+        var fontSize = _pushedFontSize > 0f
+            ? MathF.Max(1f, _pushedFontSize)
+            : _directTextBaseFontSize > 0f
+                ? MathF.Max(1f, _directTextBaseFontSize * settings.Scale)
+                : MathF.Max(1f, _lineHeight * settings.Scale);
+        var sizeQuarter = (int)MathF.Round(fontSize * 4f);
+        var cacheKey = new DirectTextCacheKey(_directTextPrimaryFontPath, text, sizeQuarter);
+        if (_directTextCache.TryGetValue(cacheKey, out var cacheEntry))
+        {
+            cacheEntry = cacheEntry with { LastUsedFrame = _state.FrameCount };
+            _directTextCache[cacheKey] = cacheEntry;
+            measured = new UiVector2(cacheEntry.Width, MathF.Max(cacheEntry.Height, _lineHeight * settings.LineHeightScale));
+            return true;
+        }
+
+        if (!_platformTextBackend.TryRasterize(new PlatformTextRasterizeRequest(_directTextPrimaryFontPath, _directTextSecondaryFontPath, text, fontSize), out var rasterized)
+            || rasterized.Width <= 0
+            || rasterized.Height <= 0)
+        {
+            return false;
+        }
+
+        var textureId = new UiTextureId(_nextDirectTextTextureId++);
+        QueueTextureUpdate(new UiTextureUpdate(
+            UiTextureUpdateKind.Create,
+            textureId,
+            UiTextureFormat.Rgba8Unorm,
+            rasterized.Width,
+            rasterized.Height,
+            rasterized.RgbaPixels));
+
+        TryDumpDirectTextTexture(cacheKey, rasterized.Width, rasterized.Height, rasterized.RgbaPixels.Span);
+
+        cacheEntry = new DirectTextCacheEntry(textureId, rasterized.Width, rasterized.Height, _state.FrameCount);
+        _directTextCache[cacheKey] = cacheEntry;
+        measured = new UiVector2(rasterized.Width, MathF.Max(rasterized.Height, _lineHeight * settings.LineHeightScale));
+        return true;
+    }
+
+    private UiVector2 MeasureTextInternal(string text, UiTextSettings settings, float lineHeightOverride)
+    {
+        if (TryMeasureDirectText(text, settings, out var measured))
+        {
+            var minLineHeight = lineHeightOverride * settings.LineHeightScale;
+            if (measured.Y < minLineHeight)
+            {
+                measured = new UiVector2(measured.X, minLineHeight);
+            }
+
+            return measured;
+        }
+
+        return new UiVector2(0f, lineHeightOverride * settings.LineHeightScale);
+    }
+
+    private bool TryRenderDirectText(
+        UiDrawListBuilder drawList,
+        string text,
+        UiVector2 position,
+        UiColor color,
+        UiRect clipRect,
+        UiTextSettings settings,
+        out UiVector2 size)
+    {
+        size = default;
+        if (!_directTextEnabled || _platformTextBackend is null || string.IsNullOrWhiteSpace(_directTextPrimaryFontPath) || string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        var fontSize = _pushedFontSize > 0f
+            ? MathF.Max(1f, _pushedFontSize)
+            : _directTextBaseFontSize > 0f
+                ? MathF.Max(1f, _directTextBaseFontSize * settings.Scale)
+                : MathF.Max(1f, _lineHeight * settings.Scale);
+        var sizeQuarter = (int)MathF.Round(fontSize * 4f);
+        var cacheKey = new DirectTextCacheKey(_directTextPrimaryFontPath, text, sizeQuarter);
+        if (!_directTextCache.TryGetValue(cacheKey, out var cacheEntry))
+        {
+            if (!_platformTextBackend.TryRasterize(new PlatformTextRasterizeRequest(_directTextPrimaryFontPath, _directTextSecondaryFontPath, text, fontSize), out var rasterized)
+                || rasterized.Width <= 0
+                || rasterized.Height <= 0)
+            {
+                return false;
+            }
+
+            var textureId = new UiTextureId(_nextDirectTextTextureId++);
+            QueueTextureUpdate(new UiTextureUpdate(
+                UiTextureUpdateKind.Create,
+                textureId,
+                UiTextureFormat.Rgba8Unorm,
+                rasterized.Width,
+                rasterized.Height,
+                rasterized.RgbaPixels));
+
+            TryDumpDirectTextTexture(cacheKey, rasterized.Width, rasterized.Height, rasterized.RgbaPixels.Span);
+
+            cacheEntry = new DirectTextCacheEntry(textureId, rasterized.Width, rasterized.Height, _state.FrameCount);
+            _directTextCache[cacheKey] = cacheEntry;
+        }
+        else
+        {
+            cacheEntry = cacheEntry with { LastUsedFrame = _state.FrameCount };
+            _directTextCache[cacheKey] = cacheEntry;
+        }
+
+        size = new UiVector2(cacheEntry.Width, cacheEntry.Height);
+        var measuredLineHeight = _lineHeight * settings.LineHeightScale;
+        var yOffset = cacheEntry.Height < measuredLineHeight
+            ? (measuredLineHeight - cacheEntry.Height) * 0.5f
+            : 0f;
+        drawList.PushClipRect(clipRect, true);
+        drawList.AddImage(
+            cacheEntry.TextureId,
+            new UiVector2(position.X, position.Y + yOffset),
+            new UiVector2(position.X + cacheEntry.Width, position.Y + yOffset + cacheEntry.Height),
+            new UiVector2(0f, 0f),
+            new UiVector2(1f, 1f),
+            color);
+        drawList.PopClipRect();
+        return true;
+    }
+
+    private static void TryDumpDirectTextTexture(DirectTextCacheKey cacheKey, int width, int height, ReadOnlySpan<byte> rgba)
+    {
+        var dumpDir = Environment.GetEnvironmentVariable("DUXEL_DIRECT_TEXT_DUMP_DIR");
+        if (string.IsNullOrWhiteSpace(dumpDir) || width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        var expected = width * height * 4;
+        if (rgba.Length < expected)
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(dumpDir);
+            var seq = Interlocked.Increment(ref _directTextDumpSequence);
+            var safeText = cacheKey.Text.Length > 24 ? cacheKey.Text[..24] : cacheKey.Text;
+            var fileSafeText = new string(safeText.Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch).ToArray());
+            var fileName = $"{seq:D5}_{cacheKey.SizeQuarter}_{fileSafeText}.bmp";
+            var path = Path.Combine(dumpDir, fileName);
+
+            using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
+            using var writer = new BinaryWriter(stream);
+            var rowStride = width * 4;
+            var pixelDataSize = rowStride * height;
+            var fileSize = 14 + 40 + pixelDataSize;
+
+            writer.Write((ushort)0x4D42);
+            writer.Write(fileSize);
+            writer.Write((ushort)0);
+            writer.Write((ushort)0);
+            writer.Write(14 + 40);
+
+            writer.Write(40);
+            writer.Write(width);
+            writer.Write(height);
+            writer.Write((ushort)1);
+            writer.Write((ushort)32);
+            writer.Write(0);
+            writer.Write(pixelDataSize);
+            writer.Write(3780);
+            writer.Write(3780);
+            writer.Write(0);
+            writer.Write(0);
+
+            for (var y = height - 1; y >= 0; y--)
+            {
+                var rowStart = y * width * 4;
+                for (var x = 0; x < width; x++)
+                {
+                    var src = rowStart + (x * 4);
+                    var a = rgba[src + 3];
+                    writer.Write(a);
+                    writer.Write(a);
+                    writer.Write(a);
+                    writer.Write((byte)255);
+                }
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private void AddTextInternal(
+        UiDrawListBuilder drawList,
+        string text,
+        UiVector2 position,
+        UiColor color,
+        UiRect clipRect,
+        UiTextSettings settings,
+        float lineHeight)
+    {
+        if (TryRenderDirectText(drawList, text, position, color, clipRect, settings, out _))
+        {
+            return;
+        }
+
+        return;
     }
 
     public UiPooledList<UiDrawList> BuildDrawLists()
@@ -1259,7 +1513,7 @@ public sealed partial class UiImmediateContext
         _lineHeight = _fontAtlas.LineHeight;
         _fontTexture = fontResource.Value.TextureId;
 
-        if (_dynamicFontTextureCreated.Add(_fontTexture.Value))
+        if (!_directTextEnabled && _dynamicFontTextureCreated.Add(_fontTexture.Value))
         {
             QueueTextureUpdate(new UiTextureUpdate(
                 UiTextureUpdateKind.Create,
@@ -1893,96 +2147,20 @@ public sealed partial class UiImmediateContext
             return 0f;
         }
 
-        var baseFontSize = _lineHeight * _textSettings.Scale;
-        var scale = baseFontSize > 0f ? GetFontSize() / _lineHeight : 1f;
-        var lineHeight = _lineHeight * scale;
-        var hasKerning = _fontAtlas.Kerning.Count > 0;
-        var width = 0f;
-        var hasPrev = false;
-        var prevChar = 0;
-        var hasSurrogate = false;
-        for (var i = 0; i < text.Length; i++)
+        var line = text;
+        var newlineIndex = line.IndexOf('\n');
+        if (newlineIndex >= 0)
         {
-            if (char.IsSurrogate(text[i]))
-            {
-                hasSurrogate = true;
-                break;
-            }
+            line = line[..newlineIndex];
         }
 
-        if (!hasSurrogate)
+        if (line.IsEmpty)
         {
-            for (var i = 0; i < text.Length; i++)
-            {
-                var code = text[i];
-                if (code == '\n')
-                {
-                    break;
-                }
-
-                if (hasPrev && hasKerning)
-                {
-                    width += _fontAtlas.GetKerning(prevChar, code) * scale;
-                }
-
-                var hasGlyph = IsHangulCodepoint(code)
-                    ? _fontAtlas.TryGetGlyph(code, out var glyph)
-                    : _fontAtlas.GetGlyphOrFallback(code, out glyph);
-                if (!hasGlyph)
-                {
-                    width += lineHeight * 0.5f;
-                    hasPrev = false;
-                }
-                else
-                {
-                    width += glyph.AdvanceX * scale;
-                    hasPrev = true;
-                    prevChar = code;
-                }
-            }
-        }
-        else
-        {
-            var index = 0;
-            while (index < text.Length)
-            {
-                var status = Rune.DecodeFromUtf16(text[index..], out var rune, out var consumed);
-                if (status != OperationStatus.Done)
-                {
-                    rune = Rune.ReplacementChar;
-                    consumed = Math.Max(consumed, 1);
-                }
-
-                if (rune.Value == '\n')
-                {
-                    break;
-                }
-
-                if (hasPrev && hasKerning)
-                {
-                    width += _fontAtlas.GetKerning(prevChar, rune.Value) * scale;
-                }
-
-                var hasGlyph = IsHangulCodepoint(rune.Value)
-                    ? _fontAtlas.TryGetGlyph(rune.Value, out var glyph)
-                    : _fontAtlas.GetGlyphOrFallback(rune.Value, out glyph);
-                if (!hasGlyph)
-                {
-                    width += lineHeight * 0.5f;
-                    hasPrev = false;
-                }
-                else
-                {
-                    width += glyph.AdvanceX * scale;
-                    hasPrev = true;
-                    prevChar = rune.Value;
-                }
-
-                index += consumed;
-            }
+            return 0f;
         }
 
-        return width;
+        var measured = MeasureTextInternal(line.ToString(), _textSettings, _lineHeight);
+        return measured.X;
     }
 
     private float MeasureMaxLineWidth(string value)
@@ -2084,15 +2262,7 @@ public sealed partial class UiImmediateContext
             return 0;
         }
 
-        var baseFontSize = _lineHeight * _textSettings.Scale;
-        var scale = baseFontSize > 0f ? GetFontSize() / _lineHeight : 1f;
-        var lineHeight = _lineHeight * scale;
-        var hasKerning = _fontAtlas.Kerning.Count > 0;
-        var width = 0f;
-        var hasPrev = false;
-        var prevChar = 0;
         var index = 0;
-
         while (index < text.Length)
         {
             var start = index;
@@ -2108,32 +2278,14 @@ public sealed partial class UiImmediateContext
                 return start;
             }
 
-            if (hasPrev && hasKerning)
-            {
-                width += _fontAtlas.GetKerning(prevChar, rune.Value) * scale;
-            }
-
-            var hasGlyph = IsHangulCodepoint(rune.Value)
-                ? _fontAtlas.TryGetGlyph(rune.Value, out var glyph)
-                : _fontAtlas.GetGlyphOrFallback(rune.Value, out glyph);
-            if (!hasGlyph)
-            {
-                width += lineHeight * 0.5f;
-                hasPrev = false;
-            }
-            else
-            {
-                width += glyph.AdvanceX * scale;
-                hasPrev = true;
-                prevChar = rune.Value;
-            }
-
+            var next = start + consumed;
+            var width = MeasureTextWidthSpan(text[..next]);
             if (width >= localX)
             {
                 return start;
             }
 
-            index = start + consumed;
+            index = next;
         }
 
         return text.Length;

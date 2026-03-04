@@ -55,4 +55,4 @@
 
 ## 참고
 
-- 벤치 실행 정책/배경은 [docs/fba-reference-guide.md](docs/fba-reference-guide.md)를 참고하세요.
+- 벤치 실행 정책/배경은 [docs/fba-reference-guide.ko.md](docs/fba-reference-guide.ko.md)를 참고하세요.

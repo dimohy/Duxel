@@ -115,18 +115,16 @@ public sealed partial class UiImmediateContext
             if (!string.IsNullOrEmpty(label))
             {
                 var columnWidth = GetTableColumnWidth(i);
-                var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+                var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
                 var cellX = GetTableColumnX(i) + ButtonPaddingX;
                 var available = MathF.Max(0f, columnWidth - (ButtonPaddingX * 2f));
                 var align = i < _tableColumnAlign.Length ? _tableColumnAlign[i] : 0f;
                 cellX += MathF.Max(0f, available - textSize.X) * align;
                 var cellY = _tableRowY + (headerHeight - textSize.Y) * 0.5f;
-                _builder.AddText(
-                    _fontAtlas,
+                AddTextInternal(_builder,
                     label,
                     new UiVector2(cellX, cellY),
                     _theme.Text,
-                    _fontTexture,
                     CurrentClipRect,
                     _textSettings,
                     _lineHeight
@@ -156,17 +154,15 @@ public sealed partial class UiImmediateContext
 
         if (!string.IsNullOrEmpty(label))
         {
-            var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+            var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
             var align = _tableColumnAlign.Length > _tableColumn ? _tableColumnAlign[_tableColumn] : 0f;
             var available = MathF.Max(0f, columnWidth - (ButtonPaddingX * 2f));
             var cellX = cellRect.X + ButtonPaddingX + MathF.Max(0f, available - textSize.X) * align;
             var cellY = cellRect.Y + (headerHeight - textSize.Y) * 0.5f;
-            _builder.AddText(
-                _fontAtlas,
+            AddTextInternal(_builder,
                 label,
                 new UiVector2(cellX, cellY),
                 _theme.Text,
-                _fontTexture,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -275,12 +271,12 @@ public sealed partial class UiImmediateContext
             var hasSortOrder = hasSortIcon && activeSpecs.Count > 1;
             var orderText = hasSortOrder ? FormattableString.Invariant($"{specIndex + 1}") : string.Empty;
             var orderSize = hasSortOrder
-                ? UiTextBuilder.MeasureText(_fontAtlas, orderText, _textSettings, _lineHeight)
+                ? MeasureTextInternal(orderText, _textSettings, _lineHeight)
                 : default;
 
             if (!string.IsNullOrEmpty(label))
             {
-                var textSize = UiTextBuilder.MeasureText(_fontAtlas, label, _textSettings, _lineHeight);
+                var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
                 var align = i < columnAlign.Length ? columnAlign[i] : 0f;
                 var reservedRight = ButtonPaddingX;
                 if (hasSortIcon)
@@ -295,12 +291,10 @@ public sealed partial class UiImmediateContext
                 var available = MathF.Max(0f, columnWidth - ButtonPaddingX - reservedRight);
                 var cellX = cellRect.X + ButtonPaddingX + MathF.Max(0f, available - textSize.X) * align;
                 var cellY = cellRect.Y + (headerHeight - textSize.Y) * 0.5f;
-                _builder.AddText(
-                    _fontAtlas,
+                AddTextInternal(_builder,
                     label,
                     new UiVector2(cellX, cellY),
                     _theme.Text,
-                    _fontTexture,
                     CurrentClipRect,
                     _textSettings,
                     _lineHeight
@@ -325,12 +319,10 @@ public sealed partial class UiImmediateContext
                 {
                     var orderX = iconRect.X - orderSize.X - 4f;
                     var orderY = cellRect.Y + (headerHeight - orderSize.Y) * 0.5f;
-                    _builder.AddText(
-                        _fontAtlas,
+                    AddTextInternal(_builder,
                         orderText,
                         new UiVector2(orderX, orderY),
                         _theme.SliderGrab,
-                        _fontTexture,
                         CurrentClipRect,
                         _textSettings,
                         _lineHeight

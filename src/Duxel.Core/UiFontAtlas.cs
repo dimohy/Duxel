@@ -84,11 +84,6 @@ public sealed class UiFontAtlas
 				_asciiGlyphs[i] = g;
 				_asciiGlyphValid[i] = true;
 			}
-			else if (fallbackCodepoint >= 0 && glyphs.TryGetValue(fallbackCodepoint, out g))
-			{
-				_asciiGlyphs[i] = g;
-				_asciiGlyphValid[i] = true;
-			}
 		}
 	}
 
@@ -140,14 +135,6 @@ public sealed class UiFontAtlas
 		}
 
 		if (Glyphs.TryGetValue(codepoint, out glyph))
-		{
-			_lastGlyphCodepoint = codepoint;
-			_lastGlyph = glyph;
-			_lastGlyphValid = true;
-			return true;
-		}
-
-		if (FallbackCodepoint >= 0 && Glyphs.TryGetValue(FallbackCodepoint, out glyph))
 		{
 			_lastGlyphCodepoint = codepoint;
 			_lastGlyph = glyph;
@@ -411,8 +398,41 @@ public static class UiFontAtlasBuilder
 		return Path.Combine(DiskCacheRoot, $"{hash}.bin");
 	}
 
+	private static bool IsDiskCacheEnabled()
+	{
+		var raw = Environment.GetEnvironmentVariable("DUXEL_FONT_DISK_CACHE");
+		if (string.IsNullOrWhiteSpace(raw))
+		{
+			return true;
+		}
+
+		raw = raw.Trim();
+		if (raw == "0")
+		{
+			return false;
+		}
+
+		if (raw == "1")
+		{
+			return true;
+		}
+
+		if (bool.TryParse(raw, out var parsed))
+		{
+			return parsed;
+		}
+
+		return true;
+	}
+
 	private static bool TryLoadAtlasFromDisk(string cacheKey, out UiFontAtlas atlas)
 	{
+		if (!IsDiskCacheEnabled())
+		{
+			atlas = null!;
+			return false;
+		}
+
 		var path = GetDiskCachePath(cacheKey);
 		if (!File.Exists(path))
 		{
@@ -487,6 +507,11 @@ public static class UiFontAtlasBuilder
 
 	private static void SaveAtlasToDisk(string cacheKey, UiFontAtlas atlas)
 	{
+		if (!IsDiskCacheEnabled())
+		{
+			return;
+		}
+
 		Directory.CreateDirectory(DiskCacheRoot);
 		var path = GetDiskCachePath(cacheKey);
 		using var stream = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.None);
@@ -735,7 +760,7 @@ public static class UiFontAtlasBuilder
 			}
 
 			var prepared = new PreparedGlyphEntry[pendingCodepoints.Count];
-			Parallel.For(0, pendingCodepoints.Count, i =>
+			void PopulatePreparedEntry(int i)
 			{
 				var codepoint = pendingCodepoints[i];
 				int glyphIndex;
@@ -789,7 +814,19 @@ public static class UiFontAtlasBuilder
 				}
 
 				prepared[i] = new PreparedGlyphEntry(codepoint, advance, offsetX, offsetY, cachedGlyph.Bitmap, true);
-			});
+			}
+
+			if (IsFontRasterParallelEnabled())
+			{
+				Parallel.For(0, pendingCodepoints.Count, PopulatePreparedEntry);
+			}
+			else
+			{
+				for (var i = 0; i < pendingCodepoints.Count; i++)
+				{
+					PopulatePreparedEntry(i);
+				}
+			}
 
 			for (var i = 0; i < prepared.Length; i++)
 			{
@@ -907,6 +944,33 @@ public static class UiFontAtlasBuilder
 		}
 
 		return TtfGlyphBitmapRasterizer.Instance;
+	}
+
+	private static bool IsFontRasterParallelEnabled()
+	{
+		var raw = Environment.GetEnvironmentVariable("DUXEL_FONT_RASTER_PARALLEL");
+		if (string.IsNullOrWhiteSpace(raw))
+		{
+			return true;
+		}
+
+		raw = raw.Trim();
+		if (raw == "0")
+		{
+			return false;
+		}
+
+		if (raw == "1")
+		{
+			return true;
+		}
+
+		if (bool.TryParse(raw, out var parsed))
+		{
+			return parsed;
+		}
+
+		return true;
 	}
 
 	private static long GetFileStamp(string path)
