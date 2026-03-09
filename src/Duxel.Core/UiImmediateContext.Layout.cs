@@ -1495,8 +1495,9 @@ public sealed partial class UiImmediateContext
     {
         var current = _layouts.Pop();
         var gap = spacing < 0f ? ItemSpacingX : spacing;
+        var lineMaxHeight = MathF.Max(current.RowMaxHeight, MathF.Max(0f, current.Cursor.Y - _lastItemPos.Y - ItemSpacingY));
         var cursor = new UiVector2(_lastItemPos.X + _lastItemSize.X + gap, _lastItemPos.Y);
-        current = current with { Cursor = cursor };
+        current = current with { Cursor = cursor, RowMaxHeight = MathF.Max(lineMaxHeight, _lastItemSize.Y) };
         _layouts.Push(current);
 
         if (verticalAlign != UiItemVerticalAlign.Top)
@@ -1508,8 +1509,8 @@ public sealed partial class UiImmediateContext
     public void NewLine()
     {
         var current = _layouts.Pop();
-        var y = _lastItemPos.Y + _lastItemSize.Y + ItemSpacingY;
-        current = current with { Cursor = new UiVector2(current.LineStartX, y) };
+        var y = MathF.Max(current.Cursor.Y, _lastItemPos.Y + _lastItemSize.Y + ItemSpacingY);
+        current = current with { Cursor = new UiVector2(current.LineStartX, y), RowMaxHeight = 0f };
         _layouts.Push(current);
     }
 

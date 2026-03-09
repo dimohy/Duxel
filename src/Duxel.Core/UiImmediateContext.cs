@@ -1067,6 +1067,11 @@ public sealed partial class UiImmediateContext
             var columnX = GetTableColumnX(_tableColumn);
             cursor = new UiVector2(columnX, _tableRowY + _tableCellPaddingY + _tableCellContentOffsetY);
         }
+
+        var continuingSameLine = !current.IsRow
+            && current.RowMaxHeight > 0f
+            && MathF.Abs(cursor.Y - _lastItemPos.Y) <= 0.01f;
+
         UiVector2 next;
         if (current.IsRow)
         {
@@ -1079,18 +1084,21 @@ public sealed partial class UiImmediateContext
         }
         else
         {
-            next = new UiVector2(current.LineStartX, cursor.Y + size.Y + ItemSpacingY);
-            current = current with { Cursor = next };
+            var lineMaxHeight = continuingSameLine
+                ? MathF.Max(current.RowMaxHeight, size.Y)
+                : size.Y;
+            next = new UiVector2(current.LineStartX, cursor.Y + lineMaxHeight + ItemSpacingY);
+            current = current with { Cursor = next, RowMaxHeight = continuingSameLine ? lineMaxHeight : 0f };
             if (_columnsActive)
             {
-                var nextY = cursor.Y + size.Y + ItemSpacingY;
+                var nextY = cursor.Y + lineMaxHeight + ItemSpacingY;
                 _columnYs[_columnsIndex] = nextY;
                 _columnsMaxY = MathF.Max(_columnsMaxY, nextY);
                 current = current with { Cursor = new UiVector2(current.Cursor.X, nextY) };
             }
             if (_tableActive)
             {
-                var nextY = cursor.Y + size.Y + MathF.Max(ItemSpacingY, _tableCellPaddingY);
+                var nextY = cursor.Y + lineMaxHeight + MathF.Max(ItemSpacingY, _tableCellPaddingY);
                 _tableRowMaxY = MathF.Max(_tableRowMaxY, nextY);
                 current = current with { Cursor = new UiVector2(current.LineStartX, _tableRowMaxY) };
             }
