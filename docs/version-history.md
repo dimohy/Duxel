@@ -2,18 +2,25 @@
 
 This document accumulates version-by-version changes for Duxel.
 
-## 0.1.15-preview (2026-03-05)
-
 ## 0.2.0-preview (2026-03-09)
 
-### Changes
+### Major Features
 
-- **[Feature]** Expanded `samples/fba/all_features.cs` into a fuller showcase workspace — added dedicated windows for typography, layout, popup/context patterns, input queries, item status, multi-selection, layer/animation preview, markdown studio, and richer built-in tool coverage.
-- **[Improvement]** Refined showcase presentation and layout helpers — normalized menu-below window placement, centered compact utility windows, improved compact hero layout stability, and refreshed README documentation links for design and optimization references.
-- **[Improvement]** Synchronized release documentation for the 0.2.0-preview rollout — updated README/guide metadata, refreshed paired FBA guide sync markers, and recorded the current showcase scope in the version history.
-- **[Bug]** Fixed multiline and markdown line-ending handling — normalized CRLF/LF/CR input paths so multiline text boxes and markdown editing remain stable without hidden carriage-return artifacts.
-- **[Bug]** Fixed IME composition latency for Korean typing — Windows IME messages now request frames immediately and live composition text is prioritized so characters appear without bursty delayed updates.
-- **[Bug]** Fixed immediate UI layout regressions in showcase/library interactions — resolved text row clipping, child-local columns sizing, compact hero overlap, and added true top-most window semantics so the built-in `Closable Window` stays above normal windows without click-through.
+- **[Feature]** Expanded the showcase/sample surface — `samples/fba/all_features.cs` was broadened into a richer end-to-end workspace with dedicated windows for layout, typography, popup/context patterns, selection/status tools, markdown editing/viewing, and built-in demo coverage.
+- **[Feature]** Added and documented richer extension points — custom widget documentation, updated sample screens, markdown-oriented widgets, and animated/image-oriented sample content were aligned so advanced UI composition is easier to discover and validate.
+
+### Major Improvements
+
+- **[Improvement]** Refined showcase layout and presentation — regular tool windows align below the menu again, compact utility windows center appropriately, compact hero sections measure wrapped text correctly, and nested child/column layouts now use child-local sizing more reliably.
+- **[Improvement]** Polished built-in demo behavior — the built-in `Closable Window` now opens in a more appropriate compact position/size and behaves consistently with the rest of the demo window set.
+- **[Improvement]** Synchronized release-facing documentation — updated README links, refreshed FBA guide sync markers, expanded custom widget docs, and aligned package/version metadata for the 0.2.0-preview release.
+
+### Major Bug Fixes
+
+- **[Bug]** Fixed multiline and markdown line-ending handling — CRLF, LF, and CR inputs are normalized so editors no longer accumulate hidden carriage-return artifacts.
+- **[Bug]** Fixed Korean IME responsiveness — Windows IME updates now wake frames immediately and prefer live composition text so typing appears without bursty lag.
+- **[Bug]** Fixed showcase layout regressions — resolved row text clipping, compact hero overlap, unnecessary child/column width confusion, and related presentation issues uncovered while expanding the sample workspace.
+- **[Bug]** Fixed top-most window behavior at the library level — implemented real persistent top-most semantics so the built-in `Closable Window` stays above normal windows without click-through or broken stacking behavior.
 
 ### Packaging / Release
 
