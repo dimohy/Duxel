@@ -148,7 +148,7 @@ public sealed class SampleScreen : UiScreen
             ui.InputText("Name", ref _name, 24, UiInputTextFlags.None, null);
             ui.InputTextWithHint("WithHint", "hint", ref _name, 24);
             ui.PopItemWidth();
-            ui.InputTextMultiline("Notes", ref _notes, 256, 120f);
+            ui.InputTextMultiline("Notes", ref _notes, 256, 5);
             ui.InputScalar("InputScalarInt", ref _dragInt);
             ui.InputScalar("InputScalarFloat", ref _dragFloat, "0.00");
             var scalarDouble = _scalarDoubles[0];

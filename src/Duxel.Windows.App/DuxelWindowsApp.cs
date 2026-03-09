@@ -28,7 +28,7 @@ public static class DuxelWindowsApp
                 : options.ClipboardFactory,
             ImeHandlerFactory = options.ImeHandler is null && options.ImeHandlerFactory is null
                 ? static platform => platform is IWin32PlatformBackend win32Platform
-                    ? new WindowsImeHandler(win32Platform.WindowHandle)
+                    ? new WindowsImeHandler(win32Platform.WindowHandle, DuxelApp.RequestFrame)
                     : null
                 : options.ImeHandlerFactory,
         };

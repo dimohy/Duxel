@@ -51,7 +51,7 @@ public static class DuxelApp
                 return false;
             }
 
-            if (Interlocked.CompareExchange(ref s_pendingFrameRequests, current - 1, current) == current)
+            if (Interlocked.CompareExchange(ref s_pendingFrameRequests, 0, current) == current)
             {
                 return true;
             }
@@ -700,7 +700,8 @@ public static class DuxelApp
                 snapshot.MouseWheelHorizontal,
                 keyEvents,
                 charEvents,
-                snapshot.KeyRepeatSettings
+                snapshot.KeyRepeatSettings,
+                snapshot.Modifiers
             );
         }
 
@@ -841,7 +842,8 @@ public static class DuxelApp
                 current.MouseWheelHorizontal + incoming.MouseWheelHorizontal,
                 MergeEvents(current.KeyEvents, incoming.KeyEvents),
                 MergeEvents(current.CharEvents, incoming.CharEvents),
-                incoming.KeyRepeatSettings
+                incoming.KeyRepeatSettings,
+                incoming.Modifiers
             );
         }
 
@@ -923,6 +925,7 @@ public static class DuxelApp
             lastFontRebuildTime = previousTime;
             var lastPresentedTime = previousTime;
             var lastObservedMousePosition = latestSnapshot.MousePosition;
+            var lastRenderedBlinkState = true;
 
             static bool HasInputDrivenInvalidation(InputSnapshot snapshot, UiVector2 lastMousePosition)
             {
@@ -991,14 +994,27 @@ public static class DuxelApp
                 {
                     if (!hasInputInvalidation && !hasPendingRenderWork && !hasAnimationWork && !hasRequestedFrame)
                     {
-                        const int textInputIdleTickMs = 100;
                         var hasImeComposition = !string.IsNullOrEmpty(imeHandlerForContext?.GetCompositionText());
                         var hasActiveTextInput = uiContext.State.HasActiveTextInput();
 
                         Volatile.Write(ref renderThreadWaiting, 1);
                         if (hasImeComposition || hasActiveTextInput)
                         {
-                            frameWakeSignal.WaitOne(textInputIdleTickMs);
+                            const double blinkIntervalSeconds = 0.5;
+                            var caretElapsed = uiContext.State.TimeSeconds - uiContext.State.CaretBlinkStartSeconds;
+                            var wallOffset = stopwatch.Elapsed.TotalSeconds - previousTime;
+                            var totalElapsed = Math.Max(0.0, caretElapsed + wallOffset);
+                            var currentBlinkState = ((int)Math.Floor(totalElapsed / blinkIntervalSeconds) & 1) == 0;
+
+                            if (currentBlinkState == lastRenderedBlinkState)
+                            {
+                                var phase = totalElapsed % blinkIntervalSeconds;
+                                var sleepMs = (int)Math.Max(1, (blinkIntervalSeconds - phase) * 1000.0);
+                                frameWakeSignal.WaitOne(sleepMs);
+                                continue;
+                            }
+
+                            lastRenderedBlinkState = currentBlinkState;
                         }
                         else
                         {
@@ -1048,13 +1064,17 @@ public static class DuxelApp
                 var input = new UiInputState(
                     new UiVector2(mouseX, mouseY),
                     leftDown,
+                    snapshot.RightMouseDown,
                     leftPressed,
                     leftReleased,
+                    snapshot.RightMousePressedEvent,
+                    snapshot.RightMouseReleasedEvent,
                     snapshot.MouseWheel,
                     snapshot.MouseWheelHorizontal,
                     snapshot.KeyEvents,
                     snapshot.CharEvents,
-                    snapshot.KeyRepeatSettings
+                    snapshot.KeyRepeatSettings,
+                    snapshot.Modifiers
                 );
 
                 var newlyAdded = 0;
@@ -1277,6 +1297,10 @@ public static class DuxelApp
                     renderer.RenderDrawData(drawData);
                     lastPresentedTime = stopwatch.Elapsed.TotalSeconds;
                     renderedFrameNumber++;
+                    {
+                        var blinkElapsed = Math.Max(0.0, uiContext.State.TimeSeconds - uiContext.State.CaretBlinkStartSeconds);
+                        lastRenderedBlinkState = ((int)Math.Floor(blinkElapsed / 0.5) & 1) == 0;
+                    }
                     TryCaptureFrameIfRequested(renderedFrameNumber);
                     var t4 = Stopwatch.GetTimestamp();
                     if (Interlocked.Exchange(ref startupFirstFrameLogged, 1) == 0)
@@ -1326,7 +1350,7 @@ public static class DuxelApp
 
                 dslState!.UiState.AdvanceTime(deltaTime);
                 dslState.UiState.BeginFrame();
-                dslState.UiState.UpdateInput(snapshot.KeyEvents);
+                dslState.UiState.UpdateInput(snapshot.KeyEvents, snapshot.Modifiers);
 
                 var dslContext = new UiDslRenderContext(
                     dslState!,
@@ -1340,8 +1364,11 @@ public static class DuxelApp
                     clipRect,
                     new UiVector2(mouseX, mouseY),
                     leftDown,
+                    snapshot.RightMouseDown,
                     leftPressed,
                     leftReleased,
+                    snapshot.RightMousePressedEvent,
+                    snapshot.RightMouseReleasedEvent,
                     snapshot.MouseWheel,
                     snapshot.MouseWheelHorizontal,
                     snapshot.KeyEvents,
@@ -1391,6 +1418,10 @@ public static class DuxelApp
                 renderer.RenderDrawData(dslDrawData);
                 lastPresentedTime = stopwatch.Elapsed.TotalSeconds;
                 renderedFrameNumber++;
+                {
+                    var blinkElapsed = Math.Max(0.0, dslState!.UiState.TimeSeconds - dslState.UiState.CaretBlinkStartSeconds);
+                    lastRenderedBlinkState = ((int)Math.Floor(blinkElapsed / 0.5) & 1) == 0;
+                }
                 TryCaptureFrameIfRequested(renderedFrameNumber);
                 EmitTrace(options.Debug, ref frameCounter, dslDrawData, fps);
                 dslDrawData.ReleasePooled();
@@ -1453,6 +1484,12 @@ public static class DuxelApp
                 {
                     queuedImeHandler.Flush(platformImeHandler);
                 }
+
+                if (platform.ShouldClose)
+                {
+                    break;
+                }
+
                 var hasInputChange = UpdateSnapshot();
                 if (hasInputChange)
                 {
@@ -1929,7 +1966,11 @@ public static class DuxelApp
             _compositionText = target.GetCompositionText();
         }
 
-        public string? GetCompositionText() => Volatile.Read(ref _compositionText);
+        public string? GetCompositionText()
+        {
+            var target = _target;
+            return target?.GetCompositionText() ?? Volatile.Read(ref _compositionText);
+        }
 
         public void SetCompositionOwner(string? inputId)
         {

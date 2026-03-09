@@ -17,7 +17,8 @@ public sealed partial class UiImmediateContext
 
         var valueSize = MeasureTextInternal(previewValue, _textSettings, _lineHeight);
         var valuePos = new UiVector2(comboRect.X + 6f, comboRect.Y + (comboRect.Height - valueSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             previewValue,
             valuePos,
             _theme.Text,
@@ -39,9 +40,10 @@ public sealed partial class UiImmediateContext
         var visibleItems = Math.Clamp(popupMaxHeightInItems, 1, 12);
         var popupHeight = visibleItems * frameHeight;
         var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
+        popupRect = ClampPopupToWindow(popupRect);
 
         PushPopup();
-        _state.AddPopupBlockingRect(popupRect);
+        _state.AddPopupBlockingRect(popupRect, _popupTierDepth);
         AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
 
         if (_leftMousePressed && !IsHovering(popupRect) && !IsHovering(comboRect))
@@ -97,7 +99,8 @@ public sealed partial class UiImmediateContext
         var currentText = items.Count > 0 ? items[currentIndex] : string.Empty;
         var valueSize = MeasureTextInternal(currentText, _textSettings, _lineHeight);
         var valuePos = new UiVector2(comboRect.X + 6f, comboRect.Y + (comboRect.Height - valueSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             currentText,
             valuePos,
             _theme.Text,
@@ -118,6 +121,7 @@ public sealed partial class UiImmediateContext
             var displayCount = Math.Min(maxVisible, items.Count);
             var popupHeight = displayCount * frameHeight;
             var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
+            popupRect = ClampPopupToWindow(popupRect);
             var contentHeight = items.Count * frameHeight;
             var maxScroll = MathF.Max(0f, contentHeight - popupHeight);
             var comboScrollId = $"{resolvedId}##comboscroll";
@@ -125,7 +129,7 @@ public sealed partial class UiImmediateContext
             scrollY = Math.Clamp(scrollY, 0f, maxScroll);
 
             PushPopup();
-            _state.AddPopupBlockingRect(popupRect);
+            _state.AddPopupBlockingRect(popupRect, _popupTierDepth);
 
             if (displayCount > 0)
             {
@@ -142,8 +146,10 @@ public sealed partial class UiImmediateContext
             if (IsHovering(popupRect) && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f)
             {
                 scrollY = Math.Clamp(scrollY - (_mouseWheel * frameHeight * 3f), 0f, maxScroll);
+                _mouseWheel = 0f;
             }
 
+            var itemWidth = maxScroll > 0f ? popupRect.Width - ScrollbarSize : popupRect.Width;
             PushClipRect(popupRect, false);
             for (var i = 0; i < items.Count; i++)
             {
@@ -153,7 +159,7 @@ public sealed partial class UiImmediateContext
                     continue;
                 }
 
-                var itemRect = new UiRect(popupRect.X, itemY, popupRect.Width, frameHeight);
+                var itemRect = new UiRect(popupRect.X, itemY, itemWidth, frameHeight);
                 var itemId = ResolveId($"{comboId}##item{i}");
                 var itemHovered = ItemHoverable(itemId, itemRect);
                 if (itemHovered)
@@ -171,7 +177,8 @@ public sealed partial class UiImmediateContext
                 var itemText = items[i];
                 var itemSize = MeasureTextInternal(itemText, _textSettings, _lineHeight);
                 var itemPos = new UiVector2(itemRect.X + 6f, itemRect.Y + (itemRect.Height - itemSize.Y) * 0.5f);
-                AddTextInternal(_builder,
+                AddTextInternal(_builder,
+
                     itemText,
                     itemPos,
                     _theme.Text,
@@ -227,7 +234,8 @@ public sealed partial class UiImmediateContext
         var currentText = itemsCount > 0 ? itemsGetter(currentIndex) ?? string.Empty : string.Empty;
         var valueSize = MeasureTextInternal(currentText, _textSettings, _lineHeight);
         var valuePos = new UiVector2(comboRect.X + 6f, comboRect.Y + (comboRect.Height - valueSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             currentText,
             valuePos,
             _theme.Text,
@@ -248,6 +256,7 @@ public sealed partial class UiImmediateContext
             var displayCount = Math.Min(maxVisible, itemsCount);
             var popupHeight = displayCount * frameHeight;
             var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
+            popupRect = ClampPopupToWindow(popupRect);
             var contentHeight = itemsCount * frameHeight;
             var maxScroll = MathF.Max(0f, contentHeight - popupHeight);
             var comboScrollId = $"{resolvedId}##comboscroll";
@@ -255,7 +264,7 @@ public sealed partial class UiImmediateContext
             scrollY = Math.Clamp(scrollY, 0f, maxScroll);
 
             PushPopup();
-            _state.AddPopupBlockingRect(popupRect);
+            _state.AddPopupBlockingRect(popupRect, _popupTierDepth);
 
             if (displayCount > 0)
             {
@@ -272,8 +281,10 @@ public sealed partial class UiImmediateContext
             if (IsHovering(popupRect) && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f)
             {
                 scrollY = Math.Clamp(scrollY - (_mouseWheel * frameHeight * 3f), 0f, maxScroll);
+                _mouseWheel = 0f;
             }
 
+            var itemWidth = maxScroll > 0f ? popupRect.Width - ScrollbarSize : popupRect.Width;
             PushClipRect(popupRect, false);
             for (var i = 0; i < itemsCount; i++)
             {
@@ -283,7 +294,7 @@ public sealed partial class UiImmediateContext
                     continue;
                 }
 
-                var itemRect = new UiRect(popupRect.X, itemY, popupRect.Width, frameHeight);
+                var itemRect = new UiRect(popupRect.X, itemY, itemWidth, frameHeight);
                 var itemId = ResolveId($"{comboId}##item{i}");
                 var itemHovered = ItemHoverable(itemId, itemRect);
                 if (itemHovered)
@@ -301,7 +312,8 @@ public sealed partial class UiImmediateContext
                 var itemText = itemsGetter(i) ?? string.Empty;
                 var itemSize = MeasureTextInternal(itemText, _textSettings, _lineHeight);
                 var itemPos = new UiVector2(itemRect.X + 6f, itemRect.Y + (itemRect.Height - itemSize.Y) * 0.5f);
-                AddTextInternal(_builder,
+                AddTextInternal(_builder,
+
                     itemText,
                     itemPos,
                     _theme.Text,

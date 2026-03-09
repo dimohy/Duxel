@@ -21,6 +21,7 @@ public sealed class UiState
     private readonly Dictionary<string, UiRect> _windowRects = new(StringComparer.Ordinal);
     private readonly Dictionary<string, bool> _windowCollapsed = new(StringComparer.Ordinal);
     private readonly Dictionary<string, bool> _windowOpen = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, bool> _windowTopMost = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiVector2> _windowExpandedSizes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiVector2> _popupOpenMousePos = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiVector2> _menuSizes = new(StringComparer.Ordinal);
@@ -37,10 +38,13 @@ public sealed class UiState
     private string? _previousActiveId;
     private bool _hoverLoggedThisFrame;
     private string? _openComboId;
-    private string? _lastClickId;
     private double _lastClickTime;
     private UiVector2 _lastClickPos;
     private int _lastClickCount;
+    private string? _widgetClickId;
+    private double _widgetClickTime;
+    private UiVector2 _widgetClickPos;
+    private int _widgetClickCount;
     private UiMouseCursor _mouseCursor;
     private bool _wantCaptureKeyboardNextFrame;
     private bool _wantCaptureMouseNextFrame;
@@ -59,8 +63,8 @@ public sealed class UiState
     private int _msaaSamples = 4;
     private bool _rendererAaSettingsDirty;
     private bool _hasActiveAnimations;
-    private List<UiRect> _popupBlockingRects = [];
-    private List<UiRect> _prevPopupBlockingRects = [];
+    private List<(UiRect Rect, int Tier)> _popupBlockingRects = [];
+    private List<(UiRect Rect, int Tier)> _prevPopupBlockingRects = [];
     private string? _pendingTextInputFocusId;
 
     private readonly record struct UiFloatAnimationTrack(
@@ -161,6 +165,7 @@ public sealed class UiState
     public double LastClickTime => _lastClickTime;
     public UiVector2 LastClickPos => _lastClickPos;
     public int LastClickCount => _lastClickCount;
+    public int WidgetClickCount => _widgetClickCount;
     public UiMouseCursor MouseCursor
     {
         get => _mouseCursor;
@@ -416,11 +421,11 @@ public sealed class UiState
         _popupBlockingRects.Clear();
     }
 
-    public IReadOnlyList<UiRect> PreviousPopupBlockingRects => _prevPopupBlockingRects;
+    public IReadOnlyList<(UiRect Rect, int Tier)> PreviousPopupBlockingRects => _prevPopupBlockingRects;
 
-    public void AddPopupBlockingRect(UiRect rect)
+    public void AddPopupBlockingRect(UiRect rect, int tier)
     {
-        _popupBlockingRects.Add(rect);
+        _popupBlockingRects.Add((rect, tier));
     }
 
     public void EndFrame()
@@ -477,17 +482,14 @@ public sealed class UiState
         _caretBlinkStartSeconds = _timeSeconds;
     }
 
-    public void UpdateModifiers(IReadOnlyList<UiKeyEvent> keyEvents)
+    public void UpdateModifiers(KeyModifiers modifiers)
     {
-        if (keyEvents.Count > 0)
-        {
-            _modifiers = keyEvents[^1].Modifiers;
-        }
+        _modifiers = modifiers;
     }
 
-    public void UpdateInput(IReadOnlyList<UiKeyEvent> keyEvents)
+    public void UpdateInput(IReadOnlyList<UiKeyEvent> keyEvents, KeyModifiers modifiers)
     {
-        UpdateModifiers(keyEvents);
+        _modifiers = modifiers;
         if (keyEvents.Count == 0)
         {
             return;
@@ -547,8 +549,9 @@ public sealed class UiState
             return index;
         }
 
-        _windowOrder.Add(key);
-        return _windowOrder.Count - 1;
+        var insertIndex = GetWindowInsertIndex(GetWindowTopMost(key));
+        _windowOrder.Insert(insertIndex, key);
+        return insertIndex;
     }
 
     public void BringWindowToFront(string key)
@@ -557,20 +560,56 @@ public sealed class UiState
         var index = _windowOrder.IndexOf(key);
         if (index < 0)
         {
-            _windowOrder.Add(key);
+            var insertIndex = GetWindowInsertIndex(GetWindowTopMost(key));
+            _windowOrder.Insert(insertIndex, key);
             return;
         }
 
-        if (index == _windowOrder.Count - 1)
+        _windowOrder.RemoveAt(index);
+        var targetIndex = GetWindowInsertIndex(GetWindowTopMost(key));
+        _windowOrder.Insert(targetIndex, key);
+    }
+
+    public void RemoveWindowFromOrder(string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        _windowOrder.Remove(key);
+        if (string.Equals(_activeWindowId, key, StringComparison.Ordinal))
+        {
+            _activeWindowId = null;
+        }
+    }
+
+    public IReadOnlyList<string> WindowOrder => _windowOrder;
+
+    public bool GetWindowTopMost(string key, bool defaultValue = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        if (_windowTopMost.TryGetValue(key, out var value))
+        {
+            return value;
+        }
+
+        _windowTopMost[key] = defaultValue;
+        return defaultValue;
+    }
+
+    public void SetWindowTopMost(string key, bool topMost)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        _windowTopMost[key] = topMost;
+
+        var index = _windowOrder.IndexOf(key);
+        if (index < 0)
         {
             return;
         }
 
         _windowOrder.RemoveAt(index);
-        _windowOrder.Add(key);
+        var targetIndex = GetWindowInsertIndex(topMost);
+        _windowOrder.Insert(targetIndex, key);
     }
-
-    public IReadOnlyList<string> WindowOrder => _windowOrder;
 
     public bool TryGetWindowRect(string key, out UiRect rect)
     {
@@ -651,6 +690,10 @@ public sealed class UiState
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         _windowOpen[key] = open;
+        if (!open)
+        {
+            RemoveWindowFromOrder(key);
+        }
     }
 
     public UiTextSelection GetSelection(string key)
@@ -843,21 +886,22 @@ public sealed class UiState
         _scrollX[key] = value;
     }
 
-    public bool RegisterClick(string key, UiVector2 position, double doubleClickSeconds = 0.3, float maxDistance = 6f)
+    public int RegisterClick(string key, UiVector2 position, double doubleClickSeconds = 0.3, float maxDistance = 4f)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        var dx = position.X - _lastClickPos.X;
-        var dy = position.Y - _lastClickPos.Y;
+        var dx = position.X - _widgetClickPos.X;
+        var dy = position.Y - _widgetClickPos.Y;
         var withinDistance = (dx * dx) + (dy * dy) <= maxDistance * maxDistance;
-        var withinTime = (_timeSeconds - _lastClickTime) <= doubleClickSeconds;
-        var isDouble = _lastClickId == key && withinDistance && withinTime;
+        var withinTime = (_timeSeconds - _widgetClickTime) <= doubleClickSeconds;
+        var isChained = _widgetClickId == key && withinDistance && withinTime;
 
-        _lastClickId = key;
-        _lastClickTime = _timeSeconds;
-        _lastClickPos = position;
+        _widgetClickId = key;
+        _widgetClickTime = _timeSeconds;
+        _widgetClickPos = position;
+        _widgetClickCount = isChained ? _widgetClickCount + 1 : 1;
 
-        return isDouble;
+        return _widgetClickCount;
     }
 
     public void ReleasePooledBuffers()
@@ -869,6 +913,24 @@ public sealed class UiState
 
         _histories.Clear();
         _editBuffers.Clear();
+    }
+
+    private int GetWindowInsertIndex(bool topMost)
+    {
+        if (topMost)
+        {
+            return _windowOrder.Count;
+        }
+
+        for (var i = 0; i < _windowOrder.Count; i++)
+        {
+            if (GetWindowTopMost(_windowOrder[i]))
+            {
+                return i;
+            }
+        }
+
+        return _windowOrder.Count;
     }
 }
 

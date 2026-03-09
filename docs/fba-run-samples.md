@@ -1,6 +1,6 @@
 # Duxel FBA Samples — Run Instantly
 
-> Last synced: 2026-03-05  
+> Last synced: 2026-03-09  
 > Korean: [fba-run-samples.ko.md](fba-run-samples.ko.md)
 
 > Run **Duxel** FBA samples with a **single copy-paste command**. .NET 10 + Vulkan immediate-mode GUI framework.
@@ -46,7 +46,7 @@ irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/a
 curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/all_features.cs -o - | dotnet run -
 ```
 
-> MenuBar · Slider · Drag · Input · ColorPicker · Combo/ListBox · Tree/Tab · Table · Popup/Modal · Tooltip · Drawing Primitives · DragAndDrop · ListClipper(10K) · Time/FPS/VSync toggle
+> MenuBar · Typography · Layout & Columns · Popup/Context/Tooltip · Input Queries · Item Status · Multi-select · Layers & Animation · Drawing Primitives · DragAndDrop · ListClipper(10K) · Markdown Studio · Time/FPS/VSync toggle
 
 ---
 

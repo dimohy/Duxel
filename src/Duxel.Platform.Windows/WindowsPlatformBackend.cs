@@ -250,6 +250,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             throw new InvalidOperationException($"CreateWindowExW failed: {error}");
         }
 
+        _inputBackend.SetWindowHandle(_windowHandle);
         _ = SetWindowTextW(_windowHandle, windowTitle);
         CenterWindowOnPrimaryMonitor(createWidth, createHeight);
         ShowWindow(_windowHandle, SwShow);
@@ -538,6 +539,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     {
         private readonly List<UiKeyEvent> _keyEvents = [];
         private readonly List<UiCharEvent> _charEvents = [];
+        private nint _hwnd;
         private UiVector2 _mousePosition;
         private bool _leftDown;
         private bool _rightDown;
@@ -550,6 +552,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         private bool _middleReleasedEvent;
         private float _wheel;
         private float _wheelHorizontal;
+
+        public void SetWindowHandle(nint hwnd) => _hwnd = hwnd;
 
         public InputSnapshot Snapshot => new(
             _mousePosition,
@@ -566,7 +570,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             _wheelHorizontal,
             _keyEvents,
             _charEvents,
-            keyRepeatSettings
+            keyRepeatSettings,
+            GetModifiers()
         );
 
         public void BeginFrame()
@@ -690,6 +695,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
         private void SetMouseButton(UiMouseButton button, bool isDown)
         {
+            var wasAnyDown = _leftDown || _rightDown || _middleDown;
+
             switch (button)
             {
                 case UiMouseButton.Left:
@@ -737,6 +744,16 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
                     _middleDown = isDown;
                     break;
+            }
+
+            var isAnyDown = _leftDown || _rightDown || _middleDown;
+            if (!wasAnyDown && isAnyDown)
+            {
+                SetCapture(_hwnd);
+            }
+            else if (wasAnyDown && !isAnyDown)
+            {
+                ReleaseCapture();
             }
         }
 
@@ -953,6 +970,13 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetWindowPos(nint hWnd, nint hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ReleaseCapture();
+
+    [LibraryImport("user32.dll")]
+    private static partial nint SetCapture(nint hWnd);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

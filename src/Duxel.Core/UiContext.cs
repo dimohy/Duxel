@@ -55,10 +55,12 @@ public sealed class UiContext : IUiContext
     private readonly List<UiCharEvent> _queuedCharEvents = new();
     private UiVector2? _queuedMousePos;
     private bool? _queuedMouseDown;
+    private bool? _queuedRightMouseDown;
     private float _queuedMouseWheel;
     private float _queuedMouseWheelHorizontal;
     private bool _appAcceptingEvents = true;
     private bool _previousInjectedLeftDown;
+    private bool _previousInjectedRightDown;
     private char? _pendingHighSurrogate;
     private UiKeyEvent[] _mergedKeyEventsBuffer = Array.Empty<UiKeyEvent>();
     private UiCharEvent[] _mergedCharEventsBuffer = Array.Empty<UiCharEvent>();
@@ -112,7 +114,7 @@ public sealed class UiContext : IUiContext
 
         _inputState = input;
         _hasInput = true;
-        _state.UpdateInput(input.KeyEvents);
+        _state.UpdateInput(input.KeyEvents, input.Modifiers);
         _keyRepeatSettings = input.KeyRepeatSettings;
     }
 
@@ -269,8 +271,11 @@ public sealed class UiContext : IUiContext
             _frameInfo.DeltaTime,
             _inputState.MousePosition,
             _inputState.LeftMouseDown,
+            _inputState.RightMouseDown,
             _inputState.LeftMousePressed,
             _inputState.LeftMouseReleased,
+            _inputState.RightMousePressed,
+            _inputState.RightMouseReleased,
             _inputState.MouseWheel,
             _inputState.MouseWheelHorizontal,
             _inputState.KeyEvents,
@@ -501,6 +506,12 @@ public sealed class UiContext : IUiContext
         if (button == (int)UiMouseButton.Left)
         {
             _queuedMouseDown = down;
+            return;
+        }
+
+        if (button == (int)UiMouseButton.Right)
+        {
+            _queuedRightMouseDown = down;
         }
     }
 
@@ -623,8 +634,11 @@ public sealed class UiContext : IUiContext
             _inputState = _inputState with
             {
                 LeftMouseDown = false,
+                RightMouseDown = false,
                 LeftMousePressed = false,
                 LeftMouseReleased = false,
+                RightMousePressed = false,
+                RightMouseReleased = false,
                 MouseWheel = 0f,
                 MouseWheelHorizontal = 0f
             };
@@ -643,8 +657,11 @@ public sealed class UiContext : IUiContext
     {
         var mousePos = _queuedMousePos ?? input.MousePosition;
         var leftDown = _queuedMouseDown ?? input.LeftMouseDown;
+        var rightDown = _queuedRightMouseDown ?? input.RightMouseDown;
         var leftPressed = input.LeftMousePressed;
         var leftReleased = input.LeftMouseReleased;
+        var rightPressed = input.RightMousePressed;
+        var rightReleased = input.RightMouseReleased;
 
         if (_queuedMouseDown.HasValue)
         {
@@ -655,6 +672,17 @@ public sealed class UiContext : IUiContext
         else
         {
             _previousInjectedLeftDown = input.LeftMouseDown;
+        }
+
+        if (_queuedRightMouseDown.HasValue)
+        {
+            rightPressed = rightDown && !_previousInjectedRightDown;
+            rightReleased = !rightDown && _previousInjectedRightDown;
+            _previousInjectedRightDown = rightDown;
+        }
+        else
+        {
+            _previousInjectedRightDown = input.RightMouseDown;
         }
 
         var mouseWheel = input.MouseWheel + _queuedMouseWheel;
@@ -706,19 +734,24 @@ public sealed class UiContext : IUiContext
         _queuedCharEvents.Clear();
         _queuedMousePos = null;
         _queuedMouseDown = null;
+        _queuedRightMouseDown = null;
         _queuedMouseWheel = 0f;
         _queuedMouseWheelHorizontal = 0f;
 
         return new UiInputState(
             mousePos,
             leftDown,
+            rightDown,
             leftPressed,
             leftReleased,
+            rightPressed,
+            rightReleased,
             mouseWheel,
             mouseWheelHorizontal,
             keyEvents,
             charEvents,
-            input.KeyRepeatSettings
+            input.KeyRepeatSettings,
+            input.Modifiers
         );
     }
 
@@ -774,8 +807,11 @@ public sealed class UiContext : IUiContext
                 _clipRect,
                 _inputState.MousePosition,
                 _inputState.LeftMouseDown,
+                _inputState.RightMouseDown,
                 _inputState.LeftMousePressed,
                 _inputState.LeftMouseReleased,
+                _inputState.RightMousePressed,
+                _inputState.RightMouseReleased,
                 _inputState.MouseWheel,
                 _inputState.MouseWheelHorizontal,
                 _inputState.KeyEvents,
@@ -808,8 +844,11 @@ public sealed class UiContext : IUiContext
                 _clipRect,
                 _inputState.MousePosition,
                 _inputState.LeftMouseDown,
+                _inputState.RightMouseDown,
                 _inputState.LeftMousePressed,
                 _inputState.LeftMouseReleased,
+                _inputState.RightMousePressed,
+                _inputState.RightMouseReleased,
                 _inputState.MouseWheel,
                 _inputState.MouseWheelHorizontal,
                 _inputState.KeyEvents,

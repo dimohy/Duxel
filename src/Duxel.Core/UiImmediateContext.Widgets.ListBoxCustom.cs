@@ -63,7 +63,8 @@ public sealed partial class UiImmediateContext
         var frameHeight = GetFrameHeight();
 
         var width = size.X > 0f ? size.X : ResolveItemWidth(InputWidth);
-        var height = size.Y > 0f ? size.Y : frameHeight * Math.Max(1, itemsCount > 0 ? itemsCount : 6);
+        var visibleCount = Math.Max(1, itemsCount > 0 ? itemsCount : 6);
+        var height = size.Y > 0f ? size.Y : (frameHeight + ItemSpacingY) * visibleCount - ItemSpacingY + 4f;
 
         var cursor = AdvanceCursor(new UiVector2(width, height));
         var listRect = new UiRect(cursor.X, cursor.Y, width, height);
@@ -71,9 +72,11 @@ public sealed partial class UiImmediateContext
 
         var hovered = IsHovering(listRect);
         var scrollY = _state.GetScrollY(resolvedId);
+        var prevMaxScroll = _state.GetScrollY($"{resolvedId}##maxScroll");
         if (hovered && MathF.Abs(_mouseWheel) > 0.001f && !(_popupTierDepth == 0 && IsMouseOverAnyBlockingPopup()))
         {
-            scrollY = MathF.Max(0f, scrollY - (_mouseWheel * frameHeight * 3f));
+            scrollY = Math.Clamp(scrollY - (_mouseWheel * frameHeight * 3f), 0f, MathF.Max(0f, prevMaxScroll));
+            _mouseWheel = 0f;
         }
 
         PushListBoxLayout(resolvedId, listRect, scrollY);

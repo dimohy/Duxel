@@ -5,7 +5,7 @@ public sealed partial class UiImmediateContext
     public void OpenPopupOnItemClick(string id)
     {
         id ??= "Popup";
-        if (!_leftMousePressed)
+        if (!_rightMousePressed)
         {
             return;
         }
@@ -27,7 +27,7 @@ public sealed partial class UiImmediateContext
     public bool BeginPopupContextWindow(string id)
     {
         id ??= "ContextWindow";
-        if (_leftMousePressed && _hasWindowRect && IsHovering(_windowRect))
+        if (_rightMousePressed && _hasWindowRect && IsHovering(_windowRect))
         {
             OpenPopup(id);
         }
@@ -37,7 +37,7 @@ public sealed partial class UiImmediateContext
     public bool BeginPopupContextVoid(string id)
     {
         id ??= "ContextVoid";
-        if (_leftMousePressed && (!_hasWindowRect || !IsHovering(_windowRect)))
+        if (_rightMousePressed && (!_hasWindowRect || !IsHovering(_windowRect)))
         {
             OpenPopup(id);
         }
@@ -73,7 +73,8 @@ public sealed partial class UiImmediateContext
         var frameHeight = GetFrameHeight();
         var popupWidth = MathF.Max(180f, InputWidth);
         var popupHeight = frameHeight * 6f;
-        var popupRect = ClampRectToDisplay(new UiRect(_mousePosition.X + 8f, _mousePosition.Y + 8f, popupWidth, popupHeight));
+    var openMousePos = _state.GetPopupOpenMousePos(key, _mousePosition);
+    var popupRect = ClampRectToDisplay(new UiRect(openMousePos.X + 8f, openMousePos.Y + 8f, popupWidth, popupHeight));
 
         if (_leftMousePressed && !IsHovering(popupRect))
         {
@@ -82,7 +83,7 @@ public sealed partial class UiImmediateContext
         }
 
         PushPopup();
-        _state.AddPopupBlockingRect(popupRect);
+        _state.AddPopupBlockingRect(popupRect, _popupTierDepth);
         PushClipRect(IntersectRect(_clipRect, popupRect), false);
         AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
         var start = new UiVector2(popupRect.X + 6f, popupRect.Y + 4f);
@@ -135,7 +136,7 @@ public sealed partial class UiImmediateContext
         }
 
         PushPopup();
-        _state.AddPopupBlockingRect(popupRect);
+        _state.AddPopupBlockingRect(popupRect, _popupTierDepth);
         PushClipRect(IntersectRect(_clipRect, popupRect), false);
         AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
         var start = new UiVector2(popupRect.X + 6f, popupRect.Y + 4f);

@@ -41,7 +41,7 @@ public sealed class TextInputOnlyScreen : UiScreen
         ui.Text($"현재 길이: {_limited.Length}/16");
 
         ui.SeparatorText("Multiline");
-        ui.InputTextMultiline("멀티라인", ref _multi, 4096, 280f);
+        ui.InputTextMultiline("멀티라인", ref _multi, 4096, 10);
 
         ui.Separator();
         ui.Text("현재 값 미리보기");

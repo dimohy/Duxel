@@ -61,11 +61,14 @@ public sealed partial class UiImmediateContext
             AddRectFilled(rect, ApplyAlpha(accent, headerBlend), _whiteTexture);
         }
 
-        var arrowRect = new UiRect(rect.X + ButtonPaddingX, rect.Y + (height - arrowSize) * 0.5f, arrowSize, arrowSize);
+        var textTop = rect.Y + (height - textSize.Y) * 0.5f;
+        var arrowCenterY = GetTextVisualCenterY(textTop);
+        var arrowRect = new UiRect(rect.X + ButtonPaddingX, arrowCenterY - arrowSize * 0.5f, arrowSize, arrowSize);
         DrawTreeArrow(arrowRect, isOpen, id, _theme.Text);
 
-        var textPos = new UiVector2(arrowRect.X + arrowRect.Width + 6f, rect.Y + (height - textSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        var textPos = new UiVector2(arrowRect.X + arrowRect.Width + 6f, textTop);
+        AddTextInternal(_builder,
+
             label,
             textPos,
             _theme.Text,
@@ -144,11 +147,14 @@ public sealed partial class UiImmediateContext
             AddRectFilled(rect, ApplyAlpha(_theme.HeaderHovered, hoverBlend * 0.75f), _whiteTexture);
         }
 
-        var arrowRect = new UiRect(rect.X + ButtonPaddingX, rect.Y + (height - arrowSize) * 0.5f, arrowSize, arrowSize);
+        var textTop = rect.Y + (height - textSize.Y) * 0.5f;
+        var arrowCenterY = GetTextVisualCenterY(textTop);
+        var arrowRect = new UiRect(rect.X + ButtonPaddingX, arrowCenterY - arrowSize * 0.5f, arrowSize, arrowSize);
         DrawTreeArrow(arrowRect, isOpen, id, _theme.Text);
 
-        var textPos = new UiVector2(arrowRect.X + arrowRect.Width + 6f, rect.Y + (height - textSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        var textPos = new UiVector2(arrowRect.X + arrowRect.Width + 6f, textTop);
+        AddTextInternal(_builder,
+
             label,
             textPos,
             _theme.Text,

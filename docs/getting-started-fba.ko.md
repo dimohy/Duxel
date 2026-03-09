@@ -1,6 +1,6 @@
 # Duxel FBA 빠른 시작 가이드
 
-> 마지막 동기화: 2026-03-05
+> 마지막 동기화: 2026-03-09
 
 단일 `.cs` 파일로 Duxel 앱을 실행하는 FBA(File-Based App) 기준 가이드입니다.
 
@@ -63,7 +63,7 @@ dotnet run samples/fba/all_features.cs
 
 | 파일 | 설명 |
 |---|---|
-| `all_features.cs` | 전체 위젯 종합 데모 |
+| `all_features.cs` | 타이포그래피, 레이아웃, 팝업/컨텍스트, 입력 질의, 아이템 상태, 멀티셀렉트, 레이어/애니메이션 전용 창까지 포함한 전체 위젯 종합 데모 |
 | `dsl_showcase.cs` | DSL 레이아웃 데모 |
 | `dsl_interaction.cs` | DSL 상태/이벤트 데모 |
 | `windows_calculator_fba.cs` | 계산기 UI 데모 |

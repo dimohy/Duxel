@@ -33,14 +33,16 @@ public sealed partial class UiImmediateContext
         if (hovered && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f && !(_popupTierDepth == 0 && IsMouseOverAnyBlockingPopup()))
         {
             scrollY = Math.Clamp(scrollY - (_mouseWheel * frameHeight * 3f), 0f, maxScroll);
+            _mouseWheel = 0f;
         }
 
         var changed = false;
+        var itemWidth = maxScroll > 0f ? listRect.Width - ScrollbarSize : listRect.Width;
         PushClipRect(listRect, true);
         for (var i = 0; i < itemsCount; i++)
         {
             var itemY = listRect.Y + 2f - scrollY + (i * frameHeight);
-            var itemRect = new UiRect(listRect.X, itemY, listRect.Width, frameHeight);
+            var itemRect = new UiRect(listRect.X, itemY, itemWidth, frameHeight);
             if (itemRect.Y + itemRect.Height < listRect.Y || itemRect.Y > listRect.Y + listRect.Height)
             {
                 continue;
@@ -67,7 +69,8 @@ public sealed partial class UiImmediateContext
             var itemText = itemsGetter(i) ?? string.Empty;
             var itemSize = MeasureTextInternal(itemText, _textSettings, _lineHeight);
             var itemPos = new UiVector2(itemRect.X + ButtonPaddingX, itemRect.Y + (frameHeight - itemSize.Y) * 0.5f);
-            AddTextInternal(_builder,
+            AddTextInternal(_builder,
+
                 itemText,
                 itemPos,
                 _theme.Text,
@@ -124,14 +127,16 @@ public sealed partial class UiImmediateContext
         if (hovered && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f && !(_popupTierDepth == 0 && IsMouseOverAnyBlockingPopup()))
         {
             scrollY = Math.Clamp(scrollY - (_mouseWheel * frameHeight * 3f), 0f, maxScroll);
+            _mouseWheel = 0f;
         }
 
         var changed = false;
+        var itemWidth = maxScroll > 0f ? listRect.Width - ScrollbarSize : listRect.Width;
         PushClipRect(listRect, true);
         for (var i = 0; i < items.Count; i++)
         {
             var itemY = listRect.Y + 2f - scrollY + (i * frameHeight);
-            var itemRect = new UiRect(listRect.X, itemY, listRect.Width, frameHeight);
+            var itemRect = new UiRect(listRect.X, itemY, itemWidth, frameHeight);
             if (itemRect.Y + itemRect.Height < listRect.Y || itemRect.Y > listRect.Y + listRect.Height)
             {
                 continue;
@@ -158,7 +163,8 @@ public sealed partial class UiImmediateContext
             var itemText = items[i];
             var itemSize = MeasureTextInternal(itemText, _textSettings, _lineHeight);
             var itemPos = new UiVector2(itemRect.X + ButtonPaddingX, itemRect.Y + (frameHeight - itemSize.Y) * 0.5f);
-            AddTextInternal(_builder,
+            AddTextInternal(_builder,
+
                 itemText,
                 itemPos,
                 _theme.Text,

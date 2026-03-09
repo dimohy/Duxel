@@ -61,10 +61,10 @@ public sealed class UiDrawListBuilder
         var startVertex = (uint)_vertices.Count;
         var startIndex = (uint)_indices.Count;
 
-        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X, rect.Y), new UiVector2(0, 0), color));
-        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X + rect.Width, rect.Y), new UiVector2(1, 0), color));
-        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X + rect.Width, rect.Y + rect.Height), new UiVector2(1, 1), color));
-        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X, rect.Y + rect.Height), new UiVector2(0, 1), color));
+        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X, rect.Y), default, color));
+        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X + rect.Width, rect.Y), default, color));
+        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X + rect.Width, rect.Y + rect.Height), default, color));
+        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X, rect.Y + rect.Height), default, color));
 
         _indices.Add(startVertex + 0);
         _indices.Add(startVertex + 1);
@@ -83,10 +83,10 @@ public sealed class UiDrawListBuilder
         var startVertex = (uint)_vertices.Count;
         var startIndex = (uint)_indices.Count;
 
-        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X, rect.Y), new UiVector2(0, 0), color));
-        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X + rect.Width, rect.Y), new UiVector2(1, 0), color));
-        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X + rect.Width, rect.Y + rect.Height), new UiVector2(1, 1), color));
-        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X, rect.Y + rect.Height), new UiVector2(0, 1), color));
+        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X, rect.Y), default, color));
+        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X + rect.Width, rect.Y), default, color));
+        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X + rect.Width, rect.Y + rect.Height), default, color));
+        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X, rect.Y + rect.Height), default, color));
 
         _indices.Add(startVertex + 0);
         _indices.Add(startVertex + 1);
@@ -519,10 +519,10 @@ public sealed class UiDrawListBuilder
         var startVertex = (uint)_vertices.Count;
         var startIndex = (uint)_indices.Count;
 
-        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X, rect.Y), new UiVector2(0, 0), colUprLeft));
-        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X + rect.Width, rect.Y), new UiVector2(1, 0), colUprRight));
-        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X + rect.Width, rect.Y + rect.Height), new UiVector2(1, 1), colBotRight));
-        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X, rect.Y + rect.Height), new UiVector2(0, 1), colBotLeft));
+        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X, rect.Y), default, colUprLeft));
+        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X + rect.Width, rect.Y), default, colUprRight));
+        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X + rect.Width, rect.Y + rect.Height), default, colBotRight));
+        _vertices.Add(new UiDrawVertex(new UiVector2(rect.X, rect.Y + rect.Height), default, colBotLeft));
 
         _indices.Add(startVertex + 0);
         _indices.Add(startVertex + 1);
@@ -546,10 +546,10 @@ public sealed class UiDrawListBuilder
         var startVertex = (uint)_vertices.Count;
         var startIndex = (uint)_indices.Count;
 
-        _vertices.Add(new UiDrawVertex(a, new UiVector2(0, 0), color));
-        _vertices.Add(new UiDrawVertex(b, new UiVector2(1, 0), color));
-        _vertices.Add(new UiDrawVertex(c, new UiVector2(1, 1), color));
-        _vertices.Add(new UiDrawVertex(d, new UiVector2(0, 1), color));
+        _vertices.Add(new UiDrawVertex(a, default, color));
+        _vertices.Add(new UiDrawVertex(b, default, color));
+        _vertices.Add(new UiDrawVertex(c, default, color));
+        _vertices.Add(new UiDrawVertex(d, default, color));
 
         _indices.Add(startVertex + 0);
         _indices.Add(startVertex + 1);
@@ -567,10 +567,10 @@ public sealed class UiDrawListBuilder
         var startVertex = (uint)_vertices.Count;
         var startIndex = (uint)_indices.Count;
 
-        _vertices.Add(new UiDrawVertex(a, new UiVector2(0, 0), color));
-        _vertices.Add(new UiDrawVertex(b, new UiVector2(1, 0), color));
-        _vertices.Add(new UiDrawVertex(c, new UiVector2(1, 1), color));
-        _vertices.Add(new UiDrawVertex(d, new UiVector2(0, 1), color));
+        _vertices.Add(new UiDrawVertex(a, default, color));
+        _vertices.Add(new UiDrawVertex(b, default, color));
+        _vertices.Add(new UiDrawVertex(c, default, color));
+        _vertices.Add(new UiDrawVertex(d, default, color));
 
         _indices.Add(startVertex + 0);
         _indices.Add(startVertex + 1);
@@ -599,9 +599,9 @@ public sealed class UiDrawListBuilder
         var startVertex = (uint)_vertices.Count;
         var startIndex = (uint)_indices.Count;
 
-        _vertices.Add(new UiDrawVertex(a, new UiVector2(0, 0), color));
-        _vertices.Add(new UiDrawVertex(b, new UiVector2(1, 0), color));
-        _vertices.Add(new UiDrawVertex(c, new UiVector2(0, 1), color));
+        _vertices.Add(new UiDrawVertex(a, default, color));
+        _vertices.Add(new UiDrawVertex(b, default, color));
+        _vertices.Add(new UiDrawVertex(c, default, color));
 
         _indices.Add(startVertex + 0);
         _indices.Add(startVertex + 1);
@@ -617,9 +617,9 @@ public sealed class UiDrawListBuilder
         var startVertex = (uint)_vertices.Count;
         var startIndex = (uint)_indices.Count;
 
-        _vertices.Add(new UiDrawVertex(a, new UiVector2(0, 0), color));
-        _vertices.Add(new UiDrawVertex(b, new UiVector2(1, 0), color));
-        _vertices.Add(new UiDrawVertex(c, new UiVector2(0, 1), color));
+        _vertices.Add(new UiDrawVertex(a, default, color));
+        _vertices.Add(new UiDrawVertex(b, default, color));
+        _vertices.Add(new UiDrawVertex(c, default, color));
 
         _indices.Add(startVertex + 0);
         _indices.Add(startVertex + 1);

@@ -24,17 +24,19 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        _columnsActive = true;
-        _columnsCount = count;
-        _columnsIndex = 0;
-
         var currentState = _layouts.Pop();
         _columnsStartX = currentState.Cursor.X;
         _columnsStartY = currentState.Cursor.Y;
 
-        var availableWidth = _hasWindowRect
-            ? MathF.Max(0f, _windowRect.Width - (WindowPadding * 2f))
-            : (InputWidth * count) + (ItemSpacingX * (count - 1));
+        var availableWidth = _childStack.Count > 0
+            ? MathF.Max(0f, GetContentRegionAvail().X)
+            : _hasWindowRect
+                ? MathF.Max(0f, (_windowRect.X + _windowRect.Width - WindowPadding) - currentState.Cursor.X)
+                : (InputWidth * count) + (ItemSpacingX * (count - 1));
+
+        _columnsActive = true;
+        _columnsCount = count;
+        _columnsIndex = 0;
         _columnsWidth = MathF.Max(1f, (availableWidth - (ItemSpacingX * (count - 1))) / count);
         _columnsMaxY = _columnsStartY;
 
@@ -65,6 +67,16 @@ public sealed partial class UiImmediateContext
         }
 
         _columnsIndex = (_columnsIndex + 1) % _columnsCount;
+
+        var columnX = GetColumnsColumnX(_columnsIndex);
+        var columnY = _columnYs[_columnsIndex];
+        var current = _layouts.Pop();
+        current = current with
+        {
+            Cursor = new UiVector2(columnX, columnY),
+            LineStartX = columnX
+        };
+        _layouts.Push(current);
     }
 
     public int GetColumnIndex() => _columnsIndex;

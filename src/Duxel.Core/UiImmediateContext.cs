@@ -37,8 +37,11 @@ public sealed partial class UiImmediateContext
     private UiRect _clipRect;
     private UiVector2 _mousePosition;
     private bool _leftMouseDown;
+    private bool _rightMouseDown;
     private bool _leftMousePressed;
     private bool _leftMouseReleased;
+    private bool _rightMousePressed;
+    private bool _rightMouseReleased;
     private float _mouseWheel;
     private float _mouseWheelHorizontal;
     private IReadOnlyList<UiKeyEvent> _keyEvents = Array.Empty<UiKeyEvent>();
@@ -58,13 +61,12 @@ public sealed partial class UiImmediateContext
     private float _directTextBaseFontSize;
     private readonly Dictionary<DirectTextCacheKey, DirectTextCacheEntry> _directTextCache = new();
     private nuint _nextDirectTextTextureId = 2_100_000_000;
-    private const int DirectTextCacheMaxEntries = 256;
+    private const int DirectTextCacheMaxEntries = 512;
     private const int DirectTextCacheMaxIdleFrames = 600;
-    private static int _directTextDumpSequence;
 
     private readonly UiDrawListBuilder _baseBuilder;
     private readonly UiDrawListBuilder _overlayBuilder;
-    private readonly UiDrawListBuilder _popupBuilder;
+    private readonly List<UiDrawListBuilder> _popupBuilders = [];
     private readonly UiDrawListSharedData _drawListSharedData = new(null!, UiTextSettings.Default, 0f);
     private UiDrawListBuilder _builder;
     private readonly Stack<UiDrawListBuilder> _builderStack = new();
@@ -84,8 +86,10 @@ public sealed partial class UiImmediateContext
     private readonly Stack<UiWindowCanvasState> _windowCanvasStack = new();
     private readonly Stack<float> _itemWidthStack = new();
     private readonly Stack<UiItemFlags> _itemFlagStack = new();
-    private readonly List<UiRect> _openMenuPopupRects = [];
-    private readonly List<UiRect> _openMenuButtonRects = [];
+    private List<UiRect> _openMenuPopupRects = [];
+    private List<UiRect> _openMenuButtonRects = [];
+    private List<UiRect> _prevMenuPopupRects = [];
+    private List<UiRect> _prevMenuButtonRects = [];
     private int _popupTierDepth;
     private UiItemFlags _currentItemFlags;
     private readonly Stack<StyleColorEntry> _styleColorStack = new();
@@ -100,6 +104,9 @@ public sealed partial class UiImmediateContext
     private string? _currentTabBarId;
     private string? _currentTabBarActiveKey;
     private bool _inMenuBar;
+    private float _mainMenuBarHeight;
+    private float _frameMainMenuBarHeight;
+    private UiVector2 _mainMenuBarSavedCursor;
     private bool _tooltipActive;
     private float _tooltipPadding;
     private UiVector2 _tooltipOrigin;
@@ -123,8 +130,11 @@ public sealed partial class UiImmediateContext
     private readonly List<string> _tableColumnLabels = [];
     private int _tableSetupIndex;
     private int _tableRowIndex;
+    private bool _tableRowStarted;
     private float[] _tableColumnWidths = [];
     private float[] _tableColumnAlign = [];
+    private float _tableCellPaddingY;
+    private float _tableCellContentOffsetY;
     private string? _tableId;
     private UiTableFlags _tableFlags;
     private float _tableStartY;
@@ -133,7 +143,7 @@ public sealed partial class UiImmediateContext
     private readonly record struct UiFontState(UiFontAtlas FontAtlas, float LineHeight, UiTextureId FontTexture);
     private readonly record struct UiFontSizeState(float PreviousPushedSize, UiFontAtlas FontAtlas, float LineHeight, UiTextureId FontTexture);
     private readonly record struct DirectTextCacheKey(string FontPath, string Text, int SizeQuarter);
-    private readonly record struct DirectTextCacheEntry(UiTextureId TextureId, int Width, int Height, int LastUsedFrame);
+    private readonly record struct DirectTextCacheEntry(UiTextureId? TextureId, int Width, int Height, float Advance, float Baseline, float FontAscent, int LastUsedFrame, ReadOnlyMemory<byte> PendingPixels);
     private readonly record struct UiWindowCanvasState(UiDrawListBuilder DrawList, UiVector2 Origin, UiRect Rect, bool HasClipRect);
     private readonly record struct StyleColorEntry(UiStyleColor Color, UiColor Previous);
     private readonly record struct StyleVarEntry(UiStyleVar Var, float PrevX, float PrevY, bool IsVector);
@@ -211,6 +221,8 @@ public sealed partial class UiImmediateContext
     private bool _nextWindowCollapsed;
     private bool _hasNextWindowCollapsed;
     private bool _hasNextWindowFocus;
+    private bool _nextWindowTopMost;
+    private bool _hasNextWindowTopMost;
     private float _nextWindowScrollX;
     private float _nextWindowScrollY;
     private bool _hasNextWindowScrollX;
@@ -245,6 +257,10 @@ public sealed partial class UiImmediateContext
     private int _dragDropAcceptFrame;
     private UiRect _dragDropTargetRect;
     private UiRect _dragDropTargetClipRect;
+    private UiVector2 _dragDropSourceItemPos;
+    private UiVector2 _dragDropSourceItemSize;
+    private string? _dragDropSourceItemId;
+    private UiItemFlags _dragDropSourceItemFlags;
     private bool _dragDropPayloadSet;
     private readonly UiDragDropPayload _dragDropPayload = new();
     private byte[]? _dragDropPayloadBuffer;
@@ -265,8 +281,11 @@ public sealed partial class UiImmediateContext
         UiRect clipRect,
         UiVector2 mousePosition,
         bool leftMouseDown,
+        bool rightMouseDown,
         bool leftMousePressed,
         bool leftMouseReleased,
+        bool rightMousePressed,
+        bool rightMouseReleased,
         float mouseWheel,
         float mouseWheelHorizontal,
         IReadOnlyList<UiKeyEvent> keyEvents,
@@ -301,10 +320,8 @@ public sealed partial class UiImmediateContext
 
         _baseBuilder = new UiDrawListBuilder(clipRect);
         _overlayBuilder = new UiDrawListBuilder(clipRect);
-        _popupBuilder = new UiDrawListBuilder(clipRect);
         _baseBuilder._SetDrawListSharedData(GetDrawListSharedData());
         _overlayBuilder._SetDrawListSharedData(GetDrawListSharedData());
-        _popupBuilder._SetDrawListSharedData(GetDrawListSharedData());
         _builder = _baseBuilder;
 
         ReinitializeFrame(
@@ -317,8 +334,11 @@ public sealed partial class UiImmediateContext
             clipRect,
             mousePosition,
             leftMouseDown,
+            rightMouseDown,
             leftMousePressed,
             leftMouseReleased,
+            rightMousePressed,
+            rightMouseReleased,
             mouseWheel,
             mouseWheelHorizontal,
             keyEvents,
@@ -347,8 +367,11 @@ public sealed partial class UiImmediateContext
         UiRect clipRect,
         UiVector2 mousePosition,
         bool leftMouseDown,
+        bool rightMouseDown,
         bool leftMousePressed,
         bool leftMouseReleased,
+        bool rightMousePressed,
+        bool rightMouseReleased,
         float mouseWheel,
         float mouseWheelHorizontal,
         IReadOnlyList<UiKeyEvent> keyEvents,
@@ -395,8 +418,11 @@ public sealed partial class UiImmediateContext
         _clipRect = clipRect;
         _mousePosition = mousePosition;
         _leftMouseDown = leftMouseDown;
+        _rightMouseDown = rightMouseDown;
         _leftMousePressed = leftMousePressed;
         _leftMouseReleased = leftMouseReleased;
+        _rightMousePressed = rightMousePressed;
+        _rightMouseReleased = rightMouseReleased;
 
         _mouseWheel = mouseWheel;
         _mouseWheelHorizontal = mouseWheelHorizontal;
@@ -419,7 +445,10 @@ public sealed partial class UiImmediateContext
         var sharedData = GetDrawListSharedData();
         _baseBuilder._SetDrawListSharedData(sharedData);
         _overlayBuilder._SetDrawListSharedData(sharedData);
-        _popupBuilder._SetDrawListSharedData(sharedData);
+        foreach (var pb in _popupBuilders)
+        {
+            pb._SetDrawListSharedData(sharedData);
+        }
 
         ResetTransientState(clipRect, reserveVertices, reserveIndices, reserveCommands);
         UpdateMouseClickState();
@@ -429,13 +458,16 @@ public sealed partial class UiImmediateContext
     {
         _baseBuilder._SetClipRect(clipRect);
         _overlayBuilder._SetClipRect(clipRect);
-        _popupBuilder._SetClipRect(clipRect);
         _baseBuilder._ResetForNewFrame();
         _overlayBuilder._ResetForNewFrame();
-        _popupBuilder._ResetForNewFrame();
         _baseBuilder.PushTexture(_fontTexture);
         _overlayBuilder.PushTexture(_fontTexture);
-        _popupBuilder.PushTexture(_fontTexture);
+        foreach (var pb in _popupBuilders)
+        {
+            pb._SetClipRect(clipRect);
+            pb._ResetForNewFrame();
+            pb.PushTexture(_fontTexture);
+        }
         if (reserveVertices > 0 || reserveIndices > 0 || reserveCommands > 0)
         {
             _baseBuilder.Reserve(reserveVertices, reserveIndices, reserveCommands);
@@ -461,7 +493,9 @@ public sealed partial class UiImmediateContext
         _comboStack.Clear();
         _itemWidthStack.Clear();
         _itemFlagStack.Clear();
+        (_prevMenuPopupRects, _openMenuPopupRects) = (_openMenuPopupRects, _prevMenuPopupRects);
         _openMenuPopupRects.Clear();
+        (_prevMenuButtonRects, _openMenuButtonRects) = (_openMenuButtonRects, _prevMenuButtonRects);
         _openMenuButtonRects.Clear();
         _styleColorStack.Clear();
         _styleVarStack.Clear();
@@ -478,6 +512,9 @@ public sealed partial class UiImmediateContext
         _currentTabBarId = null;
         _currentTabBarActiveKey = null;
         _inMenuBar = false;
+        _mainMenuBarHeight = _frameMainMenuBarHeight;
+        _frameMainMenuBarHeight = 0f;
+        _mainMenuBarSavedCursor = default;
         _tooltipActive = false;
         _tooltipPadding = 0f;
         _tooltipOrigin = default;
@@ -501,6 +538,9 @@ public sealed partial class UiImmediateContext
         _tableColumnLabels.Clear();
         _tableSetupIndex = 0;
         _tableRowIndex = 0;
+        _tableRowStarted = false;
+        _tableCellPaddingY = 0f;
+        _tableCellContentOffsetY = 0f;
         _tableId = null;
         _tableFlags = UiTableFlags.None;
         _tableStartY = 0f;
@@ -541,6 +581,8 @@ public sealed partial class UiImmediateContext
         _nextWindowCollapsed = false;
         _hasNextWindowCollapsed = false;
         _hasNextWindowFocus = false;
+        _nextWindowTopMost = false;
+        _hasNextWindowTopMost = false;
         _nextWindowScrollX = 0f;
         _nextWindowScrollY = 0f;
         _hasNextWindowScrollX = false;
@@ -576,6 +618,10 @@ public sealed partial class UiImmediateContext
         _dragDropAcceptFrame = 0;
         _dragDropTargetRect = default;
         _dragDropTargetClipRect = default;
+        _dragDropSourceItemPos = default;
+        _dragDropSourceItemSize = default;
+        _dragDropSourceItemId = null;
+        _dragDropSourceItemFlags = UiItemFlags.None;
         _dragDropPayloadSet = false;
         _dragDropPayload.DataType = string.Empty;
         _dragDropPayload.Data = ReadOnlyMemory<byte>.Empty;
@@ -695,13 +741,16 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        QueueTextureUpdate(new UiTextureUpdate(
-            UiTextureUpdateKind.Destroy,
-            entry.TextureId,
-            UiTextureFormat.Rgba8Unorm,
-            entry.Width,
-            entry.Height,
-            ReadOnlyMemory<byte>.Empty));
+        if (entry.TextureId is { } texId)
+        {
+            QueueTextureUpdate(new UiTextureUpdate(
+                UiTextureUpdateKind.Destroy,
+                texId,
+                UiTextureFormat.Rgba8Unorm,
+                entry.Width,
+                entry.Height,
+                ReadOnlyMemory<byte>.Empty));
+        }
     }
 
     private bool TryMeasureDirectText(string text, UiTextSettings settings, out UiVector2 measured)
@@ -724,20 +773,44 @@ public sealed partial class UiImmediateContext
                 ? MathF.Max(1f, _directTextBaseFontSize * settings.Scale)
                 : MathF.Max(1f, _lineHeight * settings.Scale);
         var sizeQuarter = (int)MathF.Round(fontSize * 4f);
-        var cacheKey = new DirectTextCacheKey(_directTextPrimaryFontPath, text, sizeQuarter);
-        if (_directTextCache.TryGetValue(cacheKey, out var cacheEntry))
+
+        if (!TryGetOrCreateDirectText(text, sizeQuarter, fontSize, out var entry))
         {
-            cacheEntry = cacheEntry with { LastUsedFrame = _state.FrameCount };
-            _directTextCache[cacheKey] = cacheEntry;
-            measured = new UiVector2(cacheEntry.Width, MathF.Max(cacheEntry.Height, _lineHeight * settings.LineHeightScale));
+            return false;
+        }
+
+        measured = new UiVector2(entry.Advance, MathF.Max(entry.Height, _lineHeight * settings.LineHeightScale));
+        return true;
+    }
+
+    private bool TryGetOrCreateDirectText(string text, int sizeQuarter, float fontSize, out DirectTextCacheEntry entry)
+    {
+        var key = new DirectTextCacheKey(_directTextPrimaryFontPath!, text, sizeQuarter);
+        if (_directTextCache.TryGetValue(key, out entry))
+        {
+            entry = entry with { LastUsedFrame = _state.FrameCount };
+            _directTextCache[key] = entry;
             return true;
         }
 
-        if (!_platformTextBackend.TryRasterize(new PlatformTextRasterizeRequest(_directTextPrimaryFontPath, _directTextSecondaryFontPath, text, fontSize), out var rasterized)
-            || rasterized.Width <= 0
-            || rasterized.Height <= 0)
+        if (!_platformTextBackend!.TryRasterize(
+                new PlatformTextRasterizeRequest(_directTextPrimaryFontPath!, _directTextSecondaryFontPath, text, fontSize),
+                out var result))
         {
             return false;
+        }
+
+        var advance = result.Advance > 0f ? result.Advance : MathF.Max(result.Width, fontSize * 0.3f);
+        entry = new DirectTextCacheEntry(null, result.Width, result.Height, advance, result.Baseline, result.FontAscent, _state.FrameCount, result.RgbaPixels);
+        _directTextCache[key] = entry;
+        return true;
+    }
+
+    private DirectTextCacheEntry EnsureDirectTextTexture(DirectTextCacheKey key, DirectTextCacheEntry entry)
+    {
+        if (entry.TextureId is not null || entry.Width <= 0 || entry.Height <= 0 || entry.PendingPixels.IsEmpty)
+        {
+            return entry;
         }
 
         var textureId = new UiTextureId(_nextDirectTextTextureId++);
@@ -745,16 +818,13 @@ public sealed partial class UiImmediateContext
             UiTextureUpdateKind.Create,
             textureId,
             UiTextureFormat.Rgba8Unorm,
-            rasterized.Width,
-            rasterized.Height,
-            rasterized.RgbaPixels));
+            entry.Width,
+            entry.Height,
+            entry.PendingPixels));
 
-        TryDumpDirectTextTexture(cacheKey, rasterized.Width, rasterized.Height, rasterized.RgbaPixels.Span);
-
-        cacheEntry = new DirectTextCacheEntry(textureId, rasterized.Width, rasterized.Height, _state.FrameCount);
-        _directTextCache[cacheKey] = cacheEntry;
-        measured = new UiVector2(rasterized.Width, MathF.Max(rasterized.Height, _lineHeight * settings.LineHeightScale));
-        return true;
+        entry = entry with { TextureId = textureId, PendingPixels = ReadOnlyMemory<byte>.Empty };
+        _directTextCache[key] = entry;
+        return entry;
     }
 
     private UiVector2 MeasureTextInternal(string text, UiTextSettings settings, float lineHeightOverride)
@@ -794,118 +864,45 @@ public sealed partial class UiImmediateContext
                 ? MathF.Max(1f, _directTextBaseFontSize * settings.Scale)
                 : MathF.Max(1f, _lineHeight * settings.Scale);
         var sizeQuarter = (int)MathF.Round(fontSize * 4f);
-        var cacheKey = new DirectTextCacheKey(_directTextPrimaryFontPath, text, sizeQuarter);
-        if (!_directTextCache.TryGetValue(cacheKey, out var cacheEntry))
+
+        if (!TryGetOrCreateDirectText(text, sizeQuarter, fontSize, out var entry))
         {
-            if (!_platformTextBackend.TryRasterize(new PlatformTextRasterizeRequest(_directTextPrimaryFontPath, _directTextSecondaryFontPath, text, fontSize), out var rasterized)
-                || rasterized.Width <= 0
-                || rasterized.Height <= 0)
-            {
-                return false;
-            }
-
-            var textureId = new UiTextureId(_nextDirectTextTextureId++);
-            QueueTextureUpdate(new UiTextureUpdate(
-                UiTextureUpdateKind.Create,
-                textureId,
-                UiTextureFormat.Rgba8Unorm,
-                rasterized.Width,
-                rasterized.Height,
-                rasterized.RgbaPixels));
-
-            TryDumpDirectTextTexture(cacheKey, rasterized.Width, rasterized.Height, rasterized.RgbaPixels.Span);
-
-            cacheEntry = new DirectTextCacheEntry(textureId, rasterized.Width, rasterized.Height, _state.FrameCount);
-            _directTextCache[cacheKey] = cacheEntry;
-        }
-        else
-        {
-            cacheEntry = cacheEntry with { LastUsedFrame = _state.FrameCount };
-            _directTextCache[cacheKey] = cacheEntry;
+            return false;
         }
 
-        size = new UiVector2(cacheEntry.Width, cacheEntry.Height);
+        size = new UiVector2(entry.Advance, MathF.Max(entry.Height, _lineHeight * settings.LineHeightScale));
+
+        // Clip check: skip GPU texture creation and rendering if entirely outside clipRect
         var measuredLineHeight = _lineHeight * settings.LineHeightScale;
-        var yOffset = cacheEntry.Height < measuredLineHeight
-            ? (measuredLineHeight - cacheEntry.Height) * 0.5f
-            : 0f;
-        drawList.PushClipRect(clipRect, true);
-        drawList.AddImage(
-            cacheEntry.TextureId,
-            new UiVector2(position.X, position.Y + yOffset),
-            new UiVector2(position.X + cacheEntry.Width, position.Y + yOffset + cacheEntry.Height),
-            new UiVector2(0f, 0f),
-            new UiVector2(1f, 1f),
-            color);
-        drawList.PopClipRect();
+        // Baseline-align: use font ascent to position all words with baselines at the same Y
+        var yOffset = entry.FontAscent - entry.Baseline;
+        if (position.X + entry.Width <= clipRect.X
+            || position.X >= clipRect.X + clipRect.Width
+            || position.Y + yOffset + entry.Height <= clipRect.Y
+            || position.Y + yOffset >= clipRect.Y + clipRect.Height)
+        {
+            return true;
+        }
+
+        var renderKey = new DirectTextCacheKey(_directTextPrimaryFontPath!, text, sizeQuarter);
+        entry = EnsureDirectTextTexture(renderKey, entry);
+
+        if (entry.TextureId is { } texId && entry.Width > 0 && entry.Height > 0)
+        {
+            drawList.PushClipRect(clipRect, true);
+            drawList.AddImage(
+                texId,
+                new UiVector2(position.X, position.Y + yOffset),
+                new UiVector2(position.X + entry.Width, position.Y + yOffset + entry.Height),
+                new UiVector2(0f, 0f),
+                new UiVector2(1f, 1f),
+                color);
+            drawList.PopClipRect();
+        }
+
         return true;
     }
 
-    private static void TryDumpDirectTextTexture(DirectTextCacheKey cacheKey, int width, int height, ReadOnlySpan<byte> rgba)
-    {
-        var dumpDir = Environment.GetEnvironmentVariable("DUXEL_DIRECT_TEXT_DUMP_DIR");
-        if (string.IsNullOrWhiteSpace(dumpDir) || width <= 0 || height <= 0)
-        {
-            return;
-        }
-
-        var expected = width * height * 4;
-        if (rgba.Length < expected)
-        {
-            return;
-        }
-
-        try
-        {
-            Directory.CreateDirectory(dumpDir);
-            var seq = Interlocked.Increment(ref _directTextDumpSequence);
-            var safeText = cacheKey.Text.Length > 24 ? cacheKey.Text[..24] : cacheKey.Text;
-            var fileSafeText = new string(safeText.Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch).ToArray());
-            var fileName = $"{seq:D5}_{cacheKey.SizeQuarter}_{fileSafeText}.bmp";
-            var path = Path.Combine(dumpDir, fileName);
-
-            using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
-            using var writer = new BinaryWriter(stream);
-            var rowStride = width * 4;
-            var pixelDataSize = rowStride * height;
-            var fileSize = 14 + 40 + pixelDataSize;
-
-            writer.Write((ushort)0x4D42);
-            writer.Write(fileSize);
-            writer.Write((ushort)0);
-            writer.Write((ushort)0);
-            writer.Write(14 + 40);
-
-            writer.Write(40);
-            writer.Write(width);
-            writer.Write(height);
-            writer.Write((ushort)1);
-            writer.Write((ushort)32);
-            writer.Write(0);
-            writer.Write(pixelDataSize);
-            writer.Write(3780);
-            writer.Write(3780);
-            writer.Write(0);
-            writer.Write(0);
-
-            for (var y = height - 1; y >= 0; y--)
-            {
-                var rowStart = y * width * 4;
-                for (var x = 0; x < width; x++)
-                {
-                    var src = rowStart + (x * 4);
-                    var a = rgba[src + 3];
-                    writer.Write(a);
-                    writer.Write(a);
-                    writer.Write(a);
-                    writer.Write((byte)255);
-                }
-            }
-        }
-        catch
-        {
-        }
-    }
 
     private void AddTextInternal(
         UiDrawListBuilder drawList,
@@ -924,27 +921,83 @@ public sealed partial class UiImmediateContext
         return;
     }
 
+    private void AddTextMultilineInternal(
+        UiDrawListBuilder drawList,
+        string text,
+        UiVector2 position,
+        UiColor color,
+        UiRect clipRect,
+        UiTextSettings settings,
+        float lineHeight,
+        UiRect inputRect)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        var span = text.AsSpan();
+        var lineStart = 0;
+        var lineIndex = 0;
+        while (lineStart <= span.Length)
+        {
+            var lineEnd = span[lineStart..].IndexOf('\n');
+            var lineLength = lineEnd >= 0 ? lineEnd : span.Length - lineStart;
+            var lineY = position.Y + lineIndex * lineHeight;
+
+            // Skip lines outside visible area
+            if (lineY + lineHeight > inputRect.Y && lineY < inputRect.Y + inputRect.Height)
+            {
+                if (lineLength > 0)
+                {
+                    var lineText = text.Substring(lineStart, lineLength);
+                    var linePos = new UiVector2(position.X, lineY);
+                    AddTextInternal(drawList, lineText, linePos, color, clipRect, settings, lineHeight);
+                }
+            }
+
+            if (lineEnd < 0)
+            {
+                break;
+            }
+
+            lineStart += lineLength + 1;
+            lineIndex++;
+        }
+    }
+
     public UiPooledList<UiDrawList> BuildDrawLists()
     {
         var baseLists = _baseBuilder.Build();
         var overlayLists = _overlayBuilder.Build();
-        var popupLists = _popupBuilder.Build();
 
-        var totalCount = baseLists.Count + overlayLists.Count + popupLists.Count;
+        // Collect all popup tier lists
+        var allPopupLists = new List<UiPooledList<UiDrawList>>(_popupBuilders.Count);
+        var popupTotalCount = 0;
+        foreach (var pb in _popupBuilders)
+        {
+            var pl = pb.Build();
+            allPopupLists.Add(pl);
+            popupTotalCount += pl.Count;
+        }
+
+        var totalCount = baseLists.Count + overlayLists.Count + popupTotalCount;
         if (totalCount == 0)
         {
             baseLists.Return();
             overlayLists.Return();
-            popupLists.Return();
+            foreach (var pl in allPopupLists)
+            {
+                pl.Return();
+            }
             return UiPooledList<UiDrawList>.FromArray(Array.Empty<UiDrawList>());
         }
 
         // Single-tier fast path
-        if (overlayLists.Count == 0 && popupLists.Count == 0) return baseLists;
-        if (baseLists.Count == 0 && popupLists.Count == 0) return overlayLists;
-        if (baseLists.Count == 0 && overlayLists.Count == 0) return popupLists;
+        if (overlayLists.Count == 0 && popupTotalCount == 0) return ReturnPopupLists(allPopupLists, overlayLists, baseLists);
+        if (baseLists.Count == 0 && popupTotalCount == 0) return ReturnPopupLists(allPopupLists, baseLists, overlayLists);
 
-        // Merge: base → overlay (active window) → popup (menus/tooltips)
+        // Merge: base → overlay (active window) → popup tiers (depth 0 → 1 → 2 → ...)
         var mergedBuffer = ArrayPool<UiDrawList>.Shared.Rent(totalCount);
         var offset = 0;
         if (baseLists.Count > 0)
@@ -957,16 +1010,33 @@ public sealed partial class UiImmediateContext
             overlayLists.CopyTo(mergedBuffer.AsSpan(offset, overlayLists.Count));
             offset += overlayLists.Count;
         }
-        if (popupLists.Count > 0)
+        foreach (var pl in allPopupLists)
         {
-            popupLists.CopyTo(mergedBuffer.AsSpan(offset, popupLists.Count));
+            if (pl.Count > 0)
+            {
+                pl.CopyTo(mergedBuffer.AsSpan(offset, pl.Count));
+                offset += pl.Count;
+            }
         }
 
         baseLists.Return();
         overlayLists.Return();
-        popupLists.Return();
+        foreach (var pl in allPopupLists)
+        {
+            pl.Return();
+        }
 
         return new UiPooledList<UiDrawList>(mergedBuffer, totalCount, pooled: true);
+
+        static UiPooledList<UiDrawList> ReturnPopupLists(
+            List<UiPooledList<UiDrawList>> popupLists,
+            UiPooledList<UiDrawList> toReturn,
+            UiPooledList<UiDrawList> result)
+        {
+            foreach (var pl in popupLists) pl.Return();
+            toReturn.Return();
+            return result;
+        }
     }
 
     private UiVector2 AdvanceCursor(UiVector2 size)
@@ -995,7 +1065,7 @@ public sealed partial class UiImmediateContext
         if (_tableActive && !current.IsRow)
         {
             var columnX = GetTableColumnX(_tableColumn);
-            cursor = new UiVector2(columnX, _tableRowY);
+            cursor = new UiVector2(columnX, _tableRowY + _tableCellPaddingY + _tableCellContentOffsetY);
         }
         UiVector2 next;
         if (current.IsRow)
@@ -1020,7 +1090,7 @@ public sealed partial class UiImmediateContext
             }
             if (_tableActive)
             {
-                var nextY = cursor.Y + size.Y + ItemSpacingY;
+                var nextY = cursor.Y + size.Y + MathF.Max(ItemSpacingY, _tableCellPaddingY);
                 _tableRowMaxY = MathF.Max(_tableRowMaxY, nextY);
                 current = current with { Cursor = new UiVector2(current.LineStartX, _tableRowMaxY) };
             }
@@ -1029,11 +1099,21 @@ public sealed partial class UiImmediateContext
         _layouts.Push(current);
         _lastItemPos = cursor;
         _lastItemSize = size;
+        if (_childStack.Count > 0)
+        {
+            var child = _childStack.Pop();
+            var contentMaxX = cursor.X + size.X + child.ScrollX;
+            if (contentMaxX > child.ContentMaxX)
+            {
+                child = child with { ContentMaxX = contentMaxX };
+            }
+            _childStack.Push(child);
+        }
         if (_tooltipActive)
         {
             _tooltipMaxRight = MathF.Max(_tooltipMaxRight, cursor.X + size.X);
         }
-        if (_hasWindowRect && _childStack.Count == 0)
+        if (_hasWindowRect && _childStack.Count == 0 && _listBoxStack.Count == 0)
         {
             var unscrolledMax = new UiVector2(
                 cursor.X + size.X + _windowScrollX,
@@ -1207,6 +1287,12 @@ public sealed partial class UiImmediateContext
 
         PopClipRect();
         _state.SetScrollY(state.Id, clampedScrollY);
+        _state.SetScrollY($"{state.Id}##maxScroll", maxScroll);
+
+        if (MathF.Abs(clampedScrollY - state.ScrollY) > 0.001f)
+        {
+            _requestFrame?.Invoke();
+        }
     }
 
     private bool IsHovering(UiRect rect)
@@ -1220,11 +1306,13 @@ public sealed partial class UiImmediateContext
         for (var i = 0; i < _openMenuPopupRects.Count; i++)
         {
             if (IsHovering(_openMenuPopupRects[i]))
-            {
                 return true;
-            }
         }
-
+        for (var i = 0; i < _prevMenuPopupRects.Count; i++)
+        {
+            if (IsHovering(_prevMenuPopupRects[i]))
+                return true;
+        }
         return false;
     }
 
@@ -1233,11 +1321,13 @@ public sealed partial class UiImmediateContext
         for (var i = 0; i < _openMenuButtonRects.Count; i++)
         {
             if (IsHovering(_openMenuButtonRects[i]))
-            {
                 return true;
-            }
         }
-
+        for (var i = 0; i < _prevMenuButtonRects.Count; i++)
+        {
+            if (IsHovering(_prevMenuButtonRects[i]))
+                return true;
+        }
         return false;
     }
 
@@ -1246,7 +1336,7 @@ public sealed partial class UiImmediateContext
         var rects = _state.PreviousPopupBlockingRects;
         for (var i = 0; i < rects.Count; i++)
         {
-            if (IsHovering(rects[i]))
+            if (IsHovering(rects[i].Rect))
             {
                 return true;
             }
@@ -1255,7 +1345,21 @@ public sealed partial class UiImmediateContext
         return false;
     }
 
-    public float GetTextLineHeight() => GetFontSize();
+    private bool IsMouseOverHigherTierPopup(int currentTier)
+    {
+        var rects = _state.PreviousPopupBlockingRects;
+        for (var i = 0; i < rects.Count; i++)
+        {
+            if (rects[i].Tier > currentTier && IsHovering(rects[i].Rect))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public float GetTextLineHeight() => MeasureTextInternal("Hg", _textSettings, _lineHeight).Y;
 
     public float GetTextLineHeightWithSpacing() => GetTextLineHeight() + ItemSpacingY;
 
@@ -1353,7 +1457,7 @@ public sealed partial class UiImmediateContext
     private void PushPopup()
     {
         _builderStack.Push(_builder);
-        _builder = _popupBuilder;
+        _builder = GetOrCreatePopupBuilder(_popupTierDepth);
         _popupTierDepth++;
     }
 
@@ -1368,6 +1472,17 @@ public sealed partial class UiImmediateContext
         {
             _builder = _baseBuilder;
         }
+    }
+
+    private UiDrawListBuilder GetOrCreatePopupBuilder(int depth)
+    {
+        while (_popupBuilders.Count <= depth)
+        {
+            var pb = new UiDrawListBuilder(_clipStack.Count > 0 ? _clipStack.Peek() : default);
+            pb._SetDrawListSharedData(GetDrawListSharedData());
+            _popupBuilders.Add(pb);
+        }
+        return _popupBuilders[depth];
     }
 
     private void AddRectFilled(UiRect rect, UiColor color, UiTextureId textureId) =>
@@ -1847,8 +1962,12 @@ public sealed partial class UiImmediateContext
     public UiViewport GetMainViewport()
     {
         var pos = new UiVector2(0f, 0f);
-        return new UiViewport(pos, _displaySize, pos, _displaySize);
+        var workPos = new UiVector2(0f, _mainMenuBarHeight);
+        var workSize = new UiVector2(_displaySize.X, _displaySize.Y - _mainMenuBarHeight);
+        return new UiViewport(pos, _displaySize, workPos, workSize);
     }
+
+    public float GetMainMenuBarHeight() => _mainMenuBarHeight;
 
     public UiTextureId WhiteTextureId => _whiteTexture;
 
@@ -1953,15 +2072,32 @@ public sealed partial class UiImmediateContext
 
     private float GetWrapWidth(UiVector2 cursor)
     {
-        if (!_hasWindowRect || _textWrapStack.Count == 0)
+        if (_textWrapStack.Count == 0)
         {
             return 0f;
         }
 
         var wrapPos = _textWrapStack.Peek();
-        var wrapX = wrapPos <= 0f
-            ? _windowRect.X + _windowRect.Width - WindowPadding
-            : _windowRect.X + wrapPos;
+        float wrapX;
+        if (wrapPos > 0f)
+        {
+            wrapX = _windowRect.X + wrapPos;
+        }
+        else if (_childStack.Count > 0)
+        {
+            var childRect = _childStack.Peek().Rect;
+            wrapX = childRect.X + childRect.Width - 2f;
+        }
+        else
+        {
+            if (!_hasWindowRect)
+            {
+                return 0f;
+            }
+
+            wrapX = _windowRect.X + _windowRect.Width - WindowPadding;
+        }
+
         return MathF.Max(0f, wrapX - cursor.X);
     }
 
@@ -1972,6 +2108,33 @@ public sealed partial class UiImmediateContext
         var x = Math.Clamp(rect.X, 0f, maxX);
         var y = Math.Clamp(rect.Y, 0f, maxY);
         return new UiRect(x, y, rect.Width, rect.Height);
+    }
+
+    private UiRect ClampPopupToWindow(UiRect rect)
+    {
+        if (!_hasWindowRect)
+        {
+            return rect;
+        }
+        var titleBarHeight = _lineHeight + (WindowPadding * 2f);
+        var contentTop = _windowRect.Y + titleBarHeight;
+        var contentBottom = _windowRect.Y + _windowRect.Height;
+        var contentLeft = _windowRect.X;
+        var contentRight = _windowRect.X + _windowRect.Width;
+
+        var y = rect.Y;
+        var height = rect.Height;
+        if (y + height > contentBottom)
+        {
+            height = MathF.Max(0f, contentBottom - y);
+        }
+        if (y < contentTop)
+        {
+            height = MathF.Max(0f, height - (contentTop - y));
+            y = contentTop;
+        }
+        var x = Math.Clamp(rect.X, contentLeft, MathF.Max(contentLeft, contentRight - rect.Width));
+        return new UiRect(x, y, rect.Width, height);
     }
 
     private bool ItemHoverable(string id, UiRect rect)
@@ -1986,8 +2149,13 @@ public sealed partial class UiImmediateContext
             return false;
         }
 
-        // Block input for items not in popup tier when mouse is over any popup
-        if (_popupTierDepth == 0 && IsMouseOverAnyBlockingPopup())
+        if (_popupTierDepth == 0 && IsMouseOverAnyOpenMenuPopup())
+        {
+            return false;
+        }
+
+        // Block input for items when mouse is over a higher-tier popup
+        if (IsMouseOverHigherTierPopup(_popupTierDepth))
         {
             return false;
         }
@@ -2282,7 +2450,9 @@ public sealed partial class UiImmediateContext
             var width = MeasureTextWidthSpan(text[..next]);
             if (width >= localX)
             {
-                return start;
+                var prevWidth = MeasureTextWidthSpan(text[..start]);
+                var charMid = prevWidth + (width - prevWidth) * 0.5f;
+                return localX >= charMid ? next : start;
             }
 
             index = next;
@@ -2721,26 +2891,40 @@ public sealed partial class UiImmediateContext
 
     private int GetShiftLineDownTarget(string value, int caretIndex)
     {
-        var lineEnd = GetLineEndIndex(value, caretIndex);
-        if (caretIndex < lineEnd)
+        var (lines, starts) = GetLineInfo(value);
+        var lineIndex = FindLineIndex(lines, starts, caretIndex);
+        if (lineIndex >= lines.Length - 1)
         {
-            return lineEnd;
+            return value.Length;
         }
 
-        var nextLine = MoveCaretVertical(value, caretIndex, 1);
-        return GetLineEndIndex(value, nextLine);
+        return MoveCaretVertical(value, caretIndex, 1);
     }
 
     private int GetShiftLineUpTarget(string value, int caretIndex)
     {
-        var lineStart = GetLineStartIndex(value, caretIndex);
-        if (caretIndex > lineStart)
+        var (lines, starts) = GetLineInfo(value);
+        var lineIndex = FindLineIndex(lines, starts, caretIndex);
+        if (lineIndex <= 0)
         {
-            return lineStart;
+            return 0;
         }
 
-        var prevLine = MoveCaretVertical(value, caretIndex, -1);
-        return GetLineStartIndex(value, prevLine);
+        return MoveCaretVertical(value, caretIndex, -1);
+    }
+
+    private static int FindLineIndex(string[] lines, int[] starts, int caretIndex)
+    {
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var lineEnd = starts[i] + lines[i].Length;
+            if (caretIndex <= lineEnd || i == lines.Length - 1)
+            {
+                return i;
+            }
+        }
+
+        return 0;
     }
 
     private static bool IsRepeatableKey(UiKey key)
@@ -2880,7 +3064,7 @@ public sealed partial class UiImmediateContext
         return changed;
     }
 
-    private bool HandleRepeatMultiline(UiTextEditBuffer buffer, ref string text, ref int caretIndex, ref UiTextSelection selection, float inputHeight)
+    private bool HandleRepeatMultiline(UiTextEditBuffer buffer, ref string text, ref int caretIndex, ref UiTextSelection selection, float inputHeight, float lineHeight)
     {
         var changed = false;
         var ctrl = (_state.Modifiers & KeyModifiers.Ctrl) != 0;
@@ -2957,14 +3141,14 @@ public sealed partial class UiImmediateContext
 
         if (IsRepeatTriggered(UiKey.PageUp))
         {
-            var visibleLines = Math.Max(1, (int)MathF.Floor((inputHeight - 8f) / _lineHeight));
+            var visibleLines = Math.Max(1, (int)MathF.Floor((inputHeight - 8f) / lineHeight));
             var next = MoveCaretVertical(text, caretIndex, -visibleLines);
             ApplyCaretMove(ref caretIndex, ref selection, next, shift);
         }
 
         if (IsRepeatTriggered(UiKey.PageDown))
         {
-            var visibleLines = Math.Max(1, (int)MathF.Floor((inputHeight - 8f) / _lineHeight));
+            var visibleLines = Math.Max(1, (int)MathF.Floor((inputHeight - 8f) / lineHeight));
             var next = MoveCaretVertical(text, caretIndex, visibleLines);
             ApplyCaretMove(ref caretIndex, ref selection, next, shift);
         }
@@ -2979,7 +3163,26 @@ public sealed partial class UiImmediateContext
 
     private readonly record struct UiLayoutState(UiVector2 Cursor, bool IsRow, float RowMaxHeight, float LineStartX);
     private readonly record struct UiListBoxState(string Id, UiRect Rect, float ScrollY);
-    private readonly record struct UiChildState(string Id, UiRect Rect, UiVector2 Cursor, float ScrollY);
+    private readonly record struct UiChildState(
+        string Id,
+        UiRect Rect,
+        UiVector2 Cursor,
+        float ScrollY,
+        float ScrollX,
+        float ContentMaxX,
+        UiVector2 LastItemPos,
+        UiVector2 LastItemSize,
+        string? LastItemId,
+        UiItemFlags LastItemFlags,
+        bool ColumnsActive,
+        int ColumnsCount,
+        int ColumnsIndex,
+        float ColumnsStartX,
+        float ColumnsStartY,
+        float ColumnsWidth,
+        float ColumnsMaxY,
+        float[] ColumnYs,
+        float[] ColumnWidths);
     private readonly record struct UiMenuState(
         string Id,
         string MenuSetKey,

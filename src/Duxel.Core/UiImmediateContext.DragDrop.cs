@@ -27,6 +27,10 @@ public sealed partial class UiImmediateContext
         _dragDropAcceptFrame = -1;
         _dragDropTargetRect = default;
         _dragDropTargetClipRect = default;
+        _dragDropSourceItemPos = default;
+        _dragDropSourceItemSize = default;
+        _dragDropSourceItemId = null;
+        _dragDropSourceItemFlags = UiItemFlags.None;
         _dragDropPayloadSet = false;
         _dragDropPayload.DataType = string.Empty;
         _dragDropPayload.Data = ReadOnlyMemory<byte>.Empty;
@@ -95,6 +99,10 @@ public sealed partial class UiImmediateContext
 
         _dragDropWithinSource = true;
         _dragDropSourceFrame = _state.FrameCount;
+        _dragDropSourceItemPos = _lastItemPos;
+        _dragDropSourceItemSize = _lastItemSize;
+        _dragDropSourceItemId = _lastItemId;
+        _dragDropSourceItemFlags = _lastItemFlags;
 
         if ((flags & UiDragDropFlags.SourceNoPreviewTooltip) == 0)
         {
@@ -114,6 +122,10 @@ public sealed partial class UiImmediateContext
         if ((_dragDropSourceFlags & UiDragDropFlags.SourceNoPreviewTooltip) == 0)
         {
             EndTooltip();
+            _lastItemPos = _dragDropSourceItemPos;
+            _lastItemSize = _dragDropSourceItemSize;
+            _lastItemId = _dragDropSourceItemId;
+            _lastItemFlags = _dragDropSourceItemFlags;
         }
 
         if (!_dragDropPayloadSet)

@@ -32,7 +32,8 @@ public sealed partial class UiImmediateContext
         );
         if (!string.IsNullOrEmpty(displayLabel))
         {
-            AddTextInternal(_builder,
+            AddTextInternal(_builder,
+
                 displayLabel,
                 textPos,
                 _theme.Text,
@@ -67,7 +68,8 @@ public sealed partial class UiImmediateContext
         );
         if (!string.IsNullOrEmpty(displayLabel))
         {
-            AddTextInternal(_builder,
+            AddTextInternal(_builder,
+
                 displayLabel,
                 textPos,
                 _theme.Text,
@@ -116,7 +118,8 @@ public sealed partial class UiImmediateContext
             rect.X + (rect.Width - textSize.X) * 0.5f,
             rect.Y + (rect.Height - textSize.Y) * 0.5f
         );
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             arrow,
             textPos,
             _theme.Text,
@@ -259,7 +262,8 @@ public sealed partial class UiImmediateContext
             }
 
             AddTextInternal(
-                _builder,
+                _builder,
+
                 text,
                 position,
                 color,
@@ -339,7 +343,7 @@ public sealed partial class UiImmediateContext
         var viewport = GetMainViewport();
         var marginValue = margin ?? new UiVector2(8f, 8f);
         var paddingValue = padding ?? new UiVector2(6f, 4f);
-        var viewportRect = new UiRect(viewport.WorkPos.X, viewport.WorkPos.Y, viewport.WorkSize.X, viewport.WorkSize.Y);
+        var viewportRect = new UiRect(viewport.Pos.X, viewport.Pos.Y, viewport.Size.X, viewport.Size.Y);
         var containerRect = new UiRect(
             viewportRect.X + marginValue.X,
             viewportRect.Y + marginValue.Y,
@@ -376,7 +380,8 @@ public sealed partial class UiImmediateContext
             }
 
             AddTextInternal(
-                drawList,
+                drawList,
+
                 text,
                 textPos,
                 color,
@@ -422,20 +427,41 @@ public sealed partial class UiImmediateContext
             GetWindowDrawList().AddRectFilled(indicatorRect, accentColor, WhiteTextureId, clipToRow ? rowRect : CurrentClipRect);
         }
 
+        var requestedKeyWidth = MathF.Max(0f, keyWidth);
+        var keyTextSize = MeasureTextInternal(key, _textSettings, _lineHeight);
+        var valueTextSize = string.IsNullOrEmpty(value)
+            ? default
+            : MeasureTextInternal(value, _textSettings, _lineHeight);
         var insetX = MathF.Max(0f, horizontalPadding);
         var insetY = MathF.Max(0f, verticalPadding);
+        var requiredTextHeight = MathF.Max(_lineHeight, MathF.Max(keyTextSize.Y, valueTextSize.Y));
+        var effectiveInsetY = MathF.Min(insetY, MathF.Max(0f, (rowRect.Height - requiredTextHeight) * 0.5f));
         var contentRect = new UiRect(
             rowRect.X + insetX,
-            rowRect.Y + insetY,
-            MathF.Max(0f, rowRect.Width - insetX * 2f),
-            MathF.Max(0f, rowRect.Height - insetY * 2f));
+            rowRect.Y + effectiveInsetY,
+            MathF.Max(0f, rowRect.Width - (insetX * 2f)),
+            MathF.Max(0f, rowRect.Height - (effectiveInsetY * 2f)));
 
         if (contentRect.Width <= 0f || contentRect.Height <= 0f)
         {
             return;
         }
 
-        var keyAreaWidth = MathF.Min(MathF.Max(0f, keyWidth), contentRect.Width);
+        var minimumKeyWidth = MathF.Ceiling(keyTextSize.X + 6f);
+        var minimumValueWidth = string.IsNullOrEmpty(value)
+            ? 0f
+            : MathF.Min(MathF.Max(48f, contentRect.Width * 0.25f), contentRect.Width);
+        var maxAllowedKeyWidth = string.IsNullOrEmpty(value)
+            ? contentRect.Width
+            : MathF.Max(0f, contentRect.Width - minimumValueWidth);
+
+        var keyAreaWidth = MathF.Max(requestedKeyWidth, minimumKeyWidth);
+        if (!string.IsNullOrEmpty(value))
+        {
+            keyAreaWidth = MathF.Min(keyAreaWidth, maxAllowedKeyWidth);
+        }
+
+        keyAreaWidth = MathF.Min(keyAreaWidth, contentRect.Width);
         var keyRect = new UiRect(contentRect.X, contentRect.Y, keyAreaWidth, contentRect.Height);
         var valueRect = new UiRect(
             contentRect.X + keyAreaWidth,
@@ -635,7 +661,8 @@ public sealed partial class UiImmediateContext
         if (!string.IsNullOrEmpty(displayLabel))
         {
             AddTextInternal(
-                _builder,
+                _builder,
+
                 displayLabel,
                 cursor,
                 color,
@@ -683,7 +710,8 @@ public sealed partial class UiImmediateContext
         if (!string.IsNullOrEmpty(labelText))
         {
             AddTextInternal(
-                _builder,
+                _builder,
+
                 labelText,
                 cursor,
                 _theme.TextDisabled,
@@ -697,7 +725,8 @@ public sealed partial class UiImmediateContext
         {
             var valuePos = new UiVector2(cursor.X + labelSize.X, cursor.Y);
             AddTextInternal(
-                _builder,
+                _builder,
+
                 valueText,
                 valuePos,
                 _theme.Text,
@@ -725,10 +754,11 @@ public sealed partial class UiImmediateContext
 
     public void Bullet()
     {
-        var size = new UiVector2(_lineHeight, _lineHeight);
-        var cursor = AdvanceCursor(size);
         var radius = MathF.Max(2f, _lineHeight * 0.15f);
-        var center = new UiVector2(cursor.X + radius + 2f, cursor.Y + (_lineHeight * 0.5f));
+        var bulletWidth = radius * 2f + 2f;
+        var size = new UiVector2(bulletWidth, _lineHeight);
+        var cursor = AdvanceCursor(size);
+        var center = new UiVector2(cursor.X + radius + 2f, GetTextVisualCenterY(cursor.Y));
         AddCircleFilled(center, radius, _theme.Text, _whiteTexture, 12);
     }
 
@@ -782,6 +812,22 @@ public sealed partial class UiImmediateContext
         Text(FormatValue(prefix, value.ToString(format, CultureInfo.InvariantCulture)));
     }
 
+    /// <summary>
+    /// Returns the Y coordinate of the visual text center relative to a given text top position.
+    /// Uses the font's cap height ('H' glyph) to determine the center of visible Latin text,
+    /// rather than the mathematical center of ascender-descender bounds.
+    /// </summary>
+    private float GetTextVisualCenterY(float textPositionY)
+    {
+        float capOffsetY = 0f;
+        if (_fontAtlas.TryGetGlyph('H', out var hGlyph))
+        {
+            capOffsetY = hGlyph.OffsetY;
+        }
+
+        return textPositionY + (_fontAtlas.Ascent + capOffsetY * 0.5f) * _textSettings.Scale;
+    }
+
     private void RenderText(string? text, UiColor color)
     {
         text ??= string.Empty;
@@ -806,7 +852,8 @@ public sealed partial class UiImmediateContext
         }
 
         AddTextInternal(
-            _builder,
+            _builder,
+
             text,
             cursor,
             color,
@@ -925,7 +972,8 @@ public sealed partial class UiImmediateContext
 
         var totalRect = new UiRect(cursor.X, cursor.Y, totalSize.X, totalSize.Y);
         var textTop = cursor.Y + (height - glyphHeight) * 0.5f;
-        var boxY = cursor.Y + (height - checkboxSize) * 0.5f;
+        var textVisualCenter = GetTextVisualCenterY(textTop);
+        var boxY = textVisualCenter - checkboxSize * 0.5f;
         if (_textSettings.PixelSnap)
         {
             boxY = MathF.Round(boxY);
@@ -950,7 +998,8 @@ public sealed partial class UiImmediateContext
         if (!string.IsNullOrEmpty(displayLabel))
         {
             var textPos = new UiVector2(cursor.X + checkboxSize + CheckboxSpacing, textTop);
-            AddTextInternal(_builder,
+            AddTextInternal(_builder,
+
                 displayLabel,
                 textPos,
                 _theme.Text,
@@ -997,7 +1046,8 @@ public sealed partial class UiImmediateContext
 
         var totalRect = new UiRect(cursor.X, cursor.Y, totalSize.X, totalSize.Y);
         var textTop = cursor.Y + (height - glyphHeight) * 0.5f;
-        var center = new UiVector2(cursor.X + (radioSize * 0.5f), cursor.Y + (height * 0.5f));
+        var textVisualCenter = GetTextVisualCenterY(textTop);
+        var center = new UiVector2(cursor.X + (radioSize * 0.5f), textVisualCenter);
 
         var pressed = ButtonBehavior(label, totalRect, out var hovered, out _);
 
@@ -1012,7 +1062,8 @@ public sealed partial class UiImmediateContext
         if (!string.IsNullOrEmpty(displayLabel))
         {
             var textPos = new UiVector2(cursor.X + radioSize + CheckboxSpacing, textTop);
-            AddTextInternal(_builder,
+            AddTextInternal(_builder,
+
                 displayLabel,
                 textPos,
                 _theme.Text,
@@ -1065,14 +1116,20 @@ public sealed partial class UiImmediateContext
                 rect.X + (rect.Width - textSize.X) * 0.5f,
                 rect.Y + (rect.Height - textSize.Y) * 0.5f
             );
-            AddTextInternal(_builder,
-                text,
-                textPos,
-                _theme.Text,
-                CurrentClipRect,
-                _textSettings,
-                _lineHeight
-            );
+            var parentClip = CurrentClipRect;
+
+            if (fillWidth > 0f)
+            {
+                var filledClip = IntersectRect(parentClip, new UiRect(rect.X, rect.Y, fillWidth, rect.Height));
+                var invertedColor = new UiColor((_theme.SliderGrab.Rgba & 0xFF000000) | (~_theme.SliderGrab.Rgba & 0x00FFFFFF));
+                AddTextInternal(_builder, text, textPos, invertedColor, filledClip, _textSettings, _lineHeight);
+            }
+
+            if (fillWidth < rect.Width)
+            {
+                var emptyClip = IntersectRect(parentClip, new UiRect(rect.X + fillWidth, rect.Y, rect.Width - fillWidth, rect.Height));
+                AddTextInternal(_builder, text, textPos, _theme.Text, emptyClip, _textSettings, _lineHeight);
+            }
         }
     }
 
@@ -1102,6 +1159,13 @@ public sealed partial class UiImmediateContext
         var totalSize = new UiVector2(width, height);
         var cursor = AdvanceCursor(totalSize);
         var rect = new UiRect(cursor.X, cursor.Y, width, height);
+        var hasLabel = !string.IsNullOrWhiteSpace(label);
+        var labelHeight = hasLabel ? MeasureTextInternal(label, _textSettings, _lineHeight).Y + 4f : 0f;
+        var plotRect = new UiRect(
+            rect.X,
+            rect.Y + labelHeight,
+            rect.Width,
+            MathF.Max(1f, rect.Height - labelHeight));
 
         AddRectFilled(rect, _theme.FrameBg, _whiteTexture);
 
@@ -1122,20 +1186,20 @@ public sealed partial class UiImmediateContext
             max = min + 1f;
         }
 
-        var step = histogram ? rect.Width / count : rect.Width / Math.Max(1, count - 1);
-        var prevX = rect.X;
-        var prevY = rect.Y + rect.Height;
+        var step = histogram ? plotRect.Width / count : plotRect.Width / Math.Max(1, count - 1);
+        var prevX = plotRect.X;
+        var prevY = plotRect.Y + plotRect.Height;
 
         for (var i = 0; i < count; i++)
         {
             var value = values[(valuesOffset + i) % values.Length];
             var t = Math.Clamp((value - min) / (max - min), 0f, 1f);
-            var y = rect.Y + rect.Height - (t * rect.Height);
-            var x = rect.X + (i * step);
+            var y = plotRect.Y + plotRect.Height - (t * plotRect.Height);
+            var x = plotRect.X + (i * step);
 
             if (histogram)
             {
-                var barRect = new UiRect(x, y, MathF.Max(1f, step - 1f), rect.Y + rect.Height - y);
+                var barRect = new UiRect(x, y, MathF.Max(1f, step - 1f), plotRect.Y + plotRect.Height - y);
                 AddRectFilled(barRect, _theme.PlotHistogram, _whiteTexture);
             }
             else if (i > 0)
@@ -1150,11 +1214,11 @@ public sealed partial class UiImmediateContext
             prevY = y;
         }
 
-        if (!string.IsNullOrWhiteSpace(label))
+        if (hasLabel)
         {
-            var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
             var textPos = new UiVector2(rect.X + 4f, rect.Y + 2f);
-            AddTextInternal(_builder,
+            AddTextInternal(_builder,
+
                 label,
                 textPos,
                 _theme.TextDisabled,
@@ -1167,8 +1231,9 @@ public sealed partial class UiImmediateContext
         if (!string.IsNullOrWhiteSpace(overlayText))
         {
             var overlaySize = MeasureTextInternal(overlayText, _textSettings, _lineHeight);
-            var overlayPos = new UiVector2(rect.X + (rect.Width - overlaySize.X) * 0.5f, rect.Y + (rect.Height - overlaySize.Y) * 0.5f);
-            AddTextInternal(_builder,
+            var overlayPos = new UiVector2(plotRect.X + (plotRect.Width - overlaySize.X) * 0.5f, plotRect.Y + (plotRect.Height - overlaySize.Y) * 0.5f);
+            AddTextInternal(_builder,
+
                 overlayText,
                 overlayPos,
                 _theme.Text,

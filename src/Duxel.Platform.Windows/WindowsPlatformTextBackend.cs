@@ -33,7 +33,9 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
             rasterized.Width,
             rasterized.Height,
             rasterized.Pixels,
-            rasterized.Baseline);
+            rasterized.Baseline,
+            rasterized.FontAscent,
+            rasterized.Advance);
         return true;
     }
 
@@ -60,7 +62,7 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
                 var segment = lines[i];
                 if (segment.Length == 0)
                 {
-                    lineRasters.Add(new RasterizedLine(0, 0, ReadOnlyMemory<byte>.Empty, lineAdvance));
+                    lineRasters.Add(new RasterizedLine(0, 0, ReadOnlyMemory<byte>.Empty, lineAdvance, 0f, 0f));
                     continue;
                 }
 
@@ -121,7 +123,7 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
                 }
             }
 
-            line = new RasterizedLine(multilineWidth, multilineHeight, multilinePixels, lineAdvance);
+            line = new RasterizedLine(multilineWidth, multilineHeight, multilinePixels, lineAdvance, lineRasters.Count > 0 ? lineRasters[0].FontAscent : 0f, multilineWidth);
             return true;
         }
 
@@ -144,31 +146,42 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
     {
         line = default;
         if (!WindowsDirectWriteGlyphRasterizer.Instance.TryRasterizeTextRun(
-                fontPath, text, size, Oversample, sourceScale: 1f, renderScale: 1f, out var result)
-            || result.Width <= 0
-            || result.Height <= 0)
+                fontPath, text, size, Oversample, sourceScale: 1f, renderScale: 1f, out var result))
         {
             return false;
         }
 
-        var pixels = new byte[result.Width * result.Height * 4];
-        var alpha = result.Alpha;
-        for (var i = 0; i < alpha.Length; i++)
+        if (result.Width <= 0 || result.Height <= 0)
         {
-            if (alpha[i] == 0)
-            {
-                continue;
-            }
+            // Whitespace or invisible glyph — return advance with empty bitmap
+            line = new RasterizedLine(0, 0, ReadOnlyMemory<byte>.Empty, 0f, result.Baseline, result.Advance);
+            return true;
+        }
 
-            var idx = i * 4;
-            pixels[idx] = 255;
-            pixels[idx + 1] = 255;
-            pixels[idx + 2] = 255;
-            pixels[idx + 3] = alpha[i];
+        var ox = Math.Max(0, result.OffsetX);
+        var totalWidth = ox + result.Width;
+        var pixels = new byte[totalWidth * result.Height * 4];
+        var alpha = result.Alpha;
+        for (var y = 0; y < result.Height; y++)
+        {
+            for (var x = 0; x < result.Width; x++)
+            {
+                var srcIdx = y * result.Width + x;
+                if (alpha[srcIdx] == 0)
+                {
+                    continue;
+                }
+
+                var dstIdx = (y * totalWidth + ox + x) * 4;
+                pixels[dstIdx] = 255;
+                pixels[dstIdx + 1] = 255;
+                pixels[dstIdx + 2] = 255;
+                pixels[dstIdx + 3] = alpha[srcIdx];
+            }
         }
 
         var baseline = MathF.Max(0f, -result.OffsetY);
-        line = new RasterizedLine(result.Width, result.Height, pixels, baseline);
+        line = new RasterizedLine(totalWidth, result.Height, pixels, baseline, result.Baseline, result.Advance);
         return true;
     }
 
@@ -237,6 +250,7 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
         var totalWidth = Math.Max(1, (int)MathF.Ceiling(maxX - minX));
         var totalHeight = Math.Max(1, (int)MathF.Ceiling(maxY - minY));
         var baseline = MathF.Max(0f, -minY);
+        var fontAscent = runResults.Count > 0 ? runResults[0].Result.Baseline : baseline;
         var pixels = new byte[totalWidth * totalHeight * 4];
 
         for (var i = 0; i < runResults.Count; i++)
@@ -271,7 +285,7 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
             }
         }
 
-        line = new RasterizedLine(totalWidth, totalHeight, pixels, baseline);
+        line = new RasterizedLine(totalWidth, totalHeight, pixels, baseline, fontAscent, penX);
         return true;
     }
 
@@ -364,5 +378,5 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
     }
 
     private readonly record struct FontRun(string FontPath, string Text);
-    private readonly record struct RasterizedLine(int Width, int Height, ReadOnlyMemory<byte> Pixels, float Baseline);
+    private readonly record struct RasterizedLine(int Width, int Height, ReadOnlyMemory<byte> Pixels, float Baseline, float FontAscent, float Advance);
 }

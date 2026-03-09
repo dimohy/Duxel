@@ -146,18 +146,6 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                     return false;
                 }
 
-                if (!TryExtractAlphaTexture(glyphRunAnalysis, out var alpha, out var width, out var height, out var offsetX, out var offsetY))
-                {
-                    return false;
-                }
-
-                if (oversampleFactor > 1)
-                {
-                    alpha = Downsample(alpha, width, height, oversampleFactor, out width, out height);
-                    offsetX = (int)MathF.Floor((float)offsetX / oversampleFactor);
-                    offsetY = (int)MathF.Floor((float)offsetY / oversampleFactor);
-                }
-
                 var advanceSum = 0f;
                 for (var i = 0; i < glyphAdvancesArray.Length; i++)
                 {
@@ -170,6 +158,20 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                 if (fontMetrics.DesignUnitsPerEm > 0)
                 {
                     baseline = (fontMetrics.Ascent * rasterizedEmSize) / fontMetrics.DesignUnitsPerEm;
+                }
+
+                if (!TryExtractAlphaTexture(glyphRunAnalysis, out var alpha, out var width, out var height, out var offsetX, out var offsetY))
+                {
+                    // Whitespace or invisible glyph — return advance with empty bitmap
+                    result = new TextRunRasterizationResult(0, 0, Array.Empty<byte>(), 0, 0, advanceSum, baseline);
+                    return true;
+                }
+
+                if (oversampleFactor > 1)
+                {
+                    alpha = Downsample(alpha, width, height, oversampleFactor, out width, out height);
+                    offsetX = (int)MathF.Floor((float)offsetX / oversampleFactor);
+                    offsetY = (int)MathF.Floor((float)offsetY / oversampleFactor);
                 }
 
                 result = new TextRunRasterizationResult(width, height, alpha, offsetX, offsetY, advanceSum, baseline);

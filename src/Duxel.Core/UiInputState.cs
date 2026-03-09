@@ -5,13 +5,17 @@ namespace Duxel.Core;
 public readonly record struct UiInputState(
     UiVector2 MousePosition,
     bool LeftMouseDown,
+    bool RightMouseDown,
     bool LeftMousePressed,
     bool LeftMouseReleased,
+    bool RightMousePressed,
+    bool RightMouseReleased,
     float MouseWheel,
     float MouseWheelHorizontal,
     IReadOnlyList<UiKeyEvent> KeyEvents,
     IReadOnlyList<UiCharEvent> CharEvents,
-    UiKeyRepeatSettings KeyRepeatSettings
+    UiKeyRepeatSettings KeyRepeatSettings,
+    KeyModifiers Modifiers
 );
 
 public readonly record struct UiIO(
@@ -20,8 +24,11 @@ public readonly record struct UiIO(
     float DeltaTime,
     UiVector2 MousePosition,
     bool LeftMouseDown,
+    bool RightMouseDown,
     bool LeftMousePressed,
     bool LeftMouseReleased,
+    bool RightMousePressed,
+    bool RightMouseReleased,
     float MouseWheel,
     float MouseWheelHorizontal,
     IReadOnlyList<UiKeyEvent> KeyEvents,

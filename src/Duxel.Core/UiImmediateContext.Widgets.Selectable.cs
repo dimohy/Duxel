@@ -52,7 +52,7 @@ public sealed partial class UiImmediateContext
         else if (_listBoxStack.Count > 0)
         {
             var listRect = _listBoxStack.Peek().Rect;
-            rect = new UiRect(listRect.X, cursor.Y, listRect.Width, size.Y);
+            rect = new UiRect(listRect.X, cursor.Y, listRect.Width - ScrollbarSize, size.Y);
         }
         else
         {
@@ -71,7 +71,8 @@ public sealed partial class UiImmediateContext
         }
 
         var textPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (height - textSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             label,
             textPos,
             _theme.Text,
@@ -79,6 +80,11 @@ public sealed partial class UiImmediateContext
             _textSettings,
             _lineHeight
         );
+
+        if (pressed && _comboStack.Count > 0)
+        {
+            _state.OpenComboId = null;
+        }
 
         return pressed;
     }
@@ -107,7 +113,8 @@ public sealed partial class UiImmediateContext
         }
 
         var textPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (height - textSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             label,
             textPos,
             _theme.Text,
@@ -115,6 +122,11 @@ public sealed partial class UiImmediateContext
             _textSettings,
             _lineHeight
         );
+
+        if (pressed && _comboStack.Count > 0)
+        {
+            _state.OpenComboId = null;
+        }
 
         return pressed;
     }

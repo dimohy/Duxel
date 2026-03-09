@@ -69,18 +69,37 @@ public sealed partial class UiImmediateContext
     public UiVector2 GetContentRegionAvail()
     {
         var cursor = _layouts.Peek().Cursor;
+        if (_childStack.Count > 0)
+        {
+            var child = _childStack.Peek();
+            var childRect = child.Rect;
+            var contentEndX = childRect.X + childRect.Width - 2f;
+            var contentEndY = childRect.Y + childRect.Height - 2f;
+            var visibleCursorX = cursor.X + child.ScrollX;
+            var visibleCursorY = cursor.Y + child.ScrollY;
+            return new UiVector2(MathF.Max(0f, contentEndX - visibleCursorX), MathF.Max(0f, contentEndY - visibleCursorY));
+        }
+
         if (!_hasWindowRect)
         {
             return new UiVector2(0f, 0f);
         }
 
-        var endX = _windowRect.X + _windowRect.Width - WindowPadding;
+        var endX = _columnsActive && _columnsCount > 0
+            ? GetColumnsColumnX(_columnsIndex) + GetColumnsColumnWidth(_columnsIndex)
+            : _windowRect.X + _windowRect.Width - WindowPadding;
         var endY = _windowRect.Y + _windowRect.Height - WindowPadding;
         return new UiVector2(MathF.Max(0f, endX - cursor.X), MathF.Max(0f, endY - cursor.Y));
     }
 
     public UiVector2 GetContentRegionMax()
     {
+        if (_childStack.Count > 0)
+        {
+            var childRect = _childStack.Peek().Rect;
+            return new UiVector2(childRect.X + childRect.Width - 2f, childRect.Y + childRect.Height - 2f);
+        }
+
         if (!_hasWindowRect)
         {
             return default;
@@ -273,6 +292,12 @@ public sealed partial class UiImmediateContext
         _hasNextWindowFocus = true;
     }
 
+    public void SetNextWindowTopMost(bool topMost = true)
+    {
+        _nextWindowTopMost = topMost;
+        _hasNextWindowTopMost = true;
+    }
+
     public void SetNextWindowScroll(float scrollX, float scrollY)
     {
         _nextWindowScrollX = MathF.Max(0f, scrollX);
@@ -362,6 +387,12 @@ public sealed partial class UiImmediateContext
     {
         title ??= "Window";
         _state.SetWindowOpen(title, open);
+    }
+
+    public bool GetWindowOpen(string title, bool defaultValue = true)
+    {
+        title ??= "Window";
+        return _state.GetWindowOpen(title, defaultValue);
     }
 
     public void SetWindowFocus()
@@ -662,12 +693,12 @@ public sealed partial class UiImmediateContext
         }
 
         var root = _windowRootLayout;
+        var defaultY = MathF.Max(root.Cursor.Y, _mainMenuBarHeight);
         var maxWidth = MathF.Max(WindowMinWidth, _displaySize.X - 40f);
         var maxHeight = MathF.Max(WindowMinHeight, _displaySize.Y - 40f);
         var defaultWidth = MathF.Max(WindowMinWidth, MathF.Min(maxWidth, _displaySize.X * 0.5f));
         var defaultHeight = MathF.Max(WindowMinHeight, MathF.Min(maxHeight, _displaySize.Y * 0.5f));
-        _state.EnsureWindowOrder(title);
-        var defaultRect = new UiRect(root.Cursor.X, root.Cursor.Y, defaultWidth, defaultHeight);
+        var defaultRect = new UiRect(root.Cursor.X, defaultY, defaultWidth, defaultHeight);
 
         var hasStoredRect = _state.TryGetWindowRect(title, out var storedRect);
         var rect = hasStoredRect
@@ -685,14 +716,22 @@ public sealed partial class UiImmediateContext
             _hasNextWindowOpen = false;
         }
 
+        if (_hasNextWindowTopMost)
+        {
+            _state.SetWindowTopMost(title, _nextWindowTopMost);
+            _hasNextWindowTopMost = false;
+        }
+
         if (!isOpen)
         {
+            _state.RemoveWindowFromOrder(title);
             _hasNextWindowPos = false;
             _hasNextWindowSize = false;
             _hasNextWindowSizeConstraints = false;
             _hasNextWindowContentSize = false;
             _hasNextWindowCollapsed = false;
             _hasNextWindowFocus = false;
+            _hasNextWindowTopMost = false;
             _hasNextWindowScrollX = false;
             _hasNextWindowScrollY = false;
             _hasNextWindowBgAlpha = false;
@@ -707,6 +746,8 @@ public sealed partial class UiImmediateContext
             _layouts.Push(new UiLayoutState(root.Cursor, false, 0f, root.Cursor.X));
             return;
         }
+
+        _state.EnsureWindowOrder(title);
 
         if (_hasNextWindowPos)
         {
@@ -834,7 +875,7 @@ public sealed partial class UiImmediateContext
         var blockDrag = closeHovered || closeHeld || collapseHovered || collapseHeld;
 
         var isTopmost = IsWindowTopmostAtMouse(title, rect);
-        var popupBlocking = _popupTierDepth == 0 && IsMouseOverAnyBlockingPopup();
+        var popupBlocking = IsMouseOverHigherTierPopup(_popupTierDepth);
         if (_leftMousePressed && isTopmost && IsHovering(rect) && !popupBlocking)
         {
             _state.ActiveWindowId = title;
@@ -977,7 +1018,19 @@ public sealed partial class UiImmediateContext
             _state.ActiveId = null;
         }
 
+        // Save logical (un-animated) target rect to state
         _state.SetWindowRect(title, rect);
+
+        // Animate window height for collapse/expand transition (visual rendering only)
+        if (_state.ActiveId == resizeId)
+        {
+            AnimateFloat($"{title}##window_height", rect.Height, 0.001f);
+        }
+        else
+        {
+            var animatedHeight = AnimateFloat($"{title}##window_height", rect.Height, 0.18f, UiAnimationEasing.OutCubic);
+            rect = rect with { Height = animatedHeight };
+        }
 
         titleBarRect = new UiRect(rect.X, rect.Y, rect.Width, titleBarHeight);
         collapseRect = new UiRect(
@@ -1000,7 +1053,8 @@ public sealed partial class UiImmediateContext
         _hasWindowRect = true;
 
         var isActiveWindow = string.Equals(_state.ActiveWindowId, title, StringComparison.Ordinal);
-        if (isActiveWindow)
+        var isTopMostWindow = _state.GetWindowTopMost(title);
+        if (isActiveWindow || isTopMostWindow)
         {
             PushOverlay();
             _windowOverlayStack.Push(true);
@@ -1078,7 +1132,8 @@ public sealed partial class UiImmediateContext
         _builder.AddLine(new UiVector2(closeX1, closeY2), new UiVector2(closeX2, closeY1), _theme.Text, 1.5f, _whiteTexture);
 
         var titlePos = new UiVector2(collapseRect.X + collapseRect.Width + 6f, rect.Y + (titleBarHeight - _lineHeight) * 0.5f);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             title,
             titlePos,
             _theme.Text,
@@ -1210,6 +1265,11 @@ public sealed partial class UiImmediateContext
         for (var i = order.Count - 1; i > targetIndex; i--)
         {
             var other = order[i];
+            if (!_state.GetWindowOpen(other, true))
+            {
+                continue;
+            }
+
             if (!_state.TryGetWindowRect(other, out var otherRect))
             {
                 continue;
@@ -1234,6 +1294,9 @@ public sealed partial class UiImmediateContext
         // Scrollbar + mouse wheel handling (before popping layout/clip/overlay)
         if (_hasWindowRect && !_windowCollapsed && _currentWindowId is not null)
         {
+            var prevScrollX = _windowScrollX;
+            var prevScrollY = _windowScrollY;
+
             var titleBarHeight = _lineHeight + (WindowPadding * 2f);
             var contentAreaRect = new UiRect(
                 _windowRect.X + 1f,
@@ -1260,7 +1323,7 @@ public sealed partial class UiImmediateContext
             // Mouse wheel
             var isTopmost = IsWindowTopmostAtMouse(_currentWindowId, _windowRect);
             var hovered = IsHovering(_windowRect) && isTopmost;
-            var popupBlocking = _popupTierDepth == 0 && IsMouseOverAnyBlockingPopup();
+            var popupBlocking = IsMouseOverHigherTierPopup(_popupTierDepth);
             if (hovered && !popupBlocking)
             {
                 if (MathF.Abs(_mouseWheel) > 0.001f && maxScrollY > 0f)
@@ -1307,6 +1370,12 @@ public sealed partial class UiImmediateContext
             // Persist scroll for next frame
             _state.SetScrollX(_currentWindowId, _windowScrollX);
             _state.SetScrollY(_currentWindowId, _windowScrollY);
+
+            // Request next frame if scroll changed (content was rendered with old values)
+            if (MathF.Abs(_windowScrollX - prevScrollX) > 0.001f || MathF.Abs(_windowScrollY - prevScrollY) > 0.001f)
+            {
+                _requestFrame?.Invoke();
+            }
 
             // Render resize grip AFTER scrollbars (correct z-order)
             // 6 dots in triangular pattern: · / · · / · · ·

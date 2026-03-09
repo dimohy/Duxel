@@ -1,6 +1,6 @@
 # Duxel FBA 샘플 — 바로 실행하기
 
-> 마지막 동기화: 2026-03-05
+> 마지막 동기화: 2026-03-09
 
 > .NET 10 + Vulkan 즉시 모드 GUI 프레임워크 **Duxel**의 FBA 샘플을 **복사-붙여넣기 한 줄**로 바로 실행하세요.
 
@@ -45,7 +45,7 @@ irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/a
 curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/all_features.cs -o - | dotnet run -
 ```
 
-> 메뉴바 · 슬라이더 · 드래그 · 입력 · 컬러 피커 · 콤보/리스트박스 · 트리/탭 · 테이블 · 팝업/모달 · 툴팁 · 드로잉 프리미티브 · 드래그앤드롭 · ListClipper(10K) · 시간/FPS/VSync 토글
+> 메뉴바 · 타이포그래피 · 레이아웃 & 컬럼 · 팝업/컨텍스트/툴팁 · 입력 질의 · 아이템 상태 · 멀티셀렉트 · 레이어 & 애니메이션 · 드로잉 프리미티브 · 드래그앤드롭 · ListClipper(10K) · Markdown Studio · 시간/FPS/VSync 토글
 
 ---
 

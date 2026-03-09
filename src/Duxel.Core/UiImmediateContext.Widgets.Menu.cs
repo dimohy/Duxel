@@ -8,12 +8,28 @@ public sealed partial class UiImmediateContext
 
     public bool BeginMainMenuBar()
     {
-        return BeginMenuBar();
+        var frameHeight = GetFrameHeight();
+        _frameMainMenuBarHeight = frameHeight;
+        _mainMenuBarHeight = frameHeight;
+        _mainMenuBarSavedCursor = _layouts.Peek().Cursor;
+
+        SetCursorScreenPos(new UiVector2(MenuPaddingX, 0f));
+
+        var rect = new UiRect(0f, 0f, _displaySize.X, frameHeight);
+        AddRectFilled(rect, _theme.MenuBarBg, _whiteTexture);
+
+        _inMenuBar = true;
+        BeginRow();
+        return true;
     }
 
     public void EndMainMenuBar()
     {
-        EndMenuBar();
+        EndRow();
+        _inMenuBar = false;
+
+        var belowMenuBar = MathF.Max(_mainMenuBarSavedCursor.Y, _frameMainMenuBarHeight);
+        SetCursorScreenPos(new UiVector2(_mainMenuBarSavedCursor.X, belowMenuBar));
     }
 
     public bool BeginMenuBar()
@@ -50,14 +66,15 @@ public sealed partial class UiImmediateContext
 
         var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
         UiVector2 size;
-        if (_inMenuBar)
+        var isMenuBarItem = _inMenuBar && _menuStack.Count == 0;
+        if (isMenuBarItem)
         {
             size = new UiVector2(textSize.X + (ButtonPaddingX * 2f), GetFrameHeight());
         }
         else
         {
-            var arrowSize = MeasureTextInternal(">", _textSettings, _lineHeight);
-            var minWidth = textSize.X + arrowSize.X + (ButtonPaddingX * 4f);
+            var chevronSpace = _lineHeight * 0.7f + ButtonPaddingX;
+            var minWidth = textSize.X + chevronSpace + (ButtonPaddingX * 2f);
             var targetWidth = MathF.Max(MenuMinWidth, minWidth);
             if (_menuStack.Count > 0)
             {
@@ -75,7 +92,7 @@ public sealed partial class UiImmediateContext
         var pressed = ButtonBehavior(rawId, buttonRect, out var hovered, out var held);
         var wantOpen = false;
         var wantClose = false;
-        if (_inMenuBar)
+        if (_inMenuBar && _menuStack.Count == 0)
         {
             if (isOpen && pressed && menuSetOpen)
             {
@@ -109,11 +126,23 @@ public sealed partial class UiImmediateContext
             isOpen = true;
         }
 
-        var bg = isOpen ? _theme.HeaderActive : held ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : _theme.FrameBg;
-        AddRectFilled(buttonRect, bg, _whiteTexture);
+        UiColor bg;
+        if (isMenuBarItem)
+        {
+            bg = isOpen ? _theme.HeaderActive : held ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : default;
+        }
+        else
+        {
+            bg = held ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : default;
+        }
+        if (bg.Rgba is not 0)
+        {
+            AddRectFilled(buttonRect, bg, _whiteTexture);
+        }
 
         var textPos = new UiVector2(buttonRect.X + ButtonPaddingX, buttonRect.Y + (buttonRect.Height - textSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             label,
             textPos,
             _theme.Text,
@@ -122,22 +151,13 @@ public sealed partial class UiImmediateContext
             _lineHeight
         );
 
-        if (!_inMenuBar)
+        if (_menuStack.Count > 0)
         {
-            var arrowText = ">";
-            var arrowSize = MeasureTextInternal(arrowText, _textSettings, _lineHeight);
-            var arrowPos = new UiVector2(
-                buttonRect.X + buttonRect.Width - ButtonPaddingX - arrowSize.X,
-                buttonRect.Y + (buttonRect.Height - arrowSize.Y) * 0.5f
-            );
-            AddTextInternal(_builder,
-                arrowText,
-                arrowPos,
-                _theme.Text,
-                CurrentClipRect,
-                _textSettings,
-                _lineHeight
-            );
+            var iconSize = _lineHeight * 0.7f;
+            var iconX = buttonRect.X + buttonRect.Width - ButtonPaddingX - iconSize;
+            var iconY = buttonRect.Y + (buttonRect.Height - iconSize) * 0.5f;
+            var iconRect = new UiRect(iconX, iconY, iconSize, iconSize);
+            DrawChevronIcon(iconRect, -90f, scale: 0.5f, thickness: 1.2f, color: _theme.Text);
         }
 
         if (!isOpen)
@@ -148,21 +168,33 @@ public sealed partial class UiImmediateContext
         var defaultPopupHeight = (GetFrameHeight() * 6f) + (MenuPaddingY * 2f);
         var cachedPopupSize = _state.GetMenuSize(id, new UiVector2(defaultPopupWidth, defaultPopupHeight));
         UiRect popupRect;
-        if (_inMenuBar)
+        if (_menuStack.Count > 0)
         {
-            var popupOffsetY = 2f;
-            popupRect = new UiRect(buttonRect.X, buttonRect.Y + buttonRect.Height + popupOffsetY, cachedPopupSize.X, cachedPopupSize.Y);
+            // Nested submenu: column layout to the right of parent popup, aligned with button Y
+            var parentPopup = _menuStack.Peek().PopupRect;
+            var rightX = parentPopup.X + parentPopup.Width;
+            var popupY = buttonRect.Y - ButtonPaddingY;
+            if (rightX + cachedPopupSize.X > _displaySize.X)
+            {
+                var leftX = parentPopup.X - cachedPopupSize.X;
+                popupRect = new UiRect(MathF.Max(0f, leftX), popupY, cachedPopupSize.X, cachedPopupSize.Y);
+            }
+            else
+            {
+                popupRect = new UiRect(rightX, popupY, cachedPopupSize.X, cachedPopupSize.Y);
+            }
         }
         else
         {
-            var popupOffsetX = MathF.Max(4f, ItemSpacingX);
-            popupRect = new UiRect(buttonRect.X + buttonRect.Width - popupOffsetX, buttonRect.Y - ButtonPaddingY, cachedPopupSize.X, cachedPopupSize.Y);
+            // Top-level menu: popup opens downward
+            var popupOffsetY = 2f;
+            popupRect = new UiRect(buttonRect.X, buttonRect.Y + buttonRect.Height + popupOffsetY, cachedPopupSize.X, cachedPopupSize.Y);
         }
         popupRect = ClampRectToDisplay(popupRect);
 
         _openMenuPopupRects.Add(popupRect);
         _openMenuButtonRects.Add(buttonRect);
-        _state.AddPopupBlockingRect(popupRect);
+        _state.AddPopupBlockingRect(popupRect, _popupTierDepth + 1);
 
         if (_leftMousePressed && !IsMouseOverAnyOpenMenuPopup() && !IsMouseOverAnyOpenMenuButton())
         {
@@ -203,6 +235,7 @@ public sealed partial class UiImmediateContext
     public bool MenuItem(string label, bool selected = false, bool enabled = true)
     {
         label ??= "Item";
+        var itemId = _menuStack.Count > 0 ? $"{label}##{_menuStack.Peek().Id}" : label;
 
         var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
         var height = GetFrameHeight();
@@ -222,11 +255,11 @@ public sealed partial class UiImmediateContext
         bool hovered;
         if (enabled)
         {
-            pressed = ButtonBehavior(label, rect, out hovered, out _);
+            pressed = ButtonBehavior(itemId, rect, out hovered, out _);
         }
         else
         {
-            hovered = ItemHoverable(label, rect);
+            hovered = ItemHoverable(itemId, rect);
         }
         if (selected)
         {
@@ -242,7 +275,8 @@ public sealed partial class UiImmediateContext
         if (selected)
         {
             var checkPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (rect.Height - checkSize.Y) * 0.5f);
-            AddTextInternal(_builder,
+            AddTextInternal(_builder,
+
                 checkText,
                 checkPos,
                 textColor,
@@ -251,7 +285,8 @@ public sealed partial class UiImmediateContext
                 _lineHeight
             );
         }
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             label,
             textPos,
             textColor,
@@ -262,8 +297,19 @@ public sealed partial class UiImmediateContext
 
         UpdateCurrentMenuMaxWidth(width);
 
+        if (!pressed && enabled && hovered && _leftMousePressed)
+        {
+            pressed = true;
+            _state.ActiveId = null;
+        }
+
         if (pressed)
         {
+            if (_comboStack.Count > 0)
+            {
+                _state.OpenComboId = null;
+            }
+
             CloseMenuStack();
         }
 
@@ -314,5 +360,6 @@ public sealed partial class UiImmediateContext
         }
         _menuStack.Push(menu);
     }
+
 }
 

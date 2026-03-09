@@ -78,6 +78,9 @@
 - Idle Frame Skip 정책 확정(입력/애니메이션/외부 이벤트)
 - 멀티뷰포트/도킹 및 멀티컨텍스트 확장
 
+### 향후 리팩터링 과제
+- `all_features.cs` 샘플의 단일 거대 클래스를 위젯 카테고리별 소형 클래스/파일로 분리
+
 ## 참조 우선순위 (ImGui)
 1. `imgui.h` / `imgui.cpp`
 2. `imgui_draw.cpp`

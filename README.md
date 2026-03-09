@@ -6,7 +6,7 @@
 
 Immediate-mode GUI framework for .NET 10, using a Vulkan renderer with a Windows-native platform backend.
 
-**Current package version:** `0.1.15-preview`
+**Current package version:** `0.2.0-preview`
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -72,6 +72,7 @@ dotnet run hello.cs
 - FBA samples: `samples/fba/*.cs`
   - `dotnet run samples/fba/all_features.cs`
   - `./run-fba.ps1 samples/fba/all_features.cs` (local project reference; NativeAOT by default)
+  - `all_features.cs` now includes dedicated typography, layout, popup/context, input-query, item-status, multi-select, and layer/animation showcase windows.
 
 ## DSL
 
@@ -80,6 +81,10 @@ Duxel supports declarative `.ui` files (indent-based tree) and runtime/state bin
 - DSL reference: [docs/ui-dsl.md](docs/ui-dsl.md) · [한국어](docs/ui-dsl.ko.md)
 - FBA getting started: [docs/getting-started-fba.md](docs/getting-started-fba.md) · [한국어](docs/getting-started-fba.ko.md)
 - FBA reference guide: [docs/fba-reference-guide.md](docs/fba-reference-guide.md) · [한국어](docs/fba-reference-guide.ko.md)
+- FBA sample catalog: [docs/fba-run-samples.md](docs/fba-run-samples.md) · [한국어](docs/fba-run-samples.ko.md)
+- Custom widgets: [docs/custom-widgets.md](docs/custom-widgets.md) · [한국어](docs/custom-widgets.ko.md)
+- Design notes (Korean): [docs/design.ko.md](docs/design.ko.md)
+- Optimization policy (Korean): [docs/optimization-policy.ko.md](docs/optimization-policy.ko.md)
 
 ## Build
 

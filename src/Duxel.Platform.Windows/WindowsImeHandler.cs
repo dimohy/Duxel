@@ -10,6 +10,7 @@ namespace Duxel.Platform.Windows;
 public sealed class WindowsImeHandler : IUiImeHandler
 {
     private readonly nint _hwnd;
+    private readonly Action? _requestFrame;
     private bool _isEnabled = true;
     private readonly int _ownerThreadId;
     private readonly WndProcDelegate _wndProc;
@@ -26,7 +27,7 @@ public sealed class WindowsImeHandler : IUiImeHandler
     private readonly bool _diagnosticsEnabled = ReadDiagnosticsEnabled();
     private readonly object _diagnosticsLock = new();
 
-    public WindowsImeHandler(nint hwnd)
+    public WindowsImeHandler(nint hwnd, Action? requestFrame = null)
     {
         if (hwnd == 0)
         {
@@ -34,6 +35,7 @@ public sealed class WindowsImeHandler : IUiImeHandler
         }
 
         _hwnd = hwnd;
+        _requestFrame = requestFrame;
         _ownerThreadId = Environment.CurrentManagedThreadId;
         _wndProc = WindowProc;
         InstallWindowHook();
@@ -226,7 +228,7 @@ public sealed class WindowsImeHandler : IUiImeHandler
                             if (!char.IsControl(ch))
                             {
                                 AppendCommittedTextForActiveInput(ch.ToString());
-                                return 0;
+                                RequestFrame();
                             }
                         }
                     }
@@ -238,9 +240,11 @@ public sealed class WindowsImeHandler : IUiImeHandler
                         _compositionText = string.Empty;
                         _compositionOwnerId = _activeInputId;
                     }
+                    RequestFrame();
                     return 0;
                 case WmImeComposition:
                     UpdateCompositionTextFromImmContext();
+                    RequestFrame();
                     if (((nuint)lParam & GcsResultStr) != 0)
                     {
                         var committedText = ReadCompositionString(GcsResultStr);
@@ -254,6 +258,7 @@ public sealed class WindowsImeHandler : IUiImeHandler
                             _compositionText = string.Empty;
                         }
 
+                        RequestFrame();
                         return 0;
                     }
 
@@ -265,6 +270,7 @@ public sealed class WindowsImeHandler : IUiImeHandler
                         _compositionText = null;
                         _compositionOwnerId = null;
                     }
+                    RequestFrame();
                     return 0;
             }
         }
@@ -370,6 +376,11 @@ public sealed class WindowsImeHandler : IUiImeHandler
                 ? text
                 : string.Concat(_recentCommittedText, text);
         }
+    }
+
+    private void RequestFrame()
+    {
+        _requestFrame?.Invoke();
     }
 
     private static bool ReadDiagnosticsEnabled()

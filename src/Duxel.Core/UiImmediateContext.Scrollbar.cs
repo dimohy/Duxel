@@ -2,6 +2,8 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
+    private const float ScrollbarRecentInteractionDurationSeconds = 0.75f;
+
     /// <summary>
     /// Applies an alpha multiplier to a color's alpha channel.
     /// </summary>
@@ -9,6 +11,19 @@ public sealed partial class UiImmediateContext
     {
         var a = (byte)((color >> 24) * alphaFactor);
         return (color & 0x00FFFFFF) | ((uint)a << 24);
+    }
+
+    private bool IsScrollbarRecentlyInteracted(string scrollId, float value)
+    {
+        var previousValue = _state.GetScrollY($"{scrollId}##prev");
+        if (MathF.Abs(previousValue - value) > 0.001f)
+        {
+            _state.SetScrollY($"{scrollId}##flash", (float)_state.TimeSeconds);
+        }
+
+        _state.SetScrollY($"{scrollId}##prev", value);
+        var lastInteractionTime = _state.GetScrollY($"{scrollId}##flash");
+        return (_state.TimeSeconds - lastInteractionTime) <= ScrollbarRecentInteractionDurationSeconds;
     }
 
     /// <summary>
@@ -26,9 +41,10 @@ public sealed partial class UiImmediateContext
         // Determine visibility state
         var scrollActive = _state.ActiveId == scrollId;
         var trackHovered = IsHovering(trackRect);
+        var recentInteraction = IsScrollbarRecentlyInteracted(scrollId, scrollY);
 
-        // Alpha: 100% when active, 80% when hovered, 20% when idle
-        var alphaFactor = scrollActive ? 1.0f : trackHovered ? 0.8f : 0.2f;
+        // Alpha: 100% when active, 85% when hovered/recently scrolled, 20% when idle
+        var alphaFactor = scrollActive ? 1.0f : (trackHovered || recentInteraction) ? 0.85f : 0.2f;
 
         // Track background
         _builder.AddRectFilled(trackRect, ApplyAlpha(_theme.ScrollbarBg, alphaFactor), _whiteTexture, clipRect);
@@ -41,8 +57,8 @@ public sealed partial class UiImmediateContext
         var handleHover = IsHovering(handleRect);
         var trackClickArea = trackHovered && !handleHover;
 
-        // Handle drag
-        if (_leftMousePressed && handleHover)
+        // Handle drag (only capture if no other interaction owns ActiveId)
+        if (_leftMousePressed && handleHover && (_state.ActiveId is null || _state.ActiveId == scrollId))
         {
             _state.ActiveId = scrollId;
             scrollActive = true;
@@ -64,7 +80,7 @@ public sealed partial class UiImmediateContext
         }
 
         // Track click → page scroll
-        if (_leftMousePressed && trackClickArea)
+        if (_leftMousePressed && trackClickArea && _state.ActiveId is null)
         {
             var visibleHeight = trackRect.Height;
             if (_mousePosition.Y < handleY)
@@ -78,7 +94,11 @@ public sealed partial class UiImmediateContext
         }
 
         // Render handle
-        var handleColor = scrollActive ? _theme.ScrollbarGrabActive : handleHover ? _theme.ScrollbarGrabHovered : _theme.ScrollbarGrab;
+        var handleColor = scrollActive || recentInteraction
+            ? _theme.ScrollbarGrabActive
+            : handleHover
+                ? _theme.ScrollbarGrabHovered
+                : _theme.ScrollbarGrab;
         _builder.AddRectFilled(handleRect, ApplyAlpha(handleColor, alphaFactor), _whiteTexture, clipRect);
 
         return scrollY;
@@ -99,9 +119,10 @@ public sealed partial class UiImmediateContext
         // Determine visibility state
         var scrollActive = _state.ActiveId == scrollId;
         var trackHovered = IsHovering(trackRect);
+        var recentInteraction = IsScrollbarRecentlyInteracted(scrollId, scrollX);
 
-        // Alpha: 100% when active, 80% when hovered, 20% when idle
-        var alphaFactor = scrollActive ? 1.0f : trackHovered ? 0.8f : 0.2f;
+        // Alpha: 100% when active, 85% when hovered/recently scrolled, 20% when idle
+        var alphaFactor = scrollActive ? 1.0f : (trackHovered || recentInteraction) ? 0.85f : 0.2f;
 
         // Track background
         _builder.AddRectFilled(trackRect, ApplyAlpha(_theme.ScrollbarBg, alphaFactor), _whiteTexture, clipRect);
@@ -114,8 +135,8 @@ public sealed partial class UiImmediateContext
         var handleHover = IsHovering(handleRect);
         var trackClickArea = trackHovered && !handleHover;
 
-        // Handle drag
-        if (_leftMousePressed && handleHover)
+        // Handle drag (only capture if no other interaction owns ActiveId)
+        if (_leftMousePressed && handleHover && (_state.ActiveId is null || _state.ActiveId == scrollId))
         {
             _state.ActiveId = scrollId;
             scrollActive = true;
@@ -136,7 +157,7 @@ public sealed partial class UiImmediateContext
         }
 
         // Track click → page scroll
-        if (_leftMousePressed && trackClickArea)
+        if (_leftMousePressed && trackClickArea && _state.ActiveId is null)
         {
             var visibleWidth = trackRect.Width;
             if (_mousePosition.X < handleX)
@@ -150,7 +171,11 @@ public sealed partial class UiImmediateContext
         }
 
         // Render handle
-        var handleColor = scrollActive ? _theme.ScrollbarGrabActive : handleHover ? _theme.ScrollbarGrabHovered : _theme.ScrollbarGrab;
+        var handleColor = scrollActive || recentInteraction
+            ? _theme.ScrollbarGrabActive
+            : handleHover
+                ? _theme.ScrollbarGrabHovered
+                : _theme.ScrollbarGrab;
         _builder.AddRectFilled(handleRect, ApplyAlpha(handleColor, alphaFactor), _whiteTexture, clipRect);
 
         return scrollX;

@@ -4,6 +4,23 @@ Duxel의 버전별 변경 내역을 누적 기록합니다.
 
 ## 0.1.15-preview (2026-03-05)
 
+## 0.2.0-preview (2026-03-09)
+
+### 변경 내역
+
+- **[기능]** `samples/fba/all_features.cs`를 더 풍부한 종합 쇼케이스 워크스페이스로 확장했습니다 — 타이포그래피, 레이아웃, 팝업/컨텍스트 패턴, 입력 질의, 아이템 상태, 멀티셀렉트, 레이어/애니메이션 프리뷰, Markdown Studio, 내장 도구 시연 창을 전용 창 단위로 보강했습니다.
+- **[개선]** 쇼케이스 표현과 레이아웃 헬퍼를 다듬었습니다 — 메뉴 아래 정렬되는 창 배치, 소형 유틸리티 창의 중앙 배치, compact hero 레이아웃 안정화, 설계/최적화 문서 링크를 포함한 README 문서 연결을 정리했습니다.
+- **[개선]** 0.2.0-preview 릴리스에 맞춰 문서를 동기화했습니다 — README/가이드 메타데이터를 갱신하고, FBA 가이드 문서의 동기화 시점을 최신 릴리스 기준으로 맞췄으며, 현재 쇼케이스 범위를 버전 이력에 반영했습니다.
+- **[버그]** 멀티라인 입력과 마크다운 편집기의 줄바꿈 처리를 수정했습니다 — CRLF/LF/CR 입력을 정규화하여 숨은 carriage return 문자 없이 안정적으로 편집되도록 했습니다.
+- **[버그]** 한글 IME 조합 입력 지연을 수정했습니다 — Windows IME 메시지가 즉시 프레임을 요청하고 live composition 텍스트를 우선 사용하여 벅벅 끊기던 입력 반영을 제거했습니다.
+- **[버그]** immediate UI 쇼케이스/라이브러리 상호작용의 레이아웃 회귀를 수정했습니다 — 텍스트 row clipping, child-local columns 폭 계산, compact hero 겹침을 해결하고, 내장 `Closable Window`가 클릭 누수 없이 항상 일반 창 위에 머무르도록 진짜 top-most window semantics를 추가했습니다.
+
+### Packaging / Release
+
+- 패키지 버전을 `0.2.0-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`, `Duxel.Core`, `Duxel.Vulkan`, `Duxel.Platform.Windows`).
+
+## 0.1.15-preview (2026-03-05)
+
 ### 변경 내역
 
 - **[기능]** 플랫폼 텍스트 백엔드 추상화 추가 — `IPlatformTextBackend` / `PlatformTextRasterizeRequest` / `PlatformTextRasterizeResult` 인터페이스로 아틀라스 파이프라인과 분리된 크로스 플랫폼 텍스트 래스터라이제이션 지원.

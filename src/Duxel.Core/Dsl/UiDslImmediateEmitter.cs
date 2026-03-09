@@ -18,8 +18,11 @@ public sealed class UiDslRenderContext
         UiRect clipRect,
         UiVector2 mousePosition,
         bool leftMouseDown,
+        bool rightMouseDown,
         bool leftMousePressed,
         bool leftMouseReleased,
+        bool rightMousePressed,
+        bool rightMouseReleased,
         float mouseWheel,
         float mouseWheelHorizontal,
         IReadOnlyList<UiKeyEvent> keyEvents,
@@ -46,8 +49,11 @@ public sealed class UiDslRenderContext
         ClipRect = clipRect;
         MousePosition = mousePosition;
         LeftMouseDown = leftMouseDown;
+        RightMouseDown = rightMouseDown;
         LeftMousePressed = leftMousePressed;
         LeftMouseReleased = leftMouseReleased;
+        RightMousePressed = rightMousePressed;
+        RightMouseReleased = rightMouseReleased;
         MouseWheel = mouseWheel;
         MouseWheelHorizontal = mouseWheelHorizontal;
         KeyEvents = keyEvents ?? throw new ArgumentNullException(nameof(keyEvents));
@@ -74,8 +80,11 @@ public sealed class UiDslRenderContext
     public UiRect ClipRect { get; }
     public UiVector2 MousePosition { get; }
     public bool LeftMouseDown { get; }
+    public bool RightMouseDown { get; }
     public bool LeftMousePressed { get; }
     public bool LeftMouseReleased { get; }
+    public bool RightMousePressed { get; }
+    public bool RightMouseReleased { get; }
     public float MouseWheel { get; }
     public float MouseWheelHorizontal { get; }
     public IReadOnlyList<UiKeyEvent> KeyEvents { get; }
@@ -113,8 +122,11 @@ public sealed class UiDslImmediateEmitter : IUiDslEmitter
             context.ClipRect,
             context.MousePosition,
             context.LeftMouseDown,
+            context.RightMouseDown,
             context.LeftMousePressed,
             context.LeftMouseReleased,
+            context.RightMousePressed,
+            context.RightMouseReleased,
             context.MouseWheel,
             context.MouseWheelHorizontal,
             context.KeyEvents,

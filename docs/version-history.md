@@ -4,6 +4,23 @@ This document accumulates version-by-version changes for Duxel.
 
 ## 0.1.15-preview (2026-03-05)
 
+## 0.2.0-preview (2026-03-09)
+
+### Changes
+
+- **[Feature]** Expanded `samples/fba/all_features.cs` into a fuller showcase workspace — added dedicated windows for typography, layout, popup/context patterns, input queries, item status, multi-selection, layer/animation preview, markdown studio, and richer built-in tool coverage.
+- **[Improvement]** Refined showcase presentation and layout helpers — normalized menu-below window placement, centered compact utility windows, improved compact hero layout stability, and refreshed README documentation links for design and optimization references.
+- **[Improvement]** Synchronized release documentation for the 0.2.0-preview rollout — updated README/guide metadata, refreshed paired FBA guide sync markers, and recorded the current showcase scope in the version history.
+- **[Bug]** Fixed multiline and markdown line-ending handling — normalized CRLF/LF/CR input paths so multiline text boxes and markdown editing remain stable without hidden carriage-return artifacts.
+- **[Bug]** Fixed IME composition latency for Korean typing — Windows IME messages now request frames immediately and live composition text is prioritized so characters appear without bursty delayed updates.
+- **[Bug]** Fixed immediate UI layout regressions in showcase/library interactions — resolved text row clipping, child-local columns sizing, compact hero overlap, and added true top-most window semantics so the built-in `Closable Window` stays above normal windows without click-through.
+
+### Packaging / Release
+
+- Bumped package version to `0.2.0-preview` (`Duxel.App`, `Duxel.Windows.App`, `Duxel.Core`, `Duxel.Vulkan`, `Duxel.Platform.Windows`).
+
+## 0.1.15-preview (2026-03-05)
+
 ### Changes
 
 - **[Feature]** Added platform text backend abstraction — `IPlatformTextBackend` / `PlatformTextRasterizeRequest` / `PlatformTextRasterizeResult` interfaces for cross-platform text rasterization decoupled from the atlas pipeline.

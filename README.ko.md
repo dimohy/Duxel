@@ -6,7 +6,7 @@
 
 .NET 10 기반 즉시 모드 GUI 프레임워크로, Vulkan 렌더러와 Windows 네이티브 플랫폼 백엔드를 사용합니다.
 
-**현재 패키지 버전:** `0.1.15-preview`
+**현재 패키지 버전:** `0.2.0-preview`
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -72,6 +72,7 @@ dotnet run hello.cs
 - FBA 샘플: `samples/fba/*.cs`
   - `dotnet run samples/fba/all_features.cs`
   - `./run-fba.ps1 samples/fba/all_features.cs` (로컬 프로젝트 참조, 기본 NativeAOT)
+  - `all_features.cs`는 전용 타이포그래피, 레이아웃, 팝업/컨텍스트, 입력 질의, 아이템 상태, 멀티셀렉트, 레이어/애니메이션 쇼케이스 창을 포함합니다.
 
 ## DSL
 
@@ -80,6 +81,10 @@ dotnet run hello.cs
 - DSL 문서: [docs/ui-dsl.ko.md](docs/ui-dsl.ko.md) · [English](docs/ui-dsl.md)
 - FBA 시작 가이드: [docs/getting-started-fba.ko.md](docs/getting-started-fba.ko.md) · [English](docs/getting-started-fba.md)
 - FBA 참조 가이드: [docs/fba-reference-guide.ko.md](docs/fba-reference-guide.ko.md) · [English](docs/fba-reference-guide.md)
+- FBA 샘플 카탈로그: [docs/fba-run-samples.ko.md](docs/fba-run-samples.ko.md) · [English](docs/fba-run-samples.md)
+- 커스텀 위젯 문서: [docs/custom-widgets.ko.md](docs/custom-widgets.ko.md) · [English](docs/custom-widgets.md)
+- 설계 문서: [docs/design.ko.md](docs/design.ko.md)
+- 최적화 정책: [docs/optimization-policy.ko.md](docs/optimization-policy.ko.md)
 
 ## 빌드
 

@@ -1,6 +1,6 @@
 # Duxel FBA Quick Start Guide
 
-> Last synced: 2026-03-05  
+> Last synced: 2026-03-09  
 > Korean original: [getting-started-fba.ko.md](getting-started-fba.ko.md)
 
 This guide covers the FBA (File-Based App) flow to run Duxel with a single `.cs` file.
@@ -64,7 +64,7 @@ dotnet run samples/fba/all_features.cs
 
 | File | Description |
 |---|---|
-| `all_features.cs` | Full widget showcase demo |
+| `all_features.cs` | Full widget showcase demo with dedicated typography, layout, popup/context, input-query, item-status, multi-select, and layer/animation windows |
 | `dsl_showcase.cs` | DSL layout demo |
 | `dsl_interaction.cs` | DSL state/event demo |
 | `windows_calculator_fba.cs` | Calculator UI demo |

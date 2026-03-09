@@ -28,6 +28,7 @@ public sealed partial class UiImmediateContext
         _tableSetupIndex = 0;
         _tableColumnLabels.Clear();
         _tableRowIndex = 0;
+        _tableRowStarted = false;
 
         var current = _layouts.Peek();
         _tableStartX = current.Cursor.X;
@@ -35,9 +36,12 @@ public sealed partial class UiImmediateContext
         _tableRowMaxY = _tableRowY;
         _tableStartY = _tableRowY;
 
-        var width = _hasWindowRect
-            ? MathF.Max(0f, _windowRect.Width - (WindowPadding * 2f))
-            : (InputWidth * columns) + (ItemSpacingX * (columns - 1));
+        var available = GetContentRegionAvail().X;
+        var width = available > 0f
+            ? available
+            : _hasWindowRect
+                ? MathF.Max(0f, _windowRect.Width - (WindowPadding * 2f))
+                : (InputWidth * columns) + (ItemSpacingX * (columns - 1));
 
         _tableColumnWidth = MathF.Max(1f, (width - (ItemSpacingX * (columns - 1))) / columns);
         if (_tableColumnWidths.Length != columns)
@@ -97,6 +101,16 @@ public sealed partial class UiImmediateContext
         _ = rows;
     }
 
+    public void TableSetCellPaddingY(float padding)
+    {
+        _tableCellPaddingY = MathF.Max(0f, padding);
+    }
+
+    public void TableSetCellContentOffsetY(float offset)
+    {
+        _tableCellContentOffsetY = MathF.Max(0f, offset);
+    }
+
     public void TableHeadersRow()
     {
         if (!_tableActive)
@@ -121,7 +135,8 @@ public sealed partial class UiImmediateContext
                 var align = i < _tableColumnAlign.Length ? _tableColumnAlign[i] : 0f;
                 cellX += MathF.Max(0f, available - textSize.X) * align;
                 var cellY = _tableRowY + (headerHeight - textSize.Y) * 0.5f;
-                AddTextInternal(_builder,
+                AddTextInternal(_builder,
+
                     label,
                     new UiVector2(cellX, cellY),
                     _theme.Text,
@@ -159,7 +174,8 @@ public sealed partial class UiImmediateContext
             var available = MathF.Max(0f, columnWidth - (ButtonPaddingX * 2f));
             var cellX = cellRect.X + ButtonPaddingX + MathF.Max(0f, available - textSize.X) * align;
             var cellY = cellRect.Y + (headerHeight - textSize.Y) * 0.5f;
-            AddTextInternal(_builder,
+            AddTextInternal(_builder,
+
                 label,
                 new UiVector2(cellX, cellY),
                 _theme.Text,
@@ -291,7 +307,8 @@ public sealed partial class UiImmediateContext
                 var available = MathF.Max(0f, columnWidth - ButtonPaddingX - reservedRight);
                 var cellX = cellRect.X + ButtonPaddingX + MathF.Max(0f, available - textSize.X) * align;
                 var cellY = cellRect.Y + (headerHeight - textSize.Y) * 0.5f;
-                AddTextInternal(_builder,
+                AddTextInternal(_builder,
+
                     label,
                     new UiVector2(cellX, cellY),
                     _theme.Text,
@@ -319,7 +336,8 @@ public sealed partial class UiImmediateContext
                 {
                     var orderX = iconRect.X - orderSize.X - 4f;
                     var orderY = cellRect.Y + (headerHeight - orderSize.Y) * 0.5f;
-                    AddTextInternal(_builder,
+                    AddTextInternal(_builder,
+
                         orderText,
                         new UiVector2(orderX, orderY),
                         _theme.SliderGrab,
@@ -428,12 +446,18 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        DrawTableRowBackgroundIfNeeded();
-        _tableRowMaxY = MathF.Max(_tableRowMaxY, _tableRowY + GetFrameHeight() + 2f);
+        if (_tableRowStarted)
+        {
+            _tableRowMaxY = MathF.Max(_tableRowMaxY, _tableRowY + GetFrameHeight() + 2f);
+            _tableRowY = _tableRowMaxY;
+            _tableRowIndex++;
+        }
+
         _tableColumn = 0;
-        _tableRowY = _tableRowMaxY;
         _tableRowMaxY = _tableRowY;
-        _tableRowIndex++;
+        _tableRowStarted = true;
+
+        DrawTableRowBackgroundIfNeeded();
     }
 
     public void TableNextRow(UiTableRowFlags flags, float minRowHeight = 0f)
@@ -444,13 +468,20 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        DrawTableRowBackgroundIfNeeded();
         var targetMin = minRowHeight > 0f ? minRowHeight : GetFrameHeight() + 2f;
-        _tableRowMaxY = MathF.Max(_tableRowMaxY, _tableRowY + targetMin);
+        if (_tableRowStarted)
+        {
+            _tableRowMaxY = MathF.Max(_tableRowMaxY, _tableRowY + targetMin);
+            _tableRowY = _tableRowMaxY;
+            _tableRowIndex++;
+        }
+
         _tableColumn = 0;
-        _tableRowY = _tableRowMaxY;
         _tableRowMaxY = _tableRowY;
-        _tableRowIndex++;
+        _tableRowStarted = true;
+        _tableRowMaxY = MathF.Max(_tableRowMaxY, _tableRowY + targetMin);
+
+        DrawTableRowBackgroundIfNeeded();
     }
 
     public void TableNextColumn()
@@ -653,8 +684,6 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        DrawTableRowBackgroundIfNeeded();
-
         var current = _layouts.Pop();
         var endY = MathF.Max(_tableRowMaxY, _tableRowY);
         current = current with { Cursor = new UiVector2(current.LineStartX, endY) };
@@ -676,8 +705,11 @@ public sealed partial class UiImmediateContext
         _tableColumnLabels.Clear();
         _tableSetupIndex = 0;
         _tableRowIndex = 0;
+        _tableRowStarted = false;
         _tableColumnWidths = [];
         _tableColumnAlign = [];
+        _tableCellPaddingY = 0f;
+        _tableCellContentOffsetY = 0f;
         _tableId = null;
         _tableFlags = UiTableFlags.None;
         _tableStartY = 0f;

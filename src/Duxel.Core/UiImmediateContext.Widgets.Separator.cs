@@ -10,8 +10,16 @@ public sealed partial class UiImmediateContext
         var frameHeight = MathF.Max(_lineHeight, textSize.Y);
         var cursor = AdvanceCursor(new UiVector2(0f, frameHeight));
 
-        var startX = _hasWindowRect ? _windowRect.X + WindowPadding : cursor.X;
-        var endX = _hasWindowRect ? _windowRect.X + _windowRect.Width - WindowPadding : cursor.X + MathF.Max(textSize.X + 40f, InputWidth);
+        var startX = _childStack.Count > 0
+            ? _childStack.Peek().Rect.X + 2f
+            : _columnsActive && _columnsCount > 0
+            ? GetColumnsColumnX(_columnsIndex)
+            : _hasWindowRect ? _windowRect.X + WindowPadding : cursor.X;
+        var endX = _childStack.Count > 0
+            ? _childStack.Peek().Rect.X + _childStack.Peek().Rect.Width - 2f
+            : _columnsActive && _columnsCount > 0
+            ? GetColumnsColumnX(_columnsIndex) + GetColumnsColumnWidth(_columnsIndex)
+            : _hasWindowRect ? _windowRect.X + _windowRect.Width - WindowPadding : cursor.X + MathF.Max(textSize.X + 40f, InputWidth);
         var centerY = cursor.Y + (frameHeight * 0.5f);
 
         var leftEnd = startX + 6f;
@@ -25,7 +33,8 @@ public sealed partial class UiImmediateContext
         if (!string.IsNullOrWhiteSpace(text))
         {
             var textPos = new UiVector2(leftEnd + 6f, cursor.Y + (frameHeight - textSize.Y) * 0.5f);
-            AddTextInternal(_builder,
+            AddTextInternal(_builder,
+
                 text,
                 textPos,
                 _theme.Text,

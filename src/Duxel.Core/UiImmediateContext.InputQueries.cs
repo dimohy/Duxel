@@ -118,18 +118,33 @@ public sealed partial class UiImmediateContext
 
     public bool IsMouseDown(int button)
     {
-        return button == (int)UiMouseButton.Left && _leftMouseDown;
+        return button switch
+        {
+            (int)UiMouseButton.Left => _leftMouseDown,
+            (int)UiMouseButton.Right => _rightMouseDown,
+            _ => false,
+        };
     }
 
     public bool IsMouseClicked(int button, bool repeat = false)
     {
         _ = repeat;
-        return button == (int)UiMouseButton.Left && _leftMousePressed;
+        return button switch
+        {
+            (int)UiMouseButton.Left => _leftMousePressed,
+            (int)UiMouseButton.Right => _rightMousePressed,
+            _ => false,
+        };
     }
 
     public bool IsMouseReleased(int button)
     {
-        return button == (int)UiMouseButton.Left && _leftMouseReleased;
+        return button switch
+        {
+            (int)UiMouseButton.Left => _leftMouseReleased,
+            (int)UiMouseButton.Right => _rightMouseReleased,
+            _ => false,
+        };
     }
 
     public bool IsMouseDoubleClicked(int button)
@@ -175,7 +190,7 @@ public sealed partial class UiImmediateContext
                _mousePosition.X <= _displaySize.X && _mousePosition.Y <= _displaySize.Y;
     }
 
-    public bool IsAnyMouseDown() => _leftMouseDown;
+    public bool IsAnyMouseDown() => _leftMouseDown || _rightMouseDown;
 
     public UiVector2 GetMousePos() => _mousePosition;
 

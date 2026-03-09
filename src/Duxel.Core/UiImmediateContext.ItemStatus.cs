@@ -29,7 +29,12 @@ public sealed partial class UiImmediateContext
 
     public bool IsItemClicked(int button = (int)UiMouseButton.Left)
     {
-        return button == (int)UiMouseButton.Left && IsItemHovered() && _leftMousePressed;
+        return IsItemHovered() && button switch
+        {
+            (int)UiMouseButton.Left => _leftMousePressed,
+            (int)UiMouseButton.Right => _rightMousePressed,
+            _ => false,
+        };
     }
 
     public bool IsItemVisible()

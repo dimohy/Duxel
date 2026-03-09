@@ -24,7 +24,9 @@ public readonly record struct PlatformTextRasterizeResult(
     int Width,
     int Height,
     ReadOnlyMemory<byte> RgbaPixels,
-    float Baseline
+    float Baseline,
+    float FontAscent,
+    float Advance
 );
 
 public interface IPlatformTextBackend

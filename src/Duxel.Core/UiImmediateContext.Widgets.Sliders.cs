@@ -247,14 +247,34 @@ public sealed partial class UiImmediateContext
         var valueText = value.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
         var valueSize = MeasureTextInternal(valueText, _textSettings, _lineHeight);
         var valuePos = new UiVector2(rect.X + (rect.Width - valueSize.X) * 0.5f, rect.Y + (rect.Height - valueSize.Y) * 0.5f);
-        AddTextInternal(_builder,
-            valueText,
-            valuePos,
-            _theme.Text,
-            CurrentClipRect,
-            _textSettings,
-            _lineHeight
-        );
+        var parentClip = CurrentClipRect;
+        var grabTop = grabRect.Y;
+        var grabBottom = grabRect.Y + grabRect.Height;
+        var sliderTop = rect.Y;
+        var sliderBottom = rect.Y + rect.Height;
+        var grabColor = active ? _theme.SliderGrabActive : _theme.SliderGrab;
+        var invertedGrab = new UiColor((grabColor.Rgba & 0xFF000000) | (~grabColor.Rgba & 0x00FFFFFF));
+        var invertedFill = new UiColor((_theme.SliderGrabActive.Rgba & 0xFF000000) | (~_theme.SliderGrabActive.Rgba & 0x00FFFFFF));
+
+        // Zone 1: Above grab handle (background)
+        if (grabTop > sliderTop)
+        {
+            var zone1Clip = IntersectRect(parentClip, new UiRect(rect.X, sliderTop, rect.Width, grabTop - sliderTop));
+            AddTextInternal(_builder, valueText, valuePos, _theme.Text, zone1Clip, _textSettings, _lineHeight);
+        }
+
+        // Zone 2: Grab handle area
+        {
+            var zone2Clip = IntersectRect(parentClip, new UiRect(rect.X, grabTop, rect.Width, grabBottom - grabTop));
+            AddTextInternal(_builder, valueText, valuePos, invertedGrab, zone2Clip, _textSettings, _lineHeight);
+        }
+
+        // Zone 3: Below grab handle (fill area)
+        if (grabBottom < sliderBottom)
+        {
+            var zone3Clip = IntersectRect(parentClip, new UiRect(rect.X, grabBottom, rect.Width, sliderBottom - grabBottom));
+            AddTextInternal(_builder, valueText, valuePos, invertedFill, zone3Clip, _textSettings, _lineHeight);
+        }
 
         return changed;
     }
@@ -300,7 +320,8 @@ public sealed partial class UiImmediateContext
         var cursor = AdvanceCursor(totalSize);
 
         var labelPos = new UiVector2(cursor.X, cursor.Y + (height - textSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             label,
             labelPos,
             _theme.Text,
@@ -400,14 +421,35 @@ public sealed partial class UiImmediateContext
             valueX = sliderRect.X + ButtonPaddingX;
         }
         var valuePos = new UiVector2(valueX, sliderRect.Y + (sliderRect.Height - valueSize.Y) * 0.5f);
-        AddTextInternal(_builder,
-            valueText,
-            valuePos,
-            _theme.Text,
-            CurrentClipRect,
-            _textSettings,
-            _lineHeight
-        );
+        var parentClip = CurrentClipRect;
+        var grabLeft = grabRect.X;
+        var grabRight = grabRect.X + grabRect.Width;
+        var sliderLeft = sliderRect.X;
+        var sliderRight = sliderRect.X + sliderRect.Width;
+        var grabColor = active ? _theme.SliderGrabActive : _theme.SliderGrab;
+        var invertedGrab = new UiColor((grabColor.Rgba & 0xFF000000) | (~grabColor.Rgba & 0x00FFFFFF));
+        var invertedFill = new UiColor((_theme.SliderGrabActive.Rgba & 0xFF000000) | (~_theme.SliderGrabActive.Rgba & 0x00FFFFFF));
+
+        // Zone 1: Before grab handle (fill area)
+        if (grabLeft > sliderLeft)
+        {
+            var zone1Clip = IntersectRect(parentClip, new UiRect(sliderLeft, sliderRect.Y, grabLeft - sliderLeft, sliderRect.Height));
+            var zone1Color = fillRect.Width > 0f ? invertedFill : _theme.Text;
+            AddTextInternal(_builder, valueText, valuePos, zone1Color, zone1Clip, _textSettings, _lineHeight);
+        }
+
+        // Zone 2: Grab handle area
+        {
+            var zone2Clip = IntersectRect(parentClip, new UiRect(grabLeft, sliderRect.Y, grabRight - grabLeft, sliderRect.Height));
+            AddTextInternal(_builder, valueText, valuePos, invertedGrab, zone2Clip, _textSettings, _lineHeight);
+        }
+
+        // Zone 3: After grab handle (background area)
+        if (grabRight < sliderRight)
+        {
+            var zone3Clip = IntersectRect(parentClip, new UiRect(grabRight, sliderRect.Y, sliderRight - grabRight, sliderRect.Height));
+            AddTextInternal(_builder, valueText, valuePos, _theme.Text, zone3Clip, _textSettings, _lineHeight);
+        }
 
         return changed;
     }

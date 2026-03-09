@@ -19,7 +19,8 @@ public readonly record struct InputSnapshot(
     float MouseWheelHorizontal,
     IReadOnlyList<UiKeyEvent> KeyEvents,
     IReadOnlyList<UiCharEvent> CharEvents,
-    UiKeyRepeatSettings KeyRepeatSettings
+    UiKeyRepeatSettings KeyRepeatSettings,
+    KeyModifiers Modifiers
 );
 
 public interface IKeyRepeatSettingsProvider
