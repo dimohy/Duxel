@@ -49,7 +49,6 @@ public sealed class LayerDirtyStrategyBenchScreen : UiScreen
     private readonly double _phaseSeconds = ReadPhaseSeconds();
     private readonly int _layerCount = ReadLayerCount();
     private readonly int _densityPerLayer = ReadDensityPerLayer();
-    private readonly UiLayerCacheBackend _cacheBackend = ReadCacheBackend();
 
     private int _phaseIndex;
     private double _phaseElapsed;
@@ -149,8 +148,7 @@ public sealed class LayerDirtyStrategyBenchScreen : UiScreen
         var layerOptions = new UiLayerOptions(
             StaticCache: true,
             Opacity: 1f,
-            Translation: new UiVector2(bodyRect.X, bodyRect.Y),
-            CacheBackend: _cacheBackend);
+            Translation: new UiVector2(bodyRect.X, bodyRect.Y));
 
         var layerId = $"layer_body_{layer.Id}";
         var shouldDraw = ui.BeginLayer(layerId, layerOptions);
@@ -189,7 +187,7 @@ public sealed class LayerDirtyStrategyBenchScreen : UiScreen
         ui.TextV("Phase: {0}", _phaseIndex == 0 ? "all-dirty" : "single-dirty");
         ui.TextV("Layer Count: {0}", _layerCount);
         ui.TextV("Density / Layer: {0}", _densityPerLayer);
-        ui.TextV("Cache Backend: {0}", _cacheBackend == UiLayerCacheBackend.Texture ? "Texture" : "DrawList");
+        ui.Text("Cache Backend: DrawList");
         ui.TextV("Frame dt: {0:0.000} ms", delta * 1000.0);
         ui.TextV("CPU: {0:0.0}%", _cpuPercent);
         ui.TextV("Layer Cache Build Count: {0}", _cacheBuildCount);
@@ -242,7 +240,7 @@ public sealed class LayerDirtyStrategyBenchScreen : UiScreen
             _phaseIndex == 0 ? "all" : "single",
             _layerCount,
             _densityPerLayer,
-            _cacheBackend == UiLayerCacheBackend.Texture ? "texture" : "drawlist",
+            "drawlist",
             avgFps,
             avgCpu,
             _cacheBuildCount,
@@ -362,14 +360,4 @@ public sealed class LayerDirtyStrategyBenchScreen : UiScreen
         return BenchOptions.ReadInt("DUXEL_DIRTY_BENCH_DENSITY", 2200, minInclusive: 200, maxInclusive: 12000);
     }
 
-    private static UiLayerCacheBackend ReadCacheBackend()
-    {
-        var raw = BenchOptions.ReadString("DUXEL_DIRTY_BENCH_BACKEND");
-        if (string.Equals(raw, "texture", StringComparison.OrdinalIgnoreCase))
-        {
-            return UiLayerCacheBackend.Texture;
-        }
-
-        return UiLayerCacheBackend.DrawList;
-    }
 }

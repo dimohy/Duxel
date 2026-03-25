@@ -2,7 +2,6 @@ using Duxel.Core;
 
 public sealed class ImGuiExamples
 {
-    private bool _showDemoWindow = true;
     private bool _showAnotherWindow;
     private bool _disableControls;
     private float _floatValue = 0.5f;
@@ -16,7 +15,6 @@ public sealed class ImGuiExamples
         ui.BeginWindow("ImGui Example: Hello, world");
 
         ui.Text("Hello, world!");
-        ui.Checkbox("Demo Window", ref _showDemoWindow);
         ui.Checkbox("Another Window", ref _showAnotherWindow);
         ui.SliderFloat("float", ref _floatValue, 0f, 1f, 0.01f, "0.00");
         ui.ColorEdit3("clear color", ref _clearR, ref _clearG, ref _clearB);
@@ -36,11 +34,6 @@ public sealed class ImGuiExamples
         ui.EndDisabled();
 
         ui.EndWindow();
-
-        if (_showDemoWindow)
-        {
-            ui.ShowDemoWindow(ref _showDemoWindow);
-        }
 
         if (_showAnotherWindow)
         {

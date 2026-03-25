@@ -20,7 +20,6 @@ DuxelApp.Run(new DuxelAppOptions
     },
     Renderer = new DuxelRendererOptions
     {
-        EnableDWriteText = true,
         FontLinearSampling = false
     },
     Screen = new DuxelShowcaseCalculatorScreen()

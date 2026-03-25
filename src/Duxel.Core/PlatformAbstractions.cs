@@ -43,6 +43,7 @@ public interface IPlatformBackend : IDisposable
 {
     PlatformSize WindowSize { get; }
     PlatformSize FramebufferSize { get; }
+    float ContentScale => 1f;
     bool IsInteractingResize { get; }
     bool ShouldClose { get; }
     double TimeSeconds { get; }
@@ -58,5 +59,25 @@ public interface IPlatformBackend : IDisposable
 public interface IWin32PlatformBackend
 {
     nint WindowHandle { get; }
+}
+
+public sealed record class DuxelTrayOptions
+{
+    public bool Enabled { get; init; }
+    public string? ToolTip { get; init; }
+    public string? IconPath { get; init; }
+    public ReadOnlyMemory<byte> IconData { get; init; }
+    public bool HideWindowOnMinimize { get; init; }
+    public bool HideWindowOnClose { get; init; }
+    public Action? DoubleClick { get; init; }
+    public IReadOnlyList<DuxelTrayMenuItem> MenuItems { get; init; } = [];
+}
+
+public sealed record class DuxelTrayMenuItem
+{
+    public string Text { get; init; } = string.Empty;
+    public bool IsSeparator { get; init; }
+    public bool Enabled { get; init; } = true;
+    public Action? Invoked { get; init; }
 }
 

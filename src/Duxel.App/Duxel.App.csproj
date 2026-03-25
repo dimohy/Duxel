@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.App</PackageId>
-    <Version>0.2.0-preview</Version>
+    <Version>0.2.1-preview</Version>
     <Authors>dimohy</Authors>
     <Description>Duxel app facade with bundled Core/Platform/Vulkan and integrated DSL source generator analyzer.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -30,10 +30,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Silk.NET.Maths" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Vulkan" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.23.0" />
   </ItemGroup>
 
   <Target Name="IncludeProjectReferenceOutputsInPackage" DependsOnTargets="ResolveReferences">

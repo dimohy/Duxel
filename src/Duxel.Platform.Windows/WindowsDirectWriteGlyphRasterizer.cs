@@ -8,20 +8,25 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
     public static readonly WindowsDirectWriteGlyphRasterizer Instance = new();
 
     private const int DWriteFactoryTypeShared = 0;
-    private const int DWriteRenderingModeGdiNatural = 3;
+    private const int DWriteRenderingModeNatural = 4;
     private const int DWriteRenderingModeNaturalSymmetric = 5;
-    private const int DWriteMeasuringModeGdiNatural = 2;
     private const int DWriteMeasuringModeNatural = 0;
     private const int DWriteTextureAliased1x1 = 0;
     private const int DWriteTextureClearType3x1 = 1;
-    private const byte ClearTypeAlphaCutoff = 64;
+    private const int DWriteGridFitModeDisabled = 1;
+    private const int DWriteGridFitModeEnabled = 2;
+    private const int DWriteTextAntialiasModeGrayscale = 1;
+    private const int DWriteTextAntialiasModeClearType = 0;
+    private const float NaturalSymmetricMinEmSize = 16f;
 
     private static readonly Guid IdWriteFactoryGuid = new("B859EE5A-D838-4B5B-A2E8-1ADC7D93DB48");
+    private static readonly Guid IdWriteFactory2Guid = new("0439FC60-CA44-4994-8DEE-3A9AF7B732EC");
     private static readonly object Sync = new();
     private static readonly object DiagnosticsSync = new();
     private static readonly Dictionary<string, nint> FontFaceCache = new(StringComparer.OrdinalIgnoreCase);
 
     private static nint _factory;
+    private static bool _factorySupportsAdvancedGlyphAnalysis;
 
     public string CacheKeyTag => "dwrite";
 
@@ -129,18 +134,7 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                     BidiLevel = 0,
                 };
 
-                var createGlyphRunAnalysis = GetMethod<CreateGlyphRunAnalysisDelegate>(_factory, 23);
-                var (renderingMode, measuringMode) = SelectRasterizationModes(rasterizedEmSize);
-                var hr = createGlyphRunAnalysis(
-                    _factory,
-                    ref glyphRun,
-                    1f,
-                    0,
-                    renderingMode,
-                    measuringMode,
-                    0f,
-                    0f,
-                    out glyphRunAnalysis);
+                var hr = CreateGlyphRunAnalysis(ref glyphRun, rasterizedEmSize, out glyphRunAnalysis);
                 if (hr < 0 || glyphRunAnalysis == 0)
                 {
                     return false;
@@ -160,7 +154,7 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                     baseline = (fontMetrics.Ascent * rasterizedEmSize) / fontMetrics.DesignUnitsPerEm;
                 }
 
-                if (!TryExtractAlphaTexture(glyphRunAnalysis, out var alpha, out var width, out var height, out var offsetX, out var offsetY))
+                if (!TryExtractAlphaTexture(glyphRunAnalysis, out var alpha, out var rgb, out var width, out var height, out var offsetX, out var offsetY))
                 {
                     // Whitespace or invisible glyph — return advance with empty bitmap
                     result = new TextRunRasterizationResult(0, 0, Array.Empty<byte>(), 0, 0, advanceSum, baseline);
@@ -170,11 +164,12 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                 if (oversampleFactor > 1)
                 {
                     alpha = Downsample(alpha, width, height, oversampleFactor, out width, out height);
+                    rgb = null; // ClearType RGB not meaningful after downsampling
                     offsetX = (int)MathF.Floor((float)offsetX / oversampleFactor);
                     offsetY = (int)MathF.Floor((float)offsetY / oversampleFactor);
                 }
 
-                result = new TextRunRasterizationResult(width, height, alpha, offsetX, offsetY, advanceSum, baseline);
+                result = new TextRunRasterizationResult(width, height, alpha, offsetX, offsetY, advanceSum, baseline, rgb);
                 return true;
             }
             finally
@@ -242,18 +237,7 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                     BidiLevel = 0,
                 };
 
-                var createGlyphRunAnalysis = GetMethod<CreateGlyphRunAnalysisDelegate>(_factory, 23);
-                var (renderingMode, measuringMode) = SelectRasterizationModes(rasterizedEmSize);
-                var hr = createGlyphRunAnalysis(
-                    _factory,
-                    ref glyphRun,
-                    1f,
-                    0,
-                    renderingMode,
-                    measuringMode,
-                    0f,
-                    0f,
-                    out glyphRunAnalysis);
+                var hr = CreateGlyphRunAnalysis(ref glyphRun, rasterizedEmSize, out glyphRunAnalysis);
                 if (hr < 0 || glyphRunAnalysis == 0)
                 {
                     Log($"TryRasterize fail create-analysis cp=U+{codepoint:X4} hr=0x{hr:X8}");
@@ -266,9 +250,10 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                 static byte ConvertClearTypeToAlpha(byte r, byte g, byte b)
                     => (byte)((r + g + b) / 3);
 
-                bool TryRasterizeWithTextureType(int textureType, out byte[] alpha, out int width, out int height, out int offsetX, out int offsetY)
+                bool TryRasterizeWithTextureType(int textureType, out byte[] alpha, out byte[]? rgb, out int width, out int height, out int offsetX, out int offsetY)
                 {
                     alpha = Array.Empty<byte>();
+                    rgb = null;
                     width = 0;
                     height = 0;
                     offsetX = 0;
@@ -330,8 +315,8 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                         return false;
                     }
 
-                    var clearTypeAlpha = new byte[width * height * 3];
-                    var clearTypeHandle = GCHandle.Alloc(clearTypeAlpha, GCHandleType.Pinned);
+                    var clearTypeBuffer = new byte[width * height * 3];
+                    var clearTypeHandle = GCHandle.Alloc(clearTypeBuffer, GCHandleType.Pinned);
                     try
                     {
                         textureHr = createAlphaTexture(
@@ -339,7 +324,7 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                             textureType,
                             ref bounds,
                             clearTypeHandle.AddrOfPinnedObject(),
-                            (uint)clearTypeAlpha.Length);
+                            (uint)clearTypeBuffer.Length);
                     }
                     finally
                     {
@@ -348,24 +333,21 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
 
                     if (textureHr < 0)
                     {
-                        Log($"TryRasterize texture-alpha fail cp=U+{codepoint:X4} texType={textureType} hr=0x{textureHr:X8} size={clearTypeAlpha.Length}");
+                        Log($"TryRasterize texture-alpha fail cp=U+{codepoint:X4} texType={textureType} hr=0x{textureHr:X8} size={clearTypeBuffer.Length}");
                         return false;
                     }
 
-                    alpha = new byte[width * height];
+                    var pixelCount = width * height;
+                    alpha = new byte[pixelCount];
+                    rgb = clearTypeBuffer;
                     var hasClearTypeCoverage = false;
-                    for (var i = 0; i < alpha.Length; i++)
+                    for (var i = 0; i < pixelCount; i++)
                     {
                         var sourceIndex = i * 3;
                         var value = ConvertClearTypeToAlpha(
-                            clearTypeAlpha[sourceIndex],
-                            clearTypeAlpha[sourceIndex + 1],
-                            clearTypeAlpha[sourceIndex + 2]);
-                        if (value < ClearTypeAlphaCutoff)
-                        {
-                            value = 0;
-                        }
-
+                            clearTypeBuffer[sourceIndex],
+                            clearTypeBuffer[sourceIndex + 1],
+                            clearTypeBuffer[sourceIndex + 2]);
                         alpha[i] = value;
                         hasClearTypeCoverage |= value != 0;
                     }
@@ -373,8 +355,8 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                     return hasClearTypeCoverage;
                 }
 
-                if (!TryRasterizeWithTextureType(DWriteTextureAliased1x1, out var alpha, out var width, out var height, out var offsetX, out var offsetY)
-                    && !TryRasterizeWithTextureType(DWriteTextureClearType3x1, out alpha, out width, out height, out offsetX, out offsetY))
+                if (!TryRasterizeWithTextureType(DWriteTextureClearType3x1, out var alpha, out var rgb, out var width, out var height, out var offsetX, out var offsetY)
+                    && !TryRasterizeWithTextureType(DWriteTextureAliased1x1, out alpha, out rgb, out width, out height, out offsetX, out offsetY))
                 {
                     Log($"TryRasterize fail no-coverage cp=U+{codepoint:X4} (ClearType/Aliased failed)");
                     return false;
@@ -382,7 +364,13 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
 
                 if (oversampleFactor > 1)
                 {
-                    alpha = Downsample(alpha, width, height, oversampleFactor, out width, out height);
+                    var srcWidth = width;
+                    var srcHeight = height;
+                    alpha = Downsample(alpha, srcWidth, srcHeight, oversampleFactor, out width, out height);
+                    if (rgb is not null)
+                    {
+                        rgb = DownsampleRgb(rgb, srcWidth, srcHeight, oversampleFactor, out _, out _);
+                    }
                 }
 
                 result = new GlyphRasterizationResult(
@@ -394,7 +382,8 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                     OffsetY: offsetY,
                     Advance: TryGetGlyphAdvance(fontFace, (ushort)glyphIndex, rasterizedEmSize, out var advance)
                         ? advance
-                        : width
+                        : width,
+                    Rgb: rgb
                 );
                 Log($"TryRasterize success cp=U+{codepoint:X4} glyphIndex={glyphIndex} width={width} height={height} texType={DWriteTextureClearType3x1}");
                 return true;
@@ -446,6 +435,65 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                 }
 
                 output[(y * targetWidth) + x] = count == 0 ? (byte)0 : (byte)(sum / count);
+            }
+        }
+
+        return output;
+    }
+
+    private static byte[] DownsampleRgb(byte[] source, int sourceWidth, int sourceHeight, int oversample, out int targetWidth, out int targetHeight)
+    {
+        targetWidth = Math.Max(1, (sourceWidth + oversample - 1) / oversample);
+        targetHeight = Math.Max(1, (sourceHeight + oversample - 1) / oversample);
+        var output = new byte[targetWidth * targetHeight * 3];
+
+        for (var y = 0; y < targetHeight; y++)
+        {
+            for (var x = 0; x < targetWidth; x++)
+            {
+                var sumR = 0;
+                var sumG = 0;
+                var sumB = 0;
+                var count = 0;
+                var startX = x * oversample;
+                var startY = y * oversample;
+                for (var oy = 0; oy < oversample; oy++)
+                {
+                    var sy = startY + oy;
+                    if (sy >= sourceHeight)
+                    {
+                        break;
+                    }
+
+                    for (var ox = 0; ox < oversample; ox++)
+                    {
+                        var sx = startX + ox;
+                        if (sx >= sourceWidth)
+                        {
+                            break;
+                        }
+
+                        var srcIndex = ((sy * sourceWidth) + sx) * 3;
+                        sumR += source[srcIndex];
+                        sumG += source[srcIndex + 1];
+                        sumB += source[srcIndex + 2];
+                        count++;
+                    }
+                }
+
+                var dstIndex = ((y * targetWidth) + x) * 3;
+                if (count is 0)
+                {
+                    output[dstIndex] = 0;
+                    output[dstIndex + 1] = 0;
+                    output[dstIndex + 2] = 0;
+                }
+                else
+                {
+                    output[dstIndex] = (byte)(sumR / count);
+                    output[dstIndex + 1] = (byte)(sumG / count);
+                    output[dstIndex + 2] = (byte)(sumB / count);
+                }
             }
         }
 
@@ -582,8 +630,12 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
     }
 
     private static bool TryExtractAlphaTexture(nint glyphRunAnalysis, out byte[] alpha, out int width, out int height, out int offsetX, out int offsetY)
+        => TryExtractAlphaTexture(glyphRunAnalysis, out alpha, out _, out width, out height, out offsetX, out offsetY);
+
+    private static bool TryExtractAlphaTexture(nint glyphRunAnalysis, out byte[] alpha, out byte[]? rgb, out int width, out int height, out int offsetX, out int offsetY)
     {
         alpha = Array.Empty<byte>();
+        rgb = null;
         width = 0;
         height = 0;
         offsetX = 0;
@@ -591,6 +643,7 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
 
         var getBounds = GetMethod<GetAlphaTextureBoundsDelegate>(glyphRunAnalysis, 3);
         var createAlphaTexture = GetMethod<CreateAlphaTextureDelegate>(glyphRunAnalysis, 4);
+        byte[]? capturedClearTypeBuffer = null;
 
         static byte ConvertClearTypeToAlpha(byte r, byte g, byte b)
             => (byte)((r + g + b) / 3);
@@ -691,40 +744,94 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                     clearTypeAlpha[sourceIndex],
                     clearTypeAlpha[sourceIndex + 1],
                     clearTypeAlpha[sourceIndex + 2]);
-                if (value < ClearTypeAlphaCutoff)
-                {
-                    value = 0;
-                }
-
                 alphaPixels[i] = value;
                 hasCoverage |= value != 0;
+            }
+
+            if (hasCoverage)
+            {
+                capturedClearTypeBuffer = clearTypeAlpha;
             }
 
             return hasCoverage;
         }
 
-        if (!TryRasterizeWithTextureType(DWriteTextureAliased1x1, out alpha, out width, out height, out offsetX, out offsetY)
-            && !TryRasterizeWithTextureType(DWriteTextureClearType3x1, out alpha, out width, out height, out offsetX, out offsetY))
+        if (!TryRasterizeWithTextureType(DWriteTextureClearType3x1, out alpha, out width, out height, out offsetX, out offsetY))
         {
-            return false;
+            if (!TryRasterizeWithTextureType(DWriteTextureAliased1x1, out alpha, out width, out height, out offsetX, out offsetY))
+            {
+                return false;
+            }
         }
 
+        rgb = capturedClearTypeBuffer;
         return true;
     }
 
     private static bool TryCreateFactory(out nint factory)
     {
         factory = 0;
+        var advancedIid = IdWriteFactory2Guid;
+        var hr = DWriteCreateFactory(DWriteFactoryTypeShared, ref advancedIid, out factory);
+        if (hr >= 0 && factory != 0)
+        {
+            _factorySupportsAdvancedGlyphAnalysis = true;
+            Log($"TryCreateFactory factory2 hr=0x{hr:X8} factory=0x{factory.ToInt64():X}");
+            return true;
+        }
+
         var iid = IdWriteFactoryGuid;
-        var hr = DWriteCreateFactory(DWriteFactoryTypeShared, ref iid, out factory);
-        Log($"TryCreateFactory hr=0x{hr:X8} factory=0x{factory.ToInt64():X}");
+        hr = DWriteCreateFactory(DWriteFactoryTypeShared, ref iid, out factory);
+        _factorySupportsAdvancedGlyphAnalysis = false;
+        Log($"TryCreateFactory factory hr=0x{hr:X8} factory=0x{factory.ToInt64():X}");
         return hr >= 0 && factory != 0;
     }
 
     private static (int RenderingMode, int MeasuringMode) SelectRasterizationModes(float emSize)
     {
-        _ = emSize;
-        return (DWriteRenderingModeGdiNatural, DWriteMeasuringModeGdiNatural);
+        if (emSize >= NaturalSymmetricMinEmSize)
+        {
+            return (DWriteRenderingModeNaturalSymmetric, DWriteMeasuringModeNatural);
+        }
+
+        return (DWriteRenderingModeNatural, DWriteMeasuringModeNatural);
+    }
+
+    private static int SelectGridFitMode(float emSize)
+        => emSize >= NaturalSymmetricMinEmSize
+            ? DWriteGridFitModeDisabled
+            : DWriteGridFitModeEnabled;
+
+    private static int CreateGlyphRunAnalysis(ref DWriteGlyphRun glyphRun, float emSize, out nint glyphRunAnalysis)
+    {
+        var (renderingMode, measuringMode) = SelectRasterizationModes(emSize);
+        if (_factorySupportsAdvancedGlyphAnalysis)
+        {
+            var createGlyphRunAnalysis2 = GetMethod<CreateGlyphRunAnalysis2Delegate>(_factory, 30);
+            return createGlyphRunAnalysis2(
+                _factory,
+                ref glyphRun,
+                0,
+                renderingMode,
+                measuringMode,
+                SelectGridFitMode(emSize),
+                DWriteTextAntialiasModeClearType,
+                0f,
+                0f,
+                out glyphRunAnalysis);
+        }
+
+        var createGlyphRunAnalysis1 = GetMethod<CreateGlyphRunAnalysisDelegate>(_factory, 23);
+        return createGlyphRunAnalysis1(
+            _factory,
+            ref glyphRun,
+            1f,
+            0,
+            renderingMode,
+            measuringMode,
+            0f,
+            0f,
+            out glyphRunAnalysis);
     }
 
     private static bool TryGetGlyphAdvance(nint fontFace, ushort glyphIndex, float emSize, out float advance)
@@ -850,6 +957,19 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
         out nint glyphRunAnalysis);
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    private delegate int CreateGlyphRunAnalysis2Delegate(
+        nint self,
+        ref DWriteGlyphRun glyphRun,
+        nint transform,
+        int renderingMode,
+        int measuringMode,
+        int gridFitMode,
+        int antialiasMode,
+        float baselineOriginX,
+        float baselineOriginY,
+        out nint glyphRunAnalysis);
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
     private delegate int GetAlphaTextureBoundsDelegate(nint self, int textureType, out DWriteRect textureBounds);
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
@@ -915,5 +1035,6 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
         int OffsetX,
         int OffsetY,
         float Advance,
-        float Baseline);
+        float Baseline,
+        byte[]? Rgb = null);
 }

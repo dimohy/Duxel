@@ -220,7 +220,7 @@ public static class UiFontAtlasBuilder
 	private const int MaxFontCacheEntries = 32;
 	private const int MaxGlyphCacheEntries = 4096;
 	private const int MaxKerningGlyphs = 384;
-	private const int DiskCacheVersion = 3;
+	private const int DiskCacheVersion = 4;
 	private static readonly byte[] DiskCacheMagic = System.Text.Encoding.ASCII.GetBytes("DUXFNT");
 	private static readonly string DiskCacheRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Duxel", "FontAtlasCache");
 	private static Func<IPlatformGlyphBitmapRasterizer?>? PlatformGlyphRasterizerFactory;
@@ -938,12 +938,12 @@ public static class UiFontAtlasBuilder
 	private static IGlyphBitmapRasterizer ResolveGlyphRasterizer()
 	{
 		var platformRasterizer = PlatformGlyphRasterizerFactory?.Invoke();
-		if (platformRasterizer is not null)
+		if (platformRasterizer is null)
 		{
-			return new CompositeGlyphBitmapRasterizer(new PlatformGlyphBitmapRasterizerAdapter(platformRasterizer), TtfGlyphBitmapRasterizer.Instance);
+			throw new InvalidOperationException("A platform glyph rasterizer must be configured before building a font atlas.");
 		}
 
-		return TtfGlyphBitmapRasterizer.Instance;
+		return new PlatformGlyphBitmapRasterizerAdapter(platformRasterizer);
 	}
 
 	private static bool IsFontRasterParallelEnabled()
@@ -1388,28 +1388,59 @@ public static class UiFontAtlasBuilder
 
 	private static void BlitAlpha(byte[] pixels, int width, int height, int x, int y, GlyphBitmap bitmap)
 	{
+		var hasRgb = bitmap.Rgb is not null && bitmap.Rgb.Length >= bitmap.Width * bitmap.Height * 3;
+
 		for (var row = 0; row < bitmap.Height; row++)
 		{
 			for (var col = 0; col < bitmap.Width; col++)
 			{
-				var alpha = bitmap.Alpha[(row * bitmap.Width) + col];
-				if (alpha == 0)
-				{
-					continue;
-				}
+				var pixelIndex = (row * bitmap.Width) + col;
+				var alpha = bitmap.Alpha[pixelIndex];
 
-				var px = x + col;
-				var py = y + row;
-				if ((uint)px >= (uint)width || (uint)py >= (uint)height)
+				if (hasRgb)
 				{
-					continue;
-				}
+					var rgbIndex = pixelIndex * 3;
+					var r = bitmap.Rgb![rgbIndex];
+					var g = bitmap.Rgb[rgbIndex + 1];
+					var b = bitmap.Rgb[rgbIndex + 2];
+					if (r == 0 && g == 0 && b == 0)
+					{
+						continue;
+					}
 
-				var index = (py * width + px) * 4;
-				pixels[index + 0] = 255;
-				pixels[index + 1] = 255;
-				pixels[index + 2] = 255;
-				pixels[index + 3] = alpha;
+					var px = x + col;
+					var py = y + row;
+					if ((uint)px >= (uint)width || (uint)py >= (uint)height)
+					{
+						continue;
+					}
+
+					var index = (py * width + px) * 4;
+					pixels[index + 0] = r;
+					pixels[index + 1] = g;
+					pixels[index + 2] = b;
+					pixels[index + 3] = Math.Max(r, Math.Max(g, b));
+				}
+				else
+				{
+					if (alpha == 0)
+					{
+						continue;
+					}
+
+					var px = x + col;
+					var py = y + row;
+					if ((uint)px >= (uint)width || (uint)py >= (uint)height)
+					{
+						continue;
+					}
+
+					var index = (py * width + px) * 4;
+					pixels[index + 0] = 255;
+					pixels[index + 1] = 255;
+					pixels[index + 2] = 255;
+					pixels[index + 3] = alpha;
+				}
 			}
 		}
 	}
@@ -2158,7 +2189,7 @@ internal sealed class TtfGlyph
 	}
 }
 
-internal readonly record struct GlyphBitmap(int Width, int Height, byte[] Alpha);
+internal readonly record struct GlyphBitmap(int Width, int Height, byte[] Alpha, byte[]? Rgb = null);
 
 internal readonly record struct TtfPointF(float X, float Y);
 

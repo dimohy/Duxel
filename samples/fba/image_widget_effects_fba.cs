@@ -22,32 +22,12 @@ DuxelApp.Run(new DuxelAppOptions
         Height = 860,
         VSync = false
     },
-    Font = new DuxelFontOptions
-    {
-        InitialGlyphs = ImageEffectsScreen.GlyphStrings
-    },
+
     Screen = new ImageEffectsScreen(imagePath)
 });
 
 public sealed class ImageEffectsScreen : UiScreen
 {
-    public static readonly string[] GlyphStrings =
-    [
-        "Duxel Image Effects Test (FBA)",
-        "Image Effects",
-        "Source",
-        "Zoom",
-        "Rotation",
-        "Alpha",
-        "Brightness",
-        "Contrast",
-        "Pixelate",
-        "Grayscale",
-        "Invert",
-        "Reset",
-        "Canvas"
-    ];
-
     private readonly SampleImageOption[] _imageOptions;
     private int _selectedImageIndex;
     private AnimatedUiImagePlayer? _player;

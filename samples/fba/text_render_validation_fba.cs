@@ -17,32 +17,12 @@ DuxelApp.Run(new DuxelAppOptions
         Height = 900,
         VSync = true
     },
-    Font = new DuxelFontOptions
-    {
-        InitialGlyphs = TextRenderValidationScreen.GlyphStrings
-    },
+
     Screen = new TextRenderValidationScreen()
 });
 
 public sealed class TextRenderValidationScreen : UiScreen
 {
-    public static readonly IReadOnlyList<string> GlyphStrings = new[]
-    {
-        "Text Render Validation",
-        "Direct Text Enabled",
-        "Text",
-        "TextColored",
-        "TextDisabled",
-        "TextWrapped",
-        "Scroll/Clip",
-        "Table",
-        "한글 렌더링 테스트",
-        "동해물과 백두산이 마르고 닳도록",
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-        "0123456789 !@#$%^&*()_+-=[]{};:'\",.<>/?",
-    };
-
-    private bool _directTextEnabled = true;
     private bool _animateCounter = true;
     private bool _showLongParagraph = true;
     private float _wrapWidth = 420f;
@@ -59,17 +39,12 @@ public sealed class TextRenderValidationScreen : UiScreen
         ui.SetNextWindowSize(new UiVector2(350f, viewport.Size.Y - margin * 2f));
         ui.BeginWindow("Controls");
 
-        if (ui.Checkbox("Direct Text Enabled", ref _directTextEnabled))
-        {
-            ui.SetDirectTextEnabled(_directTextEnabled);
-        }
-
         ui.Checkbox("Animate Counter", ref _animateCounter);
         ui.Checkbox("Show Long Paragraph", ref _showLongParagraph);
         ui.SliderFloat("Wrap Width", ref _wrapWidth, 180f, 760f, 0f, "0");
 
         ui.SeparatorText("Guide");
-        ui.Text("1) Direct Text ON/OFF 전환 후 글자 깨짐 여부 비교");
+        ui.Text("1) Direct Text always-on 상태에서 글자 깨짐 여부 확인");
         ui.Text("2) Wrap/Clip 영역에서 겹침/누락 여부 확인");
         ui.Text("3) 숫자 카운터(동적 문자열) 안정성 확인");
 

@@ -1,6 +1,6 @@
 # Duxel FBA Samples — Run Instantly
 
-> Last synced: 2026-03-09  
+> Last synced: 2026-03-25  
 > Korean: [fba-run-samples.ko.md](fba-run-samples.ko.md)
 
 > Run **Duxel** FBA samples with a **single copy-paste command**. .NET 10 + Vulkan immediate-mode GUI framework.
@@ -83,6 +83,24 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 ```
 
 > Drag · Slider · Color · Child · Popup · State Bindings
+
+---
+
+## Hello Duxel
+
+Small `Hello`, big `Duxel!` — the tiniest possible greeting sample.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/hello_duxel_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/hello_duxel_fba.cs -o - | dotnet run -
+```
+
+> `PushFontSize` hierarchy · one-window minimal sample · hello-world style starting point
 
 ---
 
@@ -448,6 +466,7 @@ To download all FBA samples at once:
 $base = "https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 $files = @(
     "all_features.cs", "dsl_showcase.cs", "dsl_interaction.cs",
+    "hello_duxel_fba.cs",
     "menu_submenu_zorder.cs", "advanced_layout.cs", "columns_demo.cs",
     "image_and_popups.cs", "image_widget_effects_fba.cs",
     "input_queries.cs", "item_status.cs",
@@ -467,7 +486,7 @@ Write-Host "`nRun: dotnet run fba/all_features.cs"
 **Bash**
 ```bash
 BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
-FILES=(all_features.cs dsl_showcase.cs dsl_interaction.cs menu_submenu_zorder.cs \
+FILES=(all_features.cs dsl_showcase.cs dsl_interaction.cs hello_duxel_fba.cs menu_submenu_zorder.cs \
     advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
     input_queries.cs item_status.cs \
     windows_calculator_fba.cs windows_calculator_duxel_showcase_fba.cs \

@@ -20,7 +20,6 @@ DuxelApp.Run(new DuxelAppOptions
     },
     Renderer = new DuxelRendererOptions
     {
-        EnableDWriteText = true,
         FontLinearSampling = false
     },
     Font = new DuxelFontOptions
@@ -104,7 +103,6 @@ public sealed class WindowsCalculatorStandardScreen : UiScreen
         _displayImpact = MathF.Max(0f, _displayImpact - (float)(delta * 2.4d));
         UpdateRipples((float)delta);
 
-        ui.SetDirectTextEnabled(true);
         ui.EnableRootViewportContentLayout();
 
         DrawCyberBackdrop(ui);

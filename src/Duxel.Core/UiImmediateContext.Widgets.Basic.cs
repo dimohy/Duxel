@@ -226,6 +226,30 @@ public sealed partial class UiImmediateContext
         RenderText(text, _theme.Text);
     }
 
+    public UiVector2 CalcTextSize(string text, float? fontSize = null)
+    {
+        text ??= string.Empty;
+
+        var pushedFont = false;
+        if (fontSize is float targetSize && targetSize > 0f)
+        {
+            PushFontSize(targetSize);
+            pushedFont = true;
+        }
+
+        try
+        {
+            return MeasureTextInternal(text, _textSettings, _lineHeight);
+        }
+        finally
+        {
+            if (pushedFont)
+            {
+                PopFontSize();
+            }
+        }
+    }
+
     public void DrawTextAligned(
         UiRect containerRect,
         string text,
@@ -963,17 +987,14 @@ public sealed partial class UiImmediateContext
 
         var displayLabel = GetDisplayLabel(label);
         var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
-        var glyphHeight = (_fontAtlas.Ascent - _fontAtlas.Descent) * _textSettings.Scale;
         var frameHeight = GetFrameHeight();
         var checkboxSize = frameHeight;
-        var height = MathF.Max(checkboxSize, glyphHeight);
+        var height = MathF.Max(checkboxSize, textSize.Y);
         var totalSize = new UiVector2(checkboxSize + (string.IsNullOrEmpty(displayLabel) ? 0f : CheckboxSpacing + textSize.X), height);
         var cursor = AdvanceCursor(totalSize);
 
         var totalRect = new UiRect(cursor.X, cursor.Y, totalSize.X, totalSize.Y);
-        var textTop = cursor.Y + (height - glyphHeight) * 0.5f;
-        var textVisualCenter = GetTextVisualCenterY(textTop);
-        var boxY = textVisualCenter - checkboxSize * 0.5f;
+        var boxY = totalRect.Y + (totalRect.Height - checkboxSize) * 0.5f;
         if (_textSettings.PixelSnap)
         {
             boxY = MathF.Round(boxY);
@@ -997,7 +1018,8 @@ public sealed partial class UiImmediateContext
 
         if (!string.IsNullOrEmpty(displayLabel))
         {
-            var textPos = new UiVector2(cursor.X + checkboxSize + CheckboxSpacing, textTop);
+            var textRect = new UiRect(cursor.X + checkboxSize + CheckboxSpacing, totalRect.Y, textSize.X, totalRect.Height);
+            var textPos = AlignRect(textRect, textSize, UiItemHorizontalAlign.Left, UiItemVerticalAlign.Center);
             AddTextInternal(_builder,
 
                 displayLabel,
@@ -1037,17 +1059,14 @@ public sealed partial class UiImmediateContext
 
         var displayLabel = GetDisplayLabel(label);
         var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
-        var glyphHeight = (_fontAtlas.Ascent - _fontAtlas.Descent) * _textSettings.Scale;
         var frameHeight = GetFrameHeight();
         var radioSize = frameHeight;
-        var height = MathF.Max(radioSize, glyphHeight);
+        var height = MathF.Max(radioSize, textSize.Y);
         var totalSize = new UiVector2(radioSize + (string.IsNullOrEmpty(displayLabel) ? 0f : CheckboxSpacing + textSize.X), height);
         var cursor = AdvanceCursor(totalSize);
 
         var totalRect = new UiRect(cursor.X, cursor.Y, totalSize.X, totalSize.Y);
-        var textTop = cursor.Y + (height - glyphHeight) * 0.5f;
-        var textVisualCenter = GetTextVisualCenterY(textTop);
-        var center = new UiVector2(cursor.X + (radioSize * 0.5f), textVisualCenter);
+        var center = new UiVector2(cursor.X + (radioSize * 0.5f), totalRect.Y + (totalRect.Height * 0.5f));
 
         var pressed = ButtonBehavior(label, totalRect, out var hovered, out _);
 
@@ -1061,7 +1080,8 @@ public sealed partial class UiImmediateContext
 
         if (!string.IsNullOrEmpty(displayLabel))
         {
-            var textPos = new UiVector2(cursor.X + radioSize + CheckboxSpacing, textTop);
+            var textRect = new UiRect(cursor.X + radioSize + CheckboxSpacing, totalRect.Y, textSize.X, totalRect.Height);
+            var textPos = AlignRect(textRect, textSize, UiItemHorizontalAlign.Left, UiItemVerticalAlign.Center);
             AddTextInternal(_builder,
 
                 displayLabel,

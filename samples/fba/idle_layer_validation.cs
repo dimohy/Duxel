@@ -88,7 +88,6 @@ public sealed class IdleLayerValidationScreen : UiScreen
     private float _renderSpeed = 1.2f;
     private bool _animateRender = true;
     private bool _enableLayerTextureCache = ReadValidateLayerCacheEnabled();
-    private UiLayerCacheBackend _layerCacheBackend = ReadBenchCacheBackend();
     private float _layerOpacity = ReadBenchLayerOpacity();
     private int _layerCacheBuildCount;
 
@@ -284,15 +283,6 @@ public sealed class IdleLayerValidationScreen : UiScreen
         return BenchOptions.ReadBool("DUXEL_VALIDATE_LAYER_CACHE", defaultValue: true);
     }
 
-    private static UiLayerCacheBackend ReadBenchCacheBackend()
-    {
-        var raw = BenchOptions.ReadString("DUXEL_LAYER_BENCH_BACKEND");
-
-        return string.Equals(raw, "texture", StringComparison.OrdinalIgnoreCase)
-            ? UiLayerCacheBackend.Texture
-            : UiLayerCacheBackend.DrawList;
-    }
-
     private static float ReadBenchLayerOpacity()
     {
         var raw = BenchOptions.ReadString("DUXEL_LAYER_BENCH_OPACITY");
@@ -443,19 +433,6 @@ public sealed class IdleLayerValidationScreen : UiScreen
             MarkAllLayerCacheDirty(ui);
         }
 
-        ui.TextV("Layer Cache Backend: {0}", _layerCacheBackend == UiLayerCacheBackend.Texture ? "Texture" : "DrawList");
-        if (ui.Button("Backend: DrawList") && _layerCacheBackend != UiLayerCacheBackend.DrawList)
-        {
-            _layerCacheBackend = UiLayerCacheBackend.DrawList;
-            MarkAllLayerCacheDirty(ui);
-        }
-        ui.SameLine();
-        if (ui.Button("Backend: Texture") && _layerCacheBackend != UiLayerCacheBackend.Texture)
-        {
-            _layerCacheBackend = UiLayerCacheBackend.Texture;
-            MarkAllLayerCacheDirty(ui);
-        }
-
         ui.SeparatorText("Layer Complexity");
         ui.TextV("Current Preset: {0}", BuiltInCompositions[Math.Clamp(_selectedCompositionIndex, 0, BuiltInCompositions.Length - 1)].Name);
         if (ui.Button("Prev Preset") && _selectedCompositionIndex > 0)
@@ -485,7 +462,6 @@ public sealed class IdleLayerValidationScreen : UiScreen
         ui.SliderFloat("Layer Opacity", ref _layerOpacity, 0.2f, 1.0f);
         ui.TextV("Layer Cache Rebuild Count: {0}", _layerCacheBuildCount);
         ui.TextV("Layer Draw Cost (est): {0}", EstimateLayerDrawCost());
-        ui.TextWrapped("Texture 백엔드는 단계적 적용 중입니다. 합성 패스 실험은 DUXEL_LAYER_TEXTURE_COMPOSE=1 로 켤 수 있습니다.");
         if (ui.Button("Reset Layer Positions"))
         {
             ResetLayers(ui);
@@ -703,8 +679,7 @@ public sealed class IdleLayerValidationScreen : UiScreen
         var layerOptions = new UiLayerOptions(
             StaticCache: _enableLayerTextureCache,
             Opacity: _layerOpacity,
-            Translation: new UiVector2(bodyRect.X, bodyRect.Y),
-            CacheBackend: _enableLayerTextureCache ? _layerCacheBackend : UiLayerCacheBackend.DrawList);
+            Translation: new UiVector2(bodyRect.X, bodyRect.Y));
         var shouldDrawBody = ui.BeginLayer(layerBodyId, layerOptions);
         if (shouldDrawBody)
         {
@@ -798,7 +773,7 @@ public sealed class IdleLayerValidationScreen : UiScreen
             "{{\"phase\":{0},\"layout\":\"{1}\",\"backend\":\"{2}\",\"particles\":{3},\"cache\":{4},\"avgFps\":{5:0.###},\"avgCpu\":{6:0.###},\"samples\":{7}}}",
             _benchPhaseIndex,
             _benchLayerCompositions[Math.Clamp(_benchAppliedCompositionIndex, 0, _benchLayerCompositions.Length - 1)].Name,
-            _layerCacheBackend == UiLayerCacheBackend.Texture ? "texture" : "drawlist",
+            "drawlist",
             _renderParticleCount,
             _enableLayerTextureCache ? "true" : "false",
             avgFps,

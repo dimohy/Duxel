@@ -1,209 +1,184 @@
 # Version History
 
-Duxel의 버전별 변경 내역을 누적 기록합니다.
+Duxel의 버전별 변경 내역 누적 기록.
+
+## 0.2.1-preview (2026-03-25)
+
+### 주요 기능 추가
+
+- **[기능]** 다중 윈도우 지원 (모달/모들리스) — `ShowModal()`로 소유자 윈도우 비활성화 차단형 대화상자, `ShowModalAsync()`로 비동기 모달, `ShowModeless()`로 독립적인 비차단 윈도우를 각각의 `DuxelAppSession` 수명주기로 구동.
+- **[기능]** 시스템 트레이 아이콘 지원 — `WindowsTrayIconHost`로 트레이 아이콘, 툴팁, 컨텍스트 메뉴, 더블클릭 핸들러, 최소화 시 트레이 숨기기, 닫기 시 숨기기를 Win32 Shell API로 구현.
+- **[기능]** 순수 Vulkan P/Invoke 바인딩 레이어 — Silk.NET Vulkan을 `LibraryImport` 기반 직접 바인딩(`VulkanApi`, `VulkanStructs`, `VulkanEnums`, `VulkanHandles`, `VulkanExtensions`, `VulkanMarshaling`)으로 대체, NativeAOT 완전 호환.
+- **[기능]** ClearType 서브픽셀 텍스트 렌더링 셰이더 — DirectWrite ClearType 품질을 위한 RGB 채널별 coverage 출력 프래그먼트 셰이더(`imgui_subpixel.frag`) 추가.
+- **[기능]** Windows WIC 이미지 코덱 — `System.Drawing.Common`을 순수 COM 기반 Windows Imaging Component 디코더로 대체, GIF 애니메이션 프레임 compositing과 알파 블렌딩 지원.
+
+### 주요 개선 사항
+
+- **[개선]** 세션 기반 앱 수명주기 — `DuxelApp.RunCore()`에서 `DuxelAppSession` 분리, 독립적 세션 인스턴스의 이중 스레드 렌더 루프, idle frame skip, 증분 폰트 아틀라스 스케줄링 지원.
+- **[개선]** 윈도우 옵션 확장 — `MinWidth`/`MinHeight`, `Resizable`, 최소화/최대화 버튼 표시, `CenterOnScreen`/`CenterOnOwner`, 소유자 윈도우 핸들, 커스텀 아이콘(파일/메모리), `WindowCreated` 콜백 추가.
+- **[개선]** 플랫폼별 진입점 전환 — FBA 샘플이 `DuxelApp.Run()` 대신 `DuxelWindowsApp.Run()`과 `Duxel.$(platform).App` 패키지 지시문 사용.
+
+### 주요 버그 수정
+
+- **[버그]** NativeAOT 게시를 방해하던 `System.Drawing.Common` 의존성 제거.
+
+### Packaging / Release
+
+- Silk.NET Vulkan 및 `System.Drawing.Common` 패키지 의존성 제거.
+- 실험적 레이어 텍스처 캐시 백엔드(`UiLayerCacheBackend.Texture`) 아카이브 처리.
+- 내장 데모 윈도우(`UiImmediateContext.DemoWindows.cs`) 제거.
+- 패키지 버전을 `0.2.1-preview`로 상향 (`Duxel.App`, `Duxel.Windows.App`).
 
 ## 0.2.0-preview (2026-03-09)
 
 ### 주요 기능 추가
 
-- **[기능]** 쇼케이스/샘플 범위 확장 — `samples/fba/all_features.cs`를 레이아웃, 타이포그래피, 팝업/컨텍스트 패턴, 선택/상태 도구, 마크다운 편집/뷰어, 내장 데모 검증을 포함하는 더 풍부한 종합 워크스페이스로 확장했습니다.
-- **[기능]** 확장 포인트 문서화 및 샘플 보강 — 커스텀 위젯 문서, 보조 샘플 화면, Markdown 관련 위젯, 애니메이션/이미지 계열 샘플을 함께 정리해 고급 UI 조합 경로를 더 쉽게 확인할 수 있게 했습니다.
+- **[기능]** 쇼케이스/샘플 범위 확장 — `samples/fba/all_features.cs`를 레이아웃, 타이포그래피, 팝업/컨텍스트 패턴, 선택/상태 도구, 마크다운 편집/뷰어, 내장 데모 검증을 포함하는 더 풍부한 종합 워크스페이스로 확장.
+- **[기능]** API와 샘플 양쪽의 확장 포인트 강화 — 인스턴스 기반 커스텀 위젯 조합(`IUiCustomWidget`), 마크다운 편집/뷰어 위젯, 애니메이션 이미지 재생 기반, 관련 문서/샘플을 함께 정리해 고급 UI 조합 경로 확인성 확대.
 
 ### 주요 개선 사항
 
-- **[개선]** 쇼케이스 배치와 레이아웃을 다듬었습니다 — 일반 도구 창은 다시 메뉴 아래 자연스럽게 열리고, 소형 창은 중앙 배치되며, compact hero는 줄바꿈 높이를 실제 측정하고, nested child 안의 columns 폭 계산도 child-local 기준으로 안정화했습니다.
-- **[개선]** 내장 데모 창 동작을 정리했습니다 — `Closable Window`가 더 적절한 위치/크기로 열리고, 다른 데모 창과의 동작 일관성도 개선했습니다.
-- **[개선]** 릴리스 문서를 동기화했습니다 — README 문서 링크, FBA 가이드 동기화 날짜, 커스텀 위젯 문서, 패키지/버전 메타데이터를 `0.2.0-preview` 기준으로 정리했습니다.
+- **[개선]** 쇼케이스 배치와 레이아웃 정리 — 일반 도구 창 메뉴 하단 배치 복원, 소형 창 중앙 배치, compact hero 줄바꿈 높이 실측, nested child 내부 columns 폭 계산 child-local 기준으로 안정화.
+- **[개선]** 내장 데모 창 동작 정리 — `Closable Window`의 초기 위치/크기 조정, 데모 창 간 동작 일관성 개선.
+- **[개선]** 릴리스 문서 동기화 — README 링크, FBA 가이드 동기화 날짜, 커스텀 위젯 문서, 패키지/버전 메타데이터를 `0.2.0-preview` 기준으로 정리.
 
 ### 주요 버그 수정
 
-- **[버그]** 멀티라인 입력과 마크다운 편집기의 줄바꿈 처리를 수정했습니다 — CRLF/LF/CR 입력을 정규화해 보이지 않는 carriage return 문자가 남지 않도록 했습니다.
-- **[버그]** 한글 IME 입력 지연을 수정했습니다 — Windows IME 업데이트가 즉시 프레임을 깨우고 live composition 텍스트를 우선 사용해 벅벅 끊기던 입력 반영을 제거했습니다.
-- **[버그]** 쇼케이스 레이아웃 회귀를 수정했습니다 — row 텍스트 clipping, compact hero 겹침, child 영역 내 columns 폭 혼선 등 샘플 확장 과정에서 드러난 배치 문제를 함께 해결했습니다.
-- **[버그]** 라이브러리 레벨의 top-most 동작을 수정했습니다 — `Closable Window`가 일반 창 위에 안정적으로 유지되고, click-through나 잘못된 스택 순서가 발생하지 않도록 실제 top-most semantics를 구현했습니다.
+- **[버그]** 멀티라인 입력과 마크다운 편집기의 줄바꿈 처리 수정 — CRLF/LF/CR 입력 정규화, 보이지 않는 carriage return 잔류 제거.
+- **[버그]** 한글 IME 입력 지연 수정 — Windows IME 업데이트 즉시 프레임 wake, live composition 텍스트 우선 반영, 끊기던 입력 반영 제거.
+- **[버그]** 쇼케이스 레이아웃 회귀 수정 — row 텍스트 clipping, compact hero 겹침, child 영역 내 columns 폭 혼선 등 샘플 확장 과정에서 드러난 배치 문제 해결.
+- **[버그]** 라이브러리 레벨의 same-line 행 높이 전파 수정 — 높이가 다른 인라인 항목이 섞여도 `SameLine`, `NewLine`, columns, tables가 최대 행 높이를 올바르게 이어받도록 조정, 다음 콘텐츠 겹침/오배치 제거.
+- **[버그]** 라이브러리 레벨의 top-most 동작 수정 — `Closable Window`의 일반 창 상단 유지, click-through와 잘못된 스택 순서 제거, 실제 top-most semantics 구현.
 
 ### Packaging / Release
 
-- 패키지 버전을 `0.2.0-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`, `Duxel.Core`, `Duxel.Vulkan`, `Duxel.Platform.Windows`).
+- 패키지 버전을 `0.2.0-preview`로 상향.
 
 ## 0.1.15-preview (2026-03-05)
 
-### 변경 내역
+### 주요 기능 추가
 
-- **[기능]** 플랫폼 텍스트 백엔드 추상화 추가 — `IPlatformTextBackend` / `PlatformTextRasterizeRequest` / `PlatformTextRasterizeResult` 인터페이스로 아틀라스 파이프라인과 분리된 크로스 플랫폼 텍스트 래스터라이제이션 지원.
-- **[기능]** DWrite 텍스트-런 래스터라이제이션 백엔드 추가 — `WindowsPlatformTextBackend`가 폰트 런당 단일 DWrite COM 호출로 래스터라이즈 (글리프별 호출 대비). `BuildFontRuns`로 혼합 스크립트(예: Latin+한글) 텍스트 분리.
-- **[기능]** `SetDirectTextBaseFontSize` API 추가 — `UiContext` / `UiImmediateContext`에서 행 높이와 독립적으로 DWrite 기본 em 크기 제어. `DuxelFontOptions.FontSize`에서 자동 연결.
-- **[개선]** 모든 위젯 텍스트 렌더링을 DWrite 직접 텍스트 경로로 마이그레이션 — Button, Tree, Tab, Table, Menu, Slider, Input, ListBox, Selectable, Separator, Tooltip, Combo, Drag 전체가 `MeasureTextInternal` / `AddTextInternal`을 사용하여 DWrite 가용 시 자동 활용.
-- **[개선]** DWrite 텍스트 경로의 이중 래스터라이제이션 제거 — `TryMeasureDirectText`가 래스터라이즈 결과를 사전 캐싱하여 `TryRenderDirectText`가 항상 캐시 히트.
-- **[개선]** 글리프별 DWrite 래스터라이제이션을 텍스트-런 API로 교체 — 글리프별 대신 폰트 런당 단일 COM 호출로 COM 오버헤드 대폭 감소.
-- **[개선]** `TrimDirectTextCache` 할당 감소 — `List<>`를 고정 배열로 교체하고 `hasStale` 조기 종료 검사 추가.
-- **[개선]** 폰트 아틀라스 디스크 캐시 토글 추가 — `DUXEL_FONT_DISK_CACHE` 환경변수로 아틀라스 직렬화 활성/비활성 제어.
-- **[개선]** 폰트 아틀라스 진단 추가 — `DUXEL_FONT_ATLAS_DIAG`, `DUXEL_FONT_ATLAS_DIAG_LOG`, `DUXEL_FONT_ATLAS_DUMP_DIR` 환경변수로 아틀라스 빌드 추적 및 텍스처 덤프.
-- **[개선]** Vulkan 폰트 명령 진단 추가 — `DUXEL_VK_FONT_CMD_DIAG`, `DUXEL_VK_FONT_CMD_DIAG_LOG`, `DUXEL_VK_FONT_BOUNDS_ASSERT` 환경변수로 폰트 텍스처 명령 추적 및 바운드 검증.
-- **[개선]** `UiFontResource`에 `CodepointSignature` 추가 — 아틀라스 픽셀 데이터의 FNV-1a 해시로 코드포인트 세트 변경 시 캐시 무효화.
-- **[개선]** 프레임별 동결 코드포인트 스냅숏 추가 — `frameCodepointSnapshot`으로 `OnMissingGlyph`에 의한 프레임 중간 코드포인트 변이 방지.
-- **[버그]** 동적 아틀라스와 DWrite 텍스트 간 텍스처 ID 충돌 수정 — ID 범위 분리 (동적 아틀라스 `1_100_000_000`, DWrite 텍스트 `2_100_000_000`).
-- **[버그]** `VulkanRendererBackend.UploadTextureData` 스테이징 버퍼 데이터 레이스 수정 — 펜스 대기 완료 후 호스트 메모리 쓰기로 순서 변경.
-- **[버그]** 텍스트-런 API에서 한글 미출력 수정 — `BuildFontRuns`에서 공백 문자가 더 이상 폰트 전환을 유발하지 않아 공백 전용 런의 빈 알파 바운드 문제 해결.
-- **[버그]** DWrite 기본 폰트 크기가 `LineHeight`(~21px) 대신 빌드 폰트 크기(16px)를 사용하도록 수정 — `_directTextBaseFontSize`에 정확한 em 크기 저장.
-- **[버그]** DWrite 텍스트 수직 중앙 정렬 수정 — 래스터라이즈된 비트맵을 측정된 행 높이 내에서 중앙에 배치하는 Y 오프셋 추가.
-- **[버그]** `TryRecreateSwapchain` surface-lost 처리 수정 — `RecreateSwapchain()`을 실패 시 `false` 반환하는 `TryRecreateSwapchain()`으로 교체하여 연쇄 Vulkan 오류 방지.
-- **[버그]** 스테이징 버퍼 크기 정규화 검증 수정 — `GetExpectedTextureDataSize`가 포맷별 정확한 바이트 수 계산, `UploadTextureData`가 부족한 픽셀 버퍼를 패딩.
+- **[기능]** 플랫폼 텍스트 래스터라이제이션 추상화 도입 — `IPlatformTextBackend`와 request/result 계약 추가, 아틀라스 파이프라인과 분리된 크로스 플랫폼 텍스트 경로 구성.
+- **[기능]** DWrite 텍스트-런 백엔드와 기본 폰트 크기 제어 추가 — `WindowsPlatformTextBackend`의 혼합 스크립트 폰트 런 단위 래스터라이즈 지원, `SetDirectTextBaseFontSize`로 line height와 독립적인 DWrite em 크기 제어 가능.
+
+### 주요 개선 사항
+
+- **[개선]** 위젯 텍스트 스택의 DWrite 대응 경로 통합 — 핵심 위젯이 `MeasureTextInternal` / `AddTextInternal`을 공통 사용, 글리프별 COM 호출을 텍스트-런 단위 호출로 대체.
+- **[개선]** 텍스트 캐시/진단 체계 일원화 — direct-text 사전 캐싱, 저할당 cache trim, atlas 디스크 캐시 토글, atlas/Vulkan 폰트 진단, codepoint signature/snapshot 추적을 함께 도입.
+
+### 주요 버그 수정
+
+- **[버그]** DWrite 정확도 문제 종합 수정 — 공백 런 한글 미출력, 잘못된 기본 em 크기 사용, 측정된 행 높이 대비 수직 중앙 정렬 오차 해결.
+- **[버그]** GPU 텍스트 리소스 안정성 수정 — 동적 아틀라스/DWrite 텍스처 ID 범위 분리, staging 업로드 순서 보정, 텍스처 데이터 크기 정규화 검증 보강.
+- **[버그]** 스왑체인 재생성 실패 처리 경로 수정 — `TryRecreateSwapchain()`이 surface-lost 이후에도 연쇄 Vulkan 오류 없이 안전하게 실패 반환.
 
 ### Packaging / Release
 
-- NuGet 패키지 버전을 `0.1.15-preview`로 상향 (전체 패키지: `Duxel.App`, `Duxel.Windows.App`, `Duxel.Core`, `Duxel.Vulkan`, `Duxel.Platform.Windows`).
+- NuGet 패키지 버전을 `0.1.15-preview`로 상향.
 
 ## 0.1.14-preview (2026-02-28)
 
-### 변경 내역
+### 주요 개선 사항
 
-- **[버그]** 한글 Fallback 폰트 차단 수정 — `UiTextBuilder`의 `IsHangulCodepoint()` 가드가 한글 코드포인트에 대해 보조 폰트 탐색(예: `malgun.ttf`)을 차단해 글리프 깨짐 발생. 제한을 제거하여 한글도 fallback 폰트를 정상 사용.
-- **[버그]** `DUXEL_DIRECT_TEXT=0` 시 DWrite 아틀라스 래스터라이저까지 비활성화되던 문제 수정 — 직접 텍스트 렌더링 경로뿐 아니라 아틀라스 글리프 래스터라이저까지 소프트웨어 TTF로 전환되어 힌팅 없는 저품질 한글 렌더링 발생. 이제 `DUXEL_DIRECT_TEXT`는 직접 텍스트 경로만 제어하고, 아틀라스 래스터라이저는 Windows에서 항상 DWrite 사용 (명시 `DUXEL_ENABLE_TTF_GLYPH_RASTERIZER=1`로만 TTF 전환).
-- **[버그]** 동적 폰트 아틀라스 Stale 캐시 재사용 수정 — `ResolveDynamicFontResource`가 코드포인트 세트가 늘어났을 때(예: 109→115글리프)도 기존 캐시를 반환하여 특정 크기에서 한글 누락 발생. `UiFontResource`에 `CodepointSignature`를 추가해 캐시 유효성 검증.
-- **[버그]** `SelectClosestCachedFontSize` 크기 불일치 수정 — 10% threshold로 58px 아틀라스를 64px에서 재사용해 글리프 메트릭/UV 좌표 불일치 발생. 근사 매칭 로직 제거, 각 정수 크기가 항상 자체 아틀라스 사용.
-- **[버그]** 프레임 중간 코드포인트 드리프트 수정 — `OnMissingGlyph`이 같은 프레임 내에서 `activeCodepointSet`을 변경해 아틀라스 불일치 발생. 프레임 시작 시 `frameCodepointSnapshot`을 한 번만 생성하는 방식으로 변경.
-- **[버그]** 새 글리프 발견 시 동적 폰트 캐시 미무효화 수정 — `pendingGlyphs` 증가 또는 렌더러 missing glyph 보고 시 `InvalidateDynamicFontResourceCache()`로 stale 텍스처 전체 폐기.
-- **[버그]** 창 닫기 시 Vulkan `ErrorSurfaceLostKhr` 크래시 수정 — `RecreateSwapchain()`을 `TryRecreateSwapchain()`으로 교체해 surface-lost 예외를 안전하게 처리. 렌더 스레드를 `try/catch`로 감싸 종료 시점 Vulkan 예외 흡수.
-- **[개선]** `ShouldClose`/`stopRequested` 감지 시 렌더 루프 즉시 중단 추가 — 창 닫기 신호 후 불필요한 추가 프레임 렌더링 방지.
+- **[개선]** 종료 시점 렌더 루프 소모 축소 — `ShouldClose` / `stopRequested` 감지 후 즉시 종료, 창 종료 중 불필요한 추가 프레임 생성 억제.
+
+### 주요 버그 수정
+
+- **[버그]** 한글 fallback과 DWrite 아틀라스 선택 경로 수정 — 한글 코드포인트의 보조 폰트 fallback 복원, `DUXEL_DIRECT_TEXT=0`이 아틀라스 래스터라이저까지 TTF로 강등시키지 않도록 정리.
+- **[버그]** 동적 아틀라스 캐시 일관성 종합 수정 — stale atlas 재사용, fuzzy size 매칭, 프레임 중간 코드포인트 드리프트, 새 글리프 발견 시 캐시 미무효화 제거.
+- **[버그]** 종료 시점 Vulkan surface-lost 처리 경로 수정 — 스왑체인 재생성의 안전한 실패 반환 보장, close-time 렌더 스레드 오류의 크래시 연쇄 차단.
 
 ### Packaging / Release
 
-- NuGet 패키지 버전을 `0.1.14-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`).
+- NuGet 패키지 버전을 `0.1.14-preview`로 상향.
 
 ## Documentation Update (2026-02-26)
 
-### 변경 내역
+### 주요 개선 사항
 
-- **[개선]** `README.md`를 영문 중심으로 재구성하고 `README.ko.md`를 추가했습니다.
-- **[개선]** `docs/ui-dsl.ko.md`를 현재 파서/런타임(`UiDslParser`, `UiDslWidgetDispatcher`, `UiDslPipeline`) 기준으로 재작성했습니다.
-- **[개선]** FBA 가이드 문서(`docs/getting-started-fba.ko.md`, `docs/fba-reference-guide.ko.md`, `docs/fba-run-samples.ko.md`)를 현재 샘플 지시문(`Duxel.$(platform).App`) 기준으로 정합화했습니다.
-- **[개선]** 나머지 주요 `docs` 문서에 동기화 시점을 명시해 최신화 기준일을 명확히 했습니다.
+- **[개선]** 문서 표면 일괄 재정비 — 영문/국문 README 정리, UI DSL 가이드의 현재 파서/런타임 기준 재작성, FBA 가이드의 현행 샘플 지시문 기준 동기화, 문서별 동기화 시점 추가.
 
 ## 0.1.13-preview (2026-02-20)
 
-### 변경 내역
+### 주요 버그 수정
 
-- **[버그]** `Duxel.Windows.App`/`Duxel.Platform.Windows` TargetFramework를 `net10.0-windows` → `net10.0`으로 변경 — FBA 샘플(`net10.0`)에서 `dotnet run` 시 NU1202 호환성 오류 해소, 향후 리눅스 크로스플랫폼 FBA 테스트 경로 확보
+- **[버그]** `net10.0` 소비자용 FBA 호환성 수정 — `Duxel.Windows.App`, `Duxel.Platform.Windows`를 `net10.0-windows`에서 `net10.0`으로 재타깃팅, NU1202 오류 제거, 향후 크로스플랫폼 FBA 검증 경로 유지.
 
 ### Packaging / Release
 
-- NuGet 패키지 버전을 `0.1.13-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`).
+- NuGet 패키지 버전을 `0.1.13-preview`로 상향.
 
 ## 0.1.12-preview (2026-02-20)
 
-### 변경 내역
+### 주요 기능 추가
 
-- **[기능]** DirectWrite 기반 텍스트 렌더링 시스템 추가 — `WindowsDirectWriteGlyphRasterizer` 신규 구현, Direct Text 런타임 토글 API(`SetDirectTextEnabled`/`GetDirectTextEnabled`), `DUXEL_DIRECT_TEXT` 환경변수 지원, 텍스트 캐시 관리(LRU 256엔트리)
-- **[기능]** Windows 플랫폼 백엔드 독립 분리 — `WindowsPlatformBackend`(975줄) 신규 구현, GLFW 플랫폼(`Duxel.Platform.Glfw`) 완전 제거
-- **[기능]** 즉시 모드 애니메이션 프레임워크 추가 — `AnimateFloat` API(easing: OutCubic 등), `RequestFrame` 연속 렌더 요청, 애니메이션 트랙 상태 관리
-- **[기능]** 폰트 크기 런타임 제어 API 추가 — `PushFontSize`/`PopFontSize`, `DrawTextAligned`의 `fontSize` 파라미터, 폰트 아틀라스 래스터라이저 분리(`UiFontAtlas.Rasterizers.cs`)
-- **[기능]** 위젯/벤치 헬퍼 API 대량 승격 — `BeginWindowCanvas`/`EndWindowCanvas`, `DrawOverlayText`, `UiFpsCounter`, `DrawKeyValueRow`, `BenchOptions`, `DrawLayerCardSkeleton`/`DrawLayerCard`/`DrawLayerCardInteractive`(`UiLayerCardInteraction` 구조체)
-- **[기능]** 레이아웃 시스템 확장 — `EnableRootViewportContentLayout`, `AlignRect`, `SetNextItemVerticalAlign`, `SameLine` 수직 정렬 지원
-- **[기능]** 아이콘 시스템 추가 — `UiImmediateContext.Icons` 내장 아이콘 렌더 지원
-- **[기능]** Windows 계산기 FBA — 사이버 backdrop/리플 효과/FX 버튼/반투명 UI 시연(`windows_calculator_fba.cs`), RPN 트레이스/멀티베이스 쇼케이스(`windows_calculator_duxel_showcase_fba.cs`)
-- **[개선]** 위젯 API 시그니처 통일 — Combo/ListBox/Table/Tree에 `string? id` 파라미터 추가로 ID 충돌 방지
-- **[개선]** IME 처리 안정성 개선 — `WindowsImeHandler` 리팩토링
-- **[개선]** 10개+ FBA 샘플에서 보일러플레이트(FPS 측정/오버레이/벤치파서/카드렌더)를 라이브러리 API 호출로 전환, 코드 간결성 대폭 향상
-- **[개선]** Direct Text ON/OFF A/B 벤치에서 평균 FPS +5.87% 개선 확인 (375→397 FPS)
+- **[기능]** 첫 DirectWrite 텍스트 파이프라인 추가 — 새 DWrite 래스터라이저, Direct Text 런타임 토글 API, 환경변수 제어, 텍스트 캐시 관리 도입.
+- **[기능]** Windows 플랫폼/백엔드 분리 완료 — `WindowsPlatformBackend` 도입, GLFW 플랫폼 경로 완전 제거.
+- **[기능]** UI 런타임 기반 기능 확장 — 애니메이션 트랙, 런타임 폰트 크기 제어, 레이아웃/정렬 헬퍼, 아이콘 렌더링, canvas/overlay/card 헬퍼 API를 재사용 가능한 기반으로 승격.
+- **[기능]** Windows 중심 쇼케이스 앱 추가 — 계산기 스타일 FBA 샘플로 반투명 UI, FX 상호작용, 멀티베이스/RPN 시나리오 시연.
+
+### 주요 개선 사항
+
+- **[개선]** 코어 위젯과 플랫폼 동작 정리 — 필요한 위젯 API에 명시적 ID 추가, IME 처리 안정성 강화, 조합 일관성 개선.
+- **[개선]** 샘플/벤치 보일러플레이트의 라이브러리 API 흡수 — 10개 이상의 FBA 샘플이 FPS, overlay, parsing, card-rendering 로직을 공통 API로 공유하도록 전환.
+- **[개선]** Direct Text 성능 향상 실측 확인 — ON/OFF A/B 벤치에서 평균 약 5.87% FPS 향상(375→397) 검증.
 
 ### Packaging / Release
 
-- NuGet 패키지 버전을 `0.1.12-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`).
+- NuGet 패키지 버전을 `0.1.12-preview`로 상향.
 
 ## 0.1.11-preview (2026-02-17)
 
-### Performance Highlights
+### 주요 개선 사항
 
-- 전역 정적 캐시(`duxel.global.static:*`) 전략을 벤치 샘플에 적용해 정적 배경 재생성 비용을 줄이고, all-dynamic 대비 성능 차이를 재현 가능한 형태로 정리했습니다.
-- 레이어 dirty 전략을 `all` vs `single`로 분리 검증해, 무효화 범위를 줄였을 때 캐시 재빌드 횟수와 FPS가 크게 개선되는 경로를 확인했습니다.
-- 텍스트/레이어/클립 경로의 핫패스 실험을 통해 유효한 최적화는 유지하고, 성능 악화가 확인된 시도는 즉시 롤백해 기준 성능을 보호했습니다.
-
-### Benchmark & Measurement
-
-- clip clamp A/B 자동화(`scripts/run-vector-clip-ab.ps1`, `scripts/run-layer-widget-clip-ab.ps1`)에 타임아웃/프로세스 정리를 포함해 장시간 측정 안정성을 높였습니다.
-- 반복 성능 비교 자동화(`scripts/run-duxel-perf-ab.ps1`)를 추가해 baseline/candidate 평균, 분산, 개선율 산출을 표준화했습니다.
-- 성능 기록 정책과 세션 로그를 보강해 변경-검증-결과를 추적 가능한 형태로 문서화했습니다.
+- **[개선]** 전역 정적 캐시와 레이어 dirty 전략 중심의 성능 실험 체계 정리 — 벤치 샘플이 static/dynamic invalidation 경로를 더 재현 가능하게 비교하고, 핫패스 실험은 측정된 개선만 유지, 회귀 시도는 즉시 롤백.
+- **[개선]** 벤치 자동화와 기록 체계 보강 — clip/layer A/B 스크립트에 timeout/process cleanup 추가, 반복 성능 비교 리포트의 평균/분산/개선율 표준화, 최적화 세션 로그 추적성 강화.
 
 ### Packaging / Release
 
-- NuGet 패키지 버전을 `0.1.11-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`).
+- NuGet 패키지 버전을 `0.1.11-preview`로 상향.
 
 ## 0.1.10-preview (2026-02-15)
 
-### Rendering / Layer Cache
+### 주요 개선 사항
 
-- Vulkan 렌더러의 texture 레이어 정적 태그 판별을 보강해 opacity suffix(`:oXXXXXXXX`)가 있는 경우에도 texture compose 재사용 경로가 정상 동작하도록 수정했습니다.
-- layer static-cache 검증 시 backend/opacity 조합에서 재사용 태그 정합성을 재검토하고 회귀 포인트를 정리했습니다.
+- **[개선]** Vulkan 레이어 캐시 태그 처리 보강 — opacity suffix가 있는 경우에도 texture compose 재사용 유지, backend/opacity 조합의 재사용 태그 정합성 검증 일관화.
+- **[개선]** 렌더링 회귀 벤치 제어 확장 — opacity 고정 검증 옵션과 더 풍부한 충돌 반응 모델 추가, 성능 샘플 비교의 현실성과 반복 가능성 강화.
 
-### Samples / Bench
+### Packaging / Release
 
-- `samples/fba/idle_layer_validation.cs`에 `DUXEL_LAYER_BENCH_OPACITY` 환경변수를 추가해 opacity 고정 회귀 벤치 자동화를 지원합니다.
-- `samples/fba/Duxel_perf_test_fba.cs`에서 충돌 시 각속도/회전 방향도 영향을 받도록 반응 모델(충격 + 감쇠)을 확장했습니다.
-
-### Packaging / NuGet
-
-- NuGet 패키지 버전을 `0.1.10-preview`로 상향했습니다 (`Duxel.App`, `Duxel.Windows.App`).
+- NuGet 패키지 버전을 `0.1.10-preview`로 상향.
 
 ## 0.1.9-preview (2026-02-15)
 
-### Packaging / NuGet
+### 주요 개선 사항
 
-- `Duxel.App`, `Duxel.Windows.App` 패키지 설명(Description)을 최신 배포 구조 기준으로 정리했습니다.
-- NuGet 배포는 `Duxel.App`, `Duxel.Windows.App` 두 패키지(0.1.9-preview)만 배포하도록 유지했습니다.
-
-### Samples
-
-- 프로젝트 샘플을 DSL 검증 중심으로 단순화해 `samples/Duxel.Sample`만 유지했습니다.
-- 삭제: `samples/Duxel.PerfTest`, `samples/Duxel.Sample.NativeAot`
-- FBA 샘플의 패키지 지시자를 `Duxel.Windows.App` 기준으로 일괄 전환했습니다.
-
-### Documentation
-
-- README의 프로젝트 샘플 표와 빌드/배포 안내를 현행 샘플 구조에 맞게 갱신했습니다.
-- 관련 문서(`docs/ui-dsl.ko.md`, `docs/getting-started-fba.ko.md`)의 삭제 샘플 참조를 정리했습니다.
-- ImGui 관련 분산 문서를 `docs/design.ko.md`로 통합하고, `docs/imgui-coverage.md`를 삭제했습니다.
-- `docs/todo.md`를 완료 항목 제거 후 "남은 일감" 전용 문서로 재구성했습니다.
+- **[개선]** 배포 구조 단순화 — 패키지 설명을 최신 구조에 맞추고 NuGet 배포를 `Duxel.App`, `Duxel.Windows.App` 두 패키지에 집중.
+- **[개선]** 샘플 표면의 DSL 검증 중심 축소 — `samples/Duxel.Sample`만 유지, 이전 샘플 프로젝트 제거, FBA 패키지 지시자를 `Duxel.Windows.App` 기준으로 통일.
+- **[개선]** 축소된 샘플/패키지 구조에 맞춘 문서 정리 — README 표, 삭제 샘플 참조, ImGui 설계 문서, `docs/todo.md`를 한 번에 재구성.
 
 ## 0.1.8-preview (2026-02-15)
 
-### Packaging / Distribution
+### 주요 기능 추가
 
-- 배포 패키지 전략을 `Duxel.App`, `Duxel.Windows.App` 2개로 단순화했습니다.
-- `Duxel.Core`, `Duxel.Vulkan`, `Duxel.Platform.Windows`는 독립 NuGet 배포를 중단하고 상위 패키지에 번들링되도록 전환했습니다.
-- `Duxel.Windows.App`에 `Duxel.Platform.Windows`를 포함해 Windows 앱 사용자는 패키지 하나만 설치하면 되도록 구성했습니다.
+- **[기능]** 배포 패키지 구조의 2패키지 모델 단순화 — `Duxel.App`, `Duxel.Windows.App`를 공개 배포 표면으로 두고 하위 패키지는 내부 번들링으로 전환.
+- **[기능]** `Duxel.App`의 플랫폼 주입 훅 추가 — key repeat, clipboard, IME 서비스를 Windows 직접 종속 대신 옵션 주입으로 연결 가능.
+- **[기능]** 앱 패키지에 DSL 소스 생성기 포함 — `Duxel.Core.Dsl.Generator` analyzer가 단일 패키지 설치에서도 동작.
 
-### Architecture
+### 주요 개선 사항
 
-- `Duxel.App`에서 Windows 직접 종속(`WindowsClipboard`, `WindowsImeHandler`, `WindowsUiImageDecoder`, `WindowsKeyRepeatSettingsProvider`)을 제거했습니다.
-- 플랫폼별 구현 주입을 위한 옵션 훅을 추가했습니다:
-  - `KeyRepeatSettingsProvider`
-  - `ClipboardFactory`
-  - `ImeHandlerFactory`
-
-### DSL / Source Generator
-
-- `Duxel.Core.Dsl.Generator`를 `Duxel.App` 패키지의 analyzer(`analyzers/dotnet/cs`)로 포함해 단일 설치에서도 소스 생성이 동작하도록 구성했습니다.
-
-### Documentation
-
-- `README.md`는 최신 버전 개선사항만 유지하고, 누적 이력은 본 문서로 분리했습니다.
+- **[개선]** 앱 계층의 Windows 결합도와 문서 책임 축소 — 직접 Windows 서비스 참조 제거, 누적 변경 이력을 `README.md` 밖의 전용 문서로 분리.
 
 ---
 
 ## 0.1.7-preview
 
-### Rendering / Performance
+### 주요 기능 추가
 
-- Vulkan 백엔드에 TAA/FXAA 토글 경로를 보강하고, 런타임 AA 전환 시 리소스/파이프라인 재구성을 안전하게 처리하도록 개선했습니다.
-- 성능 샘플과 체크리스트를 정비해 MSAA/FXAA 비교 실험을 반복 가능한 절차로 수행할 수 있게 했습니다.
+- **[기능]** 플랫폼 중립 이미지 API와 Windows 런타임 등록 경로 추가 — `UiImageTexture`, `UiImageEffects`, `IUiImageDecoder`로 이미지 지원을 Windows 구현과 분리하고, `Duxel.App`이 Windows 디코더를 런타임에 연결하도록 구성.
+- **[기능]** FBA 이미지 쇼케이스 확장 — 웹 이미지 소스 선택과 GIF 프레임 애니메이션 재생 지원.
 
-### Core / Platform
+### 주요 개선 사항
 
-- `Duxel.Core`에 플랫폼 중립 이미지 API(`UiImageTexture`, `UiImageEffects`, `IUiImageDecoder`)를 추가했습니다.
-- Windows 전용 디코더를 `Duxel.Platform.Windows`로 분리하고 `Duxel.App`에서 런타임 등록하도록 구성해 Core 계층의 플랫폼 종속성을 제거했습니다.
-
-### Samples / UI
-
-- FBA 이미지 샘플에 웹 이미지 소스 선택(PNG/JPG/GIF)과 GIF 프레임 애니메이션 재생을 추가했습니다.
-- 접힘/확장 UI 동작을 보정해 접힘 시 3px 본문 peek를 유지하면서 캔버스 돌출을 방지했습니다.
+- **[개선]** Vulkan AA 토글 처리와 검증 흐름 개선 — 런타임 TAA/FXAA 전환 시 리소스 재구성이 더 안전해지고, MSAA/FXAA 비교 절차도 반복 가능하게 정리.
+- **[개선]** 접힘/확장 UI 표현 정리 — 접힘 상태의 작은 body peek 유지, 캔버스 overflow 보정.

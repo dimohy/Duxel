@@ -57,8 +57,9 @@ public sealed partial class UiImmediateContext
     private string? _directTextPrimaryFontPath;
     private string? _directTextSecondaryFontPath;
     private IPlatformTextBackend? _platformTextBackend;
-    private bool _directTextEnabled;
     private float _directTextBaseFontSize;
+    private float _contentScale = 1f;
+    public float ContentScale => _contentScale;
     private readonly Dictionary<DirectTextCacheKey, DirectTextCacheEntry> _directTextCache = new();
     private nuint _nextDirectTextTextureId = 2_100_000_000;
     private const int DirectTextCacheMaxEntries = 512;
@@ -100,6 +101,7 @@ public sealed partial class UiImmediateContext
     private readonly Stack<bool> _disabledStack = new();
     private readonly Stack<UiTheme> _themeStack = new();
     private readonly Stack<bool> _windowOverlayStack = new();
+    private readonly Stack<(string? Primary, string? Secondary)> _directTextFontPathStack = new();
     private float _nextItemWidth;
     private string? _currentTabBarId;
     private string? _currentTabBarActiveKey;
@@ -196,13 +198,13 @@ public sealed partial class UiImmediateContext
     private long _lastItemSelectionUserData;
     private bool _hasLastItemSelectionUserData;
     private readonly Stack<UiFontSizeState> _fontSizeStateStack = new();
-    private readonly HashSet<ulong> _dynamicFontTextureCreated = new();
     private UiItemFlags _lastItemFlags;
     private UiRect _windowRect;
     private bool _hasWindowRect;
     private string? _currentWindowId;
     private UiVector2 _windowContentStart;
     private UiVector2 _windowContentMax;
+    private float _windowContentPadding;
     private bool _windowAppearing;
     private bool _windowCollapsed;
     private float _windowScrollX;
@@ -316,7 +318,6 @@ public sealed partial class UiImmediateContext
         _whiteTexture = whiteTexture;
         _resolveFontResource = resolveFontResource;
         _directTextPrimaryFontPath = directTextPrimaryFontPath;
-        _directTextEnabled = ResolveDirectTextDefaultEnabled();
 
         _baseBuilder = new UiDrawListBuilder(clipRect);
         _overlayBuilder = new UiDrawListBuilder(clipRect);
@@ -504,6 +505,7 @@ public sealed partial class UiImmediateContext
         _disabledStack.Clear();
         _themeStack.Clear();
         _windowOverlayStack.Clear();
+        _directTextFontPathStack.Clear();
 
         _popupTierDepth = 0;
         _currentItemFlags = UiItemFlags.None;
@@ -641,35 +643,33 @@ public sealed partial class UiImmediateContext
         _queueTextureUpdate?.Invoke(update);
     }
 
-    public void SetDirectTextEnabled(bool enabled)
-    {
-        _directTextEnabled = enabled;
-    }
-
-    public bool GetDirectTextEnabled() => _directTextEnabled;
-
     public void SetDirectTextBaseFontSize(float size)
     {
         _directTextBaseFontSize = size;
     }
 
-    private static bool ResolveDirectTextDefaultEnabled()
+    public void SetContentScale(float scale)
     {
-        var env = Environment.GetEnvironmentVariable("DUXEL_DIRECT_TEXT");
-        if (string.IsNullOrWhiteSpace(env))
+        _contentScale = MathF.Max(1f, scale);
+    }
+
+    public void PushDirectTextFontPaths(string? primaryFontPath, string? secondaryFontPath = null)
+    {
+        _directTextFontPathStack.Push((_directTextPrimaryFontPath, _directTextSecondaryFontPath));
+        _directTextPrimaryFontPath = string.IsNullOrWhiteSpace(primaryFontPath) ? _directTextPrimaryFontPath : primaryFontPath;
+        _directTextSecondaryFontPath = string.IsNullOrWhiteSpace(secondaryFontPath) ? _directTextSecondaryFontPath : secondaryFontPath;
+    }
+
+    public void PopDirectTextFontPaths()
+    {
+        if (_directTextFontPathStack.Count is 0)
         {
-            return true;
+            return;
         }
 
-        var normalized = env.Trim();
-        if (normalized == "0")
-        {
-            return false;
-        }
-
-        return !normalized.Equals("false", StringComparison.OrdinalIgnoreCase)
-            && !normalized.Equals("off", StringComparison.OrdinalIgnoreCase)
-            && !normalized.Equals("no", StringComparison.OrdinalIgnoreCase);
+        var previous = _directTextFontPathStack.Pop();
+        _directTextPrimaryFontPath = previous.Primary;
+        _directTextSecondaryFontPath = previous.Secondary;
     }
 
     private void TrimDirectTextCache()
@@ -756,7 +756,7 @@ public sealed partial class UiImmediateContext
     private bool TryMeasureDirectText(string text, UiTextSettings settings, out UiVector2 measured)
     {
         measured = default;
-        if (!_directTextEnabled || _platformTextBackend is null || string.IsNullOrWhiteSpace(_directTextPrimaryFontPath))
+        if (_platformTextBackend is null || string.IsNullOrWhiteSpace(_directTextPrimaryFontPath))
         {
             return false;
         }
@@ -779,7 +779,8 @@ public sealed partial class UiImmediateContext
             return false;
         }
 
-        measured = new UiVector2(entry.Advance, MathF.Max(entry.Height, _lineHeight * settings.LineHeightScale));
+        var logicalScale = 1f / _contentScale;
+        measured = new UiVector2(entry.Advance * logicalScale, MathF.Max(entry.Height * logicalScale, _lineHeight * settings.LineHeightScale));
         return true;
     }
 
@@ -853,7 +854,7 @@ public sealed partial class UiImmediateContext
         out UiVector2 size)
     {
         size = default;
-        if (!_directTextEnabled || _platformTextBackend is null || string.IsNullOrWhiteSpace(_directTextPrimaryFontPath) || string.IsNullOrEmpty(text))
+        if (_platformTextBackend is null || string.IsNullOrWhiteSpace(_directTextPrimaryFontPath) || string.IsNullOrEmpty(text))
         {
             return false;
         }
@@ -870,15 +871,16 @@ public sealed partial class UiImmediateContext
             return false;
         }
 
-        size = new UiVector2(entry.Advance, MathF.Max(entry.Height, _lineHeight * settings.LineHeightScale));
+        var logicalScale = 1f / _contentScale;
+        size = new UiVector2(entry.Advance * logicalScale, MathF.Max(entry.Height * logicalScale, _lineHeight * settings.LineHeightScale));
 
         // Clip check: skip GPU texture creation and rendering if entirely outside clipRect
         var measuredLineHeight = _lineHeight * settings.LineHeightScale;
         // Baseline-align: use font ascent to position all words with baselines at the same Y
-        var yOffset = entry.FontAscent - entry.Baseline;
-        if (position.X + entry.Width <= clipRect.X
+        var yOffset = (entry.FontAscent - entry.Baseline) * logicalScale;
+        if (position.X + entry.Width * logicalScale <= clipRect.X
             || position.X >= clipRect.X + clipRect.Width
-            || position.Y + yOffset + entry.Height <= clipRect.Y
+            || position.Y + yOffset + entry.Height * logicalScale <= clipRect.Y
             || position.Y + yOffset >= clipRect.Y + clipRect.Height)
         {
             return true;
@@ -893,7 +895,7 @@ public sealed partial class UiImmediateContext
             drawList.AddImage(
                 texId,
                 new UiVector2(position.X, position.Y + yOffset),
-                new UiVector2(position.X + entry.Width, position.Y + yOffset + entry.Height),
+                new UiVector2(position.X + entry.Width * logicalScale, position.Y + yOffset + entry.Height * logicalScale),
                 new UiVector2(0f, 0f),
                 new UiVector2(1f, 1f),
                 color);
@@ -1618,7 +1620,7 @@ public sealed partial class UiImmediateContext
     {
         _fontSizeStateStack.Push(new UiFontSizeState(_pushedFontSize, _fontAtlas, _lineHeight, _fontTexture));
         _fontSizeStack.Push(GetFontSize());
-        var requestedSize = MathF.Max(1f, fontSize);
+        var requestedSize = MathF.Max(1f, fontSize * _contentScale);
         _pushedFontSize = requestedSize;
 
         if (_resolveFontResource is null)
@@ -1635,18 +1637,6 @@ public sealed partial class UiImmediateContext
         _fontAtlas = fontResource.Value.FontAtlas;
         _lineHeight = _fontAtlas.LineHeight;
         _fontTexture = fontResource.Value.TextureId;
-
-        if (!_directTextEnabled && _dynamicFontTextureCreated.Add(_fontTexture.Value))
-        {
-            QueueTextureUpdate(new UiTextureUpdate(
-                UiTextureUpdateKind.Create,
-                _fontTexture,
-                _fontAtlas.Format,
-                _fontAtlas.Width,
-                _fontAtlas.Height,
-                new ReadOnlyMemory<byte>(_fontAtlas.Pixels)
-            ));
-        }
     }
 
     public void PopFontSize()
@@ -1988,22 +1978,6 @@ public sealed partial class UiImmediateContext
     public int GetMsaaSamples() => _state.MsaaSamples;
 
     public void SetMsaaSamples(int samples) => _state.MsaaSamples = samples;
-
-    public bool GetTaaEnabled() => _state.TaaEnabled;
-
-    public void SetTaaEnabled(bool enable) => _state.TaaEnabled = enable;
-
-    public bool GetFxaaEnabled() => _state.FxaaEnabled;
-
-    public void SetFxaaEnabled(bool enable) => _state.FxaaEnabled = enable;
-
-    public bool GetTaaExcludeFont() => _state.TaaExcludeFont;
-
-    public void SetTaaExcludeFont(bool exclude) => _state.TaaExcludeFont = exclude;
-
-    public float GetTaaCurrentFrameWeight() => _state.TaaCurrentFrameWeight;
-
-    public void SetTaaCurrentFrameWeight(float weight) => _state.TaaCurrentFrameWeight = weight;
 
     public float GetNewFrameTimeMs() => _state.NewFrameTimeMs;
     public float GetRenderTimeMs() => _state.RenderTimeMs;

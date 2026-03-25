@@ -15,20 +15,6 @@ var profileName = Environment.GetEnvironmentVariable("DUXEL_APP_PROFILE");
 var profile = string.Equals(profileName, "render", StringComparison.OrdinalIgnoreCase)
     ? DuxelPerformanceProfile.Render
     : DuxelPerformanceProfile.Display;
-var fxaaName = Environment.GetEnvironmentVariable("DUXEL_FXAA");
-var enableFxaa = string.Equals(fxaaName, "1", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(fxaaName, "true", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(fxaaName, "on", StringComparison.OrdinalIgnoreCase);
-var taaName = Environment.GetEnvironmentVariable("DUXEL_TAA");
-var enableTaa = string.Equals(taaName, "1", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(taaName, "true", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(taaName, "on", StringComparison.OrdinalIgnoreCase);
-var dwriteName = Environment.GetEnvironmentVariable("DUXEL_DIRECT_TEXT");
-var enableDWriteText = string.IsNullOrWhiteSpace(dwriteName)
-    || !(string.Equals(dwriteName, "0", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(dwriteName, "false", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(dwriteName, "off", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(dwriteName, "no", StringComparison.OrdinalIgnoreCase));
 
 DuxelApp.Run(new DuxelAppOptions
 {
@@ -39,16 +25,10 @@ DuxelApp.Run(new DuxelAppOptions
     },
     Renderer = new DuxelRendererOptions
     {
-        Profile = profile,
-        EnableTaaIfSupported = enableTaa,
-        EnableFxaaIfSupported = enableFxaa,
-        EnableDWriteText = enableDWriteText
+        Profile = profile
     },
-    Font = new DuxelFontOptions
-    {
-        InitialGlyphs = PerfTestScreen.GlyphStrings
-    },
-    Screen = new PerfTestScreen(profile, enableDWriteText)
+
+    Screen = new PerfTestScreen(profile)
 });
 
 public sealed class PerfTestScreen : UiScreen
@@ -60,41 +40,6 @@ public sealed class PerfTestScreen : UiScreen
     private const float CollisionHitRedWeight = 0.28f;
     private const float CollisionAngularImpulseScale = 1.15f;
     private const float CollisionAngularDampingPerSecond = 0.7f;
-    public static readonly IReadOnlyList<string> GlyphStrings = new[]
-    {
-        "Duxel Performance Test (FBA)",
-        "Controls",
-        "Render",
-        "Profile",
-        "Render Profile",
-        "Restart required to apply",
-        "VSync",
-        "MSAA",
-        "MSAA 1x/2x/4x/8x",
-        "MSAA is forced to 1x while TAA/FXAA is enabled",
-        "TAA",
-        "FXAA",
-        "TAA Exclude Font",
-        "TAA Weight",
-        "DWrite Text",
-        "DWrite Text (restart required)",
-        "Global Static Cache",
-        "Polygons",
-        "Add",
-        "Remove",
-        "Clear",
-        "Speed",
-        "Size",
-        "Sides",
-        "Rotation",
-        "FPS",
-        "Count",
-        "Reset",
-        "Bounds",
-        "Paused"
-        ,"Renderer Status"
-        ,"AA"
-    };
 
     private readonly List<PolygonBody> _polygons = [];
     private readonly Random _random = new(1337);
@@ -111,7 +56,6 @@ public sealed class PerfTestScreen : UiScreen
     private readonly int _initialPolygons = ReadInitialPolygonCount();
     private readonly DuxelPerformanceProfile _startupProfile;
     private bool _renderProfileForNextLaunch;
-    private bool _dwriteTextForNextLaunch;
     private bool _initialized;
     private double _benchElapsedSeconds;
     private double _benchFpsSum;
@@ -126,11 +70,10 @@ public sealed class PerfTestScreen : UiScreen
     private int[] _collisionTouchedStamp = [];
     private int _collisionStamp = 1;
 
-    public PerfTestScreen(DuxelPerformanceProfile startupProfile, bool startupDWriteText)
+    public PerfTestScreen(DuxelPerformanceProfile startupProfile)
     {
         _startupProfile = startupProfile;
         _renderProfileForNextLaunch = startupProfile == DuxelPerformanceProfile.Render;
-        _dwriteTextForNextLaunch = startupDWriteText;
     }
 
     public override void Render(UiImmediateContext ui)
@@ -208,26 +151,18 @@ public sealed class PerfTestScreen : UiScreen
         _benchCompleted = true;
         var avgFps = _benchFpsSamples > 0 ? _benchFpsSum / _benchFpsSamples : 0d;
         var vsync = ui.GetVSync();
-        var taaEnabled = ui.GetTaaEnabled();
-        var fxaaEnabled = ui.GetFxaaEnabled();
-        var taaExcludeFont = ui.GetTaaExcludeFont();
-        var taaWeight = ui.GetTaaCurrentFrameWeight();
         var msaaSamples = ui.GetMsaaSamples();
 
         if (!string.IsNullOrWhiteSpace(_benchOutputPath))
         {
             var json = string.Format(
                 CultureInfo.InvariantCulture,
-                "{{\"avgFps\":{0:0.###},\"samples\":{1},\"elapsedSeconds\":{2:0.###},\"vsync\":{3},\"msaa\":{4},\"taa\":{5},\"fxaa\":{6},\"taaExcludeFont\":{7},\"taaWeight\":{8:0.###},\"count\":{9},\"globalStaticCache\":{10}}}",
+                "{{\"avgFps\":{0:0.###},\"samples\":{1},\"elapsedSeconds\":{2:0.###},\"vsync\":{3},\"msaa\":{4},\"count\":{5},\"globalStaticCache\":{6}}}",
                 avgFps,
                 _benchFpsSamples,
                 _benchElapsedSeconds,
                 vsync.ToString().ToLowerInvariant(),
                 msaaSamples,
-                taaEnabled.ToString().ToLowerInvariant(),
-                fxaaEnabled.ToString().ToLowerInvariant(),
-                taaExcludeFont.ToString().ToLowerInvariant(),
-                taaWeight,
                 _polygons.Count,
                 _enableGlobalStaticCache.ToString().ToLowerInvariant()
             );
@@ -334,22 +269,6 @@ public sealed class PerfTestScreen : UiScreen
             ui.SetMsaaSamples(msaaSamples);
         }
         ui.TextV("MSAA: {0}x", ui.GetMsaaSamples());
-        if (ui.GetTaaEnabled() || ui.GetFxaaEnabled())
-        {
-            ui.Text("MSAA is forced to 1x while TAA/FXAA is enabled");
-        }
-
-        var taaEnabled = ui.GetTaaEnabled();
-        if (ui.Checkbox("TAA", ref taaEnabled))
-        {
-            ui.SetTaaEnabled(taaEnabled);
-        }
-
-        var fxaaEnabled = ui.GetFxaaEnabled();
-        if (ui.Checkbox("FXAA", ref fxaaEnabled))
-        {
-            ui.SetFxaaEnabled(fxaaEnabled);
-        }
 
         var globalStaticCache = _enableGlobalStaticCache;
         if (ui.Checkbox("Global Static Cache", ref globalStaticCache))
@@ -358,24 +277,10 @@ public sealed class PerfTestScreen : UiScreen
             InvalidateGlobalStaticCache();
         }
 
-        var taaExcludeFont = ui.GetTaaExcludeFont();
-        if (ui.Checkbox("TAA Exclude Font", ref taaExcludeFont))
-        {
-            ui.SetTaaExcludeFont(taaExcludeFont);
-        }
-
-        var taaWeight = ui.GetTaaCurrentFrameWeight();
-        if (ui.SliderFloat("TAA Weight", ref taaWeight, 0.05f, 1f, 0f, "0.00"))
-        {
-            ui.SetTaaCurrentFrameWeight(taaWeight);
-        }
-
         ui.SeparatorText("Profile");
         ui.TextV("Current: {0}", _startupProfile == DuxelPerformanceProfile.Render ? "Render" : "Display");
         ui.Checkbox("Render Profile", ref _renderProfileForNextLaunch);
         ui.Text("Restart required to apply");
-        ui.Checkbox("DWrite Text", ref _dwriteTextForNextLaunch);
-        ui.Text("DWrite Text (restart required)");
         if (ui.Checkbox("Paused", ref _paused))
         {
             if (_paused)
@@ -423,11 +328,8 @@ public sealed class PerfTestScreen : UiScreen
     private static void DrawRendererStatusOverlay(UiImmediateContext ui)
     {
         var vsync = ui.GetVSync() ? "ON" : "OFF";
-        var taa = ui.GetTaaEnabled() ? "ON" : "OFF";
-        var fxaa = ui.GetFxaaEnabled() ? "ON" : "OFF";
-        var weight = ui.GetTaaCurrentFrameWeight();
         var msaa = ui.GetMsaaSamples();
-        var text = $"Renderer: VSync {vsync} | MSAA {msaa}x | TAA {taa} | FXAA {fxaa} | AA W {weight:0.00}";
+        var text = $"Renderer: VSync {vsync} | MSAA {msaa}x";
         ui.DrawOverlayText(
             text,
             new UiColor(210, 210, 210),

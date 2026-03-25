@@ -56,12 +56,8 @@ public sealed class UiState
     private int _frameCount;
     private bool _vSync = true;
     private bool _vSyncDirty;
-    private bool _taaEnabled;
-    private bool _fxaaEnabled;
-    private bool _taaExcludeFont = true;
-    private float _taaCurrentFrameWeight = 0.18f;
     private int _msaaSamples = 4;
-    private bool _rendererAaSettingsDirty;
+    private bool _rendererSettingsDirty;
     private bool _hasActiveAnimations;
     private List<(UiRect Rect, int Tier)> _popupBlockingRects = [];
     private List<(UiRect Rect, int Tier)> _prevPopupBlockingRects = [];
@@ -214,66 +210,6 @@ public sealed class UiState
         return true;
     }
 
-    public bool TaaEnabled
-    {
-        get => _taaEnabled;
-        set
-        {
-            if (_taaEnabled == value)
-            {
-                return;
-            }
-
-            _taaEnabled = value;
-            _rendererAaSettingsDirty = true;
-        }
-    }
-
-    public bool FxaaEnabled
-    {
-        get => _fxaaEnabled;
-        set
-        {
-            if (_fxaaEnabled == value)
-            {
-                return;
-            }
-
-            _fxaaEnabled = value;
-            _rendererAaSettingsDirty = true;
-        }
-    }
-
-    public bool TaaExcludeFont
-    {
-        get => _taaExcludeFont;
-        set
-        {
-            if (_taaExcludeFont == value)
-            {
-                return;
-            }
-
-            _taaExcludeFont = value;
-            _rendererAaSettingsDirty = true;
-        }
-    }
-
-    public float TaaCurrentFrameWeight
-    {
-        get => _taaCurrentFrameWeight;
-        set
-        {
-            if (MathF.Abs(_taaCurrentFrameWeight - value) <= float.Epsilon)
-            {
-                return;
-            }
-
-            _taaCurrentFrameWeight = value;
-            _rendererAaSettingsDirty = true;
-        }
-    }
-
     public int MsaaSamples
     {
         get => _msaaSamples;
@@ -286,18 +222,18 @@ public sealed class UiState
             }
 
             _msaaSamples = normalized;
-            _rendererAaSettingsDirty = true;
+            _rendererSettingsDirty = true;
         }
     }
 
-    public bool ConsumeRendererAaSettingsDirty()
+    public bool ConsumeRendererSettingsDirty()
     {
-        if (!_rendererAaSettingsDirty)
+        if (!_rendererSettingsDirty)
         {
             return false;
         }
 
-        _rendererAaSettingsDirty = false;
+        _rendererSettingsDirty = false;
         return true;
     }
 

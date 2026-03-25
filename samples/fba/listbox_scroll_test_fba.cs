@@ -18,10 +18,7 @@ DuxelApp.Run(new DuxelAppOptions
         Width = 1280,
         Height = 780
     },
-    Font = new DuxelFontOptions
-    {
-        InitialGlyphs = ListBoxScrollTestScreen.GlyphStrings
-    },
+
     Screen = new ListBoxScrollTestScreen(itemCount)
 });
 
@@ -38,20 +35,6 @@ static int ReadItemCount()
 
 public sealed class ListBoxScrollTestScreen : UiScreen
 {
-    public static readonly string[] GlyphStrings =
-    [
-        "Duxel ListBox Scroll Test (FBA)",
-        "ListBox Scroll Test",
-        "Total Items",
-        "Visible Rows",
-        "Selected",
-        "Jump Top",
-        "Jump Middle",
-        "Jump Bottom",
-        "Huge ListBox",
-        "Use mouse wheel / scrollbar to verify smooth scrolling"
-    ];
-
     private readonly string[] _items;
     private int _selectedIndex;
     private int _visibleRows = 16;

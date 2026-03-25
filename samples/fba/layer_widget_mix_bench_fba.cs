@@ -37,7 +37,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
         public int Density;
     }
 
-    private readonly record struct PhaseSpec(string Name, bool EnableStaticCache, UiLayerCacheBackend Backend, int DensityScale);
+    private readonly record struct PhaseSpec(string Name, bool EnableStaticCache, int DensityScale);
 
     private readonly List<LayerCard> _layers =
     [
@@ -55,7 +55,6 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
 
     private bool _initialized;
     private bool _cacheEnabled;
-    private UiLayerCacheBackend _cacheBackend = UiLayerCacheBackend.DrawList;
     private int _densityScale = 100;
 
     private int _phaseIndex;
@@ -123,9 +122,8 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
         for (var i = 0; i < _densityScales.Length; i++)
         {
             var scale = _densityScales[i];
-            _phases.Add(new PhaseSpec($"nocache-drawlist-{scale}", EnableStaticCache: false, UiLayerCacheBackend.DrawList, scale));
-            _phases.Add(new PhaseSpec($"cache-drawlist-{scale}", EnableStaticCache: true, UiLayerCacheBackend.DrawList, scale));
-            _phases.Add(new PhaseSpec($"cache-texture-{scale}", EnableStaticCache: true, UiLayerCacheBackend.Texture, scale));
+            _phases.Add(new PhaseSpec($"nocache-drawlist-{scale}", EnableStaticCache: false, scale));
+            _phases.Add(new PhaseSpec($"cache-drawlist-{scale}", EnableStaticCache: true, scale));
         }
     }
 
@@ -138,7 +136,6 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
 
         var phase = _phases[index];
         _cacheEnabled = phase.EnableStaticCache;
-        _cacheBackend = phase.Backend;
         _densityScale = phase.DensityScale;
     }
 
@@ -174,7 +171,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
             _phaseIndex,
             phase.Name,
             phase.EnableStaticCache ? "true" : "false",
-            phase.Backend == UiLayerCacheBackend.Texture ? "texture" : "drawlist",
+            "drawlist",
             phase.DensityScale,
             avgFps,
             _phaseSampleCount));
@@ -220,7 +217,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
         ui.TextV("FPS: {0:0.0}", _fps);
         ui.TextV("Phase: {0}/{1}", Math.Min(_phaseIndex + 1, Math.Max(1, _phases.Count)), Math.Max(1, _phases.Count));
         ui.TextV("Cache: {0}", _cacheEnabled ? "ON" : "OFF");
-        ui.TextV("Backend: {0}", _cacheBackend == UiLayerCacheBackend.Texture ? "Texture" : "DrawList");
+        ui.Text("Backend: DrawList");
         ui.TextV("Density Scale: {0}%", _densityScale);
 
         if (ui.Button("Mark All Layers Dirty"))
@@ -299,8 +296,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
         var options = new UiLayerOptions(
             StaticCache: _cacheEnabled,
             Opacity: 1f,
-            Translation: new UiVector2(bodyRect.X, bodyRect.Y),
-            CacheBackend: _cacheEnabled ? _cacheBackend : UiLayerCacheBackend.DrawList);
+            Translation: new UiVector2(bodyRect.X, bodyRect.Y));
 
         var shouldDraw = ui.BeginLayer($"mix_layer_{layer.Id}", options);
         if (shouldDraw)

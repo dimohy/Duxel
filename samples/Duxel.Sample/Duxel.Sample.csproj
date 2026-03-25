@@ -17,7 +17,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <TrimmerRootDescriptor Include="linker.xml" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -30,7 +29,6 @@
     <PublishTrimmed>true</PublishTrimmed>
     <OptimizationPreference>Size</OptimizationPreference>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <NoWarn>$(NoWarn);IL2104;IL3000;IL3002;IL3053</NoWarn>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 

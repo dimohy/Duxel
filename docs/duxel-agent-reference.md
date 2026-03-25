@@ -1,6 +1,6 @@
 # Duxel Agent Reference
 
-> Last synced: 2026-03-14
+> Last synced: 2026-03-25
 > Audience: coding agents and developers building apps, samples, and reusable UI components with Duxel
 > Scope: Duxel feature map, architecture boundaries, recommended workflows, and sample anchors
 
@@ -188,7 +188,6 @@ These defaults are safe to rely on when generating ordinary Duxel code.
 | `Padding` | `2` |
 | `Oversample` | `2` |
 | `InitialRanges` | ASCII range `0x20..0x7E` |
-| `InitialGlyphs` | empty |
 
 ### `DuxelFrameOptions`
 

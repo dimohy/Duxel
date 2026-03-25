@@ -2,12 +2,39 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## 0.2.1-preview (2026-03-25)
+
+### Major Features
+
+- **[Feature]** Multi-window support (modal/modeless) — `ShowModal()` blocks with owner-window disable, `ShowModalAsync()` provides the async variant, and `ShowModeless()` launches independent non-blocking windows with per-window `DuxelAppSession` lifecycle.
+- **[Feature]** System tray icon support — `WindowsTrayIconHost` provides tray icon, tooltip, context menu, double-click handler, minimize-to-tray, and hide-on-close via Win32 Shell API.
+- **[Feature]** Pure Vulkan P/Invoke binding layer — replaced Silk.NET Vulkan with direct `LibraryImport`-based bindings (`VulkanApi`, `VulkanStructs`, `VulkanEnums`, `VulkanHandles`, `VulkanExtensions`, `VulkanMarshaling`), fully NativeAOT-compatible.
+- **[Feature]** ClearType subpixel text rendering shader — new fragment shader (`imgui_subpixel.frag`) with per-RGB-channel coverage output for DirectWrite ClearType quality on Vulkan.
+- **[Feature]** Windows WIC image codec — replaced `System.Drawing.Common` with pure COM-based Windows Imaging Component decoder, supporting GIF animation compositing with proper frame disposal and alpha blending.
+
+### Major Improvements
+
+- **[Improvement]** Session-based application lifecycle — extracted `DuxelAppSession` from monolithic `DuxelApp.RunCore()`, enabling independent session instances with dual-thread render loop, idle frame skip, and incremental font atlas scheduling.
+- **[Improvement]** Expanded window options — added configurable `MinWidth`/`MinHeight`, `Resizable`, minimize/maximize button visibility, `CenterOnScreen`/`CenterOnOwner`, owner window handle, custom icon (file/memory), and `WindowCreated` callback.
+- **[Improvement]** Platform-specific entry point — FBA samples now use `DuxelWindowsApp.Run()` with `Duxel.$(platform).App` package directive instead of generic `DuxelApp.Run()`.
+
+### Major Bug Fixes
+
+- **[Bug]** Removed `System.Drawing.Common` dependency that blocked clean NativeAOT publishing.
+
+### Packaging / Release
+
+- Removed Silk.NET Vulkan and `System.Drawing.Common` package dependencies.
+- Archived experimental layer texture cache backend (`UiLayerCacheBackend.Texture`).
+- Removed built-in demo windows (`UiImmediateContext.DemoWindows.cs`).
+- Bumped package version to `0.2.1-preview` (`Duxel.App`, `Duxel.Windows.App`).
+
 ## 0.2.0-preview (2026-03-09)
 
 ### Major Features
 
 - **[Feature]** Expanded the showcase/sample surface — `samples/fba/all_features.cs` was broadened into a richer end-to-end workspace with dedicated windows for layout, typography, popup/context patterns, selection/status tools, markdown editing/viewing, and built-in demo coverage.
-- **[Feature]** Added and documented richer extension points — custom widget documentation, updated sample screens, markdown-oriented widgets, and animated/image-oriented sample content were aligned so advanced UI composition is easier to discover and validate.
+- **[Feature]** Added richer extension points at both API and sample level — instance-based custom widget composition (`IUiCustomWidget`), markdown editor/viewer widgets, animated image playback plumbing, and the supporting docs/samples were aligned so advanced UI composition is easier to discover and validate.
 
 ### Major Improvements
 
@@ -20,6 +47,7 @@ This document accumulates version-by-version changes for Duxel.
 - **[Bug]** Fixed multiline and markdown line-ending handling — CRLF, LF, and CR inputs are normalized so editors no longer accumulate hidden carriage-return artifacts.
 - **[Bug]** Fixed Korean IME responsiveness — Windows IME updates now wake frames immediately and prefer live composition text so typing appears without bursty lag.
 - **[Bug]** Fixed showcase layout regressions — resolved row text clipping, compact hero overlap, unnecessary child/column width confusion, and related presentation issues uncovered while expanding the sample workspace.
+- **[Bug]** Fixed same-line row-height propagation at the library level — mixed-height inline items now carry the tallest row height through `SameLine`, `NewLine`, columns, and tables so follow-up content no longer overlaps or advances to the wrong Y position.
 - **[Bug]** Fixed top-most window behavior at the library level — implemented real persistent top-most semantics so the built-in `Closable Window` stays above normal windows without click-through or broken stacking behavior.
 
 ### Packaging / Release
@@ -28,27 +56,21 @@ This document accumulates version-by-version changes for Duxel.
 
 ## 0.1.15-preview (2026-03-05)
 
-### Changes
+### Major Features
 
-- **[Feature]** Added platform text backend abstraction — `IPlatformTextBackend` / `PlatformTextRasterizeRequest` / `PlatformTextRasterizeResult` interfaces for cross-platform text rasterization decoupled from the atlas pipeline.
-- **[Feature]** Added DWrite text-run rasterization backend — `WindowsPlatformTextBackend` rasterizes entire font runs with a single DWrite COM call per run (vs. per-glyph), with `BuildFontRuns` for mixed-script (e.g. Latin+Hangul) text splitting.
-- **[Feature]** Added `SetDirectTextBaseFontSize` API — new setter on `UiContext` / `UiImmediateContext` to control the DWrite base em-size independently of line height, wired from `DuxelFontOptions.FontSize`.
-- **[Improvement]** Migrated all widget text rendering to DWrite direct-text path — every widget (Button, Tree, Tab, Table, Menu, Slider, Input, ListBox, Selectable, Separator, Tooltip, Combo, Drag) now uses `MeasureTextInternal` / `AddTextInternal` which automatically leverages DWrite when available.
-- **[Improvement]** Eliminated double-rasterization in DWrite text path — `TryMeasureDirectText` now pre-caches the rasterized result so that `TryRenderDirectText` always hits the cache.
-- **[Improvement]** Replaced per-glyph DWrite rasterization with text-run API — single COM call per font run instead of per-glyph, significantly reducing COM overhead.
-- **[Improvement]** Reduced allocations in `TrimDirectTextCache` — replaced `List<>` with fixed arrays and added `hasStale` early-exit check to avoid iteration when no entries are stale.
-- **[Improvement]** Added font atlas disk cache toggle — `DUXEL_FONT_DISK_CACHE` environment variable to enable/disable font atlas serialization.
-- **[Improvement]** Added font atlas diagnostics — `DUXEL_FONT_ATLAS_DIAG`, `DUXEL_FONT_ATLAS_DIAG_LOG`, `DUXEL_FONT_ATLAS_DUMP_DIR` environment variables for atlas build tracing and texture dump.
-- **[Improvement]** Added Vulkan font command diagnostics — `DUXEL_VK_FONT_CMD_DIAG`, `DUXEL_VK_FONT_CMD_DIAG_LOG`, `DUXEL_VK_FONT_BOUNDS_ASSERT` environment variables for font texture command tracing and bounds validation.
-- **[Improvement]** Added `CodepointSignature` to `UiFontResource` — FNV-1a hash of atlas pixel data for cache invalidation when codepoint set changes.
-- **[Improvement]** Added per-frame frozen codepoint snapshot — `frameCodepointSnapshot` prevents mid-frame codepoint drift from `OnMissingGlyph` mutating the active set.
-- **[Bug]** Fixed texture ID collision between dynamic atlas and DWrite text — separated ID ranges (dynamic atlas from `1_100_000_000`, DWrite text from `2_100_000_000`).
-- **[Bug]** Fixed staging buffer data race in `VulkanRendererBackend.UploadTextureData` — reordered so fence wait completes before host memory write.
-- **[Bug]** Fixed Korean text not displaying with text-run API — whitespace in `BuildFontRuns` no longer triggers a font switch, preventing empty alpha bounds on whitespace-only runs.
-- **[Bug]** Fixed DWrite base font size using `LineHeight` (~21px) instead of actual build font size (16px) — `_directTextBaseFontSize` now stores the correct em-size.
-- **[Bug]** Fixed DWrite text vertical centering — added Y offset to center the rasterized bitmap within the measured line height.
-- **[Bug]** Fixed `TryRecreateSwapchain` surface-lost handling — `RecreateSwapchain()` replaced with `TryRecreateSwapchain()` that returns `false` on failure, preventing cascading Vulkan errors.
-- **[Bug]** Fixed normalized staging buffer size validation — `GetExpectedTextureDataSize` computes exact byte count per format, and `UploadTextureData` pads undersized pixel buffers instead of crashing.
+- **[Feature]** Introduced the platform text rasterization abstraction — `IPlatformTextBackend` and its request/result contracts decouple cross-platform text rasterization from the atlas pipeline.
+- **[Feature]** Added the DWrite text-run backend and base font-size control — `WindowsPlatformTextBackend` now rasterizes mixed-script text per font run, and `SetDirectTextBaseFontSize` lets the DWrite em-size stay independent from line height.
+
+### Major Improvements
+
+- **[Improvement]** Migrated the widget text stack onto the DWrite-aware path — core widgets now share `MeasureTextInternal` / `AddTextInternal`, while run-level rasterization replaces per-glyph COM traffic.
+- **[Improvement]** Consolidated text/cache maintenance and diagnostics — direct-text pre-caching, lower-allocation cache trimming, atlas disk-cache toggles, atlas/Vulkan font diagnostics, and codepoint signature/snapshot tracking now work together as one maintainable pipeline.
+
+### Major Bug Fixes
+
+- **[Bug]** Fixed DWrite correctness end to end — resolved Korean text loss on whitespace runs, corrected base em-size usage, and centered rasterized text within measured line height.
+- **[Bug]** Fixed GPU text resource reliability — separated dynamic-atlas/DWrite texture ID ranges, reordered staging uploads to avoid fence/write races, and hardened texture data size normalization.
+- **[Bug]** Fixed swapchain recreation failure handling — `TryRecreateSwapchain()` now returns failure cleanly instead of cascading Vulkan errors after surface loss.
 
 ### Packaging / Release
 
@@ -56,16 +78,15 @@ This document accumulates version-by-version changes for Duxel.
 
 ## 0.1.14-preview (2026-02-28)
 
-### Changes
+### Major Improvements
 
-- **[Bug]** Fixed Hangul fallback font blocked — `UiTextBuilder` had `IsHangulCodepoint()` guard that prevented secondary font lookup (e.g. `malgun.ttf`) for Korean codepoints, causing broken glyphs when the primary font lacked Hangul coverage.
-- **[Bug]** Fixed DWrite atlas rasterizer disabled by `DUXEL_DIRECT_TEXT=0` — previously the environment variable switched both the direct-text rendering path **and** the atlas glyph rasterizer to software TTF, losing hinting and producing low-quality Hangul at small sizes. Now `DUXEL_DIRECT_TEXT` only controls the direct-text path; atlas rasterizer always uses DWrite on Windows (explicit `DUXEL_ENABLE_TTF_GLYPH_RASTERIZER=1` to opt in to TTF).
-- **[Bug]** Fixed stale dynamic font atlas reuse — `ResolveDynamicFontResource` returned cached atlases even when the codepoint set had grown (e.g. 109 → 115 glyphs), causing missing Hangul characters at certain sizes. Added `CodepointSignature` to `UiFontResource` for cache validation.
-- **[Bug]** Fixed `SelectClosestCachedFontSize` size mismatch — a 10% threshold allowed reuse of a 58px atlas for 64px requests, causing glyph metric/UV misalignment. Removed the fuzzy-match logic; each integer size now always builds its own atlas.
-- **[Bug]** Fixed mid-frame codepoint drift — `OnMissingGlyph` could mutate `activeCodepointSet` between `PushFontSize` calls within the same frame, causing atlas inconsistency. Introduced per-frame frozen `frameCodepointSnapshot` taken once at frame start.
-- **[Bug]** Fixed dynamic font cache not invalidated on new glyphs — added `InvalidateDynamicFontResourceCache()` that destroys stale textures whenever `pendingGlyphs` grows or renderer reports missing glyphs.
-- **[Bug]** Fixed Vulkan `ErrorSurfaceLostKhr` crash on window close — `RecreateSwapchain()` replaced with `TryRecreateSwapchain()` that catches surface-lost exceptions gracefully; render thread wrapped in `try/catch` for shutdown-time Vulkan errors.
-- **[Improvement]** Added early render loop break on `ShouldClose`/`stopRequested` to prevent extra frames after window close signal.
+- **[Improvement]** Reduced shutdown/render-loop churn — the render loop now exits earlier when `ShouldClose` / `stopRequested` is observed, preventing extra frames during teardown.
+
+### Major Bug Fixes
+
+- **[Bug]** Fixed Hangul fallback and DWrite atlas selection — Korean codepoints can reach secondary fonts again, and `DUXEL_DIRECT_TEXT=0` no longer downgrades the atlas rasterizer away from DWrite.
+- **[Bug]** Fixed dynamic atlas cache consistency as one reliability pass — stale atlas reuse, fuzzy cached-size matching, mid-frame codepoint drift, and missing invalidation on new glyph discovery were all removed so each font size/codepoint snapshot resolves deterministically.
+- **[Bug]** Fixed shutdown-time Vulkan surface-loss handling — swapchain recreation now fails safely and close-time render-thread errors no longer cascade into crashes.
 
 ### Packaging / Release
 
@@ -73,18 +94,15 @@ This document accumulates version-by-version changes for Duxel.
 
 ## Documentation Update (2026-02-26)
 
-### Changes
+### Major Improvements
 
-- **[Improvement]** Reworked `README.md` as English-first and added `README.ko.md`.
-- **[Improvement]** Rewrote `docs/ui-dsl.md` based on current parser/runtime (`UiDslParser`, `UiDslWidgetDispatcher`, `UiDslPipeline`).
-- **[Improvement]** Synchronized FBA guide docs (`docs/getting-started-fba.md`, `docs/fba-reference-guide.md`, `docs/fba-run-samples.md`) to the current sample directive (`Duxel.$(platform).App`).
-- **[Improvement]** Added synchronization timestamps to major docs for clearer update baselines.
+- **[Improvement]** Reworked the documentation surface as one coordinated pass — refreshed the English/Korean READMEs, rewrote the UI DSL guide against the current parser/runtime, synchronized the FBA guides, and added sync timestamps to clarify document freshness.
 
 ## 0.1.13-preview (2026-02-20)
 
-### Changes
+### Major Bug Fixes
 
-- **[Bug]** Changed `Duxel.Windows.App`/`Duxel.Platform.Windows` target framework from `net10.0-windows` to `net10.0` to resolve NU1202 compatibility errors in `net10.0` FBA runs and preserve future Linux cross-platform FBA test paths.
+- **[Bug]** Fixed FBA compatibility for `net10.0` consumers — retargeted `Duxel.Windows.App` and `Duxel.Platform.Windows` from `net10.0-windows` to `net10.0`, removing NU1202 failures while preserving future cross-platform FBA validation paths.
 
 ### Packaging / Release
 
@@ -92,20 +110,18 @@ This document accumulates version-by-version changes for Duxel.
 
 ## 0.1.12-preview (2026-02-20)
 
-### Changes
+### Major Features
 
-- **[Feature]** Added DirectWrite text rendering system — new `WindowsDirectWriteGlyphRasterizer`, runtime direct-text toggle API (`SetDirectTextEnabled`/`GetDirectTextEnabled`), `DUXEL_DIRECT_TEXT` environment variable support, and text cache management (LRU 256 entries).
-- **[Feature]** Completed Windows platform backend separation — new `WindowsPlatformBackend` (975 lines), full removal of GLFW platform (`Duxel.Platform.Glfw`).
-- **[Feature]** Added immediate-mode animation framework — `AnimateFloat` API (easing such as OutCubic), continuous render request via `RequestFrame`, and animation track state management.
-- **[Feature]** Added runtime font-size control APIs — `PushFontSize`/`PopFontSize`, `fontSize` parameter on `DrawTextAligned`, and font atlas rasterizer split (`UiFontAtlas.Rasterizers.cs`).
-- **[Feature]** Promoted many widget/benchmark helper APIs — `BeginWindowCanvas`/`EndWindowCanvas`, `DrawOverlayText`, `UiFpsCounter`, `DrawKeyValueRow`, `BenchOptions`, `DrawLayerCardSkeleton`/`DrawLayerCard`/`DrawLayerCardInteractive` (`UiLayerCardInteraction` struct).
-- **[Feature]** Extended layout system — `EnableRootViewportContentLayout`, `AlignRect`, `SetNextItemVerticalAlign`, vertical alignment support for `SameLine`.
-- **[Feature]** Added icon system — built-in icon rendering in `UiImmediateContext.Icons`.
-- **[Feature]** Added Windows calculator FBA — cyber backdrop/ripple/FX button/translucent UI showcase (`windows_calculator_fba.cs`) and RPN trace/multi-base showcase (`windows_calculator_duxel_showcase_fba.cs`).
-- **[Improvement]** Unified widget API signatures — added `string? id` parameters to Combo/ListBox/Table/Tree to prevent ID collisions.
-- **[Improvement]** Improved IME handling stability — refactored `WindowsImeHandler`.
-- **[Improvement]** Switched 10+ FBA samples from boilerplate (FPS/overlay/bench parser/card rendering) to library APIs, significantly simplifying code.
-- **[Improvement]** Verified average +5.87% FPS improvement in Direct Text ON/OFF A/B benchmark (375→397 FPS).
+- **[Feature]** Added the first full DirectWrite text pipeline — new DWrite rasterizer, runtime direct-text toggle APIs, environment-variable control, and text cache management.
+- **[Feature]** Completed the Windows platform/backend separation — introduced `WindowsPlatformBackend` and fully removed the GLFW platform path.
+- **[Feature]** Added foundational UI runtime building blocks — animation tracks, runtime font-size control, layout/alignment helpers, icon rendering, and promoted canvas/overlay/card helper APIs for reuse.
+- **[Feature]** Added richer Windows-focused showcase apps — calculator-style FBA samples now demonstrate translucent surfaces, FX interactions, and multi-base/RPN scenarios.
+
+### Major Improvements
+
+- **[Improvement]** Unified core widget and platform behavior — widget APIs gained explicit IDs where needed, IME handling was stabilized, and the runtime surface became easier to compose consistently.
+- **[Improvement]** Moved sample and benchmark boilerplate into reusable library APIs — more than 10 FBA samples now share common helpers instead of duplicating FPS, overlay, parsing, and card-rendering logic.
+- **[Improvement]** Verified measurable Direct Text gains — the ON/OFF A/B benchmark confirmed an average FPS improvement of about 5.87% (375→397).
 
 ### Packaging / Release
 
@@ -113,17 +129,10 @@ This document accumulates version-by-version changes for Duxel.
 
 ## 0.1.11-preview (2026-02-17)
 
-### Performance Highlights
+### Major Improvements
 
-- Applied global static cache strategy (`duxel.global.static:*`) to benchmark samples, reducing static background regeneration cost and documenting reproducible differences against all-dynamic rendering.
-- Validated layer dirty strategy as `all` vs `single`, confirming improved cache rebuild count and FPS when invalidation scope is reduced.
-- Ran hot-path experiments for text/layer/clip paths; retained valid optimizations and immediately rolled back attempts with measured regressions.
-
-### Benchmark & Measurement
-
-- Improved long-run stability of clip clamp A/B automation (`scripts/run-vector-clip-ab.ps1`, `scripts/run-layer-widget-clip-ab.ps1`) with timeout/process cleanup.
-- Added repeated performance comparison automation (`scripts/run-duxel-perf-ab.ps1`) to standardize baseline/candidate averages, variance, and improvement rates.
-- Strengthened performance logging policy and session logs for traceable change-validation-result records.
+- **[Improvement]** Standardized performance experimentation around global static cache and layer dirty strategy — benchmark samples now compare static/dynamic invalidation paths more reproducibly, and hot-path trials retain validated wins while rolling back measured regressions.
+- **[Improvement]** Strengthened benchmarking automation and logging as one workflow — clip/layer A/B scripts gained timeout/process cleanup, repeated perf comparison reports now summarize averages/variance/improvement, and optimization sessions became easier to trace.
 
 ### Packaging / Release
 
@@ -131,79 +140,45 @@ This document accumulates version-by-version changes for Duxel.
 
 ## 0.1.10-preview (2026-02-15)
 
-### Rendering / Layer Cache
+### Major Improvements
 
-- Improved static tag detection for Vulkan texture layers so texture compose reuse works correctly even when opacity suffix (`:oXXXXXXXX`) is present.
-- Revalidated reused-tag consistency for backend/opacity combinations in layer static-cache checks and documented regression points.
+- **[Improvement]** Hardened Vulkan layer-cache tag handling — texture-compose reuse now survives opacity suffixes, and backend/opacity combinations were revalidated more consistently.
+- **[Improvement]** Expanded benchmark controls for rendering regressions — fixed-opacity validation knobs and richer collision-response dynamics made performance samples more useful for repeatable comparisons.
 
-### Samples / Bench
-
-- Added `DUXEL_LAYER_BENCH_OPACITY` environment variable to `samples/fba/idle_layer_validation.cs` for fixed-opacity regression benchmark automation.
-- Extended collision response model in `samples/fba/Duxel_perf_test_fba.cs` so angular velocity/rotation direction also react on impacts (impulse + damping).
-
-### Packaging / NuGet
+### Packaging / Release
 
 - Bumped NuGet package version to `0.1.10-preview` (`Duxel.App`, `Duxel.Windows.App`).
 
 ## 0.1.9-preview (2026-02-15)
 
-### Packaging / NuGet
+### Major Improvements
 
-- Updated package descriptions for `Duxel.App` and `Duxel.Windows.App` to reflect the current distribution structure.
-- Kept NuGet distribution to two packages only (`Duxel.App`, `Duxel.Windows.App` at 0.1.9-preview).
-
-### Samples
-
-- Simplified project samples to DSL-focused validation with only `samples/Duxel.Sample` retained.
-- Removed: `samples/Duxel.PerfTest`, `samples/Duxel.Sample.NativeAot`.
-- Switched FBA sample package directives to `Duxel.Windows.App` baseline.
-
-### Documentation
-
-- Updated README project sample table and build/distribution guidance to match the current sample structure.
-- Cleaned references to removed samples in related docs (`docs/ui-dsl.ko.md`, `docs/getting-started-fba.ko.md`).
-- Consolidated ImGui-related split docs into `docs/design.ko.md` and removed `docs/imgui-coverage.md`.
-- Reorganized `docs/todo.md` into a remaining-work-only document by removing completed items.
+- **[Improvement]** Simplified the distribution story — package descriptions were refreshed and NuGet delivery stayed focused on `Duxel.App` and `Duxel.Windows.App`.
+- **[Improvement]** Simplified the sample surface around DSL validation — only `samples/Duxel.Sample` remains, older sample projects were removed, and FBA package directives were standardized on `Duxel.Windows.App`.
+- **[Improvement]** Cleaned the surrounding docs to match the reduced sample/package surface — README tables, removed-sample references, ImGui design docs, and `docs/todo.md` were reorganized together.
 
 ## 0.1.8-preview (2026-02-15)
 
-### Packaging / Distribution
+### Major Features
 
-- Simplified package distribution strategy to two packages: `Duxel.App` and `Duxel.Windows.App`.
-- Stopped standalone NuGet distribution for `Duxel.Core`, `Duxel.Vulkan`, `Duxel.Platform.Windows`; bundled them into upper-level packages.
-- Included `Duxel.Platform.Windows` inside `Duxel.Windows.App`, so Windows app users can install a single package.
+- **[Feature]** Simplified package distribution into a two-package model — `Duxel.App` and `Duxel.Windows.App` became the public delivery surface while lower-level packages were bundled underneath.
+- **[Feature]** Added platform injection hooks to `Duxel.App` — key repeat, clipboard, and IME services can now be supplied through options instead of hard Windows dependencies.
+- **[Feature]** Shipped DSL source generation through the app package — `Duxel.Core.Dsl.Generator` is included as an analyzer so source generation works from a single package install.
 
-### Architecture
+### Major Improvements
 
-- Removed direct Windows dependencies from `Duxel.App` (`WindowsClipboard`, `WindowsImeHandler`, `WindowsUiImageDecoder`, `WindowsKeyRepeatSettingsProvider`).
-- Added option hooks for platform-specific injection:
-	- `KeyRepeatSettingsProvider`
-	- `ClipboardFactory`
-	- `ImeHandlerFactory`
-
-### DSL / Source Generator
-
-- Included `Duxel.Core.Dsl.Generator` as an analyzer in `Duxel.App` (`analyzers/dotnet/cs`) so source generation works from a single package installation.
-
-### Documentation
-
-- Kept only latest-version highlights in `README.md` and moved cumulative history to this document.
+- **[Improvement]** Reduced Windows coupling in the app layer and documentation surface — direct Windows service references were removed from the app package, and cumulative history was moved out of `README.md` into this dedicated document.
 
 ---
 
 ## 0.1.7-preview
 
-### Rendering / Performance
+### Major Features
 
-- Improved TAA/FXAA toggle path in Vulkan backend and made runtime AA switching safely reconfigure resources/pipelines.
-- Refined performance samples/checklists for repeatable MSAA/FXAA comparison experiments.
+- **[Feature]** Added platform-neutral image APIs and runtime Windows registration — `UiImageTexture`, `UiImageEffects`, and `IUiImageDecoder` decouple image support from Windows specifics while `Duxel.App` wires the Windows decoder at runtime.
+- **[Feature]** Extended the FBA image showcase — the sample now supports web image source selection and GIF frame animation playback.
 
-### Core / Platform
+### Major Improvements
 
-- Added platform-neutral image APIs to `Duxel.Core` (`UiImageTexture`, `UiImageEffects`, `IUiImageDecoder`).
-- Split Windows-specific decoder into `Duxel.Platform.Windows` and registered it at runtime in `Duxel.App`, removing platform dependency from Core.
-
-### Samples / UI
-
-- Added web image source selection (PNG/JPG/GIF) and GIF frame animation playback to FBA image sample.
-- Adjusted collapse/expand UI behavior to keep a 3px body peek when collapsed while preventing canvas overflow.
+- **[Improvement]** Improved Vulkan AA toggle handling and validation workflows — runtime TAA/FXAA switching reconfigures resources more safely, and MSAA/FXAA comparison procedures became more repeatable.
+- **[Improvement]** Refined collapse/expand UI presentation — the collapsed state preserves a small body peek without allowing canvas overflow.

@@ -24,28 +24,6 @@ DuxelApp.Run(new DuxelAppOptions
 
 public sealed class MixedUiStressScreen : UiScreen
 {
-    public static readonly IReadOnlyList<string> GlyphStrings = new[]
-    {
-        "Mixed UI Stress",
-        "Controls",
-        "Summary",
-        "Tables",
-        "Lists",
-        "Forms",
-        "Canvas",
-        "Rows",
-        "Columns",
-        "Renderers",
-        "Workers",
-        "Search",
-        "Filter",
-        "Status",
-        "Paused",
-        "Reset",
-        "FPS",
-        "Count"
-    };
-
     private readonly double _benchDurationSeconds = ReadBenchDurationSeconds();
     private readonly string? _benchOutputPath = Environment.GetEnvironmentVariable("DUXEL_PERF_BENCH_OUT");
 

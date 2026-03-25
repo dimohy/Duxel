@@ -23,17 +23,10 @@ public readonly record struct UiColor(uint Rgba)
         : this((uint)a << 24 | (uint)b << 16 | (uint)g << 8 | r) { }
 }
 
-public enum UiLayerCacheBackend
-{
-    DrawList,
-    Texture,
-}
-
 public readonly record struct UiLayerOptions(
     bool StaticCache,
     float Opacity,
-    UiVector2 Translation,
-    UiLayerCacheBackend CacheBackend = UiLayerCacheBackend.DrawList
+    UiVector2 Translation
 );
 
 public readonly record struct UiLayerCardInteraction(
@@ -1214,8 +1207,4 @@ public interface IRendererBackend : IDisposable
     void SetMinImageCount(int count);
     void SetVSync(bool enable);
     void SetMsaaSamples(int samples);
-    void SetTaaEnabled(bool enable);
-    void SetFxaaEnabled(bool enable);
-    void SetTaaExcludeFont(bool exclude);
-    void SetTaaCurrentFrameWeight(float weight);
 }

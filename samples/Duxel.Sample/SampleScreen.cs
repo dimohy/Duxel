@@ -1,31 +1,8 @@
 using System;
-using System.Collections.Generic;
 using Duxel.Core;
 
 public sealed class SampleScreen : UiScreen
 {
-    public static readonly IReadOnlyList<string> GlyphStrings = new[]
-    {
-        "Duxel Immediate Sample",
-        "Immediate-mode UI in Render",
-        "Increment",
-        "Count:",
-        "Scale",
-        "Name",
-        "Notes",
-        "Enable Feature",
-        "Enabled",
-        "Disabled",
-        "DSL Demo 데모",
-        "Play 재생",
-        "Options 옵션",
-        "Exit 종료",
-        "Status 상태: Ready 준비됨",
-        "Refresh 새로고침",
-        "Enable VSync 수직동기화",
-        "Fullscreen 전체화면"
-    };
-
     private int _count;
     private bool _enabled = true;
     private float _scale = 0.5f;

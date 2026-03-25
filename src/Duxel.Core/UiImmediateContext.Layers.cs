@@ -7,16 +7,12 @@ namespace Duxel.Core;
 public sealed partial class UiImmediateContext
 {
     private const string StaticLayerGeometryTagPrefix = "duxel.layer.static:";
-    private const string DrawListBackendTagMarker = ":cbd";
-    private const string TextureBackendTagMarker = ":cbt";
 
     private sealed class UiLayerCachedList
     {
         public required UiDrawVertex[] LocalVertices { get; init; }
         public required uint[] LocalIndices { get; init; }
         public required UiDrawCommand[] LocalCommands { get; init; }
-        public required string StaticGeometryTag { get; init; }
-        public required UiLayerCacheBackend CacheBackend { get; init; }
 
         public UiDrawVertex[]? ReplayVertices;
         public UiDrawCommand[]? ReplayCommands;
@@ -29,7 +25,6 @@ public sealed partial class UiImmediateContext
     {
         public UiLayerCachedList[]? Lists;
         public bool Dirty = true;
-        public UiLayerCacheBackend CacheBackend = UiLayerCacheBackend.DrawList;
     }
 
     private readonly record struct UiLayerFrame(string LayerId, bool ShouldDraw, UiLayerOptions Options, UiDrawListBuilder? LayerBuilder, bool LocalClipPushed, UiRect LocalClip);
@@ -62,12 +57,6 @@ public sealed partial class UiImmediateContext
         {
             entry = new UiLayerCacheEntry();
             layerCaches[layerId] = entry;
-        }
-
-        if (entry.CacheBackend != nextOptions.CacheBackend)
-        {
-            entry.CacheBackend = nextOptions.CacheBackend;
-            entry.Dirty = true;
         }
 
         var parentClip = CurrentClipRect;
@@ -152,7 +141,7 @@ public sealed partial class UiImmediateContext
         {
             if (HasRenderableLayerContent(drawLists))
             {
-                entry.Lists = CaptureLayerLists(frame.LayerId, drawLists, frame.Options.CacheBackend);
+                entry.Lists = CaptureLayerLists(drawLists);
                 entry.Dirty = false;
                 ReleaseLayerDrawLists(drawLists);
 
@@ -208,20 +197,17 @@ public sealed partial class UiImmediateContext
         }
     }
 
-    private static UiLayerCachedList[] CaptureLayerLists(string layerId, UiDrawList[] drawLists, UiLayerCacheBackend cacheBackend)
+    private static UiLayerCachedList[] CaptureLayerLists(UiDrawList[] drawLists)
     {
         var result = new UiLayerCachedList[drawLists.Length];
         for (var i = 0; i < drawLists.Length; i++)
         {
             var list = drawLists[i];
-            var staticTag = BuildStaticGeometryTag(layerId, i, list, cacheBackend);
             result[i] = new UiLayerCachedList
             {
                 LocalVertices = list.Vertices.AsSpan().ToArray(),
                 LocalIndices = list.Indices.AsSpan().ToArray(),
                 LocalCommands = list.Commands.AsSpan().ToArray(),
-                StaticGeometryTag = staticTag,
-                CacheBackend = cacheBackend,
             };
         }
 
@@ -251,98 +237,9 @@ public sealed partial class UiImmediateContext
         return false;
     }
 
-    private static string BuildStaticGeometryTag(string layerId, int listIndex, UiDrawList drawList, UiLayerCacheBackend cacheBackend)
-    {
-        var hash = 1469598103934665603UL;
-
-        static void HashBytes(ref ulong hash, ReadOnlySpan<byte> bytes)
-        {
-            unchecked
-            {
-                for (var i = 0; i < bytes.Length; i++)
-                {
-                    hash ^= bytes[i];
-                    hash *= 1099511628211UL;
-                }
-            }
-        }
-
-        static void HashUInt32(ref ulong hash, uint value)
-        {
-            Span<byte> bytes = stackalloc byte[sizeof(uint)];
-            MemoryMarshal.Write(bytes, in value);
-            HashBytes(ref hash, bytes);
-        }
-
-        static void HashInt32(ref ulong hash, int value)
-        {
-            Span<byte> bytes = stackalloc byte[sizeof(int)];
-            MemoryMarshal.Write(bytes, in value);
-            HashBytes(ref hash, bytes);
-        }
-
-        static void HashUInt64(ref ulong hash, ulong value)
-        {
-            Span<byte> bytes = stackalloc byte[sizeof(ulong)];
-            MemoryMarshal.Write(bytes, in value);
-            HashBytes(ref hash, bytes);
-        }
-
-        static void HashNUInt(ref ulong hash, nuint value)
-        {
-            if (IntPtr.Size == sizeof(ulong))
-            {
-                HashUInt64(ref hash, (ulong)value);
-                return;
-            }
-
-            HashUInt32(ref hash, (uint)value);
-        }
-
-        HashInt32(ref hash, listIndex);
-
-        var vertices = drawList.Vertices.AsSpan();
-        HashInt32(ref hash, vertices.Length);
-        HashBytes(ref hash, MemoryMarshal.AsBytes(vertices));
-
-        var indices = drawList.Indices.AsSpan();
-        HashInt32(ref hash, indices.Length);
-        HashBytes(ref hash, MemoryMarshal.AsBytes(indices));
-
-        var commands = drawList.Commands.AsSpan();
-        HashInt32(ref hash, commands.Length);
-        for (var i = 0; i < commands.Length; i++)
-        {
-            var cmd = commands[i];
-            HashNUInt(ref hash, cmd.TextureId.Value);
-            HashUInt32(ref hash, cmd.IndexOffset);
-            HashUInt32(ref hash, cmd.ElementCount);
-            HashUInt32(ref hash, cmd.VertexOffset);
-            HashInt32(ref hash, BitConverter.SingleToInt32Bits(cmd.ClipRect.X));
-            HashInt32(ref hash, BitConverter.SingleToInt32Bits(cmd.ClipRect.Y));
-            HashInt32(ref hash, BitConverter.SingleToInt32Bits(cmd.ClipRect.Width));
-            HashInt32(ref hash, BitConverter.SingleToInt32Bits(cmd.ClipRect.Height));
-            HashInt32(ref hash, BitConverter.SingleToInt32Bits(cmd.Translation.X));
-            HashInt32(ref hash, BitConverter.SingleToInt32Bits(cmd.Translation.Y));
-            HashInt32(ref hash, cmd.Callback is null ? 0 : 1);
-        }
-
-        var backendMarker = cacheBackend == UiLayerCacheBackend.Texture
-            ? TextureBackendTagMarker
-            : DrawListBackendTagMarker;
-        return $"{StaticLayerGeometryTagPrefix}{layerId}:{listIndex}:{hash:X16}{backendMarker}";
-    }
-
     private static void EnsureReplay(UiLayerCachedList cached, float opacity, UiVector2 translation, UiRect layerLocalClip)
     {
         var clampedOpacity = Math.Clamp(opacity, 0f, 1f);
-        var opacityBits = BitConverter.SingleToInt32Bits(clampedOpacity);
-        var replayStaticTag = clampedOpacity >= 0.999f
-            ? cached.StaticGeometryTag
-            : $"{cached.StaticGeometryTag}:o{opacityBits:X8}";
-        object? replayUserData = cached.CacheBackend == UiLayerCacheBackend.Texture
-            ? replayStaticTag
-            : null;
         if (cached.ReplayValid
             && MathF.Abs(cached.ReplayTranslation.X - translation.X) <= 0.0001f
             && MathF.Abs(cached.ReplayTranslation.Y - translation.Y) <= 0.0001f
@@ -431,10 +328,7 @@ public sealed partial class UiImmediateContext
                 };
             }
 
-            replayCommands[i] = replayCommand with
-            {
-                UserData = replayUserData
-            };
+            replayCommands[i] = replayCommand with { UserData = null };
         }
 
         cached.ReplayOpacity = clampedOpacity;

@@ -1,8 +1,6 @@
 using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Duxel.Platform.Windows;
 
 namespace Duxel.Core;
 
@@ -43,35 +41,26 @@ public sealed class AnimatedUiImagePlayer
             return new AnimatedUiImagePlayer([single], [0.1f], false);
         }
 
-        using var image = Image.FromFile(path);
-        var dimensionIds = image.FrameDimensionsList;
-        if (dimensionIds is null || dimensionIds.Length == 0)
-        {
-            var single = UiImageTexture.LoadFromFile(path, new UiTextureId((nuint)baseTextureId));
-            return new AnimatedUiImagePlayer([single], [0.1f], false);
-        }
-
-        var dimension = new FrameDimension(dimensionIds[0]);
-        var frameCount = Math.Max(1, image.GetFrameCount(dimension));
+        var animation = WindowsWicImageCodec.Decode(path);
+        var frameCount = animation.Frames.Length;
         if (frameCount == 1)
         {
-            var single = UiImageTexture.LoadFromFile(path, new UiTextureId((nuint)baseTextureId));
+            var frame = animation.Frames[0];
+            var single = new UiImageTexture(new UiTextureId((nuint)baseTextureId), frame.Width, frame.Height, frame.RgbaPixels);
             return new AnimatedUiImagePlayer([single], [0.1f], false);
         }
 
-        var frameDelays = ReadGifFrameDelays(image, frameCount);
         var frames = new UiImageTexture[frameCount];
         var durations = new float[frameCount];
 
         for (var i = 0; i < frameCount; i++)
         {
-            image.SelectActiveFrame(dimension, i);
-            var rgba = ToRgba32(image, out var width, out var height);
-            frames[i] = new UiImageTexture(new UiTextureId((nuint)(baseTextureId + (uint)i)), width, height, rgba);
-            durations[i] = frameDelays[i];
+            var frame = animation.Frames[i];
+            frames[i] = new UiImageTexture(new UiTextureId((nuint)(baseTextureId + (uint)i)), frame.Width, frame.Height, frame.RgbaPixels);
+            durations[i] = animation.DurationsSec[i];
         }
 
-        return new AnimatedUiImagePlayer(frames, durations, true);
+        return new AnimatedUiImagePlayer(frames, durations, animation.IsAnimated);
     }
 
     public void Prepare(UiImmediateContext ui, in UiImageEffects effects)
@@ -103,83 +92,4 @@ public sealed class AnimatedUiImagePlayer
         }
     }
 
-    private static float[] ReadGifFrameDelays(Image image, int frameCount)
-    {
-        const int frameDelayPropertyId = 0x5100;
-        var delays = new float[frameCount];
-        for (var i = 0; i < delays.Length; i++)
-        {
-            delays[i] = 0.1f;
-        }
-
-        try
-        {
-            var item = image.GetPropertyItem(frameDelayPropertyId);
-            var bytes = item is null ? [] : (item.Value ?? []);
-            for (var i = 0; i < frameCount; i++)
-            {
-                var offset = i * 4;
-                if (offset + 3 >= bytes.Length)
-                {
-                    break;
-                }
-
-                var ticks = BitConverter.ToInt32(bytes, offset);
-                var sec = Math.Max(0.02f, ticks / 100f);
-                delays[i] = sec;
-            }
-        }
-        catch
-        {
-            // Property may not exist
-        }
-
-        return delays;
-    }
-
-    private static byte[] ToRgba32(Image source, out int width, out int height)
-    {
-        using var bitmap = new Bitmap(source.Width, source.Height, PixelFormat.Format32bppArgb);
-        using (var graphics = Graphics.FromImage(bitmap))
-        {
-            graphics.DrawImage(source, 0, 0, source.Width, source.Height);
-        }
-
-        width = bitmap.Width;
-        height = bitmap.Height;
-        var rect = new Rectangle(0, 0, width, height);
-        var data = bitmap.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-
-        try
-        {
-            var stride = data.Stride;
-            var bgra = new byte[Math.Abs(stride) * height];
-            Marshal.Copy(data.Scan0, bgra, 0, bgra.Length);
-
-            var rgba = new byte[width * height * 4];
-            var sourceRowStart = stride >= 0 ? 0 : (height - 1) * (-stride);
-            var sourceRowStep = stride >= 0 ? stride : -stride;
-
-            for (var y = 0; y < height; y++)
-            {
-                var srcRow = sourceRowStart + (y * sourceRowStep);
-                var dstRow = y * width * 4;
-                for (var x = 0; x < width; x++)
-                {
-                    var src = srcRow + (x * 4);
-                    var dst = dstRow + (x * 4);
-                    rgba[dst + 0] = bgra[src + 2];
-                    rgba[dst + 1] = bgra[src + 1];
-                    rgba[dst + 2] = bgra[src + 0];
-                    rgba[dst + 3] = bgra[src + 3];
-                }
-            }
-
-            return rgba;
-        }
-        finally
-        {
-            bitmap.UnlockBits(data);
-        }
-    }
 }

@@ -4,10 +4,6 @@
 #:package Duxel.$(platform).App@*-*
 
 using System;
-using System.IO;
-using Duxel.App;
-using Duxel.Core;
-
 var style = ResolveStyle(Environment.GetEnvironmentVariable("DUXEL_FONT_STYLE"));
 var primaryFontPath = ResolvePrimaryFontPath(style);
 var fontLinearSampling = ResolveBool(Environment.GetEnvironmentVariable("DUXEL_FONT_LINEAR_SAMPLING"), defaultValue: false);
@@ -24,18 +20,7 @@ DuxelApp.Run(new DuxelAppOptions
     Font = new DuxelFontOptions
     {
         PrimaryFontPath = primaryFontPath,
-        SecondaryFontPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "malgun.ttf"),
-        // InitialGlyphs =
-        // [
-        //     "Font Style Validation",
-        //     "The quick brown fox jumps over the lazy dog.",
-        //     "동해물과 백두산이 마르고 닳도록",
-        //     "가나다라마바사",
-        //     "0123456789 !@#$%^&*()_+-=[]{};:'\",.<>/?",
-        //     "Regular",
-        //     "Bold",
-        //     "Italic"
-        // ]
+        SecondaryFontPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "malgun.ttf")
     },
     Renderer = new DuxelRendererOptions
     {
@@ -126,17 +111,9 @@ public sealed class FontStyleValidationScreen(string style, string primaryFontPa
     private float _ladderMin = 10f;
     private float _ladderMax = 64f;
     private float _ladderStep = 6f;
-    private bool _directTextEnabled = true;
-    private bool _directTextStateInitialized;
 
     public override void Render(UiImmediateContext ui)
     {
-        if (!_directTextStateInitialized)
-        {
-            _directTextEnabled = ui.GetDirectTextEnabled();
-            _directTextStateInitialized = true;
-        }
-
         var viewport = ui.GetMainViewport();
         const float margin = 12f;
 
@@ -147,11 +124,6 @@ public sealed class FontStyleValidationScreen(string style, string primaryFontPa
         ui.Text($"Current style mode: {style}");
         ui.Text($"Primary font file: {primaryFontPath}");
         ui.Text($"FontLinearSampling: {(fontLinearSampling ? "ON(linear)" : "OFF(nearest)")}");
-
-        if (ui.Checkbox("Direct Text Enabled", ref _directTextEnabled))
-        {
-            ui.SetDirectTextEnabled(_directTextEnabled);
-        }
 
         ui.SeparatorText("Preview");
         ui.SliderFloat("Preview Size", ref _previewSize, 8f, 96f, 0f, "0");

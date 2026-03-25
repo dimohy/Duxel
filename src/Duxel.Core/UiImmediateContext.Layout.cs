@@ -36,7 +36,7 @@ public sealed partial class UiImmediateContext
         return _layouts.Peek().Cursor;
     }
 
-    public void EnableRootViewportContentLayout(bool enabled = true)
+    public void EnableRootViewportContentLayout(bool enabled = true, float? contentPadding = null)
     {
         if (_currentWindowId is not null)
         {
@@ -55,8 +55,20 @@ public sealed partial class UiImmediateContext
         var viewport = GetMainViewport();
         _windowRect = new UiRect(viewport.WorkPos.X, viewport.WorkPos.Y, viewport.WorkSize.X, viewport.WorkSize.Y);
         _hasWindowRect = true;
-        _windowContentStart = new UiVector2(_windowRect.X + WindowPadding, _windowRect.Y + WindowPadding);
-        _windowContentMax = new UiVector2(_windowRect.X + _windowRect.Width - WindowPadding, _windowRect.Y + _windowRect.Height - WindowPadding);
+        var padding = contentPadding ?? WindowPadding;
+        _windowContentPadding = padding;
+        _windowContentStart = new UiVector2(_windowRect.X + padding, _windowRect.Y + padding);
+        _windowContentMax = new UiVector2(_windowRect.X + _windowRect.Width - padding, _windowRect.Y + _windowRect.Height - padding);
+
+        if (_layouts.Count > 0)
+        {
+            _layouts.Pop();
+        }
+
+        var start = new UiVector2(_windowContentStart.X, _windowContentStart.Y);
+        var rootLayout = new UiLayoutState(start, false, 0f, start.X);
+        _layouts.Push(rootLayout);
+        _windowRootLayout = rootLayout;
     }
 
     public void SetCursorPos(UiVector2 position)
@@ -87,8 +99,8 @@ public sealed partial class UiImmediateContext
 
         var endX = _columnsActive && _columnsCount > 0
             ? GetColumnsColumnX(_columnsIndex) + GetColumnsColumnWidth(_columnsIndex)
-            : _windowRect.X + _windowRect.Width - WindowPadding;
-        var endY = _windowRect.Y + _windowRect.Height - WindowPadding;
+            : _windowRect.X + _windowRect.Width - _windowContentPadding;
+        var endY = _windowRect.Y + _windowRect.Height - _windowContentPadding;
         return new UiVector2(MathF.Max(0f, endX - cursor.X), MathF.Max(0f, endY - cursor.Y));
     }
 
@@ -106,8 +118,8 @@ public sealed partial class UiImmediateContext
         }
 
         return new UiVector2(
-            _windowRect.X + _windowRect.Width - WindowPadding,
-            _windowRect.Y + _windowRect.Height - WindowPadding
+            _windowRect.X + _windowRect.Width - _windowContentPadding,
+            _windowRect.Y + _windowRect.Height - _windowContentPadding
         );
     }
 
@@ -118,7 +130,7 @@ public sealed partial class UiImmediateContext
             return default;
         }
 
-        return new UiVector2(_windowRect.X + WindowPadding, _windowRect.Y + WindowPadding);
+        return _windowContentStart;
     }
 
     public UiVector2 GetWindowContentRegionMax()
@@ -464,7 +476,7 @@ public sealed partial class UiImmediateContext
             return 0f;
         }
 
-        var visibleMaxX = _windowRect.X + _windowRect.Width - WindowPadding;
+        var visibleMaxX = _windowRect.X + _windowRect.Width - _windowContentPadding;
         return MathF.Max(0f, _windowContentMax.X - visibleMaxX);
     }
 
@@ -475,7 +487,7 @@ public sealed partial class UiImmediateContext
             return 0f;
         }
 
-        var visibleMaxY = _windowRect.Y + _windowRect.Height - WindowPadding;
+        var visibleMaxY = _windowRect.Y + _windowRect.Height - _windowContentPadding;
         return MathF.Max(0f, _windowContentMax.Y - visibleMaxY);
     }
 
@@ -486,7 +498,7 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        var available = MathF.Max(0f, _windowRect.Width - (WindowPadding * 2f));
+        var available = MathF.Max(0f, _windowRect.Width - (_windowContentPadding * 2f));
         var cursorX = _layouts.Peek().Cursor.X + _windowScrollX;
         var localX = cursorX - _windowContentStart.X;
         var target = localX - (available * Math.Clamp(centerXRatio, 0f, 1f));
@@ -500,7 +512,7 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        var available = MathF.Max(0f, _windowRect.Height - (WindowPadding * 2f));
+        var available = MathF.Max(0f, _windowRect.Height - (_windowContentPadding * 2f));
         var cursorY = _layouts.Peek().Cursor.Y + _windowScrollY;
         var localY = cursorY - _windowContentStart.Y;
         var target = localY - (available * Math.Clamp(centerYRatio, 0f, 1f));
@@ -514,7 +526,7 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        var available = MathF.Max(0f, _windowRect.Width - (WindowPadding * 2f));
+        var available = MathF.Max(0f, _windowRect.Width - (_windowContentPadding * 2f));
         var target = localX - (available * Math.Clamp(centerXRatio, 0f, 1f));
         SetScrollX(target);
     }
@@ -526,7 +538,7 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        var available = MathF.Max(0f, _windowRect.Height - (WindowPadding * 2f));
+        var available = MathF.Max(0f, _windowRect.Height - (_windowContentPadding * 2f));
         var target = localY - (available * Math.Clamp(centerYRatio, 0f, 1f));
         SetScrollY(target);
     }
@@ -1157,6 +1169,7 @@ public sealed partial class UiImmediateContext
         PushClipRect(clip, true);
 
         _windowContentStart = new UiVector2(rect.X + WindowPadding, rect.Y + titleBarHeight + ItemSpacingY);
+        _windowContentPadding = WindowPadding;
         _windowContentMax = _windowContentStart;
         if (_hasNextWindowContentSize)
         {

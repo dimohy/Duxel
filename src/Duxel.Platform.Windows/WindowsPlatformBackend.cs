@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -14,7 +15,16 @@ public readonly record struct WindowsPlatformBackendOptions(
     int MinHeight,
     string Title,
     bool VSync,
-    bool EnableDWriteText,
+    bool Resizable,
+    bool ShowMinimizeButton,
+    bool ShowMaximizeButton,
+    bool CenterOnScreen,
+    bool CenterOnOwner,
+    nint OwnerWindowHandle,
+    string? IconPath,
+    ReadOnlyMemory<byte> IconData,
+    Action<nint>? WindowCreated,
+    DuxelTrayOptions TrayOptions,
     IKeyRepeatSettingsProvider KeyRepeatSettingsProvider,
     Action? FrameInvalidated
 );
@@ -33,6 +43,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WsMaximizeBox = 0x00010000;
     private const uint WsVisible = 0x10000000;
     private const uint WsOverlappedWindow = WsOverlapped | WsCaption | WsSysMenu | WsThickFrame | WsMinimizeBox | WsMaximizeBox;
+    private const uint ImageIcon = 1;
+    private const uint LrLoadFromFile = 0x0010;
+    private const uint LrDefaultSize = 0x0040;
 
     private const int CwUseDefault = unchecked((int)0x80000000);
 
@@ -49,6 +62,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WmClose = 0x0010;
     private const uint WmQuit = 0x0012;
     private const uint WmGetMinMaxInfo = 0x0024;
+    private const uint WmCommand = 0x0111;
     private const uint WmSetCursor = 0x0020;
     private const uint WmKeyDown = 0x0100;
     private const uint WmKeyUp = 0x0101;
@@ -62,6 +76,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WmRButtonUp = 0x0205;
     private const uint WmMButtonDown = 0x0207;
     private const uint WmMButtonUp = 0x0208;
+    private const uint WmLButtonDblClk = 0x0203;
     private const uint WmMouseWheel = 0x020A;
     private const uint WmMouseHWheel = 0x020E;
     private const uint WmSize = 0x0005;
@@ -70,8 +85,15 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WmSizing = 0x0214;
     private const uint WmEnterSizeMove = 0x0231;
     private const uint WmExitSizeMove = 0x0232;
+    private const uint WmEraseBkgnd = 0x0014;
+    private const uint WmPaint = 0x000F;
+    private const uint WmDpiChanged = 0x02E0;
+    private const uint WmApp = 0x8000;
+    private const uint WmTrayCallback = WmApp + 1;
 
     private const int HtClient = 1;
+    private const nuint SizeRestored = 0;
+    private const nuint SizeMinimized = 1;
 
     private const int VkTab = 0x09;
     private const int VkLeft = 0x25;
@@ -120,32 +142,35 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private readonly WindowsVulkanSurfaceSource _vulkanSurface;
     private readonly Dictionary<UiMouseCursor, nint> _cursorHandles;
     private readonly Action? _frameInvalidated;
-    private readonly int _minTrackWidth;
-    private readonly int _minTrackHeight;
+    private int _minTrackWidth;
+    private int _minTrackHeight;
+    private readonly int _logicalMinWidth;
+    private readonly int _logicalMinHeight;
+    private readonly uint _windowStyle;
+    private readonly bool _centerOnScreen;
+    private readonly bool _centerOnOwner;
+    private readonly nint _ownerWindowHandle;
+    private readonly nint _largeIconHandle;
+    private readonly nint _smallIconHandle;
+    private readonly WindowsTrayIconHost? _trayIcon;
+
+    private float _dpiScale;
 
     private bool _shouldClose;
     private bool _disposed;
     private int _sizeMoveActive;
     private UiMouseCursor _currentCursor = UiMouseCursor.Arrow;
 
+    static WindowsPlatformBackend()
+    {
+        _ = SetProcessDpiAwarenessContext(DpiAwarenessContextPerMonitorAwareV2);
+    }
+
     public WindowsPlatformBackend(WindowsPlatformBackendOptions options)
     {
         ArgumentNullException.ThrowIfNull(options.KeyRepeatSettingsProvider);
-        var ttfOptIn = IsTtfGlyphRasterizerEnabled();
-        if (ttfOptIn)
-        {
-            UiFontAtlasBuilder.ConfigurePlatformGlyphRasterizerFactory(factory: null);
-            LogGlyphRasterizerWiring("GlyphRasterizerPolicy=TTF(opt-in)");
-        }
-        else
-        {
-            // Atlas glyph rasterizer always uses DWrite on Windows regardless of DUXEL_DIRECT_TEXT.
-            // DUXEL_DIRECT_TEXT only controls the direct text rendering path (bypassing atlas).
-            UiFontAtlasBuilder.ConfigurePlatformGlyphRasterizerFactory(static () => WindowsDirectWriteGlyphRasterizer.Instance);
-            LogGlyphRasterizerWiring(options.EnableDWriteText
-                ? "GlyphRasterizerPolicy=DWrite(default)"
-                : "GlyphRasterizerPolicy=DWrite(atlas-only,direct-text-off)");
-        }
+        UiFontAtlasBuilder.ConfigurePlatformGlyphRasterizerFactory(static () => WindowsDirectWriteGlyphRasterizer.Instance);
+        LogGlyphRasterizerWiring("GlyphRasterizerPolicy=DWrite(default)");
 
         _inputBackend = new WindowsInputBackend(options.KeyRepeatSettingsProvider.GetSettings());
         _cursorHandles = CreateCursorMap();
@@ -166,16 +191,17 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             throw new ArgumentOutOfRangeException(nameof(options), "Window minimum size must be zero or greater.");
         }
 
+        _windowStyle = CreateWindowStyle(options.Resizable, options.ShowMinimizeButton, options.ShowMaximizeButton);
+        _centerOnScreen = options.CenterOnScreen;
+        _centerOnOwner = options.CenterOnOwner;
+        _ownerWindowHandle = options.OwnerWindowHandle;
+        (_largeIconHandle, _smallIconHandle) = LoadWindowIcons(options.IconPath, options.IconData);
+
         if (options.MinWidth > 0 || options.MinHeight > 0)
         {
-            var minRect = UnsafeRectForCreate(Math.Max(1, options.MinWidth), Math.Max(1, options.MinHeight));
-            if (!AdjustWindowRectEx(ref minRect, WsOverlappedWindow, false, 0))
-            {
-                throw new InvalidOperationException($"AdjustWindowRectEx failed: {Marshal.GetLastPInvokeError()}");
-            }
-
-            _minTrackWidth = options.MinWidth > 0 ? minRect.right - minRect.left : 0;
-            _minTrackHeight = options.MinHeight > 0 ? minRect.bottom - minRect.top : 0;
+            _logicalMinWidth = options.MinWidth;
+            _logicalMinHeight = options.MinHeight;
+            RecalculateMinTrackSize();
         }
 
         _instanceHandle = GetModuleHandleW(nint.Zero);
@@ -198,12 +224,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 cbClsExtra = 0,
                 cbWndExtra = 0,
                 hInstance = _instanceHandle,
-                hIcon = nint.Zero,
+                hIcon = _largeIconHandle,
                 hCursor = nint.Zero,
                 hbrBackground = nint.Zero,
                 lpszMenuName = nint.Zero,
                 lpszClassName = _classNamePtr,
-                hIconSm = nint.Zero,
+                hIconSm = _smallIconHandle,
             };
 
             var atom = RegisterClassExW(ref windowClass);
@@ -216,10 +242,16 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             }
         }
 
+        var systemDpi = GetDpiForSystem();
+        _dpiScale = systemDpi > 0 ? systemDpi / 96f : 1f;
+
+        var scaledWidth = (int)MathF.Round(options.Width * _dpiScale);
+        var scaledHeight = (int)MathF.Round(options.Height * _dpiScale);
+
         var windowTitle = string.IsNullOrWhiteSpace(options.Title) ? "Duxel" : options.Title;
 
-        var createRect = UnsafeRectForCreate(options.Width, options.Height);
-        if (!AdjustWindowRectEx(ref createRect, WsOverlappedWindow, false, 0))
+        var createRect = UnsafeRectForCreate(scaledWidth, scaledHeight);
+        if (!AdjustWindowRectEx(ref createRect, _windowStyle, false, 0))
         {
             var error = Marshal.GetLastPInvokeError();
             CleanupRegistrationOnly();
@@ -232,12 +264,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             0,
             _classNamePtr,
             windowTitle,
-            WsOverlappedWindow | WsVisible,
+            _windowStyle | WsVisible,
             CwUseDefault,
             CwUseDefault,
             createWidth,
             createHeight,
-            nint.Zero,
+            _ownerWindowHandle,
             nint.Zero,
             _instanceHandle,
             GCHandle.ToIntPtr(_selfHandle)
@@ -252,26 +284,38 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
         _inputBackend.SetWindowHandle(_windowHandle);
         _ = SetWindowTextW(_windowHandle, windowTitle);
-        CenterWindowOnPrimaryMonitor(createWidth, createHeight);
+        if (_centerOnOwner && _ownerWindowHandle != nint.Zero)
+        {
+            CenterWindowOnOwner(_ownerWindowHandle, createWidth, createHeight);
+        }
+        else if (_centerOnScreen)
+        {
+            CenterWindowOnPrimaryMonitor(createWidth, createHeight);
+        }
         ShowWindow(_windowHandle, SwShow);
         _ = UpdateWindow(_windowHandle);
+        options.WindowCreated?.Invoke(_windowHandle);
+
+        if (options.TrayOptions.Enabled)
+        {
+            var trayIconPath = string.IsNullOrWhiteSpace(options.TrayOptions.IconPath)
+                ? options.IconPath
+                : options.TrayOptions.IconPath;
+            var trayIconData = options.TrayOptions.IconData.Length is 0
+                ? options.IconData
+                : options.TrayOptions.IconData;
+            _trayIcon = new WindowsTrayIconHost(
+                _windowHandle,
+                options.TrayOptions,
+                trayIconPath,
+                trayIconData,
+                WmTrayCallback,
+                WmLButtonDblClk,
+                RestoreWindowFromTray);
+        }
 
         _vulkanSurface = new WindowsVulkanSurfaceSource(_instanceHandle, _windowHandle);
         _stopwatch = Stopwatch.StartNew();
-    }
-
-    private static bool IsTtfGlyphRasterizerEnabled()
-    {
-        var value = Environment.GetEnvironmentVariable("DUXEL_ENABLE_TTF_GLYPH_RASTERIZER");
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void LogGlyphRasterizerWiring(string message)
@@ -312,6 +356,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     }
 
     public PlatformSize FramebufferSize => WindowSize;
+
+    public float ContentScale => _dpiScale;
 
     public bool IsInteractingResize => Volatile.Read(ref _sizeMoveActive) == 1;
 
@@ -377,6 +423,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         }
 
         _disposed = true;
+        _trayIcon?.Dispose();
 
         if (_windowHandle != nint.Zero)
         {
@@ -394,6 +441,25 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         bottom = height
     };
 
+    private void RecalculateMinTrackSize()
+    {
+        if (_logicalMinWidth <= 0 && _logicalMinHeight <= 0)
+        {
+            return;
+        }
+
+        var scaledMinWidth = (int)MathF.Round(Math.Max(1, _logicalMinWidth) * _dpiScale);
+        var scaledMinHeight = (int)MathF.Round(Math.Max(1, _logicalMinHeight) * _dpiScale);
+        var minRect = UnsafeRectForCreate(scaledMinWidth, scaledMinHeight);
+        if (!AdjustWindowRectEx(ref minRect, _windowStyle, false, 0))
+        {
+            return;
+        }
+
+        _minTrackWidth = _logicalMinWidth > 0 ? minRect.right - minRect.left : 0;
+        _minTrackHeight = _logicalMinHeight > 0 ? minRect.bottom - minRect.top : 0;
+    }
+
     private void CleanupRegistrationOnly()
     {
         if (_selfHandle.IsAllocated)
@@ -405,6 +471,118 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         {
             _ = UnregisterClassW(_classNamePtr, _instanceHandle);
             Marshal.FreeHGlobal(_classNamePtr);
+        }
+
+        if (_smallIconHandle != nint.Zero)
+        {
+            _ = DestroyIcon(_smallIconHandle);
+        }
+
+        if (_largeIconHandle != nint.Zero)
+        {
+            _ = DestroyIcon(_largeIconHandle);
+        }
+    }
+
+    private static uint CreateWindowStyle(bool resizable, bool showMinimizeButton, bool showMaximizeButton)
+    {
+        var style = WsOverlapped | WsCaption | WsSysMenu;
+
+        if (resizable)
+        {
+            style |= WsThickFrame;
+        }
+
+        if (showMinimizeButton)
+        {
+            style |= WsMinimizeBox;
+        }
+
+        if (showMaximizeButton)
+        {
+            style |= WsMaximizeBox;
+        }
+
+        return style;
+    }
+
+    private static (nint LargeIconHandle, nint SmallIconHandle) LoadWindowIcons(string? iconPath, ReadOnlyMemory<byte> iconData)
+    {
+        if (iconData.Length > 0)
+        {
+            var largeCx = GetSystemMetrics(11);
+            var largeCy = GetSystemMetrics(12);
+            var smallCx = GetSystemMetrics(49);
+            var smallCy = GetSystemMetrics(50);
+
+            var largeHandle = LoadIconFromIcoData(iconData.Span, largeCx, largeCy);
+            var smallHandle = LoadIconFromIcoData(iconData.Span, smallCx, smallCy);
+            return (largeHandle, smallHandle != nint.Zero ? smallHandle : largeHandle);
+        }
+
+        if (string.IsNullOrWhiteSpace(iconPath) || !File.Exists(iconPath))
+        {
+            return (nint.Zero, nint.Zero);
+        }
+
+        var largeHandleFile = LoadImageW(nint.Zero, iconPath, ImageIcon, 0, 0, LrLoadFromFile | LrDefaultSize);
+        var smallHandleFile = LoadImageW(nint.Zero, iconPath, ImageIcon, GetSystemMetrics(49), GetSystemMetrics(50), LrLoadFromFile);
+
+        return (largeHandleFile, smallHandleFile != nint.Zero ? smallHandleFile : largeHandleFile);
+    }
+
+    internal static nint LoadIconFromIcoData(ReadOnlySpan<byte> icoData, int desiredWidth, int desiredHeight)
+    {
+        // ICO header: [2 reserved][2 type=1][2 count]
+        if (icoData.Length < 6)
+        {
+            return nint.Zero;
+        }
+
+        var type = BinaryPrimitives.ReadUInt16LittleEndian(icoData[2..]);
+        if (type is not 1)
+        {
+            return nint.Zero;
+        }
+
+        var count = BinaryPrimitives.ReadUInt16LittleEndian(icoData[4..]);
+        if (count is 0 || icoData.Length < 6 + count * 16)
+        {
+            return nint.Zero;
+        }
+
+        // Find best matching entry (closest size)
+        var bestIndex = 0;
+        var bestDiff = int.MaxValue;
+        for (var i = 0; i < count; i++)
+        {
+            var entryOffset = 6 + i * 16;
+            var w = icoData[entryOffset] is 0 ? 256 : icoData[entryOffset];
+            var h = icoData[entryOffset + 1] is 0 ? 256 : icoData[entryOffset + 1];
+            var diff = Math.Abs(w - desiredWidth) + Math.Abs(h - desiredHeight);
+            if (diff < bestDiff)
+            {
+                bestDiff = diff;
+                bestIndex = i;
+            }
+        }
+
+        var bestEntryOffset = 6 + bestIndex * 16;
+        var imageSize = BinaryPrimitives.ReadInt32LittleEndian(icoData[(bestEntryOffset + 8)..]);
+        var imageFileOffset = BinaryPrimitives.ReadInt32LittleEndian(icoData[(bestEntryOffset + 12)..]);
+
+        if (imageFileOffset + imageSize > icoData.Length || imageSize <= 0)
+        {
+            return nint.Zero;
+        }
+
+        var imageSlice = icoData.Slice(imageFileOffset, imageSize);
+        unsafe
+        {
+            fixed (byte* ptr = imageSlice)
+            {
+                return CreateIconFromResourceEx((nint)ptr, (uint)imageSize, true, 0x00030000, desiredWidth, desiredHeight, 0);
+            }
         }
     }
 
@@ -442,6 +620,39 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         _ = SetWindowPos(_windowHandle, nint.Zero, x, y, 0, 0, 0x0001 | 0x0004);
     }
 
+    private void CenterWindowOnOwner(nint ownerWindowHandle, int windowWidth, int windowHeight)
+    {
+        if (!GetWindowRect(ownerWindowHandle, out var ownerRect))
+        {
+            CenterWindowOnPrimaryMonitor(windowWidth, windowHeight);
+            return;
+        }
+
+        var ownerWidth = ownerRect.right - ownerRect.left;
+        var ownerHeight = ownerRect.bottom - ownerRect.top;
+        if (ownerWidth <= 0 || ownerHeight <= 0)
+        {
+            CenterWindowOnPrimaryMonitor(windowWidth, windowHeight);
+            return;
+        }
+
+        var x = ownerRect.left + Math.Max(0, (ownerWidth - windowWidth) / 2);
+        var y = ownerRect.top + Math.Max(0, (ownerHeight - windowHeight) / 2);
+        _ = SetWindowPos(_windowHandle, nint.Zero, x, y, 0, 0, 0x0001 | 0x0004);
+    }
+
+    private void RestoreWindowFromTray()
+    {
+        _ = ShowWindow(_windowHandle, 9);
+        _ = SetActiveWindow(_windowHandle);
+        _ = SetForegroundWindow(_windowHandle);
+    }
+
+    private void HideWindowToTray()
+    {
+        _ = ShowWindow(_windowHandle, 0);
+    }
+
     private nint WindowProc(nint hwnd, uint message, nuint wParam, nint lParam)
     {
         if (message == WmNccreate)
@@ -456,8 +667,19 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
         _inputBackend.HandleMessage(message, wParam, lParam);
 
+        if (_trayIcon?.HandleWindowMessage(message, wParam, lParam) == true)
+        {
+            return 0;
+        }
+
         switch (message)
         {
+            case WmEraseBkgnd:
+                return 1;
+            case WmPaint:
+                _ = BeginPaint(hwnd, out var ps);
+                _ = EndPaint(hwnd, ref ps);
+                return 0;
             case WmEnterSizeMove:
                 Volatile.Write(ref _sizeMoveActive, 1);
                 _frameInvalidated?.Invoke();
@@ -467,10 +689,39 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 _frameInvalidated?.Invoke();
                 break;
             case WmSize:
+                if (_trayIcon is not null)
+                {
+                    if (wParam == SizeMinimized && _trayIcon.HideWindowOnMinimize)
+                    {
+                        HideWindowToTray();
+                        return 0;
+                    }
+
+                    if (wParam == SizeRestored)
+                    {
+                        _trayIcon.NotifyWindowRestored();
+                    }
+                }
+
+                _frameInvalidated?.Invoke();
+                break;
+
             case WmWindowPosChanging:
             case WmWindowPosChanged:
+                if (Volatile.Read(ref _sizeMoveActive) == 0)
+                {
+                    _frameInvalidated?.Invoke();
+                }
+                break;
             case WmSizing:
                 _frameInvalidated?.Invoke();
+                break;
+            case WmCommand:
+                if (_trayIcon?.HandleCommand(wParam) == true)
+                {
+                    return 0;
+                }
+
                 break;
             case WmSetCursor:
                 if (((uint)(ulong)lParam & 0xFFFFu) == HtClient)
@@ -503,11 +754,44 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 }
 
                 break;
+            case WmDpiChanged:
+            {
+                var newDpi = (int)(wParam & 0xFFFF);
+                _dpiScale = newDpi > 0 ? newDpi / 96f : 1f;
+                RecalculateMinTrackSize();
+                unsafe
+                {
+                    var suggestedRect = (Rect*)lParam;
+                    _ = SetWindowPos(
+                        hwnd,
+                        nint.Zero,
+                        suggestedRect->left,
+                        suggestedRect->top,
+                        suggestedRect->right - suggestedRect->left,
+                        suggestedRect->bottom - suggestedRect->top,
+                        0x0004 | 0x0010 | 0x0200); // SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS
+                }
+                _frameInvalidated?.Invoke();
+                return 0;
+            }
             case WmClose:
+                if (_trayIcon?.TryHandleClose(HideWindowToTray) == true)
+                {
+                    return 0;
+                }
+
                 _shouldClose = true;
+                // Raymond Chen: Re-enable owner BEFORE DestroyWindow.
+                // Otherwise Windows activates an unrelated window (flicker).
+                // https://devblogs.microsoft.com/oldnewthing/20040227-00/?p=40463
+                if (_ownerWindowHandle != nint.Zero)
+                {
+                    _ = EnableWindow(_ownerWindowHandle, true);
+                }
                 _ = DestroyWindow(hwnd);
                 return 0;
             case WmDestroy:
+                _trayIcon?.Dispose();
                 Volatile.Write(ref _sizeMoveActive, 0);
                 _shouldClose = true;
                 PostQuitMessage(0);
@@ -650,7 +934,10 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                     break;
                 }
                 case WmChar:
-                    _charEvents.Add(new UiCharEvent((uint)wParam));
+                    // Control characters (< 0x20) are handled via UiKeyEvent, not char events.
+                    // Feeding them into charEvents triggers font atlas rebuild for non-renderable glyphs.
+                    if (wParam >= 32)
+                        _charEvents.Add(new UiCharEvent((uint)wParam));
                     break;
             }
         }
@@ -923,11 +1210,19 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private static partial bool DestroyWindow(nint hWnd);
 
     [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool DestroyIcon(nint hIcon);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
     private static partial nint DispatchMessageW(ref Msg lpMsg);
 
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetClientRect(nint hWnd, out Rect lpRect);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetWindowRect(nint hWnd, out Rect lpRect);
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial nint GetModuleHandleW(nint lpModuleName);
@@ -943,6 +1238,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     [LibraryImport("user32.dll", SetLastError = true)]
     private static partial nint LoadCursorW(nint hInstance, nint lpCursorName);
+
+    [LibraryImport("user32.dll", EntryPoint = "LoadImageW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial nint LoadImageW(nint hInst, string lpszName, uint uType, int cxDesired, int cyDesired, uint fuLoad);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    private static partial nint CreateIconFromResourceEx(nint presbits, uint dwResSize, [MarshalAs(UnmanagedType.Bool)] bool fIcon, uint dwVer, int cxDesired, int cyDesired, uint flags);
 
     [LibraryImport("user32.dll", SetLastError = true)]
     private static partial uint MsgWaitForMultipleObjectsEx(uint nCount, nint pHandles, uint dwMilliseconds, uint dwWakeMask, uint dwFlags);
@@ -994,8 +1295,52 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private static partial bool UpdateWindow(nint hWnd);
 
     [LibraryImport("user32.dll")]
+    private static partial nint SetActiveWindow(nint hWnd);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetForegroundWindow(nint hWnd);
+
+    [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool WaitMessage();
+
+    [LibraryImport("user32.dll")]
+    private static partial nint BeginPaint(nint hWnd, out PaintStruct lpPaint);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool EndPaint(nint hWnd, ref PaintStruct lpPaint);
+
+    [LibraryImport("dwmapi.dll")]
+    private static partial int DwmFlush();
+
+    private static readonly nint DpiAwarenessContextPerMonitorAwareV2 = -4;
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetProcessDpiAwarenessContext(nint value);
+
+    [LibraryImport("user32.dll")]
+    private static partial uint GetDpiForSystem();
+
+    [LibraryImport("user32.dll")]
+    private static partial uint GetDpiForWindow(nint hwnd);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool EnableWindow(nint hWnd, [MarshalAs(UnmanagedType.Bool)] bool bEnable);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PaintStruct
+    {
+        public nint hdc;
+        public int fErase;
+        public Rect rcPaint;
+        public int fRestore;
+        public int fIncUpdate;
+        private unsafe fixed byte rgbReserved[32];
+    }
 
     [LibraryImport("vulkan-1")]
     private static unsafe partial int vkCreateWin32SurfaceKHR(nuint instance, VkWin32SurfaceCreateInfoKhr* pCreateInfo, void* pAllocator, out ulong pSurface);

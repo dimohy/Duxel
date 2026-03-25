@@ -1,6 +1,6 @@
 # Duxel GUI 디자인 문서
 
-> 마지막 동기화: 2026-02-26
+> 마지막 동기화: 2026-03-25
 
 이 문서는 Duxel의 설계 기준과 ImGui 호환성 기준/현황/로드맵을 단일 기준으로 통합해 관리한다.
 
@@ -69,12 +69,9 @@
 ### 현재 상태
 - ImGui 스타일 API 400+ 항목 구현
 - DSL 런타임은 즉시 모드 프레임 흐름과 동등 라이프사이클 유지
-- NativeAOT 잔여 경고
-  - Silk.NET.Core 단일 파일 경고(IL3000/IL3002)
-  - Silk.NET.Windowing.Common/Input.Common 트리밍 경고(IL2072)
+- Vulkan 렌더러는 Silk.NET 패키지 의존성 없이 내부 Vulkan 바인딩으로 동작
 
 ### 남은 작업(호환성 관점)
-- NativeAOT 트리밍 경고 해소
 - Idle Frame Skip 정책 확정(입력/애니메이션/외부 이벤트)
 - 멀티뷰포트/도킹 및 멀티컨텍스트 확장
 

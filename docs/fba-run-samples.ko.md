@@ -1,6 +1,6 @@
 # Duxel FBA 샘플 — 바로 실행하기
 
-> 마지막 동기화: 2026-03-09
+> 마지막 동기화: 2026-03-25
 
 > .NET 10 + Vulkan 즉시 모드 GUI 프레임워크 **Duxel**의 FBA 샘플을 **복사-붙여넣기 한 줄**로 바로 실행하세요.
 
@@ -82,6 +82,24 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 ```
 
 > Drag · Slider · Color · Child · Popup · 상태 바인딩
+
+---
+
+## Hello Duxel
+
+작은 `Hello`, 큰 `Duxel!`만 보여주는 가장 작은 인사 샘플입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/hello_duxel_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/hello_duxel_fba.cs -o - | dotnet run -
+```
+
+> `PushFontSize` 계층 · 단일 창 최소 샘플 · hello-world 출발점
 
 ---
 
@@ -447,6 +465,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 $base = "https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 $files = @(
     "all_features.cs", "dsl_showcase.cs", "dsl_interaction.cs",
+    "hello_duxel_fba.cs",
     "menu_submenu_zorder.cs", "advanced_layout.cs", "columns_demo.cs",
     "image_and_popups.cs", "image_widget_effects_fba.cs",
     "input_queries.cs", "item_status.cs",
@@ -466,7 +485,7 @@ Write-Host "`nRun: dotnet run fba/all_features.cs"
 **Bash**
 ```bash
 BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
-FILES=(all_features.cs dsl_showcase.cs dsl_interaction.cs menu_submenu_zorder.cs \
+FILES=(all_features.cs dsl_showcase.cs dsl_interaction.cs hello_duxel_fba.cs menu_submenu_zorder.cs \
     advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
     input_queries.cs item_status.cs \
     windows_calculator_fba.cs windows_calculator_duxel_showcase_fba.cs \

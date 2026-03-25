@@ -1,6 +1,6 @@
 # Duxel 에이전트 참조 문서
 
-> Last synced: 2026-03-14
+> Last synced: 2026-03-25
 > 대상: Duxel로 앱, 샘플, 재사용 UI 컴포넌트를 작성하는 코딩 에이전트와 개발자
 > 범위: Duxel 기능 맵, 아키텍처 경계, 권장 워크플로, 샘플 기준점, 바로 사용할 수 있는 생성 템플릿
 
@@ -187,7 +187,6 @@ Duxel은 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 | `Padding` | `2` |
 | `Oversample` | `2` |
 | `InitialRanges` | ASCII 범위 `0x20..0x7E` |
-| `InitialGlyphs` | 비어 있음 |
 
 ### `DuxelFrameOptions`
 

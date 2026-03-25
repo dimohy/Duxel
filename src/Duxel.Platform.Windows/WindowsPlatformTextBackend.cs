@@ -162,6 +162,7 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
         var totalWidth = ox + result.Width;
         var pixels = new byte[totalWidth * result.Height * 4];
         var alpha = result.Alpha;
+        var rgb = result.Rgb;
         for (var y = 0; y < result.Height; y++)
         {
             for (var x = 0; x < result.Width; x++)
@@ -173,10 +174,21 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
                 }
 
                 var dstIdx = (y * totalWidth + ox + x) * 4;
-                pixels[dstIdx] = 255;
-                pixels[dstIdx + 1] = 255;
-                pixels[dstIdx + 2] = 255;
-                pixels[dstIdx + 3] = alpha[srcIdx];
+                if (rgb is not null)
+                {
+                    var rgbIdx = srcIdx * 3;
+                    pixels[dstIdx] = rgb[rgbIdx];
+                    pixels[dstIdx + 1] = rgb[rgbIdx + 1];
+                    pixels[dstIdx + 2] = rgb[rgbIdx + 2];
+                    pixels[dstIdx + 3] = alpha[srcIdx];
+                }
+                else
+                {
+                    pixels[dstIdx] = 255;
+                    pixels[dstIdx + 1] = 255;
+                    pixels[dstIdx + 2] = 255;
+                    pixels[dstIdx + 3] = alpha[srcIdx];
+                }
             }
         }
 
@@ -258,12 +270,14 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
             var (r, px) = runResults[i];
             var baseX = (int)MathF.Floor(px + r.OffsetX - minX);
             var baseY = (int)MathF.Floor(r.OffsetY - minY);
+            var rgb = r.Rgb;
 
             for (var y = 0; y < r.Height; y++)
             {
                 for (var x = 0; x < r.Width; x++)
                 {
-                    var a = r.Alpha[y * r.Width + x];
+                    var srcIdx = y * r.Width + x;
+                    var a = r.Alpha[srcIdx];
                     if (a == 0)
                     {
                         continue;
@@ -277,10 +291,21 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
                     }
 
                     var idx = (dstY * totalWidth + dstX) * 4;
-                    pixels[idx] = 255;
-                    pixels[idx + 1] = 255;
-                    pixels[idx + 2] = 255;
-                    pixels[idx + 3] = a;
+                    if (rgb is not null)
+                    {
+                        var rgbIdx = srcIdx * 3;
+                        pixels[idx] = rgb[rgbIdx];
+                        pixels[idx + 1] = rgb[rgbIdx + 1];
+                        pixels[idx + 2] = rgb[rgbIdx + 2];
+                        pixels[idx + 3] = a;
+                    }
+                    else
+                    {
+                        pixels[idx] = 255;
+                        pixels[idx + 1] = 255;
+                        pixels[idx + 2] = 255;
+                        pixels[idx + 3] = a;
+                    }
                 }
             }
         }

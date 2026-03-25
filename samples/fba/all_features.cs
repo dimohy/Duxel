@@ -27,11 +27,6 @@ DuxelApp.Run(new DuxelAppOptions
 
 public sealed class AllFeaturesScreen : UiScreen
 {
-    private const string DemoWindowTitle = "Duxel Demo";
-    private const string MetricsWindowTitle = "Metrics/Debugger";
-    private const string DebugLogWindowTitle = "Debug Log";
-    private const string IdStackWindowTitle = "ID Stack Tool";
-    private const string AboutWindowTitle = "About Duxel";
     private const string LayoutAlphaPreviewTitle = "Layout Alpha Preview";
 
     private const string TextWindowTitle = "Text & Links";
@@ -601,13 +596,6 @@ Line 15: Additional content for overflow
     private bool _logShowError = true;
     private readonly List<(string Level, string Message, UiColor Color)> _logEntries = [];
 
-    // ── Demo/Debug ──
-    private bool _showDemo;
-    private bool _showMetrics;
-    private bool _showDebugLog;
-    private bool _showIdStack;
-    private bool _showAbout;
-
     private const string SampleMarkdown = """
 # Markdown Studio
 
@@ -750,7 +738,6 @@ var widget = new MarkdownViewerWidget("preview")
         if (_showLogViewer) { ui.SetWindowOpen(LogViewerWindowTitle, true); RenderLogViewer(ui); _showLogViewer = ui.GetWindowOpen(LogViewerWindowTitle); }
         if (_showMarkdownStudio) { ui.SetWindowOpen(MarkdownStudioWindowTitle, true); RenderMarkdownStudio(ui); _showMarkdownStudio = ui.GetWindowOpen(MarkdownStudioWindowTitle); }
 
-        RenderDemoDebugWindows(ui);
         RenderFpsOverlay(ui);
     }
 
@@ -838,15 +825,6 @@ var widget = new MarkdownViewerWidget("preview")
                 ToggleMenuItem(ui, FileBrowserWindowTitle, ref _showFileBrowser, FileBrowserWindowTitle);
                 ToggleMenuItem(ui, LogViewerWindowTitle, ref _showLogViewer, LogViewerWindowTitle);
                 ToggleMenuItem(ui, MarkdownStudioWindowTitle, ref _showMarkdownStudio, MarkdownStudioWindowTitle);
-                ui.EndMenu();
-            }
-            if (ui.BeginMenu("Tools"))
-            {
-                if (ui.MenuItem("Built-in Demo Window", _showDemo)) { _showDemo = !_showDemo; if (_showDemo) _focusWindowName = DemoWindowTitle; }
-                if (ui.MenuItem("Metrics & Debugger", _showMetrics)) { _showMetrics = !_showMetrics; if (_showMetrics) _focusWindowName = MetricsWindowTitle; }
-                if (ui.MenuItem("Debug Log", _showDebugLog)) { _showDebugLog = !_showDebugLog; if (_showDebugLog) _focusWindowName = DebugLogWindowTitle; }
-                if (ui.MenuItem("ID Stack Inspector", _showIdStack)) { _showIdStack = !_showIdStack; if (_showIdStack) _focusWindowName = IdStackWindowTitle; }
-                if (ui.MenuItem("About Duxel", _showAbout)) { _showAbout = !_showAbout; if (_showAbout) _focusWindowName = AboutWindowTitle; }
                 ui.EndMenu();
             }
             ui.EndMainMenuBar();
@@ -2428,7 +2406,6 @@ var widget = new MarkdownViewerWidget("preview")
 
         ui.TextWrapped("This showcase combines cached layers, translation/opacity replay, and a small animation overlay. Think of it as a postcard from the rendering subsystem.");
         ui.Checkbox("Static Cache", ref _layerStaticCache);
-        ui.Checkbox("Texture Cache Backend", ref _layerTextureCache);
         ui.Checkbox("Expanded", ref _layerExpanded);
         ui.SliderFloat("Layer Opacity", ref _layerOpacity, 0.2f, 1f, 0f, "0.00");
         ui.SliderFloat("Layer Translation X", ref _layerTranslationX, -40f, 120f, 0f, "0");
@@ -2476,8 +2453,7 @@ var widget = new MarkdownViewerWidget("preview")
             var options = new UiLayerOptions(
                 StaticCache: _layerStaticCache,
                 Opacity: _layerOpacity,
-                Translation: new UiVector2(bodyRect.X + _layerTranslationX, bodyRect.Y),
-                CacheBackend: _layerTextureCache ? UiLayerCacheBackend.Texture : UiLayerCacheBackend.DrawList);
+                Translation: new UiVector2(bodyRect.X + _layerTranslationX, bodyRect.Y));
 
             if (ui.BeginLayer("showcase.layer.card", options))
             {
@@ -2699,7 +2675,7 @@ var widget = new MarkdownViewerWidget("preview")
             _imgBtnClicks++;
         ui.Text($"ImageButton clicks: {_imgBtnClicks}");
 
-        ui.SeparatorText("Image Effects (Web Image)");
+        ui.SeparatorText("Image Effects (Remote Sample Image)");
         EnsureImageLoaded();
 
         if (_imgPlayer is null)
@@ -2759,22 +2735,22 @@ var widget = new MarkdownViewerWidget("preview")
         {
             var cacheDir = Path.Combine(Path.GetTempPath(), "Duxel", "fba-image-cache");
             Directory.CreateDirectory(cacheDir);
-            var pngPath = Path.Combine(cacheDir, "web-sample.png");
+            var imagePath = Path.Combine(cacheDir, "web-sample-clean.jpg");
 
-            if (!File.Exists(pngPath))
+            if (!File.Exists(imagePath))
             {
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
                 var request = new HttpRequestMessage(HttpMethod.Get,
-                    "https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png");
+                    "https://dummyimage.com/960x640/111827/f8fafc.jpg&text=Duxel+Web+Image");
                 request.Headers.UserAgent.ParseAdd("Duxel-FBA/1.0");
                 using var response = client.Send(request, HttpCompletionOption.ResponseHeadersRead);
                 response.EnsureSuccessStatusCode();
                 using var stream = response.Content.ReadAsStream();
-                using var fs = File.Create(pngPath);
+                using var fs = File.Create(imagePath);
                 stream.CopyTo(fs);
             }
 
-            _imgPlayer = AnimatedUiImagePlayer.Load(pngPath, 8001);
+            _imgPlayer = AnimatedUiImagePlayer.Load(imagePath, 8001);
         }
         catch (Exception ex)
         {
@@ -2940,50 +2916,6 @@ var widget = new MarkdownViewerWidget("preview")
         ui.PlotHistogram("PlotHistogram", _plotHist, _plotHist.Length, 0, null, 0f, 1f, new UiVector2(350f, 40f));
 
         ui.EndWindow();
-    }
-
-    // ─────────────────────────── Demo / Debug Windows ───────────────────────────
-    private void RenderDemoDebugWindows(UiImmediateContext ui)
-    {
-        if (_showDemo)
-        {
-            InitWindowOnce(ui, DemoWindowTitle, new UiVector2(620f, 520f));
-            ui.SetWindowOpen(DemoWindowTitle, true);
-            ui.ShowDemoWindow(ref _showDemo);
-            _showDemo = ui.GetWindowOpen(DemoWindowTitle);
-        }
-
-        if (_showMetrics)
-        {
-            InitWindowOnce(ui, MetricsWindowTitle, new UiVector2(560f, 360f));
-            ui.SetWindowOpen(MetricsWindowTitle, true);
-            ui.ShowMetricsWindow(ref _showMetrics);
-            _showMetrics = ui.GetWindowOpen(MetricsWindowTitle);
-        }
-
-        if (_showDebugLog)
-        {
-            InitWindowOnce(ui, DebugLogWindowTitle, new UiVector2(640f, 420f));
-            ui.SetWindowOpen(DebugLogWindowTitle, true);
-            ui.ShowDebugLogWindow(ref _showDebugLog);
-            _showDebugLog = ui.GetWindowOpen(DebugLogWindowTitle);
-        }
-
-        if (_showIdStack)
-        {
-            InitWindowOnce(ui, IdStackWindowTitle, new UiVector2(520f, 320f));
-            ui.SetWindowOpen(IdStackWindowTitle, true);
-            ui.ShowIDStackToolWindow(ref _showIdStack);
-            _showIdStack = ui.GetWindowOpen(IdStackWindowTitle);
-        }
-
-        if (_showAbout)
-        {
-            InitCenteredWindow(ui, AboutWindowTitle, new UiVector2(460f, 240f));
-            ui.SetWindowOpen(AboutWindowTitle, true);
-            ui.ShowAboutWindow(ref _showAbout);
-            _showAbout = ui.GetWindowOpen(AboutWindowTitle);
-        }
     }
 
     // ─────────────────────────── FPS ───────────────────────────

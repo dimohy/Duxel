@@ -13,7 +13,6 @@ public sealed class UiContext : IUiContext
     private UiFontAtlas _fontAtlas;
     private readonly UiTextureId _fontTexture;
     private readonly UiTextureId _whiteTexture;
-    private readonly bool _enableGlobalStaticGeometryCache;
     private readonly List<UiTextureUpdate> _textureUpdates = new();
 
     private UiFrameInfo _frameInfo;
@@ -26,6 +25,7 @@ public sealed class UiContext : IUiContext
     private UiVector2 _framebufferScale;
     private UiTheme _theme = UiTheme.ImGuiDark;
     private UiStyle _style = UiStyle.Default;
+    private UiStyle _baseStyle = UiStyle.Default;
     private IUiClipboard? _clipboard;
     private bool _hasFrame;
     private bool _hasInput;
@@ -40,6 +40,7 @@ public sealed class UiContext : IUiContext
     private string? _directTextPrimaryFontPath;
     private string? _directTextSecondaryFontPath;
     private float _directTextBaseFontSize;
+    private float _contentScale = 1f;
     private IPlatformTextBackend? _platformTextBackend;
     private int _reserveVertices;
     private int _reserveIndices;
@@ -76,14 +77,12 @@ public sealed class UiContext : IUiContext
     public UiContext(
         UiFontAtlas fontAtlas,
         UiTextureId fontTexture,
-        UiTextureId whiteTexture,
-        bool enableGlobalStaticGeometryCache = true
+        UiTextureId whiteTexture
     )
     {
         _fontAtlas = fontAtlas ?? throw new ArgumentNullException(nameof(fontAtlas));
         _fontTexture = fontTexture;
         _whiteTexture = whiteTexture;
-        _enableGlobalStaticGeometryCache = enableGlobalStaticGeometryCache;
     }
 
     public UiState State => _state;
@@ -97,7 +96,8 @@ public sealed class UiContext : IUiContext
 
     public void SetStyle(UiStyle style)
     {
-        _style = style ?? throw new ArgumentNullException(nameof(style));
+        _baseStyle = style ?? throw new ArgumentNullException(nameof(style));
+        _style = _baseStyle;
     }
 
     public void SetScreen(UiScreen screen)
@@ -163,6 +163,11 @@ public sealed class UiContext : IUiContext
     public void SetDirectTextBaseFontSize(float size)
     {
         _directTextBaseFontSize = size;
+    }
+
+    public void SetContentScale(float scale)
+    {
+        _contentScale = MathF.Max(1f, scale);
     }
 
     public void SetPlatformTextBackend(IPlatformTextBackend? textBackend)
@@ -869,6 +874,7 @@ public sealed class UiContext : IUiContext
         }
 
         ui.SetDirectTextBaseFontSize(_directTextBaseFontSize);
+        ui.SetContentScale(_contentScale);
         screen.Render(ui);
         _state.EndFrame();
         var drawLists = ui.BuildDrawLists();
@@ -992,7 +998,7 @@ public sealed class UiContext : IUiContext
     {
         return userData is string tag
             && (tag.StartsWith(StaticLayerGeometryTagPrefix, StringComparison.Ordinal)
-                || (_enableGlobalStaticGeometryCache && tag.StartsWith(StaticGlobalGeometryTagPrefix, StringComparison.Ordinal)));
+                || tag.StartsWith(StaticGlobalGeometryTagPrefix, StringComparison.Ordinal));
     }
 }
 
