@@ -66,6 +66,32 @@ public sealed class HelloScreen : UiScreen
 dotnet run hello.cs
 ```
 
+## 대표 FBA 쇼케이스
+
+헬로 월드보다 한 단계 더 나아간 Duxel 화면을 빠르게 보고 싶다면, 아래 대표 FBA 샘플부터 실행하면 됩니다.
+
+- `samples/fba/all_features.cs` — 타이포그래피, 레이아웃, 팝업/컨텍스트, 입력 진단, 아이템 상태, 멀티셀렉트, 레이어, 드로잉, 이미지, 마크다운 쇼케이스 창까지 포함한 전체 위젯 갤러리이며, 첫 실행 시 빈 화면 대신 `Markdown Studio`를 바로 엽니다.
+- `samples/fba/ui_mixed_stress.cs` — 컨트롤, 폼, 긴 리스트, 데이터 테이블, 텍스트 렌더링, 조밀한 캔버스 영역을 한 화면에 배치한 균형형 멀티윈도우 쇼케이스입니다.
+- `samples/fba/Duxel_perf_test_fba.cs` — VSync, MSAA, 캐시 토글, 폴리곤 설정, 렌더러 프로파일을 즉시 조절해 볼 수 있는 폴리곤 스트레스 테스트 샘플입니다.
+
+<p align="center">
+  <img src="captures/all-features-showcase.png" alt="Duxel all features FBA sample" width="1100" />
+</p>
+
+위 이미지는 `all_features.cs`를 실제로 실행해 캡처한 것으로, 첫 실행 시 `Markdown Studio`가 바로 열리고 상단 메뉴에서 전체 컴포넌트 갤러리로 확장할 수 있도록 구성되어 있습니다.
+
+<p align="center">
+  <img src="captures/ui-mixed-stress-showcase.png" alt="Duxel Mixed UI Stress FBA sample" width="1100" />
+</p>
+
+위 이미지는 `ui_mixed_stress.cs`를 실제로 실행해 캡처한 것으로, Duxel이 여러 도구형 창과 대용량 리스트/테이블, 커스텀 드로잉을 한 프레임 안에서 함께 구성할 수 있다는 점을 보여줍니다.
+
+<p align="center">
+  <img src="captures/duxel-perf-test-showcase.png" alt="Duxel performance test FBA sample" width="1100" />
+</p>
+
+성능 샘플 이미지는 `Duxel_perf_test_fba.cs`를 더 높은 초기 폴리곤 수로 실행해, 스트레스 테스트 장면이 바로 보이도록 캡처한 것입니다.
+
 ## 샘플
 
 - 프로젝트 샘플: `samples/Duxel.Sample`
@@ -73,7 +99,7 @@ dotnet run hello.cs
 - FBA 샘플: `samples/fba/*.cs`
   - `dotnet run samples/fba/all_features.cs`
   - `./run-fba.ps1 samples/fba/all_features.cs` (로컬 프로젝트 참조, 기본 NativeAOT)
-  - `all_features.cs`는 전용 타이포그래피, 레이아웃, 팝업/컨텍스트, 입력 질의, 아이템 상태, 멀티셀렉트, 레이어/애니메이션 쇼케이스 창을 포함합니다.
+  - `all_features.cs`는 기본으로 `Markdown Studio`를 열고, 전용 타이포그래피, 레이아웃, 팝업/컨텍스트, 입력 질의, 아이템 상태, 멀티셀렉트, 레이어/애니메이션 쇼케이스 창을 함께 제공합니다.
 
 ## DSL
 

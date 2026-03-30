@@ -654,6 +654,9 @@ var widget = new MarkdownViewerWidget("preview")
 
     public AllFeaturesScreen()
     {
+        _showMarkdownStudio = true;
+        _focusWindowName = MarkdownStudioWindowTitle;
+
         for (var i = 0; i < _plotSin.Length; i++)
         {
             _plotSin[i] = MathF.Sin(i * 0.2f) * 0.5f + 0.5f;

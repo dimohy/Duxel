@@ -66,6 +66,32 @@ Run:
 dotnet run hello.cs
 ```
 
+## Featured FBA showcase
+
+If you want to see Duxel beyond a hello-world window, start with these representative FBA samples:
+
+- `samples/fba/all_features.cs` — the broad widget gallery with typography, layout, popup/context, input diagnostics, item state, multi-select, layers, drawing, image, and markdown showcase windows, now opening `Markdown Studio` on first launch instead of a blank surface.
+- `samples/fba/ui_mixed_stress.cs` — a balanced multi-window showcase that fills the screen with controls, forms, long lists, data tables, text rendering, and a dense canvas stress area.
+- `samples/fba/Duxel_perf_test_fba.cs` — a polygon stress-test sample with live controls for VSync, MSAA, cache toggles, polygon settings, and profile-oriented renderer checks.
+
+<p align="center">
+  <img src="captures/all-features-showcase.png" alt="Duxel all features FBA sample" width="1100" />
+</p>
+
+The screenshot above was captured from `all_features.cs`, which now opens the `Markdown Studio` surface on first launch while the menu bar still exposes the wider component gallery.
+
+<p align="center">
+  <img src="captures/ui-mixed-stress-showcase.png" alt="Duxel Mixed UI Stress FBA sample" width="1100" />
+</p>
+
+The screenshot above was captured from `ui_mixed_stress.cs`, a representative FBA sample that shows how Duxel can compose several tool-style windows, high-volume lists and tables, and custom drawing in a single frame.
+
+<p align="center">
+  <img src="captures/duxel-perf-test-showcase.png" alt="Duxel performance test FBA sample" width="1100" />
+</p>
+
+The performance screenshot was captured from `Duxel_perf_test_fba.cs` with a higher initial polygon count so the stress scene is visible immediately.
+
 ## Samples
 
 - Project sample: `samples/Duxel.Sample`
@@ -73,7 +99,7 @@ dotnet run hello.cs
 - FBA samples: `samples/fba/*.cs`
   - `dotnet run samples/fba/all_features.cs`
   - `./run-fba.ps1 samples/fba/all_features.cs` (local project reference; NativeAOT by default)
-  - `all_features.cs` now includes dedicated typography, layout, popup/context, input-query, item-status, multi-select, and layer/animation showcase windows.
+  - `all_features.cs` now opens `Markdown Studio` by default and still includes dedicated typography, layout, popup/context, input-query, item-status, multi-select, and layer/animation showcase windows.
 
 ## DSL
 
