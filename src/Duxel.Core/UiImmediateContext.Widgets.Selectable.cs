@@ -63,11 +63,11 @@ public sealed partial class UiImmediateContext
 
         if (selected)
         {
-            AddRectFilled(rect, _theme.HeaderActive, _whiteTexture);
+            AddRectFilled(rect, _theme.SelectableBgActive, _whiteTexture);
         }
         else if (hovered)
         {
-            AddRectFilled(rect, _theme.HeaderHovered, _whiteTexture);
+            AddRectFilled(rect, _theme.SelectableBgHovered, _whiteTexture);
         }
 
         var textPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (height - textSize.Y) * 0.5f);
@@ -75,7 +75,7 @@ public sealed partial class UiImmediateContext
 
             label,
             textPos,
-            _theme.Text,
+            _theme.SelectableText,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -105,11 +105,11 @@ public sealed partial class UiImmediateContext
 
         if (selected)
         {
-            AddRectFilled(rect, _theme.HeaderActive, _whiteTexture);
+            AddRectFilled(rect, _theme.SelectableBgActive, _whiteTexture);
         }
         else if (hovered)
         {
-            AddRectFilled(rect, _theme.HeaderHovered, _whiteTexture);
+            AddRectFilled(rect, _theme.SelectableBgHovered, _whiteTexture);
         }
 
         var textPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (height - textSize.Y) * 0.5f);
@@ -117,7 +117,7 @@ public sealed partial class UiImmediateContext
 
             label,
             textPos,
-            _theme.Text,
+            _theme.SelectableText,
             CurrentClipRect,
             _textSettings,
             _lineHeight

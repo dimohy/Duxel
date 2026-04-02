@@ -2,6 +2,32 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## 0.2.2-preview (2026-04-03)
+
+### Major Features
+
+- **[Feature]** DSL screen runtime (`UiDslScreen`) — unified hot-reload (managed) and source-generated (NativeAOT) DSL rendering with `.duxel-theme` hot-reload, `RequestTheme()` API, and integrated event/value binding.
+- **[Feature]** DSL event/value binding — `UiDslEventBinder` (fluent per-id button/checkbox callbacks) and `UiDslValueBinder` (fluent `IUiDslValueSource` wrapper) eliminate manual interface implementation.
+- **[Feature]** DSL control flow — `If`/`ElseIf`/`Else`, `Visible`, `ForEach` (range-based template expansion), `Switch`/`Case`/`Default`, `Set`, and `Text Bind="key"` data binding.
+- **[Feature]** Theme presets (10 built-in) — `ImGuiDark`, `ImGuiLight`, `ImGuiClassic`, `Nord`, `SolarizedDark`, `SolarizedLight`, `Dracula`, `Monokai`, `CatppuccinMocha`, `GitHubDark` with instant switching via `RequestTheme()`.
+- **[Feature]** ThemeDemo sample — DSL-based theme hot-reload demo app with theme selection Combo, control flow demos, and NativeAOT support.
+- **[Feature]** Theme system overhaul — `UiTheme` struct with 110-color `InlineArray`, per-widget color tokens (`UiStyleColor` enum), `InitWidgetDefaults()` cascade, and `.duxel-theme` file parser with base-preset inheritance.
+
+### Major Improvements
+
+- **[Improvement]** Widget theme granularity — expanded from ~35 global colors to 110 per-widget tokens covering Button, Checkbox, RadioButton, Input, Slider, Drag, Combo, Selectable, MenuItem, Tab, TreeNode, Table, Tooltip, ListBox, ProgressBar, Separator borders and states.
+- **[Improvement]** Widget border rendering — Button, Checkbox, RadioButton, Input, Slider, Drag, Combo, ListBox, ProgressBar widgets now render distinct border colors per hover/active state.
+- **[Improvement]** Text/Bullet vertical centering — direct glyph-metrics based visual center calculation replaces heuristic ascent offset.
+- **[Improvement]** `Combo` widget event notification — fires `EventSink.OnButton(id)` on value change, enabling reactive DSL event handlers.
+- **[Improvement]** `DuxelAppOptions.Screen` — changed from optional nullable to `required`, removed deprecated `DuxelDslOptions` entry, removed `UiDslBindings` class.
+- **[Improvement]** ProgressBar accent color — `ProgressBarFill` now uses `PlotHistogram` (matching Dear ImGui convention) instead of `SliderGrab`.
+
+### Major Bug Fixes
+
+- **[Bug]** Text `Bind` positional-arg interference — `ReadOptionalString("Bind")` consumed the text content; changed to `ReadNamedString("Bind", null)`.
+- **[Bug]** Control flow skip path style leak — skipped containers in `EndNode` now properly pop `StyleColorPushCounts`.
+- **[Bug]** Selectable event omission — `Selectable` now fires both `OnButton` and `OnCheckbox` events on state change.
+
 ## 0.2.1-preview (2026-03-25)
 
 ### Major Features

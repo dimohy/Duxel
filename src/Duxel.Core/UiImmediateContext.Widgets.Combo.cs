@@ -12,8 +12,11 @@ public sealed partial class UiImmediateContext
         var cursor = AdvanceCursor(new UiVector2(comboWidth, frameHeight));
         var comboRect = new UiRect(cursor.X, cursor.Y, comboWidth, frameHeight);
         var pressed = ButtonBehavior(comboId, comboRect, out var hovered, out var held);
-        var bg = held ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : _theme.FrameBg;
-        AddRectFilled(comboRect, bg, _whiteTexture);
+        var bg = held ? _theme.ComboBgActive : hovered ? _theme.ComboBgHovered : _theme.ComboBg;
+        var borderColor = held ? _theme.ComboBorderActive : hovered ? _theme.ComboBorderHovered : _theme.ComboBorder;
+        AddRectFilled(comboRect, borderColor, _whiteTexture);
+        var innerComboRect = new UiRect(comboRect.X + 1f, comboRect.Y + 1f, MathF.Max(0f, comboRect.Width - 2f), MathF.Max(0f, comboRect.Height - 2f));
+        AddRectFilled(innerComboRect, bg, _whiteTexture);
 
         var valueSize = MeasureTextInternal(previewValue, _textSettings, _lineHeight);
         var valuePos = new UiVector2(comboRect.X + 6f, comboRect.Y + (comboRect.Height - valueSize.Y) * 0.5f);
@@ -21,7 +24,7 @@ public sealed partial class UiImmediateContext
 
             previewValue,
             valuePos,
-            _theme.Text,
+            _theme.ComboText,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -44,7 +47,7 @@ public sealed partial class UiImmediateContext
 
         PushPopup();
         _state.AddPopupBlockingRect(popupRect, _popupTierDepth);
-        AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
+        AddRectFilled(popupRect, _theme.ComboPopupBg, _whiteTexture);
 
         if (_leftMousePressed && !IsHovering(popupRect) && !IsHovering(comboRect))
         {
@@ -93,8 +96,11 @@ public sealed partial class UiImmediateContext
         var cursor = AdvanceCursor(new UiVector2(comboWidth, frameHeight));
         var comboRect = new UiRect(cursor.X, cursor.Y, comboWidth, frameHeight);
         var pressed = ButtonBehavior(comboId, comboRect, out var hovered, out var held);
-        var bg = held ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : _theme.FrameBg;
-        AddRectFilled(comboRect, bg, _whiteTexture);
+        var bg = held ? _theme.ComboBgActive : hovered ? _theme.ComboBgHovered : _theme.ComboBg;
+        var borderColor = held ? _theme.ComboBorderActive : hovered ? _theme.ComboBorderHovered : _theme.ComboBorder;
+        AddRectFilled(comboRect, borderColor, _whiteTexture);
+        var innerComboRect = new UiRect(comboRect.X + 1f, comboRect.Y + 1f, MathF.Max(0f, comboRect.Width - 2f), MathF.Max(0f, comboRect.Height - 2f));
+        AddRectFilled(innerComboRect, bg, _whiteTexture);
 
         var currentText = items.Count > 0 ? items[currentIndex] : string.Empty;
         var valueSize = MeasureTextInternal(currentText, _textSettings, _lineHeight);
@@ -103,7 +109,7 @@ public sealed partial class UiImmediateContext
 
             currentText,
             valuePos,
-            _theme.Text,
+            _theme.ComboText,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -133,7 +139,7 @@ public sealed partial class UiImmediateContext
 
             if (displayCount > 0)
             {
-                AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
+                AddRectFilled(popupRect, _theme.ComboPopupBg, _whiteTexture);
             }
 
             var clickedOutside = _leftMousePressed && !IsHovering(popupRect) && !IsHovering(comboRect);
@@ -181,7 +187,7 @@ public sealed partial class UiImmediateContext
 
                     itemText,
                     itemPos,
-                    _theme.Text,
+                    _theme.ComboText,
                     CurrentClipRect,
                     _textSettings,
                     _lineHeight
@@ -228,8 +234,11 @@ public sealed partial class UiImmediateContext
         var cursor = AdvanceCursor(new UiVector2(comboWidth, frameHeight));
         var comboRect = new UiRect(cursor.X, cursor.Y, comboWidth, frameHeight);
         var pressed = ButtonBehavior(comboId, comboRect, out var hovered, out var held);
-        var bg = held ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : _theme.FrameBg;
-        AddRectFilled(comboRect, bg, _whiteTexture);
+        var bg = held ? _theme.ComboBgActive : hovered ? _theme.ComboBgHovered : _theme.ComboBg;
+        var borderColor = held ? _theme.ComboBorderActive : hovered ? _theme.ComboBorderHovered : _theme.ComboBorder;
+        AddRectFilled(comboRect, borderColor, _whiteTexture);
+        var innerComboRect = new UiRect(comboRect.X + 1f, comboRect.Y + 1f, MathF.Max(0f, comboRect.Width - 2f), MathF.Max(0f, comboRect.Height - 2f));
+        AddRectFilled(innerComboRect, bg, _whiteTexture);
 
         var currentText = itemsCount > 0 ? itemsGetter(currentIndex) ?? string.Empty : string.Empty;
         var valueSize = MeasureTextInternal(currentText, _textSettings, _lineHeight);
@@ -238,7 +247,7 @@ public sealed partial class UiImmediateContext
 
             currentText,
             valuePos,
-            _theme.Text,
+            _theme.ComboText,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -268,7 +277,7 @@ public sealed partial class UiImmediateContext
 
             if (displayCount > 0)
             {
-                AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
+                AddRectFilled(popupRect, _theme.ComboPopupBg, _whiteTexture);
             }
 
             var clickedOutside = _leftMousePressed && !IsHovering(popupRect) && !IsHovering(comboRect);
@@ -316,7 +325,7 @@ public sealed partial class UiImmediateContext
 
                     itemText,
                     itemPos,
-                    _theme.Text,
+                    _theme.ComboText,
                     CurrentClipRect,
                     _textSettings,
                     _lineHeight

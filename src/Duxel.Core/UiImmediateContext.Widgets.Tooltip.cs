@@ -42,7 +42,7 @@ public sealed partial class UiImmediateContext
         // Draw background behind content
         _builder.SetCurrentChannel(0);
         PushClipRect(IntersectRect(_clipRect, rect), false);
-        AddRectFilled(rect, _theme.PopupBg, _whiteTexture);
+        AddRectFilled(rect, _theme.TooltipBg, _whiteTexture);
         PopClipRect();
 
         _builder.Merge();
@@ -69,13 +69,14 @@ public sealed partial class UiImmediateContext
 
         PushPopup();
         PushClipRect(IntersectRect(_clipRect, rect), false);
-        AddRectFilled(rect, _theme.PopupBg, _whiteTexture);
+        AddRectFilled(rect, _theme.TooltipBg, _whiteTexture);
 
         var textPos = new UiVector2(rect.X + padding, rect.Y + padding);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             text,
             textPos,
-            _theme.Text,
+            _theme.TooltipText,
             rect,
             _textSettings,
             _lineHeight

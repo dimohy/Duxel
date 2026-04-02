@@ -113,7 +113,6 @@ Duxel은 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 - `DuxelFontOptions`
 - `DuxelFrameOptions`
 - `DuxelDebugOptions`
-- `DuxelDslOptions` (레거시 호환 표면, 앱 런타임 진입은 미지원)
 - `DuxelWindowsApp.Run(...)`
 - 커스텀 위젯 API:
   - `IUiCustomWidget`
@@ -136,8 +135,7 @@ Duxel은 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 | `Theme` | `UiTheme` | `UiTheme.ImGuiDark` | 테마 프리셋 |
 | `FontTextureId` | `UiTextureId` | `new(1)` | 폰트 텍스처 슬롯 |
 | `WhiteTextureId` | `UiTextureId` | `new(2)` | 화이트 텍스처 슬롯 |
-| `Screen` | `UiScreen?` | `null` | 즉시 모드 앱 진입점 |
-| `Dsl` | `DuxelDslOptions?` | `null` | 레거시 호환 필드, `DuxelApp` 런타임 진입은 미지원 |
+| `Screen` | `UiScreen` | (필수) | 즉시 모드 앱 진입점 |
 | `Clipboard` | `IUiClipboard?` | `null` | 직접 클립보드 주입 |
 | `ImageDecoder` | `IUiImageDecoder?` | `null` | 커스텀 이미지 디코드 경로 |
 | `KeyRepeatSettingsProvider` | `IKeyRepeatSettingsProvider?` | `null` | 커스텀 키 반복 타이밍 |
@@ -213,18 +211,6 @@ Duxel은 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 | `LogStartupTimings` | `false` |
 | `CaptureOutputDirectory` | `null` |
 | `CaptureFrameIndices` | 비어 있음 |
-
-### `DuxelDslOptions`
-
-`DuxelDslOptions`는 레거시 호환 표면만 유지한다. 이제 `DuxelApp`에 전달하면 명시적으로 실패한다.
-
-| 속성 | 필수 여부 | 용도 |
-|---|---|---|
-| `Render` | 예 | DSL emitter 콜백 |
-| `Bindings` | 아니오 | 바인딩 편의 객체 |
-| `EventSink` | 아니오 | 이벤트 싱크 |
-| `ValueSource` | 아니오 | 외부 값 소스 |
-| `State` | 아니오 | 내장 DSL 상태 저장소 |
 
 ## 바로 복붙 가능한 시작 템플릿
 
@@ -376,34 +362,20 @@ public sealed class MarkdownScreen : UiScreen
 }
 ```
 
-### 최소 DSL 앱
+### 최소 DSL 앱 (프로젝트 기반)
 
 ```csharp
-#:property TargetFramework=net10.0
-#:property platform=windows
-#:package Duxel.$(platform).App@*-*
-
+// Program.cs
 using Duxel.App;
 using Duxel.Core.Dsl;
 using Duxel.Windows.App;
 
-var text = """
-Window "DSL Demo"
-  Text "Hello DSL"
-  Checkbox Id="enabled" Text="Enabled" Default=true
-  SliderFloat Id="volume" Text="Volume" Min=0 Max=1
-""";
-
-var document = UiDslParser.Parse(text);
+var screen = new UiDslScreen("Ui/Main.ui", "Ui/theme.duxel-theme");
 
 DuxelWindowsApp.Run(new DuxelAppOptions
 {
   Window = new DuxelWindowOptions { Title = "DSL Demo" },
-  Dsl = new DuxelDslOptions
-  {
-    State = new UiDslState(),
-    Render = emitter => document.Emit(emitter),
-  },
+  Screen = screen,
 });
 ```
 
@@ -425,7 +397,7 @@ DuxelWindowsApp.Run(new DuxelAppOptions
 
 - 파서: `UiDslParser`
 - 런타임 실행: `UiDslDocument.Emit(...)`
-- 바인딩 경로: `UiDslBindings`, `IUiDslValueSource`, `IUiDslEventSink`
+- 바인딩 경로: `IUiDslValueSource`, `IUiDslEventSink`
 - 문서: `docs/ui-dsl.ko.md`
 
 ### 커스텀 위젯 패턴
@@ -790,10 +762,9 @@ ui.EndWindowCanvas();
 | 필요 항목 | 시작점 |
 |---|---|
 | 전체 기능 쇼케이스 | `samples/fba/all_features.cs` |
-| 선언형 DSL | `samples/fba/dsl_showcase.cs`, `samples/fba/dsl_interaction.cs` |
+| 선언형 DSL + 테마 | `samples/Duxel.ThemeDemo` |
 | 레이아웃과 스타일 제어 | `samples/fba/advanced_layout.cs` |
-| 레거시 컬럼 | `samples/fba/columns_demo.cs` |
-| 메뉴와 서브메뉴 겹침 동작 | `samples/fba/menu_submenu_zorder.cs` |
+| 레거시 컨럼 | `samples/fba/columns_demo.cs` |
 | 이미지, 팝업, 툴팁 패턴 | `samples/fba/image_and_popups.cs` |
 | 이미지 효과와 애니메이션 이미지 | `samples/fba/image_widget_effects_fba.cs` |
 | 키보드와 마우스 질의 API | `samples/fba/input_queries.cs` |

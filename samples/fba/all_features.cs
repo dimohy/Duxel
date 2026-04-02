@@ -496,7 +496,6 @@ Line 15: Additional content for overflow
 
     // ── Layers / animation ──
     private bool _layerStaticCache = true;
-    private bool _layerTextureCache;
     private bool _layerExpanded = true;
     private float _layerOpacity = 1f;
     private float _layerTranslationX;

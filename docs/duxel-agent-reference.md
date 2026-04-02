@@ -114,7 +114,6 @@ The most important downstream-facing surfaces are:
 - `DuxelFontOptions`
 - `DuxelFrameOptions`
 - `DuxelDebugOptions`
-- `DuxelDslOptions` (legacy compatibility surface; app runtime entry unsupported)
 - `DuxelWindowsApp.Run(...)`
 - custom widget API:
   - `IUiCustomWidget`
@@ -137,8 +136,7 @@ These defaults are safe to rely on when generating ordinary Duxel code.
 | `Theme` | `UiTheme` | `UiTheme.ImGuiDark` | theme preset |
 | `FontTextureId` | `UiTextureId` | `new(1)` | font texture slot |
 | `WhiteTextureId` | `UiTextureId` | `new(2)` | white texture slot |
-| `Screen` | `UiScreen?` | `null` | immediate-mode app entry |
-| `Dsl` | `DuxelDslOptions?` | `null` | legacy compatibility field; `DuxelApp` runtime entry is unsupported |
+| `Screen` | `UiScreen` | (required) | immediate-mode app entry |
 | `Clipboard` | `IUiClipboard?` | `null` | direct clipboard injection |
 | `ImageDecoder` | `IUiImageDecoder?` | `null` | custom image decode path |
 | `KeyRepeatSettingsProvider` | `IKeyRepeatSettingsProvider?` | `null` | custom key repeat timing |
@@ -214,18 +212,6 @@ These defaults are safe to rely on when generating ordinary Duxel code.
 | `LogStartupTimings` | `false` |
 | `CaptureOutputDirectory` | `null` |
 | `CaptureFrameIndices` | empty |
-
-### `DuxelDslOptions`
-
-`DuxelDslOptions` remains only as a compatibility surface. Passing it to `DuxelApp` now fails explicitly.
-
-| Property | Required | Purpose |
-|---|---|---|
-| `Render` | yes | DSL emitter callback |
-| `Bindings` | no | convenient binding object |
-| `EventSink` | no | event sink |
-| `ValueSource` | no | external value source |
-| `State` | no | built-in DSL state store |
 
 ## Copy-paste starter templates
 
@@ -377,34 +363,20 @@ public sealed class MarkdownScreen : UiScreen
 }
 ```
 
-### Minimal DSL app
+### Minimal DSL app (project-based)
 
 ```csharp
-#:property TargetFramework=net10.0
-#:property platform=windows
-#:package Duxel.$(platform).App@*-*
-
+// Program.cs
 using Duxel.App;
 using Duxel.Core.Dsl;
 using Duxel.Windows.App;
 
-var text = """
-Window "DSL Demo"
-  Text "Hello DSL"
-  Checkbox Id="enabled" Text="Enabled" Default=true
-  SliderFloat Id="volume" Text="Volume" Min=0 Max=1
-""";
-
-var document = UiDslParser.Parse(text);
+var screen = new UiDslScreen("Ui/Main.ui", "Ui/theme.duxel-theme");
 
 DuxelWindowsApp.Run(new DuxelAppOptions
 {
   Window = new DuxelWindowOptions { Title = "DSL Demo" },
-  Dsl = new DuxelDslOptions
-  {
-    State = new UiDslState(),
-    Render = emitter => document.Emit(emitter),
-  },
+  Screen = screen,
 });
 ```
 
@@ -426,7 +398,7 @@ Use the `.ui` DSL when the task is declarative UI authoring, state binding, or g
 
 - parser: `UiDslParser`
 - runtime execution: `UiDslDocument.Emit(...)`
-- binding path: `UiDslBindings`, `IUiDslValueSource`, `IUiDslEventSink`
+- binding path: `IUiDslValueSource`, `IUiDslEventSink`
 - docs: `docs/ui-dsl.md`
 
 ### Custom widget pattern
@@ -808,10 +780,9 @@ Prefer an existing sample before inventing a new pattern.
 | Need | Start here |
 |---|---|
 | Broad feature showcase | `samples/fba/all_features.cs` |
-| Declarative DSL | `samples/fba/dsl_showcase.cs`, `samples/fba/dsl_interaction.cs` |
+| Declarative DSL + Theme | `samples/Duxel.ThemeDemo` |
 | Layout and style control | `samples/fba/advanced_layout.cs` |
 | Legacy columns | `samples/fba/columns_demo.cs` |
-| Menus and submenu overlap behavior | `samples/fba/menu_submenu_zorder.cs` |
 | Images, popups, tooltip patterns | `samples/fba/image_and_popups.cs` |
 | Image effects and animated images | `samples/fba/image_widget_effects_fba.cs` |
 | Keyboard and mouse query APIs | `samples/fba/input_queries.cs` |

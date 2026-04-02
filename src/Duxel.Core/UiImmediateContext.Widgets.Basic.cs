@@ -23,8 +23,11 @@ public sealed partial class UiImmediateContext
 
         var pressed = ButtonBehavior(label, rect, out var hovered, out var held);
         var color = held ? _theme.ButtonActive : hovered ? _theme.ButtonHovered : _theme.Button;
+        var borderColor = held ? _theme.ButtonBorderActive : hovered ? _theme.ButtonBorderHovered : _theme.ButtonBorder;
 
-        AddRectFilled(rect, color, _whiteTexture);
+        AddRectFilled(rect, borderColor, _whiteTexture);
+        var innerRect = new UiRect(rect.X + 1f, rect.Y + 1f, MathF.Max(0f, rect.Width - 2f), MathF.Max(0f, rect.Height - 2f));
+        AddRectFilled(innerRect, color, _whiteTexture);
 
         var textPos = new UiVector2(
             rect.X + (rect.Width - textSize.X) * 0.5f,
@@ -36,7 +39,7 @@ public sealed partial class UiImmediateContext
 
                 displayLabel,
                 textPos,
-                _theme.Text,
+                _theme.ButtonText,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -60,7 +63,10 @@ public sealed partial class UiImmediateContext
 
         var pressed = ButtonBehavior(label, rect, out var hovered, out var held);
         var color = held ? _theme.ButtonActive : hovered ? _theme.ButtonHovered : _theme.Button;
-        AddRectFilled(rect, color, _whiteTexture);
+        var borderColor = held ? _theme.ButtonBorderActive : hovered ? _theme.ButtonBorderHovered : _theme.ButtonBorder;
+        AddRectFilled(rect, borderColor, _whiteTexture);
+        var innerRect = new UiRect(rect.X + 1f, rect.Y + 1f, MathF.Max(0f, rect.Width - 2f), MathF.Max(0f, rect.Height - 2f));
+        AddRectFilled(innerRect, color, _whiteTexture);
 
         var textPos = new UiVector2(
             rect.X + (rect.Width - textSize.X) * 0.5f,
@@ -72,7 +78,7 @@ public sealed partial class UiImmediateContext
 
                 displayLabel,
                 textPos,
-                _theme.Text,
+                _theme.ButtonText,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -103,7 +109,10 @@ public sealed partial class UiImmediateContext
 
         var pressed = ButtonBehavior(id, rect, out var hovered, out var held);
         var color = held ? _theme.ButtonActive : hovered ? _theme.ButtonHovered : _theme.Button;
-        AddRectFilled(rect, color, _whiteTexture);
+        var borderColor = held ? _theme.ButtonBorderActive : hovered ? _theme.ButtonBorderHovered : _theme.ButtonBorder;
+        AddRectFilled(rect, borderColor, _whiteTexture);
+        var innerRect = new UiRect(rect.X + 1f, rect.Y + 1f, MathF.Max(0f, rect.Width - 2f), MathF.Max(0f, rect.Height - 2f));
+        AddRectFilled(innerRect, color, _whiteTexture);
 
         var arrow = dir switch
         {
@@ -122,7 +131,7 @@ public sealed partial class UiImmediateContext
 
             arrow,
             textPos,
-            _theme.Text,
+            _theme.ButtonText,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -778,11 +787,18 @@ public sealed partial class UiImmediateContext
 
     public void Bullet()
     {
-        var radius = MathF.Max(2f, _lineHeight * 0.15f);
+        var lineHeight = GetTextLineHeight();
+        var radius = MathF.Max(2f, lineHeight * 0.15f);
         var bulletWidth = radius * 2f + 2f;
-        var size = new UiVector2(bulletWidth, _lineHeight);
+        var size = new UiVector2(bulletWidth, lineHeight);
         var cursor = AdvanceCursor(size);
-        var center = new UiVector2(cursor.X + radius + 2f, GetTextVisualCenterY(cursor.Y));
+        var centerY = cursor.Y + (lineHeight * 0.5f);
+        if (_textSettings.PixelSnap)
+        {
+            centerY = MathF.Round(centerY);
+        }
+
+        var center = new UiVector2(cursor.X + radius + 2f, centerY);
         AddCircleFilled(center, radius, _theme.Text, _whiteTexture, 12);
     }
 
@@ -843,13 +859,49 @@ public sealed partial class UiImmediateContext
     /// </summary>
     private float GetTextVisualCenterY(float textPositionY)
     {
-        float capOffsetY = 0f;
-        if (_fontAtlas.TryGetGlyph('H', out var hGlyph))
+        if (TryGetDirectTextGlyphCenterOffset('H', out var directTextCenterOffset))
         {
-            capOffsetY = hGlyph.OffsetY;
+            return textPositionY + directTextCenterOffset;
         }
 
-        return textPositionY + (_fontAtlas.Ascent + capOffsetY * 0.5f) * _textSettings.Scale;
+        if (_fontAtlas.TryGetGlyph('H', out var hGlyph))
+        {
+            var glyphTop = (_fontAtlas.Ascent + hGlyph.OffsetY) * _textSettings.Scale;
+            var glyphHeight = hGlyph.Height * _textSettings.Scale;
+            return textPositionY + glyphTop + (glyphHeight * 0.5f);
+        }
+
+        return textPositionY + (GetTextLineHeight() * 0.5f);
+    }
+
+    private bool TryGetDirectTextGlyphCenterOffset(char glyph, out float centerOffset)
+    {
+        centerOffset = 0f;
+        if (_platformTextBackend is null || string.IsNullOrWhiteSpace(_directTextPrimaryFontPath))
+        {
+            return false;
+        }
+
+        var fontSize = _pushedFontSize > 0f
+            ? MathF.Max(1f, _pushedFontSize)
+            : _directTextBaseFontSize > 0f
+                ? MathF.Max(1f, _directTextBaseFontSize * _textSettings.Scale)
+                : MathF.Max(1f, _lineHeight * _textSettings.Scale);
+        var sizeQuarter = (int)MathF.Round(fontSize * 4f);
+        if (!TryGetOrCreateDirectText(glyph.ToString(), sizeQuarter, fontSize, out var entry) || entry.Height <= 0)
+        {
+            return false;
+        }
+
+        var logicalScale = 1f / _contentScale;
+        var topOffset = (entry.FontAscent - entry.Baseline) * logicalScale;
+        centerOffset = topOffset + (entry.Height * logicalScale * 0.5f);
+        if (_textSettings.PixelSnap)
+        {
+            centerOffset = MathF.Round(centerOffset);
+        }
+
+        return true;
     }
 
     private void RenderText(string? text, UiColor color)
@@ -988,31 +1040,52 @@ public sealed partial class UiImmediateContext
         var displayLabel = GetDisplayLabel(label);
         var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
-        var checkboxSize = frameHeight;
+        var compactToggleSize = MathF.Max(12f, (GetTextLineHeight() * 0.78f) + 2f);
+        var checkboxSize = MathF.Min(MathF.Max(12f, frameHeight - 2f), compactToggleSize);
+        if (_textSettings.PixelSnap)
+        {
+            checkboxSize = MathF.Round(checkboxSize);
+        }
+
         var height = MathF.Max(checkboxSize, textSize.Y);
         var totalSize = new UiVector2(checkboxSize + (string.IsNullOrEmpty(displayLabel) ? 0f : CheckboxSpacing + textSize.X), height);
         var cursor = AdvanceCursor(totalSize);
 
         var totalRect = new UiRect(cursor.X, cursor.Y, totalSize.X, totalSize.Y);
+        var boxX = cursor.X;
         var boxY = totalRect.Y + (totalRect.Height - checkboxSize) * 0.5f;
         if (_textSettings.PixelSnap)
         {
+            boxX = MathF.Round(boxX);
             boxY = MathF.Round(boxY);
         }
-        var boxRect = new UiRect(cursor.X, boxY, checkboxSize, checkboxSize);
-        var pressed = ButtonBehavior(label, totalRect, out var hovered, out _);
+        var boxRect = new UiRect(boxX, boxY, checkboxSize, checkboxSize);
+        var pressed = ButtonBehavior(label, totalRect, out var hovered, out var held);
         if (pressed)
         {
             value = !value;
         }
 
-        var boxColor = hovered ? _theme.FrameBgHovered : _theme.FrameBg;
-        AddRectFilled(boxRect, boxColor, _whiteTexture);
+        var boxColor = held ? _theme.CheckboxBgActive : hovered ? _theme.CheckboxBgHovered : _theme.CheckboxBg;
+        var borderColor = held ? _theme.CheckboxBorderActive : hovered ? _theme.CheckboxBorderHovered : _theme.CheckboxBorder;
+        AddRectFilled(boxRect, borderColor, _whiteTexture);
+        var innerBoxRect = new UiRect(boxRect.X + 1f, boxRect.Y + 1f, MathF.Max(0f, boxRect.Width - 2f), MathF.Max(0f, boxRect.Height - 2f));
+        AddRectFilled(innerBoxRect, boxColor, _whiteTexture);
 
         if (value)
         {
-            var inset = 4f;
-            var checkRect = new UiRect(boxRect.X + inset, boxRect.Y + inset, boxRect.Width - inset * 2f, boxRect.Height - inset * 2f);
+            var inset = MathF.Max(2f, MathF.Round(checkboxSize / 5.75f));
+            var checkSize = MathF.Max(0f, MathF.Min(innerBoxRect.Width, innerBoxRect.Height) - (inset * 2f));
+            var checkX = innerBoxRect.X + ((innerBoxRect.Width - checkSize) * 0.5f);
+            var checkY = innerBoxRect.Y + ((innerBoxRect.Height - checkSize) * 0.5f);
+            if (_textSettings.PixelSnap)
+            {
+                checkX = MathF.Round(checkX);
+                checkY = MathF.Round(checkY);
+                checkSize = MathF.Round(checkSize);
+            }
+
+            var checkRect = new UiRect(checkX, checkY, checkSize, checkSize);
             AddRectFilled(checkRect, _theme.CheckMark, _whiteTexture);
         }
 
@@ -1024,7 +1097,7 @@ public sealed partial class UiImmediateContext
 
                 displayLabel,
                 textPos,
-                _theme.Text,
+                _theme.CheckboxText,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -1060,22 +1133,36 @@ public sealed partial class UiImmediateContext
         var displayLabel = GetDisplayLabel(label);
         var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
-        var radioSize = frameHeight;
+        var compactToggleSize = MathF.Max(12f, (GetTextLineHeight() * 0.78f) + 2f);
+        var radioSize = MathF.Min(MathF.Max(12f, frameHeight - 2f), compactToggleSize);
+        if (_textSettings.PixelSnap)
+        {
+            radioSize = MathF.Round(radioSize);
+        }
+
         var height = MathF.Max(radioSize, textSize.Y);
         var totalSize = new UiVector2(radioSize + (string.IsNullOrEmpty(displayLabel) ? 0f : CheckboxSpacing + textSize.X), height);
         var cursor = AdvanceCursor(totalSize);
 
         var totalRect = new UiRect(cursor.X, cursor.Y, totalSize.X, totalSize.Y);
         var center = new UiVector2(cursor.X + (radioSize * 0.5f), totalRect.Y + (totalRect.Height * 0.5f));
+        if (_textSettings.PixelSnap)
+        {
+            center = new UiVector2(MathF.Round(center.X), MathF.Round(center.Y));
+        }
 
-        var pressed = ButtonBehavior(label, totalRect, out var hovered, out _);
+        var pressed = ButtonBehavior(label, totalRect, out var hovered, out var held);
 
-        var outerColor = hovered ? _theme.FrameBgHovered : _theme.FrameBg;
-        AddCircleFilled(center, radioSize * 0.5f, outerColor, _whiteTexture, 16);
+        var outerColor = held ? _theme.RadioButtonBgActive : hovered ? _theme.RadioButtonBgHovered : _theme.RadioButtonBg;
+        var borderColor = held ? _theme.RadioButtonBorderActive : hovered ? _theme.RadioButtonBorderHovered : _theme.RadioButtonBorder;
+        var outerRadius = radioSize * 0.5f;
+        AddCircleFilled(center, outerRadius, borderColor, _whiteTexture, 16);
+        var innerRadius = MathF.Max(0f, outerRadius - 1f);
+        AddCircleFilled(center, innerRadius, outerColor, _whiteTexture, 16);
 
         if (active)
         {
-            AddCircleFilled(center, radioSize * 0.25f, _theme.CheckMark, _whiteTexture, 12);
+            AddCircleFilled(center, MathF.Max(2.25f, innerRadius * 0.5f), _theme.CheckMark, _whiteTexture, 12);
         }
 
         if (!string.IsNullOrEmpty(displayLabel))
@@ -1086,7 +1173,7 @@ public sealed partial class UiImmediateContext
 
                 displayLabel,
                 textPos,
-                _theme.Text,
+                _theme.RadioButtonText,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -1119,13 +1206,16 @@ public sealed partial class UiImmediateContext
         var cursor = AdvanceCursor(totalSize);
         var rect = new UiRect(cursor.X, cursor.Y, width, height);
 
-        AddRectFilled(rect, _theme.FrameBg, _whiteTexture);
+        var borderColor = _theme.ProgressBarBorder;
+        AddRectFilled(rect, borderColor, _whiteTexture);
+        var innerRect = new UiRect(rect.X + 1f, rect.Y + 1f, MathF.Max(0f, rect.Width - 2f), MathF.Max(0f, rect.Height - 2f));
+        AddRectFilled(innerRect, _theme.ProgressBarBg, _whiteTexture);
 
-        var fillWidth = rect.Width * fraction;
+        var fillWidth = innerRect.Width * fraction;
         if (fillWidth > 0f)
         {
-            var fillRect = new UiRect(rect.X, rect.Y, fillWidth, rect.Height);
-            AddRectFilled(fillRect, _theme.SliderGrab, _whiteTexture);
+            var fillRect = new UiRect(innerRect.X, innerRect.Y, fillWidth, innerRect.Height);
+            AddRectFilled(fillRect, _theme.ProgressBarFill, _whiteTexture);
         }
 
         var text = overlay ?? FormattableString.Invariant($"{fraction * 100f:0}%");
@@ -1133,21 +1223,21 @@ public sealed partial class UiImmediateContext
         {
             var textSize = MeasureTextInternal(text, _textSettings, _lineHeight);
             var textPos = new UiVector2(
-                rect.X + (rect.Width - textSize.X) * 0.5f,
-                rect.Y + (rect.Height - textSize.Y) * 0.5f
+                innerRect.X + (innerRect.Width - textSize.X) * 0.5f,
+                innerRect.Y + (innerRect.Height - textSize.Y) * 0.5f
             );
             var parentClip = CurrentClipRect;
 
             if (fillWidth > 0f)
             {
-                var filledClip = IntersectRect(parentClip, new UiRect(rect.X, rect.Y, fillWidth, rect.Height));
-                var invertedColor = new UiColor((_theme.SliderGrab.Rgba & 0xFF000000) | (~_theme.SliderGrab.Rgba & 0x00FFFFFF));
+                var filledClip = IntersectRect(parentClip, new UiRect(innerRect.X, innerRect.Y, fillWidth, innerRect.Height));
+                var invertedColor = new UiColor((_theme.ProgressBarFill.Rgba & 0xFF000000) | (~_theme.ProgressBarFill.Rgba & 0x00FFFFFF));
                 AddTextInternal(_builder, text, textPos, invertedColor, filledClip, _textSettings, _lineHeight);
             }
 
-            if (fillWidth < rect.Width)
+            if (fillWidth < innerRect.Width)
             {
-                var emptyClip = IntersectRect(parentClip, new UiRect(rect.X + fillWidth, rect.Y, rect.Width - fillWidth, rect.Height));
+                var emptyClip = IntersectRect(parentClip, new UiRect(innerRect.X + fillWidth, innerRect.Y, innerRect.Width - fillWidth, innerRect.Height));
                 AddTextInternal(_builder, text, textPos, _theme.Text, emptyClip, _textSettings, _lineHeight);
             }
         }

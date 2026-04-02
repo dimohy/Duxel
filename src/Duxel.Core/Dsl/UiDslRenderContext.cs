@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Duxel.Core;
 
 namespace Duxel.Core.Dsl;
 
@@ -8,7 +7,7 @@ public sealed class UiDslRenderContext
 {
     public UiDslRenderContext(
         UiDslState state,
-        UiFontAtlas fontAtlas,
+        UiFontAtlas? fontAtlas,
         UiTextSettings textSettings,
         float lineHeight,
         UiTextureId fontTexture,
@@ -70,7 +69,7 @@ public sealed class UiDslRenderContext
     }
 
     public UiDslState State { get; }
-    public UiFontAtlas FontAtlas { get; }
+    public UiFontAtlas? FontAtlas { get; }
     public UiTextSettings TextSettings { get; }
     public float LineHeight { get; }
     public UiTextureId FontTexture { get; }
@@ -98,82 +97,5 @@ public sealed class UiDslRenderContext
     public int ReserveCommands { get; }
     public IUiDslEventSink? EventSink { get; }
     public IUiDslValueSource? ValueSource { get; }
-}
-
-public sealed class UiDslImmediateEmitter : IUiDslEmitter
-{
-    private readonly UiDslRenderContext _ctx;
-    private readonly UiImmediateContext _ui;
-    private readonly UiDslRuntimeState _runtimeState = new();
-    private int _skipDepth;
-
-    public UiDslImmediateEmitter(UiDslRenderContext context)
-    {
-        _ctx = context;
-        _ui = new UiImmediateContext(
-            context.State.UiState,
-            context.FontAtlas,
-            context.TextSettings,
-            context.LineHeight,
-            context.FontTexture,
-            context.WhiteTexture,
-            context.Theme,
-            context.Style,
-            context.ClipRect,
-            context.MousePosition,
-            context.LeftMouseDown,
-            context.RightMouseDown,
-            context.LeftMousePressed,
-            context.LeftMouseReleased,
-            context.RightMousePressed,
-            context.RightMouseReleased,
-            context.MouseWheel,
-            context.MouseWheelHorizontal,
-            context.KeyEvents,
-            context.CharEvents,
-            context.Clipboard,
-            context.DisplaySize,
-            context.KeyRepeatSettings,
-            context.ImeHandler,
-            context.ReserveVertices,
-            context.ReserveIndices,
-            context.ReserveCommands,
-            null
-        );
-    }
-
-    public UiPooledList<UiDrawList> BuildDrawLists() => _ui.BuildDrawLists();
-
-    public void BeginNode(string name, IReadOnlyList<string> args)
-    {
-        if (_skipDepth > 0)
-        {
-            if (UiDslWidgetDispatcher.IsContainer(name))
-            {
-                _skipDepth++;
-            }
-            return;
-        }
-
-        var result = UiDslWidgetDispatcher.BeginOrInvoke(_ui, _ctx, _runtimeState, name, args);
-        if (result == UiDslBeginResult.SkipChildren)
-        {
-            _skipDepth = 1;
-        }
-    }
-
-    public void EndNode(string name)
-    {
-        if (_skipDepth > 0)
-        {
-            if (UiDslWidgetDispatcher.IsContainer(name))
-            {
-                _skipDepth--;
-            }
-            return;
-        }
-
-        UiDslWidgetDispatcher.End(_ui, _ctx, _runtimeState, name);
-    }
 }
 

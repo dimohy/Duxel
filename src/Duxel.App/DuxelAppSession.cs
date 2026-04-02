@@ -199,7 +199,7 @@ public sealed class DuxelAppSession
         uiContext.SetDirectTextBaseFontSize(logicalBaseFontSize * contentScale);
         uiContext.SetContentScale(contentScale);
         uiContext.SetTheme(theme);
-        uiContext.SetScreen(options.Screen!);
+        uiContext.SetScreen(options.Screen);
         DuxelApp.ConfigureContext(uiContext, options, platform);
         uiContext.State.VSync = window.VSync;
         uiContext.State.MsaaSamples = requestedMsaaSamples;

@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Duxel.Core;
-using Duxel.Core.Dsl;
 using Duxel.Vulkan;
 
 namespace Duxel.App;
@@ -239,16 +238,6 @@ public static class DuxelApp
 
     internal static void ValidateOptions(DuxelAppOptions options)
     {
-        if (options.Dsl is not null)
-        {
-            throw new InvalidOperationException("DuxelApp Dsl entry is no longer supported.");
-        }
-
-        if (options.Screen is null)
-        {
-            throw new InvalidOperationException("Screen must be provided.");
-        }
-
         if (options.Window.Width <= 0 || options.Window.Height <= 0)
         {
             throw new InvalidOperationException("Window size must be greater than zero.");
@@ -274,8 +263,7 @@ public sealed record class DuxelAppOptions
     public UiTextureId FontTextureId { get; init; } = new(1);
     public UiTextureId WhiteTextureId { get; init; } = new(2);
 
-    public UiScreen? Screen { get; init; }
-    public DuxelDslOptions? Dsl { get; init; }
+    public required UiScreen Screen { get; init; }
 
     public IUiClipboard? Clipboard { get; init; }
     public IUiImageDecoder? ImageDecoder { get; init; }
@@ -363,12 +351,4 @@ public sealed record class DuxelFrameOptions
     public Func<bool>? IsAnimationActiveProvider { get; init; }
 }
 
-public sealed record class DuxelDslOptions
-{
-    public required Action<IUiDslEmitter> Render { get; init; }
-    public UiDslBindings? Bindings { get; init; }
-    public IUiDslEventSink? EventSink { get; init; }
-    public IUiDslValueSource? ValueSource { get; init; }
-    public UiDslState? State { get; init; }
-}
 

@@ -65,8 +65,6 @@ dotnet run samples/fba/all_features.cs
 | File | Description |
 |---|---|
 | `all_features.cs` | Full widget showcase demo with dedicated typography, layout, popup/context, input-query, item-status, multi-select, and layer/animation windows |
-| `dsl_showcase.cs` | DSL layout demo |
-| `dsl_interaction.cs` | DSL state/event demo |
 | `hello_duxel_fba.cs` | Ultra-minimal hello sample with a small `Hello` and a large `Duxel!` |
 | `windows_calculator_fba.cs` | Calculator UI demo |
 | `text_render_validation_fba.cs` | Text rendering validation |
@@ -83,33 +81,7 @@ Remove-Item Env:DUXEL_APP_PROFILE
 
 ## DSL Style
 
-```csharp
-#:property TargetFramework=net10.0
-#:property platform=windows
-#:package Duxel.$(platform).App@*-*
-
-using Duxel.App;
-using Duxel.Core.Dsl;
-using Duxel.Windows.App;
-
-var dslText = """
-Window "My App"
-  Text "Hello DSL"
-  Checkbox Id="vsync" Text="VSync" Default=true
-""";
-
-var doc = UiDslParser.Parse(dslText);
-
-DuxelWindowsApp.Run(new DuxelAppOptions
-{
-    Window = new DuxelWindowOptions { Title = "DSL Demo" },
-    Dsl = new DuxelDslOptions
-    {
-        State = new UiDslState(),
-        Render = emitter => doc.Emit(emitter)
-    }
-});
-```
+For DSL-based UI, use the `UiDslScreen` class with `.ui` and `.duxel-theme` files in a project. See `samples/Duxel.ThemeDemo` for a complete example.
 
 ## Related Docs
 

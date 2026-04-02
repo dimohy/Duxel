@@ -1,0 +1,95 @@
+// Cyberpunk-inspired theme — demonstrates per-widget token customization
+// Base: Dark preset, then override global + widget-specific tokens
+
+Theme "Cyberpunk" : Dark
+
+// ── Global palette overrides ──
+WindowBg = #0D0D1A
+Text = #E0E0F0
+TextDisabled = #55557A
+Border = #2A1A4A
+PopupBg = #141428
+
+// ── Button — neon cyan accent ──
+ButtonText = #00FFCC
+Button = #1A1A3A
+ButtonHovered = #2A2A5A
+ButtonActive = #00CCAA
+ButtonBorder = #00FFCC
+
+// ── Input — deep purple frame ──
+InputText = #E0E0F0
+InputBg = #1A1030
+InputBgHovered = #2A1A4A
+InputBgActive = #3A2A5A
+InputSelectionBg = #4A2A8A
+InputBorder = #5A3AAA
+
+// ── Checkbox / RadioButton — magenta accent ──
+CheckboxText = #E0E0F0
+CheckboxBg = #1A1030
+CheckboxBgHovered = #3A1A5A
+CheckboxBgActive = #FF00AA
+CheckboxBorder = #FF00AA
+RadioButtonText = #E0E0F0
+RadioButtonBg = #1A1030
+RadioButtonBgHovered = #3A1A5A
+RadioButtonBgActive = #FF00AA
+
+// ── Combo — dark glass ──
+ComboText = #00FFCC
+ComboBg = #141428
+ComboBgHovered = #1E1E3E
+ComboBgActive = #2A2A5A
+ComboPopupBg = #0D0D1A
+ComboBorder = #2A1A4A
+
+// ── Slider — yellow-green gradient feel ──
+SliderText = #C0FF00
+SliderBg = #1A1A2A
+SliderBgHovered = #2A2A3A
+
+// ── Drag — warm orange ──
+DragText = #FFA040
+DragBg = #1A1A2A
+DragBgHovered = #2A2A3A
+DragBgActive = #3A3A4A
+
+// ── Tab — electric blue ──
+TabText = #40C0FF
+
+// ── TreeNode — subtle glow ──
+TreeNodeText = #B0B0D0
+TreeNodeBg = #141428
+TreeNodeBgHovered = #1E1E3E
+TreeNodeBgActive = #2A2A5A
+
+// ── Table header — metallic ──
+TableHeaderText = #A0A0C0
+
+// ── Selectable — highlight on hover ──
+SelectableText = #E0E0F0
+SelectableBgHovered = #2A1A4A
+SelectableBgActive = #4A2A8A
+
+// ── Menu — neon pink accents ──
+MenuItemText = #E0E0F0
+MenuItemTextDisabled = #55557A
+MenuItemBgHovered = #3A1A5A
+MenuItemBgActive = #FF00AA
+
+// ── Tooltip — glass panel ──
+TooltipText = #E0E0F0
+TooltipBg = #1A1A30
+
+// ── ListBox — dark list ──
+ListBoxBg = #0D0D1A
+ListBoxItemText = #C0C0E0
+ListBoxItemBgHovered = #2A1A4A
+ListBoxItemBgActive = #4A2A8A
+
+// ── Window title — bright ──
+WindowTitleText = #00FFCC
+
+// ── Separator label ──
+SeparatorLabelText = #5A5A8A

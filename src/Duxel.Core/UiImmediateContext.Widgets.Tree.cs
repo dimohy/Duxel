@@ -53,25 +53,25 @@ public sealed partial class UiImmediateContext
             durationSeconds: 0.12f,
             easing: UiAnimationEasing.OutCubic
         );
-        var bgBase = ApplyAlpha(_theme.Header, 0.90f);
+        var bgBase = ApplyAlpha(_theme.TreeNodeBg, 0.90f);
         AddRectFilled(rect, bgBase, _whiteTexture);
         if (headerBlend > 0.001f)
         {
-            var accent = held ? _theme.HeaderActive : _theme.HeaderHovered;
+            var accent = held ? _theme.TreeNodeBgActive : _theme.TreeNodeBgHovered;
             AddRectFilled(rect, ApplyAlpha(accent, headerBlend), _whiteTexture);
         }
 
         var textTop = rect.Y + (height - textSize.Y) * 0.5f;
         var arrowCenterY = GetTextVisualCenterY(textTop);
         var arrowRect = new UiRect(rect.X + ButtonPaddingX, arrowCenterY - arrowSize * 0.5f, arrowSize, arrowSize);
-        DrawTreeArrow(arrowRect, isOpen, id, _theme.Text);
+        DrawTreeArrow(arrowRect, isOpen, id, _theme.TreeNodeText);
 
         var textPos = new UiVector2(arrowRect.X + arrowRect.Width + 6f, textTop);
         AddTextInternal(_builder,
 
             label,
             textPos,
-            _theme.Text,
+            _theme.TreeNodeText,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -144,20 +144,20 @@ public sealed partial class UiImmediateContext
         );
         if (hoverBlend > 0.001f)
         {
-            AddRectFilled(rect, ApplyAlpha(_theme.HeaderHovered, hoverBlend * 0.75f), _whiteTexture);
+            AddRectFilled(rect, ApplyAlpha(_theme.TreeNodeBgHovered, hoverBlend * 0.75f), _whiteTexture);
         }
 
         var textTop = rect.Y + (height - textSize.Y) * 0.5f;
         var arrowCenterY = GetTextVisualCenterY(textTop);
         var arrowRect = new UiRect(rect.X + ButtonPaddingX, arrowCenterY - arrowSize * 0.5f, arrowSize, arrowSize);
-        DrawTreeArrow(arrowRect, isOpen, id, _theme.Text);
+        DrawTreeArrow(arrowRect, isOpen, id, _theme.TreeNodeText);
 
         var textPos = new UiVector2(arrowRect.X + arrowRect.Width + 6f, textTop);
         AddTextInternal(_builder,
 
             label,
             textPos,
-            _theme.Text,
+            _theme.TreeNodeText,
             CurrentClipRect,
             _textSettings,
             _lineHeight

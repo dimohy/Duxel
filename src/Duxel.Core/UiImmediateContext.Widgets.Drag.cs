@@ -16,10 +16,11 @@ public sealed partial class UiImmediateContext
         var cursor = AdvanceCursor(totalSize);
 
         var labelPos = new UiVector2(cursor.X, cursor.Y + (height - textSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             label,
             labelPos,
-            _theme.Text,
+            _theme.DragText,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -60,16 +61,20 @@ public sealed partial class UiImmediateContext
             }
         }
 
-        var bg = active ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : _theme.FrameBg;
-        AddRectFilled(dragRect, bg, _whiteTexture);
+        var bg = active ? _theme.DragBgActive : hovered ? _theme.DragBgHovered : _theme.DragBg;
+        var borderColor = active ? _theme.DragBorderActive : hovered ? _theme.DragBorderHovered : _theme.DragBorder;
+        AddRectFilled(dragRect, borderColor, _whiteTexture);
+        var innerDragRect = new UiRect(dragRect.X + 1f, dragRect.Y + 1f, MathF.Max(0f, dragRect.Width - 2f), MathF.Max(0f, dragRect.Height - 2f));
+        AddRectFilled(innerDragRect, bg, _whiteTexture);
 
         var valueText = value.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
         var valueSize = MeasureTextInternal(valueText, _textSettings, _lineHeight);
         var valuePos = new UiVector2(dragRect.X + 6f, dragRect.Y + (dragRect.Height - valueSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             valueText,
             valuePos,
-            _theme.Text,
+            _theme.DragText,
             CurrentClipRect,
             _textSettings,
             _lineHeight

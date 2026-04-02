@@ -143,10 +143,7 @@ public sealed class WindowsImeHandler : IUiImeHandler
         lock (_imeStateLock)
         {
             _activeInputId = string.IsNullOrEmpty(inputId) ? null : inputId;
-            if (!_isComposing)
-            {
-                _compositionOwnerId = _activeInputId;
-            }
+            _compositionOwnerId = _activeInputId;
         }
     }
 

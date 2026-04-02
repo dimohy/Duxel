@@ -52,10 +52,11 @@ public sealed partial class UiImmediateContext
         AddRectFilled(rect, bg, _whiteTexture);
 
         var textPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (rect.Height - textSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             label,
             textPos,
-            _theme.Text,
+            _theme.TabText,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -98,10 +99,11 @@ public sealed partial class UiImmediateContext
         AddRectFilled(rect, bg, _whiteTexture);
 
         var textPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (rect.Height - textSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        AddTextInternal(_builder,
+
             label,
             textPos,
-            _theme.Text,
+            _theme.TabText,
             CurrentClipRect,
             _textSettings,
             _lineHeight

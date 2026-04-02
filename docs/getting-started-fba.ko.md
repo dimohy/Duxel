@@ -64,8 +64,6 @@ dotnet run samples/fba/all_features.cs
 | 파일 | 설명 |
 |---|---|
 | `all_features.cs` | 타이포그래피, 레이아웃, 팝업/컨텍스트, 입력 질의, 아이템 상태, 멀티셀렉트, 레이어/애니메이션 전용 창까지 포함한 전체 위젯 종합 데모 |
-| `dsl_showcase.cs` | DSL 레이아웃 데모 |
-| `dsl_interaction.cs` | DSL 상태/이벤트 데모 |
 | `hello_duxel_fba.cs` | 작은 `Hello`와 큰 `Duxel!`만 보여주는 초간단 인사 샘플 |
 | `windows_calculator_fba.cs` | 계산기 UI 데모 |
 | `text_render_validation_fba.cs` | 텍스트 렌더 검증 |
@@ -82,33 +80,7 @@ Remove-Item Env:DUXEL_APP_PROFILE
 
 ## DSL 방식
 
-```csharp
-#:property TargetFramework=net10.0
-#:property platform=windows
-#:package Duxel.$(platform).App@*-*
-
-using Duxel.App;
-using Duxel.Core.Dsl;
-using Duxel.Windows.App;
-
-var dslText = """
-Window "My App"
-  Text "Hello DSL"
-  Checkbox Id="vsync" Text="VSync" Default=true
-""";
-
-var doc = UiDslParser.Parse(dslText);
-
-DuxelWindowsApp.Run(new DuxelAppOptions
-{
-    Window = new DuxelWindowOptions { Title = "DSL Demo" },
-    Dsl = new DuxelDslOptions
-    {
-        State = new UiDslState(),
-        Render = emitter => doc.Emit(emitter)
-    }
-});
-```
+DSL 기반 UI는 `UiDslScreen` 클래스와 `.ui`/`.duxel-theme` 파일을 프로젝트에서 사용합니다. 완전한 예제는 `samples/Duxel.ThemeDemo`를 참고하세요.
 
 ## 참고 문서
 

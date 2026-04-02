@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/samples/">
     <Project Path="samples/Duxel.Sample/Duxel.Sample.csproj" />
+    <Project Path="samples/Duxel.ThemeDemo/Duxel.ThemeDemo.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Duxel.App/Duxel.App.csproj" />

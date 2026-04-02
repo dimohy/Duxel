@@ -47,11 +47,11 @@ public sealed partial class UiImmediateContext
 
         if (selected)
         {
-            AddRectFilled(rowRect, _theme.HeaderActive, _whiteTexture);
+            AddRectFilled(rowRect, _theme.ListBoxItemBgActive, _whiteTexture);
         }
         else if (hovered)
         {
-            AddRectFilled(rowRect, _theme.HeaderHovered, _whiteTexture);
+            AddRectFilled(rowRect, _theme.ListBoxItemBgHovered, _whiteTexture);
         }
 
         return pressed;
@@ -68,7 +68,9 @@ public sealed partial class UiImmediateContext
 
         var cursor = AdvanceCursor(new UiVector2(width, height));
         var listRect = new UiRect(cursor.X, cursor.Y, width, height);
-        AddRectFilled(listRect, _theme.FrameBg, _whiteTexture);
+        AddRectFilled(listRect, _theme.ListBoxBorder, _whiteTexture);
+        var innerListRect = new UiRect(listRect.X + 1f, listRect.Y + 1f, MathF.Max(0f, listRect.Width - 2f), MathF.Max(0f, listRect.Height - 2f));
+        AddRectFilled(innerListRect, _theme.ListBoxBg, _whiteTexture);
 
         var hovered = IsHovering(listRect);
         var scrollY = _state.GetScrollY(resolvedId);

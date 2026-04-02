@@ -2,6 +2,32 @@
 
 Duxel의 버전별 변경 내역 누적 기록.
 
+## 0.2.2-preview (2026-04-03)
+
+### 주요 기능 추가
+
+- **[기능]** DSL 스크린 런타임 (`UiDslScreen`) — 핫리로드(managed)와 소스 생성(NativeAOT) 통합 DSL 렌더링, `.duxel-theme` 핫리로드, `RequestTheme()` API, 이벤트/값 바인딩 통합.
+- **[기능]** DSL 이벤트/값 바인딩 — `UiDslEventBinder`(fluent per-id 버튼/체크박스 콜백)와 `UiDslValueBinder`(fluent `IUiDslValueSource` 래퍼)로 인터페이스 수동 구현 제거.
+- **[기능]** DSL 제어 흐름 — `If`/`ElseIf`/`Else`, `Visible`, `ForEach`(범위 기반 템플릿 확장), `Switch`/`Case`/`Default`, `Set`, `Text Bind="key"` 데이터 바인딩.
+- **[기능]** 테마 프리셋 10종 — `ImGuiDark`, `ImGuiLight`, `ImGuiClassic`, `Nord`, `SolarizedDark`, `SolarizedLight`, `Dracula`, `Monokai`, `CatppuccinMocha`, `GitHubDark` 즉시 전환 지원.
+- **[기능]** ThemeDemo 샘플 — DSL 기반 테마 핫리로드 데모 앱, 테마 선택 Combo, 제어 흐름 데모, NativeAOT 지원.
+- **[기능]** 테마 시스템 전면 개편 — `UiTheme` struct를 110색 `InlineArray`로 재설계, 위젯별 색상 토큰(`UiStyleColor` enum), `InitWidgetDefaults()` 기본값 캐스케이드, `.duxel-theme` 파일 파서의 베이스 프리셋 상속.
+
+### 주요 개선 사항
+
+- **[개선]** 위젯 테마 세분화 — 기존 ~35개 글로벌 색상에서 110개 위젯별 토큰으로 확장, Button/Checkbox/RadioButton/Input/Slider/Drag/Combo/Selectable/MenuItem/Tab/TreeNode/Table/Tooltip/ListBox/ProgressBar/Separator의 border·state 개별 지정.
+- **[개선]** 위젯 border 렌더링 — Button, Checkbox, RadioButton, Input, Slider, Drag, Combo, ListBox, ProgressBar 위젯이 hover/active 상태별 독립 border 색상 렌더링.
+- **[개선]** 텍스트/불릿 수직 중앙 정렬 — glyph metrics 기반 시각 중심 계산으로 기존 heuristic ascent offset 대체.
+- **[개선]** `Combo` 위젯 이벤트 알림 — 값 변경 시 `EventSink.OnButton(id)` 발동, DSL 이벤트 핸들러 반응형 처리 가능.
+- **[개선]** `DuxelAppOptions.Screen` — nullable optional에서 `required`로 변경, 폐기된 `DuxelDslOptions` 진입점 및 `UiDslBindings` 클래스 제거.
+- **[개선]** ProgressBar accent 색상 — `ProgressBarFill`이 `SliderGrab` 대신 `PlotHistogram` 사용 (Dear ImGui 기준 일치).
+
+### 주요 버그 수정
+
+- **[버그]** Text `Bind` 위치 인자 간섭 — `ReadOptionalString("Bind")`가 텍스트 내용까지 소비하던 문제, `ReadNamedString("Bind", null)`로 수정.
+- **[버그]** 제어 흐름 스킵 경로 스타일 leak — 스킵된 컨테이너의 `EndNode`에서 `StyleColorPushCounts` 미정리 수정.
+- **[버그]** Selectable 이벤트 누락 — `Selectable` 상태 변경 시 `OnButton`과 `OnCheckbox` 이벤트 모두 발동하도록 수정.
+
 ## 0.2.1-preview (2026-03-25)
 
 ### 주요 기능 추가

@@ -37,7 +37,7 @@ public sealed partial class UiImmediateContext
 
                 text,
                 textPos,
-                _theme.Text,
+                _theme.SeparatorLabelText,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight

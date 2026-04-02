@@ -1824,45 +1824,7 @@ public sealed partial class UiImmediateContext
         return new UiRect(left, top, width, height);
     }
 
-    private UiColor GetStyleColor(UiStyleColor color) => color switch
-    {
-        UiStyleColor.Text => _theme.Text,
-        UiStyleColor.TextDisabled => _theme.TextDisabled,
-        UiStyleColor.WindowBg => _theme.WindowBg,
-        UiStyleColor.TitleBg => _theme.TitleBg,
-        UiStyleColor.TitleBgActive => _theme.TitleBgActive,
-        UiStyleColor.MenuBarBg => _theme.MenuBarBg,
-        UiStyleColor.PopupBg => _theme.PopupBg,
-        UiStyleColor.Border => _theme.Border,
-        UiStyleColor.FrameBg => _theme.FrameBg,
-        UiStyleColor.FrameBgHovered => _theme.FrameBgHovered,
-        UiStyleColor.FrameBgActive => _theme.FrameBgActive,
-        UiStyleColor.Header => _theme.Header,
-        UiStyleColor.HeaderHovered => _theme.HeaderHovered,
-        UiStyleColor.HeaderActive => _theme.HeaderActive,
-        UiStyleColor.Button => _theme.Button,
-        UiStyleColor.ButtonHovered => _theme.ButtonHovered,
-        UiStyleColor.ButtonActive => _theme.ButtonActive,
-        UiStyleColor.Tab => _theme.Tab,
-        UiStyleColor.TabHovered => _theme.TabHovered,
-        UiStyleColor.TabActive => _theme.TabActive,
-        UiStyleColor.CheckMark => _theme.CheckMark,
-        UiStyleColor.SliderGrab => _theme.SliderGrab,
-        UiStyleColor.SliderGrabActive => _theme.SliderGrabActive,
-        UiStyleColor.PlotLines => _theme.PlotLines,
-        UiStyleColor.PlotHistogram => _theme.PlotHistogram,
-        UiStyleColor.Separator => _theme.Separator,
-        UiStyleColor.TableHeaderBg => _theme.TableHeaderBg,
-        UiStyleColor.TableRowBg0 => _theme.TableRowBg0,
-        UiStyleColor.TableRowBg1 => _theme.TableRowBg1,
-        UiStyleColor.TableBorder => _theme.TableBorder,
-        UiStyleColor.TextSelectedBg => _theme.TextSelectedBg,
-        UiStyleColor.ScrollbarBg => _theme.ScrollbarBg,
-        UiStyleColor.ScrollbarGrab => _theme.ScrollbarGrab,
-        UiStyleColor.ScrollbarGrabHovered => _theme.ScrollbarGrabHovered,
-        UiStyleColor.ScrollbarGrabActive => _theme.ScrollbarGrabActive,
-        _ => _theme.Text,
-    };
+    private UiColor GetStyleColor(UiStyleColor color) => _theme[color];
 
     public string GetStyleColorName(UiStyleColor color) => color.ToString();
 
@@ -1874,83 +1836,24 @@ public sealed partial class UiImmediateContext
 
     private static UiTheme ApplyThemeAlpha(UiTheme theme, float alpha)
     {
-        return theme with
+        for (var i = 0; i < UiThemeColors.StyleColorCount; i++)
         {
-            Text = ApplyAlpha(theme.Text, alpha),
-            TextDisabled = ApplyAlpha(theme.TextDisabled, alpha),
-            WindowBg = ApplyAlpha(theme.WindowBg, alpha),
-            TitleBg = ApplyAlpha(theme.TitleBg, alpha),
-            TitleBgActive = ApplyAlpha(theme.TitleBgActive, alpha),
-            MenuBarBg = ApplyAlpha(theme.MenuBarBg, alpha),
-            PopupBg = ApplyAlpha(theme.PopupBg, alpha),
-            Border = ApplyAlpha(theme.Border, alpha),
-            FrameBg = ApplyAlpha(theme.FrameBg, alpha),
-            FrameBgHovered = ApplyAlpha(theme.FrameBgHovered, alpha),
-            FrameBgActive = ApplyAlpha(theme.FrameBgActive, alpha),
-            Header = ApplyAlpha(theme.Header, alpha),
-            HeaderHovered = ApplyAlpha(theme.HeaderHovered, alpha),
-            HeaderActive = ApplyAlpha(theme.HeaderActive, alpha),
-            Button = ApplyAlpha(theme.Button, alpha),
-            ButtonHovered = ApplyAlpha(theme.ButtonHovered, alpha),
-            ButtonActive = ApplyAlpha(theme.ButtonActive, alpha),
-            Tab = ApplyAlpha(theme.Tab, alpha),
-            TabHovered = ApplyAlpha(theme.TabHovered, alpha),
-            TabActive = ApplyAlpha(theme.TabActive, alpha),
-            CheckMark = ApplyAlpha(theme.CheckMark, alpha),
-            SliderGrab = ApplyAlpha(theme.SliderGrab, alpha),
-            SliderGrabActive = ApplyAlpha(theme.SliderGrabActive, alpha),
-            PlotLines = ApplyAlpha(theme.PlotLines, alpha),
-            PlotHistogram = ApplyAlpha(theme.PlotHistogram, alpha),
-            Separator = ApplyAlpha(theme.Separator, alpha),
-            TableHeaderBg = ApplyAlpha(theme.TableHeaderBg, alpha),
-            TableRowBg0 = ApplyAlpha(theme.TableRowBg0, alpha),
-            TableRowBg1 = ApplyAlpha(theme.TableRowBg1, alpha),
-            TableBorder = ApplyAlpha(theme.TableBorder, alpha),
-            TextSelectedBg = ApplyAlpha(theme.TextSelectedBg, alpha),
-        };
+            var color = (UiStyleColor)i;
+            theme[color] = ApplyAlpha(theme[color], alpha);
+        }
+
+        return theme;
     }
 
     private void SetStyleColor(UiStyleColor color, UiColor value)
     {
-        _theme = color switch
-        {
-            UiStyleColor.Text => _theme with { Text = value },
-            UiStyleColor.TextDisabled => _theme with { TextDisabled = value },
-            UiStyleColor.WindowBg => _theme with { WindowBg = value },
-            UiStyleColor.TitleBg => _theme with { TitleBg = value },
-            UiStyleColor.TitleBgActive => _theme with { TitleBgActive = value },
-            UiStyleColor.MenuBarBg => _theme with { MenuBarBg = value },
-            UiStyleColor.PopupBg => _theme with { PopupBg = value },
-            UiStyleColor.Border => _theme with { Border = value },
-            UiStyleColor.FrameBg => _theme with { FrameBg = value },
-            UiStyleColor.FrameBgHovered => _theme with { FrameBgHovered = value },
-            UiStyleColor.FrameBgActive => _theme with { FrameBgActive = value },
-            UiStyleColor.Header => _theme with { Header = value },
-            UiStyleColor.HeaderHovered => _theme with { HeaderHovered = value },
-            UiStyleColor.HeaderActive => _theme with { HeaderActive = value },
-            UiStyleColor.Button => _theme with { Button = value },
-            UiStyleColor.ButtonHovered => _theme with { ButtonHovered = value },
-            UiStyleColor.ButtonActive => _theme with { ButtonActive = value },
-            UiStyleColor.Tab => _theme with { Tab = value },
-            UiStyleColor.TabHovered => _theme with { TabHovered = value },
-            UiStyleColor.TabActive => _theme with { TabActive = value },
-            UiStyleColor.CheckMark => _theme with { CheckMark = value },
-            UiStyleColor.SliderGrab => _theme with { SliderGrab = value },
-            UiStyleColor.SliderGrabActive => _theme with { SliderGrabActive = value },
-            UiStyleColor.PlotLines => _theme with { PlotLines = value },
-            UiStyleColor.PlotHistogram => _theme with { PlotHistogram = value },
-            UiStyleColor.Separator => _theme with { Separator = value },
-            UiStyleColor.TableHeaderBg => _theme with { TableHeaderBg = value },
-            UiStyleColor.TableRowBg0 => _theme with { TableRowBg0 = value },
-            UiStyleColor.TableRowBg1 => _theme with { TableRowBg1 = value },
-            UiStyleColor.TableBorder => _theme with { TableBorder = value },
-            UiStyleColor.TextSelectedBg => _theme with { TextSelectedBg = value },
-            UiStyleColor.ScrollbarBg => _theme with { ScrollbarBg = value },
-            UiStyleColor.ScrollbarGrab => _theme with { ScrollbarGrab = value },
-            UiStyleColor.ScrollbarGrabHovered => _theme with { ScrollbarGrabHovered = value },
-            UiStyleColor.ScrollbarGrabActive => _theme with { ScrollbarGrabActive = value },
-            _ => _theme,
-        };
+        _theme[color] = value;
+    }
+
+    public void RequestTheme(UiTheme theme)
+    {
+        _state.RequestTheme(theme);
+        _requestFrame?.Invoke();
     }
 
     public double GetTime() => _state.TimeSeconds;
@@ -2606,7 +2509,7 @@ public sealed partial class UiImmediateContext
             var rect = new UiRect(startX, y + 2f, MathF.Max(0f, endX - startX), lineHeight - 4f);
             if (rect.Width > 0f && rect.Y >= inputRect.Y && rect.Y <= inputRect.Y + inputRect.Height)
             {
-                _builder.AddRectFilled(rect, _theme.TextSelectedBg, _whiteTexture, IntersectRect(CurrentClipRect, inputRect));
+                _builder.AddRectFilled(rect, _theme.InputSelectionBg, _whiteTexture, IntersectRect(CurrentClipRect, inputRect));
             }
         }
     }

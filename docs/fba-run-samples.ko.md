@@ -49,42 +49,6 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 ---
 
-## DSL 선언적 UI
-
-마크업으로 UI를 선언적으로 구성하는 데모입니다.
-
-**PowerShell**
-```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_showcase.cs | dotnet run -
-```
-
-**Bash**
-```bash
-curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_showcase.cs -o - | dotnet run -
-```
-
-> DSL 마크업으로 Text · Button · Input · Checkbox · Slider · Combo · TabBar · Table · TreeNode 구성
-
----
-
-## DSL 인터랙션
-
-DSL 바인딩으로 상태 연동 · 동적 표시를 시연합니다.
-
-**PowerShell**
-```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_interaction.cs | dotnet run -
-```
-
-**Bash**
-```bash
-curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_interaction.cs -o - | dotnet run -
-```
-
-> Drag · Slider · Color · Child · Popup · 상태 바인딩
-
----
-
 ## Hello Duxel
 
 작은 `Hello`, 큰 `Duxel!`만 보여주는 가장 작은 인사 샘플입니다.
@@ -100,24 +64,6 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 ```
 
 > `PushFontSize` 계층 · 단일 창 최소 샘플 · hello-world 출발점
-
----
-
-## 메뉴/서브메뉴 Z-Order
-
-중첩 메뉴가 뒤의 컨트롤을 올바르게 가리는지 검증하는 데모입니다.
-
-**PowerShell**
-```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/menu_submenu_zorder.cs | dotnet run -
-```
-
-**Bash**
-```bash
-curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/menu_submenu_zorder.cs -o - | dotnet run -
-```
-
-> MainMenuBar · 2단 서브메뉴 · 팝업 차단 레이어
 
 ---
 
@@ -464,9 +410,9 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 ```powershell
 $base = "https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 $files = @(
-    "all_features.cs", "dsl_showcase.cs", "dsl_interaction.cs",
+    "all_features.cs",
     "hello_duxel_fba.cs",
-    "menu_submenu_zorder.cs", "advanced_layout.cs", "columns_demo.cs",
+    "advanced_layout.cs", "columns_demo.cs",
     "image_and_popups.cs", "image_widget_effects_fba.cs",
     "input_queries.cs", "item_status.cs",
     "windows_calculator_fba.cs", "windows_calculator_duxel_showcase_fba.cs",
@@ -485,7 +431,7 @@ Write-Host "`nRun: dotnet run fba/all_features.cs"
 **Bash**
 ```bash
 BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
-FILES=(all_features.cs dsl_showcase.cs dsl_interaction.cs hello_duxel_fba.cs menu_submenu_zorder.cs \
+FILES=(all_features.cs hello_duxel_fba.cs \
     advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
     input_queries.cs item_status.cs \
     windows_calculator_fba.cs windows_calculator_duxel_showcase_fba.cs \

@@ -139,7 +139,7 @@ public sealed partial class UiImmediateContext
 
                     label,
                     new UiVector2(cellX, cellY),
-                    _theme.Text,
+                    _theme.TableHeaderText,
                     CurrentClipRect,
                     _textSettings,
                     _lineHeight
@@ -178,7 +178,7 @@ public sealed partial class UiImmediateContext
 
                 label,
                 new UiVector2(cellX, cellY),
-                _theme.Text,
+                _theme.TableHeaderText,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -311,7 +311,7 @@ public sealed partial class UiImmediateContext
 
                     label,
                     new UiVector2(cellX, cellY),
-                    _theme.Text,
+                    _theme.TableHeaderText,
                     CurrentClipRect,
                     _textSettings,
                     _lineHeight
@@ -330,7 +330,7 @@ public sealed partial class UiImmediateContext
                     durationSeconds: 0.12f,
                     easing: UiAnimationEasing.OutCubic
                 );
-                DrawChevronIcon(iconRect, iconRotationDegrees, scale: 2f / 3f, thickness: 1.2f, color: _theme.Text);
+                DrawChevronIcon(iconRect, iconRotationDegrees, scale: 2f / 3f, thickness: 1.2f, color: _theme.TableHeaderText);
 
                 if (hasSortOrder)
                 {

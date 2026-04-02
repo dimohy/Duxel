@@ -50,42 +50,6 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 ---
 
-## DSL Declarative UI
-
-Build UI declaratively with markup.
-
-**PowerShell**
-```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_showcase.cs | dotnet run -
-```
-
-**Bash**
-```bash
-curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_showcase.cs -o - | dotnet run -
-```
-
-> DSL markup for Text · Button · Input · Checkbox · Slider · Combo · TabBar · Table · TreeNode
-
----
-
-## DSL Interaction
-
-State bindings and dynamic display via DSL.
-
-**PowerShell**
-```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_interaction.cs | dotnet run -
-```
-
-**Bash**
-```bash
-curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dsl_interaction.cs -o - | dotnet run -
-```
-
-> Drag · Slider · Color · Child · Popup · State Bindings
-
----
-
 ## Hello Duxel
 
 Small `Hello`, big `Duxel!` — the tiniest possible greeting sample.
@@ -101,24 +65,6 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 ```
 
 > `PushFontSize` hierarchy · one-window minimal sample · hello-world style starting point
-
----
-
-## Menu / Submenu Z-Order
-
-Verifies nested menus correctly occlude underlying controls.
-
-**PowerShell**
-```powershell
-irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/menu_submenu_zorder.cs | dotnet run -
-```
-
-**Bash**
-```bash
-curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/menu_submenu_zorder.cs -o - | dotnet run -
-```
-
-> MainMenuBar · 2-level submenu · Popup blocking layer
 
 ---
 
@@ -465,9 +411,9 @@ To download all FBA samples at once:
 ```powershell
 $base = "https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 $files = @(
-    "all_features.cs", "dsl_showcase.cs", "dsl_interaction.cs",
+    "all_features.cs",
     "hello_duxel_fba.cs",
-    "menu_submenu_zorder.cs", "advanced_layout.cs", "columns_demo.cs",
+    "advanced_layout.cs", "columns_demo.cs",
     "image_and_popups.cs", "image_widget_effects_fba.cs",
     "input_queries.cs", "item_status.cs",
     "windows_calculator_fba.cs", "windows_calculator_duxel_showcase_fba.cs",
@@ -486,7 +432,7 @@ Write-Host "`nRun: dotnet run fba/all_features.cs"
 **Bash**
 ```bash
 BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
-FILES=(all_features.cs dsl_showcase.cs dsl_interaction.cs hello_duxel_fba.cs menu_submenu_zorder.cs \
+FILES=(all_features.cs hello_duxel_fba.cs \
     advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
     input_queries.cs item_status.cs \
     windows_calculator_fba.cs windows_calculator_duxel_showcase_fba.cs \

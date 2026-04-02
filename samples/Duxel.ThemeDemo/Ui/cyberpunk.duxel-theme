@@ -1,0 +1,117 @@
+Theme "Cyberpunk" : Dark
+
+// ── Global palette ──
+WindowBg = #0D0D1A
+Text = #E0E0F0
+TextDisabled = #55557A
+Border = #2A1A4A
+
+// ── Window ──
+TitleBg = #0A0A18
+TitleBgActive = #1A0A2A
+WindowTitleText = #00FFCC
+
+// ── Buttons ──
+Button = #1A1A3A
+ButtonHovered = #2A2A5A
+ButtonActive = #00CCAA
+ButtonBorder = #00FFCC
+ButtonText = #00FFCC
+
+// ── Checkbox ──
+FrameBg = #1A1A3A
+FrameBgHovered = #2A2A5A
+FrameBgActive = #00CCAA
+CheckMark = #00FFCC
+CheckboxBg = #1A1A3A
+CheckboxBgHovered = #2A2A5A
+CheckboxBgActive = #00CCAA
+CheckboxText = #E0E0F0
+
+// ── Radio Button ──
+RadioButtonBg = #1A1A3A
+RadioButtonBgHovered = #2A2A5A
+RadioButtonBgActive = #00CCAA
+RadioButtonText = #E0E0F0
+
+// ── Progress Bar ──
+ProgressBarBg = #1A1A3A
+ProgressBarFill = #00FFCC
+
+// ── Input ──
+InputBg = #12122A
+InputBgHovered = #1A1A3A
+InputText = #E0E0F0
+InputSelectionBg = #4400CCAA
+
+// ── Slider ──
+SliderBg = #1A1A3A
+SliderBgHovered = #2A2A5A
+SliderGrab = #00FFCC
+SliderGrabActive = #00EEBB
+SliderText = #E0E0F0
+
+// ── Drag ──
+DragBg = #1A1A3A
+DragBgHovered = #2A2A5A
+DragBgActive = #00CCAA
+DragText = #E0E0F0
+
+// ── Combo ──
+ComboBg = #1A1A3A
+ComboBgHovered = #2A2A5A
+ComboBgActive = #00CCAA
+ComboPopupBg = #12122A
+ComboText = #E0E0F0
+
+// ── ListBox ──
+ListBoxBg = #12122A
+ListBoxItemBgActive = #00CCAA
+ListBoxItemBgHovered = #2A2A5A
+ListBoxItemText = #E0E0F0
+
+// ── Selectable ──
+SelectableBgActive = #00CCAA
+SelectableBgHovered = #2A2A5A
+SelectableText = #E0E0F0
+
+// ── Menu ──
+MenuBarBg = #0A0A18
+PopupBg = #12122A
+MenuItemBgActive = #00CCAA
+MenuItemBgHovered = #2A2A5A
+MenuItemText = #E0E0F0
+MenuItemTextDisabled = #55557A
+
+// ── Tree ──
+TreeNodeBg = #1A1A3A
+TreeNodeBgActive = #00CCAA
+TreeNodeBgHovered = #2A2A5A
+TreeNodeText = #E0E0F0
+
+// ── Tab ──
+Tab = #1A1A3A
+TabHovered = #2A2A5A
+TabActive = #2A1A4A
+TabText = #E0E0F0
+
+// ── Table ──
+TableHeaderBg = #1A1A3A
+TableBorder = #2A1A4A
+TableRowBg0 = #0D0D1A
+TableRowBg1 = #12122A
+TableHeaderText = #00FFCC
+
+// ── Tooltip ──
+TooltipBg = #12122A
+TooltipText = #E0E0F0
+
+// ── Separator ──
+Separator = #2A1A4A
+SeparatorLabelText = #00FFCC
+
+// ── Scrollbar ──
+ScrollbarBg = #0A0A18
+ScrollbarGrab = #2A2A5A
+ScrollbarGrabHovered = #3A3A6A
+ScrollbarGrabActive = #00CCAA

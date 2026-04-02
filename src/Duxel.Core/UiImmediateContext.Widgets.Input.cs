@@ -38,7 +38,7 @@ public sealed partial class UiImmediateContext
 
                 displayLabel,
                 labelPos,
-                _theme.Text,
+                _theme.InputText,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -48,22 +48,6 @@ public sealed partial class UiImmediateContext
         var inputRect = new UiRect(cursor.X + labelWidth, cursor.Y + (height - frameHeight) * 0.5f, inputWidth, frameHeight);
         var inputClip = IntersectRect(CurrentClipRect, inputRect);
         var hovered = ItemHoverable(id, inputRect);
-        var compositionOwner = _state.ActiveId ?? _state.PreviousActiveId;
-        var compositionTextAtFocus = _imeHandler?.GetCompositionText();
-        var compositionActive = !string.IsNullOrEmpty(compositionTextAtFocus)
-            || (_charEvents.Count > 0 && !string.IsNullOrEmpty(_state.PreviousActiveId));
-        var lockFocusForIme = compositionActive
-            && !string.IsNullOrEmpty(compositionOwner)
-            && !string.Equals(compositionOwner, id, StringComparison.Ordinal);
-        var lockFocusClearForIme = compositionActive && !string.IsNullOrEmpty(compositionOwner);
-
-        if (!compositionActive
-            && !string.IsNullOrEmpty(_state.PendingTextInputFocusId)
-            && string.Equals(_state.PendingTextInputFocusId, id, StringComparison.Ordinal))
-        {
-            _state.ActiveId = id;
-            _state.PendingTextInputFocusId = null;
-        }
 
         var caretIndex = ClampCaret(text, _state.GetCursor(id, text.Length));
         var initialCaretIndex = caretIndex;
@@ -73,61 +57,50 @@ public sealed partial class UiImmediateContext
         {
             if (hovered)
             {
-                var allowActivate = !lockFocusForIme || _charEvents.Count > 0;
-                if (allowActivate)
+                _state.ActiveId = id;
+                _state.PendingTextInputFocusId = null;
+                var caret = GetCaretIndexFromMouse(text, inputRect.X + 6f - scrollX);
+                var clickCount = _state.RegisterClick(id, _mousePosition);
+                var shiftClick = (_state.Modifiers & KeyModifiers.Shift) != 0;
+
+                if (shiftClick)
                 {
-                    _state.ActiveId = id;
-                    var caret = GetCaretIndexFromMouse(text, inputRect.X + 6f - scrollX);
-                    var clickCount = _state.RegisterClick(id, _mousePosition);
-                    var shiftClick = (_state.Modifiers & KeyModifiers.Shift) != 0;
-
-                    if (shiftClick)
-                    {
-                        selection = new UiTextSelection(caretIndex, caret);
-                    }
-                    else
-                    {
-                        switch (clickCount)
-                        {
-                            case 2:
-                                SelectWordAt(text, ref caret, ref selection);
-                                break;
-                            case >= 3:
-                                selection = new UiTextSelection(0, text.Length);
-                                caret = text.Length;
-                                break;
-                            default:
-                                selection = new UiTextSelection(caret, caret);
-                                break;
-                        }
-                    }
-
-                    caretIndex = caret;
-                    caretMoved = true;
-                    _state.SetCursor(id, caretIndex);
-
-                    if (string.Equals(_state.PendingTextInputFocusId, id, StringComparison.Ordinal))
-                    {
-                        _state.PendingTextInputFocusId = null;
-                    }
+                    selection = new UiTextSelection(caretIndex, caret);
                 }
                 else
                 {
-                    _state.PendingTextInputFocusId = id;
+                    switch (clickCount)
+                    {
+                        case 2:
+                            SelectWordAt(text, ref caret, ref selection);
+                            break;
+                        case >= 3:
+                            selection = new UiTextSelection(0, text.Length);
+                            caret = text.Length;
+                            break;
+                        default:
+                            selection = new UiTextSelection(caret, caret);
+                            break;
+                    }
                 }
+
+                caretIndex = caret;
+                caretMoved = true;
+                _state.SetCursor(id, caretIndex);
             }
             else if (_state.ActiveId == id)
             {
-                if (!lockFocusClearForIme)
-                {
-                    _state.ActiveId = null;
-                }
+                _state.ActiveId = null;
+                _state.PendingTextInputFocusId = null;
+                _imeHandler?.SetCompositionOwner(null);
             }
         }
 
         var active = _state.ActiveId == id;
-        var background = active ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : _theme.FrameBg;
-        AddRectFilled(inputRect, background, _whiteTexture);
+        var borderColor = active ? _theme.InputBorderActive : hovered ? _theme.InputBorderHovered : _theme.InputBorder;
+        AddRectFilled(inputRect, borderColor, _whiteTexture);
+        var innerInputRect = new UiRect(inputRect.X + 1f, inputRect.Y + 1f, MathF.Max(0f, inputRect.Width - 2f), MathF.Max(0f, inputRect.Height - 2f));
+        AddRectFilled(innerInputRect, _theme.InputBg, _whiteTexture);
 
         var changed = false;
         var historyChanged = false;
@@ -300,6 +273,8 @@ public sealed partial class UiImmediateContext
                 else if (keyEvent.Key == UiKey.Enter || keyEvent.Key == UiKey.Escape)
                 {
                     _state.ActiveId = null;
+                    _state.PendingTextInputFocusId = null;
+                    _imeHandler?.SetCompositionOwner(null);
                 }
             }
 
@@ -379,24 +354,24 @@ public sealed partial class UiImmediateContext
             var startX = textPos.X + MeasureTextWidth(text, start);
             var endX = textPos.X + MeasureTextWidth(text, end);
             var selectionRect = new UiRect(startX, inputRect.Y + 2f, endX - startX, inputRect.Height - 4f);
-            _builder.AddRectFilled(selectionRect, _theme.TextSelectedBg, _whiteTexture, inputClip);
+            _builder.AddRectFilled(selectionRect, _theme.InputSelectionBg, _whiteTexture, inputClip);
         }
 
         if (!string.IsNullOrEmpty(compositionText))
         {
             if (caretIndex > 0)
             {
-                AddTextInternal(_builder, text[..caretIndex], textPos, _theme.Text, inputClip, _textSettings, _lineHeight);
+                AddTextInternal(_builder, text[..caretIndex], textPos, _theme.InputText, inputClip, _textSettings, _lineHeight);
             }
             if (caretIndex < text.Length)
             {
                 var afterX = MathF.Round(textPos.X + MeasureTextWidth(text, caretIndex) + compositionWidth);
-                AddTextInternal(_builder, text[caretIndex..], new UiVector2(afterX, textPos.Y), _theme.Text, inputClip, _textSettings, _lineHeight);
+                AddTextInternal(_builder, text[caretIndex..], new UiVector2(afterX, textPos.Y), _theme.InputText, inputClip, _textSettings, _lineHeight);
             }
         }
         else
         {
-            AddTextInternal(_builder, text, textPos, _theme.Text, inputClip, _textSettings, _lineHeight);
+            AddTextInternal(_builder, text, textPos, _theme.InputText, inputClip, _textSettings, _lineHeight);
         }
 
         if (active)
@@ -417,7 +392,7 @@ public sealed partial class UiImmediateContext
             var caretRect = new UiRect(caretLeft, caretTop, caretWidth, inputRect.Height - 6f);
             if (IsCaretBlinkOn())
             {
-                _builder.AddRectFilled(caretRect, _theme.Text, _whiteTexture, inputClip);
+                _builder.AddRectFilled(caretRect, _theme.InputText, _whiteTexture, inputClip);
             }
         }
 
@@ -780,7 +755,7 @@ public sealed partial class UiImmediateContext
 
                 displayLabel,
                 labelPos,
-                _theme.Text,
+                _theme.InputText,
                 CurrentClipRect,
                 _textSettings,
                 _lineHeight
@@ -790,22 +765,6 @@ public sealed partial class UiImmediateContext
         var inputRect = new UiRect(cursor.X + labelWidth, cursor.Y, inputWidth, height);
         var inputClip = IntersectRect(CurrentClipRect, inputRect);
         var hovered = ItemHoverable(id, inputRect);
-        var compositionOwner = _state.ActiveId ?? _state.PreviousActiveId;
-        var compositionTextAtFocus = _imeHandler?.GetCompositionText();
-        var compositionActive = !string.IsNullOrEmpty(compositionTextAtFocus)
-            || (_charEvents.Count > 0 && !string.IsNullOrEmpty(_state.PreviousActiveId));
-        var lockFocusForIme = compositionActive
-            && !string.IsNullOrEmpty(compositionOwner)
-            && !string.Equals(compositionOwner, id, StringComparison.Ordinal);
-        var lockFocusClearForIme = compositionActive && !string.IsNullOrEmpty(compositionOwner);
-
-        if (!compositionActive
-            && !string.IsNullOrEmpty(_state.PendingTextInputFocusId)
-            && string.Equals(_state.PendingTextInputFocusId, id, StringComparison.Ordinal))
-        {
-            _state.ActiveId = id;
-            _state.PendingTextInputFocusId = null;
-        }
 
         var caretIndex = ClampCaret(text, _state.GetCursor(id, text.Length));
         var initialCaretIndex = caretIndex;
@@ -850,7 +809,7 @@ public sealed partial class UiImmediateContext
             MathF.Max(0f, inputRect.Width - (hasVScroll ? ScrollbarSize : 0f)),
             MathF.Max(0f, inputRect.Height - (hasHScroll ? ScrollbarSize : 0f))
         );
-        var textHovered = !interactionBlocked && IsHovering(textInteractionRect);
+        var textHovered = hovered && !interactionBlocked && IsHovering(textInteractionRect);
         var verticalScrollbarRect = hasVScroll
             ? new UiRect(
                 inputRect.X + inputRect.Width - ScrollbarSize,
@@ -865,7 +824,7 @@ public sealed partial class UiImmediateContext
                 inputRect.Width - (hasVScroll ? ScrollbarSize : 0f),
                 ScrollbarSize)
             : default;
-        var scrollbarHovered = !interactionBlocked && ((hasVScroll && IsHovering(verticalScrollbarRect)) || (hasHScroll && IsHovering(horizontalScrollbarRect)));
+        var scrollbarHovered = hovered && !interactionBlocked && ((hasVScroll && IsHovering(verticalScrollbarRect)) || (hasHScroll && IsHovering(horizontalScrollbarRect)));
 
         if (_leftMousePressed && scrollbarHovered && _state.ActiveId == id)
         {
@@ -876,67 +835,56 @@ public sealed partial class UiImmediateContext
         {
             if (textHovered)
             {
-                var allowActivate = !lockFocusForIme || _charEvents.Count > 0;
-                if (allowActivate)
+                _state.ActiveId = id;
+                _state.PendingTextInputFocusId = null;
+                var caret = GetCaretIndexFromMouseMultiline(text, inputRect.X + 6f - scrollX, inputRect.Y + 4f - scrollY, textLineHeight);
+                var clickCount = _state.RegisterClick(id, _mousePosition);
+                var shiftClick = (_state.Modifiers & KeyModifiers.Shift) != 0;
+
+                if (shiftClick)
                 {
-                    _state.ActiveId = id;
-                    var caret = GetCaretIndexFromMouseMultiline(text, inputRect.X + 6f - scrollX, inputRect.Y + 4f - scrollY, textLineHeight);
-                    var clickCount = _state.RegisterClick(id, _mousePosition);
-                    var shiftClick = (_state.Modifiers & KeyModifiers.Shift) != 0;
-
-                    if (shiftClick)
-                    {
-                        selection = new UiTextSelection(caretIndex, caret);
-                    }
-                    else
-                    {
-                        switch (clickCount)
-                        {
-                            case 2:
-                                SelectWordAt(text, ref caret, ref selection);
-                                break;
-                            case 3:
-                                var lineStart = GetLineStartIndex(text, caret);
-                                var lineEnd = GetLineEndIndex(text, caret);
-                                selection = new UiTextSelection(lineStart, lineEnd);
-                                caret = lineEnd;
-                                break;
-                            case >= 4:
-                                selection = new UiTextSelection(0, text.Length);
-                                caret = text.Length;
-                                break;
-                            default:
-                                selection = new UiTextSelection(caret, caret);
-                                break;
-                        }
-                    }
-
-                    caretIndex = caret;
-                    caretMoved = true;
-                    _state.SetCursor(id, caretIndex);
-
-                    if (string.Equals(_state.PendingTextInputFocusId, id, StringComparison.Ordinal))
-                    {
-                        _state.PendingTextInputFocusId = null;
-                    }
+                    selection = new UiTextSelection(caretIndex, caret);
                 }
                 else
                 {
-                    _state.PendingTextInputFocusId = id;
+                    switch (clickCount)
+                    {
+                        case 2:
+                            SelectWordAt(text, ref caret, ref selection);
+                            break;
+                        case 3:
+                            var lineStart = GetLineStartIndex(text, caret);
+                            var lineEnd = GetLineEndIndex(text, caret);
+                            selection = new UiTextSelection(lineStart, lineEnd);
+                            caret = lineEnd;
+                            break;
+                        case >= 4:
+                            selection = new UiTextSelection(0, text.Length);
+                            caret = text.Length;
+                            break;
+                        default:
+                            selection = new UiTextSelection(caret, caret);
+                            break;
+                    }
                 }
+
+                caretIndex = caret;
+                caretMoved = true;
+                _state.SetCursor(id, caretIndex);
             }
             else if (!hovered && _state.ActiveId == id)
             {
-                if (!lockFocusClearForIme)
-                {
-                    _state.ActiveId = null;
-                }
+                _state.ActiveId = null;
+                _state.PendingTextInputFocusId = null;
+                _imeHandler?.SetCompositionOwner(null);
             }
         }
 
         var active = _state.ActiveId == id;
-        var background = active ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : _theme.FrameBg;
-        AddRectFilled(inputRect, background, _whiteTexture);
+        var borderColor = active ? _theme.InputBorderActive : hovered ? _theme.InputBorderHovered : _theme.InputBorder;
+        AddRectFilled(inputRect, borderColor, _whiteTexture);
+        var innerInputRect = new UiRect(inputRect.X + 1f, inputRect.Y + 1f, MathF.Max(0f, inputRect.Width - 2f), MathF.Max(0f, inputRect.Height - 2f));
+        AddRectFilled(innerInputRect, _theme.InputBg, _whiteTexture);
 
         var changed = normalizedExistingValue;
         var historyChanged = false;
@@ -1204,6 +1152,8 @@ public sealed partial class UiImmediateContext
                 else if (keyEvent.Key == UiKey.Escape)
                 {
                     _state.ActiveId = null;
+                    _state.PendingTextInputFocusId = null;
+                    _imeHandler?.SetCompositionOwner(null);
                 }
             }
 
@@ -1288,11 +1238,11 @@ public sealed partial class UiImmediateContext
         if (!string.IsNullOrEmpty(compositionText))
         {
             var displayText = string.Concat(text.AsSpan(0, caretIndex), compositionText, text.AsSpan(caretIndex));
-            AddTextMultilineInternal(_builder, displayText, textPos, _theme.Text, inputClip, _textSettings, textLineHeight, inputRect);
+            AddTextMultilineInternal(_builder, displayText, textPos, _theme.InputText, inputClip, _textSettings, textLineHeight, inputRect);
         }
         else
         {
-            AddTextMultilineInternal(_builder, text, textPos, _theme.Text, inputClip, _textSettings, textLineHeight, inputRect);
+            AddTextMultilineInternal(_builder, text, textPos, _theme.InputText, inputClip, _textSettings, textLineHeight, inputRect);
         }
 
         if (active)
@@ -1315,7 +1265,7 @@ public sealed partial class UiImmediateContext
             var visibleCaretRect = IntersectRect(inputRect, caretRect);
             if (visibleCaretRect.Width > 0f && visibleCaretRect.Height > 0f && IsCaretBlinkOn())
             {
-                _builder.AddRectFilled(caretRect, _theme.Text, _whiteTexture, inputClip);
+                _builder.AddRectFilled(caretRect, _theme.InputText, _whiteTexture, inputClip);
             }
         }
 
@@ -1381,7 +1331,7 @@ public sealed partial class UiImmediateContext
 
             compositionText,
             textPos,
-            _theme.Text,
+            _theme.InputText,
             inputClip,
             compositionTextSettings,
             _lineHeight
@@ -1413,7 +1363,7 @@ public sealed partial class UiImmediateContext
         }
 
         var underlineRect = new UiRect(underlineLeft, underlineY, underlineRight - underlineLeft, underlineThickness);
-        _builder.AddRectFilled(underlineRect, _theme.Text, _whiteTexture, inputClip);
+        _builder.AddRectFilled(underlineRect, _theme.InputText, _whiteTexture, inputClip);
     }
 }
 

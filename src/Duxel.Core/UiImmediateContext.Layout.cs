@@ -1127,7 +1127,7 @@ public sealed partial class UiImmediateContext
             durationSeconds: 0.14f,
             easing: UiAnimationEasing.OutCubic
         );
-        DrawChevronIcon(collapseRect, collapseRotationDegrees, scale: 2f / 3f, thickness: 1.2f, color: _theme.Text);
+        DrawChevronIcon(collapseRect, collapseRotationDegrees, scale: 2f / 3f, thickness: 1.2f, color: _theme.WindowTitleText);
 
         if (closeHovered || closeHeld)
         {
@@ -1140,15 +1140,15 @@ public sealed partial class UiImmediateContext
         var closeY1 = closeRect.Y + closeInset;
         var closeX2 = closeRect.X + closeRect.Width - closeInset;
         var closeY2 = closeRect.Y + closeRect.Height - closeInset;
-        _builder.AddLine(new UiVector2(closeX1, closeY1), new UiVector2(closeX2, closeY2), _theme.Text, 1.5f, _whiteTexture);
-        _builder.AddLine(new UiVector2(closeX1, closeY2), new UiVector2(closeX2, closeY1), _theme.Text, 1.5f, _whiteTexture);
+        _builder.AddLine(new UiVector2(closeX1, closeY1), new UiVector2(closeX2, closeY2), _theme.WindowTitleText, 1.5f, _whiteTexture);
+        _builder.AddLine(new UiVector2(closeX1, closeY2), new UiVector2(closeX2, closeY1), _theme.WindowTitleText, 1.5f, _whiteTexture);
 
         var titlePos = new UiVector2(collapseRect.X + collapseRect.Width + 6f, rect.Y + (titleBarHeight - _lineHeight) * 0.5f);
         AddTextInternal(_builder,
 
             title,
             titlePos,
-            _theme.Text,
+            _theme.WindowTitleText,
             rect,
             _textSettings,
             _lineHeight

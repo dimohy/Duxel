@@ -229,7 +229,7 @@ public sealed partial class UiImmediateContext
             }
         }
 
-        var backColor = hovered || active ? _theme.FrameBgHovered : _theme.FrameBg;
+        var backColor = hovered || active ? _theme.SliderBgHovered : _theme.SliderBg;
         var barWidth = MathF.Max(6f, rect.Width * 0.35f);
         var barX = rect.X + (rect.Width - barWidth) * 0.5f;
         var barRect = new UiRect(barX, rect.Y, barWidth, rect.Height);
@@ -260,7 +260,7 @@ public sealed partial class UiImmediateContext
         if (grabTop > sliderTop)
         {
             var zone1Clip = IntersectRect(parentClip, new UiRect(rect.X, sliderTop, rect.Width, grabTop - sliderTop));
-            AddTextInternal(_builder, valueText, valuePos, _theme.Text, zone1Clip, _textSettings, _lineHeight);
+            AddTextInternal(_builder, valueText, valuePos, _theme.SliderText, zone1Clip, _textSettings, _lineHeight);
         }
 
         // Zone 2: Grab handle area
@@ -324,7 +324,7 @@ public sealed partial class UiImmediateContext
 
             label,
             labelPos,
-            _theme.Text,
+            _theme.SliderText,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -399,7 +399,7 @@ public sealed partial class UiImmediateContext
             normalized = Math.Clamp((value - min) / (max - min), 0f, 1f);
         }
 
-        var backColor = hovered || active ? _theme.FrameBgHovered : _theme.FrameBg;
+        var backColor = hovered || active ? _theme.SliderBgHovered : _theme.SliderBg;
         var barHeight = MathF.Max(4f, sliderRect.Height * 0.35f);
         var barY = sliderRect.Y + (sliderRect.Height - barHeight) * 0.5f;
         var barRect = new UiRect(sliderRect.X, barY, sliderRect.Width, barHeight);
@@ -434,7 +434,7 @@ public sealed partial class UiImmediateContext
         if (grabLeft > sliderLeft)
         {
             var zone1Clip = IntersectRect(parentClip, new UiRect(sliderLeft, sliderRect.Y, grabLeft - sliderLeft, sliderRect.Height));
-            var zone1Color = fillRect.Width > 0f ? invertedFill : _theme.Text;
+            var zone1Color = fillRect.Width > 0f ? invertedFill : _theme.SliderText;
             AddTextInternal(_builder, valueText, valuePos, zone1Color, zone1Clip, _textSettings, _lineHeight);
         }
 
@@ -448,7 +448,7 @@ public sealed partial class UiImmediateContext
         if (grabRight < sliderRight)
         {
             var zone3Clip = IntersectRect(parentClip, new UiRect(grabRight, sliderRect.Y, sliderRight - grabRight, sliderRect.Height));
-            AddTextInternal(_builder, valueText, valuePos, _theme.Text, zone3Clip, _textSettings, _lineHeight);
+            AddTextInternal(_builder, valueText, valuePos, _theme.SliderText, zone3Clip, _textSettings, _lineHeight);
         }
 
         return changed;

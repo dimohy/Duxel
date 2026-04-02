@@ -16,6 +16,13 @@ internal sealed class UiDslRuntimeState
 {
     public Stack<string> PopupModalKeys { get; } = new();
     public Stack<bool> TreeOpenStack { get; } = new();
+    public Stack<int> StyleColorPushCounts { get; } = new();
+
+    /// <summary>Tracks whether the last If/ElseIf chain was satisfied (for ElseIf/Else).</summary>
+    public bool LastIfSatisfied { get; set; }
+
+    /// <summary>Tracks whether any Case in the current Switch was matched (for Default).</summary>
+    public Stack<(string Value, bool Matched)> SwitchStack { get; } = new();
 }
 
 internal static class UiDslWidgetDispatcher
@@ -29,7 +36,9 @@ internal static class UiDslWidgetDispatcher
             "BeginPopup" or "BeginPopupModal" or "BeginPopupContextItem" or "BeginPopupContextWindow" or "BeginPopupContextVoid" or
             "BeginTabBar" or "BeginTabItem" or "BeginTable" or "BeginTooltip" or "BeginItemTooltip" or
             "BeginDragDropSource" or "BeginDragDropTarget" or "BeginDisabled" or "BeginMultiSelect" or
-            "TreeNode" or "TreeNodeEx" or "TreeNodeV" or "TreeNodeExV" or "TreeNodePush" => true,
+            "TreeNode" or "TreeNodeEx" or "TreeNodeV" or "TreeNodeExV" or "TreeNodePush" or
+            // Control flow containers
+            "If" or "ElseIf" or "Else" or "Visible" or "ForEach" or "Switch" or "Case" or "Default" => true,
             _ => false,
         };
     }
@@ -112,8 +121,19 @@ internal static class UiDslWidgetDispatcher
                 return UiDslBeginResult.None;
             }
             case "Text":
-                ui.Text(reader.ReadString("Text", string.Empty));
+            {
+                var bind = reader.ReadNamedString("Bind", null);
+                if (bind is not null)
+                {
+                    var defaultText = reader.ReadString("Default", string.Empty);
+                    ui.Text(UiDslValues.GetString(ctx, bind, defaultText));
+                }
+                else
+                {
+                    ui.Text(reader.ReadString("Text", string.Empty));
+                }
                 return UiDslBeginResult.None;
+            }
             case "TextV":
             {
                 var format = reader.ReadString("Format", string.Empty);
@@ -380,6 +400,7 @@ internal static class UiDslWidgetDispatcher
                 if (changed)
                 {
                     UiDslValues.SetInt(ctx, id, value);
+                    ctx.EventSink?.OnButton(id);
                 }
                 return UiDslBeginResult.None;
             }
@@ -427,6 +448,8 @@ internal static class UiDslWidgetDispatcher
                 if (changed)
                 {
                     UiDslValues.SetBool(ctx, id, selected);
+                    ctx.EventSink?.OnButton(id);
+                    ctx.EventSink?.OnCheckbox(id, selected);
                 }
                 return UiDslBeginResult.None;
             }
@@ -1840,6 +1863,122 @@ internal static class UiDslWidgetDispatcher
 
                 return ui.BeginMultiSelect() ? UiDslBeginResult.None : UiDslBeginResult.SkipChildren;
             }
+
+            // ── Control flow ──────────────────────────────────────────────
+            case "If":
+            {
+                var bind = reader.ReadOptionalString("Bind");
+                bool condition;
+                if (bind is not null)
+                {
+                    condition = UiDslValues.GetBool(ctx, bind, false);
+                    var not = reader.ReadBool("Not", false);
+                    if (not) condition = !condition;
+                }
+                else
+                {
+                    var key = reader.ReadString("Key", string.Empty);
+                    if (reader.TryReadNamed("=", out var eqVal))
+                    {
+                        condition = string.Equals(UiDslValues.GetString(ctx, key, string.Empty), eqVal, StringComparison.Ordinal);
+                    }
+                    else if (reader.TryReadNamed("!=", out var neqVal))
+                    {
+                        condition = !string.Equals(UiDslValues.GetString(ctx, key, string.Empty), neqVal, StringComparison.Ordinal);
+                    }
+                    else
+                    {
+                        // Bare key = bool check
+                        condition = UiDslValues.GetBool(ctx, key, false);
+                    }
+                }
+                runtimeState.LastIfSatisfied = condition;
+                return condition ? UiDslBeginResult.None : UiDslBeginResult.SkipChildren;
+            }
+            case "ElseIf":
+            {
+                if (runtimeState.LastIfSatisfied)
+                    return UiDslBeginResult.SkipChildren;
+
+                var bind = reader.ReadOptionalString("Bind");
+                bool condition;
+                if (bind is not null)
+                {
+                    condition = UiDslValues.GetBool(ctx, bind, false);
+                }
+                else
+                {
+                    var key = reader.ReadString("Key", string.Empty);
+                    if (reader.TryReadNamed("=", out var eqVal))
+                        condition = string.Equals(UiDslValues.GetString(ctx, key, string.Empty), eqVal, StringComparison.Ordinal);
+                    else if (reader.TryReadNamed("!=", out var neqVal))
+                        condition = !string.Equals(UiDslValues.GetString(ctx, key, string.Empty), neqVal, StringComparison.Ordinal);
+                    else
+                        condition = UiDslValues.GetBool(ctx, key, false);
+                }
+                runtimeState.LastIfSatisfied = condition;
+                return condition ? UiDslBeginResult.None : UiDslBeginResult.SkipChildren;
+            }
+            case "Else":
+            {
+                var result = runtimeState.LastIfSatisfied ? UiDslBeginResult.SkipChildren : UiDslBeginResult.None;
+                runtimeState.LastIfSatisfied = true; // always satisfied after Else
+                return result;
+            }
+            case "Visible":
+            {
+                var bind = reader.ReadString("Bind", string.Empty);
+                var visible = UiDslValues.GetBool(ctx, bind, false);
+                return visible ? UiDslBeginResult.None : UiDslBeginResult.SkipChildren;
+            }
+            case "Set":
+            {
+                var key = reader.ReadString("Key", string.Empty);
+                var value = reader.ReadString("Value", string.Empty);
+                if (key.Length is not 0)
+                    UiDslValues.SetString(ctx, key, value);
+                return UiDslBeginResult.None;
+            }
+            case "Switch":
+            {
+                var bind = reader.ReadString("Bind", string.Empty);
+                var value = UiDslValues.GetString(ctx, bind, string.Empty);
+                runtimeState.SwitchStack.Push((value, false));
+                return UiDslBeginResult.None;
+            }
+            case "Case":
+            {
+                if (runtimeState.SwitchStack.Count is 0)
+                    return UiDslBeginResult.SkipChildren;
+
+                var (switchValue, alreadyMatched) = runtimeState.SwitchStack.Peek();
+                if (alreadyMatched)
+                    return UiDslBeginResult.SkipChildren;
+
+                var caseValue = reader.ReadString("Value", string.Empty);
+                var matches = string.Equals(switchValue, caseValue, StringComparison.Ordinal);
+                if (matches)
+                {
+                    runtimeState.SwitchStack.Pop();
+                    runtimeState.SwitchStack.Push((switchValue, true));
+                }
+                return matches ? UiDslBeginResult.None : UiDslBeginResult.SkipChildren;
+            }
+            case "Default":
+            {
+                if (runtimeState.SwitchStack.Count is 0)
+                    return UiDslBeginResult.None;
+
+                var (_, alreadyMatched) = runtimeState.SwitchStack.Peek();
+                return alreadyMatched ? UiDslBeginResult.SkipChildren : UiDslBeginResult.None;
+            }
+            case "ForEach":
+            {
+                // ForEach is handled by the ScreenEmitter via buffering.
+                // The dispatcher just markers it as container for skip-depth tracking.
+                return UiDslBeginResult.None;
+            }
+
             default:
                 throw new InvalidOperationException($"Unknown DSL node: {name}.");
         }
@@ -1938,6 +2077,20 @@ internal static class UiDslWidgetDispatcher
             case "BeginMultiSelect":
                 ui.EndMultiSelect();
                 return;
+
+            // Control flow — no UI end calls needed
+            case "If":
+            case "ElseIf":
+            case "Else":
+            case "Visible":
+            case "Case":
+            case "Default":
+            case "ForEach":
+                return;
+            case "Switch":
+                if (runtimeState.SwitchStack.Count > 0)
+                    runtimeState.SwitchStack.Pop();
+                return;
         }
     }
 
@@ -2035,13 +2188,8 @@ internal static class UiDslValues
 
     public static void SetBool(UiDslRenderContext ctx, string id, bool value)
     {
-        if (ctx.ValueSource is not null)
-        {
-            ctx.ValueSource.SetBool(id, value);
-            return;
-        }
-
         ctx.State.SetBool(id, value);
+        ctx.ValueSource?.SetBool(id, value);
     }
 
     public static int GetInt(UiDslRenderContext ctx, string id, int defaultValue)
@@ -2051,13 +2199,8 @@ internal static class UiDslValues
 
     public static void SetInt(UiDslRenderContext ctx, string id, int value)
     {
-        if (ctx.ValueSource is not null)
-        {
-            ctx.ValueSource.SetInt(id, value);
-            return;
-        }
-
         ctx.State.SetInt(id, value);
+        ctx.ValueSource?.SetInt(id, value);
     }
 
     public static uint GetUInt(UiDslRenderContext ctx, string id, uint defaultValue)
@@ -2067,13 +2210,8 @@ internal static class UiDslValues
 
     public static void SetUInt(UiDslRenderContext ctx, string id, uint value)
     {
-        if (ctx.ValueSource is not null)
-        {
-            ctx.ValueSource.SetUInt(id, value);
-            return;
-        }
-
         ctx.State.SetUInt(id, value);
+        ctx.ValueSource?.SetUInt(id, value);
     }
 
     public static float GetFloat(UiDslRenderContext ctx, string id, float defaultValue)
@@ -2083,13 +2221,8 @@ internal static class UiDslValues
 
     public static void SetFloat(UiDslRenderContext ctx, string id, float value)
     {
-        if (ctx.ValueSource is not null)
-        {
-            ctx.ValueSource.SetFloat(id, value);
-            return;
-        }
-
         ctx.State.SetFloat(id, value);
+        ctx.ValueSource?.SetFloat(id, value);
     }
 
     public static double GetDouble(UiDslRenderContext ctx, string id, double defaultValue)
@@ -2099,13 +2232,8 @@ internal static class UiDslValues
 
     public static void SetDouble(UiDslRenderContext ctx, string id, double value)
     {
-        if (ctx.ValueSource is not null)
-        {
-            ctx.ValueSource.SetDouble(id, value);
-            return;
-        }
-
         ctx.State.SetDouble(id, value);
+        ctx.ValueSource?.SetDouble(id, value);
     }
 
     public static string GetString(UiDslRenderContext ctx, string id, string defaultValue)
@@ -2115,13 +2243,8 @@ internal static class UiDslValues
 
     public static void SetString(UiDslRenderContext ctx, string id, string value)
     {
-        if (ctx.ValueSource is not null)
-        {
-            ctx.ValueSource.SetString(id, value);
-            return;
-        }
-
         ctx.State.SetString(id, value);
+        ctx.ValueSource?.SetString(id, value);
     }
 
     public static UiVector2 GetVector2(UiDslRenderContext ctx, string id, UiVector2 defaultValue)
@@ -2131,13 +2254,8 @@ internal static class UiDslValues
 
     public static void SetVector2(UiDslRenderContext ctx, string id, UiVector2 value)
     {
-        if (ctx.ValueSource is not null)
-        {
-            ctx.ValueSource.SetVector2(id, value);
-            return;
-        }
-
         ctx.State.SetVector2(id, value);
+        ctx.ValueSource?.SetVector2(id, value);
     }
 
     public static UiVector4 GetVector4(UiDslRenderContext ctx, string id, UiVector4 defaultValue)
@@ -2147,13 +2265,8 @@ internal static class UiDslValues
 
     public static void SetVector4(UiDslRenderContext ctx, string id, UiVector4 value)
     {
-        if (ctx.ValueSource is not null)
-        {
-            ctx.ValueSource.SetVector4(id, value);
-            return;
-        }
-
         ctx.State.SetVector4(id, value);
+        ctx.ValueSource?.SetVector4(id, value);
     }
 
     public static UiColor GetColor(UiDslRenderContext ctx, string id, UiColor defaultValue)
@@ -2163,13 +2276,8 @@ internal static class UiDslValues
 
     public static void SetColor(UiDslRenderContext ctx, string id, UiColor value)
     {
-        if (ctx.ValueSource is not null)
-        {
-            ctx.ValueSource.SetColor(id, value);
-            return;
-        }
-
         ctx.State.SetColor(id, value);
+        ctx.ValueSource?.SetColor(id, value);
     }
 
     public static float[] GetFloatArray(UiDslRenderContext ctx, string id, float[] defaultValue)

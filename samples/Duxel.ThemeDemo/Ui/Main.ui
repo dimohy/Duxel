@@ -1,0 +1,112 @@
+Window "Theme Hot-Reload Demo"
+  MenuBar
+    Menu "File"
+      MenuItem "file.new" "New"
+      MenuItem "file.open" "Open"
+      MenuItem "file.save" "Save"
+    Menu "Edit"
+      MenuItem "edit.undo" "Undo"
+      MenuItem "edit.redo" "Redo"
+    Menu "View"
+      MenuItem "view.theme" "Theme Info"
+
+  Text Bind="status" Default="Ready"
+  Separator
+
+  SeparatorText "Theme"
+  Combo "theme" "Theme" Items="Dark,Light,Classic,Nord,Solarized Dark,Solarized Light,Dracula,Monokai,Catppuccin Mocha,GitHub Dark"
+  Separator
+
+  SeparatorText "Buttons"
+  Row
+    Button "primary" "Primary Action"
+    Button "secondary" "Small" Size=80,0
+    ArrowButton "arrow_r" Right
+
+  SeparatorText "Toggles"
+  Checkbox "neon" "Enable Neon Glow" true
+  Checkbox "wireframe" "Wireframe Mode" false
+  Row
+    RadioButton "opt" "Option A" 0
+    RadioButton "opt" "Option B" 1
+    RadioButton "opt" "Option C" 2
+
+  SeparatorText "Input"
+  InputText "name" "Name" "Hello Cyberpunk"
+
+  SeparatorText "Sliders & Drags"
+  SliderFloat "intensity" "Intensity" 0.0 1.0
+  DragFloat "value" "Value" 42.0 0.5 0.0 100.0
+  ProgressBar 0.72 Size=0,0 Overlay="Loading..."
+
+  SeparatorText "Selection"
+  Combo "style" "Style" "Neon"
+    Selectable "style.neon" "Neon"
+    Selectable "style.vapor" "Vapor"
+    Selectable "style.retro" "Retro"
+    Selectable "style.synth" "Synth"
+
+  ListBox "channels" "Channels" "Alpha"
+    Selectable "ch.alpha" "Alpha"
+    Selectable "ch.bravo" "Bravo"
+    Selectable "ch.charlie" "Charlie"
+    Selectable "ch.delta" "Delta"
+
+  SeparatorText "Tree & Collapsing"
+  CollapsingHeader "System Info"
+    TreeNode "GPU"
+      Text "Vendor: Cyberdyne"
+      Text "VRAM: 16 GB"
+    TreeNode "Display"
+      Text "Resolution: 3840x2160"
+      Text "Refresh: 144 Hz"
+
+  SeparatorText "Tabs"
+  TabBar "DemoTabs"
+    TabItem "Overview"
+      Text "Theme overview panel."
+    TabItem "Settings"
+      Text "Adjust theme parameters here."
+
+  SeparatorText "Selectable"
+  Selectable "profile.1" "Profile 1"
+  Selectable "profile.2" "Profile 2"
+  Selectable "profile.3" "Profile 3"
+
+  SeparatorText "Tooltip Demo"
+  Button "hover_me" "Hover Me"
+  Text "Edit cyberpunk.duxel-theme to see hot-reload!"
+
+  # ── Control Flow Demo (self-contained) ─────────────────
+  SeparatorText "Control Flow: If / Else"
+  Checkbox "cf_alpha" "Alpha" true
+  Checkbox "cf_beta" "Beta" false
+  If Bind="cf_alpha"
+    Text "Alpha is ON"
+  ElseIf Bind="cf_beta"
+    Text "Beta is ON"
+  Else
+    Text "Both OFF"
+
+  SeparatorText "Control Flow: Visible"
+  Checkbox "cf_show" "Show hidden section" false
+  Visible Bind="cf_show"
+    Text "This text is only visible when the checkbox above is checked"
+
+  SeparatorText "Control Flow: ForEach"
+  ForEach Range=1,5
+    Button "item_{_index}" "Item {_index}"
+
+  SeparatorText "Control Flow: Switch / Case"
+  Selectable "cf_mode.A" "Mode A"
+  Selectable "cf_mode.B" "Mode B"
+  Selectable "cf_mode.C" "Mode C"
+  Switch Bind="cf_mode"
+    Case "A"
+      Text "Mode A selected"
+    Case "B"
+      Text "Mode B selected"
+    Case "C"
+      Text "Mode C selected"
+    Default
+      Text "No mode selected — click one above"

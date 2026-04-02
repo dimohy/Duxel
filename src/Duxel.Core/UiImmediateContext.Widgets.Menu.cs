@@ -129,11 +129,11 @@ public sealed partial class UiImmediateContext
         UiColor bg;
         if (isMenuBarItem)
         {
-            bg = isOpen ? _theme.HeaderActive : held ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : default;
+            bg = isOpen ? _theme.MenuItemBgActive : held ? _theme.MenuItemBgActive : hovered ? _theme.MenuItemBgHovered : default;
         }
         else
         {
-            bg = held ? _theme.FrameBgActive : hovered ? _theme.FrameBgHovered : default;
+            bg = held ? _theme.MenuItemBgActive : hovered ? _theme.MenuItemBgHovered : default;
         }
         if (bg.Rgba is not 0)
         {
@@ -145,7 +145,7 @@ public sealed partial class UiImmediateContext
 
             label,
             textPos,
-            _theme.Text,
+            _theme.MenuItemText,
             CurrentClipRect,
             _textSettings,
             _lineHeight
@@ -157,7 +157,7 @@ public sealed partial class UiImmediateContext
             var iconX = buttonRect.X + buttonRect.Width - ButtonPaddingX - iconSize;
             var iconY = buttonRect.Y + (buttonRect.Height - iconSize) * 0.5f;
             var iconRect = new UiRect(iconX, iconY, iconSize, iconSize);
-            DrawChevronIcon(iconRect, -90f, scale: 0.5f, thickness: 1.2f, color: _theme.Text);
+            DrawChevronIcon(iconRect, -90f, scale: 0.5f, thickness: 1.2f, color: _theme.MenuItemText);
         }
 
         if (!isOpen)
@@ -263,14 +263,14 @@ public sealed partial class UiImmediateContext
         }
         if (selected)
         {
-            AddRectFilled(rect, _theme.HeaderActive, _whiteTexture);
+            AddRectFilled(rect, _theme.MenuItemBgActive, _whiteTexture);
         }
         else if (hovered)
         {
-            AddRectFilled(rect, _theme.HeaderHovered, _whiteTexture);
+            AddRectFilled(rect, _theme.MenuItemBgHovered, _whiteTexture);
         }
 
-        var textColor = enabled ? _theme.Text : _theme.TextDisabled;
+        var textColor = enabled ? _theme.MenuItemText : _theme.MenuItemTextDisabled;
         var textPos = new UiVector2(rect.X + ButtonPaddingX + checkSpace, rect.Y + (rect.Height - textSize.Y) * 0.5f);
         if (selected)
         {

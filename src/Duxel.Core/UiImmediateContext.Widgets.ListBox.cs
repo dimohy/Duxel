@@ -24,7 +24,9 @@ public sealed partial class UiImmediateContext
         var listWidth = ResolveItemWidth(InputWidth);
         var cursor = AdvanceCursor(new UiVector2(listWidth, boxHeight));
         var listRect = new UiRect(cursor.X, cursor.Y, listWidth, boxHeight);
-        AddRectFilled(listRect, _theme.FrameBg, _whiteTexture);
+        AddRectFilled(listRect, _theme.ListBoxBorder, _whiteTexture);
+        var innerListRect = new UiRect(listRect.X + 1f, listRect.Y + 1f, MathF.Max(0f, listRect.Width - 2f), MathF.Max(0f, listRect.Height - 2f));
+        AddRectFilled(innerListRect, _theme.ListBoxBg, _whiteTexture);
 
         var hovered = IsHovering(listRect);
         var scrollY = _state.GetScrollY(resolvedId);
@@ -53,11 +55,11 @@ public sealed partial class UiImmediateContext
 
             if (i == currentIndex)
             {
-                AddRectFilled(itemRect, _theme.HeaderActive, _whiteTexture);
+                AddRectFilled(itemRect, _theme.ListBoxItemBgActive, _whiteTexture);
             }
             else if (itemHovered)
             {
-                AddRectFilled(itemRect, _theme.HeaderHovered, _whiteTexture);
+                AddRectFilled(itemRect, _theme.ListBoxItemBgHovered, _whiteTexture);
             }
 
             if (_leftMousePressed && itemHovered)
@@ -73,7 +75,7 @@ public sealed partial class UiImmediateContext
 
                 itemText,
                 itemPos,
-                _theme.Text,
+                _theme.ListBoxItemText,
                 IntersectRect(CurrentClipRect, listRect),
                 _textSettings,
                 _lineHeight
@@ -118,7 +120,9 @@ public sealed partial class UiImmediateContext
         var listWidth = ResolveItemWidth(InputWidth);
         var cursor = AdvanceCursor(new UiVector2(listWidth, boxHeight));
         var listRect = new UiRect(cursor.X, cursor.Y, listWidth, boxHeight);
-        AddRectFilled(listRect, _theme.FrameBg, _whiteTexture);
+        AddRectFilled(listRect, _theme.ListBoxBorder, _whiteTexture);
+        var innerListRect = new UiRect(listRect.X + 1f, listRect.Y + 1f, MathF.Max(0f, listRect.Width - 2f), MathF.Max(0f, listRect.Height - 2f));
+        AddRectFilled(innerListRect, _theme.ListBoxBg, _whiteTexture);
 
         var hovered = IsHovering(listRect);
         var scrollY = _state.GetScrollY(resolvedId);
@@ -147,11 +151,11 @@ public sealed partial class UiImmediateContext
 
             if (i == currentIndex)
             {
-                AddRectFilled(itemRect, _theme.HeaderActive, _whiteTexture);
+                AddRectFilled(itemRect, _theme.ListBoxItemBgActive, _whiteTexture);
             }
             else if (itemHovered)
             {
-                AddRectFilled(itemRect, _theme.HeaderHovered, _whiteTexture);
+                AddRectFilled(itemRect, _theme.ListBoxItemBgHovered, _whiteTexture);
             }
 
             if (_leftMousePressed && itemHovered)
@@ -167,7 +171,7 @@ public sealed partial class UiImmediateContext
 
                 itemText,
                 itemPos,
-                _theme.Text,
+                _theme.ListBoxItemText,
                 IntersectRect(CurrentClipRect, listRect),
                 _textSettings,
                 _lineHeight
