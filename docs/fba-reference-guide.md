@@ -1,6 +1,6 @@
 # FBA Project/Package Reference Switching Guide
 
-> Last synced: 2026-03-25  
+> Last synced: 2026-05-13  
 > Korean original: [fba-reference-guide.ko.md](fba-reference-guide.ko.md)
 
 ## Core Principles
@@ -32,7 +32,9 @@ The script does not modify your original FBA file. It creates a temporary file a
 2. On Windows path, normalizes entry call to `DuxelWindowsApp.Run(...)`
 3. Defaults to `dotnet publish -p:PublishAot=true`
 4. Uses `dotnet run` when `-Managed` is provided
-5. Deletes temporary file after execution
+5. Launches the NativeAOT executable after publish unless `-NoLaunch` is provided
+6. Waits for the NativeAOT executable to exit when `-Wait` is provided
+7. Deletes temporary file after execution
 
 ## Main Options
 
@@ -42,7 +44,22 @@ The script does not modify your original FBA file. It creates a temporary file a
 | `-RuntimeIdentifier win-x64` | Set NativeAOT RID |
 | `-NoCache` | Pass no-cache option to `dotnet` |
 | `-NoBuild` | Pass no-build option to `dotnet` |
+| `-NoLaunch` | Publish NativeAOT output without launching it |
+| `-Wait` | Wait for launched NativeAOT executable to exit; useful for automated benchmarks |
 | `-Platform windows` or `--platform windows` | Set platform value for templated package directives |
+
+## NativeAOT Benchmark Collection
+
+```powershell
+$env:DUXEL_SAMPLE_AUTO_EXIT_SECONDS='5'
+$env:DUXEL_PERF_TEST_LEVEL='2'
+$env:DUXEL_PERF_LOG_PATH='artifacts\perf_2d_render_fps.log'
+./run-fba.ps1 samples/fba/perf_2d_render_fps.cs -Wait
+Get-Content artifacts\perf_2d_render_fps.log
+Remove-Item Env:DUXEL_SAMPLE_AUTO_EXIT_SECONDS
+Remove-Item Env:DUXEL_PERF_TEST_LEVEL
+Remove-Item Env:DUXEL_PERF_LOG_PATH
+```
 
 ## Profile Switching
 

@@ -63,14 +63,9 @@ internal interface IGlyphBitmapRasterizer
     bool TryRasterize(in GlyphRasterizationInput input, out RasterizedGlyph glyph);
 }
 
-internal sealed class PlatformGlyphBitmapRasterizerAdapter : IGlyphBitmapRasterizer
+internal sealed class PlatformGlyphBitmapRasterizerAdapter(IPlatformGlyphBitmapRasterizer platformRasterizer) : IGlyphBitmapRasterizer
 {
-    private readonly IPlatformGlyphBitmapRasterizer _platformRasterizer;
-
-    public PlatformGlyphBitmapRasterizerAdapter(IPlatformGlyphBitmapRasterizer platformRasterizer)
-    {
-        _platformRasterizer = platformRasterizer ?? throw new ArgumentNullException(nameof(platformRasterizer));
-    }
+    private readonly IPlatformGlyphBitmapRasterizer _platformRasterizer = platformRasterizer ?? throw new ArgumentNullException(nameof(platformRasterizer));
 
     public string CacheKeyTag => _platformRasterizer.CacheKeyTag;
 

@@ -156,6 +156,7 @@ public sealed unsafe partial class Vk
     public Result ResetCommandBuffer(CommandBuffer commandBuffer, uint flags) => vkResetCommandBuffer(commandBuffer, flags);
     public Result BeginCommandBuffer(CommandBuffer commandBuffer, CommandBufferBeginInfo* beginInfo) => vkBeginCommandBuffer(commandBuffer, beginInfo);
     public Result EndCommandBuffer(CommandBuffer commandBuffer) => vkEndCommandBuffer(commandBuffer);
+    public void CmdExecuteCommands(CommandBuffer commandBuffer, uint commandBufferCount, CommandBuffer* commandBuffers) => vkCmdExecuteCommands(commandBuffer, commandBufferCount, commandBuffers);
     public Result CreateFence(Device device, FenceCreateInfo* createInfo, AllocationCallbacks* allocator, Fence* fence) => vkCreateFence(device, createInfo, allocator, fence);
     public void DestroyFence(Device device, Fence fence, AllocationCallbacks* allocator) => vkDestroyFence(device, fence, allocator);
     public Result ResetFences(Device device, uint fenceCount, Fence* fences) => vkResetFences(device, fenceCount, fences);
@@ -173,6 +174,7 @@ public sealed unsafe partial class Vk
     public void CmdBindIndexBuffer(CommandBuffer commandBuffer, Buffer buffer, ulong offset, IndexType indexType) => vkCmdBindIndexBuffer(commandBuffer, buffer, offset, indexType);
     public void CmdBindDescriptorSets(CommandBuffer commandBuffer, PipelineBindPoint pipelineBindPoint, PipelineLayout layout, uint firstSet, uint descriptorSetCount, DescriptorSet* descriptorSets, uint dynamicOffsetCount, uint* dynamicOffsets) => vkCmdBindDescriptorSets(commandBuffer, pipelineBindPoint, layout, firstSet, descriptorSetCount, descriptorSets, dynamicOffsetCount, dynamicOffsets);
     public void CmdPushConstants(CommandBuffer commandBuffer, PipelineLayout layout, ShaderStageFlags stageFlags, uint offset, uint size, void* values) => vkCmdPushConstants(commandBuffer, layout, stageFlags, offset, size, values);
+    public void CmdDraw(CommandBuffer commandBuffer, uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance) => vkCmdDraw(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
     public void CmdDrawIndexed(CommandBuffer commandBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance) => vkCmdDrawIndexed(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     public void CmdBeginRenderPass(CommandBuffer commandBuffer, RenderPassBeginInfo* renderPassBegin, SubpassContents contents) => vkCmdBeginRenderPass(commandBuffer, renderPassBegin, contents);
     public void CmdEndRenderPass(CommandBuffer commandBuffer) => vkCmdEndRenderPass(commandBuffer);
@@ -301,6 +303,8 @@ public sealed unsafe partial class Vk
     private static partial Result vkBeginCommandBuffer(CommandBuffer commandBuffer, CommandBufferBeginInfo* beginInfo);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkEndCommandBuffer")]
     private static partial Result vkEndCommandBuffer(CommandBuffer commandBuffer);
+    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdExecuteCommands")]
+    private static partial void vkCmdExecuteCommands(CommandBuffer commandBuffer, uint commandBufferCount, CommandBuffer* commandBuffers);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateFence")]
     private static partial Result vkCreateFence(Device device, FenceCreateInfo* createInfo, AllocationCallbacks* allocator, Fence* fence);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyFence")]
@@ -335,6 +339,8 @@ public sealed unsafe partial class Vk
     private static partial void vkCmdBindDescriptorSets(CommandBuffer commandBuffer, PipelineBindPoint pipelineBindPoint, PipelineLayout layout, uint firstSet, uint descriptorSetCount, DescriptorSet* descriptorSets, uint dynamicOffsetCount, uint* dynamicOffsets);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdPushConstants")]
     private static partial void vkCmdPushConstants(CommandBuffer commandBuffer, PipelineLayout layout, ShaderStageFlags stageFlags, uint offset, uint size, void* values);
+    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdDraw")]
+    private static partial void vkCmdDraw(CommandBuffer commandBuffer, uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdDrawIndexed")]
     private static partial void vkCmdDrawIndexed(CommandBuffer commandBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdBeginRenderPass")]

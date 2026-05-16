@@ -1002,6 +1002,19 @@ public enum UiAnimationEasing
 [StructLayout(LayoutKind.Sequential)]
 public readonly record struct UiDrawVertex(UiVector2 Position, UiVector2 UV, UiColor Color);
 
+public enum UiDrawCommandKind
+{
+    Triangles,
+    RectFilledPrimitives,
+    CircleFilledPrimitives,
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public readonly record struct UiRectFilledPrimitive(UiRect Rect, UiColor Color);
+
+[StructLayout(LayoutKind.Sequential)]
+public readonly record struct UiCircleFilledPrimitive(UiVector2 Center, float Radius, UiColor Color, int Segments);
+
 public readonly record struct UiTextureId(nuint Value);
 
 [Flags]
@@ -1239,7 +1252,8 @@ public readonly record struct UiDrawCommand(
     uint VertexOffset,
     UiDrawCallback? Callback = null,
     object? UserData = null,
-    UiVector2 Translation = default
+    UiVector2 Translation = default,
+    UiDrawCommandKind Kind = UiDrawCommandKind.Triangles
 );
 
 public delegate void UiDrawCallback(UiDrawList drawList, UiDrawCommand command);
@@ -1248,16 +1262,10 @@ public delegate void UiDrawCallback(UiDrawList drawList, UiDrawCommand command);
 /// ArrayPool-backed buffer with zero-copy transfer to <see cref="UiPooledList{T}"/>.
 /// Replaces List&lt;T&gt; for vertex/index/command buffers in draw list building.
 /// </summary>
-internal sealed class PooledBuffer<T>
+internal sealed class PooledBuffer<T>(int initialCapacity = 1024)
 {
-    private T[] _array;
-    private int _count;
-
-    public PooledBuffer(int initialCapacity = 1024)
-    {
-        _array = ArrayPool<T>.Shared.Rent(Math.Max(initialCapacity, 16));
-        _count = 0;
-    }
+    private T[] _array = ArrayPool<T>.Shared.Rent(Math.Max(initialCapacity, 16));
+    private int _count = 0;
 
     public int Count
     {
@@ -1404,18 +1412,11 @@ internal sealed class PooledBuffer<T>
     }
 }
 
-public sealed class UiPooledList<T> : IReadOnlyList<T>
+public sealed class UiPooledList<T>(T[] buffer, int count, bool pooled) : IReadOnlyList<T>
 {
-    private T[]? _buffer;
-    private int _count;
-    private readonly bool _pooled;
-
-    public UiPooledList(T[] buffer, int count, bool pooled)
-    {
-        _buffer = buffer;
-        _count = count;
-        _pooled = pooled;
-    }
+    private T[]? _buffer = buffer;
+    private int _count = count;
+    private readonly bool _pooled = pooled;
 
     public int Count => _count;
 
@@ -1541,14 +1542,25 @@ public sealed class UiPooledList<T> : IReadOnlyList<T>
 public sealed record class UiDrawList(
     UiPooledList<UiDrawVertex> Vertices,
     UiPooledList<uint> Indices,
-    UiPooledList<UiDrawCommand> Commands
+    UiPooledList<UiDrawCommand> Commands,
+    bool OwnsBuffers = true,
+    string? StaticGeometryKey = null,
+    UiPooledList<UiRectFilledPrimitive>? RectFilledPrimitives = null,
+    UiPooledList<UiCircleFilledPrimitive>? CircleFilledPrimitives = null
 )
 {
     public void ReleasePooled()
     {
+        if (!OwnsBuffers)
+        {
+            return;
+        }
+
         Vertices.Return();
         Indices.Return();
         Commands.Return();
+        RectFilledPrimitives?.Return();
+        CircleFilledPrimitives?.Return();
     }
 
     public UiDrawList DeIndexAllBuffers()
@@ -1558,32 +1570,38 @@ public sealed record class UiDrawList(
             return this;
         }
 
-        var newVertices = new List<UiDrawVertex>(Indices.Count);
-        for (var i = 0; i < Indices.Count; i++)
+        var indexCount = Indices.Count;
+        var vertexBuffer = ArrayPool<UiDrawVertex>.Shared.Rent(indexCount);
+        var indexBuffer = ArrayPool<uint>.Shared.Rent(indexCount);
+        for (var i = 0; i < indexCount; i++)
         {
             var index = Indices[i];
-            newVertices.Add(Vertices[(int)index]);
+            vertexBuffer[i] = Vertices[(int)index];
+            indexBuffer[i] = (uint)i;
         }
 
-        var newIndices = new List<uint>(Indices.Count);
-        for (var i = 0; i < newVertices.Count; i++)
-        {
-            newIndices.Add((uint)i);
-        }
-
-        var newCommands = new List<UiDrawCommand>(Commands.Count);
+        var commandCount = Commands.Count;
+        var commandBuffer = commandCount > 0 ? ArrayPool<UiDrawCommand>.Shared.Rent(commandCount) : Array.Empty<UiDrawCommand>();
         var offset = 0u;
-        for (var i = 0; i < Commands.Count; i++)
+        for (var i = 0; i < commandCount; i++)
         {
             ref readonly var cmd = ref Commands.ItemRef(i);
-            newCommands.Add(cmd with { IndexOffset = offset });
+            commandBuffer[i] = cmd with { IndexOffset = offset };
             offset += cmd.ElementCount;
         }
 
         return new UiDrawList(
-            UiPooledList<UiDrawVertex>.RentAndCopy(newVertices),
-            UiPooledList<uint>.RentAndCopy(newIndices),
-            UiPooledList<UiDrawCommand>.RentAndCopy(newCommands)
+            new UiPooledList<UiDrawVertex>(vertexBuffer, indexCount, pooled: true),
+            new UiPooledList<uint>(indexBuffer, indexCount, pooled: true),
+            commandCount > 0
+                ? new UiPooledList<UiDrawCommand>(commandBuffer, commandCount, pooled: true)
+                : UiPooledList<UiDrawCommand>.FromArray(commandBuffer),
+            RectFilledPrimitives: RectFilledPrimitives is null
+                ? null
+                : UiPooledList<UiRectFilledPrimitive>.RentAndCopy(RectFilledPrimitives.AsSpan()),
+            CircleFilledPrimitives: CircleFilledPrimitives is null
+                ? null
+                : UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(CircleFilledPrimitives.AsSpan())
         );
     }
 
@@ -1594,19 +1612,26 @@ public sealed record class UiDrawList(
             return this;
         }
 
-        var scaled = new List<UiDrawCommand>(Commands.Count);
-        for (var i = 0; i < Commands.Count; i++)
+        var commandCount = Commands.Count;
+        var commandBuffer = ArrayPool<UiDrawCommand>.Shared.Rent(commandCount);
+        for (var i = 0; i < commandCount; i++)
         {
             ref readonly var cmd = ref Commands.ItemRef(i);
             var rect = cmd.ClipRect;
             var scaledRect = new UiRect(rect.X * scale.X, rect.Y * scale.Y, rect.Width * scale.X, rect.Height * scale.Y);
-            scaled.Add(cmd with { ClipRect = scaledRect });
+            commandBuffer[i] = cmd with { ClipRect = scaledRect };
         }
 
         return new UiDrawList(
             UiPooledList<UiDrawVertex>.RentAndCopy(Vertices.AsSpan()),
             UiPooledList<uint>.RentAndCopy(Indices.AsSpan()),
-            UiPooledList<UiDrawCommand>.RentAndCopy(scaled)
+            new UiPooledList<UiDrawCommand>(commandBuffer, commandCount, pooled: true),
+            RectFilledPrimitives: RectFilledPrimitives is null
+                ? null
+                : UiPooledList<UiRectFilledPrimitive>.RentAndCopy(RectFilledPrimitives.AsSpan()),
+            CircleFilledPrimitives: CircleFilledPrimitives is null
+                ? null
+                : UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(CircleFilledPrimitives.AsSpan())
         );
     }
 }
@@ -1641,10 +1666,11 @@ public sealed record class UiDrawData(
             return this;
         }
 
-        var scaled = new List<UiDrawList>(DrawLists.Count);
-        for (var i = 0; i < DrawLists.Count; i++)
+        var drawListCount = DrawLists.Count;
+        var scaledBuffer = ArrayPool<UiDrawList>.Shared.Rent(drawListCount);
+        for (var i = 0; i < drawListCount; i++)
         {
-            scaled.Add(DrawLists[i].ScaleClipRects(scale));
+            scaledBuffer[i] = DrawLists[i].ScaleClipRects(scale);
         }
 
         var scaledDirtyRect = DynamicDirtyRect;
@@ -1659,7 +1685,7 @@ public sealed record class UiDrawData(
 
         return this with
         {
-            DrawLists = UiPooledList<UiDrawList>.RentAndCopy(scaled),
+            DrawLists = new UiPooledList<UiDrawList>(scaledBuffer, drawListCount, pooled: true),
             DynamicDirtyRect = scaledDirtyRect,
         };
     }
@@ -1672,18 +1698,11 @@ public readonly record struct UiViewport(
     UiVector2 WorkSize
 );
 
-public sealed class UiDrawListSharedData
+public sealed class UiDrawListSharedData(UiFontAtlas fontAtlas, UiTextSettings textSettings, float lineHeight)
 {
-    public UiFontAtlas FontAtlas { get; set; }
-    public UiTextSettings TextSettings { get; set; }
-    public float LineHeight { get; set; }
-
-    public UiDrawListSharedData(UiFontAtlas fontAtlas, UiTextSettings textSettings, float lineHeight)
-    {
-        FontAtlas = fontAtlas;
-        TextSettings = textSettings;
-        LineHeight = lineHeight;
-    }
+    public UiFontAtlas FontAtlas { get; set; } = fontAtlas;
+    public UiTextSettings TextSettings { get; set; } = textSettings;
+    public float LineHeight { get; set; } = lineHeight;
 }
 
 public sealed class UiDragDropPayload
@@ -1701,10 +1720,9 @@ public sealed class UiDragDropPayload
 
 public sealed class UiStateStorage
 {
-    private sealed class Box<T>	where T : struct
+    private sealed class Box<T>(T value) where T : struct
     {
-        public T Value;
-        public Box(T value) => Value = value;
+        public T Value = value;
     }
 
     private readonly Dictionary<string, Box<int>> _ints = new(StringComparer.Ordinal);

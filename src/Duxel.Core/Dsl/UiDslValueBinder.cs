@@ -18,6 +18,7 @@ public sealed class UiDslValueBinder : IUiDslValueSource
     private readonly Dictionary<string, UiVector2> _vector2 = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiVector4> _vector4 = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiColor> _colors = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IUiDslListBinding> _lists = new(StringComparer.Ordinal);
 
     // ── Fluent registration ──────────────────────────────
 
@@ -72,6 +73,24 @@ public sealed class UiDslValueBinder : IUiDslValueSource
     public UiDslValueBinder BindColor(string id, UiColor initialValue = default)
     {
         _colors[id] = initialValue;
+        return this;
+    }
+
+    public UiDslValueBinder BindList<T>(string id, IReadOnlyList<T> list, Func<T, string> displayFunc)
+    {
+        _lists[id] = new ListBinding<T>(list, displayFunc);
+        return this;
+    }
+
+    public UiDslValueBinder BindList(string id, IReadOnlyList<string> list)
+    {
+        _lists[id] = new ListBinding<string>(list, static s => s);
+        return this;
+    }
+
+    public UiDslValueBinder BindList<T>(string id, IReadOnlyList<T> list, Func<T, string> displayFunc, Func<T, string, string?> propertyAccessor)
+    {
+        _lists[id] = new PropertyListBinding<T>(list, displayFunc, propertyAccessor);
         return this;
     }
 
@@ -134,4 +153,82 @@ public sealed class UiDslValueBinder : IUiDslValueSource
 
     bool IUiDslValueSource.TryGetColor(string id, out UiColor value) => _colors.TryGetValue(id, out value);
     void IUiDslValueSource.SetColor(string id, UiColor value) { if (_colors.ContainsKey(id)) _colors[id] = value; }
+
+    bool IUiDslValueSource.TryGetListCount(string id, out int count)
+    {
+        if (_lists.TryGetValue(id, out var binding))
+        {
+            count = binding.Count;
+            return true;
+        }
+        count = 0;
+        return false;
+    }
+
+    bool IUiDslValueSource.TryGetListItem(string id, int index, out string displayText)
+    {
+        if (_lists.TryGetValue(id, out var binding) && (uint)index < (uint)binding.Count)
+        {
+            displayText = binding.GetDisplayText(index);
+            return true;
+        }
+        displayText = string.Empty;
+        return false;
+    }
+
+    bool IUiDslValueSource.TryGetListProperty(string id, int index, string propertyName, out string value)
+    {
+        if (_lists.TryGetValue(id, out var binding))
+        {
+            return binding.TryGetProperty(index, propertyName, out value);
+        }
+        value = string.Empty;
+        return false;
+    }
+
+    private sealed class ListBinding<T>(IReadOnlyList<T> list, Func<T, string> displayFunc) : IUiDslListBinding
+    {
+        public int Count => list.Count;
+        public string GetDisplayText(int index) => displayFunc(list[index]);
+
+        public bool TryGetProperty(int index, string propertyName, out string value)
+        {
+            value = string.Empty;
+            return false;
+        }
+    }
+
+    private sealed class PropertyListBinding<T>(
+        IReadOnlyList<T> list,
+        Func<T, string> displayFunc,
+        Func<T, string, string?> propertyAccessor) : IUiDslListBinding
+    {
+        public int Count => list.Count;
+        public string GetDisplayText(int index) => displayFunc(list[index]);
+
+        public bool TryGetProperty(int index, string propertyName, out string value)
+        {
+            if ((uint)index < (uint)list.Count)
+            {
+                var result = propertyAccessor(list[index], propertyName);
+                if (result is not null)
+                {
+                    value = result;
+                    return true;
+                }
+            }
+            value = string.Empty;
+            return false;
+        }
+    }
+}
+
+/// <summary>
+/// Abstraction for bound list data, enabling type-erased access to typed collections.
+/// </summary>
+public interface IUiDslListBinding
+{
+    int Count { get; }
+    string GetDisplayText(int index);
+    bool TryGetProperty(int index, string propertyName, out string value);
 }

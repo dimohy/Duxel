@@ -233,12 +233,15 @@ public enum ColorSpaceKHR : int
 public enum CommandBufferLevel : int
 {
     Primary = 0,
+    Secondary = 1,
 }
 
 [Flags]
 public enum CommandBufferUsageFlags : uint
 {
     OneTimeSubmitBit = 0x00000001,
+    RenderPassContinueBit = 0x00000002,
+    SimultaneousUseBit = 0x00000004,
 }
 
 public enum CompareOp : int
@@ -303,7 +306,10 @@ public enum Filter : int
 public enum Format : int
 {
     Undefined = 0,
+    R32Uint = 98,
+    R32Sfloat = 100,
     R32G32Sfloat = 103,
+    R32G32B32A32Sfloat = 109,
     R8G8B8A8Unorm = 37,
     R8G8B8A8Srgb = 43,
     B8G8R8A8Unorm = 44,
@@ -400,11 +406,13 @@ public enum SharingMode : int
 public enum SubpassContents : int
 {
     Inline = 0,
+    SecondaryCommandBuffers = 1,
 }
 
 public enum VertexInputRate : int
 {
     Vertex = 0,
+    Instance = 1,
 }
 
 [Flags]

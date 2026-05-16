@@ -1,6 +1,6 @@
 # Duxel FBA Samples — Run Instantly
 
-> Last synced: 2026-03-25  
+> Last synced: 2026-05-16  
 > Korean: [fba-run-samples.ko.md](fba-run-samples.ko.md)
 
 > Run **Duxel** FBA samples with a **single copy-paste command**. .NET 10 + Vulkan immediate-mode GUI framework.
@@ -367,6 +367,24 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 ---
 
+## Scrolling Static Layer Bench
+
+Benchmarks static layer behavior while window scroll and parent clip rectangles change.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/scrolling_static_layer_bench_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/scrolling_static_layer_bench_fba.cs -o - | dotnet run -
+```
+
+> Dynamic scroll vs static scroll · Sliding clip probe · Visual regression validation for blank/black static layer bodies
+
+---
+
 ## UI Mixed Stress
 
 Stress test rendering multiple windows/text/tables/lists/inputs/draws simultaneously.
@@ -421,6 +439,7 @@ $files = @(
     "font_style_validation_fba.cs",
     "idle_layer_validation.cs",
     "layer_dirty_strategy_bench.cs", "layer_widget_mix_bench_fba.cs",
+    "scrolling_static_layer_bench_fba.cs",
     "global_dirty_strategy_bench.cs", "vector_primitives_bench_fba.cs",
     "Duxel_perf_test_fba.cs", "ui_mixed_stress.cs"
 )
@@ -439,7 +458,7 @@ FILES=(all_features.cs hello_duxel_fba.cs \
     text_render_validation_fba.cs \
     font_style_validation_fba.cs \
     idle_layer_validation.cs \
-    layer_dirty_strategy_bench.cs layer_widget_mix_bench_fba.cs \
+    layer_dirty_strategy_bench.cs layer_widget_mix_bench_fba.cs scrolling_static_layer_bench_fba.cs \
     global_dirty_strategy_bench.cs vector_primitives_bench_fba.cs \
     Duxel_perf_test_fba.cs ui_mixed_stress.cs)
 mkdir -p fba

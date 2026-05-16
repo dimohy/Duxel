@@ -28,6 +28,8 @@
     (호환용) NativeAOT 게시 성공 후 산출 실행 파일(.exe)을 자동 실행합니다.
 .PARAMETER NoLaunch
     NativeAOT 기본 자동 실행을 비활성화합니다.
+.PARAMETER Wait
+    NativeAOT 게시 후 산출 실행 파일(.exe)이 종료될 때까지 기다립니다.
 .PARAMETER ExtraArgs
     dotnet run/dotnet publish에 전달할 추가 인수.
 .EXAMPLE
@@ -59,6 +61,7 @@ param(
     [switch]$KillProcessTreeOnTimeout,
     [switch]$Launch,
     [switch]$NoLaunch,
+    [switch]$Wait,
 
     [Parameter(ValueFromRemainingArguments)]
     [string[]]$ExtraArgs
@@ -487,7 +490,15 @@ try {
             }
 
             Write-Host "[run-fba] 실행: $exePath" -ForegroundColor Cyan
-            Start-Process -FilePath $exePath | Out-Null
+            if ($Wait) {
+                $process = Start-Process -FilePath $exePath -Wait -PassThru
+                if ($process.ExitCode -ne 0) {
+                    throw "NativeAOT 실행이 실패했습니다. 종료 코드: $($process.ExitCode)"
+                }
+            }
+            else {
+                Start-Process -FilePath $exePath | Out-Null
+            }
         }
     }
     else {

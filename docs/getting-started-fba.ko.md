@@ -1,6 +1,6 @@
 # Duxel FBA 빠른 시작 가이드
 
-> 마지막 동기화: 2026-03-25
+> 마지막 동기화: 2026-05-16
 
 단일 `.cs` 파일로 Duxel 앱을 실행하는 FBA(File-Based App) 기준 가이드입니다.
 
@@ -68,6 +68,7 @@ dotnet run samples/fba/all_features.cs
 | `windows_calculator_fba.cs` | 계산기 UI 데모 |
 | `text_render_validation_fba.cs` | 텍스트 렌더 검증 |
 | `font_style_validation_fba.cs` | 폰트 스타일/크기 렌더링 검증 |
+| `scrolling_static_layer_bench_fba.cs` | 스크롤/클립 정적 레이어 벤치 및 시각 회귀·캐시 무효화 검증 |
 | `Duxel_perf_test_fba.cs` | 대량 폴리곤 벤치 |
 
 ## 프로필/환경 변수

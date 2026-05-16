@@ -1,6 +1,6 @@
 # Duxel FBA 샘플 — 바로 실행하기
 
-> 마지막 동기화: 2026-03-25
+> 마지막 동기화: 2026-05-16
 
 > .NET 10 + Vulkan 즉시 모드 GUI 프레임워크 **Duxel**의 FBA 샘플을 **복사-붙여넣기 한 줄**로 바로 실행하세요.
 
@@ -366,6 +366,24 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 ---
 
+## 스크롤 정적 레이어 벤치
+
+창 스크롤과 부모 클립 사각형이 변할 때 정적 레이어 동작을 측정합니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/scrolling_static_layer_bench_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/scrolling_static_layer_bench_fba.cs -o - | dotnet run -
+```
+
+> dynamic scroll vs static scroll · sliding clip probe · 정적 레이어 본문 black/blank 시각 회귀 검증
+
+---
+
 ## UI 복합 스트레스
 
 다중 창/텍스트/테이블/리스트/입력/드로우를 동시에 렌더링하는 스트레스 테스트입니다.
@@ -420,6 +438,7 @@ $files = @(
     "font_style_validation_fba.cs",
     "idle_layer_validation.cs",
     "layer_dirty_strategy_bench.cs", "layer_widget_mix_bench_fba.cs",
+    "scrolling_static_layer_bench_fba.cs",
     "global_dirty_strategy_bench.cs", "vector_primitives_bench_fba.cs",
     "Duxel_perf_test_fba.cs", "ui_mixed_stress.cs"
 )
@@ -438,7 +457,7 @@ FILES=(all_features.cs hello_duxel_fba.cs \
     text_render_validation_fba.cs \
     font_style_validation_fba.cs \
     idle_layer_validation.cs \
-    layer_dirty_strategy_bench.cs layer_widget_mix_bench_fba.cs \
+    layer_dirty_strategy_bench.cs layer_widget_mix_bench_fba.cs scrolling_static_layer_bench_fba.cs \
     global_dirty_strategy_bench.cs vector_primitives_bench_fba.cs \
     Duxel_perf_test_fba.cs ui_mixed_stress.cs)
 mkdir -p fba

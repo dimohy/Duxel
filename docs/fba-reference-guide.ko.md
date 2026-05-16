@@ -1,6 +1,6 @@
 # FBA 프로젝트/패키지 참조 전환 가이드
 
-> 마지막 동기화: 2026-03-25
+> 마지막 동기화: 2026-05-13
 
 ## 기본 원칙
 
@@ -31,7 +31,9 @@ dotnet run samples/fba/all_features.cs
 2. Windows 경로에서는 `DuxelWindowsApp.Run(...)` 호출 형태로 맞춤 변환
 3. 기본은 `dotnet publish -p:PublishAot=true`
 4. `-Managed` 사용 시 `dotnet run`
-5. 실행 후 임시 파일 삭제
+5. `-NoLaunch`가 없으면 NativeAOT 게시 산출 실행 파일을 실행
+6. `-Wait` 사용 시 NativeAOT 실행 파일이 종료될 때까지 대기
+7. 실행 후 임시 파일 삭제
 
 ## 주요 옵션
 
@@ -41,7 +43,22 @@ dotnet run samples/fba/all_features.cs
 | `-RuntimeIdentifier win-x64` | NativeAOT RID 지정 |
 | `-NoCache` | `dotnet` 캐시 비활성화 인수 전달 |
 | `-NoBuild` | 빌드 생략 인수 전달 |
+| `-NoLaunch` | NativeAOT 산출물을 게시만 하고 실행하지 않음 |
+| `-Wait` | 실행한 NativeAOT 실행 파일 종료까지 대기; 자동 벤치마크 수집에 유용 |
 | `-Platform windows` 또는 `--platform windows` | 템플릿 패키지 플랫폼 값 지정 |
+
+## NativeAOT 벤치마크 수집
+
+```powershell
+$env:DUXEL_SAMPLE_AUTO_EXIT_SECONDS='5'
+$env:DUXEL_PERF_TEST_LEVEL='2'
+$env:DUXEL_PERF_LOG_PATH='artifacts\perf_2d_render_fps.log'
+./run-fba.ps1 samples/fba/perf_2d_render_fps.cs -Wait
+Get-Content artifacts\perf_2d_render_fps.log
+Remove-Item Env:DUXEL_SAMPLE_AUTO_EXIT_SECONDS
+Remove-Item Env:DUXEL_PERF_TEST_LEVEL
+Remove-Item Env:DUXEL_PERF_LOG_PATH
+```
 
 ## 프로필 전환
 

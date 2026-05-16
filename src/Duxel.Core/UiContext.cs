@@ -5,14 +5,18 @@ using System.Text;
 
 namespace Duxel.Core;
 
-public sealed class UiContext : IUiContext
+public sealed class UiContext(
+    UiFontAtlas fontAtlas,
+    UiTextureId fontTexture,
+    UiTextureId whiteTexture
+    ) : IUiContext
 {
     private const string StaticLayerGeometryTagPrefix = "duxel.layer.static:";
     private const string StaticGlobalGeometryTagPrefix = "duxel.global.static:";
     private readonly UiState _state = new();
-    private UiFontAtlas _fontAtlas;
-    private readonly UiTextureId _fontTexture;
-    private readonly UiTextureId _whiteTexture;
+    private UiFontAtlas _fontAtlas = fontAtlas ?? throw new ArgumentNullException(nameof(fontAtlas));
+    private readonly UiTextureId _fontTexture = fontTexture;
+    private readonly UiTextureId _whiteTexture = whiteTexture;
     private readonly List<UiTextureUpdate> _textureUpdates = new();
 
     private UiFrameInfo _frameInfo;
@@ -72,17 +76,6 @@ public sealed class UiContext : IUiContext
         Tty,
         Clipboard,
         File,
-    }
-
-    public UiContext(
-        UiFontAtlas fontAtlas,
-        UiTextureId fontTexture,
-        UiTextureId whiteTexture
-    )
-    {
-        _fontAtlas = fontAtlas ?? throw new ArgumentNullException(nameof(fontAtlas));
-        _fontTexture = fontTexture;
-        _whiteTexture = whiteTexture;
     }
 
     public UiState State => _state;
@@ -940,6 +933,11 @@ public sealed class UiContext : IUiContext
         for (var listIndex = 0; listIndex < drawLists.Count; listIndex++)
         {
             var drawList = drawLists[listIndex];
+            if (IsStaticGeometryTag(drawList.StaticGeometryKey))
+            {
+                continue;
+            }
+
             var commandCount = drawList.Commands.Count;
             for (var commandIndex = 0; commandIndex < commandCount; commandIndex++)
             {

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Duxel.Core;
@@ -41,6 +42,10 @@ public sealed class DuxelAppSession
         var theme = options.Theme;
         var contentScale = platform.ContentScale;
         var logicalBaseFontSize = fontOptions.FontSize;
+        var appProfilingEnabled = ParseProfilingEnabled("DUXEL_APP_PROFILE");
+        var appProfilingInterval = ParsePositiveIntEnvironment("DUXEL_APP_PROFILE_EVERY", 120);
+        var appProfilingLogPath = Environment.GetEnvironmentVariable("DUXEL_APP_PROFILE_OUT");
+        var appProfilingFrameCounter = 0;
 
         var startupLog = options.Debug.LogStartupTimings
             ? options.Debug.Log ?? Console.WriteLine
@@ -687,6 +692,24 @@ public sealed class DuxelAppSession
                         lastRenderedBlinkState = ((int)Math.Floor(blinkElapsed / 0.5) & 1) == 0;
                     }
                     var t4 = Stopwatch.GetTimestamp();
+                    if (appProfilingEnabled)
+                    {
+                        appProfilingFrameCounter++;
+                        if (appProfilingFrameCounter % appProfilingInterval == 0)
+                        {
+                            LogAppProfileFrame(
+                                appProfilingLogPath,
+                                appProfilingFrameCounter,
+                                t0,
+                                t1,
+                                t2,
+                                t3,
+                                t4,
+                                drawData,
+                                fps);
+                        }
+                    }
+
                     if (Interlocked.Exchange(ref startupFirstFrameLogged, 1) == 0)
                     {
                         EmitStartupTiming("FirstFramePresented");
@@ -794,5 +817,63 @@ public sealed class DuxelAppSession
                 return true;
             }
         }
+    }
+
+    private static bool ParseProfilingEnabled(string name)
+    {
+        var raw = Environment.GetEnvironmentVariable(name);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        return string.Equals(raw, "1", StringComparison.Ordinal)
+            || string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "on", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int ParsePositiveIntEnvironment(string name, int defaultValue)
+    {
+        var raw = Environment.GetEnvironmentVariable(name);
+        return int.TryParse(raw, out var value) && value > 0
+            ? value
+            : defaultValue;
+    }
+
+    private static void LogAppProfileFrame(
+        string? path,
+        int frame,
+        long t0,
+        long t1,
+        long t2,
+        long t3,
+        long t4,
+        UiDrawData drawData,
+        float fps)
+    {
+        var newFrameUs = TicksToMicroseconds(t1 - t0);
+        var renderUs = TicksToMicroseconds(t2 - t1);
+        var getDrawDataUs = TicksToMicroseconds(t3 - t2);
+        var rendererUs = TicksToMicroseconds(t4 - t3);
+        var totalUs = TicksToMicroseconds(t4 - t0);
+        var line = $"[duxel-app-prof] frame={frame} fps={fps:0.0} new={newFrameUs:0.000} render={renderUs:0.000} getDraw={getDrawDataUs:0.000} renderer={rendererUs:0.000} total={totalUs:0.000} lists={drawData.DrawLists.Count} vertices={drawData.TotalVertexCount} indices={drawData.TotalIndexCount}";
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            Console.WriteLine(line);
+            return;
+        }
+
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        File.AppendAllText(path, line + Environment.NewLine);
+    }
+
+    private static double TicksToMicroseconds(long ticks)
+    {
+        return ticks * (1000000.0 / Stopwatch.Frequency);
     }
 }

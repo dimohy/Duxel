@@ -1,6 +1,6 @@
 # Duxel 에이전트 참조 문서
 
-> Last synced: 2026-03-25
+> Last synced: 2026-05-13
 > 대상: Duxel로 앱, 샘플, 재사용 UI 컴포넌트를 작성하는 코딩 에이전트와 개발자
 > 범위: Duxel 기능 맵, 아키텍처 경계, 권장 워크플로, 샘플 기준점, 바로 사용할 수 있는 생성 템플릿
 
@@ -802,12 +802,14 @@ FBA 샘플은 다음과 같은 패키지 지시문을 사용한다.
 
 - `./run-fba.ps1 samples/fba/all_features.cs -NoCache`
 - `./run-fba.ps1 samples/fba/all_features.cs -Managed`
+- `./run-fba.ps1 samples/fba/perf_2d_render_fps.cs -Wait`
 
 이유:
 
 - 패키지 지시문을 로컬 프로젝트 참조로 바꿔 준다.
 - 필요 시 Windows 엔트리 호출을 정규화한다.
 - 기본적으로 NativeAOT 경로를 지원한다.
+- `-Wait`로 NativeAOT GUI 샘플 종료까지 대기할 수 있어 자동 파일 로그 벤치마크 수집에 적합하다.
 - 단순 패키지 모드와 달리 현재 워크스페이스 소스 변경을 반영한다.
 
 로컬 소스 수정 검증에 `dotnet run samples/fba/<file>.cs`를 기준으로 삼지 않는다.

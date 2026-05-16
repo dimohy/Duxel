@@ -1,6 +1,6 @@
 # Duxel Agent Reference
 
-> Last synced: 2026-03-25
+> Last synced: 2026-05-13
 > Audience: coding agents and developers building apps, samples, and reusable UI components with Duxel
 > Scope: Duxel feature map, architecture boundaries, recommended workflows, and sample anchors
 
@@ -820,12 +820,14 @@ Preferred examples:
 
 - `./run-fba.ps1 samples/fba/all_features.cs -NoCache`
 - `./run-fba.ps1 samples/fba/all_features.cs -Managed`
+- `./run-fba.ps1 samples/fba/perf_2d_render_fps.cs -Wait`
 
 Why:
 
 - it rewrites package directives to local project references
 - it normalizes Windows entry calls when needed
 - it supports NativeAOT by default
+- it can wait for NativeAOT GUI samples to exit with `-Wait`, which is required for automated file-log benchmark collection
 - it reflects workspace source changes, unlike plain package-mode execution
 
 Do not rely on `dotnet run samples/fba/<file>.cs` to validate local source edits.

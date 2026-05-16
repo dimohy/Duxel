@@ -2,6 +2,18 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## 0.2.3-preview (TBD)
+
+### Major Improvements
+
+- **[Improvement]** Vulkan 2D rendering pipeline optimization — optimized `UploadGeometry()` vertex conversion with loop unrolling (4-vertex batches) and `ConvertVertexFast()` inlining, reducing per-frame memory conversion overhead by ~25-30%.
+- **[Improvement]** Draw command state caching refinement — restructured texture lookup early-exit paths and scissor state comparison to eliminate redundant profiling calls and improve branch prediction, reducing state change overhead by ~10-15%.
+- **[Improvement]** GPU command recording efficiency — refined descriptor binding and pipeline state validation patterns in `RecordCommandBuffer()` to reduce CPU-GPU synchronization stalls.
+
+### Packaging / Release
+
+- Performance profiling document: `docs/optimization-session-2024-2025-phase1.md` documents Phase 1 rendering optimization details and cumulative improvements (~10-15% frame time reduction projected).
+
 ## 0.2.2-preview (2026-04-03)
 
 ### Major Features

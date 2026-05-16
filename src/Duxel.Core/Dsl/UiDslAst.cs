@@ -2,14 +2,9 @@ using Duxel.Core;
 
 namespace Duxel.Core.Dsl;
 
-public sealed class UiDslDocument
+public sealed class UiDslDocument(IReadOnlyList<UiDslNode> roots)
 {
-    public UiDslDocument(IReadOnlyList<UiDslNode> roots)
-    {
-        Roots = roots;
-    }
-
-    public IReadOnlyList<UiDslNode> Roots { get; }
+    public IReadOnlyList<UiDslNode> Roots { get; } = roots;
 
     public void Emit(IUiDslEmitter emitter)
     {
@@ -21,18 +16,11 @@ public sealed class UiDslDocument
     }
 }
 
-public sealed class UiDslNode
+public sealed class UiDslNode(string name, IReadOnlyList<string> args, List<UiDslNode> children)
 {
-    public UiDslNode(string name, IReadOnlyList<string> args, List<UiDslNode> children)
-    {
-        Name = name;
-        Args = args;
-        Children = children;
-    }
-
-    public string Name { get; private set; }
-    public IReadOnlyList<string> Args { get; }
-    public List<UiDslNode> Children { get; }
+    public string Name { get; private set; } = name;
+    public IReadOnlyList<string> Args { get; } = args;
+    public List<UiDslNode> Children { get; } = children;
 
     internal void NormalizeName(string name)
     {
@@ -90,5 +78,9 @@ public interface IUiDslValueSource
 
     bool TryGetColor(string id, out UiColor value);
     void SetColor(string id, UiColor value);
+
+    bool TryGetListCount(string id, out int count);
+    bool TryGetListItem(string id, int index, out string displayText);
+    bool TryGetListProperty(string id, int index, string propertyName, out string value);
 }
 

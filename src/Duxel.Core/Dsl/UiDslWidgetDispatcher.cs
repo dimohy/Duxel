@@ -38,7 +38,8 @@ internal static class UiDslWidgetDispatcher
             "BeginDragDropSource" or "BeginDragDropTarget" or "BeginDisabled" or "BeginMultiSelect" or
             "TreeNode" or "TreeNodeEx" or "TreeNodeV" or "TreeNodeExV" or "TreeNodePush" or
             // Control flow containers
-            "If" or "ElseIf" or "Else" or "Visible" or "ForEach" or "Switch" or "Case" or "Default" => true,
+            "If" or "ElseIf" or "Else" or "Visible" or "ForEach" or "Switch" or "Case" or "Default" or
+            "ListClipper" => true,
             _ => false,
         };
     }
@@ -393,10 +394,21 @@ internal static class UiDslWidgetDispatcher
             case "Combo":
             {
                 var (id, label) = ReadIdLabel(ref reader, "Combo");
-                var items = reader.ReadStringList("Items");
+                var itemsSourceKey = reader.ReadOptionalString("ItemsSource");
                 var maxItems = reader.ReadInt("MaxItems", 8);
                 var value = UiDslValues.GetInt(ctx, id, 0);
-                var changed = WithId(ui, id, label, () => ui.Combo(ref value, items, maxItems, label));
+                bool changed;
+                if (itemsSourceKey is not null)
+                {
+                    var count = UiDslValues.GetListCount(ctx, itemsSourceKey);
+                    changed = WithId(ui, id, label, () =>
+                        ui.Combo(ref value, count, i => UiDslValues.GetListItem(ctx, itemsSourceKey, i), maxItems, label));
+                }
+                else
+                {
+                    var items = reader.ReadStringList("Items");
+                    changed = WithId(ui, id, label, () => ui.Combo(ref value, items, maxItems, label));
+                }
                 if (changed)
                 {
                     UiDslValues.SetInt(ctx, id, value);
@@ -415,10 +427,21 @@ internal static class UiDslWidgetDispatcher
             case "ListBox":
             {
                 var (id, label) = ReadIdLabel(ref reader, "ListBox");
-                var items = reader.ReadStringList("Items");
+                var itemsSourceKey = reader.ReadOptionalString("ItemsSource");
                 var heightItems = reader.ReadInt("HeightItems", -1);
                 var value = UiDslValues.GetInt(ctx, id, 0);
-                var changed = WithId(ui, id, label, () => ui.ListBox(ref value, items, heightItems, label));
+                bool changed;
+                if (itemsSourceKey is not null)
+                {
+                    var count = UiDslValues.GetListCount(ctx, itemsSourceKey);
+                    changed = WithId(ui, id, label, () =>
+                        ui.ListBox(ref value, count, i => UiDslValues.GetListItem(ctx, itemsSourceKey, i), heightItems, label));
+                }
+                else
+                {
+                    var items = reader.ReadStringList("Items");
+                    changed = WithId(ui, id, label, () => ui.ListBox(ref value, items, heightItems, label));
+                }
                 if (changed)
                 {
                     UiDslValues.SetInt(ctx, id, value);
@@ -2308,6 +2331,31 @@ internal static class UiDslValues
     public static void SetDoubleArray(UiDslRenderContext ctx, string id, double[] value)
     {
         ctx.State.SetDoubleArray(id, value);
+    }
+
+    public static int GetListCount(UiDslRenderContext ctx, string id)
+    {
+        if (ctx.ValueSource?.TryGetListCount(id, out var count) == true)
+            return count;
+
+        return ctx.State.GetStringArray(id).Length;
+    }
+
+    public static string GetListItem(UiDslRenderContext ctx, string id, int index)
+    {
+        if (ctx.ValueSource?.TryGetListItem(id, index, out var text) == true)
+            return text;
+
+        var arr = ctx.State.GetStringArray(id);
+        return (uint)index < (uint)arr.Length ? arr[index] : string.Empty;
+    }
+
+    public static string? GetListProperty(UiDslRenderContext ctx, string id, int index, string propertyName)
+    {
+        if (ctx.ValueSource?.TryGetListProperty(id, index, propertyName, out var value) == true)
+            return value;
+
+        return null;
     }
 }
 

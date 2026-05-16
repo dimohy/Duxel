@@ -1,6 +1,6 @@
 # Duxel FBA Quick Start Guide
 
-> Last synced: 2026-03-25  
+> Last synced: 2026-05-16  
 > Korean original: [getting-started-fba.ko.md](getting-started-fba.ko.md)
 
 This guide covers the FBA (File-Based App) flow to run Duxel with a single `.cs` file.
@@ -69,6 +69,7 @@ dotnet run samples/fba/all_features.cs
 | `windows_calculator_fba.cs` | Calculator UI demo |
 | `text_render_validation_fba.cs` | Text rendering validation |
 | `font_style_validation_fba.cs` | Font style/size rendering validation |
+| `scrolling_static_layer_bench_fba.cs` | Scrolling/clip static layer benchmark for visual regression and cache invalidation validation |
 | `Duxel_perf_test_fba.cs` | High-polygon benchmark |
 
 ## Profile / Environment Variable

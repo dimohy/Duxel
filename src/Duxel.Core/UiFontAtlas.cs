@@ -1944,20 +1944,13 @@ internal sealed class TtfFont
 
 internal readonly record struct TtfTable(uint Offset, uint Length);
 
-internal sealed class TtfReader
+internal sealed class TtfReader(byte[] data, int baseOffset = 0, int offset = 0)
 {
-	private readonly byte[] _data;
-	private readonly int _baseOffset;
-	private int _offset;
+	private readonly byte[] _data = data;
+	private readonly int _baseOffset = baseOffset;
+	private int _offset = offset;
 
-	public TtfReader(byte[] data, int baseOffset = 0, int offset = 0)
-	{
-		_data = data;
-		_baseOffset = baseOffset;
-		_offset = offset;
-	}
-
-	public byte[] RawData => _data;
+    public byte[] RawData => _data;
 	public int BaseOffset => _baseOffset;
 	public int Position => _offset;
 
@@ -2015,26 +2008,17 @@ internal struct TtfPoint
 	public bool OnCurve;
 }
 
-internal sealed class TtfGlyph
+internal sealed class TtfGlyph(int xMin, int yMin, int xMax, int yMax, IReadOnlyList<List<TtfPoint>> contours)
 {
 	public static readonly TtfGlyph Empty = new(0, 0, 0, 0, []);
 
-	public int XMin { get; }
-	public int YMin { get; }
-	public int XMax { get; }
-	public int YMax { get; }
-	public IReadOnlyList<List<TtfPoint>> Contours { get; }
+    public int XMin { get; } = xMin;
+    public int YMin { get; } = yMin;
+    public int XMax { get; } = xMax;
+    public int YMax { get; } = yMax;
+    public IReadOnlyList<List<TtfPoint>> Contours { get; } = contours;
 
-	public TtfGlyph(int xMin, int yMin, int xMax, int yMax, IReadOnlyList<List<TtfPoint>> contours)
-	{
-		XMin = xMin;
-		YMin = yMin;
-		XMax = xMax;
-		YMax = yMax;
-		Contours = contours;
-	}
-
-	public GlyphBitmap Rasterize(float scale)
+    public GlyphBitmap Rasterize(float scale)
 	{
 		var width = Math.Max(1, (int)MathF.Ceiling((XMax - XMin) * scale));
 		var height = Math.Max(1, (int)MathF.Ceiling((YMax - YMin) * scale));

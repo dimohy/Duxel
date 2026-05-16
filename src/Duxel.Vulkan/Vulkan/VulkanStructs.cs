@@ -634,6 +634,19 @@ public unsafe struct CommandBufferBeginInfo
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public unsafe struct CommandBufferInheritanceInfo
+{
+    public StructureType SType;
+    public void* PNext;
+    public RenderPass RenderPass;
+    public uint Subpass;
+    public Framebuffer Framebuffer;
+    public uint OcclusionQueryEnable;
+    public uint QueryFlags;
+    public uint PipelineStatistics;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public unsafe struct RenderPassBeginInfo
 {
     public StructureType SType;

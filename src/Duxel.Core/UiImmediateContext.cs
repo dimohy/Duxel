@@ -2,6 +2,8 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Duxel.Core;
@@ -61,6 +63,9 @@ public sealed partial class UiImmediateContext
     private float _contentScale = 1f;
     public float ContentScale => _contentScale;
     private readonly Dictionary<DirectTextCacheKey, DirectTextCacheEntry> _directTextCache = new();
+    private DirectTextCacheKey _lastDirectTextCacheKey;
+    private DirectTextCacheEntry _lastDirectTextCacheEntry;
+    private bool _lastDirectTextCacheValid;
     private nuint _nextDirectTextTextureId = 2_100_000_000;
     private const int DirectTextCacheMaxEntries = 512;
     private const int DirectTextCacheMaxIdleFrames = 600;
@@ -741,6 +746,11 @@ public sealed partial class UiImmediateContext
             return;
         }
 
+        if (_lastDirectTextCacheValid && _lastDirectTextCacheKey.Equals(key))
+        {
+            _lastDirectTextCacheValid = false;
+        }
+
         if (entry.TextureId is { } texId)
         {
             QueueTextureUpdate(new UiTextureUpdate(
@@ -787,13 +797,38 @@ public sealed partial class UiImmediateContext
     private bool TryGetOrCreateDirectText(string text, int sizeQuarter, float fontSize, out DirectTextCacheEntry entry)
     {
         var key = new DirectTextCacheKey(_directTextPrimaryFontPath!, text, sizeQuarter);
-        if (_directTextCache.TryGetValue(key, out entry))
+        if (_lastDirectTextCacheValid && _lastDirectTextCacheKey.Equals(key))
         {
-            entry = entry with { LastUsedFrame = _state.FrameCount };
-            _directTextCache[key] = entry;
+            entry = _lastDirectTextCacheEntry;
+            if (entry.LastUsedFrame == _state.FrameCount)
+            {
+                return true;
+            }
+
+            ref var lastCachedEntry = ref CollectionsMarshal.GetValueRefOrNullRef(_directTextCache, key);
+            if (!Unsafe.IsNullRef(ref lastCachedEntry))
+            {
+                lastCachedEntry = lastCachedEntry with { LastUsedFrame = _state.FrameCount };
+                entry = lastCachedEntry;
+                _lastDirectTextCacheEntry = entry;
+                return true;
+            }
+
+            _lastDirectTextCacheValid = false;
+        }
+
+        ref var cachedEntry = ref CollectionsMarshal.GetValueRefOrNullRef(_directTextCache, key);
+        if (!Unsafe.IsNullRef(ref cachedEntry))
+        {
+            cachedEntry = cachedEntry with { LastUsedFrame = _state.FrameCount };
+            entry = cachedEntry;
+            _lastDirectTextCacheKey = key;
+            _lastDirectTextCacheEntry = entry;
+            _lastDirectTextCacheValid = true;
             return true;
         }
 
+        entry = default;
         if (!_platformTextBackend!.TryRasterize(
                 new PlatformTextRasterizeRequest(_directTextPrimaryFontPath!, _directTextSecondaryFontPath, text, fontSize),
                 out var result))
@@ -804,6 +839,9 @@ public sealed partial class UiImmediateContext
         var advance = result.Advance > 0f ? result.Advance : MathF.Max(result.Width, fontSize * 0.3f);
         entry = new DirectTextCacheEntry(null, result.Width, result.Height, advance, result.Baseline, result.FontAscent, _state.FrameCount, result.RgbaPixels);
         _directTextCache[key] = entry;
+        _lastDirectTextCacheKey = key;
+        _lastDirectTextCacheEntry = entry;
+        _lastDirectTextCacheValid = true;
         return true;
     }
 
@@ -825,6 +863,9 @@ public sealed partial class UiImmediateContext
 
         entry = entry with { TextureId = textureId, PendingPixels = ReadOnlyMemory<byte>.Empty };
         _directTextCache[key] = entry;
+        _lastDirectTextCacheKey = key;
+        _lastDirectTextCacheEntry = entry;
+        _lastDirectTextCacheValid = true;
         return entry;
     }
 

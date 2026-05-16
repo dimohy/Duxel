@@ -18,6 +18,7 @@ public sealed class UiDslState
     private readonly Dictionary<string, float[]> _floatArrays = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int[]> _intArrays = new(StringComparer.Ordinal);
     private readonly Dictionary<string, double[]> _doubleArrays = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string[]> _stringArrays = new(StringComparer.Ordinal);
 
     public UiState UiState { get; } = new();
 
@@ -261,6 +262,27 @@ public sealed class UiDslState
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         ArgumentNullException.ThrowIfNull(value);
         _doubleArrays[key] = value;
+    }
+
+    public string[] GetStringArray(string key, string[]? defaultValue = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        if (_stringArrays.TryGetValue(key, out var value))
+        {
+            return value;
+        }
+
+        var result = defaultValue ?? [];
+        _stringArrays[key] = result;
+        return result;
+    }
+
+    public void SetStringArray(string key, string[] value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentNullException.ThrowIfNull(value);
+        _stringArrays[key] = value;
     }
 }
 

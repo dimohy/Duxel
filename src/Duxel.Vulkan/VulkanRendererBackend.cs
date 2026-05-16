@@ -10,32 +10,18 @@ using VulkanSemaphore = Duxel.Vulkan.Semaphore;
 
 namespace Duxel.Vulkan;
 
-public readonly record struct VulkanRendererOptions(
-    int MinImageCount,
-    bool EnableVSync = true,
-    int MsaaSamples = 4,
-    bool FontLinearSampling = false,
-    UiTextureId FontTextureId = default
-);
-
-public sealed unsafe class VulkanRendererBackend : IRendererBackend
+public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
 {
-    private const string StaticLayerGeometryTagPrefix = "duxel.layer.static:";
-    private const string StaticGlobalGeometryTagPrefix = "duxel.global.static:";
-    private const int StaticGeometryLruGraceFrames = 180;
-    private const int StaticGeometryPruneIntervalFrames = 32;
     private const int DefaultVertexBufferCapacity = 5_000;
     private const int DefaultIndexBufferCapacity = 10_000;
+    private const int DefaultPrimitiveInstanceBufferCapacity = 5_000;
     private const int VertexBufferGrowthPadding = 5_000;
     private const int IndexBufferGrowthPadding = 10_000;
+    private const int PrimitiveInstanceBufferGrowthPadding = 5_000;
     private static readonly string[] BaseDeviceExtensions =
     [
         "VK_KHR_swapchain",
     ];
-
-    private static readonly string? VulkanFailureLogPath = Environment.GetEnvironmentVariable("DUXEL_VK_FAIL_LOG");
-    private static readonly object VulkanFailureLogLock = new();
-    private static readonly object FontCommandDiagLogLock = new();
 
     private readonly Vk _vk = Vk.GetApi();
     private VulkanRendererOptions _options;
@@ -64,9 +50,15 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     private Sampler _imageSampler;
     private Pipeline _graphicsPipeline;
     private Pipeline _subpixelPipeline;
+    private Pipeline _rectPrimitivePipeline;
+    private Pipeline _circlePrimitivePipeline;
     private ShaderModule _vertexShaderModule;
     private ShaderModule _fragmentShaderModule;
     private ShaderModule _subpixelFragmentShaderModule;
+    private ShaderModule _rectPrimitiveVertexShaderModule;
+    private ShaderModule _rectPrimitiveFragmentShaderModule;
+    private ShaderModule _circlePrimitiveVertexShaderModule;
+    private ShaderModule _circlePrimitiveFragmentShaderModule;
     private PipelineCache _pipelineCache;
     private DescriptorPool _descriptorPool;
     private Framebuffer[] _framebuffers = Array.Empty<Framebuffer>();
@@ -93,37 +85,21 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     private readonly string _pipelineCachePath;
     private nuint _pipelineCacheSize;
     private ulong _pipelineCacheHash;
-    private const bool _profilingEnabled = false;
-    private const int _profilingLogInterval = 30;
-    private const bool _fontCommandDiagEnabled = false;
-    private const string? _fontCommandDiagLogPath = null;
-    private const bool _fontCommandBoundsAssertEnabled = false;
     private readonly bool _uploadBatchingEnabled = ParseUploadBatchingEnabled();
     private readonly bool _legacyClipClampPath = ParseLegacyClipClampPathEnabled();
-    private int _profilingFrameCounter;
 
     // MSAA resources
     private SampleCountFlags _msaaSampleCount = SampleCountFlags.Count4Bit;
     private Image _msaaColorImage;
     private DeviceMemory _msaaColorMemory;
     private ImageView _msaaColorImageView;
-    private readonly Dictionary<string, StaticGeometryBuffer> _staticGeometryBuffers = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, int> _staticGeometryLastSeenFrame = new(StringComparer.Ordinal);
-    private readonly List<string> _staticGeometryStaleTags = new();
-    private readonly Dictionary<int, StaticGeometryBuffer> _frameStaticBindings = new();
-
     private static readonly byte[] VertexShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui.vert.spv");
     private static readonly byte[] FragmentShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui.frag.spv");
     private static readonly byte[] SubpixelFragmentShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui_subpixel.frag.spv");
-
-    private readonly record struct StaticGeometryBuffer(
-        string Tag,
-        VkBuffer VertexBuffer,
-        DeviceMemory VertexMemory,
-        int VertexCount,
-        VkBuffer IndexBuffer,
-        DeviceMemory IndexMemory,
-        int IndexCount);
+    private static readonly byte[] RectPrimitiveVertexShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.rect_primitive.vert.spv");
+    private static readonly byte[] RectPrimitiveFragmentShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.rect_primitive.frag.spv");
+    private static readonly byte[] CirclePrimitiveVertexShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.circle_primitive.vert.spv");
+    private static readonly byte[] CirclePrimitiveFragmentShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.circle_primitive.frag.spv");
 
     public VulkanRendererBackend(IPlatformBackend platform, VulkanRendererOptions options)
     {
@@ -220,7 +196,9 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             return;
         }
 
-        if (drawData.TotalVertexCount is 0 || drawData.TotalIndexCount is 0)
+        CountPrimitiveInstances(drawData, out var rectPrimitiveCount, out var circlePrimitiveCount);
+        var hasIndexedGeometry = drawData.TotalVertexCount > 0 && drawData.TotalIndexCount > 0;
+        if (!hasIndexedGeometry && rectPrimitiveCount is 0 && circlePrimitiveCount is 0)
         {
             return;
         }
@@ -276,8 +254,14 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             _imagesInFlight[imageIndex] = frameData.InFlight;
         }
 
-        EnsureVertexBufferCapacity(frame, drawData.TotalVertexCount);
-        EnsureIndexBufferCapacity(frame, drawData.TotalIndexCount);
+        if (hasIndexedGeometry)
+        {
+            EnsureVertexBufferCapacity(frame, drawData.TotalVertexCount);
+            EnsureIndexBufferCapacity(frame, drawData.TotalIndexCount);
+        }
+
+        EnsureRectPrimitiveBufferCapacity(frame, rectPrimitiveCount);
+        EnsureCirclePrimitiveBufferCapacity(frame, circlePrimitiveCount);
 
         UploadGeometry(frame, drawData, _frameStaticBindings);
 
@@ -286,12 +270,16 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         Check(_vk.ResetCommandPool(_device, commandPool, 0));
         var vertexBuffer = frameData.RenderBuffers.VertexBuffer;
         var indexBuffer = frameData.RenderBuffers.IndexBuffer;
+        var rectPrimitiveBuffer = frameData.RenderBuffers.RectPrimitiveBuffer;
+        var circlePrimitiveBuffer = frameData.RenderBuffers.CirclePrimitiveBuffer;
         RecordCommandBuffer(
             commandBuffer,
             imageIndex,
             drawData,
             vertexBuffer,
             indexBuffer,
+            rectPrimitiveBuffer,
+            circlePrimitiveBuffer,
             _frameStaticBindings,
             false,
             0f,
@@ -314,6 +302,19 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         }
 
         _frameIndex++;
+    }
+
+    private static void CountPrimitiveInstances(UiDrawData drawData, out int rectPrimitiveCount, out int circlePrimitiveCount)
+    {
+        rectPrimitiveCount = 0;
+        circlePrimitiveCount = 0;
+
+        for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
+        {
+            var drawList = drawData.DrawLists[listIndex];
+            rectPrimitiveCount += drawList.RectFilledPrimitives?.Count ?? 0;
+            circlePrimitiveCount += drawList.CircleFilledPrimitives?.Count ?? 0;
+        }
     }
 
     private unsafe long SubmitFrame(CommandBuffer commandBuffer, VulkanSemaphore imageAvailable, VulkanSemaphore renderFinished, Fence inFlightFence)
@@ -373,17 +374,6 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         return presentResult;
     }
 
-    private static int ParseProfileLogInterval()
-    {
-        var raw = Environment.GetEnvironmentVariable("DUXEL_VK_PROFILE_EVERY");
-        if (int.TryParse(raw, out var value) && value > 0)
-        {
-            return value;
-        }
-
-        return 30;
-    }
-
     private static bool ParseUploadBatchingEnabled()
     {
         var raw = Environment.GetEnvironmentVariable("DUXEL_VK_UPLOAD_BATCH");
@@ -415,43 +405,6 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         return string.Equals(raw, "1", StringComparison.Ordinal)
             || string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase)
             || string.Equals(raw, "on", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void LogProfileFrame(
-        long uploadTicks,
-        long recordTicks,
-        long recordTextureLookupTicks,
-        long recordClippingTicks,
-        long recordDescriptorBindTicks,
-        long recordDrawCallTicks,
-        long submitTicks,
-        long presentTicks)
-    {
-        _profilingFrameCounter++;
-        if (_profilingFrameCounter % _profilingLogInterval != 0)
-        {
-            return;
-        }
-
-        var uploadUs = TicksToMicroseconds(uploadTicks);
-        var recordUs = TicksToMicroseconds(recordTicks);
-        var recordTextureLookupUs = TicksToMicroseconds(recordTextureLookupTicks);
-        var recordClippingUs = TicksToMicroseconds(recordClippingTicks);
-        var recordDescriptorBindUs = TicksToMicroseconds(recordDescriptorBindTicks);
-        var recordDrawCallUs = TicksToMicroseconds(recordDrawCallTicks);
-        var submitUs = TicksToMicroseconds(submitTicks);
-        var presentUs = TicksToMicroseconds(presentTicks);
-        Console.WriteLine(
-            $"[duxel-vk-prof] upload={uploadUs:0.000} record={recordUs:0.000}(tex={recordTextureLookupUs:0.000} clip={recordClippingUs:0.000} desc={recordDescriptorBindUs:0.000} draw={recordDrawCallUs:0.000}) submit={submitUs:0.000} present={presentUs:0.000}");
-    }
-
-    private static double TicksToMicroseconds(long ticks)
-    {
-        return ticks * (1000000.0 / Stopwatch.Frequency);
-    }
-
-    private void EmitFontCommandDiag(string message)
-    {
     }
 
     public void SetMinImageCount(int count)
@@ -672,6 +625,18 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             _subpixelPipeline = default;
         }
 
+        if (_rectPrimitivePipeline.Handle is not 0)
+        {
+            _vk.DestroyPipeline(_device, _rectPrimitivePipeline, null);
+            _rectPrimitivePipeline = default;
+        }
+
+        if (_circlePrimitivePipeline.Handle is not 0)
+        {
+            _vk.DestroyPipeline(_device, _circlePrimitivePipeline, null);
+            _circlePrimitivePipeline = default;
+        }
+
         if (_vertexShaderModule.Handle is not 0)
         {
             _vk.DestroyShaderModule(_device, _vertexShaderModule, null);
@@ -688,6 +653,30 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             _vk.DestroyShaderModule(_device, _subpixelFragmentShaderModule, null);
             _subpixelFragmentShaderModule = default;
+        }
+
+        if (_rectPrimitiveVertexShaderModule.Handle is not 0)
+        {
+            _vk.DestroyShaderModule(_device, _rectPrimitiveVertexShaderModule, null);
+            _rectPrimitiveVertexShaderModule = default;
+        }
+
+        if (_rectPrimitiveFragmentShaderModule.Handle is not 0)
+        {
+            _vk.DestroyShaderModule(_device, _rectPrimitiveFragmentShaderModule, null);
+            _rectPrimitiveFragmentShaderModule = default;
+        }
+
+        if (_circlePrimitiveVertexShaderModule.Handle is not 0)
+        {
+            _vk.DestroyShaderModule(_device, _circlePrimitiveVertexShaderModule, null);
+            _circlePrimitiveVertexShaderModule = default;
+        }
+
+        if (_circlePrimitiveFragmentShaderModule.Handle is not 0)
+        {
+            _vk.DestroyShaderModule(_device, _circlePrimitiveFragmentShaderModule, null);
+            _circlePrimitiveFragmentShaderModule = default;
         }
 
         foreach (var imageView in _swapchainImageViews)
@@ -759,64 +748,6 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             _imageSampler = default;
         }
     }
-
-    private readonly struct TextureResource
-    {
-        public readonly Image Image;
-        public readonly DeviceMemory Memory;
-        public readonly ImageView View;
-        public readonly DescriptorSet DescriptorSet;
-        public readonly int Width;
-        public readonly int Height;
-        public readonly Format Format;
-
-        public TextureResource(
-            Image image,
-            DeviceMemory memory,
-            ImageView view,
-            DescriptorSet descriptorSet,
-            int width,
-            int height,
-            Format format
-        )
-        {
-            Image = image;
-            Memory = memory;
-            View = view;
-            DescriptorSet = descriptorSet;
-            Width = width;
-            Height = height;
-            Format = format;
-        }
-    }
-
-    private sealed class FrameResources
-    {
-        public FrameRenderBuffers RenderBuffers = new();
-        public CommandPool CommandPool;
-        public CommandBuffer CommandBuffer;
-        public Fence InFlight;
-        public readonly List<PendingTextureDestroy> PendingTextureDestroys = new();
-        public readonly List<PendingBufferDestroy> PendingBufferDestroys = new();
-    }
-
-    private readonly record struct FrameSemaphores(VulkanSemaphore ImageAvailable, VulkanSemaphore RenderFinished);
-
-    private sealed class FrameRenderBuffers
-    {
-        public VkBuffer VertexBuffer;
-        public DeviceMemory VertexMemory;
-        public nuint VertexSize;
-        public unsafe void* VertexMappedPtr;
-        public VkBuffer IndexBuffer;
-        public DeviceMemory IndexMemory;
-        public nuint IndexSize;
-        public unsafe void* IndexMappedPtr;
-    }
-
-    private readonly record struct BufferResource(VkBuffer Buffer, DeviceMemory Memory);
-    private readonly record struct PendingBufferDestroy(BufferResource Resource, int DestroyFrame);
-    private readonly record struct PendingTextureDestroy(TextureResource Resource, int DestroyFrame);
 
     private unsafe void CreateInstance()
     {
@@ -1006,116 +937,6 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         {
             throw new InvalidOperationException("Failed to load VK_KHR_swapchain extension.");
         }
-    }
-
-    private static void Check(Result result)
-    {
-        if ((int)result >= 0 || IsSuboptimal(result))
-        {
-            return;
-        }
-
-        TraceVulkanFailure(result);
-
-        throw new InvalidOperationException($"Vulkan call failed: {result}");
-    }
-
-    private bool TryWaitForDeviceIdle(string phase, bool throwOnFailure)
-    {
-        if (_device.Handle is 0)
-        {
-            return true;
-        }
-
-        var result = _vk.DeviceWaitIdle(_device);
-        if ((int)result >= 0 || IsSuboptimal(result))
-        {
-            return true;
-        }
-
-        TraceVulkanFailure(result);
-        if (throwOnFailure)
-        {
-            throw new InvalidOperationException($"Vulkan DeviceWaitIdle failed during {phase}: {result}");
-        }
-
-        return false;
-    }
-
-    private static void TraceVulkanFailure(Result result)
-    {
-        if (string.IsNullOrWhiteSpace(VulkanFailureLogPath))
-        {
-            return;
-        }
-
-        try
-        {
-            var path = VulkanFailureLogPath!;
-            var directory = Path.GetDirectoryName(path);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            var sb = new StringBuilder(768);
-            sb.AppendLine("==== VulkanFailure ====");
-            sb.Append("Utc: ").AppendLine(DateTime.UtcNow.ToString("O"));
-            sb.Append("Result: ").AppendLine(result.ToString());
-            sb.Append("Pid: ").AppendLine(Environment.ProcessId.ToString());
-            sb.Append("ThreadId: ").AppendLine(Environment.CurrentManagedThreadId.ToString());
-            sb.Append("DUXEL_VK_UPLOAD_BATCH: ").AppendLine(Environment.GetEnvironmentVariable("DUXEL_VK_UPLOAD_BATCH") ?? "<null>");
-            sb.Append("DUXEL_VK_PROFILE: ").AppendLine(Environment.GetEnvironmentVariable("DUXEL_VK_PROFILE") ?? "<null>");
-            sb.AppendLine("Stack:");
-            sb.AppendLine(Environment.StackTrace);
-
-            lock (VulkanFailureLogLock)
-            {
-                File.AppendAllText(path, sb.ToString());
-            }
-        }
-        catch
-        {
-        }
-    }
-
-    private static bool IsSuboptimal(Result result)
-    {
-        const Result suboptimalKhr = (Result)1000001003;
-        if (result == Result.SuboptimalKhr || result == suboptimalKhr)
-        {
-            return true;
-        }
-
-        var name = result.ToString();
-        return name.Contains("Suboptimal", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsSurfaceLost(Result result)
-    {
-        const Result errorSurfaceLostKhr = (Result)(-1000000000);
-        if (result == Result.ErrorSurfaceLostKhr || result == errorSurfaceLostKhr)
-        {
-            return true;
-        }
-
-        var name = result.ToString();
-        return name.Contains("SurfaceLost", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsSurfaceLostException(InvalidOperationException ex)
-    {
-        return ex.Message.Contains("ErrorSurfaceLostKhr", StringComparison.OrdinalIgnoreCase)
-            || ex.Message.Contains("SurfaceLost", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsRecoverableSwapchainException(InvalidOperationException ex)
-    {
-        var message = ex.Message;
-        return message.Contains("SurfaceLost", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("OutOfDate", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("DeviceWaitIdle", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("Vulkan call failed", StringComparison.OrdinalIgnoreCase);
     }
 
     private unsafe void CreateSwapchain()
@@ -1464,6 +1285,10 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
     {
         _vertexShaderModule = CreateShaderModule(VertexShaderSpirv);
         _fragmentShaderModule = CreateShaderModule(FragmentShaderSpirv);
+        _rectPrimitiveVertexShaderModule = CreateShaderModule(RectPrimitiveVertexShaderSpirv);
+        _rectPrimitiveFragmentShaderModule = CreateShaderModule(RectPrimitiveFragmentShaderSpirv);
+        _circlePrimitiveVertexShaderModule = CreateShaderModule(CirclePrimitiveVertexShaderSpirv);
+        _circlePrimitiveFragmentShaderModule = CreateShaderModule(CirclePrimitiveFragmentShaderSpirv);
 
         var entryPoint = VulkanMarshaling.StringToPtr("main");
 
@@ -1695,6 +1520,170 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
             fixed (Pipeline* pipeline = &_subpixelPipeline)
             {
                 Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &subpixelPipelineInfo, null, pipeline));
+            }
+
+            var rectPrimitiveVertexStage = new PipelineShaderStageCreateInfo
+            {
+                SType = StructureType.PipelineShaderStageCreateInfo,
+                Stage = ShaderStageFlags.VertexBit,
+                Module = _rectPrimitiveVertexShaderModule,
+                PName = entryPoint,
+            };
+
+            var rectPrimitiveFragmentStage = new PipelineShaderStageCreateInfo
+            {
+                SType = StructureType.PipelineShaderStageCreateInfo,
+                Stage = ShaderStageFlags.FragmentBit,
+                Module = _rectPrimitiveFragmentShaderModule,
+                PName = entryPoint,
+            };
+
+            var rectPrimitiveStages = stackalloc PipelineShaderStageCreateInfo[2];
+            rectPrimitiveStages[0] = rectPrimitiveVertexStage;
+            rectPrimitiveStages[1] = rectPrimitiveFragmentStage;
+
+            var rectPrimitiveBindingDescription = new VertexInputBindingDescription
+            {
+                Binding = 1,
+                Stride = (uint)sizeof(RectPrimitiveInstance),
+                InputRate = VertexInputRate.Instance,
+            };
+
+            var rectPrimitiveAttributeDescriptions = stackalloc VertexInputAttributeDescription[2];
+            rectPrimitiveAttributeDescriptions[0] = new VertexInputAttributeDescription
+            {
+                Location = 0,
+                Binding = 1,
+                Format = Format.R32G32B32A32Sfloat,
+                Offset = 0,
+            };
+            rectPrimitiveAttributeDescriptions[1] = new VertexInputAttributeDescription
+            {
+                Location = 1,
+                Binding = 1,
+                Format = Format.R8G8B8A8Unorm,
+                Offset = 16,
+            };
+
+            var rectPrimitiveVertexInputInfo = new PipelineVertexInputStateCreateInfo
+            {
+                SType = StructureType.PipelineVertexInputStateCreateInfo,
+                VertexBindingDescriptionCount = 1,
+                PVertexBindingDescriptions = &rectPrimitiveBindingDescription,
+                VertexAttributeDescriptionCount = 2,
+                PVertexAttributeDescriptions = rectPrimitiveAttributeDescriptions,
+            };
+
+            var rectPrimitivePipelineInfo = new GraphicsPipelineCreateInfo
+            {
+                SType = StructureType.GraphicsPipelineCreateInfo,
+                StageCount = 2,
+                PStages = rectPrimitiveStages,
+                PVertexInputState = &rectPrimitiveVertexInputInfo,
+                PInputAssemblyState = &inputAssembly,
+                PViewportState = &viewportState,
+                PRasterizationState = &rasterizer,
+                PMultisampleState = &multisampling,
+                PDepthStencilState = &depthStencil,
+                PColorBlendState = &colorBlending,
+                PDynamicState = &dynamicState,
+                Layout = _pipelineLayout,
+                RenderPass = _renderPass,
+                Subpass = 0,
+            };
+
+            fixed (Pipeline* pipeline = &_rectPrimitivePipeline)
+            {
+                Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &rectPrimitivePipelineInfo, null, pipeline));
+            }
+
+            var circlePrimitiveVertexStage = new PipelineShaderStageCreateInfo
+            {
+                SType = StructureType.PipelineShaderStageCreateInfo,
+                Stage = ShaderStageFlags.VertexBit,
+                Module = _circlePrimitiveVertexShaderModule,
+                PName = entryPoint,
+            };
+
+            var circlePrimitiveFragmentStage = new PipelineShaderStageCreateInfo
+            {
+                SType = StructureType.PipelineShaderStageCreateInfo,
+                Stage = ShaderStageFlags.FragmentBit,
+                Module = _circlePrimitiveFragmentShaderModule,
+                PName = entryPoint,
+            };
+
+            var circlePrimitiveStages = stackalloc PipelineShaderStageCreateInfo[2];
+            circlePrimitiveStages[0] = circlePrimitiveVertexStage;
+            circlePrimitiveStages[1] = circlePrimitiveFragmentStage;
+
+            var circlePrimitiveBindingDescription = new VertexInputBindingDescription
+            {
+                Binding = 1,
+                Stride = (uint)sizeof(CirclePrimitiveInstance),
+                InputRate = VertexInputRate.Instance,
+            };
+
+            var circlePrimitiveAttributeDescriptions = stackalloc VertexInputAttributeDescription[4];
+            circlePrimitiveAttributeDescriptions[0] = new VertexInputAttributeDescription
+            {
+                Location = 0,
+                Binding = 1,
+                Format = Format.R32G32Sfloat,
+                Offset = 0,
+            };
+            circlePrimitiveAttributeDescriptions[1] = new VertexInputAttributeDescription
+            {
+                Location = 1,
+                Binding = 1,
+                Format = Format.R32Sfloat,
+                Offset = 8,
+            };
+            circlePrimitiveAttributeDescriptions[2] = new VertexInputAttributeDescription
+            {
+                Location = 2,
+                Binding = 1,
+                Format = Format.R8G8B8A8Unorm,
+                Offset = 12,
+            };
+            circlePrimitiveAttributeDescriptions[3] = new VertexInputAttributeDescription
+            {
+                Location = 3,
+                Binding = 1,
+                Format = Format.R32Uint,
+                Offset = 16,
+            };
+
+            var circlePrimitiveVertexInputInfo = new PipelineVertexInputStateCreateInfo
+            {
+                SType = StructureType.PipelineVertexInputStateCreateInfo,
+                VertexBindingDescriptionCount = 1,
+                PVertexBindingDescriptions = &circlePrimitiveBindingDescription,
+                VertexAttributeDescriptionCount = 4,
+                PVertexAttributeDescriptions = circlePrimitiveAttributeDescriptions,
+            };
+
+            var circlePrimitivePipelineInfo = new GraphicsPipelineCreateInfo
+            {
+                SType = StructureType.GraphicsPipelineCreateInfo,
+                StageCount = 2,
+                PStages = circlePrimitiveStages,
+                PVertexInputState = &circlePrimitiveVertexInputInfo,
+                PInputAssemblyState = &inputAssembly,
+                PViewportState = &viewportState,
+                PRasterizationState = &rasterizer,
+                PMultisampleState = &multisampling,
+                PDepthStencilState = &depthStencil,
+                PColorBlendState = &colorBlending,
+                PDynamicState = &dynamicState,
+                Layout = _pipelineLayout,
+                RenderPass = _renderPass,
+                Subpass = 0,
+            };
+
+            fixed (Pipeline* pipeline = &_circlePrimitivePipeline)
+            {
+                Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &circlePrimitivePipelineInfo, null, pipeline));
             }
         }
         finally
@@ -2046,875 +2035,112 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
 
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    private unsafe void UploadGeometry(int frame, UiDrawData drawData, Dictionary<int, StaticGeometryBuffer> staticBindings)
+    private void EnsureRectPrimitiveBufferCapacity(int frame, int primitiveCount)
     {
-        BeginUploadBatch();
-        try
+        if (primitiveCount is 0)
         {
+            return;
+        }
+
         var frameData = _frames[frame];
         var renderBuffers = frameData.RenderBuffers;
-
-        var vertexDst = (byte*)renderBuffers.VertexMappedPtr;
-        var indexDst = (byte*)renderBuffers.IndexMappedPtr;
-        staticBindings.Clear();
-
-        for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
-        {
-            var drawList = drawData.DrawLists[listIndex];
-            var hasStaticTag = TryGetStaticDrawListTag(drawList, out var staticTag);
-
-            if (hasStaticTag)
-            {
-                _staticGeometryLastSeenFrame[staticTag] = _frameIndex;
-                staticBindings[listIndex] = EnsureStaticGeometryBuffer(staticTag, drawList);
-                continue;
-            }
-
-            var vertices = drawList.Vertices.AsSpan();
-            if (!vertices.IsEmpty)
-            {
-                var vertexOut = (UiVertex*)vertexDst;
-                for (var i = 0; i < vertices.Length; i++)
-                {
-                    ref readonly var src = ref vertices[i];
-                    vertexOut[i] = new UiVertex
-                    {
-                        PositionX = src.Position.X,
-                        PositionY = src.Position.Y,
-                        UVx = src.UV.X,
-                        UVy = src.UV.Y,
-                        Color = src.Color.Rgba,
-                    };
-                }
-
-                vertexDst += (uint)(vertices.Length * sizeof(UiVertex));
-            }
-
-            var indices = drawList.Indices.AsSpan();
-            if (!indices.IsEmpty)
-            {
-                fixed (uint* indexSrc = indices)
-                {
-                    var indexBytes = (uint)(indices.Length * sizeof(uint));
-                    Unsafe.CopyBlockUnaligned(indexDst, indexSrc, indexBytes);
-                    indexDst += indexBytes;
-                }
-            }
-        }
-
-        if ((_frameIndex % StaticGeometryPruneIntervalFrames) is 0)
-        {
-            PruneUnusedStaticGeometryBuffers(_frameIndex);
-        }
-        }
-        finally
-        {
-            EndUploadBatch();
-        }
-    }
-
-    private unsafe StaticGeometryBuffer EnsureStaticGeometryBuffer(string staticTag, UiDrawList drawList)
-    {
-        var vertexCount = drawList.Vertices.Count;
-        var indexCount = drawList.Indices.Count;
-        if (_staticGeometryBuffers.TryGetValue(staticTag, out var existing)
-            && existing.VertexCount == vertexCount
-            && existing.IndexCount == indexCount)
-        {
-            return existing;
-        }
-
-        if (existing.VertexBuffer.Handle is not 0)
-        {
-            QueueBufferDestroy(existing.VertexBuffer, existing.VertexMemory);
-            QueueBufferDestroy(existing.IndexBuffer, existing.IndexMemory);
-        }
-
-        var vertexSize = (nuint)(Math.Max(1, vertexCount) * sizeof(UiVertex));
-        var indexSize = (nuint)(Math.Max(1, indexCount) * sizeof(uint));
-        CreateBuffer(
-            vertexSize,
-            BufferUsageFlags.TransferDstBit | BufferUsageFlags.VertexBufferBit,
-            MemoryPropertyFlags.DeviceLocalBit,
-            out var vertexBuffer,
-            out var vertexMemory
-        );
-
-        CreateBuffer(
-            indexSize,
-            BufferUsageFlags.TransferDstBit | BufferUsageFlags.IndexBufferBit,
-            MemoryPropertyFlags.DeviceLocalBit,
-            out var indexBuffer,
-            out var indexMemory
-        );
-
-        var vertices = drawList.Vertices.AsSpan();
-        if (!vertices.IsEmpty)
-        {
-            var convertedVertices = new UiVertex[vertices.Length];
-            for (var i = 0; i < vertices.Length; i++)
-            {
-                ref readonly var src = ref vertices[i];
-                convertedVertices[i] = new UiVertex
-                {
-                    PositionX = src.Position.X,
-                    PositionY = src.Position.Y,
-                    UVx = src.UV.X,
-                    UVy = src.UV.Y,
-                    Color = src.Color.Rgba,
-                };
-            }
-
-            fixed (UiVertex* vertexSrc = convertedVertices)
-            {
-                UploadStaticBufferData(vertexBuffer, vertexSize, vertexSrc, (nuint)(convertedVertices.Length * sizeof(UiVertex)));
-            }
-        }
-
-        var indices = drawList.Indices.AsSpan();
-        if (!indices.IsEmpty)
-        {
-            fixed (uint* indexSrc = indices)
-            {
-                UploadStaticBufferData(indexBuffer, indexSize, indexSrc, (nuint)(indices.Length * sizeof(uint)));
-            }
-        }
-
-        var created = new StaticGeometryBuffer(
-            staticTag,
-            vertexBuffer,
-            vertexMemory,
-            vertexCount,
-            indexBuffer,
-            indexMemory,
-            indexCount
-        );
-
-        _staticGeometryBuffers[staticTag] = created;
-        return created;
-    }
-
-    private void PruneUnusedStaticGeometryBuffers(int currentFrameIndex)
-    {
-        if (_staticGeometryBuffers.Count is 0)
+        var requiredSize = (nuint)(primitiveCount * sizeof(RectPrimitiveInstance));
+        if (renderBuffers.RectPrimitiveBuffer.Handle is not 0 && renderBuffers.RectPrimitiveSize >= requiredSize)
         {
             return;
         }
 
-        var staleTags = _staticGeometryStaleTags;
-        staleTags.Clear();
-        foreach (var pair in _staticGeometryBuffers)
+        if (renderBuffers.RectPrimitiveBuffer.Handle is not 0)
         {
-            if (!_staticGeometryLastSeenFrame.TryGetValue(pair.Key, out var lastSeenFrame))
+            if (renderBuffers.RectPrimitiveMappedPtr is not null)
             {
-                staleTags.Add(pair.Key);
-                continue;
+                _vk.UnmapMemory(_device, renderBuffers.RectPrimitiveMemory);
+                renderBuffers.RectPrimitiveMappedPtr = null;
             }
 
-            if ((currentFrameIndex - lastSeenFrame) > StaticGeometryLruGraceFrames)
-            {
-                staleTags.Add(pair.Key);
-            }
+            QueueBufferDestroy(renderBuffers.RectPrimitiveBuffer, renderBuffers.RectPrimitiveMemory);
+            renderBuffers.RectPrimitiveBuffer = default;
+            renderBuffers.RectPrimitiveMemory = default;
         }
 
-        for (var i = 0; i < staleTags.Count; i++)
+        var newSize = requiredSize;
+        if (renderBuffers.RectPrimitiveSize is 0)
         {
-            var staleTag = staleTags[i];
-            if (!_staticGeometryBuffers.Remove(staleTag, out var stale))
-            {
-                continue;
-            }
-
-            _staticGeometryLastSeenFrame.Remove(staleTag);
-            QueueBufferDestroy(stale.VertexBuffer, stale.VertexMemory);
-            QueueBufferDestroy(stale.IndexBuffer, stale.IndexMemory);
-        }
-
-        staleTags.Clear();
-    }
-
-    private bool TryGetStaticDrawListTag(UiDrawList drawList, out string tag)
-    {
-        tag = string.Empty;
-        var commandCount = drawList.Commands.Count;
-        if (commandCount is 0)
-        {
-            return false;
-        }
-
-        for (var i = 0; i < commandCount; i++)
-        {
-            ref readonly var cmd = ref drawList.Commands.ItemRef(i);
-            if (!IsStaticLayerGeometryTag(cmd.UserData, out var commandTag))
-            {
-                return false;
-            }
-
-            if (i is 0)
-            {
-                tag = commandTag;
-                continue;
-            }
-
-            if (!string.Equals(tag, commandTag, StringComparison.Ordinal))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private bool IsStaticLayerGeometryTag(object? userData, out string tag)
-    {
-        if (userData is string value
-            && (value.StartsWith(StaticLayerGeometryTagPrefix, StringComparison.Ordinal)
-                || value.StartsWith(StaticGlobalGeometryTagPrefix, StringComparison.Ordinal)))
-        {
-            tag = value;
-            return true;
-        }
-
-        tag = string.Empty;
-        return false;
-    }
-
-    private unsafe void UploadStaticBufferData(VkBuffer destinationBuffer, nuint destinationSize, void* sourceData, nuint sourceSize)
-    {
-        if (sourceData is null || sourceSize is 0)
-        {
-            return;
-        }
-
-        EnsureStagingBuffer(destinationSize);
-        Unsafe.CopyBlockUnaligned(_stagingMappedPtr, sourceData, checked((uint)sourceSize));
-        CopyBuffer(_stagingBuffer, destinationBuffer, sourceSize);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool TryComputeScissorRect(
-        in UiDrawCommand cmd,
-        float clipOffsetX,
-        float clipOffsetY,
-        float clipScaleX,
-        float clipScaleY,
-        float fbWidthF,
-        float fbHeightF,
-        out int scissorX,
-        out int scissorY,
-        out uint scissorW,
-        out uint scissorH)
-    {
-        const float epsilon = 0.0001f;
-
-        var cmdTranslationX = cmd.Translation.X;
-        var cmdTranslationY = cmd.Translation.Y;
-
-        var clipMinX = (cmd.ClipRect.X + cmdTranslationX - clipOffsetX) * clipScaleX;
-        var clipMinY = (cmd.ClipRect.Y + cmdTranslationY - clipOffsetY) * clipScaleY;
-        var clipMaxX = (cmd.ClipRect.X + cmd.ClipRect.Width + cmdTranslationX - clipOffsetX) * clipScaleX;
-        var clipMaxY = (cmd.ClipRect.Y + cmd.ClipRect.Height + cmdTranslationY - clipOffsetY) * clipScaleY;
-
-        if (clipMaxX <= clipMinX || clipMaxY <= clipMinY)
-        {
-            scissorX = 0;
-            scissorY = 0;
-            scissorW = 0;
-            scissorH = 0;
-            return false;
-        }
-
-        if (_legacyClipClampPath)
-        {
-            clipMinX = Math.Clamp(clipMinX, 0f, fbWidthF);
-            clipMinY = Math.Clamp(clipMinY, 0f, fbHeightF);
-            clipMaxX = Math.Clamp(clipMaxX, 0f, fbWidthF);
-            clipMaxY = Math.Clamp(clipMaxY, 0f, fbHeightF);
+            newSize = Math.Max(newSize, (nuint)(DefaultPrimitiveInstanceBufferCapacity * sizeof(RectPrimitiveInstance)));
         }
         else
         {
-            clipMinX = clipMinX < 0f ? 0f : (clipMinX > fbWidthF ? fbWidthF : clipMinX);
-            clipMinY = clipMinY < 0f ? 0f : (clipMinY > fbHeightF ? fbHeightF : clipMinY);
-            clipMaxX = clipMaxX < 0f ? 0f : (clipMaxX > fbWidthF ? fbWidthF : clipMaxX);
-            clipMaxY = clipMaxY < 0f ? 0f : (clipMaxY > fbHeightF ? fbHeightF : clipMaxY);
+            var padded = requiredSize + (nuint)(PrimitiveInstanceBufferGrowthPadding * sizeof(RectPrimitiveInstance));
+            newSize = Math.Max(newSize, padded);
         }
 
-        if (clipMaxX <= clipMinX || clipMaxY <= clipMinY)
-        {
-            scissorX = 0;
-            scissorY = 0;
-            scissorW = 0;
-            scissorH = 0;
-            return false;
-        }
+        CreateBuffer(
+            newSize,
+            BufferUsageFlags.VertexBufferBit,
+            MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
+            out renderBuffers.RectPrimitiveBuffer,
+            out renderBuffers.RectPrimitiveMemory);
 
-        var minX = (int)MathF.Floor(clipMinX);
-        var minY = (int)MathF.Floor(clipMinY);
-        var maxX = (int)MathF.Ceiling(clipMaxX - epsilon);
-        var maxY = (int)MathF.Ceiling(clipMaxY - epsilon);
-
-        var fbWidthI = (int)fbWidthF;
-        var fbHeightI = (int)fbHeightF;
-        if (minX < 0)
-        {
-            minX = 0;
-        }
-
-        if (minY < 0)
-        {
-            minY = 0;
-        }
-
-        if (maxX > fbWidthI)
-        {
-            maxX = fbWidthI;
-        }
-
-        if (maxY > fbHeightI)
-        {
-            maxY = fbHeightI;
-        }
-
-        if (maxX <= minX || maxY <= minY)
-        {
-            scissorX = 0;
-            scissorY = 0;
-            scissorW = 0;
-            scissorH = 0;
-            return false;
-        }
-
-        scissorX = minX;
-        scissorY = minY;
-        scissorW = (uint)(maxX - minX);
-        scissorH = (uint)(maxY - minY);
-        return true;
+        void* mapped;
+        Check(_vk.MapMemory(_device, renderBuffers.RectPrimitiveMemory, 0, newSize, 0, &mapped));
+        renderBuffers.RectPrimitiveMappedPtr = mapped;
+        renderBuffers.RectPrimitiveSize = newSize;
+        frameData.RenderBuffers = renderBuffers;
+        _frames[frame] = frameData;
     }
 
-    private bool TryComputeDynamicCoverageScissor(
-        UiDrawData drawData,
-        float clipOffsetX,
-        float clipOffsetY,
-        float clipScaleX,
-        float clipScaleY,
-        float fbWidth,
-        float fbHeight,
-        out int scissorX,
-        out int scissorY,
-        out uint scissorW,
-        out uint scissorH)
+    private void EnsureCirclePrimitiveBufferCapacity(int frame, int primitiveCount)
     {
-        var hasCoverage = false;
-        var minX = 0f;
-        var minY = 0f;
-        var maxX = 0f;
-        var maxY = 0f;
-
-        for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
+        if (primitiveCount is 0)
         {
-            var drawList = drawData.DrawLists[listIndex];
-            for (var cmdIndex = 0; cmdIndex < drawList.Commands.Count; cmdIndex++)
-            {
-                ref readonly var cmd = ref drawList.Commands.ItemRef(cmdIndex);
-                if (IsStaticLayerGeometryTag(cmd.UserData, out _))
-                {
-                    continue;
-                }
-
-                var cmdTranslationX = cmd.Translation.X;
-                var cmdTranslationY = cmd.Translation.Y;
-                var clipMinX = (cmd.ClipRect.X + cmdTranslationX - clipOffsetX) * clipScaleX;
-                var clipMinY = (cmd.ClipRect.Y + cmdTranslationY - clipOffsetY) * clipScaleY;
-                var clipMaxX = (cmd.ClipRect.X + cmd.ClipRect.Width + cmdTranslationX - clipOffsetX) * clipScaleX;
-                var clipMaxY = (cmd.ClipRect.Y + cmd.ClipRect.Height + cmdTranslationY - clipOffsetY) * clipScaleY;
-
-                if (clipMaxX <= 0f || clipMaxY <= 0f || clipMinX >= fbWidth || clipMinY >= fbHeight)
-                {
-                    continue;
-                }
-
-                if (!hasCoverage)
-                {
-                    minX = clipMinX;
-                    minY = clipMinY;
-                    maxX = clipMaxX;
-                    maxY = clipMaxY;
-                    hasCoverage = true;
-                }
-                else
-                {
-                    minX = MathF.Min(minX, clipMinX);
-                    minY = MathF.Min(minY, clipMinY);
-                    maxX = MathF.Max(maxX, clipMaxX);
-                    maxY = MathF.Max(maxY, clipMaxY);
-                }
-            }
+            return;
         }
 
-        if (!hasCoverage)
+        var frameData = _frames[frame];
+        var renderBuffers = frameData.RenderBuffers;
+        var requiredSize = (nuint)(primitiveCount * sizeof(CirclePrimitiveInstance));
+        if (renderBuffers.CirclePrimitiveBuffer.Handle is not 0 && renderBuffers.CirclePrimitiveSize >= requiredSize)
         {
-            scissorX = 0;
-            scissorY = 0;
-            scissorW = 0;
-            scissorH = 0;
-            return false;
+            return;
         }
 
-        var minXi = (int)MathF.Max(0f, MathF.Floor(minX));
-        var minYi = (int)MathF.Max(0f, MathF.Floor(minY));
-        var maxXi = (int)MathF.Min(fbWidth, MathF.Ceiling(maxX));
-        var maxYi = (int)MathF.Min(fbHeight, MathF.Ceiling(maxY));
-
-        if (maxXi <= minXi || maxYi <= minYi)
+        if (renderBuffers.CirclePrimitiveBuffer.Handle is not 0)
         {
-            scissorX = 0;
-            scissorY = 0;
-            scissorW = 0;
-            scissorH = 0;
-            return false;
+            if (renderBuffers.CirclePrimitiveMappedPtr is not null)
+            {
+                _vk.UnmapMemory(_device, renderBuffers.CirclePrimitiveMemory);
+                renderBuffers.CirclePrimitiveMappedPtr = null;
+            }
+
+            QueueBufferDestroy(renderBuffers.CirclePrimitiveBuffer, renderBuffers.CirclePrimitiveMemory);
+            renderBuffers.CirclePrimitiveBuffer = default;
+            renderBuffers.CirclePrimitiveMemory = default;
         }
 
-        scissorX = minXi;
-        scissorY = minYi;
-        scissorW = (uint)(maxXi - minXi);
-        scissorH = (uint)(maxYi - minYi);
-        return true;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    private unsafe void RecordCommandBuffer(
-        CommandBuffer commandBuffer,
-        uint imageIndex,
-        UiDrawData drawData,
-        VkBuffer vertexBuffer,
-        VkBuffer indexBuffer,
-        Dictionary<int, StaticGeometryBuffer> staticBindings,
-        bool taaNeedsClear,
-        float jitterX,
-        float jitterY,
-        out long recordTextureLookupTicks,
-        out long recordClippingTicks,
-        out long recordDescriptorBindTicks,
-        out long recordDrawCallTicks)
-    {
-        var profileEnabled = _profilingEnabled;
-        var textureLookupTicksLocal = 0L;
-        var clippingTicksLocal = 0L;
-        var descriptorBindTicksLocal = 0L;
-        var drawCallTicksLocal = 0L;
-
-        var beginInfo = new CommandBufferBeginInfo
+        var newSize = requiredSize;
+        if (renderBuffers.CirclePrimitiveSize is 0)
         {
-            SType = StructureType.CommandBufferBeginInfo,
-            Flags = CommandBufferUsageFlags.OneTimeSubmitBit,
-        };
-
-        Check(_vk.BeginCommandBuffer(commandBuffer, &beginInfo));
-
-        var fbWidth = (int)(drawData.DisplaySize.X * drawData.FramebufferScale.X);
-        var fbHeight = (int)(drawData.DisplaySize.Y * drawData.FramebufferScale.Y);
-
-        var clearValue = new ClearValue
+            newSize = Math.Max(newSize, (nuint)(DefaultPrimitiveInstanceBufferCapacity * sizeof(CirclePrimitiveInstance)));
+        }
+        else
         {
-            Color = _clearColorValue,
-        };
-
-        var renderPassInfo = new RenderPassBeginInfo
-        {
-            SType = StructureType.RenderPassBeginInfo,
-            RenderPass = _renderPass,
-            Framebuffer = _framebuffers[imageIndex],
-            RenderArea = new Rect2D(new Offset2D(0, 0), new Extent2D((uint)fbWidth, (uint)fbHeight)),
-            ClearValueCount = 1,
-            PClearValues = &clearValue,
-        };
-
-        var displaySize = drawData.DisplaySize;
-        var displayPos = drawData.DisplayPos;
-        var scaleX = 2f / displaySize.X;
-        var scaleY = 2f / displaySize.Y;
-        var translateX = -1f - displayPos.X * scaleX;
-        var translateY = -1f - displayPos.Y * scaleY;
-        var jitterTranslateX = translateX + (2f * jitterX / displaySize.X);
-        var jitterTranslateY = translateY + (2f * jitterY / displaySize.Y);
-        var normalPushConstants = stackalloc float[4];
-        normalPushConstants[0] = scaleX;
-        normalPushConstants[1] = scaleY;
-        normalPushConstants[2] = translateX;
-        normalPushConstants[3] = translateY;
-        var temporalPushConstants = stackalloc float[4];
-        temporalPushConstants[0] = scaleX;
-        temporalPushConstants[1] = scaleY;
-        temporalPushConstants[2] = jitterTranslateX;
-        temporalPushConstants[3] = jitterTranslateY;
-
-
-        var clipOffset = drawData.DisplayPos;
-        var clipScale = drawData.FramebufferScale;
-        var clipOffsetX = clipOffset.X;
-        var clipOffsetY = clipOffset.Y;
-        var clipScaleX = clipScale.X;
-        var clipScaleY = clipScale.Y;
-        var fbWidthF = (float)fbWidth;
-        var fbHeightF = (float)fbHeight;
-
-        void DrawCommandLists(bool renderFontOnly, bool renderNonFontOnly, bool renderStaticOnly, bool renderDynamicOnly)
-        {
-            var viewport = new Viewport(0, 0, fbWidth, fbHeight, 0, 1);
-            _vk.CmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-            uint globalVertexOffset = 0;
-            uint globalIndexOffset = 0;
-            var hasBoundGeometryBuffers = false;
-            var boundVertexBuffer = default(VkBuffer);
-            var boundIndexBuffer = default(VkBuffer);
-            var hasDescriptorSet = false;
-            var lastDescriptorSet = default(DescriptorSet);
-            var hasScissor = false;
-            var lastScissorX = 0;
-            var lastScissorY = 0;
-            var lastScissorW = 0u;
-            var lastScissorH = 0u;
-            var hasLastTexture = false;
-            var lastTextureId = default(UiTextureId);
-            var lastTextureValid = false;
-            var lastTexture = default(TextureResource);
-            var currentPipeline = default(Pipeline);
-            var hasPushMode = false;
-            var currentTemporalPushMode = false;
-            var lastPushTranslateX = 0f;
-            var lastPushTranslateY = 0f;
-            var dynamicPushConstants = stackalloc float[4];
-            dynamicPushConstants[0] = scaleX;
-            dynamicPushConstants[1] = scaleY;
-            var emittedFontCommandDiag = 0;
-            const int maxFontCommandDiagPerPass = 256;
-
-            bool ShouldAnalyzeFontCommandBounds(bool isFontCommand)
-            {
-                return isFontCommand && (_fontCommandDiagEnabled || _fontCommandBoundsAssertEnabled);
-            }
-
-            void AnalyzeAndValidateFontCommandBounds(UiDrawList drawList, ref readonly UiDrawCommand cmd, bool isFontCommand, int listIndex, int cmdIndex)
-            {
-                if (!ShouldAnalyzeFontCommandBounds(isFontCommand))
-                {
-                    return;
-                }
-
-                var indexStart = (int)cmd.IndexOffset;
-                var indexEndExclusive = indexStart + (int)cmd.ElementCount;
-                var indexCount = drawList.Indices.Count;
-                var vertexCount = drawList.Vertices.Count;
-                var indexRangeInvalid = indexStart < 0 || indexEndExclusive < indexStart || indexEndExclusive > indexCount;
-
-                var rawIndexMin = int.MaxValue;
-                var rawIndexMax = int.MinValue;
-                var invalidVertexRefCount = 0;
-                var uvMinX = float.PositiveInfinity;
-                var uvMinY = float.PositiveInfinity;
-                var uvMaxX = float.NegativeInfinity;
-                var uvMaxY = float.NegativeInfinity;
-                var uvOutOfRangeCount = 0;
-                var scannedIndexCount = 0;
-
-                if (!indexRangeInvalid)
-                {
-                    for (var i = indexStart; i < indexEndExclusive; i++)
-                    {
-                        var localVertexIndex = (int)drawList.Indices[i];
-                        scannedIndexCount++;
-                        if (localVertexIndex < rawIndexMin)
-                        {
-                            rawIndexMin = localVertexIndex;
-                        }
-
-                        if (localVertexIndex > rawIndexMax)
-                        {
-                            rawIndexMax = localVertexIndex;
-                        }
-
-                        if ((uint)localVertexIndex >= (uint)vertexCount)
-                        {
-                            invalidVertexRefCount++;
-                            continue;
-                        }
-
-                        var vertex = drawList.Vertices[localVertexIndex];
-                        var uv = vertex.UV;
-                        if (uv.X < uvMinX)
-                        {
-                            uvMinX = uv.X;
-                        }
-
-                        if (uv.Y < uvMinY)
-                        {
-                            uvMinY = uv.Y;
-                        }
-
-                        if (uv.X > uvMaxX)
-                        {
-                            uvMaxX = uv.X;
-                        }
-
-                        if (uv.Y > uvMaxY)
-                        {
-                            uvMaxY = uv.Y;
-                        }
-
-                        if (uv.X < 0f || uv.X > 1f || uv.Y < 0f || uv.Y > 1f)
-                        {
-                            uvOutOfRangeCount++;
-                        }
-                    }
-                }
-
-                var hasUvBounds = !float.IsPositiveInfinity(uvMinX) && !float.IsNegativeInfinity(uvMaxX);
-                if ((_fontCommandDiagEnabled || _fontCommandBoundsAssertEnabled) && emittedFontCommandDiag < maxFontCommandDiagPerPass)
-                {
-                    var uvBoundsText = hasUvBounds
-                        ? $"({uvMinX:0.######},{uvMinY:0.######})-({uvMaxX:0.######},{uvMaxY:0.######})"
-                        : "(n/a)";
-                    var rawIndexText = rawIndexMin <= rawIndexMax
-                        ? $"{rawIndexMin}..{rawIndexMax}"
-                        : "n/a";
-                    EmitFontCommandDiag(
-                        $"frame={_frameIndex} image={imageIndex} list={listIndex} cmd={cmdIndex} tex={cmd.TextureId.Value} isFont=1 bounds idxRange={indexStart}..{indexEndExclusive - 1} idxCount={indexCount} scanned={scannedIndexCount} rawIdx={rawIndexText} vtxCount={vertexCount} idxRangeInvalid={(indexRangeInvalid ? 1 : 0)} invalidVtxRef={invalidVertexRefCount} uvBounds={uvBoundsText} uvOutOfRange={uvOutOfRangeCount}");
-                    emittedFontCommandDiag++;
-                }
-
-                if (_fontCommandBoundsAssertEnabled && (indexRangeInvalid || invalidVertexRefCount > 0 || uvOutOfRangeCount > 0))
-                {
-                    throw new InvalidOperationException(
-                        $"Font draw command bounds validation failed: frame={_frameIndex} image={imageIndex} list={listIndex} cmd={cmdIndex} tex={cmd.TextureId.Value} idxRangeInvalid={indexRangeInvalid} invalidVtxRef={invalidVertexRefCount} uvOutOfRange={uvOutOfRangeCount}");
-                }
-            }
-            
-
-            for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
-            {
-                var drawList = drawData.DrawLists[listIndex];
-                var drawListVertexCount = drawList.Vertices.Count;
-                var drawListIndexCount = drawList.Indices.Count;
-                var hasStaticBinding = staticBindings.TryGetValue(listIndex, out var staticBinding);
-                if (renderStaticOnly && !hasStaticBinding)
-                {
-                    continue;
-                }
-
-                if (renderDynamicOnly && hasStaticBinding)
-                {
-                    continue;
-                }
-
-                var targetVertexBuffer = hasStaticBinding ? staticBinding.VertexBuffer : vertexBuffer;
-                var targetIndexBuffer = hasStaticBinding ? staticBinding.IndexBuffer : indexBuffer;
-                if (!hasBoundGeometryBuffers
-                    || boundVertexBuffer.Handle != targetVertexBuffer.Handle
-                    || boundIndexBuffer.Handle != targetIndexBuffer.Handle)
-                {
-                    ulong vertexOffset = 0;
-                    _vk.CmdBindVertexBuffers(commandBuffer, 0, 1, &targetVertexBuffer, &vertexOffset);
-                    _vk.CmdBindIndexBuffer(commandBuffer, targetIndexBuffer, 0, IndexType.Uint32);
-                    boundVertexBuffer = targetVertexBuffer;
-                    boundIndexBuffer = targetIndexBuffer;
-                    hasBoundGeometryBuffers = true;
-                }
-
-                var commandCount = drawList.Commands.Count;
-                for (var cmdIndex = 0; cmdIndex < commandCount; cmdIndex++)
-                {
-                    ref readonly var cmd = ref drawList.Commands.ItemRef(cmdIndex);
-                    var isFontCommand = IsFontTextureId(cmd.TextureId);
-                    if (renderFontOnly && !isFontCommand)
-                    {
-                        continue;
-                    }
-
-                    if (renderNonFontOnly && isFontCommand)
-                    {
-                        continue;
-                    }
-
-                    var textureLookupStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
-                    if (!hasLastTexture || !cmd.TextureId.Equals(lastTextureId))
-                    {
-                        lastTextureId = cmd.TextureId;
-                        hasLastTexture = true;
-                        if (!_textures.TryGetValue(cmd.TextureId, out lastTexture))
-                        {
-                            if (_fontCommandDiagEnabled && emittedFontCommandDiag < maxFontCommandDiagPerPass)
-                            {
-                                EmitFontCommandDiag($"frame={_frameIndex} image={imageIndex} list={listIndex} cmd={cmdIndex} tex={cmd.TextureId.Value} isFont={isFontCommand} missingTexture=1 elem={cmd.ElementCount} idxOff={cmd.IndexOffset} vtxOff={cmd.VertexOffset}");
-                                emittedFontCommandDiag++;
-                            }
-
-                            lastTextureValid = false;
-                            if (profileEnabled)
-                            {
-                                textureLookupTicksLocal += Stopwatch.GetTimestamp() - textureLookupStart;
-                            }
-                            continue;
-                        }
-
-                        lastTextureValid = true;
-                    }
-                    else if (!lastTextureValid)
-                    {
-                        if (profileEnabled)
-                        {
-                                textureLookupTicksLocal += Stopwatch.GetTimestamp() - textureLookupStart;
-                        }
-                        continue;
-                    }
-
-                    if (profileEnabled)
-                    {
-                            textureLookupTicksLocal += Stopwatch.GetTimestamp() - textureLookupStart;
-                    }
-
-                    if (_fontCommandDiagEnabled && isFontCommand && emittedFontCommandDiag < maxFontCommandDiagPerPass)
-                    {
-                        EmitFontCommandDiag($"frame={_frameIndex} image={imageIndex} list={listIndex} cmd={cmdIndex} tex={cmd.TextureId.Value} isFont=1 elem={cmd.ElementCount} idxOff={cmd.IndexOffset} vtxOff={cmd.VertexOffset} clip=({cmd.ClipRect.X:0.###},{cmd.ClipRect.Y:0.###},{cmd.ClipRect.Width:0.###},{cmd.ClipRect.Height:0.###}) trans=({cmd.Translation.X:0.###},{cmd.Translation.Y:0.###})");
-                        emittedFontCommandDiag++;
-                    }
-
-                    AnalyzeAndValidateFontCommandBounds(drawList, in cmd, isFontCommand, listIndex, cmdIndex);
-
-                    var texture = lastTexture;
-                    var cmdTranslationX = cmd.Translation.X;
-                    var cmdTranslationY = cmd.Translation.Y;
-
-                    var clippingStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
-                    if (!TryComputeScissorRect(
-                        cmd,
-                        clipOffsetX,
-                        clipOffsetY,
-                        clipScaleX,
-                        clipScaleY,
-                        fbWidthF,
-                        fbHeightF,
-                        out var scissorX,
-                        out var scissorY,
-                        out var scissorW,
-                        out var scissorH))
-                    {
-                        if (profileEnabled)
-                        {
-                            clippingTicksLocal += Stopwatch.GetTimestamp() - clippingStart;
-                        }
-
-                        continue;
-                    }
-
-                    if (!hasScissor
-                        || scissorX != lastScissorX
-                        || scissorY != lastScissorY
-                        || scissorW != lastScissorW
-                        || scissorH != lastScissorH)
-                    {
-                        var scissor = new Rect2D(new Offset2D(scissorX, scissorY), new Extent2D(scissorW, scissorH));
-                        _vk.CmdSetScissor(commandBuffer, 0, 1, &scissor);
-                        lastScissorX = scissorX;
-                        lastScissorY = scissorY;
-                        lastScissorW = scissorW;
-                        lastScissorH = scissorH;
-                        hasScissor = true;
-                    }
-
-                    if (profileEnabled)
-                    {
-                        clippingTicksLocal += Stopwatch.GetTimestamp() - clippingStart;
-                    }
-
-                    var descriptorBindStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
-                    const bool useTemporalJitter = false;
-                    var desiredPipeline = isFontCommand ? _subpixelPipeline : _graphicsPipeline;
-                    if (currentPipeline.Handle != desiredPipeline.Handle)
-                    {
-                        _vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, desiredPipeline);
-                        currentPipeline = desiredPipeline;
-                    }
-
-                    var pushTranslateX = useTemporalJitter ? jitterTranslateX : translateX;
-                    var pushTranslateY = useTemporalJitter ? jitterTranslateY : translateY;
-                    if (cmdTranslationX != 0f)
-                    {
-                        pushTranslateX += scaleX * cmdTranslationX;
-                    }
-
-                    if (cmdTranslationY != 0f)
-                    {
-                        pushTranslateY += scaleY * cmdTranslationY;
-                    }
-                    if (!hasPushMode
-                        || currentTemporalPushMode != useTemporalJitter
-                        || MathF.Abs(lastPushTranslateX - pushTranslateX) > 0.000001f
-                        || MathF.Abs(lastPushTranslateY - pushTranslateY) > 0.000001f)
-                    {
-                        dynamicPushConstants[2] = pushTranslateX;
-                        dynamicPushConstants[3] = pushTranslateY;
-                        _vk.CmdPushConstants(commandBuffer, _pipelineLayout, ShaderStageFlags.VertexBit, 0, (uint)(sizeof(float) * 4), dynamicPushConstants);
-                        currentTemporalPushMode = useTemporalJitter;
-                        lastPushTranslateX = pushTranslateX;
-                        lastPushTranslateY = pushTranslateY;
-                        hasPushMode = true;
-                    }
-
-                    var descriptorSet = texture.DescriptorSet;
-                    if (!hasDescriptorSet || descriptorSet.Handle != lastDescriptorSet.Handle)
-                    {
-                        _vk.CmdBindDescriptorSets(
-                            commandBuffer,
-                            PipelineBindPoint.Graphics,
-                            _pipelineLayout,
-                            0,
-                            1,
-                            &descriptorSet,
-                            0,
-                            null
-                        );
-                        lastDescriptorSet = descriptorSet;
-                        hasDescriptorSet = true;
-                    }
-
-                    if (profileEnabled)
-                    {
-                        descriptorBindTicksLocal += Stopwatch.GetTimestamp() - descriptorBindStart;
-                    }
-
-                    var firstIndex = hasStaticBinding ? cmd.IndexOffset : cmd.IndexOffset + globalIndexOffset;
-                    var vertexOffsetCommand = hasStaticBinding
-                        ? (int)cmd.VertexOffset
-                        : (int)(cmd.VertexOffset + globalVertexOffset);
-                    var drawCallStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
-                    _vk.CmdDrawIndexed(commandBuffer, cmd.ElementCount, 1, firstIndex, vertexOffsetCommand, 0);
-                    if (profileEnabled)
-                    {
-                        drawCallTicksLocal += Stopwatch.GetTimestamp() - drawCallStart;
-                    }
-                }
-
-                if (!hasStaticBinding)
-                {
-                    globalVertexOffset += (uint)drawListVertexCount;
-                    globalIndexOffset += (uint)drawListIndexCount;
-                }
-            }
+            var padded = requiredSize + (nuint)(PrimitiveInstanceBufferGrowthPadding * sizeof(CirclePrimitiveInstance));
+            newSize = Math.Max(newSize, padded);
         }
 
-        _vk.CmdBeginRenderPass(commandBuffer, &renderPassInfo, SubpassContents.Inline);
+        CreateBuffer(
+            newSize,
+            BufferUsageFlags.VertexBufferBit,
+            MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
+            out renderBuffers.CirclePrimitiveBuffer,
+            out renderBuffers.CirclePrimitiveMemory);
 
-        DrawCommandLists(renderFontOnly: false, renderNonFontOnly: false, renderStaticOnly: false, renderDynamicOnly: false);
-        _vk.CmdEndRenderPass(commandBuffer);
-
-        recordTextureLookupTicks = textureLookupTicksLocal;
-        recordClippingTicks = clippingTicksLocal;
-        recordDescriptorBindTicks = descriptorBindTicksLocal;
-        recordDrawCallTicks = drawCallTicksLocal;
-
-        Check(_vk.EndCommandBuffer(commandBuffer));
+        void* mapped;
+        Check(_vk.MapMemory(_device, renderBuffers.CirclePrimitiveMemory, 0, newSize, 0, &mapped));
+        renderBuffers.CirclePrimitiveMappedPtr = mapped;
+        renderBuffers.CirclePrimitiveSize = newSize;
+        frameData.RenderBuffers = renderBuffers;
+        _frames[frame] = frameData;
     }
 
     private void DestroyGeometryBuffers()
@@ -2959,31 +2185,38 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
                 renderBuffers.IndexSize = 0;
             }
 
+            if (renderBuffers.RectPrimitiveBuffer.Handle is not 0)
+            {
+                if (renderBuffers.RectPrimitiveMappedPtr is not null)
+                {
+                    _vk.UnmapMemory(_device, renderBuffers.RectPrimitiveMemory);
+                    renderBuffers.RectPrimitiveMappedPtr = null;
+                }
+
+                DestroyBufferResource(new BufferResource(renderBuffers.RectPrimitiveBuffer, renderBuffers.RectPrimitiveMemory));
+                renderBuffers.RectPrimitiveBuffer = default;
+                renderBuffers.RectPrimitiveMemory = default;
+                renderBuffers.RectPrimitiveSize = 0;
+            }
+
+            if (renderBuffers.CirclePrimitiveBuffer.Handle is not 0)
+            {
+                if (renderBuffers.CirclePrimitiveMappedPtr is not null)
+                {
+                    _vk.UnmapMemory(_device, renderBuffers.CirclePrimitiveMemory);
+                    renderBuffers.CirclePrimitiveMappedPtr = null;
+                }
+
+                DestroyBufferResource(new BufferResource(renderBuffers.CirclePrimitiveBuffer, renderBuffers.CirclePrimitiveMemory));
+                renderBuffers.CirclePrimitiveBuffer = default;
+                renderBuffers.CirclePrimitiveMemory = default;
+                renderBuffers.CirclePrimitiveSize = 0;
+            }
+
             frame.RenderBuffers = renderBuffers;
 
             _frames[i] = frame;
         }
-    }
-
-    private void DestroyStaticGeometryBuffers()
-    {
-        if (_staticGeometryBuffers.Count is 0)
-        {
-            _staticGeometryLastSeenFrame.Clear();
-            _frameStaticBindings.Clear();
-            return;
-        }
-
-        foreach (var pair in _staticGeometryBuffers)
-        {
-            var staticBuffer = pair.Value;
-            DestroyBufferResource(new BufferResource(staticBuffer.VertexBuffer, staticBuffer.VertexMemory));
-            DestroyBufferResource(new BufferResource(staticBuffer.IndexBuffer, staticBuffer.IndexMemory));
-        }
-
-        _staticGeometryBuffers.Clear();
-        _staticGeometryLastSeenFrame.Clear();
-        _frameStaticBindings.Clear();
     }
 
     private void QueueBufferDestroy(VkBuffer buffer, DeviceMemory memory)
@@ -3990,16 +3223,6 @@ public sealed unsafe class VulkanRendererBackend : IRendererBackend
         var buffer = new byte[(int)stream.Length];
         stream.ReadExactly(buffer);
         return buffer;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    private struct UiVertex
-    {
-        public float PositionX;
-        public float PositionY;
-        public float UVx;
-        public float UVy;
-        public uint Color;
     }
 
     private unsafe void CreateMsaaColorImage()

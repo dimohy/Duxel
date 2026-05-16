@@ -112,7 +112,7 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
             {
                 for (var i = 0; i < _cachedBackground.Count; i++)
                 {
-                    drawList.Append(_cachedBackground[i]);
+                    drawList.AppendRetainedStaticReference(_cachedBackground[i]);
                 }
             }
         }
@@ -133,6 +133,8 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
     private void EnsureBackgroundCache(UiRect canvas, UiTextureId white)
     {
         if (_cachedBackground is not null
+            && MathF.Abs(_cachedCanvas.X - canvas.X) < 0.5f
+            && MathF.Abs(_cachedCanvas.Y - canvas.Y) < 0.5f
             && MathF.Abs(_cachedCanvas.Width - canvas.Width) < 0.5f
             && MathF.Abs(_cachedCanvas.Height - canvas.Height) < 0.5f)
         {
@@ -150,8 +152,39 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
         builder.PopClipRect();
         builder.PopTexture();
 
-        _cachedBackground = builder.Build();
+        _cachedBackground = AddStaticGeometryKeys(builder.Build(), canvas, _tileColumns, _tileRows, _density);
         _cachedCanvas = canvas;
+    }
+
+    private static UiPooledList<UiDrawList> AddStaticGeometryKeys(UiPooledList<UiDrawList> lists, UiRect canvas, int columns, int rows, int density)
+    {
+        if (lists.Count == 0)
+        {
+            return lists;
+        }
+
+        var canvasX = QuantizeCanvasValue(canvas.X);
+        var canvasY = QuantizeCanvasValue(canvas.Y);
+        var canvasWidth = QuantizeCanvasValue(canvas.Width);
+        var canvasHeight = QuantizeCanvasValue(canvas.Height);
+        var keyed = new UiDrawList[lists.Count];
+        for (var i = 0; i < lists.Count; i++)
+        {
+            keyed[i] = lists[i] with
+            {
+                StaticGeometryKey = string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{GlobalStaticTag}:cols:{columns}:rows:{rows}:density:{density}:canvas:{canvasX}:{canvasY}:{canvasWidth}:{canvasHeight}:list:{i}")
+            };
+        }
+
+        lists.Return();
+        return UiPooledList<UiDrawList>.FromArray(keyed);
+    }
+
+    private static int QuantizeCanvasValue(float value)
+    {
+        return (int)MathF.Round(value * 100f);
     }
 
     private void ReleaseBackgroundCache()
@@ -192,16 +225,40 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
                 var dotCount = Math.Max(8, density / Math.Max(1, rows * cols));
                 for (var i = 0; i < dotCount; i++)
                 {
-                    var t = i + 1;
-                    var px = tile.X + ((t * 37) % 1000) * 0.001f * tile.Width;
-                    var py = tile.Y + ((t * 73) % 1000) * 0.001f * tile.Height;
-                    var radius = 0.7f + ((t * 13) % 5) * 0.3f;
-                    var s = (uint)((t * 29 + r * 11 + c * 17) & 0xFF);
+                    var seed = HashDotSeed((uint)r, (uint)c, (uint)i);
+                    var px = tile.X + (0.02f + HashToUnit(seed) * 0.96f) * tile.Width;
+                    var py = tile.Y + (0.02f + HashToUnit(HashUInt(seed ^ 0xA24BAED4u)) * 0.96f) * tile.Height;
+                    var radius = 0.7f + HashToUnit(HashUInt(seed ^ 0x9FB21C65u)) * 1.2f;
+                    var s = HashUInt(seed ^ 0x68E31DA4u) & 0xFFu;
                     var color = new UiColor(0xFF000000 | (s << 16) | ((255u - s) << 8) | (100u + (s % 130u)));
                     drawList.AddCircleFilled(new UiVector2(px, py), radius, color, white, canvas, 8);
                 }
             }
         }
+    }
+
+    private static uint HashDotSeed(uint row, uint column, uint index)
+    {
+        var hash = 2166136261u;
+        hash = HashUInt(hash ^ row);
+        hash = HashUInt(hash ^ column);
+        hash = HashUInt(hash ^ index);
+        return hash;
+    }
+
+    private static uint HashUInt(uint value)
+    {
+        value ^= value >> 16;
+        value *= 0x7FEB352Du;
+        value ^= value >> 15;
+        value *= 0x846CA68Bu;
+        value ^= value >> 16;
+        return value;
+    }
+
+    private static float HashToUnit(uint value)
+    {
+        return (value & 0x00FFFFFFu) * (1f / 16777216f);
     }
 
     private static void DrawDynamicOverlay(UiDrawListBuilder drawList, UiRect canvas, double now, UiTextureId white)

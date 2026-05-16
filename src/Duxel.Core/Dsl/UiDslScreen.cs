@@ -135,6 +135,24 @@ public sealed class UiDslScreen : UiScreen, IDisposable
         private int _forEachStart;
         private int _forEachEnd;
         private string _forEachIndexVar = "_index";
+        private string? _forEachItemsSource;
+
+        // ListClipper buffering state
+        private List<(bool IsBegin, string Name, IReadOnlyList<string> Args)>? _clipperBuffer;
+        private int _clipperBufferDepth;
+        private int _clipperItemsCount;
+        private float _clipperItemsHeight;
+        private string _clipperIndexVar = "_index";
+        private string? _clipperItemsSource;
+        private readonly UiListClipper _clipper = new();
+
+        // Container template buffering state (BeginListBox/BeginCombo/BeginTable/BeginTabBar with ItemsSource)
+        private List<(bool IsBegin, string Name, IReadOnlyList<string> Args)>? _containerTemplateBuffer;
+        private int _containerTemplateBufferDepth;
+        private string? _containerTemplateName;     // e.g. "BeginListBox"
+        private IReadOnlyList<string>? _containerTemplateArgs;  // original args from Begin
+        private string? _containerTemplateItemsSource;
+        private string _containerTemplateIndexVar = "_index";
 
         public void BeginNode(string name, IReadOnlyList<string> args)
         {
@@ -144,6 +162,24 @@ public sealed class UiDslScreen : UiScreen, IDisposable
                 _forEachBuffer.Add((true, name, args));
                 if (UiDslWidgetDispatcher.IsContainer(name))
                     _forEachBufferDepth++;
+                return;
+            }
+
+            // If buffering for ListClipper, capture all child nodes
+            if (_clipperBuffer is not null)
+            {
+                _clipperBuffer.Add((true, name, args));
+                if (UiDslWidgetDispatcher.IsContainer(name))
+                    _clipperBufferDepth++;
+                return;
+            }
+
+            // If buffering for container template, capture all child nodes
+            if (_containerTemplateBuffer is not null)
+            {
+                _containerTemplateBuffer.Add((true, name, args));
+                if (UiDslWidgetDispatcher.IsContainer(name))
+                    _containerTemplateBufferDepth++;
                 return;
             }
 
@@ -162,6 +198,34 @@ public sealed class UiDslScreen : UiScreen, IDisposable
                 ParseForEachArgs(args);
                 _forEachBuffer = [];
                 _forEachBufferDepth = 0;
+
+                var stylePushCount = UiDslStyleHelper.PushInlineStyles(ui, args);
+                _runtimeState.StyleColorPushCounts.Push(stylePushCount);
+                return;
+            }
+
+            // ListClipper: start buffering children
+            if (name is "ListClipper")
+            {
+                ParseClipperArgs(args);
+                _clipperBuffer = [];
+                _clipperBufferDepth = 0;
+
+                var stylePushCount = UiDslStyleHelper.PushInlineStyles(ui, args);
+                _runtimeState.StyleColorPushCounts.Push(stylePushCount);
+                return;
+            }
+
+            // Container template: detect containers with ItemsSource= and start buffering
+            if (name is "BeginListBox" or "BeginCombo" or "BeginTable" or "BeginTabBar"
+                && TryFindItemsSource(args, out var containerItemsSource))
+            {
+                _containerTemplateName = name;
+                _containerTemplateArgs = args;
+                _containerTemplateItemsSource = containerItemsSource;
+                _containerTemplateIndexVar = FindVarName(args, "_index");
+                _containerTemplateBuffer = [];
+                _containerTemplateBufferDepth = 0;
 
                 var stylePushCount = UiDslStyleHelper.PushInlineStyles(ui, args);
                 _runtimeState.StyleColorPushCounts.Push(stylePushCount);
@@ -204,7 +268,9 @@ public sealed class UiDslScreen : UiScreen, IDisposable
 
                 // EndNode("ForEach") — replay buffer for each index
                 var buffer = _forEachBuffer;
+                var itemsSource = _forEachItemsSource;
                 _forEachBuffer = null;
+                _forEachItemsSource = null;
 
                 for (int i = _forEachStart; i <= _forEachEnd; i++)
                 {
@@ -214,6 +280,11 @@ public sealed class UiDslScreen : UiScreen, IDisposable
                         if (isBegin)
                         {
                             var processed = SubstituteTemplates(nodeArgs, i, _forEachIndexVar);
+                            if (itemsSource is not null)
+                            {
+                                processed = SubstituteItemText(processed, i, itemsSource);
+                                processed = SubstituteProperties(processed, i, _forEachIndexVar, itemsSource);
+                            }
                             BeginNode(nodeName, processed);
                         }
                         else
@@ -224,6 +295,128 @@ public sealed class UiDslScreen : UiScreen, IDisposable
                 }
 
                 // Pop ForEach style colors
+                if (_runtimeState.StyleColorPushCounts.Count > 0)
+                {
+                    var count = _runtimeState.StyleColorPushCounts.Pop();
+                    if (count > 0)
+                        ui.PopStyleColor(count);
+                }
+                return;
+            }
+
+            // If buffering for ListClipper, capture EndNode
+            if (_clipperBuffer is not null)
+            {
+                if (_clipperBufferDepth > 0)
+                {
+                    _clipperBuffer.Add((false, name, Array.Empty<string>()));
+                    if (UiDslWidgetDispatcher.IsContainer(name))
+                        _clipperBufferDepth--;
+                    return;
+                }
+
+                // EndNode("ListClipper") — replay buffer for visible range only
+                var buffer = _clipperBuffer;
+                var itemsSource = _clipperItemsSource;
+                _clipperBuffer = null;
+                _clipperItemsSource = null;
+
+                _clipper.Begin(ui, _clipperItemsCount, _clipperItemsHeight);
+                if (_clipper.Step())
+                {
+                    for (int i = _clipper.DisplayStart; i < _clipper.DisplayEnd; i++)
+                    {
+                        ctx.State.SetInt(_clipperIndexVar, i);
+                        foreach (var (isBegin, nodeName, nodeArgs) in buffer)
+                        {
+                            if (isBegin)
+                            {
+                                var processed = SubstituteTemplates(nodeArgs, i, _clipperIndexVar);
+                                if (itemsSource is not null)
+                                {
+                                    processed = SubstituteItemText(processed, i, itemsSource);
+                                    processed = SubstituteProperties(processed, i, _clipperIndexVar, itemsSource);
+                                }
+                                BeginNode(nodeName, processed);
+                            }
+                            else
+                            {
+                                EndNode(nodeName);
+                            }
+                        }
+                    }
+                }
+
+                // Pop ListClipper style colors
+                if (_runtimeState.StyleColorPushCounts.Count > 0)
+                {
+                    var count = _runtimeState.StyleColorPushCounts.Pop();
+                    if (count > 0)
+                        ui.PopStyleColor(count);
+                }
+                return;
+            }
+
+            // If buffering for container template, capture EndNode
+            if (_containerTemplateBuffer is not null)
+            {
+                if (_containerTemplateBufferDepth > 0)
+                {
+                    _containerTemplateBuffer.Add((false, name, Array.Empty<string>()));
+                    if (UiDslWidgetDispatcher.IsContainer(name))
+                        _containerTemplateBufferDepth--;
+                    return;
+                }
+
+                // EndNode for container template — Begin container, replay template for each item, End container
+                var buffer = _containerTemplateBuffer;
+                var containerName = _containerTemplateName!;
+                var containerArgs = _containerTemplateArgs!;
+                var itemsSource = _containerTemplateItemsSource!;
+                var indexVar = _containerTemplateIndexVar;
+                _containerTemplateBuffer = null;
+                _containerTemplateName = null;
+                _containerTemplateArgs = null;
+                _containerTemplateItemsSource = null;
+
+                var itemCount = UiDslValues.GetListCount(ctx, itemsSource);
+
+                // Dispatch the Begin widget (without ItemsSource, so it opens normally)
+                var beginResult = UiDslWidgetDispatcher.BeginOrInvoke(ui, ctx, _runtimeState, containerName, containerArgs);
+                if (beginResult is not UiDslBeginResult.SkipChildren)
+                {
+                    if (buffer.Count > 0)
+                    {
+                        // Template mode: replay buffered children for each item
+                        for (int i = 0; i < itemCount; i++)
+                        {
+                            ctx.State.SetInt(indexVar, i);
+                            foreach (var (isBegin, nodeName, nodeArgs) in buffer)
+                            {
+                                if (isBegin)
+                                {
+                                    var processed = SubstituteTemplates(nodeArgs, i, indexVar);
+                                    processed = SubstituteItemText(processed, i, itemsSource);
+                                    processed = SubstituteProperties(processed, i, indexVar, itemsSource);
+                                    BeginNode(nodeName, processed);
+                                }
+                                else
+                                {
+                                    EndNode(nodeName);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Simple Auto mode: no children, generate default items
+                        ReplayContainerSimpleAuto(containerName, itemsSource, itemCount);
+                    }
+
+                    UiDslWidgetDispatcher.End(ui, ctx, _runtimeState, containerName);
+                }
+
+                // Pop container template style colors
                 if (_runtimeState.StyleColorPushCounts.Count > 0)
                 {
                     var count = _runtimeState.StyleColorPushCounts.Pop();
@@ -267,6 +460,7 @@ public sealed class UiDslScreen : UiScreen, IDisposable
             _forEachStart = 0;
             _forEachEnd = 0;
             _forEachIndexVar = "_index";
+            _forEachItemsSource = null;
 
             foreach (var arg in args)
             {
@@ -291,10 +485,21 @@ public sealed class UiDslScreen : UiScreen, IDisposable
                     _forEachStart = 0;
                     _forEachEnd = count - 1;
                 }
+                else if (arg.StartsWith("ItemsSource=", StringComparison.OrdinalIgnoreCase))
+                {
+                    _forEachItemsSource = arg[12..];
+                }
                 else if (arg.StartsWith("Var=", StringComparison.OrdinalIgnoreCase))
                 {
                     _forEachIndexVar = arg[4..];
                 }
+            }
+
+            if (_forEachItemsSource is not null)
+            {
+                var count = UiDslValues.GetListCount(ctx, _forEachItemsSource);
+                _forEachStart = 0;
+                _forEachEnd = count - 1;
             }
         }
 
@@ -320,6 +525,160 @@ public sealed class UiDslScreen : UiScreen, IDisposable
                 result[i] = args[i].Replace(placeholder, indexStr, StringComparison.Ordinal);
             }
             return result;
+        }
+
+        private IReadOnlyList<string> SubstituteItemText(IReadOnlyList<string> args, int index, string itemsSourceKey)
+        {
+            const string ItemPlaceholder = "{_item}";
+            var hasTemplate = false;
+            foreach (var arg in args)
+            {
+                if (arg.Contains(ItemPlaceholder, StringComparison.Ordinal))
+                {
+                    hasTemplate = true;
+                    break;
+                }
+            }
+
+            if (!hasTemplate) return args;
+
+            var itemText = UiDslValues.GetListItem(ctx, itemsSourceKey, index);
+            var result = new string[args.Count];
+            for (int i = 0; i < args.Count; i++)
+            {
+                result[i] = args[i].Replace(ItemPlaceholder, itemText, StringComparison.Ordinal);
+            }
+            return result;
+        }
+
+        private IReadOnlyList<string> SubstituteProperties(IReadOnlyList<string> args, int index, string varName, string itemsSourceKey)
+        {
+            var prefix = $"{{{varName}.";
+            var hasProperty = false;
+            foreach (var arg in args)
+            {
+                if (arg.Contains(prefix, StringComparison.Ordinal))
+                {
+                    hasProperty = true;
+                    break;
+                }
+            }
+
+            if (!hasProperty) return args;
+
+            var result = new string[args.Count];
+            for (int i = 0; i < args.Count; i++)
+            {
+                result[i] = ResolvePropertyPlaceholders(args[i], index, varName, itemsSourceKey);
+            }
+            return result;
+        }
+
+        private string ResolvePropertyPlaceholders(string text, int index, string varName, string itemsSourceKey)
+        {
+            var prefix = $"{{{varName}.";
+            var pos = 0;
+            while (true)
+            {
+                var start = text.IndexOf(prefix, pos, StringComparison.Ordinal);
+                if (start < 0) break;
+
+                var propStart = start + prefix.Length;
+                var end = text.IndexOf('}', propStart);
+                if (end < 0) break;
+
+                var propertyName = text[propStart..end];
+                var value = UiDslValues.GetListProperty(ctx, itemsSourceKey, index, propertyName) ?? string.Empty;
+                var placeholder = text[start..(end + 1)];
+                text = text.Replace(placeholder, value, StringComparison.Ordinal);
+                pos = start + value.Length;
+            }
+            return text;
+        }
+
+        private void ParseClipperArgs(IReadOnlyList<string> args)
+        {
+            _clipperItemsCount = 0;
+            _clipperItemsHeight = -1f;
+            _clipperIndexVar = "_index";
+            _clipperItemsSource = null;
+
+            foreach (var arg in args)
+            {
+                if (arg.StartsWith("ItemsCount=", StringComparison.OrdinalIgnoreCase))
+                {
+                    int.TryParse(arg.AsSpan(11), NumberStyles.Integer, CultureInfo.InvariantCulture, out _clipperItemsCount);
+                }
+                else if (arg.StartsWith("ItemsHeight=", StringComparison.OrdinalIgnoreCase))
+                {
+                    float.TryParse(arg.AsSpan(12), NumberStyles.Float, CultureInfo.InvariantCulture, out _clipperItemsHeight);
+                }
+                else if (arg.StartsWith("ItemsSource=", StringComparison.OrdinalIgnoreCase))
+                {
+                    _clipperItemsSource = arg[12..];
+                }
+                else if (arg.StartsWith("Var=", StringComparison.OrdinalIgnoreCase))
+                {
+                    _clipperIndexVar = arg[4..];
+                }
+            }
+
+            if (_clipperItemsSource is not null)
+            {
+                _clipperItemsCount = UiDslValues.GetListCount(ctx, _clipperItemsSource);
+            }
+        }
+
+        private static bool TryFindItemsSource(IReadOnlyList<string> args, out string itemsSource)
+        {
+            foreach (var arg in args)
+            {
+                if (arg.StartsWith("ItemsSource=", StringComparison.OrdinalIgnoreCase))
+                {
+                    itemsSource = arg[12..];
+                    return true;
+                }
+            }
+            itemsSource = null!;
+            return false;
+        }
+
+        private static string FindVarName(IReadOnlyList<string> args, string defaultVar)
+        {
+            foreach (var arg in args)
+            {
+                if (arg.StartsWith("Var=", StringComparison.OrdinalIgnoreCase))
+                    return arg[4..];
+            }
+            return defaultVar;
+        }
+
+        private void ReplayContainerSimpleAuto(string containerName, string itemsSource, int itemCount)
+        {
+            switch (containerName)
+            {
+                case "BeginListBox" or "BeginCombo":
+                    for (int i = 0; i < itemCount; i++)
+                    {
+                        var itemText = UiDslValues.GetListItem(ctx, itemsSource, i);
+                        ui.Selectable(itemText, false);
+                    }
+                    break;
+                case "BeginTabBar":
+                    for (int i = 0; i < itemCount; i++)
+                    {
+                        var tabLabel = UiDslValues.GetListItem(ctx, itemsSource, i);
+                        if (ui.BeginTabItem(tabLabel))
+                        {
+                            ui.Text(tabLabel);
+                            ui.EndTabItem();
+                        }
+                    }
+                    break;
+                case "BeginTable":
+                    // Simple Auto for Table not supported without ColumnNames — no-op
+                    break;
+            }
         }
     }
 
