@@ -196,9 +196,8 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
             return;
         }
 
-        CountPrimitiveInstances(drawData, out var rectPrimitiveCount, out var circlePrimitiveCount);
         var hasIndexedGeometry = drawData.TotalVertexCount > 0 && drawData.TotalIndexCount > 0;
-        if (!hasIndexedGeometry && rectPrimitiveCount is 0 && circlePrimitiveCount is 0)
+        if (!hasIndexedGeometry && !HasPrimitiveInstances(drawData))
         {
             return;
         }
@@ -254,16 +253,25 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
             _imagesInFlight[imageIndex] = frameData.InFlight;
         }
 
-        if (hasIndexedGeometry)
+        PrepareStaticGeometryAndCountDynamic(
+            drawData,
+            _frameStaticBindings,
+            out var dynamicVertexCount,
+            out var dynamicIndexCount,
+            out var rectPrimitiveCount,
+            out var circlePrimitiveCount);
+
+        var hasDynamicIndexedGeometry = dynamicVertexCount > 0 && dynamicIndexCount > 0;
+        if (hasDynamicIndexedGeometry)
         {
-            EnsureVertexBufferCapacity(frame, drawData.TotalVertexCount);
-            EnsureIndexBufferCapacity(frame, drawData.TotalIndexCount);
+            EnsureVertexBufferCapacity(frame, dynamicVertexCount);
+            EnsureIndexBufferCapacity(frame, dynamicIndexCount);
         }
 
         EnsureRectPrimitiveBufferCapacity(frame, rectPrimitiveCount);
         EnsureCirclePrimitiveBufferCapacity(frame, circlePrimitiveCount);
 
-        UploadGeometry(frame, drawData, _frameStaticBindings);
+        UploadGeometry(frame, drawData);
 
         var commandPool = frameData.CommandPool;
         var commandBuffer = frameData.CommandBuffer;
@@ -304,17 +312,18 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
         _frameIndex++;
     }
 
-    private static void CountPrimitiveInstances(UiDrawData drawData, out int rectPrimitiveCount, out int circlePrimitiveCount)
+    private static bool HasPrimitiveInstances(UiDrawData drawData)
     {
-        rectPrimitiveCount = 0;
-        circlePrimitiveCount = 0;
-
         for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
         {
             var drawList = drawData.DrawLists[listIndex];
-            rectPrimitiveCount += drawList.RectFilledPrimitives?.Count ?? 0;
-            circlePrimitiveCount += drawList.CircleFilledPrimitives?.Count ?? 0;
+            if ((drawList.RectFilledPrimitives?.Count ?? 0) > 0 || (drawList.CircleFilledPrimitives?.Count ?? 0) > 0)
+            {
+                return true;
+            }
         }
+
+        return false;
     }
 
     private unsafe long SubmitFrame(CommandBuffer commandBuffer, VulkanSemaphore imageAvailable, VulkanSemaphore renderFinished, Fence inFlightFence)

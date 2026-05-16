@@ -15,14 +15,54 @@ public sealed unsafe partial class VulkanRendererBackend
     private readonly Dictionary<string, StaticGeometryBuffer> _staticGeometryBuffers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _staticGeometryLastSeenFrame = new(StringComparer.Ordinal);
     private readonly List<string> _staticGeometryStaleTags = new();
+    private readonly List<int> _dynamicDrawListIndices = new();
     private readonly Dictionary<int, StaticGeometryBuffer> _frameStaticBindings = new();
 
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    private void UploadGeometry(int frame, UiDrawData drawData, Dictionary<int, StaticGeometryBuffer> staticBindings)
+    private void PrepareStaticGeometryAndCountDynamic(
+        UiDrawData drawData,
+        Dictionary<int, StaticGeometryBuffer> staticBindings,
+        out int dynamicVertexCount,
+        out int dynamicIndexCount,
+        out int rectPrimitiveCount,
+        out int circlePrimitiveCount)
     {
+        dynamicVertexCount = 0;
+        dynamicIndexCount = 0;
+        rectPrimitiveCount = 0;
+        circlePrimitiveCount = 0;
+        staticBindings.Clear();
+        _dynamicDrawListIndices.Clear();
+
         BeginUploadBatch();
         try
         {
+            for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
+            {
+                var drawList = drawData.DrawLists[listIndex];
+                rectPrimitiveCount += drawList.RectFilledPrimitives?.Count ?? 0;
+                circlePrimitiveCount += drawList.CircleFilledPrimitives?.Count ?? 0;
+
+                if (TryGetStaticDrawListTag(drawList, out var staticTag))
+                {
+                    _staticGeometryLastSeenFrame[staticTag] = _frameIndex;
+                    staticBindings[listIndex] = EnsureStaticGeometryBuffer(staticTag, drawList);
+                    continue;
+                }
+
+                _dynamicDrawListIndices.Add(listIndex);
+                dynamicVertexCount += drawList.Vertices.Count;
+                dynamicIndexCount += drawList.Indices.Count;
+            }
+        }
+        finally
+        {
+            EndUploadBatch();
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private void UploadGeometry(int frame, UiDrawData drawData)
+    {
         var frameData = _frames[frame];
         var renderBuffers = frameData.RenderBuffers;
 
@@ -30,52 +70,45 @@ public sealed unsafe partial class VulkanRendererBackend
         var indexDst = (byte*)renderBuffers.IndexMappedPtr;
         var rectPrimitiveDst = (RectPrimitiveInstance*)renderBuffers.RectPrimitiveMappedPtr;
         var circlePrimitiveDst = (CirclePrimitiveInstance*)renderBuffers.CirclePrimitiveMappedPtr;
-        staticBindings.Clear();
+
+        for (var dynamicListIndex = 0; dynamicListIndex < _dynamicDrawListIndices.Count; dynamicListIndex++)
+        {
+            var drawList = drawData.DrawLists[_dynamicDrawListIndices[dynamicListIndex]];
+            var vertices = drawList.Vertices.AsSpan();
+            if (!vertices.IsEmpty)
+            {
+                var vertexOut = (UiVertex*)vertexDst;
+                for (var i = 0; i < vertices.Length; i++)
+                {
+                    ref readonly var src = ref vertices[i];
+                    vertexOut[i] = new UiVertex
+                    {
+                        PositionX = src.Position.X,
+                        PositionY = src.Position.Y,
+                        UVx = src.UV.X,
+                        UVy = src.UV.Y,
+                        Color = src.Color.Rgba,
+                    };
+                }
+
+                vertexDst += (uint)(vertices.Length * sizeof(UiVertex));
+            }
+
+            var indices = drawList.Indices.AsSpan();
+            if (!indices.IsEmpty)
+            {
+                fixed (uint* indexSrc = indices)
+                {
+                    var indexBytes = (uint)(indices.Length * sizeof(uint));
+                    Unsafe.CopyBlockUnaligned(indexDst, indexSrc, indexBytes);
+                    indexDst += indexBytes;
+                }
+            }
+        }
 
         for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
         {
             var drawList = drawData.DrawLists[listIndex];
-            var hasStaticTag = TryGetStaticDrawListTag(drawList, out var staticTag);
-
-            if (hasStaticTag)
-            {
-                _staticGeometryLastSeenFrame[staticTag] = _frameIndex;
-                staticBindings[listIndex] = EnsureStaticGeometryBuffer(staticTag, drawList);
-            }
-            else
-            {
-                var vertices = drawList.Vertices.AsSpan();
-                if (!vertices.IsEmpty)
-                {
-                    var vertexOut = (UiVertex*)vertexDst;
-                    for (var i = 0; i < vertices.Length; i++)
-                    {
-                        ref readonly var src = ref vertices[i];
-                        vertexOut[i] = new UiVertex
-                        {
-                            PositionX = src.Position.X,
-                            PositionY = src.Position.Y,
-                            UVx = src.UV.X,
-                            UVy = src.UV.Y,
-                            Color = src.Color.Rgba,
-                        };
-                    }
-
-                    vertexDst += (uint)(vertices.Length * sizeof(UiVertex));
-                }
-
-                var indices = drawList.Indices.AsSpan();
-                if (!indices.IsEmpty)
-                {
-                    fixed (uint* indexSrc = indices)
-                    {
-                        var indexBytes = (uint)(indices.Length * sizeof(uint));
-                        Unsafe.CopyBlockUnaligned(indexDst, indexSrc, indexBytes);
-                        indexDst += indexBytes;
-                    }
-                }
-            }
-
             if (drawList.RectFilledPrimitives is not null)
             {
                 var primitives = drawList.RectFilledPrimitives.AsSpan();
@@ -119,11 +152,6 @@ public sealed unsafe partial class VulkanRendererBackend
         if ((_frameIndex % StaticGeometryPruneIntervalFrames) is 0)
         {
             PruneUnusedStaticGeometryBuffers(_frameIndex);
-        }
-        }
-        finally
-        {
-            EndUploadBatch();
         }
     }
 
