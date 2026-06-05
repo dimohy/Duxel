@@ -7,6 +7,7 @@ layout(push_constant) uniform PushConstants
 {
     vec2 scale;
     vec2 translate;
+    float opacity;
 } pc;
 
 layout(location = 0) out vec2 fragUV;
@@ -16,6 +17,10 @@ void main()
 {
     fragUV = inUV;
     fragColor = inColor;
+    if (pc.opacity < 0.999999)
+    {
+        fragColor.a *= pc.opacity;
+    }
     vec2 pos = inPosition * pc.scale + pc.translate;
     gl_Position = vec4(pos, 0.0, 1.0);
 }

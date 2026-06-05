@@ -1241,8 +1241,23 @@ public readonly record struct UiTextureUpdate(
     UiTextureFormat Format,
     int Width,
     int Height,
-    ReadOnlyMemory<byte> RgbaPixels
-);
+    ReadOnlyMemory<byte> RgbaPixels,
+    int X = 0,
+    int Y = 0,
+    int RegionWidth = 0,
+    int RegionHeight = 0
+)
+{
+    public int EffectiveRegionWidth => RegionWidth > 0 ? RegionWidth : Width;
+
+    public int EffectiveRegionHeight => RegionHeight > 0 ? RegionHeight : Height;
+
+    public bool CoversEntireTexture =>
+        X == 0
+        && Y == 0
+        && EffectiveRegionWidth == Width
+        && EffectiveRegionHeight == Height;
+}
 
 public readonly record struct UiDrawCommand(
     UiRect ClipRect,
@@ -1253,7 +1268,10 @@ public readonly record struct UiDrawCommand(
     UiDrawCallback? Callback = null,
     object? UserData = null,
     UiVector2 Translation = default,
-    UiDrawCommandKind Kind = UiDrawCommandKind.Triangles
+    UiDrawCommandKind Kind = UiDrawCommandKind.Triangles,
+    float Opacity = 1f,
+    UiRect Bounds = default,
+    bool HasBounds = false
 );
 
 public delegate void UiDrawCallback(UiDrawList drawList, UiDrawCommand command);
@@ -1513,6 +1531,22 @@ public sealed class UiPooledList<T>(T[] buffer, int count, bool pooled) : IReadO
         AsSpan().CopyTo(destination);
     }
 
+    internal bool TryOverwriteSameLength(ReadOnlySpan<T> source)
+    {
+        if (_buffer is null)
+        {
+            throw new ObjectDisposedException(nameof(UiPooledList<T>));
+        }
+
+        if (source.Length != _count)
+        {
+            return false;
+        }
+
+        source.CopyTo(_buffer);
+        return true;
+    }
+
     public ref readonly T ItemRef(int index)
     {
         if (_buffer is null)
@@ -1546,9 +1580,15 @@ public sealed record class UiDrawList(
     bool OwnsBuffers = true,
     string? StaticGeometryKey = null,
     UiPooledList<UiRectFilledPrimitive>? RectFilledPrimitives = null,
-    UiPooledList<UiCircleFilledPrimitive>? CircleFilledPrimitives = null
+    UiPooledList<UiCircleFilledPrimitive>? CircleFilledPrimitives = null,
+    ulong StaticGeometryStamp = 0,
+    ulong CommandScheduleStamp = 0
 )
 {
+    public static bool CommandScheduleStampEnabled { get; } = ParseCommandScheduleStampEnabled();
+
+    internal static bool CommandScheduleShapeStampEnabled { get; } = ParseCommandScheduleShapeStampEnabled();
+
     public void ReleasePooled()
     {
         if (!OwnsBuffers)
@@ -1601,7 +1641,8 @@ public sealed record class UiDrawList(
                 : UiPooledList<UiRectFilledPrimitive>.RentAndCopy(RectFilledPrimitives.AsSpan()),
             CircleFilledPrimitives: CircleFilledPrimitives is null
                 ? null
-                : UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(CircleFilledPrimitives.AsSpan())
+                : UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(CircleFilledPrimitives.AsSpan()),
+            CommandScheduleStamp: CommandScheduleStampEnabled ? ComputeCommandScheduleStamp(commandBuffer.AsSpan(0, commandCount)) : 0UL
         );
     }
 
@@ -1631,8 +1672,195 @@ public sealed record class UiDrawList(
                 : UiPooledList<UiRectFilledPrimitive>.RentAndCopy(RectFilledPrimitives.AsSpan()),
             CircleFilledPrimitives: CircleFilledPrimitives is null
                 ? null
-                : UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(CircleFilledPrimitives.AsSpan())
+                : UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(CircleFilledPrimitives.AsSpan()),
+            CommandScheduleStamp: CommandScheduleStampEnabled ? ComputeCommandScheduleStamp(commandBuffer.AsSpan(0, commandCount)) : 0UL
         );
+    }
+
+    public ulong GetStaticGeometryStamp()
+    {
+        if (StaticGeometryStamp is not 0)
+        {
+            return StaticGeometryStamp;
+        }
+
+        var rects = RectFilledPrimitives is null
+            ? ReadOnlySpan<UiRectFilledPrimitive>.Empty
+            : RectFilledPrimitives.AsSpan();
+        var circles = CircleFilledPrimitives is null
+            ? ReadOnlySpan<UiCircleFilledPrimitive>.Empty
+            : CircleFilledPrimitives.AsSpan();
+        return ComputeStaticGeometryStamp(Vertices.AsSpan(), Indices.AsSpan(), rects, circles);
+    }
+
+    public static ulong ComputeStaticGeometryStamp(
+        ReadOnlySpan<UiDrawVertex> vertices,
+        ReadOnlySpan<uint> indices,
+        ReadOnlySpan<UiRectFilledPrimitive> rectFilledPrimitives,
+        ReadOnlySpan<UiCircleFilledPrimitive> circleFilledPrimitives)
+    {
+        var hash = HashStaticGeometryValue(14695981039346656037UL, (uint)vertices.Length);
+        hash = HashStaticGeometryValue(hash, (uint)indices.Length);
+        hash = HashStaticGeometryValue(hash, (uint)rectFilledPrimitives.Length);
+        hash = HashStaticGeometryValue(hash, (uint)circleFilledPrimitives.Length);
+
+        for (var i = 0; i < vertices.Length; i++)
+        {
+            ref readonly var vertex = ref vertices[i];
+            hash = HashStaticGeometryValue(hash, vertex.Position.X);
+            hash = HashStaticGeometryValue(hash, vertex.Position.Y);
+            hash = HashStaticGeometryValue(hash, vertex.UV.X);
+            hash = HashStaticGeometryValue(hash, vertex.UV.Y);
+            hash = HashStaticGeometryValue(hash, vertex.Color.Rgba);
+        }
+
+        for (var i = 0; i < indices.Length; i++)
+        {
+            hash = HashStaticGeometryValue(hash, indices[i]);
+        }
+
+        for (var i = 0; i < rectFilledPrimitives.Length; i++)
+        {
+            ref readonly var primitive = ref rectFilledPrimitives[i];
+            hash = HashStaticGeometryValue(hash, primitive.Rect.X);
+            hash = HashStaticGeometryValue(hash, primitive.Rect.Y);
+            hash = HashStaticGeometryValue(hash, primitive.Rect.Width);
+            hash = HashStaticGeometryValue(hash, primitive.Rect.Height);
+            hash = HashStaticGeometryValue(hash, primitive.Color.Rgba);
+        }
+
+        for (var i = 0; i < circleFilledPrimitives.Length; i++)
+        {
+            ref readonly var primitive = ref circleFilledPrimitives[i];
+            hash = HashStaticGeometryValue(hash, primitive.Center.X);
+            hash = HashStaticGeometryValue(hash, primitive.Center.Y);
+            hash = HashStaticGeometryValue(hash, primitive.Radius);
+            hash = HashStaticGeometryValue(hash, primitive.Color.Rgba);
+            hash = HashStaticGeometryValue(hash, (uint)primitive.Segments);
+        }
+
+        return hash is 0 ? 1UL : hash;
+    }
+
+    public static ulong ComputeCommandScheduleStamp(ReadOnlySpan<UiDrawCommand> commands)
+    {
+        var hash = HashStaticGeometryValue(14695981039346656037UL, (uint)commands.Length);
+        for (var i = 0; i < commands.Length; i++)
+        {
+            ref readonly var command = ref commands[i];
+            hash = HashStaticGeometryValue(hash, command.ClipRect.X);
+            hash = HashStaticGeometryValue(hash, command.ClipRect.Y);
+            hash = HashStaticGeometryValue(hash, command.ClipRect.Width);
+            hash = HashStaticGeometryValue(hash, command.ClipRect.Height);
+            hash = HashStaticGeometryValue(hash, command.TextureId.Value);
+            hash = HashStaticGeometryValue(hash, command.ElementCount);
+            hash = HashStaticGeometryValue(hash, command.Translation.X);
+            hash = HashStaticGeometryValue(hash, command.Translation.Y);
+            hash = HashStaticGeometryValue(hash, (uint)command.Kind);
+            hash = HashStaticGeometryValue(hash, command.Bounds.X);
+            hash = HashStaticGeometryValue(hash, command.Bounds.Y);
+            hash = HashStaticGeometryValue(hash, command.Bounds.Width);
+            hash = HashStaticGeometryValue(hash, command.Bounds.Height);
+            hash = HashStaticGeometryValue(hash, command.HasBounds ? 1u : 0u);
+            hash = HashStaticGeometryValue(hash, command.Callback is null ? 0u : 1u);
+        }
+
+        return hash is 0 ? 1UL : hash;
+    }
+
+    internal static ulong ComputeCommandScheduleShapeStamp(ReadOnlySpan<UiDrawCommand> commands)
+    {
+        var hash = HashStaticGeometryValue(14695981039346656037UL, 0x53434850u);
+        hash = HashStaticGeometryValue(hash, (uint)commands.Length);
+        for (var i = 0; i < commands.Length; i++)
+        {
+            ref readonly var command = ref commands[i];
+            var schedulingBounds = command.HasBounds ? command.Bounds : default;
+            hash = HashStaticGeometryValue(hash, command.ClipRect.X);
+            hash = HashStaticGeometryValue(hash, command.ClipRect.Y);
+            hash = HashStaticGeometryValue(hash, command.ClipRect.Width);
+            hash = HashStaticGeometryValue(hash, command.ClipRect.Height);
+            hash = HashStaticGeometryValue(hash, command.TextureId.Value);
+            hash = HashStaticGeometryValue(hash, command.ElementCount);
+            hash = HashStaticGeometryValue(hash, (uint)command.Kind);
+            hash = HashStaticGeometryValue(hash, schedulingBounds.X);
+            hash = HashStaticGeometryValue(hash, schedulingBounds.Y);
+            hash = HashStaticGeometryValue(hash, schedulingBounds.Width);
+            hash = HashStaticGeometryValue(hash, schedulingBounds.Height);
+            hash = HashStaticGeometryValue(hash, command.HasBounds ? 1u : 0u);
+            hash = HashStaticGeometryValue(hash, command.Callback is null ? 0u : 1u);
+        }
+
+        return hash is 0 ? 1UL : hash;
+    }
+
+    private static bool ParseCommandScheduleStampEnabled()
+    {
+        var raw = Environment.GetEnvironmentVariable("DUXEL_VK_COMMAND_SCHEDULER");
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        return string.Equals(raw, "1", StringComparison.Ordinal)
+            || string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "on", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "yes", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "all", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ParseCommandScheduleShapeStampEnabled()
+    {
+        var raw = Environment.GetEnvironmentVariable("DUXEL_VK_COMMAND_SCHEDULER");
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        var value = raw.Trim();
+        return string.Equals(value, "1", StringComparison.Ordinal)
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "all", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "static", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "static-layer", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "static-layers", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "stable", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong HashStaticGeometryValue(ulong hash, float value)
+    {
+        return HashStaticGeometryValue(hash, BitConverter.SingleToUInt32Bits(value));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong HashStaticGeometryValue(ulong hash, nuint value)
+    {
+        return HashStaticGeometryValue(hash, unchecked((ulong)value));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong HashStaticGeometryValue(ulong hash, ulong value)
+    {
+        hash = HashStaticGeometryValue(hash, unchecked((uint)value));
+        return HashStaticGeometryValue(hash, unchecked((uint)(value >> 32)));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong HashStaticGeometryValue(ulong hash, uint value)
+    {
+        const ulong prime = 1099511628211UL;
+        hash ^= value & 0xFFu;
+        hash *= prime;
+        hash ^= (value >> 8) & 0xFFu;
+        hash *= prime;
+        hash ^= (value >> 16) & 0xFFu;
+        hash *= prime;
+        hash ^= value >> 24;
+        hash *= prime;
+        return hash;
     }
 }
 
@@ -1698,11 +1926,13 @@ public readonly record struct UiViewport(
     UiVector2 WorkSize
 );
 
-public sealed class UiDrawListSharedData(UiFontAtlas fontAtlas, UiTextSettings textSettings, float lineHeight)
+public sealed class UiDrawListSharedData(UiFontAtlas fontAtlas, UiTextSettings textSettings, float lineHeight, UiTextureId fontTexture = default, UiTextureId whiteTexture = default)
 {
     public UiFontAtlas FontAtlas { get; set; } = fontAtlas;
     public UiTextSettings TextSettings { get; set; } = textSettings;
     public float LineHeight { get; set; } = lineHeight;
+    public UiTextureId FontTexture { get; set; } = fontTexture;
+    public UiTextureId WhiteTexture { get; set; } = whiteTexture;
 }
 
 public sealed class UiDragDropPayload

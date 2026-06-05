@@ -13,23 +13,15 @@ public sealed partial class UiImmediateContext
     private sealed class UiLayerCachedList
     {
         public required string BaseStaticGeometryKey { get; init; }
-        public required UiDrawVertex[] LocalVertices { get; init; }
-        public required uint[] LocalIndices { get; init; }
         public required UiDrawCommand[] LocalCommands { get; init; }
-        public UiRectFilledPrimitive[] LocalRectFilledPrimitives { get; init; } = [];
-        public UiCircleFilledPrimitive[] LocalCircleFilledPrimitives { get; init; } = [];
+        public required ulong LocalStaticGeometryStamp { get; set; }
+        public required ulong LocalCommandScheduleShapeStamp { get; set; }
         public required UiPooledList<UiDrawVertex> LocalVertexList { get; init; }
         public required UiPooledList<uint> LocalIndexList { get; init; }
         public UiPooledList<UiRectFilledPrimitive>? LocalRectFilledPrimitiveList { get; init; }
         public UiPooledList<UiCircleFilledPrimitive>? LocalCircleFilledPrimitiveList { get; init; }
 
-        public UiDrawVertex[]? ReplayVertices;
-        public UiRectFilledPrimitive[]? ReplayRectFilledPrimitives;
-        public UiCircleFilledPrimitive[]? ReplayCircleFilledPrimitives;
         public UiDrawCommand[]? ReplayCommands;
-        public UiPooledList<UiDrawVertex>? ReplayVertexList;
-        public UiPooledList<UiRectFilledPrimitive>? ReplayRectFilledPrimitiveList;
-        public UiPooledList<UiCircleFilledPrimitive>? ReplayCircleFilledPrimitiveList;
         public UiPooledList<UiDrawCommand>? ReplayCommandList;
         public UiDrawList? ReplayDrawList;
         public UiVector2 ReplayTranslation;
@@ -41,7 +33,6 @@ public sealed partial class UiImmediateContext
     private sealed class UiLayerCacheEntry
     {
         public UiLayerCachedList[]? Lists;
-        public int Version;
         public bool Dirty = true;
     }
 
@@ -99,7 +90,7 @@ public sealed partial class UiImmediateContext
         var captureLocalClip = nextOptions.StaticCache ? CreateStaticLayerCaptureClip() : layerLocalClip;
         var layerBuilder = new UiDrawListBuilder(captureLocalClip);
         layerBuilder._SetDrawListSharedData(GetDrawListSharedData());
-        layerBuilder.PushTexture(_fontTexture);
+        layerBuilder.PushTexture(_whiteTexture);
 
         _builderStack.Push(_builder);
         _builder = layerBuilder;
@@ -171,12 +162,7 @@ public sealed partial class UiImmediateContext
         {
             if (HasRenderableLayerContent(drawLists))
             {
-                unchecked
-                {
-                    entry.Version++;
-                }
-
-                entry.Lists = CaptureLayerLists(frame.LayerId, entry.Version, drawLists);
+                entry.Lists = CaptureLayerLists(frame.LayerId, drawLists, entry.Lists);
                 entry.Dirty = false;
                 ReleaseLayerDrawLists(drawLists);
 
@@ -232,27 +218,41 @@ public sealed partial class UiImmediateContext
         }
     }
 
-    private static UiLayerCachedList[] CaptureLayerLists(string layerId, int version, UiDrawList[] drawLists)
+    private static UiLayerCachedList[] CaptureLayerLists(
+        string layerId,
+        UiDrawList[] drawLists,
+        UiLayerCachedList[]? previousLists)
     {
-        var result = new UiLayerCachedList[drawLists.Length];
+        var result = previousLists is not null && previousLists.Length == drawLists.Length
+            ? previousLists
+            : new UiLayerCachedList[drawLists.Length];
         for (var i = 0; i < drawLists.Length; i++)
         {
             var list = drawLists[i];
+            var previous = previousLists is not null && i < previousLists.Length ? previousLists[i] : null;
+            if (previous is not null && TryRefreshLayerCachedList(previous, list))
+            {
+                result[i] = previous;
+                continue;
+            }
+
             var localVertices = list.Vertices.AsSpan().ToArray();
             var localIndices = list.Indices.AsSpan().ToArray();
             var localCommands = list.Commands.AsSpan().ToArray();
             var localRects = list.RectFilledPrimitives?.AsSpan().ToArray() ?? [];
             var localCircles = list.CircleFilledPrimitives?.AsSpan().ToArray() ?? [];
+            var localStaticGeometryStamp = UiDrawList.ComputeStaticGeometryStamp(localVertices, localIndices, localRects, localCircles);
+            var localCommandScheduleShapeStamp = UiDrawList.CommandScheduleShapeStampEnabled
+                ? UiDrawList.ComputeCommandScheduleShapeStamp(localCommands)
+                : 0UL;
             result[i] = new UiLayerCachedList
             {
                 BaseStaticGeometryKey = string.Create(
                     CultureInfo.InvariantCulture,
-                    $"{StaticLayerGeometryTagPrefix}{layerId}:v:{version}:list:{i}"),
-                LocalVertices = localVertices,
-                LocalIndices = localIndices,
+                    $"{StaticLayerGeometryTagPrefix}{layerId}:list:{i}"),
                 LocalCommands = localCommands,
-                LocalRectFilledPrimitives = localRects,
-                LocalCircleFilledPrimitives = localCircles,
+                LocalStaticGeometryStamp = localStaticGeometryStamp,
+                LocalCommandScheduleShapeStamp = localCommandScheduleShapeStamp,
                 LocalVertexList = UiPooledList<UiDrawVertex>.FromArray(localVertices),
                 LocalIndexList = UiPooledList<uint>.FromArray(localIndices),
                 LocalRectFilledPrimitiveList = localRects.Length == 0 ? null : UiPooledList<UiRectFilledPrimitive>.FromArray(localRects),
@@ -261,6 +261,58 @@ public sealed partial class UiImmediateContext
         }
 
         return result;
+    }
+
+    private static bool TryRefreshLayerCachedList(UiLayerCachedList cached, UiDrawList list)
+    {
+        var localVertices = list.Vertices.AsSpan();
+        var localIndices = list.Indices.AsSpan();
+        var localCommands = list.Commands.AsSpan();
+        var localRects = list.RectFilledPrimitives is null
+            ? ReadOnlySpan<UiRectFilledPrimitive>.Empty
+            : list.RectFilledPrimitives.AsSpan();
+        var localCircles = list.CircleFilledPrimitives is null
+            ? ReadOnlySpan<UiCircleFilledPrimitive>.Empty
+            : list.CircleFilledPrimitives.AsSpan();
+
+        if (cached.LocalVertexList.Count != localVertices.Length
+            || cached.LocalIndexList.Count != localIndices.Length
+            || cached.LocalCommands.Length != localCommands.Length
+            || (cached.LocalRectFilledPrimitiveList?.Count ?? 0) != localRects.Length
+            || (cached.LocalCircleFilledPrimitiveList?.Count ?? 0) != localCircles.Length)
+        {
+            return false;
+        }
+
+        if (!cached.LocalVertexList.TryOverwriteSameLength(localVertices)
+            || !cached.LocalIndexList.TryOverwriteSameLength(localIndices)
+            || !TryOverwriteLayerPrimitiveList(cached.LocalRectFilledPrimitiveList, localRects)
+            || !TryOverwriteLayerPrimitiveList(cached.LocalCircleFilledPrimitiveList, localCircles))
+        {
+            return false;
+        }
+
+        localCommands.CopyTo(cached.LocalCommands);
+        cached.LocalStaticGeometryStamp = UiDrawList.ComputeStaticGeometryStamp(
+            localVertices,
+            localIndices,
+            localRects,
+            localCircles);
+        cached.LocalCommandScheduleShapeStamp = UiDrawList.CommandScheduleShapeStampEnabled
+            ? UiDrawList.ComputeCommandScheduleShapeStamp(localCommands)
+            : 0UL;
+        cached.ReplayValid = false;
+        return true;
+    }
+
+    private static bool TryOverwriteLayerPrimitiveList<T>(UiPooledList<T>? cached, ReadOnlySpan<T> source)
+    {
+        if (source.Length == 0)
+        {
+            return cached is null || cached.Count == 0;
+        }
+
+        return cached is not null && cached.TryOverwriteSameLength(source);
     }
 
     private static bool HasRenderableLayerContent(UiDrawList[] drawLists)
@@ -315,89 +367,12 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        var localVertices = cached.LocalVertices;
-        var applyAlpha = clampedOpacity < 0.999f;
+        var applyOpacity = clampedOpacity < 0.999f;
         var applyTranslation = MathF.Abs(translation.X) > 0.0001f || MathF.Abs(translation.Y) > 0.0001f;
-        var replayVertices = localVertices;
         var replayVertexList = cached.LocalVertexList;
-        var replayRectFilledPrimitives = cached.LocalRectFilledPrimitives;
         var replayRectFilledPrimitiveList = cached.LocalRectFilledPrimitiveList;
-        var replayCircleFilledPrimitives = cached.LocalCircleFilledPrimitives;
         var replayCircleFilledPrimitiveList = cached.LocalCircleFilledPrimitiveList;
-        if (applyAlpha)
-        {
-            replayVertices = cached.ReplayVertices;
-            if (replayVertices is null || replayVertices.Length != localVertices.Length)
-            {
-                replayVertices = new UiDrawVertex[localVertices.Length];
-                cached.ReplayVertices = replayVertices;
-                cached.ReplayVertexList = UiPooledList<UiDrawVertex>.FromArray(replayVertices);
-            }
-            else if (cached.ReplayVertexList is null)
-            {
-                cached.ReplayVertexList = UiPooledList<UiDrawVertex>.FromArray(replayVertices);
-            }
-            replayVertexList = cached.ReplayVertexList;
-
-            for (var i = 0; i < localVertices.Length; i++)
-            {
-                var vertex = localVertices[i];
-                var rgba = vertex.Color.Rgba;
-                var alpha = (uint)((rgba >> 24) & 0xFFu);
-                var nextAlpha = (uint)Math.Clamp((int)MathF.Round(alpha * clampedOpacity), 0, 255);
-                replayVertices[i] = vertex with { Color = new UiColor((rgba & 0x00FFFFFFu) | (nextAlpha << 24)) };
-            }
-
-            var localRects = cached.LocalRectFilledPrimitives;
-            replayRectFilledPrimitives = cached.ReplayRectFilledPrimitives;
-            if (replayRectFilledPrimitives is null || replayRectFilledPrimitives.Length != localRects.Length)
-            {
-                replayRectFilledPrimitives = new UiRectFilledPrimitive[localRects.Length];
-                cached.ReplayRectFilledPrimitives = replayRectFilledPrimitives;
-                cached.ReplayRectFilledPrimitiveList = replayRectFilledPrimitives.Length == 0
-                    ? null
-                    : UiPooledList<UiRectFilledPrimitive>.FromArray(replayRectFilledPrimitives);
-            }
-            else if (cached.ReplayRectFilledPrimitiveList is null && replayRectFilledPrimitives.Length > 0)
-            {
-                cached.ReplayRectFilledPrimitiveList = UiPooledList<UiRectFilledPrimitive>.FromArray(replayRectFilledPrimitives);
-            }
-            replayRectFilledPrimitiveList = cached.ReplayRectFilledPrimitiveList;
-
-            for (var i = 0; i < localRects.Length; i++)
-            {
-                var primitive = localRects[i];
-                var rgba = primitive.Color.Rgba;
-                var alpha = (uint)((rgba >> 24) & 0xFFu);
-                var nextAlpha = (uint)Math.Clamp((int)MathF.Round(alpha * clampedOpacity), 0, 255);
-                replayRectFilledPrimitives[i] = primitive with { Color = new UiColor((rgba & 0x00FFFFFFu) | (nextAlpha << 24)) };
-            }
-
-            var localCircles = cached.LocalCircleFilledPrimitives;
-            replayCircleFilledPrimitives = cached.ReplayCircleFilledPrimitives;
-            if (replayCircleFilledPrimitives is null || replayCircleFilledPrimitives.Length != localCircles.Length)
-            {
-                replayCircleFilledPrimitives = new UiCircleFilledPrimitive[localCircles.Length];
-                cached.ReplayCircleFilledPrimitives = replayCircleFilledPrimitives;
-                cached.ReplayCircleFilledPrimitiveList = replayCircleFilledPrimitives.Length == 0
-                    ? null
-                    : UiPooledList<UiCircleFilledPrimitive>.FromArray(replayCircleFilledPrimitives);
-            }
-            else if (cached.ReplayCircleFilledPrimitiveList is null && replayCircleFilledPrimitives.Length > 0)
-            {
-                cached.ReplayCircleFilledPrimitiveList = UiPooledList<UiCircleFilledPrimitive>.FromArray(replayCircleFilledPrimitives);
-            }
-            replayCircleFilledPrimitiveList = cached.ReplayCircleFilledPrimitiveList;
-
-            for (var i = 0; i < localCircles.Length; i++)
-            {
-                var primitive = localCircles[i];
-                var rgba = primitive.Color.Rgba;
-                var alpha = (uint)((rgba >> 24) & 0xFFu);
-                var nextAlpha = (uint)Math.Clamp((int)MathF.Round(alpha * clampedOpacity), 0, 255);
-                replayCircleFilledPrimitives[i] = primitive with { Color = new UiColor((rgba & 0x00FFFFFFu) | (nextAlpha << 24)) };
-            }
-        }
+        var replayStaticGeometryStamp = cached.LocalStaticGeometryStamp;
 
         var localCommands = cached.LocalCommands;
         var replayCommands = cached.ReplayCommands;
@@ -439,15 +414,15 @@ public sealed partial class UiImmediateContext
             replayCommand = replayCommand with
             {
                 ClipRect = new UiRect(clipMinX, clipMinY, clipWidth, clipHeight),
-                Translation = applyTranslation ? translation : default
+                Translation = applyTranslation ? translation : default,
+                Opacity = applyOpacity ? clampedOpacity * localCommand.Opacity : localCommand.Opacity
             };
 
             replayCommands[i] = replayCommand with { UserData = null };
         }
 
-        var key = string.Create(
-            CultureInfo.InvariantCulture,
-            $"{cached.BaseStaticGeometryKey}:op:{QuantizeLayerCacheValue(clampedOpacity)}");
+        var key = cached.BaseStaticGeometryKey;
+        var replayCommandScheduleStamp = cached.LocalCommandScheduleShapeStamp;
 
         if (cached.ReplayDrawList is null
             || !ReferenceEquals(cached.ReplayDrawList.Vertices, replayVertexList)
@@ -455,6 +430,8 @@ public sealed partial class UiImmediateContext
             || !ReferenceEquals(cached.ReplayDrawList.Commands, cached.ReplayCommandList)
             || !ReferenceEquals(cached.ReplayDrawList.RectFilledPrimitives, replayRectFilledPrimitiveList)
             || !ReferenceEquals(cached.ReplayDrawList.CircleFilledPrimitives, replayCircleFilledPrimitiveList)
+            || cached.ReplayDrawList.StaticGeometryStamp != replayStaticGeometryStamp
+            || cached.ReplayDrawList.CommandScheduleStamp != replayCommandScheduleStamp
             || !string.Equals(cached.ReplayDrawList.StaticGeometryKey, key, StringComparison.Ordinal))
         {
             cached.ReplayDrawList = new UiDrawList(
@@ -464,17 +441,14 @@ public sealed partial class UiImmediateContext
                 OwnsBuffers: false,
                 StaticGeometryKey: key,
                 RectFilledPrimitives: replayRectFilledPrimitiveList,
-                CircleFilledPrimitives: replayCircleFilledPrimitiveList);
+                CircleFilledPrimitives: replayCircleFilledPrimitiveList,
+                StaticGeometryStamp: replayStaticGeometryStamp,
+                CommandScheduleStamp: replayCommandScheduleStamp);
         }
         cached.ReplayOpacity = clampedOpacity;
         cached.ReplayTranslation = translation;
         cached.ReplayLocalClip = layerLocalClip;
         cached.ReplayValid = true;
-    }
-
-    private static int QuantizeLayerCacheValue(float value)
-    {
-        return (int)MathF.Round(value * 100f);
     }
 
     private static void ReleaseLayerDrawLists(UiDrawList[]? drawLists)

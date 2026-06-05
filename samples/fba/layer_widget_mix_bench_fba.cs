@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using Duxel.App;
@@ -49,6 +50,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
     private readonly string? _benchOutputPath = Environment.GetEnvironmentVariable("DUXEL_LAYER_WIDGET_BENCH_OUT");
     private readonly int[] _densityScales = ReadDensityScales();
     private readonly double _phaseSeconds = ReadPhaseSeconds();
+    private readonly double _warmupSeconds = BenchOptions.ReadDouble("DUXEL_LAYER_WIDGET_WARMUP_SECONDS", 0.25d, minExclusive: 0d);
 
     private readonly List<string> _benchRecords = [];
     private readonly List<PhaseSpec> _phases = [];
@@ -59,10 +61,10 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
 
     private int _phaseIndex;
     private double _phaseElapsed;
-    private double _phaseFpsSum;
+    private double _phaseMeasuredSeconds;
     private int _phaseSampleCount;
 
-    private double _lastTime;
+    private double _lastWallTime;
     private readonly UiFpsCounter _fpsCounter = new(0.25d);
     private float _fps;
 
@@ -77,8 +79,9 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
         InitializeIfNeeded();
 
         var now = ui.GetTime();
-        var delta = _lastTime == 0d ? 0.016d : Math.Clamp(now - _lastTime, 0d, 0.05d);
-        _lastTime = now;
+        var wallNow = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
+        var delta = _lastWallTime == 0d ? 0.016d : Math.Max(0.000001d, wallNow - _lastWallTime);
+        _lastWallTime = wallNow;
 
         UpdateFps(delta);
         TickBenchmark(ui, delta);
@@ -152,18 +155,18 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
         }
 
         _phaseElapsed += delta;
-        if (_fps > 0f)
+        if (_phaseElapsed >= _warmupSeconds && delta > 0d)
         {
-            _phaseFpsSum += _fps;
+            _phaseMeasuredSeconds += delta;
             _phaseSampleCount++;
         }
 
-        if (_phaseElapsed < _phaseSeconds)
+        if (_phaseElapsed < _warmupSeconds + _phaseSeconds)
         {
             return;
         }
 
-        var avgFps = _phaseSampleCount > 0 ? _phaseFpsSum / _phaseSampleCount : 0d;
+        var avgFps = _phaseMeasuredSeconds > 0d ? _phaseSampleCount / _phaseMeasuredSeconds : 0d;
         var phase = _phases[_phaseIndex];
         _benchRecords.Add(string.Format(
             CultureInfo.InvariantCulture,
@@ -178,7 +181,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
 
         _phaseIndex++;
         _phaseElapsed = 0d;
-        _phaseFpsSum = 0d;
+        _phaseMeasuredSeconds = 0d;
         _phaseSampleCount = 0;
 
         if (_phaseIndex >= _phases.Count)
@@ -199,7 +202,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
             return;
         }
 
-        var json = $"{{\"phaseSeconds\":{_phaseSeconds.ToString(CultureInfo.InvariantCulture)},\"records\":[{string.Join(',', _benchRecords)}]}}";
+        var json = $"{{\"phaseSeconds\":{_phaseSeconds.ToString(CultureInfo.InvariantCulture)},\"warmupSeconds\":{_warmupSeconds.ToString(CultureInfo.InvariantCulture)},\"records\":[{string.Join(',', _benchRecords)}]}}";
         File.WriteAllText(_benchOutputPath!, json);
     }
 
@@ -218,6 +221,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
         ui.TextV("Phase: {0}/{1}", Math.Min(_phaseIndex + 1, Math.Max(1, _phases.Count)), Math.Max(1, _phases.Count));
         ui.TextV("Cache: {0}", _cacheEnabled ? "ON" : "OFF");
         ui.Text("Backend: DrawList");
+        ui.TextV("Warmup: {0:0.00}s", _warmupSeconds);
         ui.TextV("Density Scale: {0}%", _densityScale);
 
         if (ui.Button("Mark All Layers Dirty"))

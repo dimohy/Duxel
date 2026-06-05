@@ -11,10 +11,7 @@ using System.Runtime.InteropServices;
 using Duxel.App;
 using Duxel.Core;
 
-var profileName = Environment.GetEnvironmentVariable("DUXEL_APP_PROFILE");
-var profile = string.Equals(profileName, "render", StringComparison.OrdinalIgnoreCase)
-    ? DuxelPerformanceProfile.Render
-    : DuxelPerformanceProfile.Display;
+var profile = ReadStartupProfile();
 
 DuxelApp.Run(new DuxelAppOptions
 {
@@ -31,9 +28,50 @@ DuxelApp.Run(new DuxelAppOptions
     Screen = new PerfTestScreen(profile)
 });
 
+static DuxelPerformanceProfile ReadStartupProfile()
+{
+    if (TryParseProfile(Environment.GetEnvironmentVariable("DUXEL_PERF_PROFILE"), out var profile))
+    {
+        return profile;
+    }
+
+    if (TryParseProfile(Environment.GetEnvironmentVariable("DUXEL_APP_PROFILE"), out profile))
+    {
+        return profile;
+    }
+
+    return DuxelPerformanceProfile.Render;
+}
+
+static bool TryParseProfile(string? raw, out DuxelPerformanceProfile profile)
+{
+    profile = DuxelPerformanceProfile.Display;
+    if (string.IsNullOrWhiteSpace(raw))
+    {
+        return false;
+    }
+
+    var value = raw.Trim();
+    if (string.Equals(value, "render", StringComparison.OrdinalIgnoreCase))
+    {
+        profile = DuxelPerformanceProfile.Render;
+        return true;
+    }
+
+    if (string.Equals(value, "display", StringComparison.OrdinalIgnoreCase))
+    {
+        profile = DuxelPerformanceProfile.Display;
+        return true;
+    }
+
+    return false;
+}
+
 public sealed class PerfTestScreen : UiScreen
 {
     private const string PerfGlobalStaticTag = "duxel.global.static:perf-test:backdrop:v1";
+    private const int RenderProfileMsaaSamples = 1;
+    private const int DisplayProfileMsaaSamples = 4;
     private const float MinCollisionCellSize = 24f;
     private const float CollisionHitDecayPerSecond = 2.4f;
     private const float CollisionHitShrinkMax = 0.22f;
@@ -54,8 +92,7 @@ public sealed class PerfTestScreen : UiScreen
     private readonly double _benchDurationSeconds = ReadBenchDurationSeconds();
     private readonly string? _benchOutputPath = Environment.GetEnvironmentVariable("DUXEL_PERF_BENCH_OUT");
     private readonly int _initialPolygons = ReadInitialPolygonCount();
-    private readonly DuxelPerformanceProfile _startupProfile;
-    private bool _renderProfileForNextLaunch;
+    private DuxelPerformanceProfile _activeProfile;
     private bool _initialized;
     private double _benchElapsedSeconds;
     private double _benchFpsSum;
@@ -63,7 +100,9 @@ public sealed class PerfTestScreen : UiScreen
     private bool _benchCompleted;
     private bool _enableGlobalStaticCache = ReadGlobalStaticCacheEnabled();
     private UiPooledList<UiDrawList>? _globalStaticCache;
+    private UiDrawList[] _globalStaticReferences = [];
     private UiRect _globalStaticCacheBounds;
+    private bool _globalStaticCacheReleasePending;
     private readonly Dictionary<long, int> _collisionCellHeads = new(4096);
     private int[] _collisionNext = [];
     private float[] _collisionRadii = [];
@@ -72,12 +111,13 @@ public sealed class PerfTestScreen : UiScreen
 
     public PerfTestScreen(DuxelPerformanceProfile startupProfile)
     {
-        _startupProfile = startupProfile;
-        _renderProfileForNextLaunch = startupProfile == DuxelPerformanceProfile.Render;
+        _activeProfile = startupProfile;
     }
 
     public override void Render(UiImmediateContext ui)
     {
+        ReleaseGlobalStaticCacheIfPending();
+
         var now = ui.GetTime();
         var delta = _lastTime == 0 ? 0.016 : Math.Clamp(now - _lastTime, 0.0, 0.05);
         _lastTime = now;
@@ -105,7 +145,7 @@ public sealed class PerfTestScreen : UiScreen
 
     private static bool ReadGlobalStaticCacheEnabled()
     {
-        return BenchOptions.ReadBool("DUXEL_PERF_GLOBAL_STATIC_CACHE", defaultValue: false);
+        return BenchOptions.ReadBool("DUXEL_PERF_GLOBAL_STATIC_CACHE", defaultValue: true);
     }
 
     private void EnsureInitialized(UiRect bounds)
@@ -157,14 +197,15 @@ public sealed class PerfTestScreen : UiScreen
         {
             var json = string.Format(
                 CultureInfo.InvariantCulture,
-                "{{\"avgFps\":{0:0.###},\"samples\":{1},\"elapsedSeconds\":{2:0.###},\"vsync\":{3},\"msaa\":{4},\"count\":{5},\"globalStaticCache\":{6}}}",
+                "{{\"avgFps\":{0:0.###},\"samples\":{1},\"elapsedSeconds\":{2:0.###},\"vsync\":{3},\"msaa\":{4},\"count\":{5},\"globalStaticCache\":{6},\"profile\":\"{7}\"}}",
                 avgFps,
                 _benchFpsSamples,
                 _benchElapsedSeconds,
                 vsync.ToString().ToLowerInvariant(),
                 msaaSamples,
                 _polygons.Count,
-                _enableGlobalStaticCache.ToString().ToLowerInvariant()
+                _enableGlobalStaticCache.ToString().ToLowerInvariant(),
+                GetProfileName(_activeProfile)
             );
             File.WriteAllText(_benchOutputPath!, json);
         }
@@ -215,12 +256,9 @@ public sealed class PerfTestScreen : UiScreen
         if (_enableGlobalStaticCache)
         {
             EnsureGlobalStaticCache(clip, whiteTexture);
-            if (_globalStaticCache is not null)
+            for (var i = 0; i < _globalStaticReferences.Length; i++)
             {
-                for (var i = 0; i < _globalStaticCache.Count; i++)
-                {
-                    drawList.Append(_globalStaticCache[i]);
-                }
+                drawList.AppendRetainedStaticReference(_globalStaticReferences[i]);
             }
         }
         else
@@ -267,6 +305,9 @@ public sealed class PerfTestScreen : UiScreen
         if (ui.SliderInt("MSAA", ref msaaSamples, 1, 8))
         {
             ui.SetMsaaSamples(msaaSamples);
+            _activeProfile = msaaSamples <= RenderProfileMsaaSamples
+                ? DuxelPerformanceProfile.Render
+                : DuxelPerformanceProfile.Display;
         }
         ui.TextV("MSAA: {0}x", ui.GetMsaaSamples());
 
@@ -274,13 +315,16 @@ public sealed class PerfTestScreen : UiScreen
         if (ui.Checkbox("Global Static Cache", ref globalStaticCache))
         {
             _enableGlobalStaticCache = globalStaticCache;
-            InvalidateGlobalStaticCache();
+            ScheduleGlobalStaticCacheRelease();
         }
 
         ui.SeparatorText("Profile");
-        ui.TextV("Current: {0}", _startupProfile == DuxelPerformanceProfile.Render ? "Render" : "Display");
-        ui.Checkbox("Render Profile", ref _renderProfileForNextLaunch);
-        ui.Text("Restart required to apply");
+        ui.TextV("Current: {0}", GetProfileLabel(_activeProfile));
+        var renderProfile = _activeProfile == DuxelPerformanceProfile.Render;
+        if (ui.Checkbox("Render Profile", ref renderProfile))
+        {
+            ApplyProfile(ui, renderProfile ? DuxelPerformanceProfile.Render : DuxelPerformanceProfile.Display);
+        }
         if (ui.Checkbox("Paused", ref _paused))
         {
             if (_paused)
@@ -325,11 +369,11 @@ public sealed class PerfTestScreen : UiScreen
         ui.EndWindow();
     }
 
-    private static void DrawRendererStatusOverlay(UiImmediateContext ui)
+    private void DrawRendererStatusOverlay(UiImmediateContext ui)
     {
         var vsync = ui.GetVSync() ? "ON" : "OFF";
         var msaa = ui.GetMsaaSamples();
-        var text = $"Renderer: VSync {vsync} | MSAA {msaa}x";
+        var text = $"Renderer: {GetProfileLabel(_activeProfile)} | VSync {vsync} | MSAA {msaa}x";
         ui.DrawOverlayText(
             text,
             new UiColor(210, 210, 210),
@@ -338,6 +382,23 @@ public sealed class PerfTestScreen : UiScreen
             background: null,
             margin: new UiVector2(8f, 6f));
     }
+
+    private void ApplyProfile(UiImmediateContext ui, DuxelPerformanceProfile profile)
+    {
+        ui.SetMsaaSamples(GetProfileMsaaSamples(profile));
+        _activeProfile = profile;
+    }
+
+    private static int GetProfileMsaaSamples(DuxelPerformanceProfile profile) =>
+        profile == DuxelPerformanceProfile.Render
+            ? RenderProfileMsaaSamples
+            : DisplayProfileMsaaSamples;
+
+    private static string GetProfileLabel(DuxelPerformanceProfile profile) =>
+        profile == DuxelPerformanceProfile.Render ? "Render" : "Display";
+
+    private static string GetProfileName(DuxelPerformanceProfile profile) =>
+        profile == DuxelPerformanceProfile.Render ? "render" : "display";
 
     private void EnsureGlobalStaticCache(UiRect bounds, UiTextureId whiteTexture)
     {
@@ -360,10 +421,48 @@ public sealed class PerfTestScreen : UiScreen
         builder.PopTexture();
 
         _globalStaticCache = builder.Build();
+        _globalStaticReferences = new UiDrawList[_globalStaticCache.Count];
+        for (var i = 0; i < _globalStaticCache.Count; i++)
+        {
+            var list = _globalStaticCache[i];
+            var staticKey = _globalStaticCache.Count == 1
+                ? PerfGlobalStaticTag
+                : PerfGlobalStaticTag + ":list:" + i.ToString(CultureInfo.InvariantCulture);
+
+            _globalStaticReferences[i] = list with
+            {
+                OwnsBuffers = false,
+                StaticGeometryKey = staticKey,
+                StaticGeometryStamp = list.GetStaticGeometryStamp()
+            };
+        }
+
         _globalStaticCacheBounds = bounds;
     }
 
     private void InvalidateGlobalStaticCache()
+    {
+        _globalStaticCacheReleasePending = false;
+        ReleaseGlobalStaticCacheNow();
+    }
+
+    private void ScheduleGlobalStaticCacheRelease()
+    {
+        _globalStaticCacheReleasePending = _globalStaticCache is not null;
+    }
+
+    private void ReleaseGlobalStaticCacheIfPending()
+    {
+        if (!_globalStaticCacheReleasePending)
+        {
+            return;
+        }
+
+        _globalStaticCacheReleasePending = false;
+        ReleaseGlobalStaticCacheNow();
+    }
+
+    private void ReleaseGlobalStaticCacheNow()
     {
         if (_globalStaticCache is null)
         {
@@ -377,6 +476,7 @@ public sealed class PerfTestScreen : UiScreen
 
         _globalStaticCache.Return();
         _globalStaticCache = null;
+        _globalStaticReferences = [];
     }
 
     private static void DrawStaticBackdrop(UiDrawListBuilder drawList, UiRect bounds, UiTextureId whiteTexture)

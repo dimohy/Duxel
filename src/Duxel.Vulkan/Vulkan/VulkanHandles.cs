@@ -40,6 +40,7 @@ public readonly struct Version32(uint major, uint minor, uint patch)
 [StructLayout(LayoutKind.Sequential)] public struct Pipeline(ulong handle) { public ulong Handle = handle; }
 [StructLayout(LayoutKind.Sequential)] public struct ShaderModule(ulong handle) { public ulong Handle = handle; }
 [StructLayout(LayoutKind.Sequential)] public struct PipelineCache(ulong handle) { public ulong Handle = handle; }
+[StructLayout(LayoutKind.Sequential)] public struct QueryPool(ulong handle) { public ulong Handle = handle; }
 [StructLayout(LayoutKind.Sequential)] public struct DescriptorPool(ulong handle) { public ulong Handle = handle; }
 [StructLayout(LayoutKind.Sequential)] public struct Framebuffer(ulong handle) { public ulong Handle = handle; }
 [StructLayout(LayoutKind.Sequential)] public struct DescriptorSet(ulong handle) { public ulong Handle = handle; }

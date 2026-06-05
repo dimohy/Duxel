@@ -4,6 +4,9 @@
 #:package Duxel.$(platform).App@*-*
 
 using System;
+using Duxel.App;
+using Duxel.Core;
+
 var style = ResolveStyle(Environment.GetEnvironmentVariable("DUXEL_FONT_STYLE"));
 var primaryFontPath = ResolvePrimaryFontPath(style);
 var fontLinearSampling = ResolveBool(Environment.GetEnvironmentVariable("DUXEL_FONT_LINEAR_SAMPLING"), defaultValue: false);
@@ -24,8 +27,7 @@ DuxelApp.Run(new DuxelAppOptions
     },
     Renderer = new DuxelRendererOptions
     {
-        FontLinearSampling = fontLinearSampling,
-        EnableGlobalStaticGeometryCache = true
+        FontLinearSampling = fontLinearSampling
     },
     Screen = new FontStyleValidationScreen(style, primaryFontPath, fontLinearSampling)
 });

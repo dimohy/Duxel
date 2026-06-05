@@ -304,12 +304,20 @@ public sealed record class DuxelRendererOptions
     public DuxelPerformanceProfile Profile { get; init; } = DuxelPerformanceProfile.Display;
     public int MsaaSamples { get; init; } = 0;
     public bool FontLinearSampling { get; init; } = false;
+    public DuxelTextRenderingMode TextRendering { get; init; } = DuxelTextRenderingMode.DirectText;
 }
 
 public enum DuxelPerformanceProfile
 {
     Display,
     Render,
+}
+
+public enum DuxelTextRenderingMode
+{
+    Auto,
+    DirectText,
+    Atlas,
 }
 
 public sealed record class DuxelFontOptions

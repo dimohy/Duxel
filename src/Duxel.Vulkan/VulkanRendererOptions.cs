@@ -7,5 +7,6 @@ public readonly record struct VulkanRendererOptions(
     bool EnableVSync = true,
     int MsaaSamples = 4,
     bool FontLinearSampling = false,
-    UiTextureId FontTextureId = default
+    UiTextureId FontTextureId = default,
+    UiTextureId WhiteTextureId = default
 );

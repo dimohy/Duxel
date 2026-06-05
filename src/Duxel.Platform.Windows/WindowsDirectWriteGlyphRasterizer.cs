@@ -89,7 +89,8 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
             }
 
             var oversampleFactor = Math.Max(1, oversample);
-            var rasterizedEmSize = MathF.Max(1f, fontSize * sourceScale * oversampleFactor);
+            var logicalEmSize = MathF.Max(1f, fontSize * sourceScale);
+            var rasterizedEmSize = MathF.Max(1f, logicalEmSize * oversampleFactor);
             var glyphIndices = new List<ushort>(text.Length);
             var glyphAdvances = new List<float>(text.Length);
 
@@ -145,13 +146,14 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                 {
                     advanceSum += glyphAdvancesArray[i];
                 }
+                advanceSum /= oversampleFactor;
 
                 var baseline = 0f;
                 var getFontMetrics = GetMethod<GetFontMetricsDelegate>(fontFace, 8);
                 getFontMetrics(fontFace, out var fontMetrics);
                 if (fontMetrics.DesignUnitsPerEm > 0)
                 {
-                    baseline = (fontMetrics.Ascent * rasterizedEmSize) / fontMetrics.DesignUnitsPerEm;
+                    baseline = (fontMetrics.Ascent * logicalEmSize) / fontMetrics.DesignUnitsPerEm;
                 }
 
                 if (!TryExtractAlphaTexture(glyphRunAnalysis, out var alpha, out var rgb, out var width, out var height, out var offsetX, out var offsetY))
@@ -223,7 +225,8 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
             try
             {
                 var oversampleFactor = Math.Max(1, oversample);
-                var rasterizedEmSize = MathF.Max(1f, fontSize * sourceScale * oversampleFactor);
+                var logicalEmSize = MathF.Max(1f, fontSize * sourceScale);
+                var rasterizedEmSize = MathF.Max(1f, logicalEmSize * oversampleFactor);
 
                 var glyphRun = new DWriteGlyphRun
                 {
@@ -371,6 +374,9 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                     {
                         rgb = DownsampleRgb(rgb, srcWidth, srcHeight, oversampleFactor, out _, out _);
                     }
+
+                    offsetX = (int)MathF.Floor(offsetX / (float)oversampleFactor);
+                    offsetY = (int)MathF.Floor(offsetY / (float)oversampleFactor);
                 }
 
                 result = new GlyphRasterizationResult(
@@ -380,7 +386,7 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                     HasPlacementMetrics: true,
                     OffsetX: offsetX,
                     OffsetY: offsetY,
-                    Advance: TryGetGlyphAdvance(fontFace, (ushort)glyphIndex, rasterizedEmSize, out var advance)
+                    Advance: TryGetGlyphAdvance(fontFace, (ushort)glyphIndex, logicalEmSize, out var advance)
                         ? advance
                         : width,
                     Rgb: rgb

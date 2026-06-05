@@ -139,6 +139,9 @@ public sealed unsafe partial class Vk
     public Result CreatePipelineCache(Device device, PipelineCacheCreateInfo* createInfo, AllocationCallbacks* allocator, PipelineCache* pipelineCache) => vkCreatePipelineCache(device, createInfo, allocator, pipelineCache);
     public void DestroyPipelineCache(Device device, PipelineCache pipelineCache, AllocationCallbacks* allocator) => vkDestroyPipelineCache(device, pipelineCache, allocator);
     public Result GetPipelineCacheData(Device device, PipelineCache pipelineCache, nuint* dataSize, byte* data) => vkGetPipelineCacheData(device, pipelineCache, dataSize, data);
+    public Result CreateQueryPool(Device device, QueryPoolCreateInfo* createInfo, AllocationCallbacks* allocator, QueryPool* queryPool) => vkCreateQueryPool(device, createInfo, allocator, queryPool);
+    public void DestroyQueryPool(Device device, QueryPool queryPool, AllocationCallbacks* allocator) => vkDestroyQueryPool(device, queryPool, allocator);
+    public Result GetQueryPoolResults(Device device, QueryPool queryPool, uint firstQuery, uint queryCount, nuint dataSize, void* data, ulong stride, QueryResultFlags flags) => vkGetQueryPoolResults(device, queryPool, firstQuery, queryCount, dataSize, data, stride, flags);
     public Result CreateGraphicsPipelines(Device device, PipelineCache pipelineCache, uint createInfoCount, GraphicsPipelineCreateInfo* createInfos, AllocationCallbacks* allocator, Pipeline* pipelines) => vkCreateGraphicsPipelines(device, pipelineCache, createInfoCount, createInfos, allocator, pipelines);
     public void DestroyPipeline(Device device, Pipeline pipeline, AllocationCallbacks* allocator) => vkDestroyPipeline(device, pipeline, allocator);
     public Result CreateDescriptorPool(Device device, DescriptorPoolCreateInfo* createInfo, AllocationCallbacks* allocator, DescriptorPool* descriptorPool) => vkCreateDescriptorPool(device, createInfo, allocator, descriptorPool);
@@ -157,6 +160,8 @@ public sealed unsafe partial class Vk
     public Result BeginCommandBuffer(CommandBuffer commandBuffer, CommandBufferBeginInfo* beginInfo) => vkBeginCommandBuffer(commandBuffer, beginInfo);
     public Result EndCommandBuffer(CommandBuffer commandBuffer) => vkEndCommandBuffer(commandBuffer);
     public void CmdExecuteCommands(CommandBuffer commandBuffer, uint commandBufferCount, CommandBuffer* commandBuffers) => vkCmdExecuteCommands(commandBuffer, commandBufferCount, commandBuffers);
+    public void CmdResetQueryPool(CommandBuffer commandBuffer, QueryPool queryPool, uint firstQuery, uint queryCount) => vkCmdResetQueryPool(commandBuffer, queryPool, firstQuery, queryCount);
+    public void CmdWriteTimestamp(CommandBuffer commandBuffer, PipelineStageFlags pipelineStage, QueryPool queryPool, uint query) => vkCmdWriteTimestamp(commandBuffer, pipelineStage, queryPool, query);
     public Result CreateFence(Device device, FenceCreateInfo* createInfo, AllocationCallbacks* allocator, Fence* fence) => vkCreateFence(device, createInfo, allocator, fence);
     public void DestroyFence(Device device, Fence fence, AllocationCallbacks* allocator) => vkDestroyFence(device, fence, allocator);
     public Result ResetFences(Device device, uint fenceCount, Fence* fences) => vkResetFences(device, fenceCount, fences);
@@ -269,6 +274,12 @@ public sealed unsafe partial class Vk
     private static partial void vkDestroyPipelineCache(Device device, PipelineCache pipelineCache, AllocationCallbacks* allocator);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetPipelineCacheData")]
     private static partial Result vkGetPipelineCacheData(Device device, PipelineCache pipelineCache, nuint* dataSize, byte* data);
+    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateQueryPool")]
+    private static partial Result vkCreateQueryPool(Device device, QueryPoolCreateInfo* createInfo, AllocationCallbacks* allocator, QueryPool* queryPool);
+    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyQueryPool")]
+    private static partial void vkDestroyQueryPool(Device device, QueryPool queryPool, AllocationCallbacks* allocator);
+    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetQueryPoolResults")]
+    private static partial Result vkGetQueryPoolResults(Device device, QueryPool queryPool, uint firstQuery, uint queryCount, nuint dataSize, void* data, ulong stride, QueryResultFlags flags);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateGraphicsPipelines")]
     private static partial Result vkCreateGraphicsPipelines(Device device, PipelineCache pipelineCache, uint createInfoCount, GraphicsPipelineCreateInfo* createInfos, AllocationCallbacks* allocator, Pipeline* pipelines);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyPipeline")]
@@ -305,6 +316,10 @@ public sealed unsafe partial class Vk
     private static partial Result vkEndCommandBuffer(CommandBuffer commandBuffer);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdExecuteCommands")]
     private static partial void vkCmdExecuteCommands(CommandBuffer commandBuffer, uint commandBufferCount, CommandBuffer* commandBuffers);
+    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdResetQueryPool")]
+    private static partial void vkCmdResetQueryPool(CommandBuffer commandBuffer, QueryPool queryPool, uint firstQuery, uint queryCount);
+    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdWriteTimestamp")]
+    private static partial void vkCmdWriteTimestamp(CommandBuffer commandBuffer, PipelineStageFlags pipelineStage, QueryPool queryPool, uint query);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateFence")]
     private static partial Result vkCreateFence(Device device, FenceCreateInfo* createInfo, AllocationCallbacks* allocator, Fence* fence);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyFence")]

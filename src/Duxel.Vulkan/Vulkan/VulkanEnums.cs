@@ -3,6 +3,7 @@ namespace Duxel.Vulkan;
 public enum Result : int
 {
     Success = 0,
+    NotReady = 1,
     SuboptimalKhr = 1000001003,
     ErrorOutOfDateKhr = -1000001004,
     ErrorSurfaceLostKhr = -1000000000,
@@ -20,6 +21,7 @@ public enum StructureType : int
     BindSparseInfo = 7,
     FenceCreateInfo = 8,
     SemaphoreCreateInfo = 9,
+    QueryPoolCreateInfo = 11,
     CommandBufferAllocateInfo = 40,
     CommandBufferInheritanceInfo = 41,
     CommandBufferBeginInfo = 42,
@@ -59,6 +61,8 @@ public enum StructureType : int
 public enum QueueFlags : uint
 {
     GraphicsBit = 0x00000001,
+    ComputeBit = 0x00000002,
+    TransferBit = 0x00000004,
 }
 
 [Flags]
@@ -309,6 +313,7 @@ public enum Format : int
     R32Uint = 98,
     R32Sfloat = 100,
     R32G32Sfloat = 103,
+    R32G32B32Sfloat = 106,
     R32G32B32A32Sfloat = 109,
     R8G8B8A8Unorm = 37,
     R8G8B8A8Srgb = 43,
@@ -381,9 +386,37 @@ public enum PresentModeKHR : int
     FifoKhr = 2,
 }
 
+[Flags]
+public enum PipelineStatisticFlags : uint
+{
+    None = 0,
+}
+
 public enum PrimitiveTopology : int
 {
     TriangleList = 3,
+}
+
+[Flags]
+public enum QueryPoolCreateFlags : uint
+{
+    None = 0,
+}
+
+[Flags]
+public enum QueryResultFlags : uint
+{
+    Result64Bit = 0x00000001,
+    WaitBit = 0x00000002,
+    WithAvailabilityBit = 0x00000004,
+    PartialBit = 0x00000008,
+}
+
+public enum QueryType : int
+{
+    Occlusion = 0,
+    PipelineStatistics = 1,
+    Timestamp = 2,
 }
 
 public enum SamplerAddressMode : int

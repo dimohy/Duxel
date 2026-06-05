@@ -60,6 +60,8 @@ public sealed partial class UiImmediateContext
     private string? _directTextSecondaryFontPath;
     private IPlatformTextBackend? _platformTextBackend;
     private float _directTextBaseFontSize;
+    private bool _directTextEnabled;
+    private bool _directTextFallbackEnabled;
     private float _contentScale = 1f;
     public float ContentScale => _contentScale;
     private readonly Dictionary<DirectTextCacheKey, DirectTextCacheEntry> _directTextCache = new();
@@ -69,6 +71,10 @@ public sealed partial class UiImmediateContext
     private nuint _nextDirectTextTextureId = 2_100_000_000;
     private const int DirectTextCacheMaxEntries = 512;
     private const int DirectTextCacheMaxIdleFrames = 600;
+    private const int DirectTextAtlasPageSize = 1024;
+    private const int DirectTextAtlasPadding = 1;
+    private static readonly bool DirectTextAtlasPagesEnabled = IsDirectTextAtlasPageEnabled();
+    private readonly List<DirectTextAtlasPage> _directTextAtlasPages = [];
 
     private readonly UiDrawListBuilder _baseBuilder;
     private readonly UiDrawListBuilder _overlayBuilder;
@@ -149,11 +155,61 @@ public sealed partial class UiImmediateContext
 
     private readonly record struct UiFontState(UiFontAtlas FontAtlas, float LineHeight, UiTextureId FontTexture);
     private readonly record struct UiFontSizeState(float PreviousPushedSize, UiFontAtlas FontAtlas, float LineHeight, UiTextureId FontTexture);
-    private readonly record struct DirectTextCacheKey(string FontPath, string Text, int SizeQuarter);
-    private readonly record struct DirectTextCacheEntry(UiTextureId? TextureId, int Width, int Height, float Advance, float Baseline, float FontAscent, int LastUsedFrame, ReadOnlyMemory<byte> PendingPixels);
+    private readonly record struct DirectTextCacheKey(string FontPath, string? SecondaryFontPath, string Text, int SizeQuarter);
+    private readonly record struct DirectTextCacheEntry(
+        UiTextureId? TextureId,
+        int Width,
+        int Height,
+        float Advance,
+        float Baseline,
+        float FontAscent,
+        int LastUsedFrame,
+        ReadOnlyMemory<byte> PendingPixels,
+        int AtlasPageIndex = -1,
+        float U0 = 0f,
+        float V0 = 0f,
+        float U1 = 1f,
+        float V1 = 1f);
     private readonly record struct UiWindowCanvasState(UiDrawListBuilder DrawList, UiVector2 Origin, UiRect Rect, bool HasClipRect);
     private readonly record struct StyleColorEntry(UiStyleColor Color, UiColor Previous);
     private readonly record struct StyleVarEntry(UiStyleVar Var, float PrevX, float PrevY, bool IsVector);
+    private sealed class DirectTextAtlasPage(UiTextureId textureId, int width, int height)
+    {
+        public UiTextureId TextureId { get; } = textureId;
+        public int Width { get; } = width;
+        public int Height { get; } = height;
+        public byte[] Pixels { get; } = new byte[width * height * 4];
+        public int CursorX;
+        public int CursorY;
+        public int RowHeight;
+        public int LiveEntryCount;
+        public bool TextureCreated;
+        public bool NeedsFullUpload;
+
+        public void Reset()
+        {
+            Array.Clear(Pixels);
+            CursorX = 0;
+            CursorY = 0;
+            RowHeight = 0;
+            NeedsFullUpload = TextureCreated;
+        }
+    }
+
+    private static bool IsDirectTextAtlasPageEnabled()
+    {
+        var raw = Environment.GetEnvironmentVariable("DUXEL_DIRECT_TEXT_PAGE");
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        var value = raw.Trim();
+        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase);
+    }
     private readonly record struct UiWindowState(
         UiRect WindowRect,
         bool HasWindowRect,
@@ -309,6 +365,8 @@ public sealed partial class UiImmediateContext
         Func<float, UiFontResource?>? resolveFontResource = null,
         string? directTextPrimaryFontPath = null,
         string? directTextSecondaryFontPath = null,
+        bool directTextEnabled = false,
+        bool directTextFallbackEnabled = false,
         IPlatformTextBackend? platformTextBackend = null
     )
     {
@@ -360,6 +418,8 @@ public sealed partial class UiImmediateContext
             resolveFontResource,
             directTextPrimaryFontPath,
             directTextSecondaryFontPath,
+            directTextEnabled,
+            directTextFallbackEnabled,
             platformTextBackend);
     }
 
@@ -393,6 +453,8 @@ public sealed partial class UiImmediateContext
         Func<float, UiFontResource?>? resolveFontResource = null,
         string? directTextPrimaryFontPath = null,
         string? directTextSecondaryFontPath = null,
+        bool directTextEnabled = false,
+        bool directTextFallbackEnabled = false,
         IPlatformTextBackend? platformTextBackend = null)
     {
         ArgumentNullException.ThrowIfNull(state);
@@ -444,6 +506,8 @@ public sealed partial class UiImmediateContext
         _resolveFontResource = resolveFontResource;
         _directTextPrimaryFontPath = directTextPrimaryFontPath;
         _directTextSecondaryFontPath = directTextSecondaryFontPath;
+        _directTextEnabled = directTextEnabled;
+        _directTextFallbackEnabled = directTextFallbackEnabled;
         _platformTextBackend = platformTextBackend;
         _fontTexture = _baseFontTexture;
         TrimDirectTextCache();
@@ -466,13 +530,13 @@ public sealed partial class UiImmediateContext
         _overlayBuilder._SetClipRect(clipRect);
         _baseBuilder._ResetForNewFrame();
         _overlayBuilder._ResetForNewFrame();
-        _baseBuilder.PushTexture(_fontTexture);
-        _overlayBuilder.PushTexture(_fontTexture);
+        _baseBuilder.PushTexture(_whiteTexture);
+        _overlayBuilder.PushTexture(_whiteTexture);
         foreach (var pb in _popupBuilders)
         {
             pb._SetClipRect(clipRect);
             pb._ResetForNewFrame();
-            pb.PushTexture(_fontTexture);
+            pb.PushTexture(_whiteTexture);
         }
         if (reserveVertices > 0 || reserveIndices > 0 || reserveCommands > 0)
         {
@@ -653,6 +717,20 @@ public sealed partial class UiImmediateContext
         _directTextBaseFontSize = size;
     }
 
+    public void SetDirectTextEnabled(bool enabled)
+    {
+        _directTextEnabled = enabled;
+    }
+
+    public bool GetDirectTextEnabled() => _directTextEnabled;
+
+    public void SetDirectTextFallbackEnabled(bool enabled)
+    {
+        _directTextFallbackEnabled = enabled;
+    }
+
+    public bool GetDirectTextFallbackEnabled() => _directTextFallbackEnabled;
+
     public void SetContentScale(float scale)
     {
         _contentScale = MathF.Max(1f, scale);
@@ -751,22 +829,233 @@ public sealed partial class UiImmediateContext
             _lastDirectTextCacheValid = false;
         }
 
-        if (entry.TextureId is { } texId)
+        if (entry.TextureId is not { } texId)
         {
-            QueueTextureUpdate(new UiTextureUpdate(
-                UiTextureUpdateKind.Destroy,
-                texId,
-                UiTextureFormat.Rgba8Unorm,
-                entry.Width,
-                entry.Height,
-                ReadOnlyMemory<byte>.Empty));
+            return;
         }
+
+        if (entry.AtlasPageIndex >= 0 && entry.AtlasPageIndex < _directTextAtlasPages.Count)
+        {
+            var page = _directTextAtlasPages[entry.AtlasPageIndex];
+            if (page.LiveEntryCount > 0)
+            {
+                page.LiveEntryCount--;
+                if (page.LiveEntryCount == 0)
+                {
+                    page.Reset();
+                }
+            }
+
+            return;
+        }
+
+        QueueTextureUpdate(new UiTextureUpdate(
+            UiTextureUpdateKind.Destroy,
+            texId,
+            UiTextureFormat.Rgba8Unorm,
+            entry.Width,
+            entry.Height,
+            ReadOnlyMemory<byte>.Empty));
+    }
+
+    private bool TryAllocateDirectTextAtlasRegion(DirectTextAtlasPage page, int width, int height, out int x, out int y)
+    {
+        x = 0;
+        y = 0;
+        if (width <= 0 || height <= 0 || width > page.Width || height > page.Height)
+        {
+            return false;
+        }
+
+        if (page.CursorX + width > page.Width)
+        {
+            page.CursorX = 0;
+            page.CursorY += page.RowHeight + DirectTextAtlasPadding;
+            page.RowHeight = 0;
+        }
+
+        if (page.CursorY + height > page.Height)
+        {
+            return false;
+        }
+
+        x = page.CursorX;
+        y = page.CursorY;
+        page.CursorX += width + DirectTextAtlasPadding;
+        page.RowHeight = Math.Max(page.RowHeight, height);
+        return true;
+    }
+
+    private DirectTextAtlasPage CreateDirectTextAtlasPage()
+    {
+        var page = new DirectTextAtlasPage(new UiTextureId(_nextDirectTextTextureId++), DirectTextAtlasPageSize, DirectTextAtlasPageSize);
+        _directTextAtlasPages.Add(page);
+        return page;
+    }
+
+    private bool TryPlaceDirectTextInAtlas(DirectTextCacheEntry entry, out DirectTextCacheEntry placed)
+    {
+        placed = entry;
+        if (!DirectTextAtlasPagesEnabled)
+        {
+            return false;
+        }
+
+        if (entry.PendingPixels.IsEmpty
+            || entry.Width <= 0
+            || entry.Height <= 0
+            || entry.Width + DirectTextAtlasPadding * 2 > DirectTextAtlasPageSize
+            || entry.Height + DirectTextAtlasPadding * 2 > DirectTextAtlasPageSize)
+        {
+            return false;
+        }
+
+        var atlasRegionWidth = entry.Width + DirectTextAtlasPadding * 2;
+        var atlasRegionHeight = entry.Height + DirectTextAtlasPadding * 2;
+        DirectTextAtlasPage? page = null;
+        var pageIndex = -1;
+        var x = 0;
+        var y = 0;
+        for (var i = 0; i < _directTextAtlasPages.Count; i++)
+        {
+            var candidate = _directTextAtlasPages[i];
+            if (TryAllocateDirectTextAtlasRegion(candidate, atlasRegionWidth, atlasRegionHeight, out x, out y))
+            {
+                page = candidate;
+                pageIndex = i;
+                break;
+            }
+        }
+
+        if (page is null)
+        {
+            page = CreateDirectTextAtlasPage();
+            pageIndex = _directTextAtlasPages.Count - 1;
+            if (!TryAllocateDirectTextAtlasRegion(page, atlasRegionWidth, atlasRegionHeight, out x, out y))
+            {
+                return false;
+            }
+        }
+
+        var innerX = x + DirectTextAtlasPadding;
+        var innerY = y + DirectTextAtlasPadding;
+        CopyDirectTextBitmapToAtlas(
+            entry.PendingPixels.Span,
+            entry.Width,
+            entry.Height,
+            page.Pixels,
+            page.Width,
+            innerX,
+            innerY,
+            DirectTextAtlasPadding);
+
+        var updateKind = page.TextureCreated ? UiTextureUpdateKind.Update : UiTextureUpdateKind.Create;
+        var uploadRegion = CreateDirectTextAtlasUploadRegion(page.Pixels, page.Width, x, y, atlasRegionWidth, atlasRegionHeight);
+        QueueTextureUpdate(new UiTextureUpdate(
+            updateKind,
+            page.TextureId,
+            UiTextureFormat.Rgba8Unorm,
+            page.Width,
+            page.Height,
+            uploadRegion,
+            x,
+            y,
+            atlasRegionWidth,
+            atlasRegionHeight));
+        page.TextureCreated = true;
+        page.NeedsFullUpload = false;
+
+        page.LiveEntryCount++;
+        placed = entry with
+        {
+            TextureId = page.TextureId,
+            PendingPixels = ReadOnlyMemory<byte>.Empty,
+            AtlasPageIndex = pageIndex,
+            U0 = (float)innerX / page.Width,
+            V0 = (float)innerY / page.Height,
+            U1 = (float)(innerX + entry.Width) / page.Width,
+            V1 = (float)(innerY + entry.Height) / page.Height,
+        };
+        return true;
+    }
+
+    private static void CopyDirectTextBitmapToAtlas(
+        ReadOnlySpan<byte> source,
+        int sourceWidth,
+        int sourceHeight,
+        byte[] destination,
+        int destinationWidth,
+        int destinationX,
+        int destinationY,
+        int borderPadding)
+    {
+        var sourceStride = sourceWidth * 4;
+        var destinationStride = destinationWidth * 4;
+        for (var row = 0; row < sourceHeight; row++)
+        {
+            var sourceRow = source.Slice(row * sourceStride, sourceStride);
+            var destinationOffset = ((destinationY + row) * destinationStride) + (destinationX * 4);
+            sourceRow.CopyTo(destination.AsSpan(destinationOffset, sourceStride));
+        }
+
+        if (borderPadding <= 0)
+        {
+            return;
+        }
+
+        var leftX = destinationX - borderPadding;
+        var rightX = destinationX + sourceWidth;
+        var rowCopyWidth = (sourceWidth + borderPadding * 2) * 4;
+        for (var row = 0; row < sourceHeight; row++)
+        {
+            var rowOffset = (destinationY + row) * destinationStride;
+            var firstPixelOffset = rowOffset + destinationX * 4;
+            var lastPixelOffset = firstPixelOffset + (sourceWidth - 1) * 4;
+            for (var pad = 1; pad <= borderPadding; pad++)
+            {
+                destination.AsSpan(firstPixelOffset, 4).CopyTo(destination.AsSpan(rowOffset + (destinationX - pad) * 4, 4));
+                destination.AsSpan(lastPixelOffset, 4).CopyTo(destination.AsSpan(rowOffset + (rightX + pad - 1) * 4, 4));
+            }
+        }
+
+        var firstInnerRowOffset = destinationY * destinationStride + leftX * 4;
+        var lastInnerRowOffset = (destinationY + sourceHeight - 1) * destinationStride + leftX * 4;
+        for (var pad = 1; pad <= borderPadding; pad++)
+        {
+            destination
+                .AsSpan(firstInnerRowOffset, rowCopyWidth)
+                .CopyTo(destination.AsSpan((destinationY - pad) * destinationStride + leftX * 4, rowCopyWidth));
+            destination
+                .AsSpan(lastInnerRowOffset, rowCopyWidth)
+                .CopyTo(destination.AsSpan((destinationY + sourceHeight + pad - 1) * destinationStride + leftX * 4, rowCopyWidth));
+        }
+    }
+
+    private static ReadOnlyMemory<byte> CreateDirectTextAtlasUploadRegion(
+        byte[] source,
+        int sourceWidth,
+        int x,
+        int y,
+        int width,
+        int height)
+    {
+        var upload = new byte[width * height * 4];
+        var sourceStride = sourceWidth * 4;
+        var uploadStride = width * 4;
+        for (var row = 0; row < height; row++)
+        {
+            source
+                .AsSpan(((y + row) * sourceStride) + x * 4, uploadStride)
+                .CopyTo(upload.AsSpan(row * uploadStride, uploadStride));
+        }
+
+        return upload;
     }
 
     private bool TryMeasureDirectText(string text, UiTextSettings settings, out UiVector2 measured)
     {
         measured = default;
-        if (_platformTextBackend is null || string.IsNullOrWhiteSpace(_directTextPrimaryFontPath))
+        if (!ShouldUseDirectTextForText(text, settings))
         {
             return false;
         }
@@ -796,7 +1085,7 @@ public sealed partial class UiImmediateContext
 
     private bool TryGetOrCreateDirectText(string text, int sizeQuarter, float fontSize, out DirectTextCacheEntry entry)
     {
-        var key = new DirectTextCacheKey(_directTextPrimaryFontPath!, text, sizeQuarter);
+        var key = CreateDirectTextCacheKey(text, sizeQuarter);
         if (_lastDirectTextCacheValid && _lastDirectTextCacheKey.Equals(key))
         {
             entry = _lastDirectTextCacheEntry;
@@ -852,6 +1141,15 @@ public sealed partial class UiImmediateContext
             return entry;
         }
 
+        if (TryPlaceDirectTextInAtlas(entry, out var atlasEntry))
+        {
+            _directTextCache[key] = atlasEntry;
+            _lastDirectTextCacheKey = key;
+            _lastDirectTextCacheEntry = atlasEntry;
+            _lastDirectTextCacheValid = true;
+            return atlasEntry;
+        }
+
         var textureId = new UiTextureId(_nextDirectTextTextureId++);
         QueueTextureUpdate(new UiTextureUpdate(
             UiTextureUpdateKind.Create,
@@ -861,7 +1159,16 @@ public sealed partial class UiImmediateContext
             entry.Height,
             entry.PendingPixels));
 
-        entry = entry with { TextureId = textureId, PendingPixels = ReadOnlyMemory<byte>.Empty };
+        entry = entry with
+        {
+            TextureId = textureId,
+            PendingPixels = ReadOnlyMemory<byte>.Empty,
+            AtlasPageIndex = -1,
+            U0 = 0f,
+            V0 = 0f,
+            U1 = 1f,
+            V1 = 1f,
+        };
         _directTextCache[key] = entry;
         _lastDirectTextCacheKey = key;
         _lastDirectTextCacheEntry = entry;
@@ -871,9 +1178,10 @@ public sealed partial class UiImmediateContext
 
     private UiVector2 MeasureTextInternal(string text, UiTextSettings settings, float lineHeightOverride)
     {
-        if (TryMeasureDirectText(text, settings, out var measured))
+        var effectiveSettings = GetEffectiveTextSettings(settings, lineHeightOverride);
+        if (TryMeasureDirectText(text, effectiveSettings, out var measured))
         {
-            var minLineHeight = lineHeightOverride * settings.LineHeightScale;
+            var minLineHeight = lineHeightOverride * effectiveSettings.LineHeightScale * effectiveSettings.Scale;
             if (measured.Y < minLineHeight)
             {
                 measured = new UiVector2(measured.X, minLineHeight);
@@ -882,7 +1190,53 @@ public sealed partial class UiImmediateContext
             return measured;
         }
 
-        return new UiVector2(0f, lineHeightOverride * settings.LineHeightScale);
+        return MeasureAtlasText(text, effectiveSettings, lineHeightOverride);
+    }
+
+    private UiVector2 MeasureAtlasText(string text, UiTextSettings settings, float lineHeightOverride)
+    {
+        var lineHeight = lineHeightOverride * settings.LineHeightScale;
+        var minLineHeight = lineHeight * settings.Scale;
+        if (string.IsNullOrEmpty(text))
+        {
+            return new UiVector2(0f, minLineHeight);
+        }
+
+        var measured = UiTextBuilder.MeasureText(_fontAtlas, text, settings, lineHeight);
+        return measured.Y < minLineHeight
+            ? new UiVector2(measured.X, minLineHeight)
+            : measured;
+    }
+
+    private UiTextSettings GetEffectiveTextSettings(UiTextSettings settings, float lineHeight)
+    {
+        var baseFontSize = lineHeight * settings.Scale;
+        if (baseFontSize <= 0f)
+        {
+            return settings;
+        }
+
+        var effectiveScale = GetFontSize() / lineHeight;
+        if (MathF.Abs(effectiveScale - settings.Scale) <= 0.000001f)
+        {
+            return settings;
+        }
+
+        return new UiTextSettings(
+            effectiveScale,
+            settings.LineHeightScale,
+            settings.PixelSnap,
+            settings.UseBaseline,
+            settings.UseFallbackGlyph,
+            settings.MissingGlyphObserver);
+    }
+
+    private float GetEffectiveFontScale(UiTextSettings settings, float lineHeight)
+    {
+        var baseFontSize = lineHeight * settings.Scale;
+        return baseFontSize > 0f
+            ? GetFontSize() / baseFontSize
+            : 1f;
     }
 
     private bool TryRenderDirectText(
@@ -895,7 +1249,7 @@ public sealed partial class UiImmediateContext
         out UiVector2 size)
     {
         size = default;
-        if (_platformTextBackend is null || string.IsNullOrWhiteSpace(_directTextPrimaryFontPath) || string.IsNullOrEmpty(text))
+        if (string.IsNullOrEmpty(text) || !ShouldUseDirectTextForText(text, settings))
         {
             return false;
         }
@@ -927,23 +1281,82 @@ public sealed partial class UiImmediateContext
             return true;
         }
 
-        var renderKey = new DirectTextCacheKey(_directTextPrimaryFontPath!, text, sizeQuarter);
+        var renderKey = CreateDirectTextCacheKey(text, sizeQuarter);
         entry = EnsureDirectTextTexture(renderKey, entry);
 
         if (entry.TextureId is { } texId && entry.Width > 0 && entry.Height > 0)
         {
-            drawList.PushClipRect(clipRect, true);
             drawList.AddImage(
                 texId,
                 new UiVector2(position.X, position.Y + yOffset),
                 new UiVector2(position.X + entry.Width * logicalScale, position.Y + yOffset + entry.Height * logicalScale),
-                new UiVector2(0f, 0f),
-                new UiVector2(1f, 1f),
-                color);
-            drawList.PopClipRect();
+                new UiVector2(entry.U0, entry.V0),
+                new UiVector2(entry.U1, entry.V1),
+                color,
+                clipRect);
         }
 
         return true;
+    }
+
+    private DirectTextCacheKey CreateDirectTextCacheKey(string text, int sizeQuarter) =>
+        new(_directTextPrimaryFontPath!, _directTextSecondaryFontPath, text, sizeQuarter);
+
+    private bool ShouldUseDirectTextForText(string text, UiTextSettings settings)
+    {
+        if (!HasDirectTextBackend())
+        {
+            return false;
+        }
+
+        if (_directTextEnabled)
+        {
+            return true;
+        }
+
+        return _directTextFallbackEnabled && TextHasMissingAtlasGlyph(text, settings);
+    }
+
+    private bool HasDirectTextBackend() =>
+        _platformTextBackend is not null && !string.IsNullOrWhiteSpace(_directTextPrimaryFontPath);
+
+    private bool TextHasMissingAtlasGlyph(string text, UiTextSettings settings)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        var span = text.AsSpan();
+        var index = 0;
+        while (index < span.Length)
+        {
+            int codepoint;
+            var c = span[index];
+            if (char.IsHighSurrogate(c) && index + 1 < span.Length && char.IsLowSurrogate(span[index + 1]))
+            {
+                codepoint = char.ConvertToUtf32(c, span[index + 1]);
+                index += 2;
+            }
+            else
+            {
+                codepoint = c;
+                index++;
+            }
+
+            if (codepoint == '\n')
+            {
+                continue;
+            }
+
+            if (!_fontAtlas.TryGetGlyph(codepoint, out _))
+            {
+                settings.MissingGlyphObserver?.Invoke(codepoint);
+                return true;
+            }
+        }
+
+        return false;
     }
 
 
@@ -956,12 +1369,21 @@ public sealed partial class UiImmediateContext
         UiTextSettings settings,
         float lineHeight)
     {
-        if (TryRenderDirectText(drawList, text, position, color, clipRect, settings, out _))
+        var effectiveSettings = GetEffectiveTextSettings(settings, lineHeight);
+        if (TryRenderDirectText(drawList, text, position, color, clipRect, effectiveSettings, out _))
         {
             return;
         }
 
-        return;
+        drawList.AddText(
+            _fontAtlas,
+            text,
+            position,
+            color,
+            _fontTexture,
+            clipRect,
+            effectiveSettings,
+            lineHeight * effectiveSettings.LineHeightScale);
     }
 
     private void AddTextMultilineInternal(
@@ -1531,6 +1953,7 @@ public sealed partial class UiImmediateContext
         {
             var pb = new UiDrawListBuilder(_clipStack.Count > 0 ? _clipStack.Peek() : default);
             pb._SetDrawListSharedData(GetDrawListSharedData());
+            pb.PushTexture(_whiteTexture);
             _popupBuilders.Add(pb);
         }
         return _popupBuilders[depth];
@@ -1933,19 +2356,20 @@ public sealed partial class UiImmediateContext
 
     public UiDrawListSharedData GetDrawListSharedData()
     {
-        var baseFontSize = _lineHeight * _textSettings.Scale;
-        var fontScale = baseFontSize > 0f
-            ? GetFontSize() / baseFontSize
-            : 1f;
+        var fontScale = GetEffectiveFontScale(_textSettings, _lineHeight);
         var scaledSettings = new UiTextSettings(
             _textSettings.Scale * fontScale,
             _textSettings.LineHeightScale,
             _textSettings.PixelSnap,
-            _textSettings.UseBaseline
+            _textSettings.UseBaseline,
+            _textSettings.UseFallbackGlyph,
+            _textSettings.MissingGlyphObserver
         );
         _drawListSharedData.FontAtlas = _fontAtlas;
         _drawListSharedData.TextSettings = scaledSettings;
         _drawListSharedData.LineHeight = _lineHeight;
+        _drawListSharedData.FontTexture = _fontTexture;
+        _drawListSharedData.WhiteTexture = _whiteTexture;
         return _drawListSharedData;
     }
 

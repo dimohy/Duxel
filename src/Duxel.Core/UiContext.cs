@@ -44,6 +44,8 @@ public sealed class UiContext(
     private string? _directTextPrimaryFontPath;
     private string? _directTextSecondaryFontPath;
     private float _directTextBaseFontSize;
+    private bool _directTextEnabled;
+    private bool _directTextFallbackEnabled;
     private float _contentScale = 1f;
     private IPlatformTextBackend? _platformTextBackend;
     private int _reserveVertices;
@@ -158,6 +160,20 @@ public sealed class UiContext(
         _directTextBaseFontSize = size;
     }
 
+    public void SetDirectTextEnabled(bool enabled)
+    {
+        _directTextEnabled = enabled;
+    }
+
+    public bool GetDirectTextEnabled() => _directTextEnabled;
+
+    public void SetDirectTextFallbackEnabled(bool enabled)
+    {
+        _directTextFallbackEnabled = enabled;
+    }
+
+    public bool GetDirectTextFallbackEnabled() => _directTextFallbackEnabled;
+
     public void SetContentScale(float scale)
     {
         _contentScale = MathF.Max(1f, scale);
@@ -212,7 +228,10 @@ public sealed class UiContext(
         {
             var lastIndex = _textureUpdates.Count - 1;
             var last = _textureUpdates[lastIndex];
-            if (last.TextureId.Equals(update.TextureId) && last.Kind == update.Kind)
+            if (last.TextureId.Equals(update.TextureId)
+                && last.Kind == update.Kind
+                && last.CoversEntireTexture
+                && update.CoversEntireTexture)
             {
                 _textureUpdates[lastIndex] = update;
                 return;
@@ -826,6 +845,8 @@ public sealed class UiContext(
                 resolveFontResource: _resolveFontResource,
                 directTextPrimaryFontPath: _directTextPrimaryFontPath,
                 directTextSecondaryFontPath: _directTextSecondaryFontPath,
+                directTextEnabled: _directTextEnabled,
+                directTextFallbackEnabled: _directTextFallbackEnabled,
                 platformTextBackend: _platformTextBackend
             );
             _immediateContext = ui;
@@ -862,11 +883,15 @@ public sealed class UiContext(
                 _resolveFontResource,
                 _directTextPrimaryFontPath,
                 _directTextSecondaryFontPath,
+                _directTextEnabled,
+                _directTextFallbackEnabled,
                 _platformTextBackend
             );
         }
 
         ui.SetDirectTextBaseFontSize(_directTextBaseFontSize);
+        ui.SetDirectTextEnabled(_directTextEnabled);
+        ui.SetDirectTextFallbackEnabled(_directTextFallbackEnabled);
         ui.SetContentScale(_contentScale);
         screen.Render(ui);
         _state.EndFrame();

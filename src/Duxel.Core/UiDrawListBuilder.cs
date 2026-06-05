@@ -9,6 +9,10 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
 {
     private const int MaxVerticesPerList = 60_000;
     private const int MaxIndicesPerList = 120_000;
+    private const int MaxBuilderCommandScheduleCacheEntries = 64;
+    private static readonly bool BuilderCommandSchedulerEnabled = ParseBooleanEnvironmentFlag("DUXEL_UI_COMMAND_SCHEDULER");
+    private static readonly int CommandSchedulerMaxWindow = ParsePositiveIntEnvironment("DUXEL_VK_COMMAND_SCHEDULER_MAX_WINDOW", 768);
+    private static readonly Dictionary<ulong, BuilderCommandScheduleCacheEntry> BuilderCommandScheduleCache = new();
 
     private PooledBuffer<UiDrawVertex> _vertices = new();
     private PooledBuffer<uint> _indices = new();
@@ -27,7 +31,22 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
     private readonly List<UiVector2> _scratchPath = [];
     private UiDrawListSharedData? _sharedData;
     private List<Channel>? _channels;
+    private readonly List<Channel> _channelPool = [];
     private int _currentChannel;
+
+    private sealed class BuilderCommandScheduleCacheEntry(int commandCount, UiDrawCommand[] commands)
+    {
+        public int CommandCount { get; } = commandCount;
+        public UiDrawCommand[] Commands { get; } = commands;
+    }
+
+    private enum BuilderCommandSchedulingClass
+    {
+        SolidPrimitive = 0,
+        SolidTriangle = 1,
+        FontTriangle = 2,
+        TexturedTriangle = 3,
+    }
 
     private sealed class Channel(PooledBuffer<UiDrawVertex> vertices, PooledBuffer<uint> indices, PooledBuffer<UiDrawCommand> commands, PooledBuffer<UiRectFilledPrimitive> rectFilledPrimitives, PooledBuffer<UiCircleFilledPrimitive> circleFilledPrimitives, List<UiDrawList> drawLists)
     {
@@ -61,11 +80,11 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
     {
         var primitiveOffset = (uint)_rectFilledPrimitives.Count;
         _rectFilledPrimitives.Add(new UiRectFilledPrimitive(rect, color));
-        AddRectFilledPrimitiveCommand(clipRect, textureId, primitiveOffset);
+        AddRectFilledPrimitiveCommand(clipRect, textureId, primitiveOffset, rect);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void AddRectFilledPrimitiveCommand(UiRect clipRect, UiTextureId textureId, uint primitiveOffset)
+    private void AddRectFilledPrimitiveCommand(UiRect clipRect, UiTextureId textureId, uint primitiveOffset, UiRect bounds)
     {
         var userData = _currentCommandUserData;
         if (_commands.Count > 0)
@@ -79,12 +98,17 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
                 && last.Callback is null
                 && Equals(last.UserData, userData))
             {
-                _commands[^1] = last with { ElementCount = last.ElementCount + 1 };
+                _commands[^1] = last with
+                {
+                    ElementCount = last.ElementCount + 1,
+                    Bounds = last.HasBounds ? Union(last.Bounds, bounds) : bounds,
+                    HasBounds = true
+                };
                 return;
             }
         }
 
-        _commands.Add(new UiDrawCommand(clipRect, textureId, primitiveOffset, 1, 0, UserData: userData, Kind: UiDrawCommandKind.RectFilledPrimitives));
+        _commands.Add(new UiDrawCommand(clipRect, textureId, primitiveOffset, 1, 0, UserData: userData, Kind: UiDrawCommandKind.RectFilledPrimitives, Bounds: bounds, HasBounds: true));
     }
 
     public void AddText(
@@ -170,6 +194,8 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
 
         var segmentStartIndex = (uint)_indices.Count;
         var segmentElementCount = 0;
+        var segmentBounds = default(UiRect);
+        var hasSegmentBounds = false;
 
         // Pre-grow lists once for the batch path, then write via spans
         int vtxWritePos, idxWritePos;
@@ -259,12 +285,14 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             {
                 if (segmentElementCount > 0)
                 {
-                    AddCommand(new UiDrawCommand(clipRect, textureId, segmentStartIndex, (uint)segmentElementCount, 0));
+                    AddCommand(new UiDrawCommand(clipRect, textureId, segmentStartIndex, (uint)segmentElementCount, 0, Bounds: segmentBounds, HasBounds: hasSegmentBounds));
                 }
 
                 Flush();
                 segmentStartIndex = (uint)_indices.Count;
                 segmentElementCount = 0;
+                segmentBounds = default;
+                hasSegmentBounds = false;
             }
 
             var x0 = Snap(x + (glyph.OffsetX * scale), pixelSnap);
@@ -325,6 +353,9 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             }
 
             segmentElementCount += 6;
+            var glyphBounds = new UiRect(x0, y0, x1 - x0, y1 - y0);
+            segmentBounds = hasSegmentBounds ? Union(segmentBounds, glyphBounds) : glyphBounds;
+            hasSegmentBounds = true;
             x = Snap(x + (glyph.AdvanceX * scale), pixelSnap);
             hasPrev = true;
             prevChar = codepoint;
@@ -339,7 +370,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
 
         if (segmentElementCount > 0)
         {
-            AddCommand(new UiDrawCommand(clipRect, textureId, segmentStartIndex, (uint)segmentElementCount, 0));
+            AddCommand(new UiDrawCommand(clipRect, textureId, segmentStartIndex, (uint)segmentElementCount, 0, Bounds: segmentBounds, HasBounds: hasSegmentBounds));
         }
     }
 
@@ -354,11 +385,11 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         segments = Math.Max(3, segments);
         var primitiveOffset = (uint)_circleFilledPrimitives.Count;
         _circleFilledPrimitives.Add(new UiCircleFilledPrimitive(center, radius, color, segments));
-        AddCircleFilledPrimitiveCommand(clipRect, textureId, primitiveOffset, (uint)segments);
+        AddCircleFilledPrimitiveCommand(clipRect, textureId, primitiveOffset, (uint)segments, CreateCircleBounds(center, radius));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void AddCircleFilledPrimitiveCommand(UiRect clipRect, UiTextureId textureId, uint primitiveOffset, uint segments)
+    private void AddCircleFilledPrimitiveCommand(UiRect clipRect, UiTextureId textureId, uint primitiveOffset, uint segments, UiRect bounds)
     {
         var userData = _currentCommandUserData;
         if (_commands.Count > 0)
@@ -373,12 +404,17 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
                 && last.Callback is null
                 && Equals(last.UserData, userData))
             {
-                _commands[^1] = last with { ElementCount = last.ElementCount + 1 };
+                _commands[^1] = last with
+                {
+                    ElementCount = last.ElementCount + 1,
+                    Bounds = last.HasBounds ? Union(last.Bounds, bounds) : bounds,
+                    HasBounds = true
+                };
                 return;
             }
         }
 
-        _commands.Add(new UiDrawCommand(clipRect, textureId, primitiveOffset, 1, segments, UserData: userData, Kind: UiDrawCommandKind.CircleFilledPrimitives));
+        _commands.Add(new UiDrawCommand(clipRect, textureId, primitiveOffset, 1, segments, UserData: userData, Kind: UiDrawCommandKind.CircleFilledPrimitives, Bounds: bounds, HasBounds: true));
     }
 
     public void PushClipRect(UiRect rect, bool intersectWithCurrentClipRect = true)
@@ -457,6 +493,32 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
 
         var dx = p2.X - p1.X;
         var dy = p2.Y - p1.Y;
+        if (dy == 0f)
+        {
+            var width = MathF.Abs(dx);
+            if (width <= 0f)
+            {
+                return;
+            }
+
+            var half = thickness * 0.5f;
+            AddRectFilledGeometry(new UiRect(MathF.Min(p1.X, p2.X), p1.Y - half, width, thickness), color, textureId, _currentClipRect);
+            return;
+        }
+
+        if (dx == 0f)
+        {
+            var height = MathF.Abs(dy);
+            if (height <= 0f)
+            {
+                return;
+            }
+
+            var half = thickness * 0.5f;
+            AddRectFilledGeometry(new UiRect(p1.X - half, MathF.Min(p1.Y, p2.Y), thickness, height), color, textureId, _currentClipRect);
+            return;
+        }
+
         var len = MathF.Sqrt(dx * dx + dy * dy);
         if (len <= 0f)
         {
@@ -478,9 +540,14 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
 
     public void AddRect(UiRect rect, UiColor color, float rounding = 0f, float thickness = 1f)
     {
-        _ = rounding;
         if (thickness <= 0f)
         {
+            return;
+        }
+
+        if (rounding <= 0f)
+        {
+            AddAxisAlignedRectStroke(rect, color, thickness, _currentTexture, _currentClipRect);
             return;
         }
 
@@ -497,6 +564,32 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             new(x0, y1),
         ];
         AddPolyline(points, true, color, thickness);
+    }
+
+    private void AddAxisAlignedRectStroke(UiRect rect, UiColor color, float thickness, UiTextureId textureId, UiRect clipRect)
+    {
+        if (rect.Width <= 0f || rect.Height <= 0f)
+        {
+            return;
+        }
+
+        var half = thickness * 0.5f;
+        var x0 = rect.X - half;
+        var y0 = rect.Y - half;
+        var x1 = rect.X + rect.Width + half;
+        var y1 = rect.Y + rect.Height + half;
+        var width = x1 - x0;
+        var height = y1 - y0;
+
+        AddRectFilledGeometry(new UiRect(x0, y0, width, thickness), color, textureId, clipRect);
+        AddRectFilledGeometry(new UiRect(x0, y1 - thickness, width, thickness), color, textureId, clipRect);
+
+        var sideHeight = height - (thickness * 2f);
+        if (sideHeight > 0f)
+        {
+            AddRectFilledGeometry(new UiRect(x0, y0 + thickness, thickness, sideHeight), color, textureId, clipRect);
+            AddRectFilledGeometry(new UiRect(x1 - thickness, y0 + thickness, thickness, sideHeight), color, textureId, clipRect);
+        }
     }
 
     public void AddRectFilled(UiRect rect, UiColor color)
@@ -522,7 +615,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         _indices.Add(startVertex + 2);
         _indices.Add(startVertex + 3);
 
-        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, 6, 0));
+        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, 6, 0, Bounds: rect, HasBounds: true));
     }
 
     public void AddQuad(UiVector2 a, UiVector2 b, UiVector2 c, UiVector2 d, UiColor color, float thickness = 1f)
@@ -549,7 +642,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         _indices.Add(startVertex + 2);
         _indices.Add(startVertex + 3);
 
-        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, 6, 0));
+        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, 6, 0, Bounds: CreateQuadBounds(a, b, c, d), HasBounds: true));
     }
 
     public void AddQuadFilled(UiVector2 a, UiVector2 b, UiVector2 c, UiVector2 d, UiColor color, UiTextureId textureId)
@@ -570,7 +663,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         _indices.Add(startVertex + 2);
         _indices.Add(startVertex + 3);
 
-        AddCommand(new UiDrawCommand(_currentClipRect, textureId, startIndex, 6, 0));
+        AddCommand(new UiDrawCommand(_currentClipRect, textureId, startIndex, 6, 0, Bounds: CreateQuadBounds(a, b, c, d), HasBounds: true));
     }
 
     public void AddTriangle(UiVector2 a, UiVector2 b, UiVector2 c, UiColor color, float thickness = 1f)
@@ -598,7 +691,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         _indices.Add(startVertex + 1);
         _indices.Add(startVertex + 2);
 
-        AddCommand(new UiDrawCommand(_currentClipRect, textureId, startIndex, 3, 0));
+        AddCommand(new UiDrawCommand(_currentClipRect, textureId, startIndex, 3, 0, Bounds: CreateTriangleBounds(a, b, c), HasBounds: true));
     }
 
     public void AddTriangleFilled(UiVector2 a, UiVector2 b, UiVector2 c, UiColor color, UiTextureId textureId, UiRect clipRect)
@@ -616,7 +709,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         _indices.Add(startVertex + 1);
         _indices.Add(startVertex + 2);
 
-        AddCommand(new UiDrawCommand(clipRect, textureId, startIndex, 3, 0));
+        AddCommand(new UiDrawCommand(clipRect, textureId, startIndex, 3, 0, Bounds: CreateTriangleBounds(a, b, c), HasBounds: true));
     }
 
     public void AddCircle(UiVector2 center, float radius, UiColor color, int segments = 0, float thickness = 1f)
@@ -674,7 +767,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             throw new InvalidOperationException("Draw list shared data is not configured.");
         }
 
-        AddText(_sharedData.FontAtlas, text, position, color, _currentTexture, _currentClipRect, _sharedData.TextSettings, _sharedData.LineHeight);
+        AddText(_sharedData.FontAtlas, text, position, color, _sharedData.FontTexture, _currentClipRect, _sharedData.TextSettings, _sharedData.LineHeight);
     }
 
     public void AddBezierCubic(UiVector2 p1, UiVector2 p2, UiVector2 p3, UiVector2 p4, UiColor color, float thickness = 1f, int segments = 0)
@@ -831,7 +924,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             _indices.Add(startVertex + i0 + 1); // inner current
         }
 
-        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, (uint)idxCount, 0));
+        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, (uint)idxCount, 0, Bounds: CreatePolylineBounds(points, halfThick), HasBounds: true));
     }
 
     public void AddConvexPolyFilled(ReadOnlySpan<UiVector2> points, UiColor color)
@@ -855,7 +948,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             _indices.Add(startVertex + (uint)i + 1);
         }
 
-        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, (uint)((points.Length - 2) * 3), 0));
+        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, (uint)((points.Length - 2) * 3), 0, Bounds: CreatePointsBounds(points), HasBounds: true));
     }
 
     public void AddConcavePolyFilled(ReadOnlySpan<UiVector2> points, UiColor color)
@@ -883,12 +976,17 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             _indices.Add(startVertex + (uint)index);
         }
 
-        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, (uint)indices.Count, 0));
+        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, (uint)indices.Count, 0, Bounds: CreatePointsBounds(points), HasBounds: true));
     }
 
     public void AddImage(UiTextureId textureId, UiVector2 pMin, UiVector2 pMax, UiVector2 uvMin, UiVector2 uvMax, UiColor color)
     {
-        AddImageQuad(textureId, pMin, new UiVector2(pMax.X, pMin.Y), pMax, new UiVector2(pMin.X, pMax.Y), uvMin, new UiVector2(uvMax.X, uvMin.Y), uvMax, new UiVector2(uvMin.X, uvMax.Y), color);
+        AddImageQuad(textureId, pMin, new UiVector2(pMax.X, pMin.Y), pMax, new UiVector2(pMin.X, pMax.Y), uvMin, new UiVector2(uvMax.X, uvMin.Y), uvMax, new UiVector2(uvMin.X, uvMax.Y), color, _currentClipRect);
+    }
+
+    public void AddImage(UiTextureId textureId, UiVector2 pMin, UiVector2 pMax, UiVector2 uvMin, UiVector2 uvMax, UiColor color, UiRect clipRect)
+    {
+        AddImageQuad(textureId, pMin, new UiVector2(pMax.X, pMin.Y), pMax, new UiVector2(pMin.X, pMax.Y), uvMin, new UiVector2(uvMax.X, uvMin.Y), uvMax, new UiVector2(uvMin.X, uvMax.Y), color, Intersect(clipRect, _currentClipRect));
     }
 
     public void AddImageQuad(
@@ -902,6 +1000,22 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         UiVector2 uv3,
         UiVector2 uv4,
         UiColor color)
+    {
+        AddImageQuad(textureId, p1, p2, p3, p4, uv1, uv2, uv3, uv4, color, _currentClipRect);
+    }
+
+    private void AddImageQuad(
+        UiTextureId textureId,
+        UiVector2 p1,
+        UiVector2 p2,
+        UiVector2 p3,
+        UiVector2 p4,
+        UiVector2 uv1,
+        UiVector2 uv2,
+        UiVector2 uv3,
+        UiVector2 uv4,
+        UiColor color,
+        UiRect clipRect)
     {
         EnsureCapacityFor(4, 6);
         var startVertex = (uint)_vertices.Count;
@@ -919,7 +1033,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         _indices.Add(startVertex + 2);
         _indices.Add(startVertex + 3);
 
-        AddCommand(new UiDrawCommand(_currentClipRect, textureId, startIndex, 6, 0));
+        AddCommand(new UiDrawCommand(clipRect, textureId, startIndex, 6, 0, Bounds: CreateQuadBounds(p1, p2, p3, p4), HasBounds: true));
     }
 
     public void AddImageRounded(UiTextureId textureId, UiVector2 pMin, UiVector2 pMax, UiVector2 uvMin, UiVector2 uvMax, UiColor color, float rounding)
@@ -1021,7 +1135,8 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             UiPooledList<uint>.RentAndCopy(_indices.AsSpan()),
             UiPooledList<UiDrawCommand>.RentAndCopy(_commands.AsSpan()),
             RectFilledPrimitives: UiPooledList<UiRectFilledPrimitive>.RentAndCopy(_rectFilledPrimitives.AsSpan()),
-            CircleFilledPrimitives: UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(_circleFilledPrimitives.AsSpan())
+            CircleFilledPrimitives: UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(_circleFilledPrimitives.AsSpan()),
+            CommandScheduleStamp: UiDrawList.CommandScheduleStampEnabled ? UiDrawList.ComputeCommandScheduleStamp(_commands.AsSpan()) : 0UL
         );
     }
 
@@ -1139,46 +1254,332 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         _rectFilledPrimitives.TrimExcess();
         _circleFilledPrimitives.TrimExcess();
         _drawLists.TrimExcess();
+        foreach (var channel in _channelPool)
+        {
+            channel.Vertices.Clear();
+            channel.Indices.Clear();
+            channel.Commands.Clear();
+            channel.RectFilledPrimitives.Clear();
+            channel.CircleFilledPrimitives.Clear();
+            channel.DrawLists.Clear();
+            channel.Vertices.TrimExcess();
+            channel.Indices.TrimExcess();
+            channel.Commands.TrimExcess();
+            channel.RectFilledPrimitives.TrimExcess();
+            channel.CircleFilledPrimitives.TrimExcess();
+            channel.DrawLists.TrimExcess();
+        }
         _commandUserDataStack.Clear();
         _currentCommandUserData = null;
     }
 
     public void _PopUnusedDrawCmd()
     {
-        if (_commands.Count == 0)
+        PopUnusedDrawCmd(_commands);
+    }
+
+    private static void PopUnusedDrawCmd(PooledBuffer<UiDrawCommand> commands)
+    {
+        if (commands.Count == 0)
         {
             return;
         }
 
-        if (_commands[^1].ElementCount == 0)
+        if (commands[^1].ElementCount == 0)
         {
-            _commands.RemoveAt(_commands.Count - 1);
+            commands.RemoveAt(commands.Count - 1);
         }
     }
 
     public void _TryMergeDrawCmds()
     {
-        if (_commands.Count <= 1)
+        TryMergeDrawCmds(_commands);
+    }
+
+    private static void TryMergeDrawCmds(PooledBuffer<UiDrawCommand> commands)
+    {
+        if (commands.Count <= 1)
         {
             return;
         }
 
-        for (var i = _commands.Count - 2; i >= 0; i--)
+        for (var i = commands.Count - 2; i >= 0; i--)
         {
-            var a = _commands[i];
-            var b = _commands[i + 1];
+            var a = commands[i];
+            var b = commands[i + 1];
             if (a.TextureId == b.TextureId
                 && a.ClipRect == b.ClipRect
                 && a.Translation == b.Translation
                 && a.Kind == b.Kind
                 && a.VertexOffset == b.VertexOffset
                 && a.IndexOffset + a.ElementCount == b.IndexOffset
+                && MathF.Abs(a.Opacity - b.Opacity) <= 0.000001f
                 && a.Callback == b.Callback
                 && Equals(a.UserData, b.UserData))
             {
-                _commands[i] = a with { ElementCount = a.ElementCount + b.ElementCount };
-                _commands.RemoveAt(i + 1);
+                commands[i] = a with
+                {
+                    ElementCount = a.ElementCount + b.ElementCount,
+                    Bounds = a.HasBounds && b.HasBounds ? Union(a.Bounds, b.Bounds) : default,
+                    HasBounds = a.HasBounds && b.HasBounds
+                };
+                commands.RemoveAt(i + 1);
             }
+        }
+    }
+
+    private void _TryScheduleDrawCmds()
+    {
+        TryScheduleDrawCmds(_commands);
+    }
+
+    private void TryScheduleDrawCmds(PooledBuffer<UiDrawCommand> commandBuffer)
+    {
+        if (!BuilderCommandSchedulerEnabled || commandBuffer.Count < 4)
+        {
+            return;
+        }
+
+        var commands = commandBuffer.AsSpan();
+        var sourceStamp = UiDrawList.ComputeCommandScheduleStamp(commands);
+        var canCacheSchedule = CanCacheCommandSchedule(commands);
+        if (canCacheSchedule
+            && BuilderCommandScheduleCache.TryGetValue(sourceStamp, out var cached)
+            && cached.CommandCount == commandBuffer.Count)
+        {
+            commandBuffer.SetCount(cached.CommandCount);
+            cached.Commands.AsSpan(0, cached.CommandCount).CopyTo(commandBuffer.AsSpan());
+            return;
+        }
+
+        var commandCount = commands.Length;
+        var start = 0;
+        while (start < commandCount)
+        {
+            while (start < commandCount && !CanScheduleDrawCommand(in commands[start]))
+            {
+                start++;
+            }
+
+            if (start >= commandCount)
+            {
+                break;
+            }
+
+            var end = start + 1;
+            while (end < commandCount && CanScheduleDrawCommand(in commands[end]))
+            {
+                end++;
+            }
+
+            while (start < end)
+            {
+                var length = Math.Min(CommandSchedulerMaxWindow, end - start);
+                if (length >= 4)
+                {
+                    ScheduleDrawCommandWindow(commands.Slice(start, length));
+                }
+
+                start += length;
+            }
+        }
+
+        TryMergeDrawCmds(commandBuffer);
+
+        if (canCacheSchedule)
+        {
+            if (BuilderCommandScheduleCache.Count >= MaxBuilderCommandScheduleCacheEntries)
+            {
+                BuilderCommandScheduleCache.Clear();
+            }
+
+            var scheduledCommands = commandBuffer.AsSpan().ToArray();
+            BuilderCommandScheduleCache[sourceStamp] = new BuilderCommandScheduleCacheEntry(commandBuffer.Count, scheduledCommands);
+        }
+    }
+
+    private static bool CanCacheCommandSchedule(ReadOnlySpan<UiDrawCommand> commands)
+    {
+        for (var i = 0; i < commands.Length; i++)
+        {
+            ref readonly var command = ref commands[i];
+            if (command.Callback is not null || command.UserData is not null)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool CanScheduleDrawCommand(in UiDrawCommand command)
+    {
+        return command.ElementCount > 0
+            && command.Callback is null
+            && command.UserData is null
+            && command.HasBounds
+            && command.Bounds.Width > 0f
+            && command.Bounds.Height > 0f;
+    }
+
+    private void ScheduleDrawCommandWindow(Span<UiDrawCommand> commands)
+    {
+        var length = commands.Length;
+        var indegrees = ArrayPool<int>.Shared.Rent(length);
+        var selected = ArrayPool<int>.Shared.Rent(length);
+        var order = ArrayPool<int>.Shared.Rent(length);
+        var classes = ArrayPool<BuilderCommandSchedulingClass>.Shared.Rent(length);
+        var bounds = ArrayPool<UiRect>.Shared.Rent(length);
+
+        try
+        {
+            for (var i = 0; i < length; i++)
+            {
+                indegrees[i] = 0;
+                selected[i] = 0;
+                order[i] = i;
+                classes[i] = GetBuilderSchedulingClass(in commands[i]);
+                bounds[i] = GetEffectiveSchedulingBounds(in commands[i]);
+            }
+
+            for (var i = 0; i < length - 1; i++)
+            {
+                var a = bounds[i];
+                for (var j = i + 1; j < length; j++)
+                {
+                    if (Overlaps(a, bounds[j]))
+                    {
+                        indegrees[j]++;
+                    }
+                }
+            }
+
+            var changed = false;
+            var hasLastClass = false;
+            var lastClass = default(BuilderCommandSchedulingClass);
+            for (var output = 0; output < length; output++)
+            {
+                var pick = PickNextScheduledDrawCommand(indegrees, selected, classes, length, hasLastClass, lastClass);
+                if (pick < 0)
+                {
+                    return;
+                }
+
+                selected[pick] = 1;
+                order[output] = pick;
+                if (pick != output)
+                {
+                    changed = true;
+                }
+
+                hasLastClass = true;
+                lastClass = classes[pick];
+
+                var pickedBounds = bounds[pick];
+                for (var j = pick + 1; j < length; j++)
+                {
+                    if (selected[j] == 0 && Overlaps(pickedBounds, bounds[j]))
+                    {
+                        indegrees[j]--;
+                    }
+                }
+            }
+
+            if (changed)
+            {
+                ApplyScheduledDrawCommandOrder(commands, order);
+            }
+        }
+        finally
+        {
+            ArrayPool<int>.Shared.Return(indegrees, clearArray: false);
+            ArrayPool<int>.Shared.Return(selected, clearArray: false);
+            ArrayPool<int>.Shared.Return(order, clearArray: false);
+            ArrayPool<BuilderCommandSchedulingClass>.Shared.Return(classes, clearArray: false);
+            ArrayPool<UiRect>.Shared.Return(bounds, clearArray: false);
+        }
+    }
+
+    private BuilderCommandSchedulingClass GetBuilderSchedulingClass(in UiDrawCommand command)
+    {
+        if (command.Kind is not UiDrawCommandKind.Triangles)
+        {
+            return BuilderCommandSchedulingClass.SolidPrimitive;
+        }
+
+        if (_sharedData is not null)
+        {
+            if (command.TextureId == _sharedData.WhiteTexture)
+            {
+                return BuilderCommandSchedulingClass.SolidTriangle;
+            }
+
+            if (command.TextureId == _sharedData.FontTexture)
+            {
+                return BuilderCommandSchedulingClass.FontTriangle;
+            }
+        }
+
+        return BuilderCommandSchedulingClass.TexturedTriangle;
+    }
+
+    private static int PickNextScheduledDrawCommand(
+        int[] indegrees,
+        int[] selected,
+        BuilderCommandSchedulingClass[] classes,
+        int length,
+        bool hasLastClass,
+        BuilderCommandSchedulingClass lastClass)
+    {
+        if (hasLastClass)
+        {
+            for (var i = 0; i < length; i++)
+            {
+                if (selected[i] == 0 && indegrees[i] == 0 && classes[i] == lastClass)
+                {
+                    return i;
+                }
+            }
+        }
+
+        var pick = -1;
+        var bestPriority = int.MaxValue;
+        for (var i = 0; i < length; i++)
+        {
+            if (selected[i] != 0 || indegrees[i] != 0)
+            {
+                continue;
+            }
+
+            var priority = (int)classes[i];
+            if (priority < bestPriority)
+            {
+                bestPriority = priority;
+                pick = i;
+            }
+        }
+
+        return pick;
+    }
+
+    private static void ApplyScheduledDrawCommandOrder(Span<UiDrawCommand> commands, int[] order)
+    {
+        var temp = ArrayPool<UiDrawCommand>.Shared.Rent(commands.Length);
+        try
+        {
+            for (var i = 0; i < commands.Length; i++)
+            {
+                temp[i] = commands[order[i]];
+            }
+
+            for (var i = 0; i < commands.Length; i++)
+            {
+                commands[i] = temp[i];
+            }
+        }
+        finally
+        {
+            ArrayPool<UiDrawCommand>.Shared.Return(temp, clearArray: true);
         }
     }
 
@@ -1248,9 +1649,32 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         _channels.Add(new Channel(_vertices, _indices, _commands, _rectFilledPrimitives, _circleFilledPrimitives, _drawLists));
         for (var i = 1; i < count; i++)
         {
-            _channels.Add(new Channel(new PooledBuffer<UiDrawVertex>(), new PooledBuffer<uint>(), new PooledBuffer<UiDrawCommand>(), new PooledBuffer<UiRectFilledPrimitive>(), new PooledBuffer<UiCircleFilledPrimitive>(), new List<UiDrawList>()));
+            _channels.Add(GetOrCreateAuxChannel(i - 1));
         }
         _currentChannel = 0;
+    }
+
+    private Channel GetOrCreateAuxChannel(int index)
+    {
+        while (_channelPool.Count <= index)
+        {
+            _channelPool.Add(new Channel(
+                new PooledBuffer<UiDrawVertex>(),
+                new PooledBuffer<uint>(),
+                new PooledBuffer<UiDrawCommand>(),
+                new PooledBuffer<UiRectFilledPrimitive>(),
+                new PooledBuffer<UiCircleFilledPrimitive>(),
+                new List<UiDrawList>()));
+        }
+
+        var channel = _channelPool[index];
+        channel.Vertices.Clear();
+        channel.Indices.Clear();
+        channel.Commands.Clear();
+        channel.RectFilledPrimitives.Clear();
+        channel.CircleFilledPrimitives.Clear();
+        channel.DrawLists.Clear();
+        return channel;
     }
 
     public void Merge()
@@ -1268,9 +1692,43 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             foreach (var list in channel.DrawLists)
             {
                 AddDrawList(list);
+                list.ReleasePooled();
             }
+
+            channel.DrawLists.Clear();
         }
 
+        _channels = null;
+        _currentChannel = 0;
+    }
+
+    public void MergeChannelsAsDrawLists()
+    {
+        if (_channels is null)
+        {
+            return;
+        }
+
+        SetCurrentChannel(0);
+        var targetDrawLists = _channels[0].DrawLists;
+        for (var i = 0; i < _channels.Count; i++)
+        {
+            var channel = _channels[i];
+            FlushChannel(channel);
+            if (i == 0)
+            {
+                continue;
+            }
+
+            foreach (var list in channel.DrawLists)
+            {
+                targetDrawLists.Add(list);
+            }
+
+            channel.DrawLists.Clear();
+        }
+
+        _drawLists = targetDrawLists;
         _channels = null;
         _currentChannel = 0;
     }
@@ -1400,7 +1858,12 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
                 _indices.Add(local + vertexOffset);
             }
 
-            AddCommand(new UiDrawCommand(cmd.ClipRect, cmd.TextureId, cmd.IndexOffset + indexOffset, (uint)indexCount, 0));
+            AddCommand(cmd with
+            {
+                IndexOffset = cmd.IndexOffset + indexOffset,
+                ElementCount = (uint)indexCount,
+                VertexOffset = 0
+            });
             quadIndex += quadCount;
         }
     }
@@ -1410,6 +1873,14 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         if (cmd.UserData is null && _currentCommandUserData is not null)
         {
             cmd = cmd with { UserData = _currentCommandUserData };
+        }
+
+        if (cmd.ElementCount > 0
+            && cmd.Callback is null
+            && _commands.Count > 0
+            && _commands[^1] is { ElementCount: 0, Callback: null })
+        {
+            _commands.RemoveAt(_commands.Count - 1);
         }
 
         if (_commands.Count > 0)
@@ -1422,10 +1893,16 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
                 && last.Translation == cmd.Translation
                 && last.Kind == cmd.Kind
                 && last.VertexOffset == cmd.VertexOffset
+                && MathF.Abs(last.Opacity - cmd.Opacity) <= 0.000001f
                 && last.Callback == cmd.Callback
                 && Equals(last.UserData, cmd.UserData))
             {
-                _commands[^1] = last with { ElementCount = last.ElementCount + cmd.ElementCount };
+                _commands[^1] = last with
+                {
+                    ElementCount = last.ElementCount + cmd.ElementCount,
+                    Bounds = last.HasBounds && cmd.HasBounds ? Union(last.Bounds, cmd.Bounds) : default,
+                    HasBounds = last.HasBounds && cmd.HasBounds
+                };
                 return;
             }
         }
@@ -1448,11 +1925,11 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             return;
         }
 
-        var alphaFactor = Math.Clamp(opacity, 0f, 1f);
-        var applyAlpha = alphaFactor < 0.999f;
+        var opacityFactor = Math.Clamp(opacity, 0f, 1f);
+        var applyOpacity = opacityFactor < 0.999f;
         var applyTranslation = MathF.Abs(translation.X) > 0.0001f || MathF.Abs(translation.Y) > 0.0001f;
 
-        if (!applyAlpha && !applyTranslation && drawList.RectFilledPrimitives is null && drawList.CircleFilledPrimitives is null)
+        if (!applyOpacity && !applyTranslation && drawList.RectFilledPrimitives is null && drawList.CircleFilledPrimitives is null)
         {
             Append(drawList.Vertices.AsSpan(), drawList.Indices.AsSpan(), drawList.Commands.AsSpan());
             return;
@@ -1465,27 +1942,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         var rectOffset = (uint)_rectFilledPrimitives.Count;
         var circleOffset = (uint)_circleFilledPrimitives.Count;
 
-        for (var i = 0; i < drawList.Vertices.Count; i++)
-        {
-            var vertex = drawList.Vertices[i];
-            if (applyTranslation)
-            {
-                vertex = vertex with
-                {
-                    Position = new UiVector2(vertex.Position.X + translation.X, vertex.Position.Y + translation.Y)
-                };
-            }
-
-            if (applyAlpha)
-            {
-                var rgba = vertex.Color.Rgba;
-                var alpha = (uint)((rgba >> 24) & 0xFFu);
-                var nextAlpha = (uint)Math.Clamp((int)MathF.Round(alpha * alphaFactor), 0, 255);
-                vertex = vertex with { Color = new UiColor((rgba & 0x00FFFFFFu) | (nextAlpha << 24)) };
-            }
-
-            _vertices.Add(vertex);
-        }
+        _vertices.AddRange(drawList.Vertices);
 
         for (var i = 0; i < drawList.Indices.Count; i++)
         {
@@ -1494,50 +1951,12 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
 
         if (drawList.CircleFilledPrimitives is not null)
         {
-            for (var i = 0; i < drawList.CircleFilledPrimitives.Count; i++)
-            {
-                var primitive = drawList.CircleFilledPrimitives[i];
-                if (applyTranslation)
-                {
-                    primitive = primitive with
-                    {
-                        Center = new UiVector2(primitive.Center.X + translation.X, primitive.Center.Y + translation.Y)
-                    };
-                }
-
-                if (applyAlpha)
-                {
-                    var rgba = primitive.Color.Rgba;
-                    var alpha = (uint)((rgba >> 24) & 0xFFu);
-                    var nextAlpha = (uint)Math.Clamp((int)MathF.Round(alpha * alphaFactor), 0, 255);
-                    primitive = primitive with { Color = new UiColor((rgba & 0x00FFFFFFu) | (nextAlpha << 24)) };
-                }
-
-                _circleFilledPrimitives.Add(primitive);
-            }
+            _circleFilledPrimitives.AddRange(drawList.CircleFilledPrimitives);
         }
 
         if (drawList.RectFilledPrimitives is not null)
         {
-            for (var i = 0; i < drawList.RectFilledPrimitives.Count; i++)
-            {
-                var primitive = drawList.RectFilledPrimitives[i];
-                if (applyTranslation)
-                {
-                    var rect = primitive.Rect;
-                    primitive = primitive with { Rect = new UiRect(rect.X + translation.X, rect.Y + translation.Y, rect.Width, rect.Height) };
-                }
-
-                if (applyAlpha)
-                {
-                    var rgba = primitive.Color.Rgba;
-                    var alpha = (uint)((rgba >> 24) & 0xFFu);
-                    var nextAlpha = (uint)Math.Clamp((int)MathF.Round(alpha * alphaFactor), 0, 255);
-                    primitive = primitive with { Color = new UiColor((rgba & 0x00FFFFFFu) | (nextAlpha << 24)) };
-                }
-
-                _rectFilledPrimitives.Add(primitive);
-            }
+            _rectFilledPrimitives.AddRange(drawList.RectFilledPrimitives);
         }
 
         for (var i = 0; i < drawList.Commands.Count; i++)
@@ -1545,11 +1964,15 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             var command = drawList.Commands[i];
             if (applyTranslation)
             {
-                var clip = command.ClipRect;
                 command = command with
                 {
-                    ClipRect = new UiRect(clip.X + translation.X, clip.Y + translation.Y, clip.Width, clip.Height)
+                    Translation = new UiVector2(command.Translation.X + translation.X, command.Translation.Y + translation.Y)
                 };
+            }
+
+            if (applyOpacity)
+            {
+                command = command with { Opacity = command.Opacity * opacityFactor };
             }
 
             var offset = command.Kind switch
@@ -1585,7 +2008,9 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
                 : UiPooledList<UiRectFilledPrimitive>.RentAndCopy(drawList.RectFilledPrimitives.AsSpan()),
             CircleFilledPrimitives: drawList.CircleFilledPrimitives is null
                 ? null
-                : UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(drawList.CircleFilledPrimitives.AsSpan())));
+                : UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(drawList.CircleFilledPrimitives.AsSpan()),
+            StaticGeometryStamp: drawList.StaticGeometryStamp,
+            CommandScheduleStamp: drawList.CommandScheduleStamp));
     }
 
     public void AppendRetainedStaticReference(UiDrawList drawList)
@@ -1614,7 +2039,9 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             OwnsBuffers: false,
             StaticGeometryKey: drawList.StaticGeometryKey,
             RectFilledPrimitives: drawList.RectFilledPrimitives,
-            CircleFilledPrimitives: drawList.CircleFilledPrimitives));
+            CircleFilledPrimitives: drawList.CircleFilledPrimitives,
+            StaticGeometryStamp: drawList.StaticGeometryStamp,
+            CommandScheduleStamp: drawList.CommandScheduleStamp));
     }
 
     public void Append(ReadOnlySpan<UiDrawVertex> vertices, ReadOnlySpan<uint> indices, ReadOnlySpan<UiDrawCommand> commands)
@@ -1674,6 +2101,13 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         }
     }
 
+    private void PrepareDrawCommandsForFlush(PooledBuffer<UiDrawCommand> commands)
+    {
+        PopUnusedDrawCmd(commands);
+        TryMergeDrawCmds(commands);
+        TryScheduleDrawCmds(commands);
+    }
+
     private void Flush()
     {
         if (_vertices.Count == 0 && _indices.Count == 0 && _rectFilledPrimitives.Count == 0 && _circleFilledPrimitives.Count == 0)
@@ -1681,8 +2115,8 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             return;
         }
 
-        _PopUnusedDrawCmd();
-        _TryMergeDrawCmds();
+        PrepareDrawCommandsForFlush(_commands);
+        var commandScheduleStamp = UiDrawList.CommandScheduleStampEnabled ? UiDrawList.ComputeCommandScheduleStamp(_commands.AsSpan()) : 0UL;
 
         _drawLists.Add(
             new UiDrawList(
@@ -1690,7 +2124,8 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
                 _indices.TransferToPooledList(),
                 _commands.TransferToPooledList(),
                 RectFilledPrimitives: _rectFilledPrimitives.TransferToPooledList(),
-                CircleFilledPrimitives: _circleFilledPrimitives.TransferToPooledList()
+                CircleFilledPrimitives: _circleFilledPrimitives.TransferToPooledList(),
+                CommandScheduleStamp: commandScheduleStamp
             )
         );
     }
@@ -1702,10 +2137,8 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             return;
         }
 
-        if (channel.Commands.Count > 0 && channel.Commands[^1].ElementCount == 0)
-        {
-            channel.Commands.RemoveAt(channel.Commands.Count - 1);
-        }
+        PrepareDrawCommandsForFlush(channel.Commands);
+        var commandScheduleStamp = UiDrawList.CommandScheduleStampEnabled ? UiDrawList.ComputeCommandScheduleStamp(channel.Commands.AsSpan()) : 0UL;
 
         channel.DrawLists.Add(
             new UiDrawList(
@@ -1713,7 +2146,8 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
                 channel.Indices.TransferToPooledList(),
                 channel.Commands.TransferToPooledList(),
                 RectFilledPrimitives: channel.RectFilledPrimitives.TransferToPooledList(),
-                CircleFilledPrimitives: channel.CircleFilledPrimitives.TransferToPooledList()
+                CircleFilledPrimitives: channel.CircleFilledPrimitives.TransferToPooledList(),
+                CommandScheduleStamp: commandScheduleStamp
             )
         );
     }
@@ -1784,6 +2218,122 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         }
 
         return new UiRect(x1, y1, x2 - x1, y2 - y1);
+    }
+
+    private static UiRect Union(UiRect a, UiRect b)
+    {
+        var x1 = MathF.Min(a.X, b.X);
+        var y1 = MathF.Min(a.Y, b.Y);
+        var x2 = MathF.Max(a.X + a.Width, b.X + b.Width);
+        var y2 = MathF.Max(a.Y + a.Height, b.Y + b.Height);
+        return new UiRect(x1, y1, x2 - x1, y2 - y1);
+    }
+
+    private static UiRect CreateCircleBounds(UiVector2 center, float radius)
+    {
+        return new UiRect(center.X - radius, center.Y - radius, radius * 2f, radius * 2f);
+    }
+
+    private static UiRect CreateTriangleBounds(UiVector2 a, UiVector2 b, UiVector2 c)
+    {
+        var minX = MathF.Min(a.X, MathF.Min(b.X, c.X));
+        var minY = MathF.Min(a.Y, MathF.Min(b.Y, c.Y));
+        var maxX = MathF.Max(a.X, MathF.Max(b.X, c.X));
+        var maxY = MathF.Max(a.Y, MathF.Max(b.Y, c.Y));
+        return new UiRect(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    private static UiRect CreateQuadBounds(UiVector2 a, UiVector2 b, UiVector2 c, UiVector2 d)
+    {
+        var minX = MathF.Min(MathF.Min(a.X, b.X), MathF.Min(c.X, d.X));
+        var minY = MathF.Min(MathF.Min(a.Y, b.Y), MathF.Min(c.Y, d.Y));
+        var maxX = MathF.Max(MathF.Max(a.X, b.X), MathF.Max(c.X, d.X));
+        var maxY = MathF.Max(MathF.Max(a.Y, b.Y), MathF.Max(c.Y, d.Y));
+        return new UiRect(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    private static UiRect CreatePointsBounds(ReadOnlySpan<UiVector2> points)
+    {
+        if (points.Length == 0)
+        {
+            return default;
+        }
+
+        var minX = points[0].X;
+        var minY = points[0].Y;
+        var maxX = minX;
+        var maxY = minY;
+        for (var i = 1; i < points.Length; i++)
+        {
+            var point = points[i];
+            minX = MathF.Min(minX, point.X);
+            minY = MathF.Min(minY, point.Y);
+            maxX = MathF.Max(maxX, point.X);
+            maxY = MathF.Max(maxY, point.Y);
+        }
+
+        return new UiRect(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    private static UiRect CreatePolylineBounds(ReadOnlySpan<UiVector2> points, float padding)
+    {
+        var bounds = CreatePointsBounds(points);
+        return new UiRect(bounds.X - padding, bounds.Y - padding, bounds.Width + padding * 2f, bounds.Height + padding * 2f);
+    }
+
+    private static UiRect GetEffectiveSchedulingBounds(in UiDrawCommand command)
+    {
+        var bounds = command.Bounds;
+        if (command.Translation == default)
+        {
+            return Intersect(bounds, command.ClipRect);
+        }
+
+        var translatedBounds = new UiRect(
+            bounds.X + command.Translation.X,
+            bounds.Y + command.Translation.Y,
+            bounds.Width,
+            bounds.Height);
+        var translatedClip = new UiRect(
+            command.ClipRect.X + command.Translation.X,
+            command.ClipRect.Y + command.Translation.Y,
+            command.ClipRect.Width,
+            command.ClipRect.Height);
+        return Intersect(translatedBounds, translatedClip);
+    }
+
+    private static bool Overlaps(UiRect a, UiRect b)
+    {
+        return a.Width > 0f
+            && a.Height > 0f
+            && b.Width > 0f
+            && b.Height > 0f
+            && a.X < b.X + b.Width
+            && b.X < a.X + a.Width
+            && a.Y < b.Y + b.Height
+            && b.Y < a.Y + a.Height;
+    }
+
+    private static int ParsePositiveIntEnvironment(string name, int defaultValue)
+    {
+        var raw = Environment.GetEnvironmentVariable(name);
+        return int.TryParse(raw, out var value) && value > 0
+            ? value
+            : defaultValue;
+    }
+
+    private static bool ParseBooleanEnvironmentFlag(string name)
+    {
+        var raw = Environment.GetEnvironmentVariable(name);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        return string.Equals(raw, "1", StringComparison.Ordinal)
+            || string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "on", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "yes", StringComparison.OrdinalIgnoreCase);
     }
 
     private static UiVector2 CubicBezier(UiVector2 p1, UiVector2 p2, UiVector2 p3, UiVector2 p4, float t)

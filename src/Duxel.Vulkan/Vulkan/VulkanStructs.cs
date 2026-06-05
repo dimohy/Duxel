@@ -138,6 +138,8 @@ public struct PhysicalDeviceSparseProperties
 public struct PhysicalDeviceLimits
 {
     [FieldOffset(376)] public SampleCountFlags FramebufferColorSampleCounts;
+    [FieldOffset(420)] public Bool32 TimestampComputeAndGraphics;
+    [FieldOffset(424)] public float TimestampPeriod;
 }
 
 [StructLayout(LayoutKind.Explicit, Size = 824)]
@@ -799,6 +801,17 @@ public struct CommandPoolCreateInfo
     public nint PNext;
     public CommandPoolCreateFlags Flags;
     public uint QueueFamilyIndex;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct QueryPoolCreateInfo
+{
+    public StructureType SType;
+    public nint PNext;
+    public QueryPoolCreateFlags Flags;
+    public QueryType QueryType;
+    public uint QueryCount;
+    public PipelineStatisticFlags PipelineStatistics;
 }
 
 [StructLayout(LayoutKind.Sequential)]

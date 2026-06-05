@@ -9,12 +9,32 @@ public sealed unsafe partial class VulkanRendererBackend
 {
     private readonly record struct StaticGeometryBuffer(
         string Tag,
+        ulong ContentHash,
         VkBuffer VertexBuffer,
         DeviceMemory VertexMemory,
         int VertexCount,
         VkBuffer IndexBuffer,
         DeviceMemory IndexMemory,
-        int IndexCount);
+        int IndexCount,
+        VkBuffer PrimitiveBuffer,
+        DeviceMemory PrimitiveMemory,
+        int PrimitiveCount,
+        int PrimitiveInstanceBaseCount,
+        int RectPrimitiveCount,
+        int CirclePrimitiveCount,
+        bool HasExpandedPrimitiveGeometry,
+        int RectExpandedIndexBase,
+        int[]? CircleExpandedIndexOffsets);
+
+    private readonly record struct StaticPrimitiveTriangleLayout(
+        int VertexCount,
+        int IndexCount,
+        int RectExpandedIndexBase,
+        int[]? CircleExpandedIndexOffsets);
+
+    private readonly record struct RetiredStaticGeometryBuffer(
+        StaticGeometryBuffer Buffer,
+        int AvailableFrame);
 
     private readonly struct TextureResource
     {
@@ -52,6 +72,8 @@ public sealed unsafe partial class VulkanRendererBackend
         public CommandPool CommandPool;
         public CommandBuffer CommandBuffer;
         public Fence InFlight;
+        public QueryPool TimestampQueryPool;
+        public bool TimestampQueryIssued;
         public readonly List<PendingTextureDestroy> PendingTextureDestroys = new();
         public readonly List<PendingBufferDestroy> PendingBufferDestroys = new();
     }
@@ -68,14 +90,10 @@ public sealed unsafe partial class VulkanRendererBackend
         public DeviceMemory IndexMemory;
         public nuint IndexSize;
         public void* IndexMappedPtr;
-        public VkBuffer RectPrimitiveBuffer;
-        public DeviceMemory RectPrimitiveMemory;
-        public nuint RectPrimitiveSize;
-        public void* RectPrimitiveMappedPtr;
-        public VkBuffer CirclePrimitiveBuffer;
-        public DeviceMemory CirclePrimitiveMemory;
-        public nuint CirclePrimitiveSize;
-        public void* CirclePrimitiveMappedPtr;
+        public VkBuffer PrimitiveBuffer;
+        public DeviceMemory PrimitiveMemory;
+        public nuint PrimitiveSize;
+        public void* PrimitiveMappedPtr;
     }
 
     private readonly record struct BufferResource(VkBuffer Buffer, DeviceMemory Memory);
@@ -93,22 +111,12 @@ public sealed unsafe partial class VulkanRendererBackend
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    private struct RectPrimitiveInstance
+    private struct PrimitiveInstance
     {
-        public float X;
-        public float Y;
-        public float Width;
-        public float Height;
+        public float DataX;
+        public float DataY;
+        public float DataZ;
+        public uint Payload;
         public uint Color;
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    private struct CirclePrimitiveInstance
-    {
-        public float CenterX;
-        public float CenterY;
-        public float Radius;
-        public uint Color;
-        public uint Segments;
     }
 }

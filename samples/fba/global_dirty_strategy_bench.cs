@@ -39,6 +39,7 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
     private readonly int _density = ReadDensity();
     private readonly int _tileColumns = ReadTileColumns();
     private readonly int _tileRows = ReadTileRows();
+    private readonly bool _emitChannelsAsDrawLists = ReadBool("DUXEL_GLOBAL_DIRTY_CHANNEL_DRAWLISTS", defaultValue: false);
 
     private int _phaseIndex;
     private double _phaseElapsed;
@@ -124,7 +125,14 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
         drawList.SetCurrentChannel(1);
         DrawDynamicOverlay(drawList, canvas, now, white);
 
-        drawList.Merge();
+        if (_emitChannelsAsDrawLists)
+        {
+            drawList.MergeChannelsAsDrawLists();
+        }
+        else
+        {
+            drawList.Merge();
+        }
 
         _ = ui.EndWindowCanvas();
         ui.EndWindow();
@@ -302,6 +310,7 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
         ui.TextV("FPS: {0:0.0}", _liveFps);
         ui.TextV("Tiles: {0}x{1}", _tileColumns, _tileRows);
         ui.TextV("Density: {0}", _density);
+        ui.TextV("Channel Output: {0}", _emitChannelsAsDrawLists ? "drawlists" : "copy-merge");
         ui.TextV("Frame dt: {0:0.000} ms", delta * 1000.0);
         ui.TextV("CPU: {0:0.0}%", _cpuPercent);
 
@@ -355,9 +364,10 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
 
         _records.Add(string.Format(
             CultureInfo.InvariantCulture,
-            "{{\"phase\":{0},\"strategy\":\"{1}\",\"tiles\":\"{2}x{3}\",\"density\":{4},\"avgFps\":{5:0.###},\"avgCpu\":{6:0.###},\"samples\":{7}}}",
+            "{{\"phase\":{0},\"strategy\":\"{1}\",\"channelOutput\":\"{2}\",\"tiles\":\"{3}x{4}\",\"density\":{5},\"avgFps\":{6:0.###},\"avgCpu\":{7:0.###},\"samples\":{8}}}",
             _phaseIndex,
             _phaseIndex == 0 ? "all-dynamic" : "global-static-cache",
+            _emitChannelsAsDrawLists ? "drawlists" : "copy-merge",
             _tileColumns,
             _tileRows,
             _density,
@@ -399,6 +409,9 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
         var sb = new StringBuilder();
         sb.Append("{\"phaseSeconds\":");
         sb.Append(_phaseSeconds.ToString("0.###", CultureInfo.InvariantCulture));
+        sb.Append(",\"channelOutput\":\"");
+        sb.Append(_emitChannelsAsDrawLists ? "drawlists" : "copy-merge");
+        sb.Append('"');
         sb.Append(",\"results\":[");
         for (var i = 0; i < _records.Count; i++)
         {
@@ -448,5 +461,33 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
     private static int ReadTileRows()
     {
         return BenchOptions.ReadInt("DUXEL_GLOBAL_DIRTY_BENCH_ROWS", 6, minInclusive: 2, maxInclusive: 12);
+    }
+
+    private static bool ReadBool(string name, bool defaultValue)
+    {
+        var raw = Environment.GetEnvironmentVariable(name);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return defaultValue;
+        }
+
+        var value = raw.Trim();
+        if (value == "1"
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (value == "0"
+            || string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "off", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "no", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return defaultValue;
     }
 }

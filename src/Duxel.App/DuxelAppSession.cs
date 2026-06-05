@@ -46,6 +46,9 @@ public sealed class DuxelAppSession
         var appProfilingInterval = ParsePositiveIntEnvironment("DUXEL_APP_PROFILE_EVERY", 120);
         var appProfilingLogPath = Environment.GetEnvironmentVariable("DUXEL_APP_PROFILE_OUT");
         var appProfilingFrameCounter = 0;
+        var textRenderingMode = ResolveTextRenderingMode(rendererOptions);
+        var directTextEnabled = textRenderingMode is DuxelTextRenderingMode.DirectText;
+        var directTextFallbackEnabled = textRenderingMode is DuxelTextRenderingMode.Auto;
 
         var startupLog = options.Debug.LogStartupTimings
             ? options.Debug.Log ?? Console.WriteLine
@@ -86,7 +89,8 @@ public sealed class DuxelAppSession
             window.VSync,
             requestedMsaaSamples,
             rendererOptions.FontLinearSampling,
-            options.FontTextureId
+            options.FontTextureId,
+            options.WhiteTextureId
         ));
         renderer.SetClearColor(theme.WindowBg);
         EmitStartupTiming("StartupClear");
@@ -202,6 +206,8 @@ public sealed class DuxelAppSession
         uiContext.SetDirectTextPrimaryFontPath(fontOptions.PrimaryFontPath);
         uiContext.SetDirectTextSecondaryFontPath(fontOptions.SecondaryFontPath);
         uiContext.SetDirectTextBaseFontSize(logicalBaseFontSize * contentScale);
+        uiContext.SetDirectTextEnabled(directTextEnabled);
+        uiContext.SetDirectTextFallbackEnabled(directTextFallbackEnabled);
         uiContext.SetContentScale(contentScale);
         uiContext.SetTheme(theme);
         uiContext.SetScreen(options.Screen);
@@ -734,7 +740,15 @@ public sealed class DuxelAppSession
             }
             catch (Exception ex)
             {
-                options.Debug.Log?.Invoke($"RenderThreadException: {ex}");
+                if (options.Debug.Log is { } log)
+                {
+                    log($"RenderThreadException: {ex}");
+                }
+                else
+                {
+                    Console.Error.WriteLine($"RenderThreadException: {ex}");
+                }
+
                 Volatile.Write(ref stopRequested, true);
             }
         })
@@ -838,6 +852,32 @@ public sealed class DuxelAppSession
         return int.TryParse(raw, out var value) && value > 0
             ? value
             : defaultValue;
+    }
+
+    private static DuxelTextRenderingMode ResolveTextRenderingMode(DuxelRendererOptions rendererOptions)
+    {
+        return ParseTextRenderingMode(Environment.GetEnvironmentVariable("DUXEL_TEXT_RENDERING"))
+            ?? rendererOptions.TextRendering;
+    }
+
+    private static DuxelTextRenderingMode? ParseTextRenderingMode(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        return raw.Trim() switch
+        {
+            var value when string.Equals(value, "auto", StringComparison.OrdinalIgnoreCase) => DuxelTextRenderingMode.Auto,
+            var value when string.Equals(value, "direct", StringComparison.OrdinalIgnoreCase) => DuxelTextRenderingMode.DirectText,
+            var value when string.Equals(value, "directtext", StringComparison.OrdinalIgnoreCase) => DuxelTextRenderingMode.DirectText,
+            var value when string.Equals(value, "platform", StringComparison.OrdinalIgnoreCase) => DuxelTextRenderingMode.DirectText,
+            var value when string.Equals(value, "atlas", StringComparison.OrdinalIgnoreCase) => DuxelTextRenderingMode.Atlas,
+            var value when string.Equals(value, "glyph", StringComparison.OrdinalIgnoreCase) => DuxelTextRenderingMode.Atlas,
+            var value when string.Equals(value, "glyphatlas", StringComparison.OrdinalIgnoreCase) => DuxelTextRenderingMode.Atlas,
+            _ => null,
+        };
     }
 
     private static void LogAppProfileFrame(

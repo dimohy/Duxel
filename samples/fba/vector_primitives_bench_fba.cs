@@ -24,9 +24,17 @@ DuxelApp.Run(new DuxelAppOptions
 
 public sealed class VectorPrimitivesBenchScreen : UiScreen
 {
+    private enum PrimitiveWorkload
+    {
+        Mixed,
+        RectOutline,
+        AxisLine,
+    }
+
     private readonly string? _benchOutputPath = Environment.GetEnvironmentVariable("DUXEL_VECTOR_BENCH_OUT");
     private readonly int[] _phasePrimitiveCounts = ReadPrimitiveCounts();
     private readonly double _phaseSeconds = ReadPhaseSeconds();
+    private readonly PrimitiveWorkload _workload = ReadWorkload();
 
     private readonly List<string> _records = [];
     private int _phaseIndex;
@@ -99,8 +107,9 @@ public sealed class VectorPrimitivesBenchScreen : UiScreen
         var primitives = _phasePrimitiveCounts[_phaseIndex];
         _records.Add(string.Format(
             CultureInfo.InvariantCulture,
-            "{{\"phase\":{0},\"primitives\":{1},\"avgFps\":{2:0.###},\"samples\":{3}}}",
+            "{{\"phase\":{0},\"workload\":\"{1}\",\"primitives\":{2},\"avgFps\":{3:0.###},\"samples\":{4}}}",
             _phaseIndex,
+            GetWorkloadName(_workload),
             primitives,
             avgFps,
             _phaseSamples));
@@ -131,7 +140,7 @@ public sealed class VectorPrimitivesBenchScreen : UiScreen
         ui.TextV("FPS: {0:0.0}", _fps);
         ui.TextV("Phase: {0}/{1}", phaseDisplay, phaseTotal);
         ui.TextV("Primitives: {0}", currentPrims);
-        ui.Text("Workload: line + rect + circle");
+        ui.TextV("Workload: {0}", GetWorkloadName(_workload));
 
         ui.EndWindow();
     }
@@ -153,6 +162,25 @@ public sealed class VectorPrimitivesBenchScreen : UiScreen
         var primitiveCount = _phasePrimitiveCounts[Math.Clamp(_phaseIndex, 0, _phasePrimitiveCounts.Length - 1)];
         var tick = (float)now;
 
+        if (_workload == PrimitiveWorkload.RectOutline)
+        {
+            DrawRectOutlineWorkload(drawList, canvas, primitiveCount);
+        }
+        else if (_workload == PrimitiveWorkload.AxisLine)
+        {
+            DrawAxisLineWorkload(drawList, canvas, primitiveCount);
+        }
+        else
+        {
+            DrawMixedWorkload(drawList, canvas, primitiveCount, (float)now, white);
+        }
+
+        ui.Dummy(new UiVector2(canvas.Width, canvas.Height));
+        ui.EndWindow();
+    }
+
+    private static void DrawMixedWorkload(UiDrawListBuilder drawList, UiRect canvas, int primitiveCount, float tick, UiTextureId white)
+    {
         for (var i = 0; i < primitiveCount; i++)
         {
             var u = (i * 37 % 997) / 997f;
@@ -179,8 +207,77 @@ public sealed class VectorPrimitivesBenchScreen : UiScreen
                 drawList.AddCircle(new UiVector2(x2, y2), radius, new UiColor((uint)(0xCCF0D56Bu + (uint)((i * 11) & 0x1Fu))), 10, 1.0f);
             }
         }
-
-        ui.Dummy(new UiVector2(canvas.Width, canvas.Height));
-        ui.EndWindow();
     }
+
+    private static void DrawRectOutlineWorkload(UiDrawListBuilder drawList, UiRect canvas, int primitiveCount)
+    {
+        for (var i = 0; i < primitiveCount; i++)
+        {
+            var u = (i * 37 % 997) / 997f;
+            var v = (i * 53 % 991) / 991f;
+            var w = 12f + (i % 7) * 1.25f;
+            var h = 9f + (i % 5) * 1.4f;
+            var x = canvas.X + 8f + u * MathF.Max(1f, canvas.Width - w - 16f);
+            var y = canvas.Y + 8f + v * MathF.Max(1f, canvas.Height - h - 16f);
+            var thickness = 1f + (i & 1) * 0.25f;
+            var color = new UiColor((uint)(0xAA67B7FFu + (uint)((i * 13) & 0x2Fu)));
+            drawList.AddRect(new UiRect(x, y, w, h), color, 0f, thickness);
+        }
+    }
+
+    private static void DrawAxisLineWorkload(UiDrawListBuilder drawList, UiRect canvas, int primitiveCount)
+    {
+        var width = MathF.Max(1f, canvas.Width - 24f);
+        var height = MathF.Max(1f, canvas.Height - 24f);
+        for (var i = 0; i < primitiveCount; i++)
+        {
+            var u = (i * 37 % 997) / 997f;
+            var v = (i * 53 % 991) / 991f;
+            var x = canvas.X + 12f + u * width;
+            var y = canvas.Y + 12f + v * height;
+            var length = 8f + (i % 19) * 1.5f;
+            var thickness = 1f + (i & 1) * 0.25f;
+            var color = new UiColor((uint)(0xAA67B7FFu + (uint)((i * 13) & 0x2Fu)));
+
+            if ((i & 1) == 0)
+            {
+                var x2 = MathF.Min(canvas.X + canvas.Width - 4f, x + length);
+                drawList.AddLine(new UiVector2(x, y), new UiVector2(x2, y), color, thickness);
+            }
+            else
+            {
+                var y2 = MathF.Min(canvas.Y + canvas.Height - 4f, y + length);
+                drawList.AddLine(new UiVector2(x, y), new UiVector2(x, y2), color, thickness);
+            }
+        }
+    }
+
+    private static PrimitiveWorkload ReadWorkload()
+    {
+        var raw = Environment.GetEnvironmentVariable("DUXEL_VECTOR_BENCH_WORKLOAD");
+        if (string.Equals(raw, "rect-outline", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "rect-outlines", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "outline", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "outlines", StringComparison.OrdinalIgnoreCase))
+        {
+            return PrimitiveWorkload.RectOutline;
+        }
+
+        if (string.Equals(raw, "axis-line", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "axis-lines", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "line", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(raw, "lines", StringComparison.OrdinalIgnoreCase))
+        {
+            return PrimitiveWorkload.AxisLine;
+        }
+
+        return PrimitiveWorkload.Mixed;
+    }
+
+    private static string GetWorkloadName(PrimitiveWorkload workload) => workload switch
+    {
+        PrimitiveWorkload.RectOutline => "rect-outline",
+        PrimitiveWorkload.AxisLine => "axis-line",
+        _ => "mixed",
+    };
 }

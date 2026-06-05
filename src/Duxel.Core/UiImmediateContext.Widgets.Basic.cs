@@ -866,8 +866,9 @@ public sealed partial class UiImmediateContext
 
         if (_fontAtlas.TryGetGlyph('H', out var hGlyph))
         {
-            var glyphTop = (_fontAtlas.Ascent + hGlyph.OffsetY) * _textSettings.Scale;
-            var glyphHeight = hGlyph.Height * _textSettings.Scale;
+            var effectiveSettings = GetEffectiveTextSettings(_textSettings, _lineHeight);
+            var glyphTop = (_fontAtlas.Ascent + hGlyph.OffsetY) * effectiveSettings.Scale;
+            var glyphHeight = hGlyph.Height * effectiveSettings.Scale;
             return textPositionY + glyphTop + (glyphHeight * 0.5f);
         }
 
@@ -877,7 +878,7 @@ public sealed partial class UiImmediateContext
     private bool TryGetDirectTextGlyphCenterOffset(char glyph, out float centerOffset)
     {
         centerOffset = 0f;
-        if (_platformTextBackend is null || string.IsNullOrWhiteSpace(_directTextPrimaryFontPath))
+        if (!_directTextEnabled || _platformTextBackend is null || string.IsNullOrWhiteSpace(_directTextPrimaryFontPath))
         {
             return false;
         }
