@@ -1,6 +1,6 @@
 # Duxel FBA 샘플 — 바로 실행하기
 
-> 마지막 동기화: 2026-05-16
+> 마지막 동기화: 2026-06-06
 
 > .NET 10 + Vulkan 즉시 모드 GUI 프레임워크 **Duxel**의 FBA 샘플을 **복사-붙여넣기 한 줄**로 바로 실행하세요.
 
@@ -404,7 +404,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 ## 벡터 프리미티브 벤치
 
-라인/사각형/원 벡터 프리미티브 전용 벤치마크 + clip clamp A/B 비교입니다.
+라인/사각형/원 벡터 프리미티브와 primitive-heavy workload를 분리 측정하는 벤치마크입니다.
 
 **PowerShell**
 ```powershell
@@ -416,7 +416,115 @@ irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/v
 curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/vector_primitives_bench_fba.cs -o - | dotnet run -
 ```
 
-> 라인/사각형/원 대량 렌더 · clip clamp 전략 A/B 비교
+> 라인/사각형/원 대량 렌더 · `DUXEL_VECTOR_BENCH_WORKLOAD=mixed|rect-outline|axis-line`
+
+---
+
+## Pipeline Ordering 벤치
+
+동적 solid/text pipeline ordering 비용을 분리 측정하는 초점형 게이트입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/pipeline_ordering_bench_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/pipeline_ordering_bench_fba.cs -o - | dotnet run -
+```
+
+> alternating · grouped solids-then-text · channelized · copy-free channel draw-list phases
+
+---
+
+## Dynamic Widget Ordering 벤치
+
+위젯형 동적 producer ordering과 row clip churn을 분리 측정하는 초점형 게이트입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dynamic_widget_ordering_bench_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/dynamic_widget_ordering_bench_fba.cs -o - | dotnet run -
+```
+
+> alternating rows · grouped solids/text · channelized phases · row clip churn
+
+---
+
+## Static Cache Rebuild 벤치
+
+static cache replay, false-dirty rebuild, mutating geometry update, allocation pressure를 분리 측정하는 초점형 게이트입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/static_cache_rebuild_bench_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/static_cache_rebuild_bench_fba.cs -o - | dotnet run -
+```
+
+> static cache replay · replacement/update/reuse attribution · `avgAllocatedBytes`
+
+---
+
+## Moving Static Layer Ordering 벤치
+
+moving static-layer replay scheduling reuse를 분리 측정하는 초점형 게이트입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/static_layer_moving_order_bench_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/static_layer_moving_order_bench_fba.cs -o - | dotnet run -
+```
+
+> stable static content · moving replay translation/clip · static scheduler A/B gate
+
+---
+
+## Texture Upload Barrier 벤치
+
+upload queue policy를 바꾸기 전 texture upload copy/barrier 동작을 분리 측정하는 초점형 게이트입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/texture_upload_barrier_bench_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/texture_upload_barrier_bench_fba.cs -o - | dotnet run -
+```
+
+> full texture updates · same-texture region batches · many-texture region updates
+
+---
+
+## DirectText Page Upload 벤치
+
+platform glyph rasterizer 비용 없이 DirectText page-style partial texture upload를 분리 측정하는 초점형 게이트입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/directtext_page_upload_bench_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/directtext_page_upload_bench_fba.cs -o - | dotnet run -
+```
+
+> page texture creates · same-page region appends · multi-page region updates
 
 ---
 
@@ -440,6 +548,9 @@ $files = @(
     "layer_dirty_strategy_bench.cs", "layer_widget_mix_bench_fba.cs",
     "scrolling_static_layer_bench_fba.cs",
     "global_dirty_strategy_bench.cs", "vector_primitives_bench_fba.cs",
+    "pipeline_ordering_bench_fba.cs", "dynamic_widget_ordering_bench_fba.cs",
+    "static_cache_rebuild_bench_fba.cs", "static_layer_moving_order_bench_fba.cs",
+    "texture_upload_barrier_bench_fba.cs", "directtext_page_upload_bench_fba.cs",
     "Duxel_perf_test_fba.cs", "ui_mixed_stress.cs"
 )
 New-Item -ItemType Directory -Force -Path fba | Out-Null
@@ -459,6 +570,9 @@ FILES=(all_features.cs hello_duxel_fba.cs \
     idle_layer_validation.cs \
     layer_dirty_strategy_bench.cs layer_widget_mix_bench_fba.cs scrolling_static_layer_bench_fba.cs \
     global_dirty_strategy_bench.cs vector_primitives_bench_fba.cs \
+    pipeline_ordering_bench_fba.cs dynamic_widget_ordering_bench_fba.cs \
+    static_cache_rebuild_bench_fba.cs static_layer_moving_order_bench_fba.cs \
+    texture_upload_barrier_bench_fba.cs directtext_page_upload_bench_fba.cs \
     Duxel_perf_test_fba.cs ui_mixed_stress.cs)
 mkdir -p fba
 for f in "${FILES[@]}"; do curl -sL "$BASE/$f" -o "fba/$f" && echo "Downloaded $f"; done

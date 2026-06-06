@@ -1,6 +1,6 @@
 # Duxel FBA Quick Start Guide
 
-> Last synced: 2026-05-16  
+> Last synced: 2026-06-06
 > Korean original: [getting-started-fba.ko.md](getting-started-fba.ko.md)
 
 This guide covers the FBA (File-Based App) flow to run Duxel with a single `.cs` file.
@@ -71,6 +71,13 @@ dotnet run samples/fba/all_features.cs
 | `font_style_validation_fba.cs` | Font style/size rendering validation |
 | `scrolling_static_layer_bench_fba.cs` | Scrolling/clip static layer benchmark for visual regression and cache invalidation validation |
 | `Duxel_perf_test_fba.cs` | High-polygon benchmark |
+| `pipeline_ordering_bench_fba.cs` | Dynamic solid/text pipeline ordering benchmark |
+| `dynamic_widget_ordering_bench_fba.cs` | Widget-like dynamic ordering and row clip churn benchmark |
+| `static_cache_rebuild_bench_fba.cs` | Static cache rebuild, reuse, and allocation pressure benchmark |
+| `static_layer_moving_order_bench_fba.cs` | Moving static-layer replay ordering benchmark |
+| `texture_upload_barrier_bench_fba.cs` | Texture upload copy/barrier policy benchmark |
+| `directtext_page_upload_bench_fba.cs` | DirectText page-style partial texture upload benchmark |
+| `vector_primitives_bench_fba.cs` | Primitive-heavy vector workload benchmark |
 
 ## Profile / Environment Variable
 

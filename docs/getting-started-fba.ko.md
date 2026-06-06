@@ -1,6 +1,6 @@
 # Duxel FBA 빠른 시작 가이드
 
-> 마지막 동기화: 2026-05-16
+> 마지막 동기화: 2026-06-06
 
 단일 `.cs` 파일로 Duxel 앱을 실행하는 FBA(File-Based App) 기준 가이드입니다.
 
@@ -70,6 +70,13 @@ dotnet run samples/fba/all_features.cs
 | `font_style_validation_fba.cs` | 폰트 스타일/크기 렌더링 검증 |
 | `scrolling_static_layer_bench_fba.cs` | 스크롤/클립 정적 레이어 벤치 및 시각 회귀·캐시 무효화 검증 |
 | `Duxel_perf_test_fba.cs` | 대량 폴리곤 벤치 |
+| `pipeline_ordering_bench_fba.cs` | 동적 solid/text pipeline ordering 벤치 |
+| `dynamic_widget_ordering_bench_fba.cs` | 위젯형 동적 ordering과 row clip churn 벤치 |
+| `static_cache_rebuild_bench_fba.cs` | static cache rebuild, reuse, allocation pressure 벤치 |
+| `static_layer_moving_order_bench_fba.cs` | moving static-layer replay ordering 벤치 |
+| `texture_upload_barrier_bench_fba.cs` | texture upload copy/barrier policy 벤치 |
+| `directtext_page_upload_bench_fba.cs` | DirectText page-style partial texture upload 벤치 |
+| `vector_primitives_bench_fba.cs` | primitive-heavy vector workload 벤치 |
 
 ## 프로필/환경 변수
 

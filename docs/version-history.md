@@ -2,7 +2,7 @@
 
 This document accumulates version-by-version changes for Duxel.
 
-## 0.2.3-preview (TBD)
+## 0.2.3-preview (2026-06-06)
 
 ### Major Features
 
@@ -36,6 +36,7 @@ This document accumulates version-by-version changes for Duxel.
 - Performance profiling document: `docs/optimization-session-2024-2025-phase1.md` documents Phase 1 rendering optimization details and cumulative improvements (~10-15% frame time reduction projected).
 - Optimization session history: `docs/optimization-session-2026-06-05.md` records the renderer optimization work, promoted defaults, rejected experiments, measured gates, and a user-facing 2026-06-06 summary.
 - Agent reference documents: `docs/duxel-agent-reference.md` and `docs/duxel-agent-reference.ko.md` now document the DirectText default, focused FBA gates, performance environment variables, and opt-in experimental renderer policies.
+- Bumped package version to `0.2.3-preview` (`Duxel.App`, `Duxel.Windows.App`).
 
 ## 0.2.2-preview (2026-04-03)
 

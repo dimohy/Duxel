@@ -2,7 +2,7 @@
 
 Duxel의 버전별 변경 내역 누적 기록.
 
-## 0.2.3-preview (예정)
+## 0.2.3-preview (2026-06-06)
 
 ### 주요 기능 추가
 
@@ -36,6 +36,7 @@ Duxel의 버전별 변경 내역 누적 기록.
 - 성능 프로파일링 문서: `docs/optimization-session-2024-2025-phase1.md`에 Phase 1 렌더링 최적화 상세 내역 및 누적 개선율(~10-15% 프레임 시간 감소 예상) 기록.
 - 최적화 세션 히스토리: `docs/optimization-session-2026-06-05.md`에 renderer optimization 작업, 기본값으로 승격한 항목, 보류한 실험, 측정 gate, 2026-06-06 사용자용 요약 기록.
 - Agent reference 문서: `docs/duxel-agent-reference.md`와 `docs/duxel-agent-reference.ko.md`에 DirectText 기본값, focused FBA gate, 성능 환경변수, opt-in renderer 실험 정책 반영.
+- 패키지 버전을 `0.2.3-preview`로 상향 (`Duxel.App`, `Duxel.Windows.App`).
 
 ## 0.2.2-preview (2026-04-03)
 
