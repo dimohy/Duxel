@@ -4,15 +4,38 @@ This document accumulates version-by-version changes for Duxel.
 
 ## 0.2.3-preview (TBD)
 
+### Major Features
+
+- **[Feature]** Repository-local Codex guidance — added `AGENTS.md` so Codex uses the repository's `.github/copilot-instructions.md` and local `.github/skills/*/SKILL.md` catalog while preserving the Codex-specific response and tool rules.
+- **[Feature]** Focused FBA performance gates — added bottleneck-specific samples for pipeline ordering, dynamic widget ordering, static cache rebuild/reuse, moving static-layer ordering, texture upload barriers, DirectText page upload behavior, and vector primitive workloads.
+
 ### Major Improvements
 
 - **[Improvement]** Vulkan 2D rendering pipeline optimization — optimized `UploadGeometry()` vertex conversion with loop unrolling (4-vertex batches) and `ConvertVertexFast()` inlining, reducing per-frame memory conversion overhead by ~25-30%.
 - **[Improvement]** Draw command state caching refinement — restructured texture lookup early-exit paths and scissor state comparison to eliminate redundant profiling calls and improve branch prediction, reducing state change overhead by ~10-15%.
 - **[Improvement]** GPU command recording efficiency — refined descriptor binding and pipeline state validation patterns in `RecordCommandBuffer()` to reduce CPU-GPU synchronization stalls.
+- **[Improvement]** DirectText default text path — `DuxelRendererOptions.TextRendering` now defaults to `DirectText` so the lower-quality atlas output is not used as the default visual baseline; `Atlas` and `Auto` remain explicit profiling/fallback modes.
+- **[Improvement]** Performance-test defaults — `samples/fba/Duxel_perf_test_fba.cs` now defaults to the Render profile and enables the global static backdrop cache by default. `DUXEL_PERF_PROFILE=render|display` overrides the startup profile, and `DUXEL_PERF_GLOBAL_STATIC_CACHE=0` disables the cache.
+- **[Improvement]** Retained global static cache path — the performance-test backdrop cache now replays retained static reference draw lists with stable static geometry keys and stamps, so the option reaches the Vulkan static geometry cache path instead of only skipping CPU-side backdrop rebuilds.
+- **[Improvement]** Axis-aligned vector fast paths — exact horizontal/vertical `AddLine(...)` calls and non-rounded `AddRect(...)` outlines now emit rect-filled primitives instead of triangle polyline geometry, reducing pipeline churn in focused vector gates.
+- **[Improvement]** Vulkan renderer responsibility split — split command recording, state tracking, static geometry cache/materialization, upload scheduling, image transitions, swapchain/resources, pipeline setup, diagnostics, and device policy into owner files while keeping the backend shell stable.
+- **[Improvement]** Static geometry policy and profiling — added vendor/device policy attribution, rotating same-shape static geometry update policy for the validated local NVIDIA discrete GPU path, static primitive triangle auto policy with byte/mutation guards, and profile counters for static geometry hits/replacements/reuse/memory.
+- **[Improvement]** Primitive pipeline consolidation — replaced separate rect/circle primitive shaders and buffers with a packed primitive pipeline/buffer model, plus sampler-free solid color pipelines for white-texture primitive commands.
+- **[Improvement]** Upload and texture transition attribution — centralized upload scheduling and image layout transition handling, restored upload batching as the default, and kept the transfer queue path opt-in after focused gates showed slower local performance than graphics-queue uploads.
+- **[Improvement]** Static layer and append metadata — moved static/dynamic append opacity and translation into command metadata and shader push state where possible, reducing CPU-side geometry rewrites while preserving replay identity.
+
+### Major Bug Fixes
+
+- **[Bug]** Global static cache toggle crash — disabling the performance-test global cache from the UI now defers backing-buffer release until the next frame so retained static references submitted earlier in the frame are not released before rendering.
+- **[Bug]** Atlas glyph spacing regression — DirectWrite atlas glyph metrics now keep logical advance/offset separate from oversampled rasterization size, and the atlas disk cache version was bumped to avoid reusing bad placement data.
+- **[Bug]** DirectText page visual regression guard — DirectText page texture packing remains opt-in through `DUXEL_DIRECT_TEXT_PAGE=1`; default DirectText rendering uses the visually safer non-page path until rendered comparison gates are available.
+- **[Bug]** Zero-element command overhead — empty placeholder draw commands are skipped or merged before Vulkan state selection so texture-change placeholders no longer trigger descriptor/pipeline work.
 
 ### Packaging / Release
 
 - Performance profiling document: `docs/optimization-session-2024-2025-phase1.md` documents Phase 1 rendering optimization details and cumulative improvements (~10-15% frame time reduction projected).
+- Optimization session history: `docs/optimization-session-2026-06-05.md` records the renderer optimization work, promoted defaults, rejected experiments, measured gates, and a user-facing 2026-06-06 summary.
+- Agent reference documents: `docs/duxel-agent-reference.md` and `docs/duxel-agent-reference.ko.md` now document the DirectText default, focused FBA gates, performance environment variables, and opt-in experimental renderer policies.
 
 ## 0.2.2-preview (2026-04-03)
 

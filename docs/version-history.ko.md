@@ -4,15 +4,38 @@ Duxel의 버전별 변경 내역 누적 기록.
 
 ## 0.2.3-preview (예정)
 
+### 주요 기능 추가
+
+- **[기능]** 저장소 로컬 Codex 지침 — `AGENTS.md`를 추가해 Codex가 저장소의 `.github/copilot-instructions.md`와 `.github/skills/*/SKILL.md` 카탈로그를 활용하되, Codex 전용 응답 형식과 도구 규칙은 유지하도록 정리.
+- **[기능]** 초점형 FBA 성능 게이트 — pipeline ordering, dynamic widget ordering, static cache rebuild/reuse, moving static-layer ordering, texture upload barrier, DirectText page upload, vector primitive workload를 각각 분리해 측정하는 샘플 추가.
+
 ### 주요 개선 사항
 
 - **[개선]** Vulkan 2D 렌더링 파이프라인 최적화 — `UploadGeometry()` 정점 변환을 루프 언롤(4-정점 배치) 및 `ConvertVertexFast()` 인라인화로 최적화, 프레임별 메모리 변환 오버헤드 ~25-30% 감소.
 - **[개선]** 드로우 커맨드 상태 캐싱 정제 — 텍스처 룩업 조기 종료(early exit) 경로와 scissor 상태 비교 재구성으로 프로파일링 호출 중복 제거, 분기 예측 개선으로 상태 변경 오버헤드 ~10-15% 감소.
 - **[개선]** GPU 커맨드 기록 효율성 — `RecordCommandBuffer()`의 descriptor binding 및 파이프라인 상태 검증 패턴 정제로 CPU-GPU 동기화 대기 시간 감소.
+- **[개선]** DirectText 기본 텍스트 경로 — `DuxelRendererOptions.TextRendering` 기본값을 `DirectText`로 변경해 품질이 낮게 보이는 atlas 출력을 기본 시각 기준에서 제외. `Atlas`와 `Auto`는 명시적 프로파일링/폴백 모드로 유지.
+- **[개선]** 성능 테스트 기본값 — `samples/fba/Duxel_perf_test_fba.cs` 기본 시작값을 Render profile과 전역 static backdrop cache enabled로 변경. `DUXEL_PERF_PROFILE=render|display`로 시작 profile을 override하고, `DUXEL_PERF_GLOBAL_STATIC_CACHE=0`으로 cache를 끌 수 있음.
+- **[개선]** Retained 전역 static cache 경로 — 성능 테스트 backdrop cache가 stable static geometry key/stamp를 가진 retained static reference draw list로 replay되도록 개선해, CPU-side backdrop rebuild 생략을 넘어 Vulkan static geometry cache 경로를 실제로 타도록 변경.
+- **[개선]** 축 정렬 vector fast path — 정확한 수평/수직 `AddLine(...)`과 둥글지 않은 `AddRect(...)` outline을 triangle polyline geometry 대신 rect-filled primitive로 방출해 focused vector gate의 pipeline churn 감소.
+- **[개선]** Vulkan renderer 책임 분리 — command recording, state tracking, static geometry cache/materialization, upload scheduling, image transitions, swapchain/resources, pipeline setup, diagnostics, device policy를 owner 파일로 분리하면서 backend shell은 유지.
+- **[개선]** Static geometry policy와 profiling — vendor/device policy attribution, 검증된 로컬 NVIDIA discrete GPU 경로의 rotating same-shape static geometry update policy, byte/mutation guard가 있는 static primitive triangle auto policy, static geometry hit/replacement/reuse/memory profile counter 추가.
+- **[개선]** Primitive pipeline 통합 — rect/circle primitive 전용 shader와 buffer를 packed primitive pipeline/buffer 모델로 통합하고, white-texture primitive command용 sampler-free solid color pipeline 추가.
+- **[개선]** Upload와 texture transition attribution — upload scheduling과 image layout transition 처리를 중앙화하고 upload batching을 기본 enabled로 복원. focused gate에서 transfer queue가 graphics queue upload보다 느려 opt-in 경로로 유지.
+- **[개선]** Static layer와 append metadata — static/dynamic append opacity와 translation을 가능한 경우 command metadata 및 shader push state로 이동해 CPU-side geometry rewrite를 줄이고 replay identity 안정화.
+
+### 주요 버그 수정
+
+- **[버그]** 전역 static cache 토글 crash — 성능 테스트 UI에서 전역 cache를 끌 때, 같은 프레임에서 제출된 retained static reference가 아직 참조 중인 backing buffer를 렌더 전에 해제하지 않도록 다음 프레임 시작까지 release를 지연.
+- **[버그]** Atlas glyph spacing 회귀 — DirectWrite atlas glyph path에서 logical advance/offset과 oversampled rasterization size를 분리하고, 잘못된 배치 데이터 재사용을 막기 위해 atlas disk cache version 갱신.
+- **[버그]** DirectText page 시각 회귀 guard — DirectText page texture packing은 `DUXEL_DIRECT_TEXT_PAGE=1` opt-in으로 유지하고, rendered comparison gate가 준비될 때까지 기본 DirectText는 시각적으로 안전한 non-page 경로 사용.
+- **[버그]** Zero-element command overhead — empty placeholder draw command를 Vulkan state selection 전에 skip/merge해 texture-change placeholder가 descriptor/pipeline 작업을 유발하지 않도록 수정.
 
 ### 배포/릴리스
 
 - 성능 프로파일링 문서: `docs/optimization-session-2024-2025-phase1.md`에 Phase 1 렌더링 최적화 상세 내역 및 누적 개선율(~10-15% 프레임 시간 감소 예상) 기록.
+- 최적화 세션 히스토리: `docs/optimization-session-2026-06-05.md`에 renderer optimization 작업, 기본값으로 승격한 항목, 보류한 실험, 측정 gate, 2026-06-06 사용자용 요약 기록.
+- Agent reference 문서: `docs/duxel-agent-reference.md`와 `docs/duxel-agent-reference.ko.md`에 DirectText 기본값, focused FBA gate, 성능 환경변수, opt-in renderer 실험 정책 반영.
 
 ## 0.2.2-preview (2026-04-03)
 
