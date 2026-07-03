@@ -27,9 +27,10 @@ public sealed class UiContext(
     private UiRect _clipRect;
     private UiVector2 _displaySize;
     private UiVector2 _framebufferScale;
-    private UiTheme _theme = UiTheme.ImGuiDark;
-    private UiStyle _style = UiStyle.Default;
-    private UiStyle _baseStyle = UiStyle.Default;
+    private UiTheme _theme = UiCompiledDesign.Default.Theme;
+    private UiStyle _style = UiCompiledDesign.Default.Style;
+    private UiStyle _baseStyle = UiCompiledDesign.Default.Style;
+    private UiDesignTokens _designTokens = UiCompiledDesign.Default.Tokens;
     private IUiClipboard? _clipboard;
     private bool _hasFrame;
     private bool _hasInput;
@@ -93,6 +94,19 @@ public sealed class UiContext(
     {
         _baseStyle = style ?? throw new ArgumentNullException(nameof(style));
         _style = _baseStyle;
+    }
+
+    public void SetDesign(UiCompiledDesign design)
+    {
+        _theme = design.Theme;
+        SetStyle(design.Style);
+        _designTokens = design.Tokens;
+    }
+
+    public void SetDesign<TDesign>()
+        where TDesign : IUiDesign
+    {
+        SetDesign(TDesign.Create());
     }
 
     public void SetScreen(UiScreen screen)
@@ -821,6 +835,7 @@ public sealed class UiContext(
                 _whiteTexture,
                 _theme,
                 _style,
+                _designTokens,
                 _clipRect,
                 _inputState.MousePosition,
                 _inputState.LeftMouseDown,
@@ -860,6 +875,7 @@ public sealed class UiContext(
                 _fontAtlas.LineHeight,
                 _theme,
                 _style,
+                _designTokens,
                 _clipRect,
                 _inputState.MousePosition,
                 _inputState.LeftMouseDown,

@@ -18,8 +18,8 @@ DuxelApp.Run(new DuxelAppOptions
     Window = new DuxelWindowOptions
     {
         Title = "Duxel All Features Showcase",
-        Width = 1600,
-        Height = 1000,
+        Width = 1100,
+        Height = 740,
         VSync = false
     },
     Screen = new AllFeaturesScreen()
@@ -110,6 +110,45 @@ public sealed class AllFeaturesScreen : UiScreen
 
     // ── Window focus tracking ──
     private string? _focusWindowName;
+
+    private static UiColor WithAlpha(UiColor color, byte alpha)
+        => new((color.Rgba & 0x00FFFFFF) | ((uint)alpha << 24));
+
+    private static UiColor Blend(UiColor from, UiColor to, float amount)
+    {
+        amount = Math.Clamp(amount, 0f, 1f);
+        var fromR = (int)((from.Rgba >> 0) & 0xFF);
+        var fromG = (int)((from.Rgba >> 8) & 0xFF);
+        var fromB = (int)((from.Rgba >> 16) & 0xFF);
+        var fromA = (int)((from.Rgba >> 24) & 0xFF);
+        var toR = (int)((to.Rgba >> 0) & 0xFF);
+        var toG = (int)((to.Rgba >> 8) & 0xFF);
+        var toB = (int)((to.Rgba >> 16) & 0xFF);
+        var toA = (int)((to.Rgba >> 24) & 0xFF);
+        var r = (byte)MathF.Round(fromR + ((toR - fromR) * amount));
+        var g = (byte)MathF.Round(fromG + ((toG - fromG) * amount));
+        var b = (byte)MathF.Round(fromB + ((toB - fromB) * amount));
+        var a = (byte)MathF.Round(fromA + ((toA - fromA) * amount));
+        return new UiColor(r, g, b, a);
+    }
+
+    private static UiColor AdaptAccent(UiImmediateContext ui, UiColor requested, float amount = 0.72f)
+        => Blend(ui.GetColorU32(UiStyleColor.Text), requested, amount);
+
+    private static UiColor Accent(UiImmediateContext ui)
+        => ui.GetColorU32(UiStyleColor.CheckMark);
+
+    private static UiColor Info(UiImmediateContext ui)
+        => AdaptAccent(ui, ui.GetColorU32(UiStyleColor.CheckMark), 0.88f);
+
+    private static UiColor Success(UiImmediateContext ui)
+        => AdaptAccent(ui, new UiColor(58, 166, 117), 0.74f);
+
+    private static UiColor Warning(UiImmediateContext ui)
+        => AdaptAccent(ui, new UiColor(214, 160, 48), 0.74f);
+
+    private static UiColor Danger(UiImmediateContext ui)
+        => AdaptAccent(ui, new UiColor(209, 52, 56), 0.78f);
 
     private void InitWindowOnce(UiImmediateContext ui, string name, UiVector2 size)
     {
@@ -242,14 +281,19 @@ public sealed class AllFeaturesScreen : UiScreen
         var heroHeight = MathF.Max(visibleCardCount > 0 ? 62f : 38f, contentHeight + (paddingY * 2f));
         var rect = new UiRect(origin.X, origin.Y, width, heroHeight);
         var drawList = ui.GetWindowDrawList();
-        drawList.AddRectFilled(rect, new UiColor(0xEE121A24));
-        drawList.AddRect(rect, new UiColor(0xFF314050), 6f, 1f);
+        var surface = ui.GetColorU32(UiStyleColor.WindowBg);
+        var cardSurface = ui.GetColorU32(UiStyleColor.FrameBg);
+        var border = ui.GetColorU32(UiStyleColor.Border);
+        var text = ui.GetColorU32(UiStyleColor.Text);
+        var mutedText = ui.GetColorU32(UiStyleColor.TextDisabled);
+        drawList.AddRectFilled(rect, WithAlpha(Blend(surface, cardSurface, 0.45f), 238));
+        drawList.AddRect(rect, Blend(border, accent, 0.18f), 6f, 1f);
         drawList.AddRectFilled(new UiRect(rect.X, rect.Y, accentWidth, rect.Height), accent);
 
         ui.SetCursorScreenPos(new UiVector2(contentX, rect.Y + paddingY));
         ui.TextDisabled(headingText);
         ui.SetCursorScreenPos(new UiVector2(contentX, rect.Y + paddingY + headingSize.Y + sectionGap));
-        ui.TextColored(new UiColor(0xFFB7C7D9), wrappedDescription);
+        ui.TextColored(Blend(mutedText, text, 0.28f), wrappedDescription);
 
         if (visibleCardCount > 0)
         {
@@ -258,8 +302,8 @@ public sealed class AllFeaturesScreen : UiScreen
             for (var i = 0; i < visibleCardCount; i++)
             {
                 var cardRect = new UiRect(contentX + (i * (cardWidth + cardGap)), cardY, cardWidth, cardHeight);
-                drawList.AddRectFilled(cardRect, new UiColor(0xFF1D2732));
-                drawList.AddRect(cardRect, new UiColor(0xFF384656), 5f, 1f);
+                drawList.AddRectFilled(cardRect, Blend(cardSurface, surface, 0.22f));
+                drawList.AddRect(cardRect, Blend(border, accent, 0.14f), 5f, 1f);
                 var textRect = new UiRect(cardRect.X + 10f, cardRect.Y, MathF.Max(0f, cardRect.Width - 20f), cardRect.Height);
                 ui.DrawTextAligned(textRect, $"{cards[i].Label}: {cards[i].Value}", cards[i].ValueColor, UiItemHorizontalAlign.Left, UiItemVerticalAlign.Center);
             }
@@ -301,8 +345,13 @@ public sealed class AllFeaturesScreen : UiScreen
         var heroRect = new UiRect(origin.X, origin.Y, width, heroHeight);
         var drawList = ui.GetWindowDrawList();
 
-        drawList.AddRectFilled(heroRect, new UiColor(0xFF111A25));
-        drawList.AddRect(heroRect, new UiColor(0xFF344A63), 8f, 1.5f);
+        var surface = ui.GetColorU32(UiStyleColor.WindowBg);
+        var cardSurface = ui.GetColorU32(UiStyleColor.FrameBg);
+        var border = ui.GetColorU32(UiStyleColor.Border);
+        var text = ui.GetColorU32(UiStyleColor.Text);
+        var mutedText = ui.GetColorU32(UiStyleColor.TextDisabled);
+        drawList.AddRectFilled(heroRect, Blend(surface, cardSurface, 0.4f));
+        drawList.AddRect(heroRect, Blend(border, accent, 0.2f), 8f, 1.5f);
         drawList.AddRectFilled(new UiRect(heroRect.X, heroRect.Y, accentWidth, heroRect.Height), accent);
 
         var contentLeft = origin.X + accentWidth + innerPaddingX;
@@ -311,7 +360,7 @@ public sealed class AllFeaturesScreen : UiScreen
         ui.SetCursorScreenPos(new UiVector2(contentLeft, contentTop));
         ui.TextDisabled($"SHOWCASE · {title}");
         ui.PushTextWrapPos(heroRect.X + heroRect.Width - innerPaddingX);
-        ui.TextColored(new UiColor(0xFFB7C7D9), description);
+        ui.TextColored(Blend(mutedText, text, 0.3f), description);
         ui.PopTextWrapPos();
 
         if (visibleCardCount > 0)
@@ -329,9 +378,9 @@ public sealed class AllFeaturesScreen : UiScreen
                 var labelRect = new UiRect(cardRect.X + 10f, textTop, cardRect.Width - 20f, lineHeight);
                 var valueRect = new UiRect(cardRect.X + 10f, textTop + lineHeight, cardRect.Width - 20f, lineHeight);
 
-                drawList.AddRectFilled(cardRect, new UiColor(0xFF202833));
-                drawList.AddRect(cardRect, new UiColor(0xFF3A4656), 6f, 1f);
-                ui.DrawTextAligned(labelRect, cards[i].Label, new UiColor(0xFF9AA8B8), UiItemHorizontalAlign.Left, UiItemVerticalAlign.Center);
+                drawList.AddRectFilled(cardRect, Blend(cardSurface, surface, 0.2f));
+                drawList.AddRect(cardRect, Blend(border, accent, 0.14f), 6f, 1f);
+                ui.DrawTextAligned(labelRect, cards[i].Label, Blend(mutedText, text, 0.12f), UiItemHorizontalAlign.Left, UiItemVerticalAlign.Center);
                 ui.DrawTextAligned(valueRect, cards[i].Value, cards[i].ValueColor, UiItemHorizontalAlign.Left, UiItemVerticalAlign.Center);
             }
         }
@@ -844,10 +893,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_text_links",
             TextWindowTitle,
             "Foundational text, wrapped content, lightweight status rows, and inline link actions in one compact surface.",
-            new UiColor(0xFF5DB3FF),
-            ("Coverage", "Labels · wrapped text · links", new UiColor(0xFF8DE1A6)),
-            ("Tone", "Documentation-friendly", new UiColor(0xFFFFD479)),
-            ("Status", "Clipboard-ready", new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Coverage", "Labels · wrapped text · links", Success(ui)),
+            ("Tone", "Documentation-friendly", Warning(ui)),
+            ("Status", "Clipboard-ready", Info(ui)));
 
         ui.SeparatorText("Core Text APIs");
         ui.Text("Text: Normal");
@@ -869,9 +918,9 @@ var widget = new MarkdownViewerWidget("preview")
         {
             var origin = ui.GetCursorScreenPos();
             var width = MathF.Max(220f, ui.GetContentRegionAvail().X);
-            ui.DrawKeyValueRow(new UiRect(origin.X, origin.Y, width, 24f), "FPS", $"{_fps:0}", selected: true, accent: new UiColor(0xFF39AFFF));
-            ui.DrawKeyValueRow(new UiRect(origin.X, origin.Y + 28f, width, 24f), "Input", "IME + multiline + clipboard ready", valueColor: new UiColor(0xFF8DE1A6));
-            ui.DrawKeyValueRow(new UiRect(origin.X, origin.Y + 56f, width, 24f), "Theme", _customStyle ? "Custom accent" : "Default", valueColor: new UiColor(0xFFFFD479));
+            ui.DrawKeyValueRow(new UiRect(origin.X, origin.Y, width, 24f), "FPS", $"{_fps:0}", selected: true, accent: Accent(ui));
+            ui.DrawKeyValueRow(new UiRect(origin.X, origin.Y + 28f, width, 24f), "Input", "IME + multiline + clipboard ready", valueColor: Success(ui));
+            ui.DrawKeyValueRow(new UiRect(origin.X, origin.Y + 56f, width, 24f), "Theme", _customStyle ? "Custom accent" : "Default", valueColor: Warning(ui));
             ui.Dummy(new UiVector2(width, 84f));
         }
         ui.EndChild();
@@ -897,10 +946,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_typography",
             TypographyWindowTitle,
             "Scale, hierarchy, wrapping, and alignment patterns for polished editorial UI instead of plain text dumps.",
-            new UiColor(0xFF7EC8FF),
-            ("Headline", $"{_typographyPreviewSize:0}px live preview", new UiColor(0xFF7EC8FF)),
-            ("Ladder", $"{_typographyLadderMin:0}-{_typographyLadderMax:0}px", new UiColor(0xFFFFD479)),
-            ("Wrap", $"{_typographyWrapWidth:0}px column", new UiColor(0xFF8DE1A6)));
+            Info(ui),
+            ("Headline", $"{_typographyPreviewSize:0}px live preview", Info(ui)),
+            ("Ladder", $"{_typographyLadderMin:0}-{_typographyLadderMax:0}px", Warning(ui)),
+            ("Wrap", $"{_typographyWrapWidth:0}px column", Success(ui)));
 
         ui.SeparatorText("Live Preview");
         ui.SliderFloat("Preview Size", ref _typographyPreviewSize, 8f, 72f, 0f, "0");
@@ -911,7 +960,7 @@ var widget = new MarkdownViewerWidget("preview")
         ui.PopFontSize();
 
         ui.PushFontSize(_typographyPreviewSize + 2f);
-        ui.TextColored(new UiColor(0xFF7EC8FF), "Section heading — strong hierarchy without extra widgets");
+        ui.TextColored(Info(ui), "Section heading — strong hierarchy without extra widgets");
         ui.PopFontSize();
 
         ui.PushFontSize(_typographyPreviewSize);
@@ -999,10 +1048,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_buttons",
             ButtonWindowTitle,
             "From primary calls to compact toolbar affordances, this window shows how action density changes the visual rhythm of a UI.",
-            new UiColor(0xFF58A6FF),
-            ("Primary", "Large CTA buttons", new UiColor(0xFF8DE1A6)),
-            ("Secondary", "Toolbar micro-actions", new UiColor(0xFFFFD479)),
-            ("Counter", _clickCount.ToString(), new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Primary", "Large CTA buttons", Success(ui)),
+            ("Secondary", "Toolbar micro-actions", Warning(ui)),
+            ("Counter", _clickCount.ToString(), Info(ui)));
 
         ui.SeparatorText("Core Buttons");
         if (ui.Button("Button")) _clickCount++;
@@ -1058,10 +1107,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_checkbox",
             CheckboxWindowTitle,
             "Binary toggles, packed bit flags, and dependent enablement rules for settings-oriented UI.",
-            new UiColor(0xFF58A6FF),
-            ("Primary", _checkboxA ? "On" : "Off", new UiColor(0xFF8DE1A6)),
-            ("Secondary", _checkboxB ? "On" : "Off", new UiColor(0xFFFFD479)),
-            ("Flags", $"0b{Convert.ToString(_flagsBitmask, 2).PadLeft(3, '0')}", new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Primary", _checkboxA ? "On" : "Off", Success(ui)),
+            ("Secondary", _checkboxB ? "On" : "Off", Warning(ui)),
+            ("Flags", $"0b{Convert.ToString(_flagsBitmask, 2).PadLeft(3, '0')}", Info(ui)));
 
         ui.SeparatorText("Binary States");
         ui.Checkbox("Checkbox A", ref _checkboxA);
@@ -1094,8 +1143,8 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_radio",
             RadioWindowTitle,
             "Mutually exclusive choices with a compact footprint for mode and preset selection flows.",
-            new UiColor(0xFF58A6FF),
-            ("Active", $"Option {_radioValue + 1}", new UiColor(0xFF8DE1A6)));
+            Accent(ui),
+            ("Active", $"Option {_radioValue + 1}", Success(ui)));
 
         ui.RadioButton("Radio A", ref _radioValue, 0);
         ui.SameLine();
@@ -1118,10 +1167,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_progress",
             ProgressWindowTitle,
             "Animated meters, compact status readouts, and dashboard-friendly summaries that stay readable at a glance.",
-            new UiColor(0xFF58A6FF),
-            ("Progress", $"{_progress * 100f:0}%", new UiColor(0xFF8DE1A6)),
-            ("Renderer", _showLayersAnimation ? "Enhanced preview" : "Standard preview", new UiColor(0xFFFFD479)),
-            ("Health", _checkboxA ? "Ready" : "Paused", new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Progress", $"{_progress * 100f:0}%", Success(ui)),
+            ("Renderer", _showLayersAnimation ? "Enhanced preview" : "Standard preview", Warning(ui)),
+            ("Health", _checkboxA ? "Ready" : "Paused", Info(ui)));
 
         ui.SeparatorText("Animated Status Bars");
         ui.ProgressBar(_progress, new UiVector2(200f, 16f), $"{_progress * 100f:0}%");
@@ -1143,9 +1192,9 @@ var widget = new MarkdownViewerWidget("preview")
             const float rowGap = 4f;
             const float keyWidth = 110f;
 
-            ui.DrawKeyValueRow(new UiRect(summaryOrigin.X, summaryOrigin.Y, summaryWidth, rowHeight), "Build", "Ready", selected: true, accent: new UiColor(0xFF58A6FF), keyWidth: keyWidth, horizontalPadding: 8f);
-            ui.DrawKeyValueRow(new UiRect(summaryOrigin.X, summaryOrigin.Y + rowHeight + rowGap, summaryWidth, rowHeight), "Assets", "Streaming", valueColor: new UiColor(0xFFFFD479), keyWidth: keyWidth, horizontalPadding: 8f);
-            ui.DrawKeyValueRow(new UiRect(summaryOrigin.X, summaryOrigin.Y + ((rowHeight + rowGap) * 2f), summaryWidth, rowHeight), "Renderer", _showLayersAnimation ? "Advanced showcase" : "Basic showcase", valueColor: new UiColor(0xFF8DE1A6), keyWidth: keyWidth, horizontalPadding: 8f);
+            ui.DrawKeyValueRow(new UiRect(summaryOrigin.X, summaryOrigin.Y, summaryWidth, rowHeight), "Build", "Ready", selected: true, accent: Accent(ui), keyWidth: keyWidth, horizontalPadding: 8f);
+            ui.DrawKeyValueRow(new UiRect(summaryOrigin.X, summaryOrigin.Y + rowHeight + rowGap, summaryWidth, rowHeight), "Assets", "Streaming", valueColor: Warning(ui), keyWidth: keyWidth, horizontalPadding: 8f);
+            ui.DrawKeyValueRow(new UiRect(summaryOrigin.X, summaryOrigin.Y + ((rowHeight + rowGap) * 2f), summaryWidth, rowHeight), "Renderer", _showLayersAnimation ? "Advanced showcase" : "Basic showcase", valueColor: Success(ui), keyWidth: keyWidth, horizontalPadding: 8f);
             ui.Dummy(new UiVector2(summaryWidth, (rowHeight * 3f) + (rowGap * 2f)));
         }
         ui.EndChild();
@@ -1164,10 +1213,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_slider",
             SliderWindowTitle,
             "Continuous ranges, angle controls, vector sliders, and vertical meters for tunable numeric input.",
-            new UiColor(0xFF58A6FF),
-            ("Float", _sliderFloat.ToString("0.00"), new UiColor(0xFF8DE1A6)),
-            ("Int", _sliderInt.ToString(), new UiColor(0xFFFFD479)),
-            ("Angle", _angle.ToString("0.00"), new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Float", _sliderFloat.ToString("0.00"), Success(ui)),
+            ("Int", _sliderInt.ToString(), Warning(ui)),
+            ("Angle", _angle.ToString("0.00"), Info(ui)));
 
         ui.SeparatorText("Float/Int Sliders");
         ui.SliderFloat("SliderFloat", ref _sliderFloat, 0f, 1f, 0.01f, "0.00");
@@ -1205,10 +1254,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_drag",
             DragWindowTitle,
             "Drag editors trade slider rails for direct value scrubbing, which is often better for dense inspector tooling.",
-            new UiColor(0xFF58A6FF),
-            ("Float", _dragF.ToString("0.00"), new UiColor(0xFF8DE1A6)),
-            ("Int", _dragI.ToString(), new UiColor(0xFFFFD479)),
-            ("Range", $"{_dragRangeMin:0.00}-{_dragRangeMax:0.00}", new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Float", _dragF.ToString("0.00"), Success(ui)),
+            ("Int", _dragI.ToString(), Warning(ui)),
+            ("Range", $"{_dragRangeMin:0.00}-{_dragRangeMax:0.00}", Info(ui)));
 
         ui.SeparatorText("DragFloat/Int");
         ui.DragFloat("DragFloat", ref _dragF, 0.01f, 0f, 1f, "0.00");
@@ -1244,10 +1293,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_input",
             InputWindowTitle,
             "Single-line, multiline, integer, floating-point, and scalar editors gathered into one focused editing lab.",
-            new UiColor(0xFF58A6FF),
-            ("Text", _inputText, new UiColor(0xFF8DE1A6)),
-            ("Lines", _inputMultiline.Split('\n').Length.ToString(), new UiColor(0xFFFFD479)),
-            ("Int", _inputInt.ToString(), new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Text", _inputText, Success(ui)),
+            ("Lines", _inputMultiline.Split('\n').Length.ToString(), Warning(ui)),
+            ("Int", _inputInt.ToString(), Info(ui)));
 
         ui.SeparatorText("Text Input");
         ui.InputText("InputText", ref _inputText, 64);
@@ -1289,9 +1338,9 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_color",
             ColorWindowTitle,
             "Quick edits, full pickers, and button previews for accent, theme, and asset color authoring.",
-            new UiColor(0xFF58A6FF),
-            ("Edit", $"R{_colR:0.00} G{_colG:0.00}", new UiColor(0xFF8DE1A6)),
-            ("Pick", $"R{_pickR:0.00} G{_pickG:0.00}", new UiColor(0xFFFFD479)));
+            Accent(ui),
+            ("Edit", $"R{_colR:0.00} G{_colG:0.00}", Success(ui)),
+            ("Pick", $"R{_pickR:0.00} G{_pickG:0.00}", Warning(ui)));
 
         ui.SeparatorText("ColorEdit");
         ui.ColorEdit3("ColorEdit3", ref _colR, ref _colG, ref _colB);
@@ -1325,10 +1374,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_combo",
             ComboWindowTitle,
             "Compact selection widgets for presets, quick picks, and command choice surfaces.",
-            new UiColor(0xFF58A6FF),
-            ("Combo", _items[_comboIdx], new UiColor(0xFF8DE1A6)),
-            ("Getter", _items[_comboGetterIdx], new UiColor(0xFFFFD479)),
-            ("BeginCombo", _items[_beginComboIdx], new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Combo", _items[_comboIdx], Success(ui)),
+            ("Getter", _items[_comboGetterIdx], Warning(ui)),
+            ("BeginCombo", _items[_beginComboIdx], Info(ui)));
 
         ui.SeparatorText("Basic Combo");
         ui.Text("Combo");
@@ -1367,12 +1416,12 @@ var widget = new MarkdownViewerWidget("preview")
         ui.SeparatorText("Selection Summary");
         if (ui.BeginChild("combo_summary", new UiVector2(0f, 96f), true))
         {
-            ui.DrawKeyValueRow(new UiRect(ui.GetCursorScreenPos().X, ui.GetCursorScreenPos().Y, MathF.Max(220f, ui.GetContentRegionAvail().X), 24f), "Combo", _items[_comboIdx], selected: true, accent: new UiColor(0xFF58A6FF));
+            ui.DrawKeyValueRow(new UiRect(ui.GetCursorScreenPos().X, ui.GetCursorScreenPos().Y, MathF.Max(220f, ui.GetContentRegionAvail().X), 24f), "Combo", _items[_comboIdx], selected: true, accent: Accent(ui));
             var y = ui.GetCursorScreenPos().Y + 28f;
             var x = ui.GetCursorScreenPos().X;
             var width = MathF.Max(220f, ui.GetContentRegionAvail().X);
-            ui.DrawKeyValueRow(new UiRect(x, y, width, 24f), "Getter", _items[_comboGetterIdx], valueColor: new UiColor(0xFFFFD479));
-            ui.DrawKeyValueRow(new UiRect(x, y + 28f, width, 24f), "BeginCombo", _items[_beginComboIdx], valueColor: new UiColor(0xFF8DE1A6));
+            ui.DrawKeyValueRow(new UiRect(x, y, width, 24f), "Getter", _items[_comboGetterIdx], valueColor: Warning(ui));
+            ui.DrawKeyValueRow(new UiRect(x, y + 28f, width, 24f), "BeginCombo", _items[_beginComboIdx], valueColor: Success(ui));
             ui.Dummy(new UiVector2(width, 84f));
         }
         ui.EndChild();
@@ -1392,10 +1441,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_listbox",
             ListBoxWindowTitle,
             "List boxes are ideal when the visible set matters as much as the final selection itself.",
-            new UiColor(0xFF58A6FF),
-            ("ListBox", _items[_listBoxIdx], new UiColor(0xFF8DE1A6)),
-            ("Getter", _items[_listBoxGetterIdx], new UiColor(0xFFFFD479)),
-            ("BeginListBox", _items[_beginListBoxIdx], new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("ListBox", _items[_listBoxIdx], Success(ui)),
+            ("Getter", _items[_listBoxGetterIdx], Warning(ui)),
+            ("BeginListBox", _items[_beginListBoxIdx], Info(ui)));
 
         ui.SeparatorText("Basic ListBox");
         ui.Text("ListBox");
@@ -1450,8 +1499,8 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_selectable",
             SelectableWindowTitle,
             "Bare selectable rows are a useful primitive for custom lists, command palettes, and selection-driven panels.",
-            new UiColor(0xFF58A6FF),
-            ("Selected", _selectables.Count(static value => value).ToString(), new UiColor(0xFF8DE1A6)));
+            Accent(ui),
+            ("Selected", _selectables.Count(static value => value).ToString(), Success(ui)));
 
         for (var i = 0; i < _selectables.Length; i++)
         {
@@ -1473,8 +1522,8 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_tree",
             TreeWindowTitle,
             "Hierarchical navigation, collapsible branches, and status feedback for inspectors and project explorers.",
-            new UiColor(0xFF58A6FF),
-            ("Status", _navigationStatus, new UiColor(0xFF8DE1A6)));
+            Accent(ui),
+            ("Status", _navigationStatus, Success(ui)));
 
         ui.SeparatorText("Tree Navigation");
         if (ui.TreeNode("TreeNode A", true))
@@ -1534,9 +1583,9 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_tabs",
             TabWindowTitle,
             "Workspace-style organization with closable tabs, tab buttons, and explicit selection state.",
-            new UiColor(0xFF58A6FF),
-            ("Current", _tabIndex switch { 0 => "Tab A", 1 => "Tab B", 2 => "Closeable", _ => "Unknown" }, new UiColor(0xFF8DE1A6)),
-            ("Closeable", _tabClosed ? "Closed" : "Open", new UiColor(0xFFFFD479)));
+            Accent(ui),
+            ("Current", _tabIndex switch { 0 => "Tab A", 1 => "Tab B", 2 => "Closeable", _ => "Unknown" }, Success(ui)),
+            ("Closeable", _tabClosed ? "Closed" : "Open", Warning(ui)));
 
         ui.SeparatorText("Tab Bar");
         if (ui.BeginTabBar("MainTabs"))
@@ -1621,10 +1670,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_table",
             TableWindowTitle,
             "Structured multi-column data with sortable headers, row backgrounds, and embedded controls.",
-            new UiColor(0xFF58A6FF),
-            ("Columns", "4", new UiColor(0xFF8DE1A6)),
-            ("Rows", "6 demo rows", new UiColor(0xFFFFD479)),
-            ("Use", "Data grids", new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Columns", "4", Success(ui)),
+            ("Rows", "6 demo rows", Warning(ui)),
+            ("Use", "Data grids", Info(ui)));
 
         ui.SeparatorText("Data Table");
         if (ui.BeginTable("AllFeaturesTable", 4, UiTableFlags.Borders | UiTableFlags.RowBg | UiTableFlags.Sortable))
@@ -1669,9 +1718,9 @@ var widget = new MarkdownViewerWidget("preview")
         {
             var origin = ui.GetCursorScreenPos();
             var width = MathF.Max(220f, ui.GetContentRegionAvail().X);
-            ui.DrawKeyValueRow(new UiRect(origin.X, origin.Y, width, 24f), "Rows", "6 demo rows", selected: true, accent: new UiColor(0xFF58A6FF));
-            ui.DrawKeyValueRow(new UiRect(origin.X, origin.Y + 28f, width, 24f), "Features", "Headers / RowBg / BgColor / Checkbox cells", valueColor: new UiColor(0xFFFFD479));
-            ui.DrawKeyValueRow(new UiRect(origin.X, origin.Y + 56f, width, 24f), "Use case", "Logs, file browsers, property grids", valueColor: new UiColor(0xFF8DE1A6));
+            ui.DrawKeyValueRow(new UiRect(origin.X, origin.Y, width, 24f), "Rows", "6 demo rows", selected: true, accent: Accent(ui));
+            ui.DrawKeyValueRow(new UiRect(origin.X, origin.Y + 28f, width, 24f), "Features", "Headers / RowBg / BgColor / Checkbox cells", valueColor: Warning(ui));
+            ui.DrawKeyValueRow(new UiRect(origin.X, origin.Y + 56f, width, 24f), "Use case", "Logs, file browsers, property grids", valueColor: Success(ui));
             ui.Dummy(new UiVector2(width, 84f));
         }
         ui.EndChild();
@@ -1690,8 +1739,8 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_popup",
             PopupWindowTitle,
             "Basic context popups and modal confirmation flows for compact decision points.",
-            new UiColor(0xFF58A6FF),
-            ("Last", _advancedPopupAction, new UiColor(0xFF8DE1A6)));
+            Accent(ui),
+            ("Last", _advancedPopupAction, Success(ui)));
 
         ui.SeparatorText("Basic Popup");
         if (ui.Button("Open Popup"))
@@ -1749,8 +1798,8 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_popup_patterns",
             AdvancedPopupWindowTitle,
             "Command palette style popups, item-triggered menus, hover detail, and confirmation modal patterns in one place.",
-            new UiColor(0xFF58A6FF),
-            ("Action", _advancedPopupAction, new UiColor(0xFF8DE1A6)));
+            Accent(ui),
+            ("Action", _advancedPopupAction, Success(ui)));
 
         ui.TextWrapped("This window demonstrates item-triggered popups, richer context actions, item tooltips, and modal confirmation flow in one place.");
 
@@ -1852,8 +1901,8 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_tooltip",
             TooltipWindowTitle,
             "Transient hover affordances ranging from one-line hints to rich mini cards with status context.",
-            new UiColor(0xFF58A6FF),
-            ("Preview", "SetTooltip · BeginTooltip · ItemTooltip", new UiColor(0xFF8DE1A6)));
+            Accent(ui),
+            ("Preview", "SetTooltip · BeginTooltip · ItemTooltip", Success(ui)));
 
         ui.SeparatorText("Tooltip Variants");
         ui.Button("Hover me (SetTooltip)");
@@ -1907,8 +1956,8 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_context_menu",
             ContextMenuWindowTitle,
             "Item, window, and void context menus for local actions exactly where the user expects them.",
-            new UiColor(0xFF58A6FF),
-            ("Last", _contextMenuAction, new UiColor(0xFF8DE1A6)));
+            Accent(ui),
+            ("Last", _contextMenuAction, Success(ui)));
 
         ui.SeparatorText("Item / Window / Void Context");
         ui.Text("Right-click below for context menus:");
@@ -1965,8 +2014,8 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_child",
             ChildWindowTitle,
             "Nested containers, local scrolling, and child-local layout behavior for dashboard sections and inspectors.",
-            new UiColor(0xFF58A6FF),
-            ("Scroll", _childScroll.ToString("0.00"), new UiColor(0xFF8DE1A6)));
+            Accent(ui),
+            ("Scroll", _childScroll.ToString("0.00"), Success(ui)));
 
         ui.SeparatorText("Child Window");
         if (ui.BeginChild("child1", new UiVector2(350f, 126f), true))
@@ -2000,10 +2049,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_layout",
             LayoutWindowTitle,
             "Spacing, indentation, width control, wrapping, and scrolling cues tuned for inspector-style interfaces that feel deliberate.",
-            new UiColor(0xFF7EC8FF),
-            ("Width", $"{_layoutItemWidth:0}px pushed", new UiColor(0xFF8DE1A6)),
-            ("Indent", $"{_layoutIndentWidth:0}px", new UiColor(0xFFFFD479)),
-            ("Alpha", _layoutBgAlpha.ToString("0.00"), new UiColor(0xFF7EC8FF)));
+            Info(ui),
+            ("Width", $"{_layoutItemWidth:0}px pushed", Success(ui)),
+            ("Indent", $"{_layoutIndentWidth:0}px", Warning(ui)),
+            ("Alpha", _layoutBgAlpha.ToString("0.00"), Info(ui)));
 
         ui.SeparatorText("Layout Helpers");
         ui.BeginGroup();
@@ -2083,8 +2132,8 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_layout_alpha",
             "Alpha Preview",
             "A translucent utility surface preview for floating inspectors and overlays.",
-            new UiColor(0xFF7EC8FF),
-            ("Alpha", _layoutBgAlpha.ToString("0.00"), new UiColor(0xFF8DE1A6)));
+            Info(ui),
+            ("Alpha", _layoutBgAlpha.ToString("0.00"), Success(ui)));
         ui.Text($"Alpha: {_layoutBgAlpha:0.00}");
         ui.Text("Useful for translucent overlays and inspectors.");
         ui.EndWindow();
@@ -2102,10 +2151,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_columns",
             ColumnsWindowTitle,
             "Legacy columns still shine for quick inspectors and split-pane tools when you need structure without the overhead of full data grids.",
-            new UiColor(0xFF58A6FF),
-            ("Border", _columnsBorder ? "Visible" : "Hidden", new UiColor(0xFF8DE1A6)),
-            ("Lead Column", $"{_columnsFirstWidth:0}px", new UiColor(0xFFFFD479)),
-            ("Layout", "Inspector / preview", new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Border", _columnsBorder ? "Visible" : "Hidden", Success(ui)),
+            ("Lead Column", $"{_columnsFirstWidth:0}px", Warning(ui)),
+            ("Layout", "Inspector / preview", Info(ui)));
 
         ui.Checkbox("Column Border", ref _columnsBorder);
         ui.SliderFloat("First Column Width", ref _columnsFirstWidth, 100f, 280f, 0f, "0");
@@ -2165,9 +2214,9 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_input_queries",
             InputQueriesWindowTitle,
             "Low-level keyboard, mouse, drag delta, clipboard, and hover rectangle queries for interaction diagnostics.",
-            new UiColor(0xFF58A6FF),
-            ("Shortcut", _lastShortcut, new UiColor(0xFF8DE1A6)),
-            ("Clipboard", _clipboardEcho, new UiColor(0xFFFFD479)));
+            Accent(ui),
+            ("Shortcut", _lastShortcut, Success(ui)),
+            ("Clipboard", _clipboardEcho, Warning(ui)));
 
         if (ui.Shortcut(UiKey.K, KeyModifiers.Ctrl))
         {
@@ -2223,7 +2272,7 @@ var widget = new MarkdownViewerWidget("preview")
             var probeRect = new UiRect(origin.X + 8f, origin.Y + 8f, 180f, 46f);
             var drawList = ui.GetWindowDrawList();
             drawList.AddRectFilled(probeRect, new UiColor(0xFF233142));
-            drawList.AddRect(probeRect, new UiColor(0xFF5DB3FF), 6f, 1.5f);
+            drawList.AddRect(probeRect, Accent(ui), 6f, 1.5f);
             var hovered = ui.IsMouseHoveringRect(new UiVector2(probeRect.X, probeRect.Y), new UiVector2(probeRect.X + probeRect.Width, probeRect.Y + probeRect.Height));
             ui.DrawTextAligned(probeRect, hovered ? "Rect hovered" : "Move cursor here", new UiColor(0xFFFFFFFF), UiItemHorizontalAlign.Center, UiItemVerticalAlign.Center);
             ui.Dummy(new UiVector2(200f, 62f));
@@ -2243,8 +2292,8 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_item_status",
             ItemStatusWindowTitle,
             "Per-item hover, activation, edit, and selection metadata captured immediately after rendering each control.",
-            new UiColor(0xFF58A6FF),
-            ("Latest", _itemStatusMessage, new UiColor(0xFF8DE1A6)));
+            Accent(ui),
+            ("Latest", _itemStatusMessage, Success(ui)));
 
         ui.TextWrapped("Each block below captures the last item state immediately after rendering the control, so you can inspect hover/active/focus/edit/toggle behavior without guessing.");
         ui.Text($"Latest event: {_itemStatusMessage}");
@@ -2338,9 +2387,9 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_multi_select",
             MultiSelectWindowTitle,
             "Selection metadata and toggled state for multi-pick flows that need more than a single active item.",
-            new UiColor(0xFF58A6FF),
-            ("Selected", $"{selectedCount} / {_multiSelectItems.Length}", new UiColor(0xFF8DE1A6)),
-            ("Last", _multiSelectMessage, new UiColor(0xFFFFD479)));
+            Accent(ui),
+            ("Selected", $"{selectedCount} / {_multiSelectItems.Length}", Success(ui)),
+            ("Last", _multiSelectMessage, Warning(ui)));
 
         ui.TextWrapped("The current multi-select API surface is intentionally small, so this showcase focuses on selection metadata, toggled state, and item-level diagnostics.");
         ui.Text($"Selected count: {selectedCount} / {_multiSelectItems.Length}");
@@ -2402,9 +2451,9 @@ var widget = new MarkdownViewerWidget("preview")
             LayersWindowTitle,
             "Cached replay, opacity, translation, and lightweight motion cues working together like a compact rendering systems postcard.",
             new UiColor(0xFF5DD6FF),
-            ("Cache", _layerStaticCache ? "Static" : "Dynamic", new UiColor(0xFF8DE1A6)),
-            ("Opacity", _layerOpacity.ToString("0.00"), new UiColor(0xFFFFD479)),
-            ("Offset", $"{_layerTranslationX:0}px", new UiColor(0xFF7EC8FF)));
+            ("Cache", _layerStaticCache ? "Static" : "Dynamic", Success(ui)),
+            ("Opacity", _layerOpacity.ToString("0.00"), Warning(ui)),
+            ("Offset", $"{_layerTranslationX:0}px", Info(ui)));
 
         ui.TextWrapped("This showcase combines cached layers, translation/opacity replay, and a small animation overlay. Think of it as a postcard from the rendering subsystem.");
         ui.Checkbox("Static Cache", ref _layerStaticCache);
@@ -2472,7 +2521,7 @@ var widget = new MarkdownViewerWidget("preview")
             var pointerEnd = new UiVector2(pointerStart.X + MathF.Cos(radians) * 18f, pointerStart.Y + MathF.Sin(radians) * 18f);
             drawList.AddLine(pointerStart, pointerEnd, new UiColor(0xFFFFFFFF), 2f);
 
-            ui.DrawKeyValueRow(new UiRect(canvas.X + 24f, canvas.Y + canvas.Height - 42f, canvas.Width - 48f, 26f), "Layer", interaction.Hovered ? "Card hovered" : "Card idle", selected: interaction.Hovered, accent: new UiColor(0xFF58A6FF));
+            ui.DrawKeyValueRow(new UiRect(canvas.X + 24f, canvas.Y + canvas.Height - 42f, canvas.Width - 48f, 26f), "Layer", interaction.Hovered ? "Card hovered" : "Card idle", selected: interaction.Hovered, accent: Accent(ui));
             _ = ui.EndWindowCanvas();
         }
         ui.EndChild();
@@ -2494,10 +2543,10 @@ var widget = new MarkdownViewerWidget("preview")
 
         var barWidth = MathF.Max(40f, (localBody.Width - 40f) * (0.25f + blend * 0.65f));
         var barRect = new UiRect(localBody.X + 16f, localBody.Y + 18f, barWidth, 18f);
-        drawList.AddRectFilled(barRect, new UiColor(0xFF58A6FF), ui.WhiteTextureId, localBody);
+        drawList.AddRectFilled(barRect, Accent(ui), ui.WhiteTextureId, localBody);
         drawList.AddRectFilled(new UiRect(localBody.X + 16f, localBody.Y + 52f, MathF.Max(80f, localBody.Width - 32f), 10f), new UiColor(0x663A4454), ui.WhiteTextureId, localBody);
         drawList.AddRectFilled(new UiRect(localBody.X + 16f, localBody.Y + 74f, MathF.Max(120f, localBody.Width - 90f), 10f), new UiColor(0x664A5567), ui.WhiteTextureId, localBody);
-        drawList.AddCircleFilled(new UiVector2(localBody.X + localBody.Width - 42f, localBody.Y + localBody.Height - 32f), 12f + blend * 8f, new UiColor(0xFF8DE1A6), ui.WhiteTextureId, localBody, 20);
+        drawList.AddCircleFilled(new UiVector2(localBody.X + localBody.Width - 42f, localBody.Y + localBody.Height - 32f), 12f + blend * 8f, Success(ui), ui.WhiteTextureId, localBody, 20);
     }
 
     // ─────────────────────────── Drawing Primitives ───────────────────────────
@@ -2511,9 +2560,9 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_drawing",
             DrawingWindowTitle,
             "Low-level draw list geometry, strokes, fills, curves, and text rendered directly without higher-level widgets.",
-            new UiColor(0xFF58A6FF),
-            ("Thickness", _drawThickness.ToString("0.0"), new UiColor(0xFF8DE1A6)),
-            ("Segments", _drawSegments.ToString(), new UiColor(0xFFFFD479)));
+            Accent(ui),
+            ("Thickness", _drawThickness.ToString("0.0"), Success(ui)),
+            ("Segments", _drawSegments.ToString(), Warning(ui)));
 
         if (!ui.IsWindowCollapsed())
         {
@@ -2660,10 +2709,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_image",
             ImageWindowTitle,
             "Static image widgets plus runtime image effects like zoom, rotation, alpha, brightness, contrast, and pixelation.",
-            new UiColor(0xFF58A6FF),
-            ("Zoom", _imgZoom.ToString("0.00x"), new UiColor(0xFF8DE1A6)),
-            ("Rotation", _imgRotation.ToString("0.0°"), new UiColor(0xFFFFD479)),
-            ("Alpha", _imgAlpha.ToString("0.00"), new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Zoom", _imgZoom.ToString("0.00x"), Success(ui)),
+            ("Rotation", _imgRotation.ToString("0.0°"), Warning(ui)),
+            ("Alpha", _imgAlpha.ToString("0.00"), Info(ui)));
 
         ui.SeparatorText("Image / ImageWithBg / ImageButton");
         ui.Image(ui.WhiteTextureId, new UiVector2(48f, 48f), new UiColor(0xFF4488FF));
@@ -2778,9 +2827,9 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_dragdrop",
             DragDropWindowTitle,
             "Payload source, target, and preset switching for verifying transfer semantics and feedback flows.",
-            new UiColor(0xFF58A6FF),
-            ("Source", _dragDropSource, new UiColor(0xFF8DE1A6)),
-            ("Dropped", _dragDropResult, new UiColor(0xFFFFD479)));
+            Accent(ui),
+            ("Source", _dragDropSource, Success(ui)),
+            ("Dropped", _dragDropResult, Warning(ui)));
 
         ui.SeparatorText("Payload Source / Target");
         ui.Button($"{_dragDropSource}##drag_source");
@@ -2829,8 +2878,8 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_list_clipper",
             ListClipperWindowTitle,
             "Virtualized rendering for very long lists where drawing every row every frame would be wasteful.",
-            new UiColor(0xFF58A6FF),
-            ("Items", _clipperItemCount.ToString("N0"), new UiColor(0xFF8DE1A6)));
+            Accent(ui),
+            ("Items", _clipperItemCount.ToString("N0"), Success(ui)));
 
         ui.Text($"Total items: {_clipperItemCount}");
         if (ui.BeginChild("clipper_child", new UiVector2(360f, 150f), true))
@@ -2866,10 +2915,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_style",
             StyleWindowTitle,
             "A compact playground for spacing, padding, disabled states, and accent tweaks so the rest of the showcase feels more intentional.",
-            new UiColor(0xFF58A6FF),
-            ("Spacing", $"{_styleItemSpacingX:0}×{_styleItemSpacingY:0}", new UiColor(0xFF8DE1A6)),
-            ("Padding", $"{_styleFramePaddingX:0}×{_styleFramePaddingY:0}", new UiColor(0xFFFFD479)),
-            ("Theme", _customStyle ? "Custom" : "Default", new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Spacing", $"{_styleItemSpacingX:0}×{_styleItemSpacingY:0}", Success(ui)),
+            ("Padding", $"{_styleFramePaddingX:0}×{_styleFramePaddingY:0}", Warning(ui)),
+            ("Theme", _customStyle ? "Custom" : "Default", Info(ui)));
 
         ui.SeparatorText("Style Push/Pop");
         ui.Checkbox("Custom Style", ref _customStyle);
@@ -2979,10 +3028,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_settings",
             SettingsWindowTitle,
             "An applied sample that blends tabs, forms, toggles, and progress feedback into a settings surface with clearer information hierarchy.",
-            new UiColor(0xFF58A6FF),
-            ("Theme", _themeNames[_settingsTheme], new UiColor(0xFF8DE1A6)),
-            ("Language", _languageNames[_settingsLanguage], new UiColor(0xFFFFD479)),
-            ("Volume", $"{_settingsVolume * 100f:0}%", new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Theme", _themeNames[_settingsTheme], Success(ui)),
+            ("Language", _languageNames[_settingsLanguage], Warning(ui)),
+            ("Volume", $"{_settingsVolume * 100f:0}%", Info(ui)));
 
         if (ui.BeginTabBar("SettingsTabs"))
         {
@@ -3064,10 +3113,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_profile",
             ProfileEditorWindowTitle,
             "A realistic profile editing surface with avatar color, identity fields, role selection, and privacy toggles.",
-            new UiColor(0xFF58A6FF),
-            ("Name", _profileName, new UiColor(0xFF8DE1A6)),
-            ("Role", _roleNames[_profileRole], new UiColor(0xFFFFD479)),
-            ("Public", _profilePublic ? "Yes" : "No", new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Name", _profileName, Success(ui)),
+            ("Role", _roleNames[_profileRole], Warning(ui)),
+            ("Public", _profilePublic ? "Yes" : "No", Info(ui)));
 
         ui.SeparatorText("Avatar Color");
         ui.ColorEdit3("Avatar", ref _profileAvatarR, ref _profileAvatarG, ref _profileAvatarB);
@@ -3109,9 +3158,9 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_file_browser",
             FileBrowserWindowTitle,
             "A split-pane explorer sample combining folder trees, selectable rows, and a details table.",
-            new UiColor(0xFF58A6FF),
-            ("Folders", _fileBrowserFolders.Length.ToString(), new UiColor(0xFF8DE1A6)),
-            ("Selected", _fileBrowserSelected >= 0 ? _fileBrowserSelected.ToString() : "None", new UiColor(0xFFFFD479)));
+            Accent(ui),
+            ("Folders", _fileBrowserFolders.Length.ToString(), Success(ui)),
+            ("Selected", _fileBrowserSelected >= 0 ? _fileBrowserSelected.ToString() : "None", Warning(ui)));
 
         ui.Columns(2, true);
         ui.SetColumnWidth(0, 160f);
@@ -3188,10 +3237,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_log_viewer",
             LogViewerWindowTitle,
             "Filtering, severity toggles, clipping, and auto-scroll behavior for long-running diagnostic consoles.",
-            new UiColor(0xFF58A6FF),
-            ("Entries", _logEntries.Count.ToString(), new UiColor(0xFF8DE1A6)),
-            ("Filter", string.IsNullOrEmpty(_logFilter) ? "(none)" : _logFilter, new UiColor(0xFFFFD479)),
-            ("Auto", _logAutoScroll ? "Scroll on" : "Scroll off", new UiColor(0xFF7EC8FF)));
+            Accent(ui),
+            ("Entries", _logEntries.Count.ToString(), Success(ui)),
+            ("Filter", string.IsNullOrEmpty(_logFilter) ? "(none)" : _logFilter, Warning(ui)),
+            ("Auto", _logAutoScroll ? "Scroll on" : "Scroll off", Info(ui)));
 
         // Toolbar
         ui.InputText("Filter", ref _logFilter, 128);
@@ -3262,10 +3311,10 @@ var widget = new MarkdownViewerWidget("preview")
             "hero_markdown",
             MarkdownStudioWindowTitle,
             "A side-by-side editor and live preview sample that feels closer to a real product surface than a bare widget test harness.",
-            new UiColor(0xFF7EC8FF),
-            ("Mode", "Editor + preview", new UiColor(0xFF8DE1A6)),
-            ("Source", $"{_markdownEditor.Text.Length} chars", new UiColor(0xFFFFD479)),
-            ("Widget", "Instance-based custom UI", new UiColor(0xFF7EC8FF)));
+            Info(ui),
+            ("Mode", "Editor + preview", Success(ui)),
+            ("Source", $"{_markdownEditor.Text.Length} chars", Warning(ui)),
+            ("Widget", "Instance-based custom UI", Info(ui)));
 
         ui.TextWrapped("This sample uses the custom widget mechanism: instance-based widgets render themselves by receiving the current ui context.");
 

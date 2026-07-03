@@ -1,6 +1,6 @@
 # Duxel FBA 샘플 — 바로 실행하기
 
-> 마지막 동기화: 2026-06-06
+> 마지막 동기화: 2026-07-03
 
 > .NET 10 + Vulkan 즉시 모드 GUI 프레임워크 **Duxel**의 FBA 샘플을 **복사-붙여넣기 한 줄**로 바로 실행하세요.
 
@@ -46,6 +46,24 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 ```
 
 > 메뉴바 · 타이포그래피 · 레이아웃 & 컬럼 · 팝업/컨텍스트/툴팁 · 입력 질의 · 아이템 상태 · 멀티셀렉트 · 레이어 & 애니메이션 · 드로잉 프리미티브 · 드래그앤드롭 · ListClipper(10K) · Markdown Studio · 시간/FPS/VSync 토글
+
+---
+
+## 선언형 대시보드
+
+컴파일된 Windows 11 디자인 토큰과 재사용 C# 선언형 UI로 구성한 대시보드 샘플입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/declarative_dashboard_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/declarative_dashboard_fba.cs -o - | dotnet run -
+```
+
+> `UiState<T>` · 재사용 `UiComponent` 클래스 · `DuxelWindowsApp.Run<TDesign>()` · 제품 셸 헬퍼
 
 ---
 
@@ -537,6 +555,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 $base = "https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 $files = @(
     "all_features.cs",
+    "declarative_dashboard_fba.cs",
     "hello_duxel_fba.cs",
     "advanced_layout.cs", "columns_demo.cs",
     "image_and_popups.cs", "image_widget_effects_fba.cs",
@@ -561,7 +580,7 @@ Write-Host "`nRun: dotnet run fba/all_features.cs"
 **Bash**
 ```bash
 BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
-FILES=(all_features.cs hello_duxel_fba.cs \
+FILES=(all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs \
     advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
     input_queries.cs item_status.cs \
     windows_calculator_fba.cs windows_calculator_duxel_showcase_fba.cs \

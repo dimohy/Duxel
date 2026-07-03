@@ -10,6 +10,8 @@ namespace Duxel.App;
 
 public sealed class DuxelAppSession
 {
+    private static readonly UiTextureId WindowIconTextureId = new(1_000_000_001);
+
     private AutoResetEvent? _frameWakeSignal;
     private int _pendingFrameRequests;
     private int _exitRequested;
@@ -39,7 +41,11 @@ public sealed class DuxelAppSession
         var rendererOptions = options.Renderer;
         var fontOptions = options.Font;
         var frameOptions = options.Frame;
-        var theme = options.Theme;
+        var effectiveDesign = DuxelApp.ResolveEffectiveDesign(options, platform);
+        var theme = effectiveDesign.Theme;
+        var platformThemeProvider = platform as IPlatformThemeProvider;
+        var observedColorScheme = platformThemeProvider?.ColorScheme;
+        var followsPlatformTheme = DuxelApp.UsesPlatformDefaultTheme(options);
         var contentScale = platform.ContentScale;
         var logicalBaseFontSize = fontOptions.FontSize;
         var appProfilingEnabled = ParseProfilingEnabled("DUXEL_APP_PROFILE");
@@ -209,8 +215,11 @@ public sealed class DuxelAppSession
         uiContext.SetDirectTextEnabled(directTextEnabled);
         uiContext.SetDirectTextFallbackEnabled(directTextFallbackEnabled);
         uiContext.SetContentScale(contentScale);
-        uiContext.SetTheme(theme);
-        uiContext.SetScreen(options.Screen);
+        var windowIcon = CreateWindowIconTexture(options.Window);
+        var activeScreen = options.Window.UseDuxelTitleBar && platform is IWindowChromeController chrome
+            ? new DuxelWindowChromeScreen(options.Screen, chrome, options.Window.DuxelTitleBarHeight, windowIcon)
+            : options.Screen;
+        uiContext.SetScreen(activeScreen);
         DuxelApp.ConfigureContext(uiContext, options, platform);
         uiContext.State.VSync = window.VSync;
         uiContext.State.MsaaSamples = requestedMsaaSamples;
@@ -452,6 +461,12 @@ public sealed class DuxelAppSession
                         continue;
                     }
 
+                    if (platform.IsInteractingResize)
+                    {
+                        windowSize = platform.WindowSize;
+                        framebufferSize = platform.FramebufferSize;
+                    }
+
                     var hasInputInvalidation = HasInputDrivenInvalidation(snapshot, lastObservedMousePosition);
                     lastObservedMousePosition = snapshot.MousePosition;
                     var hasPendingRenderWork = fontTextureDirty || pendingGlyphs > 0 || fullAtlasTask is not null || incrementalAtlasTask is not null;
@@ -641,6 +656,19 @@ public sealed class DuxelAppSession
                         framebufferScale
                     );
 
+                    if (followsPlatformTheme && platformThemeProvider is not null)
+                    {
+                        var colorScheme = platformThemeProvider.ColorScheme;
+                        if (observedColorScheme != colorScheme)
+                        {
+                            observedColorScheme = colorScheme;
+                            effectiveDesign = DuxelApp.ResolveEffectiveDesign(options, platform);
+                            theme = effectiveDesign.Theme;
+                            uiContext.SetDesign(effectiveDesign);
+                            renderer.SetClearColor(theme.WindowBg);
+                        }
+                    }
+
                     var t0 = Stopwatch.GetTimestamp();
                     uiContext.NewFrame(frameInfo, input, clipRect, textSettings);
 
@@ -814,6 +842,16 @@ public sealed class DuxelAppSession
             Interlocked.Exchange(ref _exitRequested, 0);
             Volatile.Write(ref _frameWakeSignal, null);
         }
+    }
+
+    private static UiImageTexture? CreateWindowIconTexture(DuxelWindowOptions window)
+    {
+        if (string.IsNullOrWhiteSpace(window.IconPath) || !File.Exists(window.IconPath))
+        {
+            return null;
+        }
+
+        return UiImageTexture.LoadFromFile(window.IconPath, WindowIconTextureId);
     }
 
     private bool TryConsumeFrameRequest()

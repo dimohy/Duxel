@@ -45,6 +45,12 @@ public static class Ui
 
     public static void SetStyle(UiStyle style) => RequireContext().SetStyle(style);
 
+    public static void SetDesign(UiCompiledDesign design) => RequireContext().SetDesign(design);
+
+    public static void SetDesign<TDesign>()
+        where TDesign : IUiDesign
+        => RequireContext().SetDesign<TDesign>();
+
     public static void StyleColorsDark() => RequireContext().StyleColorsDark();
 
     public static void StyleColorsLight() => RequireContext().StyleColorsLight();

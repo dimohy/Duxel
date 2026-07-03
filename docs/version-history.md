@@ -2,6 +2,32 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## 0.2.4-preview (2026-07-03)
+
+### Major Features
+
+- **[Feature]** GPU-driven Vulkan renderer — converted the backend to one graphics pipeline, one bindless texture descriptor set, vertex pulling through buffer device addresses, and unified dual-source blending for regular and ClearType text draws.
+- **[Feature]** Windows 11 compiled design system — added `IUiDesign`, `UiCompiledDesign`, `UiDesignTokens`, and built-in `Windows11` / `Windows11Dark` designs so apps can lock theme, style, and shape tokens before startup.
+- **[Feature]** Declarative C# UI layer — added `IUiView`, `UiState<T>`, `UiBinding<T>`, `UiComponent`, `DuxelView`, and `Dux` factories for reusable component-style UI composition without leaving the immediate-mode runtime.
+- **[Feature]** System-integrated Windows chrome — added DWM-backed caption, border, text color integration, optional Duxel-rendered title bar controls, bundled default icon support, and `DuxelWindowsApp.Run<TDesign>()` startup helpers.
+
+### Major Improvements
+
+- **[Improvement]** Theme design-token pipeline — `.duxel-theme` files now accept `Design.*` numeric tokens, support `Windows11` / `Windows11Dark` base presets, and generate compiled design accessors alongside theme accessors.
+- **[Improvement]** Windows 11 visual polish — rounded control geometry, token-based radii, refined button/input/slider/progress/list/table/menu colors, and dark/light system theme resolution make the default app surface less ImGui-shaped.
+- **[Improvement]** Declarative sample surface — added a product-dashboard FBA sample and refreshed ThemeDemo plus FBA docs so reusable components, app shells, command bars, property lists, status rows, badges, and callouts are discoverable.
+- **[Improvement]** GPU renderer reference docs — recorded the prior GPU-driven renderer migration in agent reference docs and the version history so shader/pipeline assumptions remain traceable after the `0.2.3-preview` release.
+
+### Major Bug Fixes
+
+- **[Bug]** Windows IME commit stability — handled `WM_IME_CHAR`, duplicate result strings, TSF candidate UI suppression disposal, and cross-thread caret placement posting to avoid missing or repeated text during composition.
+- **[Bug]** Custom title-bar resizing and invalidation — updated non-client hit testing, resize tracking, and window-position invalidation so the Duxel title bar remains interactive during move/resize operations.
+
+### Packaging / Release
+
+- Bundled the default Duxel `.ico` as an embedded platform resource and as a `buildTransitive` asset so consuming Windows executables receive the icon unless `DuxelUseDefaultIcon=false`.
+- Bumped package version to `0.2.4-preview` (`Duxel.App`, `Duxel.Windows.App`).
+
 ## 0.2.3-preview (2026-06-06)
 
 ### Major Features

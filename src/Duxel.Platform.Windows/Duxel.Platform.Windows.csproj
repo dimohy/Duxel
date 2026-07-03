@@ -24,5 +24,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Duxel.Core\Duxel.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="assets\duxel.ico" LogicalName="Duxel.Platform.Windows.assets.duxel.ico" />
+  </ItemGroup>
 </Project>
 

@@ -10,10 +10,11 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Duxel.App;
 using Duxel.Core;
+using Duxel.Windows.App;
 
 var profile = ReadStartupProfile();
 
-DuxelApp.Run(new DuxelAppOptions
+DuxelWindowsApp.Run(new DuxelAppOptions
 {
     Window = new DuxelWindowOptions
     {

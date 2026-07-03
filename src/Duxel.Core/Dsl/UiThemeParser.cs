@@ -14,12 +14,13 @@ namespace Duxel.Core.Dsl;
 ///   Button = #4A90D9
 /// </code>
 /// - Colors: #RRGGBB (alpha FF) or #AARRGGBB (8 hex digits).
-/// - Base preset: Dark | Light | Classic (optional, defaults to Dark).
+/// - Base preset: Windows11 | Windows11Dark | Dark | Light | Classic (optional, defaults to Windows11).
 /// - Comments: # or // at line start (after optional whitespace).
 /// </remarks>
 public static class UiThemeParser
 {
     private static readonly Dictionary<string, UiStyleColor> ColorMap = BuildColorMap();
+    private static readonly Dictionary<string, UiDesignToken> DesignTokenMap = BuildDesignTokenMap();
 
     public static UiThemeDef Parse(string text)
     {
@@ -28,6 +29,7 @@ public static class UiThemeParser
         string? name = null;
         string? basePreset = null;
         var overrides = new List<UiThemeColorEntry>();
+        var designTokenOverrides = new List<UiThemeDesignTokenEntry>();
         var lineNumber = 0;
 
         foreach (var rawLine in text.AsSpan().EnumerateLines())
@@ -55,27 +57,42 @@ public static class UiThemeParser
                 continue;
             }
 
-            // Color assignment: ColorName = #RRGGBB or #AARRGGBB
             var eqIdx = line.IndexOf('=');
             if (eqIdx <= 0)
             {
-                throw new FormatException($"Line {lineNumber}: expected 'ColorName = #HexValue', got '{line}'.");
+                throw new FormatException($"Line {lineNumber}: expected 'ColorName = #HexValue' or 'Design.Token = Number', got '{line}'.");
             }
 
-            var colorName = line[..eqIdx].Trim();
-            var colorValue = line[(eqIdx + 1)..].Trim();
+            var nameToken = line[..eqIdx].Trim();
+            var valueToken = line[(eqIdx + 1)..].Trim();
 
-            if (!TryParseColorName(colorName, out var styleColor))
+            if (valueToken.StartsWith("#"))
             {
-                throw new FormatException($"Line {lineNumber}: unknown color name '{colorName}'.");
+                if (!TryParseColorName(nameToken, out var styleColor))
+                {
+                    throw new FormatException($"Line {lineNumber}: unknown color name '{nameToken}'.");
+                }
+
+                if (!TryParseHexColor(valueToken, out var uiColor))
+                {
+                    throw new FormatException($"Line {lineNumber}: invalid hex color '{valueToken}'. Expected #RRGGBB or #AARRGGBB.");
+                }
+
+                overrides.Add(new UiThemeColorEntry(styleColor, uiColor));
+                continue;
             }
 
-            if (!TryParseHexColor(colorValue, out var uiColor))
+            if (!TryParseDesignTokenName(nameToken, out var designToken))
             {
-                throw new FormatException($"Line {lineNumber}: invalid hex color '{colorValue}'. Expected #RRGGBB or #AARRGGBB.");
+                throw new FormatException($"Line {lineNumber}: unknown design token '{nameToken}'. Use Design.<TokenName> for shape tokens.");
             }
 
-            overrides.Add(new UiThemeColorEntry(styleColor, uiColor));
+            if (!float.TryParse(valueToken, NumberStyles.Float, CultureInfo.InvariantCulture, out var tokenValue))
+            {
+                throw new FormatException($"Line {lineNumber}: invalid design token value '{valueToken}'. Expected invariant-culture number.");
+            }
+
+            designTokenOverrides.Add(new UiThemeDesignTokenEntry(designToken, tokenValue));
         }
 
         if (name is null)
@@ -83,7 +100,7 @@ public static class UiThemeParser
             throw new FormatException("Missing 'Theme \"Name\"' header.");
         }
 
-        return new UiThemeDef(name, basePreset, overrides);
+        return new UiThemeDef(name, basePreset, overrides, designTokenOverrides);
     }
 
     private static void ParseHeader(ReadOnlySpan<char> line, int lineNumber, out string name, out string? basePreset)
@@ -131,6 +148,18 @@ public static class UiThemeParser
         // Fast lookup using pre-built dictionary
         var key = name.ToString();
         return ColorMap.TryGetValue(key, out result);
+    }
+
+    private static bool TryParseDesignTokenName(ReadOnlySpan<char> name, out UiDesignToken result)
+    {
+        const string designPrefix = "Design.";
+        if (name.StartsWith(designPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            name = name[designPrefix.Length..];
+        }
+
+        var key = name.ToString();
+        return DesignTokenMap.TryGetValue(key, out result);
     }
 
     private static bool TryParseHexColor(ReadOnlySpan<char> value, out UiColor result)
@@ -182,6 +211,17 @@ public static class UiThemeParser
     {
         var map = new Dictionary<string, UiStyleColor>(StringComparer.OrdinalIgnoreCase);
         foreach (var value in Enum.GetValues<UiStyleColor>())
+        {
+            map[value.ToString()] = value;
+        }
+
+        return map;
+    }
+
+    private static Dictionary<string, UiDesignToken> BuildDesignTokenMap()
+    {
+        var map = new Dictionary<string, UiDesignToken>(StringComparer.OrdinalIgnoreCase);
+        foreach (var value in Enum.GetValues<UiDesignToken>())
         {
             map[value.ToString()] = value;
         }

@@ -9,13 +9,15 @@ public sealed partial class UiImmediateContext
     public bool BeginMainMenuBar()
     {
         var frameHeight = GetFrameHeight();
+        var topInset = Math.Clamp(_viewportTopInset, 0f, MathF.Max(0f, _displaySize.Y));
         _frameMainMenuBarHeight = frameHeight;
         _mainMenuBarHeight = frameHeight;
         _mainMenuBarSavedCursor = _layouts.Peek().Cursor;
 
-        SetCursorScreenPos(new UiVector2(MenuPaddingX, 0f));
+        var menuStartX = MathF.Max(MenuPaddingX, _mainMenuBarSavedCursor.X + MenuPaddingX);
+        SetCursorScreenPos(new UiVector2(menuStartX, topInset));
 
-        var rect = new UiRect(0f, 0f, _displaySize.X, frameHeight);
+        var rect = new UiRect(0f, topInset, _displaySize.X, frameHeight);
         AddRectFilled(rect, _theme.MenuBarBg, _whiteTexture);
 
         _inMenuBar = true;
@@ -28,7 +30,9 @@ public sealed partial class UiImmediateContext
         EndRow();
         _inMenuBar = false;
 
-        var belowMenuBar = MathF.Max(_mainMenuBarSavedCursor.Y, _frameMainMenuBarHeight);
+        var topInset = Math.Clamp(_viewportTopInset, 0f, MathF.Max(0f, _displaySize.Y));
+        var verticalPadding = MathF.Max(0f, _mainMenuBarSavedCursor.Y - topInset);
+        var belowMenuBar = MathF.Max(_mainMenuBarSavedCursor.Y, topInset + _frameMainMenuBarHeight + verticalPadding);
         SetCursorScreenPos(new UiVector2(_mainMenuBarSavedCursor.X, belowMenuBar));
     }
 

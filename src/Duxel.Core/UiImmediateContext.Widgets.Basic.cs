@@ -24,14 +24,11 @@ public sealed partial class UiImmediateContext
         var pressed = ButtonBehavior(label, rect, out var hovered, out var held);
         var color = held ? _theme.ButtonActive : hovered ? _theme.ButtonHovered : _theme.Button;
         var borderColor = held ? _theme.ButtonBorderActive : hovered ? _theme.ButtonBorderHovered : _theme.ButtonBorder;
-
-        AddRectFilled(rect, borderColor, _whiteTexture);
-        var innerRect = new UiRect(rect.X + 1f, rect.Y + 1f, MathF.Max(0f, rect.Width - 2f), MathF.Max(0f, rect.Height - 2f));
-        AddRectFilled(innerRect, color, _whiteTexture);
+        AddDesignedFrame(rect, color, borderColor, _designTokens.ControlCornerRadius, _designTokens.ControlBorderWidth);
 
         var textPos = new UiVector2(
             rect.X + (rect.Width - textSize.X) * 0.5f,
-            rect.Y + (rect.Height - textSize.Y) * 0.5f
+            rect.Y + (rect.Height - textSize.Y) * 0.5f + (held ? _designTokens.ControlPressedOffsetY : 0f)
         );
         if (!string.IsNullOrEmpty(displayLabel))
         {
@@ -64,13 +61,11 @@ public sealed partial class UiImmediateContext
         var pressed = ButtonBehavior(label, rect, out var hovered, out var held);
         var color = held ? _theme.ButtonActive : hovered ? _theme.ButtonHovered : _theme.Button;
         var borderColor = held ? _theme.ButtonBorderActive : hovered ? _theme.ButtonBorderHovered : _theme.ButtonBorder;
-        AddRectFilled(rect, borderColor, _whiteTexture);
-        var innerRect = new UiRect(rect.X + 1f, rect.Y + 1f, MathF.Max(0f, rect.Width - 2f), MathF.Max(0f, rect.Height - 2f));
-        AddRectFilled(innerRect, color, _whiteTexture);
+        AddDesignedFrame(rect, color, borderColor, _designTokens.ControlCornerRadius, _designTokens.ControlBorderWidth);
 
         var textPos = new UiVector2(
             rect.X + (rect.Width - textSize.X) * 0.5f,
-            rect.Y + (rect.Height - textSize.Y) * 0.5f
+            rect.Y + (rect.Height - textSize.Y) * 0.5f + (held ? _designTokens.ControlPressedOffsetY : 0f)
         );
         if (!string.IsNullOrEmpty(displayLabel))
         {
@@ -110,9 +105,7 @@ public sealed partial class UiImmediateContext
         var pressed = ButtonBehavior(id, rect, out var hovered, out var held);
         var color = held ? _theme.ButtonActive : hovered ? _theme.ButtonHovered : _theme.Button;
         var borderColor = held ? _theme.ButtonBorderActive : hovered ? _theme.ButtonBorderHovered : _theme.ButtonBorder;
-        AddRectFilled(rect, borderColor, _whiteTexture);
-        var innerRect = new UiRect(rect.X + 1f, rect.Y + 1f, MathF.Max(0f, rect.Width - 2f), MathF.Max(0f, rect.Height - 2f));
-        AddRectFilled(innerRect, color, _whiteTexture);
+        AddDesignedFrame(rect, color, borderColor, _designTokens.ControlCornerRadius, _designTokens.ControlBorderWidth);
 
         var arrow = dir switch
         {
@@ -125,7 +118,7 @@ public sealed partial class UiImmediateContext
         var textSize = MeasureTextInternal(arrow, _textSettings, _lineHeight);
         var textPos = new UiVector2(
             rect.X + (rect.Width - textSize.X) * 0.5f,
-            rect.Y + (rect.Height - textSize.Y) * 0.5f
+            rect.Y + (rect.Height - textSize.Y) * 0.5f + (held ? _designTokens.ControlPressedOffsetY : 0f)
         );
         AddTextInternal(_builder,
 
@@ -1069,9 +1062,7 @@ public sealed partial class UiImmediateContext
 
         var boxColor = held ? _theme.CheckboxBgActive : hovered ? _theme.CheckboxBgHovered : _theme.CheckboxBg;
         var borderColor = held ? _theme.CheckboxBorderActive : hovered ? _theme.CheckboxBorderHovered : _theme.CheckboxBorder;
-        AddRectFilled(boxRect, borderColor, _whiteTexture);
-        var innerBoxRect = new UiRect(boxRect.X + 1f, boxRect.Y + 1f, MathF.Max(0f, boxRect.Width - 2f), MathF.Max(0f, boxRect.Height - 2f));
-        AddRectFilled(innerBoxRect, boxColor, _whiteTexture);
+        var innerBoxRect = AddDesignedFrame(boxRect, boxColor, borderColor, _designTokens.ToggleCornerRadius, _designTokens.ControlBorderWidth);
 
         if (value)
         {
@@ -1087,7 +1078,7 @@ public sealed partial class UiImmediateContext
             }
 
             var checkRect = new UiRect(checkX, checkY, checkSize, checkSize);
-            AddRectFilled(checkRect, _theme.CheckMark, _whiteTexture);
+            AddRectFilledRounded(checkRect, _theme.CheckMark, _whiteTexture, MathF.Max(0f, _designTokens.ToggleCornerRadius - 1f));
         }
 
         if (!string.IsNullOrEmpty(displayLabel))
@@ -1208,15 +1199,13 @@ public sealed partial class UiImmediateContext
         var rect = new UiRect(cursor.X, cursor.Y, width, height);
 
         var borderColor = _theme.ProgressBarBorder;
-        AddRectFilled(rect, borderColor, _whiteTexture);
-        var innerRect = new UiRect(rect.X + 1f, rect.Y + 1f, MathF.Max(0f, rect.Width - 2f), MathF.Max(0f, rect.Height - 2f));
-        AddRectFilled(innerRect, _theme.ProgressBarBg, _whiteTexture);
+        var innerRect = AddDesignedFrame(rect, _theme.ProgressBarBg, borderColor, _designTokens.ProgressCornerRadius, _designTokens.ControlBorderWidth);
 
         var fillWidth = innerRect.Width * fraction;
         if (fillWidth > 0f)
         {
             var fillRect = new UiRect(innerRect.X, innerRect.Y, fillWidth, innerRect.Height);
-            AddRectFilled(fillRect, _theme.ProgressBarFill, _whiteTexture);
+            AddRectFilledRounded(fillRect, _theme.ProgressBarFill, _whiteTexture, _designTokens.ProgressCornerRadius);
         }
 
         var text = overlay ?? FormattableString.Invariant($"{fraction * 100f:0}%");

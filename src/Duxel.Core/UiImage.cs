@@ -63,6 +63,7 @@ public sealed class UiImageTexture
 
     public int Width { get; }
     public int Height { get; }
+    public UiTextureId TextureId => _textureId;
 
     public static UiImageTexture LoadFromFile(string path, UiTextureId textureId)
     {
@@ -148,7 +149,7 @@ public sealed class UiImageTexture
         return ext switch
         {
             ".ppm" => LoadPpm(path),
-            ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" => LoadWithExternalDecoder(path),
+            ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".ico" => LoadWithExternalDecoder(path),
             _ => throw new NotSupportedException($"Unsupported image extension: {ext}")
         };
     }

@@ -236,6 +236,7 @@ Set "greeting" "Hello World"
 #:package Duxel.$(platform).App@*-*
 
 using Duxel.App;
+using Duxel.Core;
 using Duxel.Core.Dsl;
 using Duxel.Windows.App;
 
@@ -244,14 +245,28 @@ var screen = new UiDslScreen("Ui/Main.ui", "Ui/theme.duxel-theme");
 DuxelWindowsApp.Run(new DuxelAppOptions
 {
     Window = new DuxelWindowOptions { Title = "DSL Demo" },
+    Design = UiCompiledDesign.Windows11,
     Screen = screen
 });
 ```
+
+`.duxel-theme` 파일에는 색상과 함께 컴파일된 디자인 모양 토큰도 정의할 수 있다.
+
+```text
+Theme "Product" : Windows11
+Button = #2F6FED
+Design.ControlCornerRadius = 7
+Design.InputCornerRadius = 6
+Design.FocusRingThickness = 2
+```
+
+생성된 테마 표면은 색상용 `Themes.Product`와 색상+모양 토큰용 `Themes.ProductDesign`을 함께 노출한다.
 
 ## 핫리로드/생성기
 
 - 런타임 핫리로드: `UiDslPipeline.CreateHotReloadRenderer(...)`
 - 생성기 렌더러: `UiDslPipeline.CreateGeneratedRenderer(...)`
+- 생성된 `.duxel-theme` 파일은 색상과 모양 토큰을 컴파일된 형태로 사용할 수 있다. 앱이 컴파일된 외형 계약을 사용해야 하면 `DuxelAppOptions.Design`에 생성된 `*Design` 속성을 지정한다.
 - NativeAOT 빌드(`DUX_NATIVEAOT`)에서는 런타임 핫리로드가 비활성화됩니다.
 
 ## 지원 노드 확인 방법

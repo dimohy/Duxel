@@ -36,7 +36,9 @@ public sealed partial class UiImmediateContext
     private UiTextureId _fontTexture;
     private readonly UiTextureId _whiteTexture;
     private UiTheme _theme;
+    private UiDesignTokens _designTokens;
     private UiRect _clipRect;
+    private float _viewportTopInset;
     private UiVector2 _mousePosition;
     private bool _leftMouseDown;
     private bool _rightMouseDown;
@@ -140,6 +142,7 @@ public sealed partial class UiImmediateContext
     private float _tableRowY;
     private float _tableRowMaxY;
     private float _tableColumnWidth;
+    private float _tableAvailableWidth;
     private readonly List<string> _tableColumnLabels = [];
     private int _tableSetupIndex;
     private int _tableRowIndex;
@@ -341,6 +344,7 @@ public sealed partial class UiImmediateContext
         UiTextureId whiteTexture,
         UiTheme theme,
         UiStyle style,
+        UiDesignTokens designTokens,
         UiRect clipRect,
         UiVector2 mousePosition,
         bool leftMouseDown,
@@ -395,6 +399,7 @@ public sealed partial class UiImmediateContext
             lineHeight,
             theme,
             style,
+            designTokens,
             clipRect,
             mousePosition,
             leftMouseDown,
@@ -430,6 +435,7 @@ public sealed partial class UiImmediateContext
         float lineHeight,
         UiTheme theme,
         UiStyle style,
+        UiDesignTokens designTokens,
         UiRect clipRect,
         UiVector2 mousePosition,
         bool leftMouseDown,
@@ -472,6 +478,8 @@ public sealed partial class UiImmediateContext
         _textSettings = textSettings;
         _lineHeight = lineHeight;
         _theme = theme;
+        _designTokens = designTokens;
+        _viewportTopInset = 0f;
         WindowPadding = style.WindowPadding.X;
         ItemSpacingX = style.ItemSpacing.X;
         ItemSpacingY = style.ItemSpacing.Y;
@@ -606,6 +614,7 @@ public sealed partial class UiImmediateContext
         _tableRowY = 0f;
         _tableRowMaxY = 0f;
         _tableColumnWidth = 0f;
+        _tableAvailableWidth = 0f;
         _tableColumnLabels.Clear();
         _tableSetupIndex = 0;
         _tableRowIndex = 0;
@@ -1394,6 +1403,7 @@ public sealed partial class UiImmediateContext
         UiRect clipRect,
         UiTextSettings settings,
         float lineHeight,
+        float renderLineHeight,
         UiRect inputRect)
     {
         if (string.IsNullOrEmpty(text))
@@ -1417,7 +1427,7 @@ public sealed partial class UiImmediateContext
                 {
                     var lineText = text.Substring(lineStart, lineLength);
                     var linePos = new UiVector2(position.X, lineY);
-                    AddTextInternal(drawList, lineText, linePos, color, clipRect, settings, lineHeight);
+                    AddTextInternal(drawList, lineText, linePos, color, clipRect, settings, renderLineHeight);
                 }
             }
 
@@ -1611,7 +1621,32 @@ public sealed partial class UiImmediateContext
             }
         }
 
-        return _tableColumnWidth;
+        var fluidColumns = 0;
+        var fixedWidth = 0f;
+        for (var i = 0; i < _tableColumns; i++)
+        {
+            var width = (uint)i < (uint)_tableColumnWidths.Length ? _tableColumnWidths[i] : 0f;
+            if (width > 0f)
+            {
+                fixedWidth += width;
+            }
+            else
+            {
+                fluidColumns++;
+            }
+        }
+
+        if (fluidColumns <= 0)
+        {
+            return _tableColumnWidth;
+        }
+
+        var spacing = ItemSpacingX * Math.Max(0, _tableColumns - 1);
+        var availableWidth = _tableAvailableWidth > 0f
+            ? _tableAvailableWidth
+            : fixedWidth + (_tableColumnWidth * fluidColumns) + spacing;
+        var fluidWidth = (availableWidth - fixedWidth - spacing) / fluidColumns;
+        return MathF.Max(1f, fluidWidth);
     }
 
     private float GetTableColumnX(int index)
@@ -1964,33 +1999,46 @@ public sealed partial class UiImmediateContext
 
     private void AddRectFilledRounded(UiRect rect, UiColor color, UiTextureId textureId, float rounding)
     {
-        var radius = MathF.Max(0f, MathF.Min(rounding, MathF.Min(rect.Width, rect.Height) * 0.5f));
-        if (radius <= 0.01f)
+        _builder.AddRectFilledRounded(rect, color, textureId, rounding, CurrentClipRect);
+    }
+
+    private UiRect AddDesignedFrame(UiRect rect, UiColor fillColor, UiColor borderColor, float radius, float borderWidth)
+    {
+        var thickness = MathF.Max(0f, borderWidth);
+        if (thickness > 0f)
         {
-            AddRectFilled(rect, color, textureId);
+            AddRectFilledRounded(rect, borderColor, _whiteTexture, radius);
+        }
+
+        var innerRect = thickness > 0f
+            ? new UiRect(
+                rect.X + thickness,
+                rect.Y + thickness,
+                MathF.Max(0f, rect.Width - (thickness * 2f)),
+                MathF.Max(0f, rect.Height - (thickness * 2f)))
+            : rect;
+        if (innerRect.Width > 0f && innerRect.Height > 0f)
+        {
+            AddRectFilledRounded(innerRect, fillColor, _whiteTexture, MathF.Max(0f, radius - thickness));
+        }
+
+        return innerRect;
+    }
+
+    private void AddFocusRing(UiRect rect, UiColor color, float radius)
+    {
+        var thickness = _designTokens.FocusRingThickness;
+        if (thickness <= 0f)
+        {
             return;
         }
 
-        var centerWidth = MathF.Max(0f, rect.Width - (radius * 2f));
-        var sideHeight = MathF.Max(0f, rect.Height - (radius * 2f));
-
-        if (centerWidth > 0f)
-        {
-            AddRectFilled(new UiRect(rect.X + radius, rect.Y, centerWidth, rect.Height), color, textureId);
-        }
-
-        if (sideHeight > 0f)
-        {
-            AddRectFilled(new UiRect(rect.X, rect.Y + radius, radius, sideHeight), color, textureId);
-            AddRectFilled(new UiRect(rect.X + rect.Width - radius, rect.Y + radius, radius, sideHeight), color, textureId);
-        }
-
-        PushClipRect(rect, true);
-        AddCircleFilled(new UiVector2(rect.X + radius, rect.Y + radius), radius, color, textureId, 10);
-        AddCircleFilled(new UiVector2(rect.X + rect.Width - radius, rect.Y + radius), radius, color, textureId, 10);
-        AddCircleFilled(new UiVector2(rect.X + radius, rect.Y + rect.Height - radius), radius, color, textureId, 10);
-        AddCircleFilled(new UiVector2(rect.X + rect.Width - radius, rect.Y + rect.Height - radius), radius, color, textureId, 10);
-        PopClipRect();
+        var ringRect = new UiRect(
+            rect.X - thickness,
+            rect.Y - thickness,
+            rect.Width + (thickness * 2f),
+            rect.Height + (thickness * 2f));
+        AddDesignedFrame(ringRect, new UiColor(0x00FFFFFF), color, radius + thickness, thickness);
     }
 
     private void AddCircleFilled(UiVector2 center, float radius, UiColor color, UiTextureId textureId, int segments = 12) =>
@@ -2298,6 +2346,22 @@ public sealed partial class UiImmediateContext
 
     public UiVector4 GetStyleColorVec4(UiStyleColor color) => Ui.ColorConvertU32ToFloat4(GetStyleColor(color));
 
+    public UiDesignTokens GetDesignTokens() => _designTokens;
+
+    public float GetDesignToken(UiDesignToken token)
+        => token switch
+        {
+            UiDesignToken.WindowCornerRadius => _designTokens.WindowCornerRadius,
+            UiDesignToken.ControlCornerRadius => _designTokens.ControlCornerRadius,
+            UiDesignToken.ControlBorderWidth => _designTokens.ControlBorderWidth,
+            UiDesignToken.ControlPressedOffsetY => _designTokens.ControlPressedOffsetY,
+            UiDesignToken.InputCornerRadius => _designTokens.InputCornerRadius,
+            UiDesignToken.ToggleCornerRadius => _designTokens.ToggleCornerRadius,
+            UiDesignToken.ProgressCornerRadius => _designTokens.ProgressCornerRadius,
+            UiDesignToken.FocusRingThickness => _designTokens.FocusRingThickness,
+            _ => throw new ArgumentOutOfRangeException(nameof(token), token, null),
+        };
+
     private static UiTheme ApplyThemeAlpha(UiTheme theme, float alpha)
     {
         for (var i = 0; i < UiThemeColors.StyleColorCount; i++)
@@ -2326,10 +2390,17 @@ public sealed partial class UiImmediateContext
 
     public UiViewport GetMainViewport()
     {
-        var pos = new UiVector2(0f, 0f);
-        var workPos = new UiVector2(0f, _mainMenuBarHeight);
-        var workSize = new UiVector2(_displaySize.X, _displaySize.Y - _mainMenuBarHeight);
-        return new UiViewport(pos, _displaySize, workPos, workSize);
+        var inset = Math.Clamp(_viewportTopInset, 0f, MathF.Max(0f, _displaySize.Y));
+        var pos = new UiVector2(0f, inset);
+        var size = new UiVector2(_displaySize.X, MathF.Max(0f, _displaySize.Y - inset));
+        var workPos = new UiVector2(0f, inset + _mainMenuBarHeight);
+        var workSize = new UiVector2(_displaySize.X, MathF.Max(0f, _displaySize.Y - inset - _mainMenuBarHeight));
+        return new UiViewport(pos, size, workPos, workSize);
+    }
+
+    public void SetViewportTopInset(float topInset)
+    {
+        _viewportTopInset = MathF.Max(0f, topInset);
     }
 
     public float GetMainMenuBarHeight() => _mainMenuBarHeight;
@@ -3298,10 +3369,7 @@ public sealed partial class UiImmediateContext
         _ = value;
         _ = caretIndex;
 
-        var baseFontSize = _lineHeight * _textSettings.Scale;
-        var scale = baseFontSize > 0f ? GetFontSize() / _lineHeight : 1f;
-        pixelHeight = MathF.Max(1f, (_fontAtlas.Ascent - _fontAtlas.Descent) * scale);
-
+        pixelHeight = MathF.Max(1f, GetFontSize());
         pixelWidth = 0f;
     }
 

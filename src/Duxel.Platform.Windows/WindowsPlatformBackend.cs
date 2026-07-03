@@ -24,6 +24,13 @@ public readonly record struct WindowsPlatformBackendOptions(
     string? IconPath,
     ReadOnlyMemory<byte> IconData,
     Action<nint>? WindowCreated,
+    bool IntegrateSystemChrome,
+    bool UseDuxelTitleBar,
+    float DuxelTitleBarHeight,
+    bool FollowSystemTheme,
+    UiColor ChromeCaptionColor,
+    UiColor ChromeTextColor,
+    UiColor ChromeBorderColor,
     DuxelTrayOptions TrayOptions,
     IKeyRepeatSettingsProvider KeyRepeatSettingsProvider,
     Action? FrameInvalidated
@@ -31,7 +38,10 @@ public readonly record struct WindowsPlatformBackendOptions(
 
 [SupportedOSPlatform("windows")]
 public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32PlatformBackend
+    , IWindowChromeController
+    , IPlatformThemeProvider
 {
+    private const string DefaultIconResourceName = "Duxel.Platform.Windows.assets.duxel.ico";
     private const uint VkStructureTypeWin32SurfaceCreateInfoKhr = 1000009000;
     private const int VkSuccess = 0;
 
@@ -43,9 +53,22 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WsMaximizeBox = 0x00010000;
     private const uint WsVisible = 0x10000000;
     private const uint WsOverlappedWindow = WsOverlapped | WsCaption | WsSysMenu | WsThickFrame | WsMinimizeBox | WsMaximizeBox;
+    private const uint SwpNoSize = 0x0001;
+    private const uint SwpNoMove = 0x0002;
+    private const uint SwpNoZOrder = 0x0004;
+    private const uint SwpNoActivate = 0x0010;
+    private const uint SwpFrameChanged = 0x0020;
+    private const float DuxelChromeButtonLogicalWidth = 48f;
+    private const int DwmwaWindowCornerPreference = 33;
+    private const int DwmwaBorderColor = 34;
+    private const int DwmwaCaptionColor = 35;
+    private const int DwmwaTextColor = 36;
+    private const int DwmwaUseImmersiveDarkMode = 20;
+    private const int DwmWindowCornerPreferenceRound = 2;
     private const uint ImageIcon = 1;
     private const uint LrLoadFromFile = 0x0010;
     private const uint LrDefaultSize = 0x0040;
+    private const uint CsDblClks = 0x0008;
 
     private const int CwUseDefault = unchecked((int)0x80000000);
 
@@ -56,12 +79,20 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WaitTimeout = 0x00000102;
 
     private const int GwlpUserData = -21;
+    private const uint ScMinimize = 0xF020;
+    private const uint ScMaximize = 0xF030;
+    private const uint ScRestore = 0xF120;
+    private const uint ScMove = 0xF010;
+    private const uint SwMinimize = 6;
 
     private const uint WmNccreate = 0x0081;
     private const uint WmDestroy = 0x0002;
     private const uint WmClose = 0x0010;
     private const uint WmQuit = 0x0012;
     private const uint WmGetMinMaxInfo = 0x0024;
+    private const uint WmNcCalcSize = 0x0083;
+    private const uint WmNcHitTest = 0x0084;
+    private const uint WmNcMouseMove = 0x00A0;
     private const uint WmCommand = 0x0111;
     private const uint WmSetCursor = 0x0020;
     private const uint WmKeyDown = 0x0100;
@@ -87,13 +118,24 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WmExitSizeMove = 0x0232;
     private const uint WmEraseBkgnd = 0x0014;
     private const uint WmPaint = 0x000F;
+    private const uint WmSettingChange = 0x001A;
     private const uint WmDpiChanged = 0x02E0;
     private const uint WmApp = 0x8000;
     private const uint WmTrayCallback = WmApp + 1;
 
     private const int HtClient = 1;
+    private const int HtCaption = 2;
+    private const int HtLeft = 10;
+    private const int HtRight = 11;
+    private const int HtTop = 12;
+    private const int HtTopLeft = 13;
+    private const int HtTopRight = 14;
+    private const int HtBottom = 15;
+    private const int HtBottomLeft = 16;
+    private const int HtBottomRight = 17;
     private const nuint SizeRestored = 0;
     private const nuint SizeMinimized = 1;
+    private const uint WmSysCommand = 0x0112;
 
     private const int VkTab = 0x09;
     private const int VkLeft = 0x25;
@@ -147,18 +189,31 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private readonly int _logicalMinWidth;
     private readonly int _logicalMinHeight;
     private readonly uint _windowStyle;
+    private readonly string _windowTitle;
+    private readonly bool _resizable;
+    private readonly bool _integrateSystemChrome;
+    private readonly bool _useDuxelTitleBar;
+    private readonly int _duxelTitleBarHeightPx;
+    private readonly bool _followSystemTheme;
+    private readonly UiColor _chromeCaptionColor;
+    private readonly UiColor _chromeTextColor;
+    private readonly UiColor _chromeBorderColor;
+    private readonly bool _showMinimizeButton;
+    private readonly bool _showMaximizeButton;
     private readonly bool _centerOnScreen;
     private readonly bool _centerOnOwner;
     private readonly nint _ownerWindowHandle;
     private readonly nint _largeIconHandle;
     private readonly nint _smallIconHandle;
     private readonly WindowsTrayIconHost? _trayIcon;
+    private readonly WindowsImeHandler _imeHandler;
 
     private float _dpiScale;
 
     private bool _shouldClose;
     private bool _disposed;
     private int _sizeMoveActive;
+    private UiSystemColorScheme _colorScheme;
     private UiMouseCursor _currentCursor = UiMouseCursor.Arrow;
 
     static WindowsPlatformBackend()
@@ -175,6 +230,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         _inputBackend = new WindowsInputBackend(options.KeyRepeatSettingsProvider.GetSettings());
         _cursorHandles = CreateCursorMap();
         _frameInvalidated = options.FrameInvalidated;
+        _colorScheme = WindowsSystemTheme.GetAppColorScheme();
 
         if (options.Width <= 0)
         {
@@ -191,6 +247,19 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             throw new ArgumentOutOfRangeException(nameof(options), "Window minimum size must be zero or greater.");
         }
 
+        _windowTitle = string.IsNullOrWhiteSpace(options.Title) ? "Duxel" : options.Title;
+        var systemDpi = GetDpiForSystem();
+        _dpiScale = systemDpi > 0 ? systemDpi / 96f : 1f;
+        _resizable = options.Resizable;
+        _integrateSystemChrome = options.IntegrateSystemChrome;
+        _useDuxelTitleBar = options.UseDuxelTitleBar;
+        _duxelTitleBarHeightPx = Math.Max(1, (int)MathF.Round(MathF.Max(32f, options.DuxelTitleBarHeight) * _dpiScale));
+        _followSystemTheme = options.FollowSystemTheme;
+        _chromeCaptionColor = options.ChromeCaptionColor;
+        _chromeTextColor = options.ChromeTextColor;
+        _chromeBorderColor = options.ChromeBorderColor;
+        _showMinimizeButton = options.ShowMinimizeButton;
+        _showMaximizeButton = options.ShowMaximizeButton;
         _windowStyle = CreateWindowStyle(options.Resizable, options.ShowMinimizeButton, options.ShowMaximizeButton);
         _centerOnScreen = options.CenterOnScreen;
         _centerOnOwner = options.CenterOnOwner;
@@ -219,7 +288,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             var windowClass = new WndClassExW
             {
                 cbSize = (uint)sizeof(WndClassExW),
-                style = 0,
+                style = CsDblClks,
                 lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_wndProc),
                 cbClsExtra = 0,
                 cbWndExtra = 0,
@@ -242,24 +311,27 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             }
         }
 
-        var systemDpi = GetDpiForSystem();
-        _dpiScale = systemDpi > 0 ? systemDpi / 96f : 1f;
-
         var scaledWidth = (int)MathF.Round(options.Width * _dpiScale);
         var scaledHeight = (int)MathF.Round(options.Height * _dpiScale);
 
-        var windowTitle = string.IsNullOrWhiteSpace(options.Title) ? "Duxel" : options.Title;
+        var windowTitle = _windowTitle;
 
-        var createRect = UnsafeRectForCreate(scaledWidth, scaledHeight);
-        if (!AdjustWindowRectEx(ref createRect, _windowStyle, false, 0))
+        var createWidth = scaledWidth;
+        var createHeight = scaledHeight;
+        if (!_useDuxelTitleBar)
         {
-            var error = Marshal.GetLastPInvokeError();
-            CleanupRegistrationOnly();
-            throw new InvalidOperationException($"AdjustWindowRectEx failed: {error}");
+            var createRect = UnsafeRectForCreate(scaledWidth, scaledHeight);
+            if (!AdjustWindowRectEx(ref createRect, _windowStyle, false, 0))
+            {
+                var error = Marshal.GetLastPInvokeError();
+                CleanupRegistrationOnly();
+                throw new InvalidOperationException($"AdjustWindowRectEx failed: {error}");
+            }
+
+            createWidth = createRect.right - createRect.left;
+            createHeight = createRect.bottom - createRect.top;
         }
 
-        var createWidth = createRect.right - createRect.left;
-        var createHeight = createRect.bottom - createRect.top;
         _windowHandle = CreateWindowExW(
             0,
             _classNamePtr,
@@ -280,6 +352,24 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             var error = Marshal.GetLastPInvokeError();
             CleanupRegistrationOnly();
             throw new InvalidOperationException($"CreateWindowExW failed: {error}");
+        }
+
+        _imeHandler = new WindowsImeHandler(_windowHandle, options.FrameInvalidated);
+
+        if (_integrateSystemChrome || _useDuxelTitleBar)
+        {
+            ApplyCurrentSystemChrome();
+        }
+        if (_useDuxelTitleBar)
+        {
+            _ = SetWindowPos(
+                _windowHandle,
+                nint.Zero,
+                0,
+                0,
+                0,
+                0,
+                SwpNoMove | SwpNoSize | SwpNoZOrder | SwpNoActivate | SwpFrameChanged);
         }
 
         _inputBackend.SetWindowHandle(_windowHandle);
@@ -363,6 +453,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     public bool ShouldClose => _shouldClose;
 
+    public UiSystemColorScheme ColorScheme => _colorScheme;
+
     public double TimeSeconds => _stopwatch.Elapsed.TotalSeconds;
 
     public IInputBackend Input => _inputBackend;
@@ -370,6 +462,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     public IVulkanSurfaceSource? VulkanSurface => _vulkanSurface;
 
     public IPlatformTextBackend? TextBackend => WindowsPlatformTextBackend.Instance;
+
+    public IUiImeHandler? ImeHandler => _imeHandler;
 
     public nint WindowHandle => _windowHandle;
 
@@ -423,6 +517,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         }
 
         _disposed = true;
+        _imeHandler.Dispose();
         _trayIcon?.Dispose();
 
         if (_windowHandle != nint.Zero)
@@ -450,6 +545,13 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
         var scaledMinWidth = (int)MathF.Round(Math.Max(1, _logicalMinWidth) * _dpiScale);
         var scaledMinHeight = (int)MathF.Round(Math.Max(1, _logicalMinHeight) * _dpiScale);
+        if (_useDuxelTitleBar)
+        {
+            _minTrackWidth = _logicalMinWidth > 0 ? scaledMinWidth : 0;
+            _minTrackHeight = _logicalMinHeight > 0 ? scaledMinHeight : 0;
+            return;
+        }
+
         var minRect = UnsafeRectForCreate(scaledMinWidth, scaledMinHeight);
         if (!AdjustWindowRectEx(ref minRect, _windowStyle, false, 0))
         {
@@ -484,6 +586,44 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         }
     }
 
+    public string WindowTitle => _windowTitle;
+
+    public bool CanMinimize => _showMinimizeButton;
+
+    public bool CanMaximize => _showMaximizeButton;
+
+    public bool IsMaximized => IsZoomed(_windowHandle);
+
+    public void BeginWindowMove()
+    {
+        ThrowIfDisposed();
+        BeginWindowMoveCore();
+    }
+
+    private void BeginWindowMoveCore()
+    {
+        ReleaseCapture();
+        _ = SendMessageW(_windowHandle, WmSysCommand, ScMove | HtCaption, 0);
+    }
+
+    public void MinimizeWindow()
+    {
+        ThrowIfDisposed();
+        _ = ShowWindow(_windowHandle, SwMinimize);
+    }
+
+    public void ToggleMaximizeWindow()
+    {
+        ThrowIfDisposed();
+        _ = SendMessageW(_windowHandle, WmSysCommand, IsMaximized ? ScRestore : ScMaximize, 0);
+    }
+
+    public void CloseWindow()
+    {
+        ThrowIfDisposed();
+        _ = SendMessageW(_windowHandle, WmClose, 0, 0);
+    }
+
     private static uint CreateWindowStyle(bool resizable, bool showMinimizeButton, bool showMaximizeButton)
     {
         var style = WsOverlapped | WsCaption | WsSysMenu;
@@ -506,6 +646,43 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         return style;
     }
 
+    private static void ApplyIntegratedSystemChrome(nint hwnd, UiColor captionColor, UiColor textColor, UiColor borderColor)
+    {
+        var cornerPreference = DwmWindowCornerPreferenceRound;
+        SetDwmAttribute(hwnd, DwmwaWindowCornerPreference, ref cornerPreference);
+
+        var caption = ToColorRef(captionColor);
+        SetDwmAttribute(hwnd, DwmwaCaptionColor, ref caption);
+
+        var text = ToColorRef(textColor);
+        SetDwmAttribute(hwnd, DwmwaTextColor, ref text);
+
+        var border = ToColorRef(borderColor);
+        SetDwmAttribute(hwnd, DwmwaBorderColor, ref border);
+
+        var darkMode = IsDarkColor(captionColor) ? 1 : 0;
+        SetDwmAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref darkMode);
+    }
+
+    private static void SetDwmAttribute(nint hwnd, int attribute, ref int value)
+    {
+        var result = DwmSetWindowAttribute(hwnd, attribute, ref value, sizeof(int));
+        if (result != 0)
+        {
+            throw new InvalidOperationException($"DwmSetWindowAttribute({attribute}) failed: 0x{result:X8}.");
+        }
+    }
+
+    private static int ToColorRef(UiColor color) => unchecked((int)(color.Rgba & 0x00FFFFFFu));
+
+    private static bool IsDarkColor(UiColor color)
+    {
+        var r = (int)(color.Rgba & 0xFF);
+        var g = (int)((color.Rgba >> 8) & 0xFF);
+        var b = (int)((color.Rgba >> 16) & 0xFF);
+        return ((r * 299) + (g * 587) + (b * 114)) < 128000;
+    }
+
     private static (nint LargeIconHandle, nint SmallIconHandle) LoadWindowIcons(string? iconPath, ReadOnlyMemory<byte> iconData)
     {
         if (iconData.Length > 0)
@@ -522,13 +699,48 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
         if (string.IsNullOrWhiteSpace(iconPath) || !File.Exists(iconPath))
         {
-            return (nint.Zero, nint.Zero);
+            return LoadDefaultWindowIcons();
         }
 
         var largeHandleFile = LoadImageW(nint.Zero, iconPath, ImageIcon, 0, 0, LrLoadFromFile | LrDefaultSize);
         var smallHandleFile = LoadImageW(nint.Zero, iconPath, ImageIcon, GetSystemMetrics(49), GetSystemMetrics(50), LrLoadFromFile);
 
         return (largeHandleFile, smallHandleFile != nint.Zero ? smallHandleFile : largeHandleFile);
+    }
+
+    private static (nint LargeIconHandle, nint SmallIconHandle) LoadDefaultWindowIcons()
+    {
+        using var stream = typeof(WindowsPlatformBackend).Assembly.GetManifestResourceStream(DefaultIconResourceName);
+        if (stream is null)
+        {
+            return (nint.Zero, nint.Zero);
+        }
+
+        var iconData = new byte[stream.Length];
+        var read = 0;
+        while (read < iconData.Length)
+        {
+            var count = stream.Read(iconData, read, iconData.Length - read);
+            if (count <= 0)
+            {
+                break;
+            }
+
+            read += count;
+        }
+
+        if (read != iconData.Length)
+        {
+            return (nint.Zero, nint.Zero);
+        }
+
+        var largeCx = GetSystemMetrics(11);
+        var largeCy = GetSystemMetrics(12);
+        var smallCx = GetSystemMetrics(49);
+        var smallCy = GetSystemMetrics(50);
+        var largeHandle = LoadIconFromIcoData(iconData, largeCx, largeCy);
+        var smallHandle = LoadIconFromIcoData(iconData, smallCx, smallCy);
+        return (largeHandle, smallHandle != nint.Zero ? smallHandle : largeHandle);
     }
 
     internal static nint LoadIconFromIcoData(ReadOnlySpan<byte> icoData, int desiredWidth, int desiredHeight)
@@ -674,6 +886,44 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
         switch (message)
         {
+            case WmNcCalcSize:
+                if (_useDuxelTitleBar)
+                {
+                    return 0;
+                }
+
+                break;
+            case WmNcHitTest:
+                if (_useDuxelTitleBar && _resizable && TryHitTestResizeBorder(hwnd, lParam, out var hitTest))
+                {
+                    return hitTest;
+                }
+
+                if (_useDuxelTitleBar && TryHitTestDuxelTitleBar(hwnd, lParam, _duxelTitleBarHeightPx, out hitTest))
+                {
+                    return hitTest;
+                }
+
+                break;
+            case WmLButtonDown:
+                if (_useDuxelTitleBar
+                    && IsDuxelCaptionDragClientPoint(hwnd, lParam, _duxelTitleBarHeightPx, _showMinimizeButton, _showMaximizeButton, _dpiScale))
+                {
+                    BeginWindowMoveCore();
+                    return 0;
+                }
+
+                break;
+            case WmLButtonDblClk:
+                if (_useDuxelTitleBar
+                    && _showMaximizeButton
+                    && IsDuxelCaptionDragClientPoint(hwnd, lParam, _duxelTitleBarHeightPx, _showMinimizeButton, _showMaximizeButton, _dpiScale))
+                {
+                    ToggleMaximizeWindow();
+                    return 0;
+                }
+
+                break;
             case WmEraseBkgnd:
                 return 1;
             case WmPaint:
@@ -708,12 +958,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
             case WmWindowPosChanging:
             case WmWindowPosChanged:
-                if (Volatile.Read(ref _sizeMoveActive) == 0)
-                {
-                    _frameInvalidated?.Invoke();
-                }
+                _frameInvalidated?.Invoke();
                 break;
             case WmSizing:
+                _frameInvalidated?.Invoke();
+                break;
+            case WmNcMouseMove:
                 _frameInvalidated?.Invoke();
                 break;
             case WmCommand:
@@ -774,6 +1024,17 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 _frameInvalidated?.Invoke();
                 return 0;
             }
+            case WmSettingChange:
+                if (IsImmersiveColorSetChange(lParam) && RefreshColorSchemeFromSystem())
+                {
+                    if (_followSystemTheme)
+                    {
+                        ApplyCurrentSystemChrome();
+                    }
+
+                    _frameInvalidated?.Invoke();
+                }
+                break;
             case WmClose:
                 if (_trayIcon?.TryHandleClose(HideWindowToTray) == true)
                 {
@@ -799,6 +1060,158 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         }
 
         return DefWindowProcW(hwnd, message, wParam, lParam);
+    }
+
+    private static bool TryHitTestResizeBorder(nint hwnd, nint lParam, out nint hitTest)
+    {
+        hitTest = 0;
+        if (!GetWindowRect(hwnd, out var rect))
+        {
+            return false;
+        }
+
+        var point = PointFromLParam(lParam);
+        var borderX = GetResizeBorderWidth();
+        var borderY = GetResizeBorderHeight();
+        var left = point.x >= rect.left && point.x < rect.left + borderX;
+        var right = point.x < rect.right && point.x >= rect.right - borderX;
+        var top = point.y >= rect.top && point.y < rect.top + borderY;
+        var bottom = point.y < rect.bottom && point.y >= rect.bottom - borderY;
+
+        hitTest = (top, bottom, left, right) switch
+        {
+            (true, _, true, _) => HtTopLeft,
+            (true, _, _, true) => HtTopRight,
+            (_, true, true, _) => HtBottomLeft,
+            (_, true, _, true) => HtBottomRight,
+            (true, _, _, _) => HtTop,
+            (_, true, _, _) => HtBottom,
+            (_, _, true, _) => HtLeft,
+            (_, _, _, true) => HtRight,
+            _ => 0,
+        };
+
+        return hitTest != 0;
+    }
+
+    private static bool TryHitTestDuxelTitleBar(
+        nint hwnd,
+        nint lParam,
+        int titleBarHeightPx,
+        out nint hitTest)
+    {
+        hitTest = 0;
+        if (!GetWindowRect(hwnd, out var rect))
+        {
+            return false;
+        }
+
+        var point = PointFromLParam(lParam);
+        var x = point.x - rect.left;
+        var y = point.y - rect.top;
+        var width = rect.right - rect.left;
+        if (x < 0 || y < 0 || x >= width || y >= titleBarHeightPx)
+        {
+            return false;
+        }
+
+        hitTest = HtClient;
+        return true;
+    }
+
+    private static bool IsDuxelCaptionDragClientPoint(
+        nint hwnd,
+        nint lParam,
+        int titleBarHeightPx,
+        bool showMinimizeButton,
+        bool showMaximizeButton,
+        float dpiScale)
+    {
+        if (!GetClientRect(hwnd, out var rect))
+        {
+            return false;
+        }
+
+        var point = ClientPointFromLParam(lParam);
+        var width = rect.right - rect.left;
+        if (point.x < 0 || point.y < 0 || point.x >= width || point.y >= titleBarHeightPx)
+        {
+            return false;
+        }
+
+        var chromeButtonCount = 1 + (showMinimizeButton ? 1 : 0) + (showMaximizeButton ? 1 : 0);
+        var buttonAreaWidth = (int)MathF.Ceiling(DuxelChromeButtonLogicalWidth * MathF.Max(1f, dpiScale) * chromeButtonCount);
+        var buttonAreaLeft = Math.Max(0, width - buttonAreaWidth);
+        return point.x < buttonAreaLeft;
+    }
+
+    private static Point PointFromLParam(nint lParam)
+    {
+        var value = unchecked((int)lParam);
+        return new Point
+        {
+            x = (short)(value & 0xFFFF),
+            y = (short)((value >> 16) & 0xFFFF),
+        };
+    }
+
+    private static Point ClientPointFromLParam(nint lParam)
+    {
+        var value = unchecked((int)lParam);
+        return new Point
+        {
+            x = (short)(value & 0xFFFF),
+            y = (short)((value >> 16) & 0xFFFF),
+        };
+    }
+
+    private static int GetResizeBorderWidth()
+    {
+        const int smCxSizeFrame = 32;
+        const int smCxPaddedBorder = 92;
+        return Math.Max(1, GetSystemMetrics(smCxSizeFrame) + GetSystemMetrics(smCxPaddedBorder));
+    }
+
+    private static int GetResizeBorderHeight()
+    {
+        const int smCySizeFrame = 33;
+        const int smCyPaddedBorder = 92;
+        return Math.Max(1, GetSystemMetrics(smCySizeFrame) + GetSystemMetrics(smCyPaddedBorder));
+    }
+
+    private void ApplyCurrentSystemChrome()
+    {
+        if (_followSystemTheme)
+        {
+            var theme = WindowsSystemTheme.GetAppDesign().Theme;
+            ApplyIntegratedSystemChrome(_windowHandle, theme.TitleBgActive, theme.WindowTitleText, theme.Border);
+            return;
+        }
+
+        ApplyIntegratedSystemChrome(_windowHandle, _chromeCaptionColor, _chromeTextColor, _chromeBorderColor);
+    }
+
+    private bool RefreshColorSchemeFromSystem()
+    {
+        var next = WindowsSystemTheme.GetAppColorScheme();
+        if (next == _colorScheme)
+        {
+            return false;
+        }
+
+        _colorScheme = next;
+        return true;
+    }
+
+    private static bool IsImmersiveColorSetChange(nint lParam)
+    {
+        if (lParam == nint.Zero)
+        {
+            return true;
+        }
+
+        var area = Marshal.PtrToStringUni(lParam);
+        return string.Equals(area, "ImmersiveColorSet", StringComparison.Ordinal);
     }
 
     private static Dictionary<UiMouseCursor, nint> CreateCursorMap()
@@ -876,10 +1289,21 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         {
             switch (message)
             {
+                case WmNcMouseMove:
+                {
+                    var point = PointFromLParam(lParam);
+                    if (_hwnd != nint.Zero && ScreenToClient(_hwnd, ref point))
+                    {
+                        _mousePosition = new UiVector2(point.x, point.y);
+                    }
+
+                    break;
+                }
                 case WmMouseMove:
                     _mousePosition = new UiVector2(GetXFromLParam(lParam), GetYFromLParam(lParam));
                     break;
                 case WmLButtonDown:
+                case WmLButtonDblClk:
                     SetMouseButton(UiMouseButton.Left, true);
                     break;
                 case WmLButtonUp:
@@ -1224,6 +1648,10 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetWindowRect(nint hWnd, out Rect lpRect);
 
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetCursorPos(out Point lpPoint);
+
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial nint GetModuleHandleW(nint lpModuleName);
 
@@ -1232,6 +1660,10 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     [LibraryImport("user32.dll")]
     private static partial int GetSystemMetrics(int nIndex);
+
+    [LibraryImport("user32.dll", EntryPoint = "ScreenToClient", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ScreenToClient(nint hWnd, ref Point lpPoint);
 
     [LibraryImport("user32.dll", SetLastError = true)]
     private static partial nint GetWindowLongPtrW(nint hWnd, int nIndex);
@@ -1281,6 +1713,13 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsZoomed(nint hWnd);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint SendMessageW(nint hWnd, uint msg, nuint wParam, nint lParam);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool ShowWindow(nint hWnd, uint nCmdShow);
 
     [LibraryImport("user32.dll")]
@@ -1314,6 +1753,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     [LibraryImport("dwmapi.dll")]
     private static partial int DwmFlush();
+
+    [LibraryImport("dwmapi.dll")]
+    private static partial int DwmSetWindowAttribute(nint hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 
     private static readonly nint DpiAwarenessContextPerMonitorAwareV2 = -4;
 

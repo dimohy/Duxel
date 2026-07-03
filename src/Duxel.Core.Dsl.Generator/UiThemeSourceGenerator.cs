@@ -108,15 +108,30 @@ internal static class ThemeParser
         public string Name { get; init; } = "Theme";
         public string? BasePreset { get; init; }
         public List<ThemeColorEntry> Overrides { get; init; } = [];
+        public List<ThemeDesignTokenEntry> DesignTokenOverrides { get; init; } = [];
     }
 
     internal readonly record struct ThemeColorEntry(string ColorName, uint PackedRgba);
+    internal readonly record struct ThemeDesignTokenEntry(string TokenName, float Value);
+
+    private static readonly HashSet<string> DesignTokenNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "WindowCornerRadius",
+        "ControlCornerRadius",
+        "ControlBorderWidth",
+        "ControlPressedOffsetY",
+        "InputCornerRadius",
+        "ToggleCornerRadius",
+        "ProgressCornerRadius",
+        "FocusRingThickness",
+    };
 
     public static ThemeDef Parse(string text)
     {
         string? name = null;
         string? basePreset = null;
         var overrides = new List<ThemeColorEntry>();
+        var designTokenOverrides = new List<ThemeDesignTokenEntry>();
 
         using var reader = new StringReader(text);
         var lineNumber = 0;
@@ -142,15 +157,31 @@ internal static class ThemeParser
                 throw new FormatException($"Line {lineNumber}: expected 'ColorName = #HexValue'.");
             }
 
-            var colorName = line[..eqIdx].Trim();
-            var colorValue = line[(eqIdx + 1)..].Trim();
+            var nameToken = line[..eqIdx].Trim();
+            var valueToken = line[(eqIdx + 1)..].Trim();
 
-            if (!TryParseHexColor(colorValue, out var packed))
+            if (valueToken.StartsWith("#", StringComparison.Ordinal))
             {
-                throw new FormatException($"Line {lineNumber}: invalid hex color '{colorValue}'.");
+                if (!TryParseHexColor(valueToken, out var packed))
+                {
+                    throw new FormatException($"Line {lineNumber}: invalid hex color '{valueToken}'.");
+                }
+
+                overrides.Add(new ThemeColorEntry(nameToken, packed));
+                continue;
             }
 
-            overrides.Add(new ThemeColorEntry(colorName, packed));
+            if (!TryParseDesignTokenName(nameToken, out var tokenName))
+            {
+                throw new FormatException($"Line {lineNumber}: unknown design token '{nameToken}'. Use Design.<TokenName> for shape tokens.");
+            }
+
+            if (!float.TryParse(valueToken, NumberStyles.Float, CultureInfo.InvariantCulture, out var tokenValue))
+            {
+                throw new FormatException($"Line {lineNumber}: invalid design token value '{valueToken}'.");
+            }
+
+            designTokenOverrides.Add(new ThemeDesignTokenEntry(tokenName, tokenValue));
         }
 
         if (name is null)
@@ -158,7 +189,7 @@ internal static class ThemeParser
             throw new FormatException("Missing 'Theme \"Name\"' header.");
         }
 
-        return new ThemeDef { Name = name, BasePreset = basePreset, Overrides = overrides };
+        return new ThemeDef { Name = name, BasePreset = basePreset, Overrides = overrides, DesignTokenOverrides = designTokenOverrides };
     }
 
     private static void ParseHeader(string line, int lineNumber, out string name, out string? basePreset)
@@ -196,6 +227,15 @@ internal static class ThemeParser
         {
             throw new FormatException($"Line {lineNumber}: missing preset name after ':'.");
         }
+    }
+
+    private static bool TryParseDesignTokenName(string value, out string tokenName)
+    {
+        const string designPrefix = "Design.";
+        tokenName = value.StartsWith(designPrefix, StringComparison.OrdinalIgnoreCase)
+            ? value[designPrefix.Length..]
+            : value;
+        return DesignTokenNames.Contains(tokenName);
     }
 
     /// <summary>
@@ -266,9 +306,12 @@ internal static class ThemeCompiler
 
         var baseLine = def.BasePreset?.ToLowerInvariant() switch
         {
+            null or "" or "windows11" or "win11" => "var theme = global::Duxel.Core.UiWindows11Design.CreateTheme();",
+            "windows11dark" or "win11dark" => "var theme = global::Duxel.Core.UiWindows11Design.CreateDarkTheme();",
+            "dark" => "var theme = global::Duxel.Core.UiTheme.ImGuiDark;",
             "light" => "var theme = global::Duxel.Core.UiTheme.ImGuiLight;",
             "classic" => "var theme = global::Duxel.Core.UiTheme.ImGuiClassic;",
-            _ => "var theme = global::Duxel.Core.UiTheme.ImGuiDark;",
+            var preset => throw new InvalidOperationException($"Unknown theme base preset: {preset}."),
         };
         sb.Append("            ").AppendLine(baseLine);
 
@@ -284,10 +327,38 @@ internal static class ThemeCompiler
         sb.AppendLine("            return theme;");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine($"    public static global::Duxel.Core.UiCompiledDesign {propertyName}Design");
+        sb.AppendLine("    {");
+        sb.AppendLine("        get");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var design = \"" + EscapeString(def.BasePreset ?? string.Empty) + "\".ToLowerInvariant() switch");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            \"\" or \"windows11\" or \"win11\" => global::Duxel.Core.UiCompiledDesign.Windows11 with {{ Theme = {propertyName} }},");
+        sb.AppendLine($"            \"windows11dark\" or \"win11dark\" => global::Duxel.Core.UiCompiledDesign.Windows11Dark with {{ Theme = {propertyName} }},");
+        sb.AppendLine($"            \"dark\" or \"light\" or \"classic\" => new global::Duxel.Core.UiCompiledDesign({propertyName}, global::Duxel.Core.UiStyle.Default, global::Duxel.Core.UiDesignTokens.Default),");
+        sb.AppendLine("            var preset => throw new global::System.InvalidOperationException($\"Unknown theme base preset: {preset}.\"),");
+        sb.AppendLine("        };");
+        sb.AppendLine("            var tokens = design.Tokens;");
+        foreach (var entry in def.DesignTokenOverrides)
+        {
+            sb.Append("            tokens = tokens with { ")
+              .Append(entry.TokenName)
+              .Append(" = ")
+              .Append(FormatFloat(entry.Value))
+              .AppendLine("f };");
+        }
+        sb.AppendLine("            return design with { Tokens = tokens };");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
         sb.AppendLine("}");
 
         return sb.ToString();
     }
+
+    private static string EscapeString(string value) => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+    private static string FormatFloat(float value) => value.ToString("0.########", CultureInfo.InvariantCulture);
 }
 
 /// <summary>

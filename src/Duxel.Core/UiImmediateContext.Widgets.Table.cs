@@ -43,6 +43,7 @@ public sealed partial class UiImmediateContext
                 ? MathF.Max(0f, _windowRect.Width - (WindowPadding * 2f))
                 : (InputWidth * columns) + (ItemSpacingX * (columns - 1));
 
+        _tableAvailableWidth = MathF.Max(1f, width);
         _tableColumnWidth = MathF.Max(1f, (width - (ItemSpacingX * (columns - 1))) / columns);
         if (_tableColumnWidths.Length != columns)
         {

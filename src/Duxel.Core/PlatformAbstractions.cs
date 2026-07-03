@@ -4,6 +4,12 @@ namespace Duxel.Core;
 
 public readonly record struct PlatformSize(int Width, int Height);
 
+public enum UiSystemColorScheme
+{
+    Light,
+    Dark,
+}
+
 public readonly record struct InputSnapshot(
     UiVector2 MousePosition,
     bool LeftMouseDown,
@@ -50,15 +56,34 @@ public interface IPlatformBackend : IDisposable
     IInputBackend Input { get; }
     IVulkanSurfaceSource? VulkanSurface { get; }
     IPlatformTextBackend? TextBackend { get; }
+    IUiImeHandler? ImeHandler => null;
 
     void PollEvents();
     void WaitEvents(int timeoutMilliseconds);
     void SetMouseCursor(UiMouseCursor cursor);
 }
 
+public interface IPlatformThemeProvider
+{
+    UiSystemColorScheme ColorScheme { get; }
+}
+
 public interface IWin32PlatformBackend
 {
     nint WindowHandle { get; }
+}
+
+public interface IWindowChromeController
+{
+    string WindowTitle { get; }
+    bool CanMinimize { get; }
+    bool CanMaximize { get; }
+    bool IsMaximized { get; }
+
+    void BeginWindowMove();
+    void MinimizeWindow();
+    void ToggleMaximizeWindow();
+    void CloseWindow();
 }
 
 public sealed record class DuxelTrayOptions

@@ -237,6 +237,7 @@ Set "greeting" "Hello World"
 #:package Duxel.$(platform).App@*-*
 
 using Duxel.App;
+using Duxel.Core;
 using Duxel.Core.Dsl;
 using Duxel.Windows.App;
 
@@ -245,14 +246,28 @@ var screen = new UiDslScreen("Ui/Main.ui", "Ui/theme.duxel-theme");
 DuxelWindowsApp.Run(new DuxelAppOptions
 {
     Window = new DuxelWindowOptions { Title = "DSL Demo" },
+    Design = UiCompiledDesign.Windows11,
     Screen = screen
 });
 ```
+
+`.duxel-theme` files can define compiled design shape tokens alongside colors:
+
+```text
+Theme "Product" : Windows11
+Button = #2F6FED
+Design.ControlCornerRadius = 7
+Design.InputCornerRadius = 6
+Design.FocusRingThickness = 2
+```
+
+The generated theme surface exposes both `Themes.Product` for colors and `Themes.ProductDesign` for colors plus shape tokens.
 
 ## Hot Reload / Generator
 
 - Runtime hot reload: `UiDslPipeline.CreateHotReloadRenderer(...)`
 - Generated renderer: `UiDslPipeline.CreateGeneratedRenderer(...)`
+- Generated `.duxel-theme` files can be used as compiled colors and shape tokens; set `DuxelAppOptions.Design` to a generated `*Design` property when the app should use the compiled shape contract.
 - In NativeAOT builds (`DUX_NATIVEAOT`), runtime hot reload is disabled.
 
 ## How to Confirm Supported Nodes

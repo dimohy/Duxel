@@ -18,7 +18,7 @@ public sealed class WindowsUiImageDecoder : IUiImageDecoder
         }
 
         var ext = Path.GetExtension(path).ToLowerInvariant();
-        return ext is ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp";
+        return ext is ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".ico";
     }
 
     public UiImageData Decode(string path)

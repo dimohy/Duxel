@@ -1,4 +1,4 @@
-Window "Theme Hot-Reload Demo"
+Window "Windows 11 Theme Demo"
   MenuBar
     Menu "File"
       MenuItem "file.new" "New"
@@ -14,7 +14,7 @@ Window "Theme Hot-Reload Demo"
   Separator
 
   SeparatorText "Theme"
-  Combo "theme" "Theme" Items="Dark,Light,Classic,Nord,Solarized Dark,Solarized Light,Dracula,Monokai,Catppuccin Mocha,GitHub Dark"
+  Combo "theme" "Theme" Items="Windows 11,Dark,Light,Classic,Nord,Solarized Dark,Solarized Light,Dracula,Monokai,Catppuccin Mocha,GitHub Dark"
   Separator
 
   SeparatorText "Buttons"
@@ -24,27 +24,27 @@ Window "Theme Hot-Reload Demo"
     ArrowButton "arrow_r" Right
 
   SeparatorText "Toggles"
-  Checkbox "neon" "Enable Neon Glow" true
-  Checkbox "wireframe" "Wireframe Mode" false
+  Checkbox "neon" "Use Windows 11 spacing" true
+  Checkbox "wireframe" "Show focus styling" false
   Row
     RadioButton "opt" "Option A" 0
     RadioButton "opt" "Option B" 1
     RadioButton "opt" "Option C" 2
 
   SeparatorText "Input"
-  InputText "name" "Name" "Hello Cyberpunk"
+  InputText "name" "Name" "Hello Windows 11"
 
   SeparatorText "Sliders & Drags"
-  SliderFloat "intensity" "Intensity" 0.0 1.0
+  SliderFloat "intensity" "Accent strength" 0.0 1.0
   DragFloat "value" "Value" 42.0 0.5 0.0 100.0
   ProgressBar 0.72 Size=0,0 Overlay="Loading..."
 
   SeparatorText "Selection"
-  Combo "style" "Style" "Neon"
-    Selectable "style.neon" "Neon"
-    Selectable "style.vapor" "Vapor"
-    Selectable "style.retro" "Retro"
-    Selectable "style.synth" "Synth"
+  Combo "style" "Style" "Fluent"
+    Selectable "style.neon" "Fluent"
+    Selectable "style.vapor" "Mica"
+    Selectable "style.retro" "Acrylic"
+    Selectable "style.synth" "Compact"
 
   ListBox "channels" "Channels" "Alpha"
     Selectable "ch.alpha" "Alpha"
@@ -55,7 +55,7 @@ Window "Theme Hot-Reload Demo"
   SeparatorText "Tree & Collapsing"
   CollapsingHeader "System Info"
     TreeNode "GPU"
-      Text "Vendor: Cyberdyne"
+      Text "Vendor: Windows GPU"
       Text "VRAM: 16 GB"
     TreeNode "Display"
       Text "Resolution: 3840x2160"
@@ -75,7 +75,7 @@ Window "Theme Hot-Reload Demo"
 
   SeparatorText "Tooltip Demo"
   Button "hover_me" "Hover Me"
-  Text "Edit cyberpunk.duxel-theme to see hot-reload!"
+  Text "Edit windows11-modern.duxel-theme to see hot-reload."
 
   # ── Control Flow Demo (self-contained) ─────────────────
   SeparatorText "Control Flow: If / Else"

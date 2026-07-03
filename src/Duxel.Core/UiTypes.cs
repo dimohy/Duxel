@@ -836,6 +836,258 @@ public sealed record class UiStyle(
     private static UiVector2 Scale(UiVector2 value, float scale) => new(value.X * scale, value.Y * scale);
 }
 
+public readonly record struct UiDesignTokens(
+    float WindowCornerRadius,
+    float ControlCornerRadius,
+    float ControlBorderWidth,
+    float ControlPressedOffsetY,
+    float InputCornerRadius,
+    float ToggleCornerRadius,
+    float ProgressCornerRadius,
+    float FocusRingThickness
+)
+{
+    public static UiDesignTokens Default => new(
+        WindowCornerRadius: 0f,
+        ControlCornerRadius: 0f,
+        ControlBorderWidth: 1f,
+        ControlPressedOffsetY: 0f,
+        InputCornerRadius: 0f,
+        ToggleCornerRadius: 0f,
+        ProgressCornerRadius: 0f,
+        FocusRingThickness: 0f
+    );
+
+    public static UiDesignTokens Windows11 => new(
+        WindowCornerRadius: 12f,
+        ControlCornerRadius: 6f,
+        ControlBorderWidth: 1f,
+        ControlPressedOffsetY: 1f,
+        InputCornerRadius: 6f,
+        ToggleCornerRadius: 4f,
+        ProgressCornerRadius: 4f,
+        FocusRingThickness: 2f
+    );
+
+    public UiDesignTokens ScaleAllSizes(float scale)
+    {
+        var s = MathF.Max(0.1f, scale);
+        return this with
+        {
+            WindowCornerRadius = WindowCornerRadius * s,
+            ControlCornerRadius = ControlCornerRadius * s,
+            ControlBorderWidth = MathF.Max(1f, ControlBorderWidth * s),
+            ControlPressedOffsetY = ControlPressedOffsetY * s,
+            InputCornerRadius = InputCornerRadius * s,
+            ToggleCornerRadius = ToggleCornerRadius * s,
+            ProgressCornerRadius = ProgressCornerRadius * s,
+            FocusRingThickness = FocusRingThickness * s,
+        };
+    }
+}
+
+public enum UiDesignToken
+{
+    WindowCornerRadius,
+    ControlCornerRadius,
+    ControlBorderWidth,
+    ControlPressedOffsetY,
+    InputCornerRadius,
+    ToggleCornerRadius,
+    ProgressCornerRadius,
+    FocusRingThickness,
+}
+
+public readonly record struct UiCompiledDesign(UiTheme Theme, UiStyle Style, UiDesignTokens Tokens)
+{
+    public static UiCompiledDesign Default => Windows11;
+
+    public static UiCompiledDesign Windows11 => new(UiWindows11Design.CreateTheme(), UiWindows11Design.CreateStyle(), UiDesignTokens.Windows11);
+
+    public static UiCompiledDesign Windows11Dark => new(UiWindows11Design.CreateDarkTheme(), UiWindows11Design.CreateStyle(), UiDesignTokens.Windows11);
+}
+
+public interface IUiDesign
+{
+    static abstract UiCompiledDesign Create();
+}
+
+public readonly struct UiWindows11Design : IUiDesign
+{
+    public static UiCompiledDesign Create() => UiCompiledDesign.Windows11;
+
+    public static UiStyle CreateStyle() => new(
+        WindowPadding: new UiVector2(16f, 16f),
+        ItemSpacing: new UiVector2(10f, 10f),
+        FramePadding: new UiVector2(11f, 7f),
+        ButtonPadding: new UiVector2(14f, 7f),
+        RowSpacing: 10f,
+        CheckboxSpacing: 10f,
+        InputWidth: 280f,
+        SliderWidth: 280f,
+        TreeIndent: 22f,
+        ScrollbarSize: 12f
+    );
+
+    public static UiTheme CreateTheme()
+    {
+        var theme = UiTheme.ImGuiLight;
+
+        theme.WindowBg = new UiColor(0xFFF7F7F7);
+        theme.TitleBg = new UiColor(0xFFF3F3F3);
+        theme.TitleBgActive = new UiColor(0xFFF3F3F3);
+        theme.MenuBarBg = new UiColor(0xFFF3F3F3);
+        theme.PopupBg = new UiColor(0xFFFCFCFC);
+        theme.Text = new UiColor(0xFF1F1F1F);
+        theme.TextDisabled = new UiColor(0xFF707070);
+        theme.Border = new UiColor(0xFFDADADA);
+        theme.FrameBg = new UiColor(0xFFFFFFFF);
+        theme.FrameBgHovered = new UiColor(0xFFF9F9F9);
+        theme.FrameBgActive = new UiColor(0xFFF0F0F0);
+        theme.Button = new UiColor(0xFFFFFFFF);
+        theme.ButtonHovered = new UiColor(0xFFF8F8F8);
+        theme.ButtonActive = new UiColor(0xFFF0F0F0);
+        theme.CheckMark = new UiColor(0, 95, 184);
+        theme.Header = new UiColor(234, 244, 255);
+        theme.HeaderHovered = new UiColor(220, 238, 255);
+        theme.HeaderActive = new UiColor(207, 232, 255);
+        theme.ScrollbarBg = new UiColor(0x16000000);
+        theme.ScrollbarGrab = new UiColor(0xB08A8A8A);
+        theme.ScrollbarGrabHovered = new UiColor(0xD08A8A8A);
+        theme.ScrollbarGrabActive = new UiColor(0xFF5C5C5C);
+        theme.TextSelectedBg = new UiColor(59, 142, 222, 0x55);
+        theme.Separator = new UiColor(0xFFE1E1E1);
+        theme.TableHeaderBg = new UiColor(0xFFF3F3F3);
+        theme.TableRowBg0 = new UiColor(0xFFFFFFFF);
+        theme.TableRowBg1 = new UiColor(0xFFFAFAFA);
+        theme.TableBorder = new UiColor(0xFFE1E1E1);
+
+        theme.InitWidgetDefaults();
+        theme.ButtonText = new UiColor(0xFF1A1A1A);
+        theme.ButtonBorder = new UiColor(0xFFD0D0D0);
+        theme.ButtonBorderHovered = new UiColor(0xFFBDBDBD);
+        theme.ButtonBorderActive = new UiColor(0xFFC8C8C8);
+        theme.InputBg = new UiColor(0xFFFFFFFF);
+        theme.InputBgHovered = new UiColor(0xFFFFFFFF);
+        theme.InputBgActive = new UiColor(0xFFFFFFFF);
+        theme.InputBorder = new UiColor(0xFFBEBEBE);
+        theme.InputBorderHovered = new UiColor(0xFF8F8F8F);
+        theme.InputBorderActive = new UiColor(0, 95, 184);
+        theme.CheckboxBorder = new UiColor(0xFF8A8A8A);
+        theme.CheckboxBorderHovered = new UiColor(0xFF707070);
+        theme.CheckboxBorderActive = new UiColor(0, 95, 184);
+        theme.RadioButtonBorder = theme.CheckboxBorder;
+        theme.RadioButtonBorderHovered = theme.CheckboxBorderHovered;
+        theme.RadioButtonBorderActive = theme.CheckboxBorderActive;
+        theme.SliderGrab = new UiColor(0, 95, 184);
+        theme.SliderGrabActive = new UiColor(0, 74, 144);
+        theme.SliderBorder = new UiColor(0x00FFFFFF);
+        theme.ProgressBarBg = new UiColor(0xFFE6E6E6);
+        theme.ProgressBarFill = new UiColor(0, 95, 184);
+        theme.ProgressBarBorder = new UiColor(0x00FFFFFF);
+        theme.SelectableBgHovered = new UiColor(240, 246, 255);
+        theme.SelectableBgActive = new UiColor(220, 238, 255);
+        theme.MenuItemBgHovered = new UiColor(240, 246, 255);
+        theme.MenuItemBgActive = new UiColor(220, 238, 255);
+        theme.Tab = new UiColor(0x00FFFFFF);
+        theme.TabHovered = new UiColor(240, 246, 255);
+        theme.TabActive = new UiColor(0xFFFFFFFF);
+        theme.TabBorder = new UiColor(0, 95, 184);
+        theme.ListBoxBg = new UiColor(0xFFFFFFFF);
+        theme.ListBoxBorder = new UiColor(0xFFD0D0D0);
+        theme.ListBoxItemBgHovered = new UiColor(240, 246, 255);
+        theme.ListBoxItemBgActive = new UiColor(220, 238, 255);
+        theme.TooltipBg = new UiColor(0xFFFDFDFD);
+        theme.TooltipBorder = new UiColor(0xFFE1E1E1);
+        theme.SeparatorLabelText = new UiColor(0xFF3F3F3F);
+        theme.WindowTitleText = new UiColor(0xFF1A1A1A);
+
+        return theme;
+    }
+
+    public static UiTheme CreateDarkTheme()
+    {
+        var theme = UiTheme.ImGuiDark;
+
+        theme.WindowBg = new UiColor(0xFF202020);
+        theme.TitleBg = new UiColor(0xFF202020);
+        theme.TitleBgActive = new UiColor(0xFF202020);
+        theme.MenuBarBg = new UiColor(0xFF202020);
+        theme.PopupBg = new UiColor(0xFF2B2B2B);
+        theme.Text = new UiColor(0xFFF3F3F3);
+        theme.TextDisabled = new UiColor(0xFF9A9A9A);
+        theme.Border = new UiColor(0xFF3A3A3A);
+        theme.FrameBg = new UiColor(0xFF2B2B2B);
+        theme.FrameBgHovered = new UiColor(0xFF323232);
+        theme.FrameBgActive = new UiColor(0xFF3A3A3A);
+        theme.Button = new UiColor(0xFF2B2B2B);
+        theme.ButtonHovered = new UiColor(0xFF353535);
+        theme.ButtonActive = new UiColor(0xFF3D3D3D);
+        theme.CheckMark = new UiColor(96, 205, 255);
+        theme.Header = new UiColor(20, 56, 77);
+        theme.HeaderHovered = new UiColor(27, 76, 104);
+        theme.HeaderActive = new UiColor(34, 95, 130);
+        theme.ScrollbarBg = new UiColor(0x24202020);
+        theme.ScrollbarGrab = new UiColor(0xB08A8A8A);
+        theme.ScrollbarGrabHovered = new UiColor(0xD07A7A7A);
+        theme.ScrollbarGrabActive = new UiColor(0xFF6A6A6A);
+        theme.TextSelectedBg = new UiColor(59, 142, 222, 0x66);
+        theme.Separator = new UiColor(0xFF3A3A3A);
+        theme.TableHeaderBg = new UiColor(0xFF2B2B2B);
+        theme.TableRowBg0 = new UiColor(0xFF202020);
+        theme.TableRowBg1 = new UiColor(0xFF262626);
+        theme.TableBorder = new UiColor(0xFF3A3A3A);
+
+        theme.InitWidgetDefaults();
+        theme.ButtonText = new UiColor(0xFFF3F3F3);
+        theme.ButtonBorder = new UiColor(0xFF505050);
+        theme.ButtonBorderHovered = new UiColor(0xFF686868);
+        theme.ButtonBorderActive = new UiColor(0xFF787878);
+        theme.InputBg = new UiColor(0xFF2B2B2B);
+        theme.InputBgHovered = new UiColor(0xFF323232);
+        theme.InputBgActive = new UiColor(0xFF2B2B2B);
+        theme.InputBorder = new UiColor(0xFF606060);
+        theme.InputBorderHovered = new UiColor(0xFF8A8A8A);
+        theme.InputBorderActive = new UiColor(96, 205, 255);
+        theme.CheckboxBg = new UiColor(0xFF2B2B2B);
+        theme.CheckboxBgHovered = new UiColor(0xFF353535);
+        theme.CheckboxBgActive = new UiColor(20, 56, 77);
+        theme.CheckboxBorder = new UiColor(0xFF8A8A8A);
+        theme.CheckboxBorderHovered = new UiColor(0xFFC0C0C0);
+        theme.CheckboxBorderActive = new UiColor(96, 205, 255);
+        theme.RadioButtonBg = theme.CheckboxBg;
+        theme.RadioButtonBgHovered = theme.CheckboxBgHovered;
+        theme.RadioButtonBgActive = theme.CheckboxBgActive;
+        theme.RadioButtonBorder = theme.CheckboxBorder;
+        theme.RadioButtonBorderHovered = theme.CheckboxBorderHovered;
+        theme.RadioButtonBorderActive = theme.CheckboxBorderActive;
+        theme.SliderGrab = new UiColor(96, 205, 255);
+        theme.SliderGrabActive = new UiColor(76, 194, 255);
+        theme.SliderBorder = new UiColor(0x00202020);
+        theme.ProgressBarBg = new UiColor(0xFF3A3A3A);
+        theme.ProgressBarFill = new UiColor(96, 205, 255);
+        theme.ProgressBarBorder = new UiColor(0x00202020);
+        theme.SelectableBgHovered = new UiColor(50, 60, 67);
+        theme.SelectableBgActive = new UiColor(20, 56, 77);
+        theme.MenuItemBgHovered = new UiColor(50, 60, 67);
+        theme.MenuItemBgActive = new UiColor(20, 56, 77);
+        theme.Tab = new UiColor(0x00202020);
+        theme.TabHovered = new UiColor(50, 60, 67);
+        theme.TabActive = new UiColor(0xFF2B2B2B);
+        theme.TabBorder = new UiColor(96, 205, 255);
+        theme.ListBoxBg = new UiColor(0xFF2B2B2B);
+        theme.ListBoxBorder = new UiColor(0xFF505050);
+        theme.ListBoxItemBgHovered = new UiColor(50, 60, 67);
+        theme.ListBoxItemBgActive = new UiColor(20, 56, 77);
+        theme.TooltipBg = new UiColor(0xFF2B2B2B);
+        theme.TooltipBorder = new UiColor(0xFF505050);
+        theme.SeparatorLabelText = new UiColor(0xFFCFCFCF);
+        theme.WindowTitleText = new UiColor(0xFFF3F3F3);
+
+        return theme;
+    }
+}
+
 public enum UiStyleColor
 {
     Text,

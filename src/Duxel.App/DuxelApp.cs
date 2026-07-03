@@ -45,6 +45,66 @@ public static class DuxelApp
         s_primarySession.Exit();
     }
 
+    public static DuxelAppOptions Options(
+        IUiView root,
+        string title = "Duxel",
+        int width = 1280,
+        int height = 720,
+        bool vsync = true)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        return Options(Dux.Screen(root), title, width, height, vsync);
+    }
+
+    public static DuxelAppOptions Options(
+        UiScreen screen,
+        string title = "Duxel",
+        int width = 1280,
+        int height = 720,
+        bool vsync = true)
+    {
+        ArgumentNullException.ThrowIfNull(screen);
+        return new DuxelAppOptions
+        {
+            Window = new DuxelWindowOptions
+            {
+                Title = title,
+                Width = width,
+                Height = height,
+                VSync = vsync
+            },
+            Screen = screen
+        };
+    }
+
+    public static DuxelAppOptions Options<TDesign>(
+        IUiView root,
+        string title = "Duxel",
+        int width = 1280,
+        int height = 720,
+        bool vsync = true)
+        where TDesign : IUiDesign
+    {
+        return Options(root, title, width, height, vsync) with
+        {
+            Design = TDesign.Create()
+        };
+    }
+
+    public static DuxelAppOptions Options<TDesign>(
+        UiScreen screen,
+        string title = "Duxel",
+        int width = 1280,
+        int height = 720,
+        bool vsync = true)
+        where TDesign : IUiDesign
+    {
+        return Options(screen, title, width, height, vsync) with
+        {
+            Design = TDesign.Create()
+        };
+    }
+
     public static void Run(DuxelAppOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -208,8 +268,14 @@ public static class DuxelApp
 
     internal static void ConfigureContext(UiContext context, DuxelAppOptions options, IPlatformBackend platform)
     {
-        context.SetTheme(options.Theme);
+        context.SetDesign(ResolveEffectiveDesign(options, platform));
+
         context.SetPlatformTextBackend(platform.TextBackend);
+        if (platform.ImeHandler is { } imeHandler)
+        {
+            context.SetImeHandler(imeHandler);
+        }
+
         if (options.Clipboard is not null)
         {
             context.SetClipboard(options.Clipboard);
@@ -222,6 +288,37 @@ public static class DuxelApp
                 context.SetClipboard(clipboard);
             }
         }
+    }
+
+    internal static UiCompiledDesign ResolveEffectiveDesign(DuxelAppOptions options, IPlatformBackend platform)
+    {
+        if (options.Design is { } design)
+        {
+            return design;
+        }
+
+        if (IsDefaultTheme(options.Theme) && platform is IPlatformThemeProvider themeProvider)
+        {
+            return themeProvider.ColorScheme is UiSystemColorScheme.Dark
+                ? UiCompiledDesign.Windows11Dark
+                : UiCompiledDesign.Windows11;
+        }
+
+        return UiCompiledDesign.Default with { Theme = options.Theme };
+    }
+
+    internal static bool UsesPlatformDefaultTheme(DuxelAppOptions options)
+        => options.Design is null && IsDefaultTheme(options.Theme);
+
+    private static bool IsDefaultTheme(UiTheme theme)
+    {
+        var defaultTheme = UiCompiledDesign.Default.Theme;
+        return theme.WindowBg == defaultTheme.WindowBg
+            && theme.TitleBgActive == defaultTheme.TitleBgActive
+            && theme.Text == defaultTheme.Text
+            && theme.Button == defaultTheme.Button
+            && theme.InputBg == defaultTheme.InputBg
+            && theme.CheckMark == defaultTheme.CheckMark;
     }
 
     private sealed class DefaultKeyRepeatSettingsProvider : IKeyRepeatSettingsProvider
@@ -258,7 +355,8 @@ public sealed record class DuxelAppOptions
     public DuxelFontOptions Font { get; init; } = new();
     public DuxelFrameOptions Frame { get; init; } = new();
     public DuxelDebugOptions Debug { get; init; } = new();
-    public UiTheme Theme { get; init; } = UiTheme.ImGuiDark;
+    public UiTheme Theme { get; init; } = UiCompiledDesign.Default.Theme;
+    public UiCompiledDesign? Design { get; init; }
 
     public UiTextureId FontTextureId { get; init; } = new(1);
     public UiTextureId WhiteTextureId { get; init; } = new(2);
@@ -295,6 +393,9 @@ public sealed record class DuxelWindowOptions
     public string? IconPath { get; init; }
     public ReadOnlyMemory<byte> IconData { get; init; }
     public Action<nint>? WindowCreated { get; init; }
+    public bool IntegrateSystemChrome { get; init; } = true;
+    public bool UseDuxelTitleBar { get; init; } = true;
+    public float DuxelTitleBarHeight { get; init; } = 48f;
     public DuxelTrayOptions Tray { get; init; } = new();
 }
 

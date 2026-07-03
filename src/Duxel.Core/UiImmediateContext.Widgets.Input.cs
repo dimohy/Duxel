@@ -19,6 +19,7 @@ public sealed partial class UiImmediateContext
 
         var displayLabel = GetDisplayLabel(label);
         var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
+        var inputTextLineHeight = GetTextLineHeight();
         var frameHeight = GetFrameHeight();
         var height = MathF.Max(textSize.Y, frameHeight);
         var hasLabel = !string.IsNullOrEmpty(displayLabel);
@@ -98,9 +99,12 @@ public sealed partial class UiImmediateContext
 
         var active = _state.ActiveId == id;
         var borderColor = active ? _theme.InputBorderActive : hovered ? _theme.InputBorderHovered : _theme.InputBorder;
-        AddRectFilled(inputRect, borderColor, _whiteTexture);
-        var innerInputRect = new UiRect(inputRect.X + 1f, inputRect.Y + 1f, MathF.Max(0f, inputRect.Width - 2f), MathF.Max(0f, inputRect.Height - 2f));
-        AddRectFilled(innerInputRect, _theme.InputBg, _whiteTexture);
+        if (active)
+        {
+            AddFocusRing(inputRect, _theme.InputBorderActive, _designTokens.InputCornerRadius);
+        }
+
+        var innerInputRect = AddDesignedFrame(inputRect, _theme.InputBg, borderColor, _designTokens.InputCornerRadius, _designTokens.ControlBorderWidth);
 
         var changed = false;
         var historyChanged = false;
@@ -347,7 +351,8 @@ public sealed partial class UiImmediateContext
             _state.SetScrollX(id, scrollX);
         }
 
-        var textPos = new UiVector2(inputRect.X + 6f - scrollX, inputRect.Y + (inputRect.Height - textSize.Y) * 0.5f);
+        var singleLineTextOffsetY = MathF.Min(3f, MathF.Max(1f, _designTokens.ControlBorderWidth + 1f));
+        var textPos = new UiVector2(inputRect.X + 6f - scrollX, inputRect.Y + ((inputRect.Height - inputTextLineHeight) * 0.5f) + singleLineTextOffsetY);
         if (active && selection.HasSelection)
         {
             var (start, end) = GetSelectionRange(selection);
@@ -379,8 +384,10 @@ public sealed partial class UiImmediateContext
             var caretX = MathF.Round(textPos.X + MeasureTextWidth(text, caretIndex));
             var drawCaretX = caretX;
             var caretWidth = MathF.Max(0.75f, 1f / MathF.Max(1f, _textSettings.Scale));
+            var caretTop = MathF.Round(textPos.Y + 1f);
+            var caretHeight = MathF.Max(1f, inputTextLineHeight - 2f);
             GetImeFontMetrics(text, caretIndex, out var fontPixelHeight, out var fontPixelWidth);
-            _imeHandler?.SetCaretRect(new UiRect(caretX, inputRect.Y + 3f, caretWidth, inputRect.Height - 6f), inputRect, fontPixelHeight, fontPixelWidth);
+            _imeHandler?.SetCaretRect(new UiRect(caretX, textPos.Y, caretWidth, inputTextLineHeight), inputRect, fontPixelHeight, fontPixelWidth);
             if (!string.IsNullOrEmpty(compositionText))
             {
                 DrawImeCompositionInline(compositionText, caretX, textPos.Y, inputRect, inputClip);
@@ -388,8 +395,8 @@ public sealed partial class UiImmediateContext
             }
 
             var caretLeft = Math.Clamp(drawCaretX, inputRect.X, inputRect.X + inputRect.Width - caretWidth);
-            var caretTop = Math.Clamp(inputRect.Y + 3f, inputRect.Y, inputRect.Y + inputRect.Height - (inputRect.Height - 6f));
-            var caretRect = new UiRect(caretLeft, caretTop, caretWidth, inputRect.Height - 6f);
+            caretTop = Math.Clamp(caretTop, inputRect.Y, inputRect.Y + inputRect.Height - caretHeight);
+            var caretRect = new UiRect(caretLeft, caretTop, caretWidth, caretHeight);
             if (IsCaretBlinkOn())
             {
                 _builder.AddRectFilled(caretRect, _theme.InputText, _whiteTexture, inputClip);
@@ -440,7 +447,8 @@ public sealed partial class UiImmediateContext
             var inputRect = new UiRect(cursor.X + textSize.X + ItemSpacingX, cursor.Y + (height - frameHeight) * 0.5f, inputWidth, frameHeight);
 
             var hintSize = MeasureTextInternal(hint, _textSettings, _lineHeight);
-            var hintPos = new UiVector2(inputRect.X + 6f, inputRect.Y + (inputRect.Height - hintSize.Y) * 0.5f);
+            var singleLineTextOffsetY = MathF.Min(3f, MathF.Max(1f, _designTokens.ControlBorderWidth + 1f));
+            var hintPos = new UiVector2(inputRect.X + 6f, inputRect.Y + ((inputRect.Height - hintSize.Y) * 0.5f) + singleLineTextOffsetY);
             AddTextInternal(_builder,
 
                 hint,
@@ -1238,11 +1246,11 @@ public sealed partial class UiImmediateContext
         if (!string.IsNullOrEmpty(compositionText))
         {
             var displayText = string.Concat(text.AsSpan(0, caretIndex), compositionText, text.AsSpan(caretIndex));
-            AddTextMultilineInternal(_builder, displayText, textPos, _theme.InputText, inputClip, _textSettings, textLineHeight, inputRect);
+            AddTextMultilineInternal(_builder, displayText, textPos, _theme.InputText, inputClip, _textSettings, textLineHeight, _lineHeight, inputRect);
         }
         else
         {
-            AddTextMultilineInternal(_builder, text, textPos, _theme.InputText, inputClip, _textSettings, textLineHeight, inputRect);
+            AddTextMultilineInternal(_builder, text, textPos, _theme.InputText, inputClip, _textSettings, textLineHeight, _lineHeight, inputRect);
         }
 
         if (active)
@@ -1254,7 +1262,7 @@ public sealed partial class UiImmediateContext
             var caretWidth = MathF.Max(0.75f, 1f / MathF.Max(1f, _textSettings.Scale));
             var caretHeight = textLineHeight - 4f;
             GetImeFontMetrics(text, caretIndex, out var fontPixelHeight, out var fontPixelWidth);
-            _imeHandler?.SetCaretRect(new UiRect(caretX, caretY + 2f, caretWidth, caretHeight), inputRect, fontPixelHeight, fontPixelWidth);
+            _imeHandler?.SetCaretRect(new UiRect(caretX, caretY, caretWidth, textLineHeight), inputRect, fontPixelHeight, fontPixelWidth);
             if (!string.IsNullOrEmpty(compositionText))
             {
                 DrawImeCompositionUnderline(compositionText, caretX, caretY, inputRect, inputClip, textLineHeight);

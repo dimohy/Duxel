@@ -1,0 +1,112 @@
+Theme "Windows11Modern" : Windows11
+
+Design.WindowCornerRadius = 12
+Design.ControlCornerRadius = 6
+Design.InputCornerRadius = 6
+Design.ToggleCornerRadius = 4
+Design.ProgressCornerRadius = 4
+Design.FocusRingThickness = 2
+
+WindowBg = #F7F7F7
+TitleBg = #F3F3F3
+TitleBgActive = #F3F3F3
+WindowTitleText = #1A1A1A
+Text = #1F1F1F
+TextDisabled = #707070
+Border = #DADADA
+Separator = #E1E1E1
+SeparatorLabelText = #3F3F3F
+
+FrameBg = #FFFFFF
+FrameBgHovered = #F9F9F9
+FrameBgActive = #F0F0F0
+PopupBg = #FCFCFC
+MenuBarBg = #F3F3F3
+
+Button = #FFFFFF
+ButtonHovered = #F8F8F8
+ButtonActive = #F0F0F0
+ButtonText = #1A1A1A
+ButtonBorder = #D0D0D0
+ButtonBorderHovered = #BDBDBD
+ButtonBorderActive = #C8C8C8
+
+InputBg = #FFFFFF
+InputBgHovered = #FFFFFF
+InputBgActive = #FFFFFF
+InputText = #1F1F1F
+InputSelectionBg = #553B8EDE
+InputBorder = #BEBEBE
+InputBorderHovered = #8F8F8F
+InputBorderActive = #005FB8
+
+CheckMark = #005FB8
+CheckboxBg = #FFFFFF
+CheckboxBgHovered = #F8F8F8
+CheckboxBgActive = #EAF4FF
+CheckboxBorder = #8A8A8A
+CheckboxBorderHovered = #707070
+CheckboxBorderActive = #005FB8
+
+RadioButtonBg = #FFFFFF
+RadioButtonBgHovered = #F8F8F8
+RadioButtonBgActive = #EAF4FF
+RadioButtonBorder = #8A8A8A
+RadioButtonBorderHovered = #707070
+RadioButtonBorderActive = #005FB8
+
+SliderBg = #FFFFFF
+SliderBgHovered = #F8F8F8
+SliderGrab = #005FB8
+SliderGrabActive = #004A90
+SliderBorder = #00FFFFFF
+SliderText = #1F1F1F
+
+ProgressBarBg = #E6E6E6
+ProgressBarFill = #005FB8
+ProgressBarBorder = #00FFFFFF
+
+ComboBg = #FFFFFF
+ComboBgHovered = #F8F8F8
+ComboBgActive = #F0F0F0
+ComboPopupBg = #FCFCFC
+ComboText = #1F1F1F
+ComboBorder = #D0D0D0
+ComboBorderHovered = #BDBDBD
+ComboBorderActive = #005FB8
+
+SelectableText = #1F1F1F
+SelectableBgHovered = #F0F6FF
+SelectableBgActive = #DCEEFF
+MenuItemText = #1F1F1F
+MenuItemTextDisabled = #707070
+MenuItemBgHovered = #F0F6FF
+MenuItemBgActive = #DCEEFF
+
+Tab = #00FFFFFF
+TabHovered = #F0F6FF
+TabActive = #FFFFFF
+TabText = #1F1F1F
+TabBorder = #005FB8
+
+TableHeaderBg = #F3F3F3
+TableBorder = #E1E1E1
+TableRowBg0 = #FFFFFF
+TableRowBg1 = #FAFAFA
+TableHeaderText = #1F1F1F
+TableCellText = #1F1F1F
+
+TooltipBg = #FDFDFD
+TooltipText = #1F1F1F
+TooltipBorder = #E1E1E1
+
+ListBoxBg = #FFFFFF
+ListBoxItemText = #1F1F1F
+ListBoxItemBgHovered = #F0F6FF
+ListBoxItemBgActive = #DCEEFF
+ListBoxBorder = #D0D0D0
+
+ScrollbarBg = #00FFFFFF
+ScrollbarGrab = #5C8A8A8A
+ScrollbarGrabHovered = #828A8A8A
+ScrollbarGrabActive = #B05C5C5C

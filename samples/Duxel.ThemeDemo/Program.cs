@@ -1,6 +1,7 @@
 using Duxel.App;
 using Duxel.Core;
 using Duxel.Core.Dsl;
+using Duxel.Windows.App;
 
 var logPath = Path.Combine(AppContext.BaseDirectory, "theme-demo.log");
 try
@@ -26,6 +27,7 @@ try
 
     UiTheme[] themePresets =
     [
+        UiCompiledDesign.Windows11.Theme,
         UiTheme.ImGuiDark, UiTheme.ImGuiLight, UiTheme.ImGuiClassic,
         UiTheme.Nord, UiTheme.SolarizedDark, UiTheme.SolarizedLight,
         UiTheme.Dracula, UiTheme.Monokai, UiTheme.CatppuccinMocha,
@@ -33,7 +35,7 @@ try
     ];
     string[] themeNames =
     [
-        "Dark", "Light", "Classic", "Nord", "Solarized Dark", "Solarized Light",
+        "Windows 11", "Dark", "Light", "Classic", "Nord", "Solarized Dark", "Solarized Light",
         "Dracula", "Monokai", "Catppuccin Mocha", "GitHub Dark",
     ];
 
@@ -79,12 +81,18 @@ try
         .BindCheckbox("cf_mode.A", _ => UpdateCfMode())
         .BindCheckbox("cf_mode.B", _ => UpdateCfMode())
         .BindCheckbox("cf_mode.C", _ => UpdateCfMode())
-        .BindCheckbox("neon", v => SetStatus($"Neon Glow: {(v ? "ON" : "OFF")}"))
-        .BindCheckbox("wireframe", v => SetStatus($"Wireframe: {(v ? "ON" : "OFF")}"))
+        .BindCheckbox("neon", v => SetStatus($"Windows 11 spacing: {(v ? "ON" : "OFF")}"))
+        .BindCheckbox("wireframe", v => SetStatus($"Focus styling: {(v ? "ON" : "OFF")}"))
         .OnAnyButton(id => SetStatus($"Button pressed: {id}"))
         .OnAnyCheckbox((id, v) => SetStatus($"Checkbox {id}: {v}"));
 
-    screen = new UiDslScreen("Ui/Main.ui", "Ui/cyberpunk.duxel-theme",
+    var systemDark = DuxelWindowsApp.GetSystemColorScheme() is UiSystemColorScheme.Dark;
+    var themePath = systemDark ? "Ui/windows11-modern-dark.duxel-theme" : "Ui/windows11-modern.duxel-theme";
+    var startupDesign = systemDark
+        ? Duxel.Generated.Themes.Themes.Windows11ModernDarkDesign
+        : Duxel.Generated.Themes.Themes.Windows11ModernDesign;
+
+    screen = new UiDslScreen("Ui/Main.ui", themePath,
         eventSink: events, valueSource: values);
     screen.Trace = msg => File.AppendAllText(logPath, $"[ThemeTrace] {msg}\n");
     File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] UiDslScreen created. Starting app...\n");
@@ -93,7 +101,7 @@ try
     {
         Window = new DuxelWindowOptions
         {
-            Title = "Duxel Theme Hot-Reload Demo",
+            Title = "Duxel Windows 11 Theme Demo",
             Width = 960,
             Height = 640,
             VSync = true
@@ -104,6 +112,7 @@ try
             LogEveryNFrames = 100,
             LogStartupTimings = true
         },
+        Design = startupDesign,
         Screen = screen
     });
     File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] App exited normally.\n");

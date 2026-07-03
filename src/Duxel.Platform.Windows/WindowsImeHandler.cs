@@ -3,11 +3,12 @@ using Duxel.Core;
 using System.Collections.Generic;
 using System.Runtime.Versioning;
 using System.IO;
+using System.Text;
 
 namespace Duxel.Platform.Windows;
 
 [SupportedOSPlatform("windows")]
-public sealed class WindowsImeHandler : IUiImeHandler
+public sealed class WindowsImeHandler : IUiImeHandler, IDisposable
 {
     private readonly nint _hwnd;
     private readonly Action? _requestFrame;
@@ -20,9 +21,13 @@ public sealed class WindowsImeHandler : IUiImeHandler
     private readonly Dictionary<string, string> _committedByInput = new(StringComparer.Ordinal);
     private string? _recentCommittedText;
     private bool _isComposing;
+    private bool _compositionHadResult;
+    private string? _lastCompositionResultText;
     private string? _activeInputId;
     private string? _compositionOwnerId;
     private TsfUiElementSuppressor? _tsfUiElementSuppressor;
+    private PendingCaretPlacement? _pendingCaretPlacement;
+    private bool _disposed;
     private readonly string? _diagnosticsLogPath = Environment.GetEnvironmentVariable("DUXEL_IME_DIAG_LOG");
     private readonly bool _diagnosticsEnabled = ReadDiagnosticsEnabled();
     private readonly object _diagnosticsLock = new();
@@ -39,7 +44,7 @@ public sealed class WindowsImeHandler : IUiImeHandler
         _ownerThreadId = Environment.CurrentManagedThreadId;
         _wndProc = WindowProc;
         InstallWindowHook();
-        _tsfUiElementSuppressor = null;
+        _tsfUiElementSuppressor = TsfUiElementSuppressor.TryCreate(DiagLog);
         DiagLog($"ctor hwnd=0x{_hwnd:X} tsfSink={(_tsfUiElementSuppressor is not null ? "on" : "off")}");
     }
 
@@ -52,9 +57,37 @@ public sealed class WindowsImeHandler : IUiImeHandler
 
         if (Environment.CurrentManagedThreadId != _ownerThreadId)
         {
+            lock (_imeStateLock)
+            {
+                _pendingCaretPlacement = new PendingCaretPlacement(caretRect, inputRect, fontPixelHeight, fontPixelWidth);
+            }
+
+            _ = User32.PostMessage(_hwnd, WmDuxelImeCaretPlacement, 0, 0);
             return;
         }
 
+        ApplyCaretRect(caretRect, inputRect, fontPixelHeight, fontPixelWidth);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _tsfUiElementSuppressor?.Dispose();
+        _tsfUiElementSuppressor = null;
+        if (_previousWndProc != 0)
+        {
+            _ = User32.SetWindowLongPtr(_hwnd, GwlpWndProc, _previousWndProc);
+            _previousWndProc = 0;
+        }
+    }
+
+    private void ApplyCaretRect(UiRect caretRect, UiRect inputRect, float fontPixelHeight, float fontPixelWidth)
+    {
         var himc = Imm32.ImmGetContext(_hwnd);
         if (himc == 0)
         {
@@ -200,15 +233,36 @@ public sealed class WindowsImeHandler : IUiImeHandler
 
     private nint WindowProc(nint hwnd, uint msg, nint wParam, nint lParam)
     {
+        if (msg == WmDuxelImeCaretPlacement)
+        {
+            PendingCaretPlacement? placement;
+            lock (_imeStateLock)
+            {
+                placement = _pendingCaretPlacement;
+                _pendingCaretPlacement = null;
+            }
+
+            if (placement is { } value)
+            {
+                ApplyCaretRect(value.CaretRect, value.InputRect, value.FontPixelHeight, value.FontPixelWidth);
+            }
+
+            return 0;
+        }
+
         if (msg == WmImeSetContext)
         {
             DiagLog($"WM_IME_SETCONTEXT wParam={wParam} lParam=0x{(nuint)lParam:X}");
+            var adjustedLParam = wParam != 0
+                ? (nint)((nuint)lParam & ~IscShowUiCompositionWindow)
+                : lParam;
+
             if (_previousWndProc != 0)
             {
-                return User32.CallWindowProc(_previousWndProc, hwnd, msg, wParam, lParam);
+                return User32.CallWindowProc(_previousWndProc, hwnd, msg, wParam, adjustedLParam);
             }
 
-            return User32.DefWindowProc(hwnd, msg, wParam, lParam);
+            return User32.DefWindowProc(hwnd, msg, wParam, adjustedLParam);
         }
 
         if (_isEnabled)
@@ -216,24 +270,27 @@ public sealed class WindowsImeHandler : IUiImeHandler
             switch (msg)
             {
                 case WmChar:
-                    if (!_isComposing)
+                    if (TryDecodeCommittedMessageText((uint)wParam, out var charText))
                     {
-                        var codepoint = (uint)wParam;
-                        if (codepoint is > 0 and <= 0xFFFF)
-                        {
-                            var ch = (char)codepoint;
-                            if (!char.IsControl(ch))
-                            {
-                                AppendCommittedTextForActiveInput(ch.ToString());
-                                RequestFrame();
-                            }
-                        }
+                        AppendCommittedMessageText(charText);
+                        RequestFrame();
                     }
+
                     break;
+                case WmImeChar:
+                    if (TryDecodeCommittedMessageText((uint)wParam, out var imeCharText))
+                    {
+                        AppendCommittedMessageText(imeCharText);
+                        RequestFrame();
+                    }
+
+                    return 0;
                 case WmImeStartComposition:
                     lock (_imeStateLock)
                     {
                         _isComposing = true;
+                        _compositionHadResult = false;
+                        _lastCompositionResultText = null;
                         _compositionText = string.Empty;
                         _compositionOwnerId = _activeInputId;
                     }
@@ -247,7 +304,23 @@ public sealed class WindowsImeHandler : IUiImeHandler
                         var committedText = ReadCompositionString(GcsResultStr);
                         if (!string.IsNullOrEmpty(committedText))
                         {
-                            AppendCommittedText(committedText);
+                            var appendCommittedText = true;
+                            lock (_imeStateLock)
+                            {
+                                appendCommittedText = !_compositionHadResult
+                                    || !string.Equals(committedText, _lastCompositionResultText, StringComparison.Ordinal);
+                            }
+
+                            if (appendCommittedText)
+                            {
+                                AppendCommittedText(committedText);
+                            }
+
+                            lock (_imeStateLock)
+                            {
+                                _compositionHadResult = true;
+                                _lastCompositionResultText = committedText;
+                            }
                         }
 
                         lock (_imeStateLock)
@@ -264,6 +337,8 @@ public sealed class WindowsImeHandler : IUiImeHandler
                     lock (_imeStateLock)
                     {
                         _isComposing = false;
+                        _compositionHadResult = false;
+                        _lastCompositionResultText = null;
                         _compositionText = null;
                         _compositionOwnerId = null;
                     }
@@ -331,23 +406,15 @@ public sealed class WindowsImeHandler : IUiImeHandler
     {
         lock (_imeStateLock)
         {
-            if (string.IsNullOrEmpty(_compositionOwnerId))
+            var ownerId = !string.IsNullOrEmpty(_compositionOwnerId)
+                ? _compositionOwnerId
+                : _activeInputId;
+            if (string.IsNullOrEmpty(ownerId))
             {
                 return;
             }
 
-            if (_committedByInput.TryGetValue(_compositionOwnerId, out var existing))
-            {
-                _committedByInput[_compositionOwnerId] = string.Concat(existing, text);
-            }
-            else
-            {
-                _committedByInput[_compositionOwnerId] = text;
-            }
-
-            _recentCommittedText = string.IsNullOrEmpty(_recentCommittedText)
-                ? text
-                : string.Concat(_recentCommittedText, text);
+            AppendCommittedTextForInput(ownerId, text);
         }
     }
 
@@ -360,19 +427,107 @@ public sealed class WindowsImeHandler : IUiImeHandler
                 return;
             }
 
-            if (_committedByInput.TryGetValue(_activeInputId, out var existing))
+            AppendCommittedTextForInput(_activeInputId, text);
+        }
+    }
+
+    private void AppendCommittedTextForInput(string inputId, string text)
+    {
+        if (_committedByInput.TryGetValue(inputId, out var existing))
+        {
+            _committedByInput[inputId] = string.Concat(existing, text);
+        }
+        else
+        {
+            _committedByInput[inputId] = text;
+        }
+
+        _recentCommittedText = string.IsNullOrEmpty(_recentCommittedText)
+            ? text
+            : string.Concat(_recentCommittedText, text);
+    }
+
+    private void AppendCommittedMessageText(string text)
+    {
+        lock (_imeStateLock)
+        {
+            if (!_isComposing)
             {
-                _committedByInput[_activeInputId] = string.Concat(existing, text);
+                if (!string.IsNullOrEmpty(_activeInputId))
+                {
+                    AppendCommittedTextForInput(_activeInputId, text);
+                }
+
+                return;
+            }
+
+            if (_compositionHadResult)
+            {
+                if (!string.Equals(text, _lastCompositionResultText, StringComparison.Ordinal))
+                {
+                    var ownerId = !string.IsNullOrEmpty(_compositionOwnerId) ? _compositionOwnerId : _activeInputId;
+                    if (!string.IsNullOrEmpty(ownerId))
+                    {
+                        AppendCommittedTextForInput(ownerId, text);
+                    }
+                }
+
+                return;
+            }
+
+            var targetId = !string.IsNullOrEmpty(_compositionOwnerId) ? _compositionOwnerId : _activeInputId;
+            if (string.IsNullOrEmpty(targetId))
+            {
+                return;
+            }
+
+            if (text == " " && !string.IsNullOrEmpty(_compositionText))
+            {
+                var fallbackResultText = _compositionText;
+                AppendCommittedTextForInput(targetId, _compositionText);
+                AppendCommittedTextForInput(targetId, text);
+                _compositionText = string.Empty;
+                _lastCompositionResultText = fallbackResultText;
             }
             else
             {
-                _committedByInput[_activeInputId] = text;
+                AppendCommittedTextForInput(targetId, text);
+                _compositionText = string.Empty;
+                _lastCompositionResultText = text;
             }
 
-            _recentCommittedText = string.IsNullOrEmpty(_recentCommittedText)
-                ? text
-                : string.Concat(_recentCommittedText, text);
+            _compositionHadResult = true;
         }
+    }
+
+    private static bool TryDecodeCommittedMessageText(uint codepoint, out string text)
+    {
+        text = string.Empty;
+        if (codepoint == 0 || codepoint > 0x10FFFF)
+        {
+            return false;
+        }
+
+        if (codepoint <= 0xFFFF)
+        {
+            var ch = (char)codepoint;
+            if (char.IsControl(ch))
+            {
+                return false;
+            }
+
+            text = ch.ToString();
+            return true;
+        }
+
+        if (!Rune.IsValid((int)codepoint))
+        {
+            return false;
+        }
+
+        var rune = new Rune((int)codepoint);
+        text = rune.ToString();
+        return true;
     }
 
     private void RequestFrame()
@@ -453,9 +608,18 @@ public sealed class WindowsImeHandler : IUiImeHandler
     private const uint WmImeComposition = 0x010F;
     private const uint WmImeEndComposition = 0x010E;
     private const uint WmImeSetContext = 0x0281;
+    private const uint WmImeChar = 0x0286;
     private const uint WmChar = 0x0102;
+    private const uint WmDuxelImeCaretPlacement = 0x8000 + 0x3D;
+    private const nuint IscShowUiCompositionWindow = 0x80000000u;
 
     private delegate nint WndProcDelegate(nint hwnd, uint msg, nint wParam, nint lParam);
+
+    private readonly record struct PendingCaretPlacement(
+        UiRect CaretRect,
+        UiRect InputRect,
+        float FontPixelHeight,
+        float FontPixelWidth);
 
     [StructLayout(LayoutKind.Sequential)]
     internal readonly struct POINT
@@ -537,7 +701,7 @@ public sealed class WindowsImeHandler : IUiImeHandler
     [ComVisible(true)]
     [ClassInterface(ClassInterfaceType.None)]
     [SupportedOSPlatform("windows")]
-    private sealed class TsfUiElementSuppressor : ITfUIElementSink
+    private sealed class TsfUiElementSuppressor : ITfUIElementSink, IDisposable
     {
         private readonly ITfThreadMgr _threadManager;
         private readonly ITfUIElementMgr _uiElementManager;
@@ -639,6 +803,17 @@ public sealed class WindowsImeHandler : IUiImeHandler
             return 0;
         }
 
+        public void Dispose()
+        {
+            if (_cookie != 0)
+            {
+                _ = _source.UnadviseSink(_cookie);
+                _cookie = 0;
+            }
+
+            _ = _threadManager.Deactivate();
+        }
+
         private static readonly Guid ClsidTfThreadMgr = new("529A9E6B-6587-4F23-AB9E-9C7D683E3C50");
         private static readonly Guid IidTfThreadMgr = new("AA80E801-2021-11D2-93E0-0060B067B86E");
         private static readonly Guid IidTfUiElementSink = new("EA1EA136-19DF-11D7-A6D2-00065B84435C");
@@ -712,6 +887,10 @@ internal static partial class User32
 
     [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
     internal static partial nint SendMessage(nint hWnd, uint Msg, nuint wParam, nint lParam);
+
+    [LibraryImport("user32.dll", EntryPoint = "PostMessageW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool PostMessage(nint hWnd, uint Msg, nuint wParam, nint lParam);
 }
 
 internal static partial class Imm32

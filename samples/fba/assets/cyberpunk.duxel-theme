@@ -1,7 +1,14 @@
 // Cyberpunk-inspired theme — demonstrates per-widget token customization
 // Base: Dark preset, then override global + widget-specific tokens
 
-Theme "Cyberpunk" : Dark
+Theme "Cyberpunk" : Windows11
+
+// ── Compile-time design shape tokens ──
+Design.ControlCornerRadius = 7
+Design.InputCornerRadius = 6
+Design.ToggleCornerRadius = 4
+Design.ProgressCornerRadius = 4
+Design.FocusRingThickness = 2
 
 // ── Global palette overrides ──
 WindowBg = #0D0D1A

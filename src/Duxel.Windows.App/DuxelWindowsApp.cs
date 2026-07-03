@@ -25,6 +25,48 @@ public static class DuxelWindowsApp
         Run(options, DuxelApp.PrimarySession);
     }
 
+    public static void Run(
+        IUiView root,
+        string title = "Duxel",
+        int width = 1280,
+        int height = 720,
+        bool vsync = true)
+    {
+        Run(DuxelApp.Options(root, title, width, height, vsync));
+    }
+
+    public static void Run(
+        UiScreen screen,
+        string title = "Duxel",
+        int width = 1280,
+        int height = 720,
+        bool vsync = true)
+    {
+        Run(DuxelApp.Options(screen, title, width, height, vsync));
+    }
+
+    public static void Run<TDesign>(
+        IUiView root,
+        string title = "Duxel",
+        int width = 1280,
+        int height = 720,
+        bool vsync = true)
+        where TDesign : IUiDesign
+    {
+        Run(DuxelApp.Options<TDesign>(root, title, width, height, vsync));
+    }
+
+    public static void Run<TDesign>(
+        UiScreen screen,
+        string title = "Duxel",
+        int width = 1280,
+        int height = 720,
+        bool vsync = true)
+        where TDesign : IUiDesign
+    {
+        Run(DuxelApp.Options<TDesign>(screen, title, width, height, vsync));
+    }
+
     public static void Run(DuxelAppOptions options, DuxelAppSession session)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -32,6 +74,12 @@ public static class DuxelWindowsApp
 
         RunWithSession(options, session);
     }
+
+    public static UiSystemColorScheme GetSystemColorScheme()
+        => WindowsSystemTheme.GetAppColorScheme();
+
+    public static UiCompiledDesign CreateSystemDesign()
+        => WindowsSystemTheme.GetAppDesign();
 
     public static void ShowModal(Func<Action, DuxelAppOptions> optionsFactory, nint ownerWindowHandle = default)
     {
@@ -85,6 +133,13 @@ public static class DuxelWindowsApp
                     resolvedOptions.Window.IconPath,
                     resolvedOptions.Window.IconData,
                     resolvedOptions.Window.WindowCreated,
+                    resolvedOptions.Window.IntegrateSystemChrome,
+                    resolvedOptions.Window.UseDuxelTitleBar,
+                    resolvedOptions.Window.DuxelTitleBarHeight,
+                    UsesPlatformDefaultTheme(resolvedOptions),
+                    ResolveChromeCaptionColor(resolvedOptions),
+                    ResolveChromeTextColor(resolvedOptions),
+                    ResolveChromeBorderColor(resolvedOptions),
                     resolvedOptions.Window.Tray,
                     resolvedOptions.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
                     session.RequestFrame
@@ -176,6 +231,13 @@ public static class DuxelWindowsApp
                     resolvedOptions.Window.IconPath,
                     resolvedOptions.Window.IconData,
                     resolvedOptions.Window.WindowCreated,
+                    resolvedOptions.Window.IntegrateSystemChrome,
+                    resolvedOptions.Window.UseDuxelTitleBar,
+                    resolvedOptions.Window.DuxelTitleBarHeight,
+                    UsesPlatformDefaultTheme(resolvedOptions),
+                    ResolveChromeCaptionColor(resolvedOptions),
+                    ResolveChromeTextColor(resolvedOptions),
+                    ResolveChromeBorderColor(resolvedOptions),
                     resolvedOptions.Window.Tray,
                     resolvedOptions.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
                     session.RequestFrame
@@ -309,6 +371,13 @@ public static class DuxelWindowsApp
             resolvedOptions.Window.IconPath,
             resolvedOptions.Window.IconData,
             resolvedOptions.Window.WindowCreated,
+            resolvedOptions.Window.IntegrateSystemChrome,
+            resolvedOptions.Window.UseDuxelTitleBar,
+            resolvedOptions.Window.DuxelTitleBarHeight,
+            UsesPlatformDefaultTheme(resolvedOptions),
+            ResolveChromeCaptionColor(resolvedOptions),
+            ResolveChromeTextColor(resolvedOptions),
+            ResolveChromeBorderColor(resolvedOptions),
             resolvedOptions.Window.Tray,
             resolvedOptions.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
             session.RequestFrame
@@ -316,6 +385,50 @@ public static class DuxelWindowsApp
 
         session.RunCore(resolvedOptions, platform);
     }
+
+    private static UiTheme ResolveChromeTheme(DuxelAppOptions options)
+    {
+        if (options.Design is { } design)
+        {
+            return design.Theme;
+        }
+
+        return IsDefaultTheme(options.Theme)
+            ? WindowsSystemTheme.GetAppDesign().Theme
+            : options.Theme;
+    }
+
+    private static UiColor ResolveChromeCaptionColor(DuxelAppOptions options)
+    {
+        var theme = ResolveChromeTheme(options);
+        return theme.TitleBgActive;
+    }
+
+    private static UiColor ResolveChromeTextColor(DuxelAppOptions options)
+    {
+        var theme = ResolveChromeTheme(options);
+        return theme.WindowTitleText;
+    }
+
+    private static UiColor ResolveChromeBorderColor(DuxelAppOptions options)
+    {
+        var theme = ResolveChromeTheme(options);
+        return theme.Border;
+    }
+
+    private static bool IsDefaultTheme(UiTheme theme)
+    {
+        var defaultTheme = UiCompiledDesign.Default.Theme;
+        return theme.WindowBg == defaultTheme.WindowBg
+            && theme.TitleBgActive == defaultTheme.TitleBgActive
+            && theme.Text == defaultTheme.Text
+            && theme.Button == defaultTheme.Button
+            && theme.InputBg == defaultTheme.InputBg
+            && theme.CheckMark == defaultTheme.CheckMark;
+    }
+
+    private static bool UsesPlatformDefaultTheme(DuxelAppOptions options)
+        => options.Design is null && IsDefaultTheme(options.Theme);
 
     public static void Exit()
     {

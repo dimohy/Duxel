@@ -1,6 +1,6 @@
 # Duxel FBA Samples — Run Instantly
 
-> Last synced: 2026-06-06
+> Last synced: 2026-07-03
 > Korean: [fba-run-samples.ko.md](fba-run-samples.ko.md)
 
 > Run **Duxel** FBA samples with a **single copy-paste command**. .NET 10 + Vulkan immediate-mode GUI framework.
@@ -47,6 +47,24 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 ```
 
 > MenuBar · Typography · Layout & Columns · Popup/Context/Tooltip · Input Queries · Item Status · Multi-select · Layers & Animation · Drawing Primitives · DragAndDrop · ListClipper(10K) · Markdown Studio · Time/FPS/VSync toggle
+
+---
+
+## Declarative Dashboard
+
+Reusable C# declarative UI dashboard with compiled Windows 11 design tokens.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/declarative_dashboard_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/declarative_dashboard_fba.cs -o - | dotnet run -
+```
+
+> `UiState<T>` · reusable `UiComponent` classes · `DuxelWindowsApp.Run<TDesign>()` · product shell helpers
 
 ---
 
@@ -538,6 +556,7 @@ To download all FBA samples at once:
 $base = "https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 $files = @(
     "all_features.cs",
+    "declarative_dashboard_fba.cs",
     "hello_duxel_fba.cs",
     "advanced_layout.cs", "columns_demo.cs",
     "image_and_popups.cs", "image_widget_effects_fba.cs",
@@ -562,7 +581,7 @@ Write-Host "`nRun: dotnet run fba/all_features.cs"
 **Bash**
 ```bash
 BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
-FILES=(all_features.cs hello_duxel_fba.cs \
+FILES=(all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs \
     advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
     input_queries.cs item_status.cs \
     windows_calculator_fba.cs windows_calculator_duxel_showcase_fba.cs \

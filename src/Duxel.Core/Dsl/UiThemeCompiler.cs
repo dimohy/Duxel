@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace Duxel.Core.Dsl;
@@ -31,9 +32,12 @@ public static class UiThemeCompiler
         // Base preset
         var baseLine = themeDef.BasePreset?.ToLowerInvariant() switch
         {
+            null or "" or "windows11" or "win11" => "var theme = UiWindows11Design.CreateTheme();",
+            "windows11dark" or "win11dark" => "var theme = UiWindows11Design.CreateDarkTheme();",
+            "dark" => "var theme = UiTheme.ImGuiDark;",
             "light" => "var theme = UiTheme.ImGuiLight;",
             "classic" => "var theme = UiTheme.ImGuiClassic;",
-            _ => "var theme = UiTheme.ImGuiDark;",
+            var preset => throw new InvalidOperationException($"Unknown theme base preset: {preset}."),
         };
         sb.Append("            ").AppendLine(baseLine);
 
@@ -48,6 +52,30 @@ public static class UiThemeCompiler
         }
 
         sb.AppendLine("            return theme;");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine($"    public static UiCompiledDesign {safePropertyName}Design");
+        sb.AppendLine("    {");
+        sb.AppendLine("        get");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var design = \"" + EscapeString(themeDef.BasePreset ?? string.Empty) + "\".ToLowerInvariant() switch");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            \"\" or \"windows11\" or \"win11\" => UiCompiledDesign.Windows11 with {{ Theme = {safePropertyName} }},");
+        sb.AppendLine($"            \"windows11dark\" or \"win11dark\" => UiCompiledDesign.Windows11Dark with {{ Theme = {safePropertyName} }},");
+        sb.AppendLine($"            \"dark\" or \"light\" or \"classic\" => new UiCompiledDesign({safePropertyName}, UiStyle.Default, UiDesignTokens.Default),");
+        sb.AppendLine("            var preset => throw new InvalidOperationException($\"Unknown theme base preset: {preset}.\"),");
+        sb.AppendLine("        };");
+        sb.AppendLine("            var tokens = design.Tokens;");
+        foreach (var entry in themeDef.DesignTokenOverrides)
+        {
+            sb.Append("            tokens = tokens with { ")
+              .Append(entry.Token)
+              .Append(" = ")
+              .Append(FormatFloat(entry.Value))
+              .AppendLine("f };");
+        }
+        sb.AppendLine("            return design with { Tokens = tokens };");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -65,9 +93,12 @@ public static class UiThemeCompiler
 
         var theme = themeDef.BasePreset?.ToLowerInvariant() switch
         {
+            null or "" or "windows11" or "win11" => UiWindows11Design.CreateTheme(),
+            "windows11dark" or "win11dark" => UiWindows11Design.CreateDarkTheme(),
+            "dark" => UiTheme.ImGuiDark,
             "light" => UiTheme.ImGuiLight,
             "classic" => UiTheme.ImGuiClassic,
-            _ => UiTheme.ImGuiDark,
+            var preset => throw new InvalidOperationException($"Unknown theme base preset: {preset}."),
         };
 
         foreach (var entry in themeDef.Overrides)
@@ -77,6 +108,42 @@ public static class UiThemeCompiler
 
         return theme;
     }
+
+    public static UiCompiledDesign ApplyDesign(UiThemeDef themeDef)
+    {
+        ArgumentNullException.ThrowIfNull(themeDef);
+
+        var theme = Apply(themeDef);
+        var design = themeDef.BasePreset?.ToLowerInvariant() switch
+        {
+            null or "" or "windows11" or "win11" => UiCompiledDesign.Windows11 with { Theme = theme },
+            "windows11dark" or "win11dark" => UiCompiledDesign.Windows11Dark with { Theme = theme },
+            "dark" or "light" or "classic" => new UiCompiledDesign(theme, UiStyle.Default, UiDesignTokens.Default),
+            var preset => throw new InvalidOperationException($"Unknown theme base preset: {preset}."),
+        };
+
+        var tokens = design.Tokens;
+        foreach (var entry in themeDef.DesignTokenOverrides)
+        {
+            tokens = SetDesignToken(tokens, entry.Token, entry.Value);
+        }
+
+        return design with { Tokens = tokens };
+    }
+
+    private static UiDesignTokens SetDesignToken(UiDesignTokens tokens, UiDesignToken token, float value)
+        => token switch
+        {
+            UiDesignToken.WindowCornerRadius => tokens with { WindowCornerRadius = value },
+            UiDesignToken.ControlCornerRadius => tokens with { ControlCornerRadius = value },
+            UiDesignToken.ControlBorderWidth => tokens with { ControlBorderWidth = value },
+            UiDesignToken.ControlPressedOffsetY => tokens with { ControlPressedOffsetY = value },
+            UiDesignToken.InputCornerRadius => tokens with { InputCornerRadius = value },
+            UiDesignToken.ToggleCornerRadius => tokens with { ToggleCornerRadius = value },
+            UiDesignToken.ProgressCornerRadius => tokens with { ProgressCornerRadius = value },
+            UiDesignToken.FocusRingThickness => tokens with { FocusRingThickness = value },
+            _ => tokens,
+        };
 
     private static string SanitizeIdentifier(string name)
     {
@@ -96,4 +163,8 @@ public static class UiThemeCompiler
 
         return sb.ToString();
     }
+
+    private static string EscapeString(string value) => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+    private static string FormatFloat(float value) => value.ToString("0.########", CultureInfo.InvariantCulture);
 }

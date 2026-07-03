@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup Condition="'$(DuxelUseDefaultIcon)' != 'false' and '$(ApplicationIcon)' == ''">
+    <ApplicationIcon>$(MSBuildThisFileDirectory)assets\duxel.ico</ApplicationIcon>
+  </PropertyGroup>
+</Project>

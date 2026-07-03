@@ -312,34 +312,42 @@ public sealed partial class UiImmediateContext
             throw new ArgumentOutOfRangeException(nameof(max), "Max must be greater than min.");
         }
 
-        var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
+        var id = ResolveId(label);
+        var displayLabel = GetDisplayLabel(label);
+        var textSize = string.IsNullOrEmpty(displayLabel)
+            ? default
+            : MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
         var frameHeight = GetFrameHeight();
         var height = MathF.Max(textSize.Y, frameHeight);
         var sliderWidth = ResolveItemWidth(SliderWidth);
-        var totalSize = new UiVector2(textSize.X + ItemSpacingX + sliderWidth, height);
+        var labelWidth = string.IsNullOrEmpty(displayLabel) ? 0f : textSize.X + ItemSpacingX;
+        var totalSize = new UiVector2(labelWidth + sliderWidth, height);
         var cursor = AdvanceCursor(totalSize);
 
-        var labelPos = new UiVector2(cursor.X, cursor.Y + (height - textSize.Y) * 0.5f);
-        AddTextInternal(_builder,
+        if (!string.IsNullOrEmpty(displayLabel))
+        {
+            var labelPos = new UiVector2(cursor.X, cursor.Y + (height - textSize.Y) * 0.5f);
+            AddTextInternal(_builder,
 
-            label,
-            labelPos,
-            _theme.SliderText,
-            CurrentClipRect,
-            _textSettings,
-            _lineHeight
-        );
+                displayLabel,
+                labelPos,
+                _theme.SliderText,
+                CurrentClipRect,
+                _textSettings,
+                _lineHeight
+            );
+        }
 
-        var sliderX = cursor.X + textSize.X + ItemSpacingX;
+        var sliderX = cursor.X + labelWidth;
         var sliderRect = new UiRect(sliderX, cursor.Y + (height - frameHeight) * 0.5f, sliderWidth, frameHeight);
-        var hovered = ItemHoverable(label, sliderRect);
+        var hovered = ItemHoverable(id, sliderRect);
 
         if (hovered && _leftMousePressed)
         {
-            _state.ActiveId = label;
+            _state.ActiveId = id;
         }
 
-        var active = _state.ActiveId == label;
+        var active = _state.ActiveId == id;
         if (!_leftMouseDown && active)
         {
             _state.ActiveId = null;

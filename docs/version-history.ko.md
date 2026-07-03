@@ -2,6 +2,32 @@
 
 Duxel의 버전별 변경 내역 누적 기록.
 
+## 0.2.4-preview (2026-07-03)
+
+### 주요 기능 추가
+
+- **[기능]** GPU-driven Vulkan 렌더러 — backend를 graphics pipeline 1개, bindless texture descriptor set 1개, buffer device address 기반 vertex pulling, 일반 draw와 ClearType text draw를 함께 처리하는 통합 dual-source blending 구조로 전환.
+- **[기능]** Windows 11 컴파일드 디자인 시스템 — `IUiDesign`, `UiCompiledDesign`, `UiDesignTokens`, 내장 `Windows11` / `Windows11Dark` 디자인을 추가해 앱 시작 전에 theme, style, shape token을 고정 가능.
+- **[기능]** 선언형 C# UI 계층 — `IUiView`, `UiState<T>`, `UiBinding<T>`, `UiComponent`, `DuxelView`, `Dux` factory를 추가해 즉시 모드 런타임을 유지하면서 재사용 컴포넌트식 UI 조합 가능.
+- **[기능]** 시스템 통합 Windows chrome — DWM 기반 caption, border, text color 통합, 선택형 Duxel 렌더링 title bar control, 번들 기본 아이콘, `DuxelWindowsApp.Run<TDesign>()` 시작 헬퍼 추가.
+
+### 주요 개선 사항
+
+- **[개선]** Theme design-token 파이프라인 — `.duxel-theme`에서 `Design.*` 숫자 token을 해석하고, `Windows11` / `Windows11Dark` base preset과 theme accessor 옆 compiled design accessor를 지원.
+- **[개선]** Windows 11 시각 정리 — rounded control geometry, token 기반 radius, button/input/slider/progress/list/table/menu 색상 정리, dark/light 시스템 theme 해석으로 기본 앱 표면을 덜 ImGui스럽게 정리.
+- **[개선]** 선언형 샘플 표면 — 제품 대시보드 FBA 샘플을 추가하고 ThemeDemo 및 FBA 문서를 갱신해 reusable component, app shell, command bar, property list, status row, badge, callout을 확인 가능.
+- **[개선]** GPU renderer 참조 문서 — 이전 GPU-driven renderer 전환 내용을 agent reference와 버전 히스토리에 기록해 `0.2.3-preview` 이후의 shader/pipeline 전제를 추적 가능하게 유지.
+
+### 주요 버그 수정
+
+- **[버그]** Windows IME commit 안정화 — `WM_IME_CHAR`, 중복 result string, TSF candidate UI suppression 해제, cross-thread caret placement posting을 처리해 조합 중 누락/중복 입력 방지.
+- **[버그]** Custom title bar resizing과 invalidation — non-client hit test, resize tracking, window-position invalidation을 조정해 Duxel title bar가 이동/크기 변경 중에도 상호작용 유지.
+
+### 배포/릴리스
+
+- 기본 Duxel `.ico`를 platform embedded resource와 `buildTransitive` asset으로 번들해 소비 Windows 실행 파일이 `DuxelUseDefaultIcon=false`가 아닌 한 기본 아이콘을 사용.
+- 패키지 버전을 `0.2.4-preview`로 상향 (`Duxel.App`, `Duxel.Windows.App`).
+
 ## 0.2.3-preview (2026-06-06)
 
 ### 주요 기능 추가

@@ -189,6 +189,8 @@ public sealed partial class UiImmediateContext
         return GetCursorPos();
     }
 
+    public UiVector2 GetItemSpacing() => new(ItemSpacingX, ItemSpacingY);
+
     public void SetCursorScreenPos(UiVector2 position)
     {
         SetCursorPos(position);

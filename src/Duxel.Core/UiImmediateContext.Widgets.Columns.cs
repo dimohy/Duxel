@@ -67,6 +67,13 @@ public sealed partial class UiImmediateContext
         }
 
         _columnsIndex = (_columnsIndex + 1) % _columnsCount;
+        if (_columnsIndex == 0)
+        {
+            for (var i = 0; i < _columnYs.Length; i++)
+            {
+                _columnYs[i] = _columnsMaxY;
+            }
+        }
 
         var columnX = GetColumnsColumnX(_columnsIndex);
         var columnY = _columnYs[_columnsIndex];

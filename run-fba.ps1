@@ -163,6 +163,7 @@ $sourceDir = Split-Path $sourcePath -Parent
 $appCsprojAbs = (Join-Path $repoRoot 'src/Duxel.App/Duxel.App.csproj') -replace '\\', '/'
 $windowsAppCsprojAbs = (Join-Path $repoRoot 'src/Duxel.Windows.App/Duxel.Windows.App.csproj') -replace '\\', '/'
 $coreCsprojAbs = (Join-Path $repoRoot 'src/Duxel.Core/Duxel.Core.csproj') -replace '\\', '/'
+$defaultWindowsIconAbs = (Join-Path $repoRoot 'src/Duxel.Platform.Windows/assets/duxel.ico') -replace '\\', '/'
 
 $platformArgs = Resolve-PlatformFromExtraArgs -Args $ExtraArgs
 $selectedPlatform = $platformArgs.Platform
@@ -263,6 +264,10 @@ else {
             else {
                 $replaced = "$outputTypeLine`n$replaced"
             }
+        }
+
+        if ((Test-Path $defaultWindowsIconAbs) -and $replaced -notmatch '(?im)^\s*#:property\s+ApplicationIcon\s*=') {
+            $replaced = "#:property ApplicationIcon=$defaultWindowsIconAbs`n$replaced"
         }
     }
 
@@ -475,6 +480,13 @@ try {
         & dotnet @dotnetArgs
         if ($LASTEXITCODE -ne 0) {
             throw "NativeAOT 게시가 실패했습니다. 종료 코드: $LASTEXITCODE"
+        }
+
+        $assetsDir = Join-Path $sourceDir 'assets'
+        if (Test-Path $assetsDir) {
+            $publishAssetsDir = Join-Path $publishDir 'assets'
+            New-Item -ItemType Directory -Path $publishAssetsDir -Force | Out-Null
+            Copy-Item -Path (Join-Path $assetsDir '*') -Destination $publishAssetsDir -Recurse -Force
         }
 
         $shouldLaunch = -not $NoLaunch

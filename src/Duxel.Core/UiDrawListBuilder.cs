@@ -76,6 +76,34 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         AddRectFilledGeometry(rect, color, textureId, clipRect);
     }
 
+    public void AddRectFilledRounded(UiRect rect, UiColor color, UiTextureId textureId, float rounding, UiRect clipRect)
+    {
+        if (rect.Width <= 0f || rect.Height <= 0f)
+        {
+            return;
+        }
+
+        var radius = MathF.Min(MathF.Max(0f, rounding), MathF.Min(rect.Width, rect.Height) * 0.5f);
+        if (radius <= 0f)
+        {
+            AddRectFilled(rect, color, textureId, clipRect);
+            return;
+        }
+
+        clipRect = Intersect(clipRect, _currentClipRect);
+        var segments = Math.Clamp((int)MathF.Ceiling(radius / 2.5f), 3, 8);
+        var pointsPerCorner = segments + 1;
+        Span<UiVector2> points = stackalloc UiVector2[pointsPerCorner * 4];
+        var index = 0;
+
+        AddArc(points, ref index, new UiVector2(rect.X + rect.Width - radius, rect.Y + radius), radius, -MathF.PI * 0.5f, 0f, segments);
+        AddArc(points, ref index, new UiVector2(rect.X + rect.Width - radius, rect.Y + rect.Height - radius), radius, 0f, MathF.PI * 0.5f, segments);
+        AddArc(points, ref index, new UiVector2(rect.X + radius, rect.Y + rect.Height - radius), radius, MathF.PI * 0.5f, MathF.PI, segments);
+        AddArc(points, ref index, new UiVector2(rect.X + radius, rect.Y + radius), radius, MathF.PI, MathF.PI * 1.5f, segments);
+
+        AddConvexPolyFilled(points[..index], color, textureId, clipRect);
+    }
+
     private void AddRectFilledGeometry(UiRect rect, UiColor color, UiTextureId textureId, UiRect clipRect)
     {
         var primitiveOffset = (uint)_rectFilledPrimitives.Count;
@@ -551,19 +579,24 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             return;
         }
 
-        var x0 = rect.X;
-        var y0 = rect.Y;
-        var x1 = rect.X + rect.Width;
-        var y1 = rect.Y + rect.Height;
+        var radius = MathF.Min(MathF.Max(0f, rounding), MathF.Min(rect.Width, rect.Height) * 0.5f);
+        if (radius <= 0f)
+        {
+            AddAxisAlignedRectStroke(rect, color, thickness, _currentTexture, _currentClipRect);
+            return;
+        }
 
-        ReadOnlySpan<UiVector2> points =
-        [
-            new(x0, y0),
-            new(x1, y0),
-            new(x1, y1),
-            new(x0, y1),
-        ];
-        AddPolyline(points, true, color, thickness);
+        var segments = Math.Clamp((int)MathF.Ceiling(radius / 2.5f), 3, 8);
+        var pointsPerCorner = segments + 1;
+        Span<UiVector2> points = stackalloc UiVector2[pointsPerCorner * 4];
+        var index = 0;
+
+        AddArc(points, ref index, new UiVector2(rect.X + rect.Width - radius, rect.Y + radius), radius, -MathF.PI * 0.5f, 0f, segments);
+        AddArc(points, ref index, new UiVector2(rect.X + rect.Width - radius, rect.Y + rect.Height - radius), radius, 0f, MathF.PI * 0.5f, segments);
+        AddArc(points, ref index, new UiVector2(rect.X + radius, rect.Y + rect.Height - radius), radius, MathF.PI * 0.5f, MathF.PI, segments);
+        AddArc(points, ref index, new UiVector2(rect.X + radius, rect.Y + radius), radius, MathF.PI, MathF.PI * 1.5f, segments);
+
+        AddPolyline(points[..index], true, color, thickness);
     }
 
     private void AddAxisAlignedRectStroke(UiRect rect, UiColor color, float thickness, UiTextureId textureId, UiRect clipRect)
@@ -589,6 +622,18 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         {
             AddRectFilledGeometry(new UiRect(x0, y0 + thickness, thickness, sideHeight), color, textureId, clipRect);
             AddRectFilledGeometry(new UiRect(x1 - thickness, y0 + thickness, thickness, sideHeight), color, textureId, clipRect);
+        }
+    }
+
+    private static void AddArc(Span<UiVector2> points, ref int index, UiVector2 center, float radius, float startAngle, float endAngle, int segments)
+    {
+        for (var i = 0; i <= segments; i++)
+        {
+            var t = i / (float)segments;
+            var angle = startAngle + ((endAngle - startAngle) * t);
+            points[index++] = new UiVector2(
+                center.X + MathF.Cos(angle) * radius,
+                center.Y + MathF.Sin(angle) * radius);
         }
     }
 
@@ -929,6 +974,11 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
 
     public void AddConvexPolyFilled(ReadOnlySpan<UiVector2> points, UiColor color)
     {
+        AddConvexPolyFilled(points, color, _currentTexture, _currentClipRect);
+    }
+
+    public void AddConvexPolyFilled(ReadOnlySpan<UiVector2> points, UiColor color, UiTextureId textureId, UiRect clipRect)
+    {
         if (points.Length < 3)
         {
             return;
@@ -948,7 +998,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             _indices.Add(startVertex + (uint)i + 1);
         }
 
-        AddCommand(new UiDrawCommand(_currentClipRect, _currentTexture, startIndex, (uint)((points.Length - 2) * 3), 0, Bounds: CreatePointsBounds(points), HasBounds: true));
+        AddCommand(new UiDrawCommand(clipRect, textureId, startIndex, (uint)((points.Length - 2) * 3), 0, Bounds: CreatePointsBounds(points), HasBounds: true));
     }
 
     public void AddConcavePolyFilled(ReadOnlySpan<UiVector2> points, UiColor color)
@@ -1110,11 +1160,35 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
 
     public void PathRect(UiVector2 pMin, UiVector2 pMax, float rounding = 0f)
     {
-        _ = rounding;
-        _path.Add(pMin);
-        _path.Add(new UiVector2(pMax.X, pMin.Y));
-        _path.Add(pMax);
-        _path.Add(new UiVector2(pMin.X, pMax.Y));
+        var width = MathF.Max(0f, pMax.X - pMin.X);
+        var height = MathF.Max(0f, pMax.Y - pMin.Y);
+        var radius = MathF.Min(MathF.Max(0f, rounding), MathF.Min(width, height) * 0.5f);
+        if (radius <= 0f)
+        {
+            _path.Add(pMin);
+            _path.Add(new UiVector2(pMax.X, pMin.Y));
+            _path.Add(pMax);
+            _path.Add(new UiVector2(pMin.X, pMax.Y));
+            return;
+        }
+
+        var segments = Math.Clamp((int)MathF.Ceiling(radius / 2.5f), 3, 8);
+        AppendArcToPath(new UiVector2(pMax.X - radius, pMin.Y + radius), radius, -MathF.PI * 0.5f, 0f, segments);
+        AppendArcToPath(new UiVector2(pMax.X - radius, pMax.Y - radius), radius, 0f, MathF.PI * 0.5f, segments);
+        AppendArcToPath(new UiVector2(pMin.X + radius, pMax.Y - radius), radius, MathF.PI * 0.5f, MathF.PI, segments);
+        AppendArcToPath(new UiVector2(pMin.X + radius, pMin.Y + radius), radius, MathF.PI, MathF.PI * 1.5f, segments);
+    }
+
+    private void AppendArcToPath(UiVector2 center, float radius, float startAngle, float endAngle, int segments)
+    {
+        for (var i = 0; i <= segments; i++)
+        {
+            var t = i / (float)segments;
+            var angle = startAngle + ((endAngle - startAngle) * t);
+            _path.Add(new UiVector2(
+                center.X + MathF.Cos(angle) * radius,
+                center.Y + MathF.Sin(angle) * radius));
+        }
     }
 
     public void AddCallback(UiDrawCallback callback, object? userData = null)
@@ -1653,6 +1727,8 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         }
         _currentChannel = 0;
     }
+
+    public bool HasChannels => _channels is not null;
 
     private Channel GetOrCreateAuxChannel(int index)
     {
