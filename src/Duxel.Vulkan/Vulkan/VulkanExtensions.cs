@@ -67,6 +67,29 @@ internal unsafe sealed class KhrSwapchain(Vk vk, Device device)
     public Result QueuePresent(Queue queue, PresentInfoKHR* presentInfo) => _queuePresent(queue, presentInfo);
 }
 
+internal unsafe sealed class KhrDynamicRendering(Vk vk, Device device)
+{
+    private readonly delegate* unmanaged<CommandBuffer, RenderingInfo*, void> _cmdBeginRendering =
+        (delegate* unmanaged<CommandBuffer, RenderingInfo*, void>)vk.GetDeviceProcAddr(device, "vkCmdBeginRenderingKHR");
+    private readonly delegate* unmanaged<CommandBuffer, void> _cmdEndRendering =
+        (delegate* unmanaged<CommandBuffer, void>)vk.GetDeviceProcAddr(device, "vkCmdEndRenderingKHR");
+
+    public static bool TryCreate(Vk vk, Instance instance, Device device, out KhrDynamicRendering extension)
+    {
+        if (!vk.IsDeviceExtensionPresent(instance, "VK_KHR_dynamic_rendering"))
+        {
+            extension = null!;
+            return false;
+        }
+
+        extension = new KhrDynamicRendering(vk, device);
+        return true;
+    }
+
+    public void CmdBeginRendering(CommandBuffer commandBuffer, RenderingInfo* renderingInfo) => _cmdBeginRendering(commandBuffer, renderingInfo);
+    public void CmdEndRendering(CommandBuffer commandBuffer) => _cmdEndRendering(commandBuffer);
+}
+
 internal unsafe sealed class ExtDebugUtils(Vk vk, Instance instance)
 {
     private readonly delegate* unmanaged<Instance, DebugUtilsMessengerCreateInfoEXT*, AllocationCallbacks*, DebugUtilsMessengerEXT*, Result> _createDebugUtilsMessenger =

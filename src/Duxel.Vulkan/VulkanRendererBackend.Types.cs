@@ -12,12 +12,14 @@ public sealed unsafe partial class VulkanRendererBackend
         ulong ContentHash,
         VkBuffer VertexBuffer,
         DeviceMemory VertexMemory,
+        ulong VertexAddress,
         int VertexCount,
         VkBuffer IndexBuffer,
         DeviceMemory IndexMemory,
         int IndexCount,
         VkBuffer PrimitiveBuffer,
         DeviceMemory PrimitiveMemory,
+        ulong PrimitiveAddress,
         int PrimitiveCount,
         int PrimitiveInstanceBaseCount,
         int RectPrimitiveCount,
@@ -41,7 +43,7 @@ public sealed unsafe partial class VulkanRendererBackend
         public readonly Image Image;
         public readonly DeviceMemory Memory;
         public readonly ImageView View;
-        public readonly DescriptorSet DescriptorSet;
+        public readonly uint SlotIndex;
         public readonly int Width;
         public readonly int Height;
         public readonly Format Format;
@@ -50,7 +52,7 @@ public sealed unsafe partial class VulkanRendererBackend
             Image image,
             DeviceMemory memory,
             ImageView view,
-            DescriptorSet descriptorSet,
+            uint slotIndex,
             int width,
             int height,
             Format format
@@ -59,7 +61,7 @@ public sealed unsafe partial class VulkanRendererBackend
             Image = image;
             Memory = memory;
             View = view;
-            DescriptorSet = descriptorSet;
+            SlotIndex = slotIndex;
             Width = width;
             Height = height;
             Format = format;
@@ -84,6 +86,7 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         public VkBuffer VertexBuffer;
         public DeviceMemory VertexMemory;
+        public ulong VertexAddress;
         public nuint VertexSize;
         public void* VertexMappedPtr;
         public VkBuffer IndexBuffer;
@@ -92,6 +95,7 @@ public sealed unsafe partial class VulkanRendererBackend
         public void* IndexMappedPtr;
         public VkBuffer PrimitiveBuffer;
         public DeviceMemory PrimitiveMemory;
+        public ulong PrimitiveAddress;
         public nuint PrimitiveSize;
         public void* PrimitiveMappedPtr;
     }

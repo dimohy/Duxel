@@ -7,31 +7,22 @@ public sealed unsafe partial class VulkanRendererBackend
 {
     private static readonly byte[] VertexShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui.vert.spv");
     private static readonly byte[] FragmentShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui.frag.spv");
-    private static readonly byte[] ColorFragmentShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui_color.frag.spv");
-    private static readonly byte[] SolidVertexShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.solid.vert.spv");
-    private static readonly byte[] SubpixelFragmentShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui_subpixel.frag.spv");
-    private static readonly byte[] PrimitiveVertexShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.primitive.vert.spv");
-    private static readonly byte[] PrimitiveFragmentShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.primitive.frag.spv");
-    private static readonly byte[] PrimitiveColorFragmentShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.primitive_color.frag.spv");
 
     private DescriptorSetLayout _descriptorSetLayout;
     private PipelineLayout _pipelineLayout;
     private Sampler _fontSampler;
     private Sampler _imageSampler;
+    private DescriptorSet _bindlessTextureSet;
+
+    /// <summary>
+    /// Capacity of the global bindless texture array. Devices exposing the required
+    /// descriptor indexing features guarantee at least 500k update-after-bind sampled
+    /// images, so this fixed capacity is always within spec limits.
+    /// </summary>
+    private const uint BindlessTextureCapacity = 4096;
     private Pipeline _graphicsPipeline;
-    private Pipeline _graphicsColorPipeline;
-    private Pipeline _solidColorPipeline;
-    private Pipeline _subpixelPipeline;
-    private Pipeline _primitivePipeline;
-    private Pipeline _primitiveColorPipeline;
     private ShaderModule _vertexShaderModule;
     private ShaderModule _fragmentShaderModule;
-    private ShaderModule _colorFragmentShaderModule;
-    private ShaderModule _solidVertexShaderModule;
-    private ShaderModule _subpixelFragmentShaderModule;
-    private ShaderModule _primitiveVertexShaderModule;
-    private ShaderModule _primitiveFragmentShaderModule;
-    private ShaderModule _primitiveColorFragmentShaderModule;
     private PipelineCache _pipelineCache;
     private string _pipelineCachePath;
     private nuint _pipelineCacheSize;
@@ -48,14 +39,26 @@ public sealed unsafe partial class VulkanRendererBackend
         var samplerBinding = new DescriptorSetLayoutBinding
         {
             Binding = 0,
-            DescriptorCount = 1,
+            DescriptorCount = BindlessTextureCapacity,
             DescriptorType = DescriptorType.CombinedImageSampler,
             StageFlags = ShaderStageFlags.FragmentBit,
+        };
+
+        var bindingFlags = DescriptorBindingFlags.UpdateAfterBindBit
+            | DescriptorBindingFlags.UpdateUnusedWhilePendingBit
+            | DescriptorBindingFlags.PartiallyBoundBit;
+        var bindingFlagsInfo = new DescriptorSetLayoutBindingFlagsCreateInfo
+        {
+            SType = StructureType.DescriptorSetLayoutBindingFlagsCreateInfo,
+            BindingCount = 1,
+            PBindingFlags = &bindingFlags,
         };
 
         var descriptorLayoutInfo = new DescriptorSetLayoutCreateInfo
         {
             SType = StructureType.DescriptorSetLayoutCreateInfo,
+            PNext = &bindingFlagsInfo,
+            Flags = DescriptorSetLayoutCreateFlags.UpdateAfterBindPoolBit,
             BindingCount = 1,
             PBindings = &samplerBinding,
         };
@@ -65,19 +68,29 @@ public sealed unsafe partial class VulkanRendererBackend
             Check(_vk.CreateDescriptorSetLayout(_device, &descriptorLayoutInfo, null, layout));
         }
 
-        var pushConstantRange = new PushConstantRange
+        var pushConstantRanges = stackalloc PushConstantRange[2];
+        // Vertex range: scale(8) + translate(8) + opacity(4) + drawMode(4)
+        // + vertex buffer address(8) + primitive buffer address(8) = 40 bytes.
+        pushConstantRanges[0] = new PushConstantRange
         {
             StageFlags = ShaderStageFlags.VertexBit,
             Offset = 0,
-            Size = (uint)(sizeof(float) * 5),
+            Size = 40,
+        };
+        // Fragment range: packed texture index + subpixel mode bit.
+        pushConstantRanges[1] = new PushConstantRange
+        {
+            StageFlags = ShaderStageFlags.FragmentBit,
+            Offset = 40,
+            Size = sizeof(uint),
         };
 
         var pipelineLayoutInfo = new PipelineLayoutCreateInfo
         {
             SType = StructureType.PipelineLayoutCreateInfo,
             SetLayoutCount = 1,
-            PushConstantRangeCount = 1,
-            PPushConstantRanges = &pushConstantRange,
+            PushConstantRangeCount = 2,
+            PPushConstantRanges = pushConstantRanges,
         };
 
         var setLayouts = stackalloc DescriptorSetLayout[1];
@@ -137,33 +150,35 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
-        const uint poolSize = 1000;
-        const int poolSizeCount = 11;
-        var poolSizes = stackalloc DescriptorPoolSize[poolSizeCount];
-        poolSizes[0] = new DescriptorPoolSize(DescriptorType.Sampler, poolSize);
-        poolSizes[1] = new DescriptorPoolSize(DescriptorType.CombinedImageSampler, poolSize);
-        poolSizes[2] = new DescriptorPoolSize(DescriptorType.SampledImage, poolSize);
-        poolSizes[3] = new DescriptorPoolSize(DescriptorType.StorageImage, poolSize);
-        poolSizes[4] = new DescriptorPoolSize(DescriptorType.UniformTexelBuffer, poolSize);
-        poolSizes[5] = new DescriptorPoolSize(DescriptorType.StorageTexelBuffer, poolSize);
-        poolSizes[6] = new DescriptorPoolSize(DescriptorType.UniformBuffer, poolSize);
-        poolSizes[7] = new DescriptorPoolSize(DescriptorType.StorageBuffer, poolSize);
-        poolSizes[8] = new DescriptorPoolSize(DescriptorType.UniformBufferDynamic, poolSize);
-        poolSizes[9] = new DescriptorPoolSize(DescriptorType.StorageBufferDynamic, poolSize);
-        poolSizes[10] = new DescriptorPoolSize(DescriptorType.InputAttachment, poolSize);
+        var poolSizes = stackalloc DescriptorPoolSize[1];
+        poolSizes[0] = new DescriptorPoolSize(DescriptorType.CombinedImageSampler, BindlessTextureCapacity);
 
         var poolInfo = new DescriptorPoolCreateInfo
         {
             SType = StructureType.DescriptorPoolCreateInfo,
-            PoolSizeCount = (uint)poolSizeCount,
+            PoolSizeCount = 1,
             PPoolSizes = poolSizes,
-            MaxSets = poolSize * poolSizeCount,
-            Flags = DescriptorPoolCreateFlags.FreeDescriptorSetBit,
+            MaxSets = 1,
+            Flags = DescriptorPoolCreateFlags.UpdateAfterBindBit,
         };
 
         fixed (DescriptorPool* pool = &_descriptorPool)
         {
             Check(_vk.CreateDescriptorPool(_device, &poolInfo, null, pool));
+        }
+
+        var layout = _descriptorSetLayout;
+        var allocInfo = new DescriptorSetAllocateInfo
+        {
+            SType = StructureType.DescriptorSetAllocateInfo,
+            DescriptorPool = _descriptorPool,
+            DescriptorSetCount = 1,
+            PSetLayouts = &layout,
+        };
+
+        fixed (DescriptorSet* set = &_bindlessTextureSet)
+        {
+            Check(_vk.AllocateDescriptorSets(_device, &allocInfo, set));
         }
     }
 
@@ -171,9 +186,6 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         _vertexShaderModule = CreateShaderModule(VertexShaderSpirv);
         _fragmentShaderModule = CreateShaderModule(FragmentShaderSpirv);
-        _primitiveVertexShaderModule = CreateShaderModule(PrimitiveVertexShaderSpirv);
-        _primitiveFragmentShaderModule = CreateShaderModule(PrimitiveFragmentShaderSpirv);
-        _primitiveColorFragmentShaderModule = CreateShaderModule(PrimitiveColorFragmentShaderSpirv);
 
         var entryPoint = VulkanMarshaling.StringToPtr("main");
 
@@ -199,47 +211,13 @@ public sealed unsafe partial class VulkanRendererBackend
             stages[0] = vertexStage;
             stages[1] = fragmentStage;
 
-            var bindingDescription = new VertexInputBindingDescription
-            {
-                Binding = 0,
-                Stride = (uint)sizeof(UiVertex),
-                InputRate = VertexInputRate.Vertex,
-            };
-
-            var attributeDescriptions = stackalloc VertexInputAttributeDescription[3];
-            const uint positionOffset = 0;
-            const uint uvOffset = 8;
-            const uint colorOffset = 16;
-
-            attributeDescriptions[0] = new VertexInputAttributeDescription
-            {
-                Location = 0,
-                Binding = 0,
-                Format = Format.R32G32Sfloat,
-                Offset = positionOffset,
-            };
-            attributeDescriptions[1] = new VertexInputAttributeDescription
-            {
-                Location = 1,
-                Binding = 0,
-                Format = Format.R32G32Sfloat,
-                Offset = uvOffset,
-            };
-            attributeDescriptions[2] = new VertexInputAttributeDescription
-            {
-                Location = 2,
-                Binding = 0,
-                Format = Format.R8G8B8A8Unorm,
-                Offset = colorOffset,
-            };
-
+            // Vertex pulling: all geometry is read from buffer device addresses in
+            // the vertex shader, so the pipeline has no vertex input state.
             var vertexInputInfo = new PipelineVertexInputStateCreateInfo
             {
                 SType = StructureType.PipelineVertexInputStateCreateInfo,
-                VertexBindingDescriptionCount = 1,
-                PVertexBindingDescriptions = &bindingDescription,
-                VertexAttributeDescriptionCount = 3,
-                PVertexAttributeDescriptions = attributeDescriptions,
+                VertexBindingDescriptionCount = 0,
+                VertexAttributeDescriptionCount = 0,
             };
 
             var inputAssembly = new PipelineInputAssemblyStateCreateInfo
@@ -292,14 +270,18 @@ public sealed unsafe partial class VulkanRendererBackend
                 StencilTestEnable = false,
             };
 
+            // Unified dual-source blend: shaders output premultiplied color plus a
+            // per-channel blend factor. Standard draws emit blendFactor = alpha which
+            // reproduces SrcAlpha/OneMinusSrcAlpha exactly; subpixel text emits
+            // per-channel ClearType coverage.
             var colorBlendAttachment = new PipelineColorBlendAttachmentState
             {
                 BlendEnable = true,
-                SrcColorBlendFactor = BlendFactor.SrcAlpha,
-                DstColorBlendFactor = BlendFactor.OneMinusSrcAlpha,
+                SrcColorBlendFactor = BlendFactor.One,
+                DstColorBlendFactor = BlendFactor.OneMinusSrc1Color,
                 ColorBlendOp = BlendOp.Add,
                 SrcAlphaBlendFactor = BlendFactor.One,
-                DstAlphaBlendFactor = BlendFactor.OneMinusSrcAlpha,
+                DstAlphaBlendFactor = BlendFactor.OneMinusSrc1Alpha,
                 AlphaBlendOp = BlendOp.Add,
                 ColorWriteMask = ColorComponentFlags.RBit | ColorComponentFlags.GBit | ColorComponentFlags.BBit | ColorComponentFlags.ABit,
             };
@@ -325,9 +307,20 @@ public sealed unsafe partial class VulkanRendererBackend
                 PDynamicStates = dynamicStates,
             };
 
+            // Dynamic rendering: the pipeline declares attachment formats directly
+            // instead of referencing a render pass object.
+            var swapchainFormat = _swapchainFormat;
+            var pipelineRenderingInfo = new PipelineRenderingCreateInfo
+            {
+                SType = StructureType.PipelineRenderingCreateInfo,
+                ColorAttachmentCount = 1,
+                PColorAttachmentFormats = &swapchainFormat,
+            };
+
             var pipelineInfo = new GraphicsPipelineCreateInfo
             {
                 SType = StructureType.GraphicsPipelineCreateInfo,
+                PNext = &pipelineRenderingInfo,
                 StageCount = 2,
                 PStages = stages,
                 PVertexInputState = &vertexInputInfo,
@@ -339,7 +332,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 PColorBlendState = &colorBlending,
                 PDynamicState = &dynamicState,
                 Layout = _pipelineLayout,
-                RenderPass = _renderPass,
+                RenderPass = default,
                 Subpass = 0,
             };
 
@@ -347,264 +340,6 @@ public sealed unsafe partial class VulkanRendererBackend
             {
                 Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &pipelineInfo, null, pipeline));
             }
-
-            if (_triangleColorPipelineEnabled)
-            {
-                _colorFragmentShaderModule = CreateShaderModule(ColorFragmentShaderSpirv);
-                var colorFragmentStage = new PipelineShaderStageCreateInfo
-                {
-                    SType = StructureType.PipelineShaderStageCreateInfo,
-                    Stage = ShaderStageFlags.FragmentBit,
-                    Module = _colorFragmentShaderModule,
-                    PName = entryPoint,
-                };
-
-                var colorStages = stackalloc PipelineShaderStageCreateInfo[2];
-                colorStages[0] = vertexStage;
-                colorStages[1] = colorFragmentStage;
-
-                pipelineInfo.PStages = colorStages;
-                fixed (Pipeline* pipeline = &_graphicsColorPipeline)
-                {
-                    Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &pipelineInfo, null, pipeline));
-                }
-
-                pipelineInfo.PStages = stages;
-            }
-
-            _subpixelFragmentShaderModule = CreateShaderModule(SubpixelFragmentShaderSpirv);
-
-            var subpixelFragmentStage = new PipelineShaderStageCreateInfo
-            {
-                SType = StructureType.PipelineShaderStageCreateInfo,
-                Stage = ShaderStageFlags.FragmentBit,
-                Module = _subpixelFragmentShaderModule,
-                PName = entryPoint,
-            };
-
-            var subpixelStages = stackalloc PipelineShaderStageCreateInfo[2];
-            subpixelStages[0] = vertexStage;
-            subpixelStages[1] = subpixelFragmentStage;
-
-            var subpixelBlendAttachment = new PipelineColorBlendAttachmentState
-            {
-                BlendEnable = true,
-                SrcColorBlendFactor = BlendFactor.One,
-                DstColorBlendFactor = BlendFactor.OneMinusSrc1Color,
-                ColorBlendOp = BlendOp.Add,
-                SrcAlphaBlendFactor = BlendFactor.One,
-                DstAlphaBlendFactor = BlendFactor.OneMinusSrc1Alpha,
-                AlphaBlendOp = BlendOp.Add,
-                ColorWriteMask = ColorComponentFlags.RBit | ColorComponentFlags.GBit | ColorComponentFlags.BBit | ColorComponentFlags.ABit,
-            };
-
-            var subpixelColorBlending = new PipelineColorBlendStateCreateInfo
-            {
-                SType = StructureType.PipelineColorBlendStateCreateInfo,
-                LogicOpEnable = false,
-                LogicOp = LogicOp.Copy,
-                AttachmentCount = 1,
-                PAttachments = &subpixelBlendAttachment,
-            };
-
-            var subpixelPipelineInfo = new GraphicsPipelineCreateInfo
-            {
-                SType = StructureType.GraphicsPipelineCreateInfo,
-                StageCount = 2,
-                PStages = subpixelStages,
-                PVertexInputState = &vertexInputInfo,
-                PInputAssemblyState = &inputAssembly,
-                PViewportState = &viewportState,
-                PRasterizationState = &rasterizer,
-                PMultisampleState = &multisampling,
-                PDepthStencilState = &depthStencil,
-                PColorBlendState = &subpixelColorBlending,
-                PDynamicState = &dynamicState,
-                Layout = _pipelineLayout,
-                RenderPass = _renderPass,
-                Subpass = 0,
-            };
-
-            fixed (Pipeline* pipeline = &_subpixelPipeline)
-            {
-                Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &subpixelPipelineInfo, null, pipeline));
-            }
-
-            var primitiveVertexStage = new PipelineShaderStageCreateInfo
-            {
-                SType = StructureType.PipelineShaderStageCreateInfo,
-                Stage = ShaderStageFlags.VertexBit,
-                Module = _primitiveVertexShaderModule,
-                PName = entryPoint,
-            };
-
-            var primitiveFragmentStage = new PipelineShaderStageCreateInfo
-            {
-                SType = StructureType.PipelineShaderStageCreateInfo,
-                Stage = ShaderStageFlags.FragmentBit,
-                Module = _primitiveFragmentShaderModule,
-                PName = entryPoint,
-            };
-
-            var primitiveStages = stackalloc PipelineShaderStageCreateInfo[2];
-            primitiveStages[0] = primitiveVertexStage;
-            primitiveStages[1] = primitiveFragmentStage;
-
-            var primitiveBindingDescription = new VertexInputBindingDescription
-            {
-                Binding = 1,
-                Stride = (uint)sizeof(PrimitiveInstance),
-                InputRate = VertexInputRate.Instance,
-            };
-
-            var primitiveAttributeDescriptions = stackalloc VertexInputAttributeDescription[3];
-            primitiveAttributeDescriptions[0] = new VertexInputAttributeDescription
-            {
-                Location = 0,
-                Binding = 1,
-                Format = Format.R32G32B32Sfloat,
-                Offset = 0,
-            };
-            primitiveAttributeDescriptions[1] = new VertexInputAttributeDescription
-            {
-                Location = 1,
-                Binding = 1,
-                Format = Format.R32Uint,
-                Offset = 12,
-            };
-            primitiveAttributeDescriptions[2] = new VertexInputAttributeDescription
-            {
-                Location = 2,
-                Binding = 1,
-                Format = Format.R8G8B8A8Unorm,
-                Offset = 16,
-            };
-
-            var primitiveVertexInputInfo = new PipelineVertexInputStateCreateInfo
-            {
-                SType = StructureType.PipelineVertexInputStateCreateInfo,
-                VertexBindingDescriptionCount = 1,
-                PVertexBindingDescriptions = &primitiveBindingDescription,
-                VertexAttributeDescriptionCount = 3,
-                PVertexAttributeDescriptions = primitiveAttributeDescriptions,
-            };
-
-            var primitivePipelineInfo = new GraphicsPipelineCreateInfo
-            {
-                SType = StructureType.GraphicsPipelineCreateInfo,
-                StageCount = 2,
-                PStages = primitiveStages,
-                PVertexInputState = &primitiveVertexInputInfo,
-                PInputAssemblyState = &inputAssembly,
-                PViewportState = &viewportState,
-                PRasterizationState = &rasterizer,
-                PMultisampleState = &multisampling,
-                PDepthStencilState = &depthStencil,
-                PColorBlendState = &colorBlending,
-                PDynamicState = &dynamicState,
-                Layout = _pipelineLayout,
-                RenderPass = _renderPass,
-                Subpass = 0,
-            };
-
-            fixed (Pipeline* pipeline = &_primitivePipeline)
-            {
-                Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &primitivePipelineInfo, null, pipeline));
-            }
-
-            var primitiveColorFragmentStage = new PipelineShaderStageCreateInfo
-            {
-                SType = StructureType.PipelineShaderStageCreateInfo,
-                Stage = ShaderStageFlags.FragmentBit,
-                Module = _primitiveColorFragmentShaderModule,
-                PName = entryPoint,
-            };
-
-            var primitiveColorStages = stackalloc PipelineShaderStageCreateInfo[2];
-            primitiveColorStages[0] = primitiveVertexStage;
-            primitiveColorStages[1] = primitiveColorFragmentStage;
-
-            primitivePipelineInfo.PStages = primitiveColorStages;
-            fixed (Pipeline* pipeline = &_primitiveColorPipeline)
-            {
-                Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &primitivePipelineInfo, null, pipeline));
-            }
-
-            if (_solidUnifiedPipelineEnabled && _triangleColorPipelineEnabled)
-            {
-                _solidVertexShaderModule = CreateShaderModule(SolidVertexShaderSpirv);
-                var solidVertexStage = new PipelineShaderStageCreateInfo
-                {
-                    SType = StructureType.PipelineShaderStageCreateInfo,
-                    Stage = ShaderStageFlags.VertexBit,
-                    Module = _solidVertexShaderModule,
-                    PName = entryPoint,
-                };
-
-                var solidStages = stackalloc PipelineShaderStageCreateInfo[2];
-                solidStages[0] = solidVertexStage;
-                solidStages[1] = primitiveColorFragmentStage;
-
-                var solidBindingDescriptions = stackalloc VertexInputBindingDescription[2];
-                solidBindingDescriptions[0] = bindingDescription;
-                solidBindingDescriptions[1] = primitiveBindingDescription;
-
-                var solidAttributeDescriptions = stackalloc VertexInputAttributeDescription[5];
-                solidAttributeDescriptions[0] = new VertexInputAttributeDescription
-                {
-                    Location = 0,
-                    Binding = 0,
-                    Format = Format.R32G32Sfloat,
-                    Offset = positionOffset,
-                };
-                solidAttributeDescriptions[1] = new VertexInputAttributeDescription
-                {
-                    Location = 2,
-                    Binding = 0,
-                    Format = Format.R8G8B8A8Unorm,
-                    Offset = colorOffset,
-                };
-                solidAttributeDescriptions[2] = new VertexInputAttributeDescription
-                {
-                    Location = 3,
-                    Binding = 1,
-                    Format = Format.R32G32B32Sfloat,
-                    Offset = 0,
-                };
-                solidAttributeDescriptions[3] = new VertexInputAttributeDescription
-                {
-                    Location = 4,
-                    Binding = 1,
-                    Format = Format.R32Uint,
-                    Offset = 12,
-                };
-                solidAttributeDescriptions[4] = new VertexInputAttributeDescription
-                {
-                    Location = 5,
-                    Binding = 1,
-                    Format = Format.R8G8B8A8Unorm,
-                    Offset = 16,
-                };
-
-                var solidVertexInputInfo = new PipelineVertexInputStateCreateInfo
-                {
-                    SType = StructureType.PipelineVertexInputStateCreateInfo,
-                    VertexBindingDescriptionCount = 2,
-                    PVertexBindingDescriptions = solidBindingDescriptions,
-                    VertexAttributeDescriptionCount = 5,
-                    PVertexAttributeDescriptions = solidAttributeDescriptions,
-                };
-
-                var solidPipelineInfo = primitivePipelineInfo;
-                solidPipelineInfo.PStages = solidStages;
-                solidPipelineInfo.PVertexInputState = &solidVertexInputInfo;
-
-                fixed (Pipeline* pipeline = &_solidColorPipeline)
-                {
-                    Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &solidPipelineInfo, null, pipeline));
-                }
-            }
-
         }
         finally
         {

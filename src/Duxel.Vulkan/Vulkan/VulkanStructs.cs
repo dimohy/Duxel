@@ -277,68 +277,6 @@ public struct ImageViewCreateInfo
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct AttachmentDescription
-{
-    public uint Flags;
-    public Format Format;
-    public SampleCountFlags Samples;
-    public AttachmentLoadOp LoadOp;
-    public AttachmentStoreOp StoreOp;
-    public AttachmentLoadOp StencilLoadOp;
-    public AttachmentStoreOp StencilStoreOp;
-    public ImageLayout InitialLayout;
-    public ImageLayout FinalLayout;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public struct AttachmentReference
-{
-    public uint Attachment;
-    public ImageLayout Layout;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public unsafe struct SubpassDescription
-{
-    public uint Flags;
-    public PipelineBindPoint PipelineBindPoint;
-    public uint InputAttachmentCount;
-    public AttachmentReference* PInputAttachments;
-    public uint ColorAttachmentCount;
-    public AttachmentReference* PColorAttachments;
-    public AttachmentReference* PResolveAttachments;
-    public AttachmentReference* PDepthStencilAttachment;
-    public uint PreserveAttachmentCount;
-    public uint* PPreserveAttachments;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public struct SubpassDependency
-{
-    public uint SrcSubpass;
-    public uint DstSubpass;
-    public PipelineStageFlags SrcStageMask;
-    public PipelineStageFlags DstStageMask;
-    public AccessFlags SrcAccessMask;
-    public AccessFlags DstAccessMask;
-    public DependencyFlags DependencyFlags;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public unsafe struct RenderPassCreateInfo
-{
-    public StructureType SType;
-    public void* PNext;
-    public uint Flags;
-    public uint AttachmentCount;
-    public AttachmentDescription* PAttachments;
-    public uint SubpassCount;
-    public SubpassDescription* PSubpasses;
-    public uint DependencyCount;
-    public SubpassDependency* PDependencies;
-}
-
-[StructLayout(LayoutKind.Sequential)]
 public struct DescriptorSetLayoutBinding
 {
     public uint Binding;
@@ -353,9 +291,18 @@ public unsafe struct DescriptorSetLayoutCreateInfo
 {
     public StructureType SType;
     public void* PNext;
-    public uint Flags;
+    public DescriptorSetLayoutCreateFlags Flags;
     public uint BindingCount;
     public DescriptorSetLayoutBinding* PBindings;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct DescriptorSetLayoutBindingFlagsCreateInfo
+{
+    public StructureType SType;
+    public void* PNext;
+    public uint BindingCount;
+    public DescriptorBindingFlags* PBindingFlags;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -649,18 +596,6 @@ public unsafe struct CommandBufferInheritanceInfo
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct RenderPassBeginInfo
-{
-    public StructureType SType;
-    public void* PNext;
-    public RenderPass RenderPass;
-    public Framebuffer Framebuffer;
-    public Rect2D RenderArea;
-    public uint ClearValueCount;
-    public ClearValue* PClearValues;
-}
-
-[StructLayout(LayoutKind.Sequential)]
 public struct ClearAttachment
 {
     public ImageAspectFlags AspectMask;
@@ -900,10 +835,132 @@ public unsafe struct DebugUtilsMessengerCallbackDataEXT
 
 /// <summary>
 /// VkPhysicalDeviceFeatures — 55 VkBool32 fields, 220 bytes total.
-/// Only dualSrcBlend (offset 28) is exposed; the rest default to 0 (false).
+/// Only the fields Duxel enables are exposed; the rest default to 0 (false).
 /// </summary>
 [StructLayout(LayoutKind.Explicit, Size = 220)]
 public struct PhysicalDeviceFeatures
 {
     [FieldOffset(28)] public uint DualSrcBlend;
+    [FieldOffset(136)] public uint ShaderSampledImageArrayDynamicIndexing;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct PhysicalDeviceFeatures2
+{
+    public StructureType SType;
+    public void* PNext;
+    public PhysicalDeviceFeatures Features;
+}
+
+/// <summary>
+/// VkPhysicalDeviceDescriptorIndexingFeatures — Vulkan 1.2 core descriptor indexing feature set.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct PhysicalDeviceDescriptorIndexingFeatures
+{
+    public StructureType SType;
+    public void* PNext;
+    public uint ShaderInputAttachmentArrayDynamicIndexing;
+    public uint ShaderUniformTexelBufferArrayDynamicIndexing;
+    public uint ShaderStorageTexelBufferArrayDynamicIndexing;
+    public uint ShaderUniformBufferArrayNonUniformIndexing;
+    public uint ShaderSampledImageArrayNonUniformIndexing;
+    public uint ShaderStorageBufferArrayNonUniformIndexing;
+    public uint ShaderStorageImageArrayNonUniformIndexing;
+    public uint ShaderInputAttachmentArrayNonUniformIndexing;
+    public uint ShaderUniformTexelBufferArrayNonUniformIndexing;
+    public uint ShaderStorageTexelBufferArrayNonUniformIndexing;
+    public uint DescriptorBindingUniformBufferUpdateAfterBind;
+    public uint DescriptorBindingSampledImageUpdateAfterBind;
+    public uint DescriptorBindingStorageImageUpdateAfterBind;
+    public uint DescriptorBindingStorageBufferUpdateAfterBind;
+    public uint DescriptorBindingUniformTexelBufferUpdateAfterBind;
+    public uint DescriptorBindingStorageTexelBufferUpdateAfterBind;
+    public uint DescriptorBindingUpdateUnusedWhilePending;
+    public uint DescriptorBindingPartiallyBound;
+    public uint DescriptorBindingVariableDescriptorCount;
+    public uint RuntimeDescriptorArray;
+}
+
+/// <summary>
+/// VkPhysicalDeviceBufferDeviceAddressFeatures — Vulkan 1.2 core buffer device address feature set.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct PhysicalDeviceBufferDeviceAddressFeatures
+{
+    public StructureType SType;
+    public void* PNext;
+    public uint BufferDeviceAddress;
+    public uint BufferDeviceAddressCaptureReplay;
+    public uint BufferDeviceAddressMultiDevice;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct MemoryAllocateFlagsInfo
+{
+    public StructureType SType;
+    public void* PNext;
+    public MemoryAllocateFlags Flags;
+    public uint DeviceMask;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct BufferDeviceAddressInfo
+{
+    public StructureType SType;
+    public void* PNext;
+    public Buffer Buffer;
+}
+
+/// <summary>
+/// VkPhysicalDeviceDynamicRenderingFeatures — VK_KHR_dynamic_rendering feature set.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct PhysicalDeviceDynamicRenderingFeatures
+{
+    public StructureType SType;
+    public void* PNext;
+    public uint DynamicRendering;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct RenderingAttachmentInfo
+{
+    public StructureType SType;
+    public void* PNext;
+    public ImageView ImageView;
+    public ImageLayout ImageLayout;
+    public ResolveModeFlags ResolveMode;
+    public ImageView ResolveImageView;
+    public ImageLayout ResolveImageLayout;
+    public AttachmentLoadOp LoadOp;
+    public AttachmentStoreOp StoreOp;
+    public ClearValue ClearValue;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct RenderingInfo
+{
+    public StructureType SType;
+    public void* PNext;
+    public uint Flags;
+    public Rect2D RenderArea;
+    public uint LayerCount;
+    public uint ViewMask;
+    public uint ColorAttachmentCount;
+    public RenderingAttachmentInfo* PColorAttachments;
+    public RenderingAttachmentInfo* PDepthAttachment;
+    public RenderingAttachmentInfo* PStencilAttachment;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct PipelineRenderingCreateInfo
+{
+    public StructureType SType;
+    public void* PNext;
+    public uint ViewMask;
+    public uint ColorAttachmentCount;
+    public Format* PColorAttachmentFormats;
+    public Format DepthAttachmentFormat;
+    public Format StencilAttachmentFormat;
 }

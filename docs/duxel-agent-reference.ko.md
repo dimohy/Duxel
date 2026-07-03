@@ -1,6 +1,6 @@
 # Duxel 에이전트 참조 문서
 
-> Last synced: 2026-06-06
+> Last synced: 2026-07-03
 > 대상: Duxel로 앱, 샘플, 재사용 UI 컴포넌트를 작성하는 코딩 에이전트와 개발자
 > 범위: Duxel 기능 맵, 아키텍처 경계, 권장 워크플로, 샘플 기준점, 바로 사용할 수 있는 생성 템플릿
 
@@ -93,7 +93,7 @@ Duxel은 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 - `Duxel.Core`
   - 즉시 모드 동작, 레이아웃, 위젯, 드로우리스트 생성, 상태, 텍스트 API 소유
 - `Duxel.Platform.Windows`
-  - 입력, 클립보드, 텍스트 백엔드 연결, 네이티브 윈도우 등 Windows 전용 동작 소유
+  - 입력, 클립보드, IME/TSF 연결, 텍스트 백엔드 연결, 네이티브 윈도우 등 Windows 전용 동작 소유
 - `Duxel.Vulkan`
   - 렌더링, GPU 리소스, 스왑체인, 제출 흐름 소유
 - `Duxel.App`, `Duxel.Windows.App`
@@ -107,12 +107,21 @@ Duxel은 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 
 - `UiScreen`
 - `UiImmediateContext`
+- 선언형 UI API:
+  - `IUiView`
+  - `DuxelView`
+  - `Dux`
+  - `DuxelView.Display`
 - `DuxelAppOptions`
 - `DuxelWindowOptions`
 - `DuxelRendererOptions`
 - `DuxelFontOptions`
 - `DuxelFrameOptions`
 - `DuxelDebugOptions`
+- 컴파일된 디자인 API:
+  - `UiCompiledDesign`
+  - `IUiDesign`
+  - `UiWindows11Design`
 - `DuxelWindowsApp.Run(...)`
 - 커스텀 위젯 API:
   - `IUiCustomWidget`
@@ -132,7 +141,8 @@ Duxel은 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 | `Font` | `DuxelFontOptions` | `new()` | 폰트 경로, 아틀라스 크기, 시작 글리프 전략 |
 | `Frame` | `DuxelFrameOptions` | `new()` | 줄 높이, idle 프레임 스킵, 폰트 재빌드 주기 |
 | `Debug` | `DuxelDebugOptions` | `new()` | 로그와 프레임 캡처 |
-| `Theme` | `UiTheme` | `UiTheme.ImGuiDark` | 테마 프리셋 |
+| `Theme` | `UiTheme` | `UiCompiledDesign.Default.Theme` | fallback 테마 프리셋 |
+| `Design` | `UiCompiledDesign?` | `null` | 선택적 컴파일 디자인. 지정하면 플랫폼 기본 테마 추적보다 우선 |
 | `FontTextureId` | `UiTextureId` | `new(1)` | 폰트 텍스처 슬롯 |
 | `WhiteTextureId` | `UiTextureId` | `new(2)` | 화이트 텍스처 슬롯 |
 | `Screen` | `UiScreen` | (필수) | 즉시 모드 앱 진입점 |
@@ -140,6 +150,184 @@ Duxel은 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 | `ImageDecoder` | `IUiImageDecoder?` | `null` | 커스텀 이미지 디코드 경로 |
 | `KeyRepeatSettingsProvider` | `IKeyRepeatSettingsProvider?` | `null` | 커스텀 키 반복 타이밍 |
 | `ClipboardFactory` | `Func<IPlatformBackend, IUiClipboard?>?` | `null` | 플랫폼별 클립보드 팩토리 |
+
+### 컴파일된 디자인
+
+기본적으로 Windows 앱은 현재 OS 앱 테마에 따라 `UiCompiledDesign.Windows11` 또는 `UiCompiledDesign.Windows11Dark`로 해석되며, Windows가 앱 테마 변경을 알리면 활성 디자인도 갱신된다. 컨트롤의 시각적 모양을 런타임 테마 파싱이 아니라 코드 또는 소스 생성으로 고정해야 할 때는 `DuxelWindowsApp.Run<TDesign>(...)`, `DuxelApp.Options<TDesign>(...)` 또는 `DuxelAppOptions.Design`을 사용한다.
+
+```csharp
+DuxelWindowsApp.Run<UiWindows11Design>(
+    new ProductScreen(),
+    title: "Windows 11 styled Duxel",
+    width: 980,
+    height: 700);
+```
+
+커스텀 컴파일 타임 디자인은 `IUiDesign`을 구현하고 생성된/정적 값을 전달한다.
+
+```csharp
+public readonly struct ProductDesign : IUiDesign
+{
+    public static UiCompiledDesign Create()
+        => UiCompiledDesign.Windows11 with
+        {
+            Theme = UiTheme.GitHubDark,
+            Tokens = UiDesignTokens.Windows11 with { ControlCornerRadius = 6f }
+        };
+}
+
+DuxelWindowsApp.Run<ProductDesign>(
+    Dux.App(new ProductScreen()),
+    title: "Product Surface");
+```
+
+`UiTheme`은 색상 팔레트, `UiStyle`은 레이아웃 치수, `UiDesignTokens`는 코너 반경, 보더 두께, 눌림 오프셋, 포커스 링 두께 같은 위젯 모양을 담당한다. 기존 런타임 테마 변경은 색상만 갱신하고, 컴파일된 디자인 토큰은 활성 외형 계약으로 유지된다.
+
+`Design`이 `null`이고 `Theme`을 기본값 그대로 두면 Duxel은 플랫폼 테마 공급자를 따른다. 명시적 `Theme` 또는 `Design` 값은 앱이 직접 선택한 값으로 보고 OS 테마 변경으로 덮어쓰지 않는다.
+
+다음 단계 숙제는 컨트롤 타입별 렌더링 전략을 교체하는 skin layer다. 현재는 테마, 토큰, modifier, 커스텀 위젯으로 상당 부분 조정할 수 있지만, `Button`, `TextField`, `Segmented`, `Scrollbar` 같은 기본 컨트롤의 렌더링 정책 자체를 디자인 단위로 갈아끼우는 공식 계층은 아직 남아 있다. 다음 세션은 [Declarative Control Skin Roadmap](declarative-control-skin-roadmap.ko.md)에서 시작한다.
+
+### 선언형 UI
+
+C#에서 SwiftUI/Compose 스타일 조합을 사용할 때는 그룹화된 `DuxelView` 팩터리로 생성한 `IUiView` 노드를 사용한다. 점 자동완성에서 `DuxelView.Layout`, `DuxelView.Controls`, `DuxelView.Text`, `DuxelView.Display`, `DuxelView.Menus`, `DuxelView.Windows`가 먼저 드러나므로 모든 헬퍼를 한 클래스에 몰아넣지 않고도 자연스럽게 화면을 작성할 수 있다. 짧은 앱 코드와 샘플에는 같은 표면을 제공하는 `Dux.*` 별칭을 사용할 수 있다.
+
+```csharp
+var running = Dux.State(true);
+var project = Dux.State("Duxel Control Surface");
+var progress = Dux.State(0.62f);
+var channel = Dux.State(ReleaseChannel.Preview);
+var tabItems = new[] { "Layout", "Theme", "Windows" };
+
+var screen = Dux.Screen(
+    Dux.Group(
+        Dux.MainMenuBar(
+            Dux.Menu(
+                "File",
+                Dux.MenuItem("Reset", () => progress.Value = 0f),
+                Dux.MenuItem("Running", () => running.Value = !running.Value, selected: () => running.Value))),
+        Dux.Window(
+            "Dashboard",
+            Dux.VStack(
+                10f,
+                Dux.Header(
+                    () => project.Value,
+                    Dux.Meta("Preview"),
+                    Dux.Meta(() => running.Value ? "Running" : "Paused", UiTextTone.Success)),
+                Dux.Tabs(
+                    "dashboard-tabs",
+                    Dux.Tab(
+                        "Overview",
+                        Dux.Section(
+                            "Controls",
+                            Dux.Form(
+                                Dux.Field("Project", Dux.TextField("project", project)),
+                                Dux.Field("Channel", Dux.EnumSegmented<ReleaseChannel>("channel", channel)),
+                                Dux.Field("Running", Dux.Toggle("running", running)),
+                                Dux.Field("Progress", Dux.Slider("progress", progress, 0f, 1f).ItemWidth(360f))))),
+                    Dux.Tab(
+                        "Tasks",
+                        Dux.List(
+                            "task-list",
+                            tabItems,
+                            item => Dux.Text(item),
+                            new UiVector2(0f, 120f),
+                            border: true)))),
+            new UiWindowOptions(
+                Position: new UiVector2(24, 24),
+                Size: new UiVector2(420, 260)))));
+
+enum ReleaseChannel
+{
+    Stable,
+    Preview,
+    Canary
+}
+```
+
+`UiState<T>`는 앱 코드용 상태 홀더다. 컨트롤에는 `UiBinding<T>`로 변환되므로 `Dux.Checkbox("Running", running)`, `Dux.TextField("project", project)`처럼 짧게 쓸 수 있다. 선언형 alias인 `Dux.TextField(...)`, `Dux.TextArea(...)`, `Dux.NumberField(...)`, `Dux.Slider(...)`는 안정적인 control id를 받고 즉시 모드 `##` label을 앱 코드에서 숨긴다. 명시적인 상태 변경은 `state.Set(value)`와 `state.Update(current => next)`를 사용한다. 상태가 이미 다른 곳에 있으면 `Dux.Bind(get, set)`을 사용하고, 쓰기 가능한 파생 바인딩은 `UiBinding<T>.Map(...)`으로 만든다. 동적 텍스트와 조건부 view는 `Func<T>`를 받아 렌더링 중 값을 다시 평가한다. 재사용 가능한 view 객체는 `Build()`를 구현하는 `UiComponent`를 기준으로 만든다.
+
+앱 규모 화면에서는 하나의 큰 렌더 메서드보다 작은 `UiComponent` 클래스를 선호한다. 컴포넌트는 생성자로 상태를 받거나 보유하고, `Build()`에서 `IUiView`를 반환한다. 권장 시작 형태는 `DuxelWindowsApp.Run<ProductDesign>(Dux.App(new ProductScreen(...)))`이며, 첫 프레임 전에 컴파일된 디자인과 루트 컴포넌트를 함께 묶는다. `Dux.App(...)`은 선언형 root view를 런타임이 요구하는 `UiScreen`으로 감싸는 semantic alias다.
+
+공통 제품 화면 골격에는 `Dux.AppShell(...)`을 사용한다. AppShell은 선택적인 메뉴, 테마가 적용된 sidebar, 동적 header, meta 텍스트, command 콘텐츠, 선택된 page body를 한 번에 선언한다. 내비게이션 항목은 `Dux.NavItem(...)`으로 만든다. 활성 page는 일반적인 `UiState<int>`/`UiBinding<int>`로도 제어할 수 있지만, enum 기반 `UiState<T>`를 쓰면 앱 내비게이션이 타입 안전해진다.
+
+```csharp
+Dux.AppShell(
+    () => projectName.Value,
+    selectedPage,
+    [
+        Dux.NavItem(ProjectPage.Overview, "Overview", new OverviewPage(state), "Run controls"),
+        Dux.NavItem(ProjectPage.Tasks, "Tasks", new TasksPage(state), () => $"{tasks.Count} active rows"),
+        Dux.NavItem(ProjectPage.Notes, "Notes", new NotesPage(state), "Composition notes")
+    ],
+    new UiAppShellOptions(WindowTitle: "Workspace", SidebarTitle: "Workspace"),
+    Dux.Meta(() => $"Runs {runs.Value}"),
+    Dux.Meta(() => channel.Value));
+```
+
+고수준 레이아웃 헬퍼는 사용자가 화면에서 보는 제품 구조 그대로 작성하게 해준다. 제목 있는 영역은 `Dux.Section(...)`, 라벨이 붙은 설정은 `Dux.Form(...)`과 `Dux.Field(...)`, 반복 카드/메트릭 배치는 `Dux.Grid(...)`, 반복 행은 `Dux.List(...)`, 탭 흐름은 `Dux.Tabs(...)` / `Dux.Tab(...)`, 계층 콘텐츠는 `Dux.Tree(...)`, 구조화 데이터는 `Dux.Table(...)` / `Dux.TableColumn(...)`을 사용한다. 동적 목록과 grid에는 `Dux.List("tasks", tasks, task => task.Id, task => Dux.StatusRow(task.Name, task.Owner, () => task.Progress))` 또는 `Dux.Grid(tasks, task => task.Id, task => new TaskTile(task))` 같은 keyed overload를 우선 사용한다. 개별 view fragment에는 `Dux.Key(...)`와 `.Key(...)`로 같은 안정적인 ID 스코프를 줄 수 있다.
+
+선언형 제어 흐름은 view tree 안에 유지한다. 한쪽 조건부 콘텐츠에는 `Dux.When(...)`과 `Dux.Unless(...)`, 상태별 fragment에는 `Dux.Switch(...)`와 `Dux.Case(...)`, 표시 행에 인덱스가 필요한 반복에는 `Dux.ForEachIndexed(...)`를 사용한다. 이 헬퍼들은 동적 값을 렌더링 중 평가하므로 앱 코드는 상태 변경을 `UiState<T>`에 두고, view는 현재 화면을 설명하는 형태로 유지할 수 있다.
+
+디스플레이 헬퍼는 제품 UI에서 자주 쓰는 조각을 짧게 만든다. sidebar 기반 제품 shell에는 `Dux.AppShell(...)`, 제품 제목과 meta 행에는 `Dux.Header(...)`, padding이 있는 테마 패널에는 `Dux.Surface(...)` 또는 `Dux.Card(...)`, 라벨이 붙은 설정에는 `Dux.SettingsGroup(...)`과 `Dux.Setting(...)`, 의미 있는 상태/안내 메시지에는 `Dux.Callout(...)`, 비어 있거나 비활성화된 상태에는 `Dux.EmptyState(...)`, 조밀한 명령 행에는 `Dux.Toolbar(...)`, 조밀한 상태 행에는 `Dux.MetaBar(...)`와 `Dux.Meta(...)`, 세부 key/value 목록에는 `Dux.PropertyList(...)`와 `Dux.Property(...)`, 선택 가능한 progress 행에는 `Dux.StatusRow(...)`, 의미가 있는 상태 pill에는 `Dux.Badge(...)`와 `UiBadgeTone.Neutral`, `Accent`, `Success`, `Warning`, `Danger`, 대시보드 수치에는 `Dux.MetricCard(...)` 또는 `Dux.Metric(...)`을 사용한다. 명령의 제품 action hierarchy는 버튼 색상을 직접 push하지 않고 `Dux.PrimaryButton(...)`, `Dux.DangerButton(...)`, `.ButtonRole(...)`로 표현한다. Surface와 child 콘텐츠는 기본 Duxel 스크롤바 동작을 그대로 유지한다. 그룹화된 팩터리 표면은 `DuxelView.Display`다.
+
+```csharp
+Dux.Grid(
+    3,
+    Dux.MetricCard("Runs", () => runs.Value.ToString(), "Queued sessions"),
+    Dux.MetricCard("Progress", () => $"{progress.Value:P0}", "Current workflow"),
+    Dux.MetricCard(
+        "Priority",
+        () => priority.Value.ToString(),
+        () => priority.Value >= 4 ? "Needs attention" : "Normal cadence",
+        new UiMetricCardOptions(ValueTone: UiTextTone.Warning)));
+```
+
+제품 명령은 action role, tooltip, enabled 상태가 중요하면 `Dux.CommandBar(...)`를 우선 사용한다. 명령 의미를 값으로 유지하고 버튼의 실제 스타일은 컴파일된 design이 담당하게 한다.
+
+```csharp
+Dux.CommandBar(
+    Dux.Command("Queue", QueueRun, UiButtonRole.Primary, tooltip: () => "Queue one run"),
+    Dux.Command("Reset", Reset, enabled: () => canReset.Value));
+```
+
+설정 화면은 `Dux.SettingsGroup(...)`을 사용하면 각 행이 label, description, control을 함께 소유한다.
+
+```csharp
+Dux.SettingsGroup(
+    Dux.Setting("Project", Dux.TextField("project", project), "Shown in the workspace shell."),
+    Dux.Setting("Channel", Dux.EnumSegmented<ReleaseChannel>("channel", channel)));
+```
+
+선택 컨트롤은 `Dux.Combo(...)`, `Dux.ListBox(...)`, `Dux.RadioButton(...)`, `Dux.Selectable(...)`뿐 아니라 `UiBinding<int>` 또는 typed `UiBinding<T>`로 연결되는 조밀한 모드/채널 picker용 `Dux.Segmented(...)`를 제공한다. typed 선택지는 `Dux.Choice(value, label)`로 만들고, 상태가 enum이면 `Dux.EnumSegmented<TEnum>(...)`으로 바로 연결한다.
+
+`UiModifier`와 fluent extension은 지역적인 컴파일 타임 작성 시각 규칙을 제공한다. 자주 쓰는 modifier는 `.FontSize(...)`, `.Foreground(...)`, `.Tone(...)`, `.Accent()`, `.Success()`, `.Warning()`, `.Danger()`, `.Muted()`, `.Title(...)`, `.Subtitle(...)`, `.Caption(...)`, `.ItemWidth(...)`, `.FillWidth()`, `.Padding(...)`, `.Frame(...)`, `.FillFrameWidth(...)`, `.Width(...)`, `.Height(...)`, `.Background(...)`, `.Border(...)`, `.CornerRadius(...)`, `.Tooltip(...)`, `.VisibleIf(...)`, `.Disabled(...)`, `.StyleColor(...)`, `.StyleVar(...)` 등이다. 텍스트 계층은 `Dux.Title(...)`, `Dux.Subtitle(...)`, `Dux.Caption(...)` 또는 재사용 가능한 `UiTextStyle` 값으로 작성할 수 있다. semantic 텍스트 색조는 `UiTextTone`을 사용하므로 앱 코드는 색상 상수를 들고 다니지 않고 `.Success()`나 `.Warning()`처럼 작성할 수 있다. view가 런타임 theme slot에만 의존하지 않고 자기 렌더링 모양을 직접 가져야 할 때는 shape modifier를 사용한다.
+
+```csharp
+Dux.Callout(
+    "Run Status",
+    () => status.Value,
+    options: new UiCalloutOptions(Tone: UiTextTone.Success, Height: 88f));
+```
+
+`.Panel(...)`은 기본 제공 Windows 11 스타일 surface modifier다. 내부적으로 `UiPanelStyle`을 사용하며 기본값은 `UiStyleColor.FrameBg` / `UiStyleColor.Border`, `UiDesignToken.ControlCornerRadius`, 14 px padding, 현재 콘텐츠 폭 채우기다. fluent modifier보다 factory 호출이 더 잘 읽히면 `Dux.Panel(content, ...)`을 사용한다. 재사용 가능한 컴파일된 스타일은 일반 C# 타입이다. 같은 시각 규칙을 SwiftUI의 `ViewModifier`처럼 이름 붙이고 테스트하고 재사용하려면 `IUiViewStyle`을 구현한다. 스타일은 `UiStyleColor`와 `UiDesignToken` 슬롯을 사용할 수 있으므로, 모양은 C#에서 작성하고 색상/반경은 활성 컴파일 디자인에서 가져올 수 있다.
+
+```csharp
+readonly record struct DashboardPanelStyle(float Height = 0f) : IUiViewStyle
+{
+    public IUiView Apply(IUiView view)
+        => view
+            .Padding(14f)
+            .Background(UiStyleColor.FrameBg)
+            .Border(UiStyleColor.Border)
+            .CornerRadius(UiDesignToken.ControlCornerRadius)
+            .FillFrameWidth(Height);
+}
+
+Dux.TextWrapped(() => status.Value)
+    .Style(new DashboardPanelStyle(116f));
+```
+
+`Frame`은 안정적인 레이아웃 크기를 제공하고, `FillFrameWidth`는 현재 콘텐츠 폭을 채우며, `Background`, `Border`, `CornerRadius`는 컴파일 타임에 작성된 view shape를 설명한다. `Background`와 `Border`는 명시적 `UiColor` 값 또는 활성 디자인의 semantic `UiStyleColor` 슬롯을 받을 수 있다. `CornerRadius`는 고정 float 또는 semantic `UiDesignToken`을 받을 수 있다. shape modifier 앞에 놓인 `Padding`은 장식된 view의 내부 padding으로 흡수되므로 왼쪽과 오른쪽 padding이 모두 shape 측정에 참여한다. `IUiViewStyle`은 같은 modifier들을 컴파일 타임에 작성된 스타일 타입으로 합성한다. `.Style<TStyle>()`은 기본 struct style을 적용하고, `.Style(style)`은 설정된 style 인스턴스를 적용한다. 반복 동적 콘텐츠에서는 keyed list/grid overload를 계속 사용하거나 장식된 fragment에 `.Key(...)`를 붙여 local interaction state를 안정적으로 유지한다. 선언형 메뉴 조합은 `Dux.MainMenuBar(...)`, `Dux.Menu(...)`, `Dux.MenuItem(...)`로 작성한다. 직접 `UiImmediateContext` 접근이 필요한 커스텀 선언형 노드는 `DuxelView.Custom(ui => ...)`를 확장 지점으로 사용한다.
 
 ### `DuxelWindowOptions`
 
@@ -149,6 +337,16 @@ Duxel은 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 | `Height` | `720` |
 | `Title` | `"Duxel"` |
 | `VSync` | `true` |
+| `IconPath` | Duxel 기본 아이콘 |
+| `IntegrateSystemChrome` | `true` |
+| `UseDuxelTitleBar` | `true` |
+| `DuxelTitleBarHeight` | `48f` |
+
+`IntegrateSystemChrome`은 활성 시작 테마/디자인에서 Windows 11 DWM 캡션 색상, 텍스트 색상, 테두리 색상, 라운드 코너, 다크 모드 속성을 적용한다. 앱이 기본 플랫폼 추적 디자인을 사용할 때는 Windows `WM_SETTINGCHANGE` 테마 알림으로 Duxel 테마와 렌더러 clear color가 런타임에 갱신된다.
+
+`UseDuxelTitleBar`는 기본적으로 켜져 있으므로, 앱이 명시적으로 `UseDuxelTitleBar = false`를 지정하지 않는 한 Windows 앱은 네이티브 캡션을 제거하고 Vulkan surface 안에 Duxel 소유 타이틀바를 렌더링한다. 앱 런타임은 사용자 `UiScreen`을 감싸고, 상단 viewport inset을 예약하며, 앱 아이콘/제목/최소화/최대화/닫기 버튼을 그리고, 창 이동/최소화/최대화/닫기 명령은 `IWindowChromeController`를 통해 플랫폼에 위임한다.
+
+`IconPath`와 `IconData`를 지정하지 않으면 Duxel은 번들된 기본 `.ico`를 Win32 창/작업표시줄 아이콘으로 사용한다. `Duxel.Windows.App` 패키지도 같은 아이콘을 Windows 실행 파일의 기본 `ApplicationIcon`으로 제공하며, 앱이 자체 아이콘을 지정하거나 `DuxelUseDefaultIcon=false`를 설정하면 이를 사용하지 않는다.
 
 ### `DuxelRendererOptions`
 
@@ -282,7 +480,6 @@ using Duxel.Windows.App;
 
 DuxelWindowsApp.Run(new DuxelAppOptions
 {
-  Theme = UiTheme.ImGuiDark,
   Window = new DuxelWindowOptions
   {
     Title = "Configured Duxel App",
@@ -771,6 +968,7 @@ ui.EndWindowCanvas();
 | 필요 항목 | 시작점 |
 |---|---|
 | 전체 기능 쇼케이스 | `samples/fba/all_features.cs` |
+| 선언형 C# 대시보드 | `samples/fba/declarative_dashboard_fba.cs` |
 | 선언형 DSL + 테마 | `samples/Duxel.ThemeDemo` |
 | 레이아웃과 스타일 제어 | `samples/fba/advanced_layout.cs` |
 | 레거시 컨럼 | `samples/fba/columns_demo.cs` |
@@ -905,13 +1103,10 @@ FBA 샘플은 다음과 같은 패키지 지시문을 사용한다.
 - `DUXEL_VK_STATIC_GEOMETRY_INPLACE_UPDATE`
 - `DUXEL_VK_STATIC_GEOMETRY_ROTATING_UPDATE`
 - `DUXEL_VK_STATIC_PRIMITIVE_TRIANGLES`
-- `DUXEL_VK_SOLID_UNIFIED_PIPELINE`
-- `DUXEL_VK_SOLID_UNIFIED_STATIC`
-- `DUXEL_VK_TRIANGLE_COLOR_PIPELINE`
 
 특정 토글에 의존하는 작업은 문서화하거나 사용하기 전에 관련 샘플에서 이름과 의미를 다시 확인한다.
 
-Vulkan 커맨드 기록 프로파일링은 `DUXEL_VK_PROFILE=1`로 켠다. `DUXEL_VK_PROFILE_EVERY`는 로그 간격 프레임 수이고, `DUXEL_VK_PROFILE_OUT`은 프로파일 라인을 파일에 append한다. 프로파일 라인의 `device(vendor=... vid=... did=... type=... name=... gfxQ=... uploadQ=... xferCandQ=... tsBits=... tsPeriodNs=... gpuTs=...)`와 `policy(upload=... transferCandidate=... triColor=... solidUnified=... solidUnifiedStatic=... staticPrimTri=... staticUpdate=... staticUpdateReq=... scheduler=... schedWindow=... staticSecondaryMin=...)`는 나중에 NVIDIA, AMD, Intel, integrated/discrete 장치의 artifact를 비교할 때 어떤 장치와 자동 정책에서 나온 결과인지 증명한다. `uploadQ`는 upload command buffer가 실제로 사용하는 queue family이고, `xferCandQ`는 탐지된 non-graphics transfer-capable 후보일 뿐이다. 따라서 `policy(upload=graphics transferCandidate=1)`은 후보가 있다는 뜻이지 upload가 이미 transfer queue를 사용한다는 뜻이 아니다. `DUXEL_VK_UPLOAD_QUEUE=transfer`는 후보가 있을 때만 split transfer upload path를 opt-in으로 켠다. `policy(upload=transfer transferCandidate=1)`은 upload copy command buffer가 그 queue를 실제로 사용한다는 profile 증거다. `staticUpdateReq`는 요청된 mode이고 `staticUpdate`는 장치 정책으로 resolve된 mode다. `scheduler`는 resolved command-scheduler mode이며 `disabled`, `static`, `all` 중 하나다. `stateUs(pipe=... desc=... buf=... push=... scissor=...)`는 pipeline bind, descriptor bind, vertex/index/primitive buffer bind, push constant, scissor set 비용을 분리해서 보여준다. `clipCache(calc=... reuse=...)`는 실제 scissor rectangle 계산 횟수와 연속으로 같은 clip/translation을 재사용한 횟수를 기록한다. `staticSec(cand=... cmds=... draws=...)`는 현재 `staticSecondaryMin` threshold를 넘긴 static draw list 수와 그 후보 안의 기록된 command/draw 수를 기록한다. `cand=0`이면 static list가 존재해도 그 frame에서는 secondary command buffer가 다음 경로 후보라는 가설이 약하다는 뜻이다. `listWork(staticCmd=... dynCmd=... staticDraw=... dynDraw=... staticPipe=... dynPipe=... staticClip=... dynClip=... staticScissor=... dynScissor=... staticPush=... dynPush=... staticGeom=... dynGeom=... staticPrim=... dynPrim=...)`는 command-recording 작업을 static cached replay와 dynamic draw list로 나눠 기록한다. 다음 병목이 static replay policy인지 dynamic UI ordering/channelization인지 판단할 때 이 값을 우선 확인한다. `staticGeom(hit=... create=... replace=... update=... reuse=... hash=...)`는 upload phase에서 static geometry cache hit, buffer creation, content replacement, 같은 shape의 in-place content update, 같은 shape의 rotating-buffer reuse, fallback content hashing을 기록한다. `staticMem(active=... activeBytes=... retired=... retiredBytes=...)`는 memory-pressure 확인을 위해 active static geometry entry/bytes와 retired rotating-pool entry/bytes를 기록한다. `staticPrim(expand=... expandPrim=... force=... autoSkip=... autoSkipPrim=... autoSkipMut=... expandBytes=... autoSkipBytes=...)`는 frame별 static primitive triangle expansion 결정을 기록한다. `policy(... staticPrimTri=1 ...)`은 장치 정책상 경로가 허용됐다는 뜻일 뿐이므로, 실제 draw-list가 확장됐는지는 이 카운터로 확인한다. `autoSkipMut`은 같은 static geometry tag의 content가 바뀌는 중이라 확장을 억제한 skip subset이다. `pipeClass(font=... texTri=... colorTri=... texPrim=... colorPrim=... solid=...)`는 renderer policy 적용 뒤 실제로 선택된 pipeline class를 기록하므로 원본 source command kind만 보는 것보다 pipeline switch 분석에 더 정확하다. `sched(probe=... hit=... miss=... nochange=... lists=... merged=... us=...)`는 opt-in command scheduler의 동작과 비용을 기록한다. `upSched(sub=... prepSub=... wait=... flush=... bytes=... texRegions=... bufCopies=... submitUs=... prepUs=... waitUs=...)`는 staging upload scheduler submission, split-transfer graphics-prepare submission, upload fence wait, batch flush, staging byte volume, texture copy region, static/buffer copy command, 그리고 submission/wait 비용을 기록한다. `imgTrans(total=... toDst=... toShader=... present=... color=... xferStage=... gfxStage=... us=...)`는 image layout transition 횟수와 transfer-queue-compatible stage mask / graphics-stage-required barrier를 분리해서 기록한다. `state=`는 scissor를 제외한 state command 시간이고, scissor는 `clip=`에도 포함되므로 별도로 해석한다.
+Vulkan 커맨드 기록 프로파일링은 `DUXEL_VK_PROFILE=1`로 켠다. `DUXEL_VK_PROFILE_EVERY`는 로그 간격 프레임 수이고, `DUXEL_VK_PROFILE_OUT`은 프로파일 라인을 파일에 append한다. 프로파일 라인의 `device(vendor=... vid=... did=... type=... name=... gfxQ=... uploadQ=... xferCandQ=... tsBits=... tsPeriodNs=... gpuTs=...)`와 `policy(upload=... transferCandidate=... staticPrimTri=... staticUpdate=... staticUpdateReq=... scheduler=... schedWindow=... staticSecondaryMin=...)`는 나중에 NVIDIA, AMD, Intel, integrated/discrete 장치의 artifact를 비교할 때 어떤 장치와 자동 정책에서 나온 결과인지 증명한다. `uploadQ`는 upload command buffer가 실제로 사용하는 queue family이고, `xferCandQ`는 탐지된 non-graphics transfer-capable 후보일 뿐이다. 따라서 `policy(upload=graphics transferCandidate=1)`은 후보가 있다는 뜻이지 upload가 이미 transfer queue를 사용한다는 뜻이 아니다. `DUXEL_VK_UPLOAD_QUEUE=transfer`는 후보가 있을 때만 split transfer upload path를 opt-in으로 켠다. `policy(upload=transfer transferCandidate=1)`은 upload copy command buffer가 그 queue를 실제로 사용한다는 profile 증거다. `staticUpdateReq`는 요청된 mode이고 `staticUpdate`는 장치 정책으로 resolve된 mode다. `scheduler`는 resolved command-scheduler mode이며 `disabled`, `static`, `all` 중 하나다. `stateUs(pipe=... desc=... buf=... push=... scissor=...)`는 pipeline bind, descriptor bind, vertex/index/primitive buffer bind, push constant, scissor set 비용을 분리해서 보여준다. `clipCache(calc=... reuse=...)`는 실제 scissor rectangle 계산 횟수와 연속으로 같은 clip/translation을 재사용한 횟수를 기록한다. `staticSec(cand=... cmds=... draws=...)`는 현재 `staticSecondaryMin` threshold를 넘긴 static draw list 수와 그 후보 안의 기록된 command/draw 수를 기록한다. `cand=0`이면 static list가 존재해도 그 frame에서는 secondary command buffer가 다음 경로 후보라는 가설이 약하다는 뜻이다. `listWork(staticCmd=... dynCmd=... staticDraw=... dynDraw=... staticPipe=... dynPipe=... staticClip=... dynClip=... staticScissor=... dynScissor=... staticPush=... dynPush=... staticGeom=... dynGeom=... staticPrim=... dynPrim=...)`는 command-recording 작업을 static cached replay와 dynamic draw list로 나눠 기록한다. 다음 병목이 static replay policy인지 dynamic UI ordering/channelization인지 판단할 때 이 값을 우선 확인한다. `staticGeom(hit=... create=... replace=... update=... reuse=... hash=...)`는 upload phase에서 static geometry cache hit, buffer creation, content replacement, 같은 shape의 in-place content update, 같은 shape의 rotating-buffer reuse, fallback content hashing을 기록한다. `staticMem(active=... activeBytes=... retired=... retiredBytes=...)`는 memory-pressure 확인을 위해 active static geometry entry/bytes와 retired rotating-pool entry/bytes를 기록한다. `staticPrim(expand=... expandPrim=... force=... autoSkip=... autoSkipPrim=... autoSkipMut=... expandBytes=... autoSkipBytes=...)`는 frame별 static primitive triangle expansion 결정을 기록한다. `policy(... staticPrimTri=1 ...)`은 장치 정책상 경로가 허용됐다는 뜻일 뿐이므로, 실제 draw-list가 확장됐는지는 이 카운터로 확인한다. `autoSkipMut`은 같은 static geometry tag의 content가 바뀌는 중이라 확장을 억제한 skip subset이다. `pipeClass(font=... texTri=... colorTri=... texPrim=... colorPrim=... solid=...)`는 renderer policy 적용 뒤 실제로 선택된 pipeline class를 기록하므로 원본 source command kind만 보는 것보다 pipeline switch 분석에 더 정확하다. `sched(probe=... hit=... miss=... nochange=... lists=... merged=... us=...)`는 opt-in command scheduler의 동작과 비용을 기록한다. `upSched(sub=... prepSub=... wait=... flush=... bytes=... texRegions=... bufCopies=... submitUs=... prepUs=... waitUs=...)`는 staging upload scheduler submission, split-transfer graphics-prepare submission, upload fence wait, batch flush, staging byte volume, texture copy region, static/buffer copy command, 그리고 submission/wait 비용을 기록한다. `imgTrans(total=... toDst=... toShader=... present=... color=... xferStage=... gfxStage=... us=...)`는 image layout transition 횟수와 transfer-queue-compatible stage mask / graphics-stage-required barrier를 분리해서 기록한다. `state=`는 scissor를 제외한 state command 시간이고, scissor는 `clip=`에도 포함되므로 별도로 해석한다.
 
 성능 데모는 확인하려는 병목에 맞아야 한다. 넓은 layer-widget scene은 최종 regression 용도로 사용하되, 질문이 좁으면 초점형 FBA 데모를 고르거나 추가한다. `samples/fba/pipeline_ordering_bench_fba.cs`는 dynamic solid/text pipeline ordering 비용을 확인하는 초점형 gate이며 alternating, grouped solids-then-text, copy-merge `channelized-solid-text`, copy-free `channel-drawlists-solid-text` phase를 포함하고 `DUXEL_PIPELINE_ORDER_BENCH_OUT`, `DUXEL_PIPELINE_ORDER_PHASE_SECONDS`, `DUXEL_PIPELINE_ORDER_ITEMS`를 사용한다. `samples/fba/dynamic_widget_ordering_bench_fba.cs`는 widget-like dynamic producer ordering과 row-clip churn을 확인하는 초점형 gate이며 alternating widget row, grouped solids-then-text, copy-merge channelized phase, copy-free channel-drawlists phase를 포함하고 `DUXEL_DYN_WIDGET_ORDER_BENCH_OUT`, `DUXEL_DYN_WIDGET_ORDER_PHASE_SECONDS`, `DUXEL_DYN_WIDGET_ORDER_WARMUP_SECONDS`, `DUXEL_DYN_WIDGET_ORDER_ITEMS`, `DUXEL_DYN_WIDGET_ORDER_ROW_CLIPS`를 사용한다. `samples/fba/vector_primitives_bench_fba.cs`는 primitive-heavy geometry를 확인하는 초점형 gate이며 `DUXEL_VECTOR_BENCH_WORKLOAD=mixed`, `rect-outline`, `axis-line`과 `DUXEL_VECTOR_BENCH_OUT`, `DUXEL_VECTOR_BENCH_PHASE_SECONDS`, `DUXEL_VECTOR_BENCH_COUNTS`를 사용한다. `samples/fba/Duxel_perf_test_fba.cs`는 polygon physics/perf smoke이며 기본은 Render profile과 global static backdrop cache다. `DUXEL_PERF_PROFILE=render|display`로 시작 profile을 override할 수 있고, `DUXEL_PERF_GLOBAL_STATIC_CACHE=0`은 retained static backdrop reference를 끈다. UI의 Render Profile checkbox는 재시작 없이 MSAA를 `1x`/`4x`로 바꿔 profile을 즉시 적용한다. `samples/fba/global_dirty_strategy_bench.cs`는 global static background cache와 dynamic overlay update를 비교하는 초점형 gate이며, `DUXEL_GLOBAL_DIRTY_CHANNEL_DRAWLISTS`로 그 배경/오버레이 channel 구조에서 copy-merge와 별도 draw-list 출력을 비교한다. `samples/fba/static_layer_moving_order_bench_fba.cs`는 moving static-layer replay schedule 재사용을 확인하는 초점형 gate이며 `DUXEL_STATIC_LAYER_MOVE_ORDER_BENCH_OUT`, `DUXEL_STATIC_LAYER_MOVE_ORDER_PHASE_SECONDS`, `DUXEL_STATIC_LAYER_MOVE_ORDER_ITEMS`, `DUXEL_STATIC_LAYER_MOVE_ORDER_AMPLITUDE`를 사용한다. `samples/fba/static_cache_rebuild_bench_fba.cs`는 cache replay, false-dirty static rebuild, mutating static geometry replacement/update 비용, Core cache-copy allocation pressure, static primitive triangle memory pressure를 분리하는 초점형 gate이며 측정 frame별 `avgAllocatedBytes`도 보고한다. 이 gate는 `DUXEL_STATIC_CACHE_REBUILD_BENCH_OUT`, `DUXEL_STATIC_CACHE_REBUILD_PHASE_SECONDS`, `DUXEL_STATIC_CACHE_REBUILD_WARMUP_SECONDS`, `DUXEL_STATIC_CACHE_REBUILD_LAYERS`, `DUXEL_STATIC_CACHE_REBUILD_DENSITY`, `DUXEL_STATIC_CACHE_REBUILD_PRIMITIVE_MODE`(`circles`, `rects`, `mixed`), `DUXEL_STATIC_CACHE_REBUILD_CIRCLE_SEGMENTS`, GPU-bound variant용 선택 토글 `DUXEL_STATIC_CACHE_REBUILD_GPU_OVERDRAW`를 사용한다. `samples/fba/texture_upload_barrier_bench_fba.cs`는 transfer-queue policy 변경 전 texture upload copy/barrier 동작을 분리하는 초점형 gate이며 `DUXEL_TEXTURE_UPLOAD_BENCH_OUT`, `DUXEL_TEXTURE_UPLOAD_PHASE_SECONDS`, `DUXEL_TEXTURE_UPLOAD_SIZE`, `DUXEL_TEXTURE_UPLOAD_REGION_SIZE`, `DUXEL_TEXTURE_UPLOAD_REGIONS`, `DUXEL_TEXTURE_UPLOAD_TEXTURES`, `DUXEL_TEXTURE_UPLOAD_WARMUP_FRAMES`를 사용한다. `samples/fba/directtext_page_upload_bench_fba.cs`는 platform glyph rasterizer 비용을 섞지 않고 DirectText page-style partial texture upload 동작을 확인하는 초점형 gate이며 `DUXEL_DTPAGE_UPLOAD_BENCH_OUT`, `DUXEL_DTPAGE_UPLOAD_PHASE_SECONDS`, `DUXEL_DTPAGE_UPLOAD_PAGE_SIZE`, `DUXEL_DTPAGE_UPLOAD_REGION_WIDTH`, `DUXEL_DTPAGE_UPLOAD_REGION_HEIGHT`, `DUXEL_DTPAGE_UPLOAD_REGIONS`, `DUXEL_DTPAGE_UPLOAD_PAGES`, `DUXEL_DTPAGE_UPLOAD_WARMUP_FRAMES`를 사용한다.
 
@@ -933,111 +1128,50 @@ Dirty static layer가 같은 draw-list shape로 다시 build되면 Core는 새 l
 
 GPU timestamp 계측은 `DUXEL_VK_GPU_PROFILE=1`로 추가로 켠다. 이 값은 그래픽 queue timestamp를 지원하는 장치에서만 활성화되고, 프로파일 라인의 `gpuRender=...`에 render pass 전후 GPU 실행 시간을 microsecond 단위로 추가한다. CPU command-recording 비용과 shader/GPU-side 비용을 분리할 때 사용한다.
 
-Static cached rect/circle primitive를 triangle vertex/index geometry로 확장하는 경로는 `DUXEL_VK_STATIC_PRIMITIVE_TRIANGLES=auto`가 기본이다. 자동 정책은 triangle color pipeline이 켜진 NVIDIA/AMD discrete GPU에서만 켠 뒤 draw-list별 byte guard와 mutation guard를 적용한다. `auto`는 예상 expanded vertex/index bytes가 primitive-instance bytes의 `32x`를 넘으면 확장하지 않아 high-segment primitive-heavy cache를 static primitive-instance 경로에 남긴다. 또한 같은 static geometry tag의 content hash가 바뀌면 해당 tag는 `30`프레임 동안 확장을 억제해서 mutating static layer가 안정될 때까지 upload가 싼 primitive-instance 경로를 사용하게 한다. `1/true/on`은 확장을 강제하고 `0/false/off`는 비활성화를 강제한다. 이 경로는 cached static draw-list의 command 순서, clip, opacity, texture state를 유지하면서 static primitive buffer bind와 primitive shader 경로를 줄인다. 실제 expand/skip 여부는 장치 정책 블록만 보지 말고 profile의 `staticPrim(...)` 카운터로 확인한다.
+Static cached rect/circle primitive를 triangle vertex/index geometry로 확장하는 경로는 `DUXEL_VK_STATIC_PRIMITIVE_TRIANGLES=auto`가 기본이다. 자동 정책은 NVIDIA/AMD discrete GPU에서만 켠 뒤 draw-list별 byte guard와 mutation guard를 적용한다. `auto`는 예상 expanded vertex/index bytes가 primitive-instance bytes의 `32x`를 넘으면 확장하지 않아 high-segment primitive-heavy cache를 static primitive-instance 경로에 남긴다. 또한 같은 static geometry tag의 content hash가 바뀌면 해당 tag는 `30`프레임 동안 확장을 억제해서 mutating static layer가 안정될 때까지 upload가 싼 primitive-instance 경로를 사용하게 한다. `1/true/on`은 확장을 강제하고 `0/false/off`는 비활성화를 강제한다. 이 경로는 cached static draw-list의 command 순서, clip, opacity, texture state를 유지하면서 확장된 primitive를 indexed triangle draw mode로 태운다. 실제 expand/skip 여부는 장치 정책 블록만 보지 말고 profile의 `staticPrim(...)` 카운터로 확인한다.
 
-Static primitive auto decision의 구현 경계는 `VulkanRendererBackend.StaticPrimitivePolicy.cs`다. `VulkanRendererBackend.StaticGeometry.cs`는 upload code 안에 device/heuristic decision을 직접 넣지 말고 이 policy 경계를 호출해야 한다.
+Static primitive auto decision의 구현 경계는 `VulkanRendererBackend.StaticPrimitivePolicy.cs`다. Static geometry 코드는 upload code 안에 device/heuristic decision을 직접 넣지 말고 이 policy 경계를 호출해야 한다.
+
+### GPU-driven 렌더러 아키텍처 (2026-07-03)
+
+Vulkan backend는 **graphics pipeline 1개**, **bindless texture descriptor set 1개**, **셰이더 2개**(`Shaders/imgui.vert`, `Shaders/imgui.frag`)로 구성된 GPU-driven 렌더러다:
+
+- **Bindless texture**: 전역 `sampler2D[]` combined-image-sampler 배열(용량 4096, UPDATE_AFTER_BIND + PARTIALLY_BOUND) 하나를 프레임당 1회 bind한다. Texture는 `TextureResources`의 free-list allocator에서 slot index를 받고, slot은 deferred texture-destroy 시점에 재활용된다. Per-texture descriptor set은 존재하지 않는다.
+- **통합 dual-source blending**: 모든 draw가 premultiplied color와 per-channel blend factor를 출력한다(`One/OneMinusSrc1Color`, `One/OneMinusSrc1Alpha`). 일반 draw는 `blendFactor = vec4(alpha)`를 출력해 `SrcAlpha/OneMinusSrcAlpha`와 수학적으로 동일하고, ClearType subpixel 텍스트는 per-channel coverage를 출력하며 fragment texture-index push constant의 최상위 비트로 선택된다.
+- **Vertex pulling**: pipeline에 vertex input state가 없다. Vertex shader가 buffer device address(`GL_EXT_buffer_reference`)로 `UiVertex` 스트림과 packed `PrimitiveInstance` 레코드(둘 다 20바이트/5-dword)를 직접 읽는다.
+- **Push constant 레이아웃**: vertex range `[0,40)` = `scale`(8) + `translate`(8) + `opacity`(4) + `drawMode`(4) + vertex-buffer address(8) + primitive-buffer address(8); fragment range `[40,44)` = packed texture index + subpixel mode bit. `drawMode` 0 = indexed triangle pulling, 1 = primitive instance expansion(셰이더 내 rect corner/circle fan 전개).
+- **Per-draw state**: `vkCmdBindPipeline`은 프레임당 1회다. Draw별 변화는 push constant, index-buffer bind, dynamic scissor뿐이다. `vkCmdBindVertexBuffers`는 backend에 더 이상 존재하지 않는다.
+- **Dynamic rendering**: render pass/framebuffer 객체가 없다. 프레임은 `RenderingAttachmentInfo`와 함께 `vkCmdBeginRenderingKHR`/`vkCmdEndRenderingKHR`로 기록하며, MSAA는 inline resolve(`resolveMode = AVERAGE`, MSAA target → swapchain image)로 처리한다. 암묵적 render-pass 전환 대신 명시적 image barrier를 사용한다: 렌더링 전 `UNDEFINED→COLOR_ATTACHMENT`, 후 `COLOR_ATTACHMENT→PRESENT_SRC`. Pipeline은 swapchain format을 담은 `PipelineRenderingCreateInfo`를 체인한다.
+- **필수 device feature**(없으면 명시적 실패, fallback 없음): `shaderSampledImageArrayDynamicIndexing`, `descriptorBindingSampledImageUpdateAfterBind`, `descriptorBindingUpdateUnusedWhilePending`, `descriptorBindingPartiallyBound`, `runtimeDescriptorArray`, `bufferDeviceAddress`, `dualSrcBlend`, `dynamicRendering`(`VK_KHR_dynamic_rendering`).
+- **Dynamic geometry 메모리**: 프레임별 vertex/primitive buffer는 BAR 메모리(`DEVICE_LOCAL|HOST_VISIBLE|HOST_COHERENT`)를 우선 선택하고, 장치에 없으면 명시된 host-visible 요구 집합으로 할당한다. Vertex pulling 성능에 필수적인 선택이다: 일반 host 메모리에 대한 셰이더 BDA 읽기는 정점마다 PCIe를 건너서 dynamic 장면이 측정 가능하게 느려진다.
+
+### 렌더러 모듈 맵
+
+`VulkanRendererBackend`는 19개 partial-class 모듈로 구성된다. 새 단일 목적 파일을 추가하지 말고 대응하는 모듈을 확장한다:
+
+- `VulkanRendererBackend.cs` — `IRendererBackend` shell, constructor/bootstrap 순서, lifecycle/teardown, render-entry frame 순서, settings/API mutation.
+- `VulkanRendererBackend.Device.cs` — instance/surface/physical-device/queue/device 셋업, 필수 feature 게이트, vendor/device policy state와 env parsing, pipeline cache identity.
+- `VulkanRendererBackend.Swapchain.cs` — swapchain selection policy, swapchain resource/recreate flow, render pass/framebuffer/MSAA target, sync/query resource.
+- `VulkanRendererBackend.PipelineResources.cs` — bindless descriptor layout/pool/set, pipeline layout/push range, 단일 graphics pipeline, sampler, pipeline cache load/save, embedded shader loading.
+- `VulkanRendererBackend.Resources.cs` — generic buffer/image/view/memory helper(preferred-memory 선택을 포함한 `CreateBuffer`, `GetBufferDeviceAddress`), image layout transition policy와 `imgTrans(...)` counter.
+- `VulkanRendererBackend.TextureResources.cs` — texture create/update/destroy, bindless slot allocator와 descriptor write, upload batching, font/white texture id classification, deferred destroy.
+- `VulkanRendererBackend.UploadScheduler.cs` — staging buffer lifetime, upload batching(`DUXEL_VK_UPLOAD_BATCH`), upload queue policy(`DUXEL_VK_UPLOAD_QUEUE`), submission/wait accounting.
+- `VulkanRendererBackend.DynamicGeometry.cs` — 프레임별 vertex/index/primitive buffer capacity/mapping(BAR 우선), dynamic geometry upload, frame geometry preparation.
+- `VulkanRendererBackend.StaticGeometry.cs` — static cache identity/lifetime/LRU, content/shape derivation, frame preparation, policy application, replacement policy.
+- `VulkanRendererBackend.StaticGeometryStorage.cs` — static device-local buffer materialization(device address 포함), static upload/layout writing, retired-buffer pool.
+- `VulkanRendererBackend.StaticPrimitivePolicy.cs` — static primitive triangle-expansion auto policy(`DUXEL_VK_STATIC_PRIMITIVE_TRIANGLES`), byte/mutation guard, decision profiling.
+- `VulkanRendererBackend.Frame.cs` — frame orchestration(acquire/submit/present/fence), shared frame-fence wait, frame command-recording 준비, frame completion.
+- `VulkanRendererBackend.CommandRecording.cs` — `RecordCommandBuffer`(bindless set과 단일 pipeline을 1회 bind), frame/render-pass begin/end, recording state aggregation, frame/draw-list context, draw-list traversal.
+- `VulkanRendererBackend.CommandState.cs` — draw-mode push state, texture-index push state, vertex/primitive address push + index-buffer bind state, transform/opacity push state, scissor state.
+- `VulkanRendererBackend.CommandDraw.cs` — draw-path orchestration, draw dispatch(indexed/instanced), command classification, texture lookup cache, primitive instance encoding.
+- `VulkanRendererBackend.CommandScheduling.cs` — opt-in overlap-constrained command scheduler(`DUXEL_VK_COMMAND_SCHEDULER`), schedule cache, merge expansion.
+- `VulkanRendererBackend.CommandDiagnostics.cs` — command diag gating/label(`DUXEL_VK_COMMAND_DIAG`), font diagnostics(`DUXEL_VK_FONT_DIAG`), record profile counter와 `CommandRecordStats` 구성.
+- `VulkanRendererBackend.Diagnostics.cs` — profile line 출력, device/policy 텍스트, GPU timestamp 해석, 실패 추적.
+- `VulkanRendererBackend.Types.cs` — 공용 renderer record(device address를 포함한 `StaticGeometryBuffer`, slot index를 갖는 `TextureResource`, frame resource).
 
 Upload command pool, staging buffer lifetime, `DUXEL_VK_UPLOAD_BATCH`, `DUXEL_VK_UPLOAD_QUEUE`, staging offset reservation, batch flush, graphics upload-prepare command submission, transfer upload-copy submission, single-time upload submission 책임은 `VulkanRendererBackend.UploadScheduler.cs`에 둔다. Texture update와 static geometry upload 코드는 자체 staging command 경로를 늘리지 말고 이 경계를 호출해야 한다. Upload batching은 기본 enabled이며, 진단이 필요할 때만 `DUXEL_VK_UPLOAD_BATCH=0`, `false`, `off`로 끈다. Transfer upload path는 opt-in 전용이다. 대상 vendor/device의 focused texture/page upload gate가 split path가 더 빠르다는 것을 증명하기 전까지 default graphics path를 유지한다. 로컬 NVIDIA `10de:2f58` gate에서는 `upSched(prepSub=1 ...)`와 더 긴 upload wait가 짧은 transfer-copy submission 이득을 상쇄해서 transfer가 generic texture update에서 약 `12-13%`, DirectText page update에서 약 `15-19%` 느렸다.
 
-Rotating static geometry retired-buffer pool ownership은 `VulkanRendererBackend.StaticGeometryRetiredPool.cs`에 둔다. Frame-safe availability check, tag별 pool cap, idle pruning, retired memory stats, retired-buffer teardown은 그 파일에서 유지하고, `VulkanRendererBackend.StaticGeometry.cs`는 active cache 생성/교체/prune/teardown 흐름에서 이 경계를 호출해야 한다.
-
-Active static geometry cache identity와 lifetime은 `VulkanRendererBackend.StaticGeometryCache.cs`에 둔다. Static tag recognition, active entry get/set, seen-frame tracking, LRU prune, active memory stats, active-buffer teardown은 그 파일에서 유지하고, `VulkanRendererBackend.StaticGeometry.cs`는 same-shape replacement policy orchestration에 집중해야 한다.
-
-Static geometry upload/layout writing은 `VulkanRendererBackend.StaticGeometryUpload.cs`에 둔다. Static vertex/index/primitive staging write, expanded primitive triangle layout/writer, primitive instance writer, solid sentinel reservation helper는 그 파일에서 유지한다.
-
-Same-shape static geometry replacement policy는 `VulkanRendererBackend.StaticGeometryReplacementPolicy.cs`에 둔다. `StaticGeometryShape`, cache-entry match check, resource presence check, in-place compatibility check는 그 파일에서 유지하고, `VulkanRendererBackend.StaticGeometry.cs`는 선택된 경로를 orchestration하며 cache/upload/retired-pool 경계를 호출해야 한다.
-
-Dynamic per-frame geometry upload는 `VulkanRendererBackend.DynamicGeometryUpload.cs`에 둔다. Dynamic draw-list index ownership, mapped frame vertex/index write, dynamic primitive instance write, dynamic primitive sentinel count는 그 파일에서 유지하고, `VulkanRendererBackend.StaticGeometry.cs`는 static binding과 dynamic count 준비만 담당하며 frame loop는 dynamic upload와 static cache pruning을 별도 단계로 호출해야 한다.
-
-Dynamic frame geometry buffer ownership은 `VulkanRendererBackend.GeometryBuffers.cs`에 둔다. Dynamic frame vertex/index/primitive buffer capacity growth, host-visible memory mapping/unmapping, queued replacement destroy, frame geometry buffer teardown은 그 파일에서 유지한다. `VulkanRendererBackend.FrameGeometry.cs`는 필요한 capacity를 결정하고 이 경계를 호출해야 하며, lifecycle과 swapchain teardown은 `DestroyGeometryBuffers()`를 호출해야 한다.
-
-Static geometry buffer materialization은 `VulkanRendererBackend.StaticGeometryMaterialization.cs`에 둔다. Static device-local buffer allocation, common static vertex/index/primitive upload fan-out, create-path materialization, same-shape reupload materialization은 그 파일에서 유지하고, `VulkanRendererBackend.StaticGeometry.cs`는 high-level cache/reuse/update/replace/create 정책을 선택한 뒤 이 경계를 호출해야 한다.
-
-Per-frame static/dynamic draw-list preparation은 `VulkanRendererBackend.StaticGeometryFramePreparation.cs`에 둔다. Static binding dictionary ownership, dynamic vertex/index/primitive counter, static draw-list binding classification, static-geometry profile counter reset은 그 파일에서 유지하고, render loop는 frame buffer sizing에 `FrameGeometryCounts`를 사용해야 한다.
-
-Static geometry content/shape derivation은 `VulkanRendererBackend.StaticGeometryContent.cs`에 둔다. `StaticGeometryContent`, content hash selection, fallback hash profiling, static primitive triangle decision recording, mutation-suppression input, expanded primitive layout selection, shape packing은 그 파일에서 유지하고, `VulkanRendererBackend.StaticGeometry.cs`는 준비된 content를 받아 cache/reuse/update/replace/create 정책을 적용해야 한다.
-
-Static geometry policy application은 `VulkanRendererBackend.StaticGeometryPolicyApplication.cs`에 둔다. Cache-hit accounting, reusable-buffer activation, in-place update activation, replacement teardown/retire choice, creation counting, materialize+activate 호출은 그 파일에서 유지하고, `VulkanRendererBackend.StaticGeometry.cs`는 준비된 content와 shape 위의 얇은 branch selector로 남겨야 한다.
-
-Primitive instance encoding은 `VulkanRendererBackend.PrimitiveInstanceEncoding.cs`에 둔다. `PrimitiveInstance` payload flag, solid-triangle sentinel payload, dynamic/static primitive sentinel count, primitive instance creator, sentinel reservation predicate는 그 파일에서 유지하고, dynamic/static upload와 command recording 코드는 임의 payload/sentinel 상수를 새로 두지 말고 이 경계를 호출해야 한다.
-
-Command pipeline binding state는 `VulkanRendererBackend.CommandPipelineState.cs`에 둔다. Current-pipeline cache, `vkCmdBindPipeline` timing, source command-kind bind counter, actual pipeline-class counter는 그 파일에서 유지하고, `VulkanRendererBackend.CommandRecording.cs`는 desired pipeline을 고른 뒤 command-state 경계를 호출해야 한다.
-
-Command descriptor-set binding state는 `VulkanRendererBackend.CommandDescriptorState.cs`에 둔다. Last descriptor-set cache, `vkCmdBindDescriptorSets` timing, descriptor bind counter는 그 파일에서 유지하고, command recording은 texture resource를 resolve한 뒤 이 경계를 호출해야 한다.
-
-Command geometry/primitive buffer binding state는 `VulkanRendererBackend.CommandBufferBindingState.cs`에 둔다. Geometry vertex/index buffer cache, primitive instance buffer cache, `vkCmdBindVertexBuffers`/`vkCmdBindIndexBuffer` timing, geometry/primitive bind counter는 그 파일에서 유지하고, command recording은 triangle, expanded static primitive, unified solid primitive, primitive-instance draw path에서 이 경계를 호출해야 한다.
-
-Command frame/render-pass recording은 `VulkanRendererBackend.CommandFrameRecording.cs`에 둔다. Command-buffer begin/end, main render-pass begin/end, GPU timestamp query reset/write helper는 그 파일에서 유지하고, `VulkanRendererBackend.CommandRecording.cs`는 raw render-pass setup을 직접 포함하지 말고 이 frame 경계를 호출해야 한다.
-
-Render-entry shell ownership은 `VulkanRendererBackend.RenderEntry.cs`에 둔다. `RenderDrawData(...)`는 그 파일에서 profile reset, texture update, frame target/begin, frame geometry preparation, command recording preparation, frame completion으로 이어지는 high-level frame order만 보존한다. Texture lifetime, swapchain acquire, geometry upload, command-buffer recording, submit/present, profile-output internals를 이 shell로 inline하지 않는다.
-
-Frame orchestration은 `VulkanRendererBackend.FrameOrchestration.cs`에 둔다. Frame target validation, swapchain image acquire/recreate retry, per-frame fence wait, image-in-flight ownership, pending destroy flush, low-level submit/present helper, present-result handling, frame-profile timing/output helper는 그 파일에서 유지한다. `VulkanRendererBackend.RenderEntry.cs`는 high-level frame order만 보존하고, swapchain acquire, queue submit, queue present, frame-profile output 구성을 다시 inline으로 키우지 않아야 한다.
-
-Frame geometry preparation/upload는 `VulkanRendererBackend.FrameGeometry.cs`에 둔다. Per-frame static binding preparation, dynamic geometry capacity decision, dynamic primitive sentinel capacity, dynamic geometry upload, static cache pruning, upload timing, command recording에 넘길 geometry-buffer tuple은 그 파일에서 유지한다. `RenderDrawData(...)`는 이 경계를 호출해야 하며 static/dynamic geometry preparation 또는 upload phase logic을 다시 inline으로 키우지 않아야 한다.
-
-Frame command recording preparation은 `VulkanRendererBackend.FrameCommandRecording.cs`에 둔다. Frame command-pool reset, command recording timing, `RecordCommandBuffer(...)` invocation, GPU timestamp-issued bookkeeping, submit에 넘길 command buffer 반환은 그 파일에서 유지한다. `RenderDrawData(...)`는 이 경계를 호출해야 하며 `ResetCommandPool`, record timing, timestamp-issued logic을 다시 inline으로 키우지 않아야 한다.
-
-Frame completion은 `VulkanRendererBackend.FrameCompletion.cs`에 둔다. Final semaphore extraction, `SubmitFrame(...)`, `PresentFrame(...)`, present-result handling call, profile emission, frame-index advance는 그 파일에서 유지한다. `RenderDrawData(...)`는 이 경계를 호출해야 하며 submit/present/profile/frame-index completion logic을 다시 inline으로 키우지 않아야 한다.
-
-Command frame/list recording context는 `VulkanRendererBackend.CommandContext.cs`에 둔다. `CommandFrameContext`, `CommandDrawListContext`, `CreateCommandFrameContext(...)`는 그 파일에서 유지하고, `VulkanRendererBackend.CommandRecording.cs`는 frame과 draw-list 경계에서 이를 만들며, scissor, push-constant, draw-path 경계는 긴 transform, clip, buffer, offset scalar 묶음 대신 이 context를 소비해야 한다. Render-pass setup용 정수 framebuffer extent는 frame context에 유지하고, `RecordCommandBuffer(...)`에 별도 TAA/jitter scalar parameter를 다시 추가하지 않는다. 실제 TAA 경로가 생기면 temporal jitter는 frame context 경계를 통해 복원한다.
-
-Command recording state aggregation은 `VulkanRendererBackend.CommandRecordingState.cs`에 둔다. Per-pass profile, diagnostic, texture, scissor, pipeline, descriptor, buffer, push, draw-dispatch state 묶음은 그 파일에서 유지해서 command recording과 draw-list recording이 모든 경계를 넓히지 않고 하나의 state aggregate를 넘기게 한다. 최종 record timing/stat output 구성도 `CompleteCommandRecordingState(...)`와 `BuildCommandRecordStats(...)`를 통해 이 파일에 둔다. `VulkanRendererBackend.CommandRecording.cs`는 개별 state field에서 output tick이나 profile stat을 다시 inline으로 조립하지 않아야 한다.
-
-Command draw-list recording은 `VulkanRendererBackend.CommandDrawListRecording.cs`에 둔다. Viewport setup, draw-list offset tracking, static binding lookup, scheduler setup/profile event, command iteration, command별 diagnostic/texture/font/scissor sequencing, draw-path dispatch는 그 파일에서 유지한다. `VulkanRendererBackend.CommandRecording.cs`는 frame begin 이후 이 경계를 호출하고, 새 local draw-list traversal loop를 다시 키우지 않아야 한다.
-
-Command push-constant state는 `VulkanRendererBackend.CommandPushConstantState.cs`에 둔다. Transform/opacity push cache, `vkCmdPushConstants` range selection, timing, push counter는 그 파일에서 유지하고, command recording은 command translation/opacity와 frame context 데이터를 넘긴 뒤 이 경계를 호출해야 한다.
-
-Command scissor state는 `VulkanRendererBackend.CommandScissorState.cs`에 둔다. Computed scissor rectangle helper, scissor reuse, current scissor cache, visibility rejection, clipping timing, `vkCmdSetScissor` timing, scissor counter는 그 파일에서 유지하고, command recording은 pipeline/draw dispatch 전에 이 경계를 호출해야 한다. `TryComputeScissorRect(...)`는 float clip-bound 단계에서 한 번 clamp하고, focused profile이 추가 boundary check 필요성을 증명하지 않는 한 두 번째 integer framebuffer clamp를 다시 넣지 않는다.
-
-Command draw dispatch는 `VulkanRendererBackend.CommandDrawDispatch.cs`에 둔다. Triangle indexed draw dispatch, expanded static primitive indexed draw dispatch, primitive-instance draw dispatch, index/instance calculation, draw-call timing/counting은 그 파일에서 유지하고, command recording은 필요한 state를 bind한 뒤 선택된 draw path에 대해 이 경계를 호출해야 한다.
-
-Command classification은 `VulkanRendererBackend.CommandClassification.cs`에 둔다. Command별 triangle/primitive 분류, white/font texture 분류, texture 필요 여부, static expanded primitive geometry flag는 그 파일에서 유지하고, command recording은 이 hot-path boolean들을 inline으로 다시 계산하지 말고 classification 값을 사용해야 한다.
-
-Command texture lookup state는 `VulkanRendererBackend.CommandTextureState.cs`에 둔다. Last-texture cache, texture dictionary lookup, texture lookup timing은 그 파일에서 유지하고, command recording은 `CommandClassification.CommandNeedsTexture`가 true일 때만 descriptor binding 전에 이 경계를 통해 `TextureResource`를 resolve해야 한다. Non-texture solid/color command는 이 경계를 완전히 건너뛴다. 필요한 texture가 없을 때 font 관련 보고가 필요하면 font diagnostic 경계로 보고해야 한다.
-
-Texture resource/update ownership은 `VulkanRendererBackend.TextureResources.cs`에 둔다. `ApplyTextureUpdates(...)`, texture create/update/destroy, pending texture-destroy flush, texture data upload/batching, font/white texture id classification, texture dictionary/font-white id state, texture descriptor allocation은 그 파일에서 유지한다. `RenderDrawData(...)`는 `ApplyTextureUpdates(...)`만 호출해야 하며, command recording은 이 경계의 texture id classification을 사용하고 texture lifetime 또는 upload code를 다시 키우지 않아야 한다.
-
-Generic Vulkan resource helper는 `VulkanRendererBackend.ResourceHelpers.cs`에 둔다. Swapchain image-view 생성, frame-safe buffer destroy helper, `CreateBuffer(...)`, `CreateImage(...)`, `CreateImageView(...)`, `FindMemoryType(...)`, `ToVkFormat(...)`, MSAA color image create/destroy는 그 파일에서 유지한다. Texture, static geometry, dynamic geometry, staging upload, swapchain, MSAA 경로는 이 경계를 소비해야 하며 `VulkanRendererBackend.cs`에 allocation 또는 memory-type code를 다시 키우지 않아야 한다.
-
-Image layout transition policy는 `VulkanRendererBackend.ImageTransitions.cs`에 둔다. `TransitionImageLayout(...)`, texture upload prepare/finalize layout helper, pending texture shader-read finalization state, layout pair resolution, access mask 선택, pipeline stage mask 선택, `imgTrans(...)` profile counter는 그 파일에서 유지한다. Shader/color-attachment stage dependency를 upload 또는 generic allocation code 안에 숨기지 않는다. Transfer queue 작업은 active upload queue(`uploadQ`)와 후보 queue(`xferCandQ`)를 분리해서 다루고, 기본 upload queue policy를 바꾸기 전에 queue ownership과 stage mask를 transition별로 명시적으로 모델링해야 한다. Texture/page upload가 barrier-heavy인지 copy-heavy인지는 `imgTrans(total=... toDst=... toShader=... present=... color=... xferStage=... gfxStage=... us=...)`로 증명한다. `texture_upload_barrier_bench_fba.cs`에서는 같은 texture의 non-overlapping region batch가 `total=2`, many-texture update가 `total=2 * textureCount`로 나와야 한다. `xferStage`는 stage mask가 transfer queue와 호환된다는 뜻이고, `gfxStage`는 transfer-only upload recording 전에 graphics/fragment/color stage mask를 split하거나 옮겨야 한다는 뜻이다.
-
-Render-target setup은 `VulkanRendererBackend.RenderTargets.cs`에 둔다. Render-pass 생성, swapchain framebuffer 생성, render-pass/framebuffer state, MSAA sample-count state, MSAA color image/view state는 그 파일에서 유지하며, single-sample path, MSAA color attachment, resolve attachment, subpass dependency, framebuffer attachment list rule도 이 경계에서 관리한다. Raw render-pass/framebuffer setup을 `VulkanRendererBackend.cs`나 command-recording 파일로 다시 키우지 않는다.
-
-Pipeline resource setup은 `VulkanRendererBackend.PipelineResources.cs`에 둔다. Descriptor pool 생성, descriptor/pipeline layout 생성, graphics pipeline assembly, sampler 생성/state, pipeline/cache/shader/descriptor state, pipeline cache load/save/destroy, shader module 생성, embedded shader loading은 그 파일에서 유지한다. Pipeline object 생성, descriptor pool setup, pipeline cache policy, shader-loader policy를 frame orchestration 또는 command recording으로 다시 섞지 않는다.
-
-Sync/query setup은 `VulkanRendererBackend.SyncResources.cs`에 둔다. Frame command pool/buffer allocation, per-frame fence 생성/state, image-in-flight state, semaphore ring 생성/state, upload command resource entry, GPU timestamp query constant, GPU timestamp query-pool 생성은 그 파일에서 유지한다. Frame orchestration은 초기화된 resource를 소비해야 하며, frame sync allocation 또는 query-pool creation code를 다시 키우지 않는다. GPU profiling request/resolved state는 profile output과 query-result 해석이 소비하므로 diagnostics 경계에 둔다.
-
-Shared frame-fence wait helper는 `VulkanRendererBackend.FrameSync.cs`에 둔다. Resource replacement, texture teardown, static geometry update, 기타 cross-frame hazard avoidance 경로가 공유하는 all-in-flight frame fence wait는 그 파일에서 유지한다. Per-frame acquire/present wait는 `VulkanRendererBackend.FrameOrchestration.cs`에 남기고, sync allocation은 `VulkanRendererBackend.SyncResources.cs`에 남겨야 한다.
-
-Swapchain selection policy는 `VulkanRendererBackend.SwapchainPolicy.cs`에 둔다. Surface format selection, present mode selection, platform framebuffer state, framebuffer extent selection은 그 파일에서 유지한다. `CreateSwapchain(...)`은 그 결정을 소비할 수 있지만, preference list, VSync fallback message, platform framebuffer clamp를 다시 inline으로 키우지 않는다.
-
-Swapchain resource creation/lifecycle은 `VulkanRendererBackend.SwapchainResources.cs`에 둔다. `CreateSwapchain(...)`, surface capability/mode enumeration, desired image-count clamp/state, composite-alpha fallback, `SwapchainCreateInfoKHR` construction, swapchain handle 생성/state, swapchain image/view format/extent state, swapchain image retrieval, `CreateSwapchainResources(...)`, `RecreateSwapchain(...)`, `TryRecreateSwapchain(...)`, `DestroySwapchainDependentResources(...)`는 그 파일에서 유지한다. Resource creation, recreate flow, swapchain-dependent destruction을 selection policy나 main backend lifecycle method로 다시 합치지 않는다.
-
-Device/backend lifecycle은 `VulkanRendererBackend.Lifecycle.cs`에 둔다. `Dispose()`와 `DestroyDeviceResources(...)`는 그 파일에서 유지해서 pipeline-cache 저장, swapchain-dependent destruction, device-level resource destruction, instance/surface/device handle cleanup이 하나의 teardown 경계에 남도록 한다. Device-level destruction을 `VulkanRendererBackend.cs`로 다시 inline하지 않는다.
-
-Device resource setup은 `VulkanRendererBackend.DeviceResources.cs`에 둔다. Instance 생성/state, instance extension loading, surface 생성/state, physical-device 선택/state, graphics/present queue-family 선택/state, dedicated transfer candidate 탐지/state, logical device 생성/state, queue retrieval/state, device extension loading, device policy state, MSAA sample-count resolution은 그 파일에서 유지한다. Device/queue setup을 bootstrap constructor로 다시 키우지 말고, constructor는 초기화 순서를 보존하며 이 경계를 소비해야 한다.
-
-Device/vendor renderer policy는 `VulkanRendererBackend.DevicePolicy.cs`에 둔다. GPU vendor classification, upload queue policy parsing/resolution, triangle color pipeline policy, solid unified pipeline policy, static primitive triangle policy, static geometry update policy, requested/resolved policy state, pipeline cache identity는 그 파일에서 유지한다. Diagnostics는 resolved policy를 보고할 수 있지만 renderer-policy env parsing을 소유하지 않는다.
-
-Renderer bootstrap ownership은 `VulkanRendererBackend.Bootstrap.cs`에 둔다. Constructor initialization order, surface-source validation, texture id default, initial swapchain creation, selected-device policy resolution은 그 파일에서 유지한다. Device/queue creation detail은 `DeviceResources`, pipeline resource는 `PipelineResources`, settings mutation은 `Settings`, frame rendering은 `RenderEntry`에 남겨야 한다.
-
-Renderer state declaration은 해당 lifecycle 또는 behavior를 이미 소유한 owner 파일 옆에 둔다. `VulkanRendererBackend.State.cs`는 좁은 owner가 없는 진짜 shared primitive 전용이며, 현재는 shared `Vk` API handle만 둔다. `VulkanRendererBackend.cs`는 `IRendererBackend` partial-class shell로만 남겨야 하며 field, shader blob, setup code, frame code를 다시 키우지 않는다.
-
-Renderer settings/API ownership은 `VulkanRendererBackend.Settings.cs`에 둔다. Public device-object invalidation/recreation entry point, clear-color conversion, minimum image count, VSync, MSAA sample setting, settings-triggered swapchain recreation, settings-related environment parsing은 그 파일에서 유지한다. Runtime render-entry나 constructor code에 settings mutation branch를 다시 키우지 않는다.
-
-Command pipeline selection은 `VulkanRendererBackend.CommandPipelineSelection.cs`에 둔다. Target vertex/index/primitive buffer 선택, solid-unified availability check, desired graphics pipeline 선택, solid-unified 사용 여부 판정은 그 파일에서 유지하고, command recording은 pipeline binding, buffer binding, draw-path branch에 `CommandPipelineSelection`을 사용해야 한다.
-
-Command scheduling은 `VulkanRendererBackend.CommandScheduling.cs`에 둔다. Overlap-constrained scheduled-order lookup/cache, scheduling compatibility check, scheduling bounds merge, adjacent scheduled-command run merge expansion, command-iteration cursor/step selection은 그 파일에서 유지한다. Command recording은 `CommandIterationStep`을 소비해서 step의 command index와 next order index를 사용하고, merged-count event만 `CommandRecordProfileState`에 보고해야 한다.
-
-Command scheduler policy state도 `VulkanRendererBackend.CommandScheduling.cs`에 둔다. `DUXEL_VK_COMMAND_SCHEDULER` parsing, `DUXEL_VK_COMMAND_SCHEDULER_MAX_WINDOW`, resolved scheduler mode/window state, schedule cache ownership, scheduling algorithm은 함께 유지한다.
-
-Command draw-path orchestration은 `VulkanRendererBackend.CommandDrawPath.cs`에 둔다. Triangle, expanded static primitive, primitive-instance draw-path branch orchestration과 pipeline-selection 소비, pipeline/push/descriptor binding 순서, geometry/primitive buffer binding 요구사항, primitive instance buffer validation, `CommandDrawDispatch` 호출은 그 파일에서 유지한다. `VulkanRendererBackend.CommandRecording.cs`는 command classification, diagnostic, texture resolution, scissor visibility를 준비한 뒤 inline draw-path branch를 직접 소유하지 말고 이 draw-path 경계를 호출해야 한다.
-
-Command record profile state는 `VulkanRendererBackend.CommandRecordProfileState.cs`에 둔다. Command-record profile counter, draw-list static/dynamic count, scheduler hit/miss/timing count, scheduled merge count, transition counter, 최종 `CommandRecordStats` 구성은 그 파일에서 유지하고, command recording은 profile event를 이 경계로 보고해야 한다.
-
-일반 command diagnostic state는 `VulkanRendererBackend.CommandDiagnosticState.cs`에 둔다. Command diagnostic frame gating, pass별 emission count, pipeline label 선택, `DUXEL_VK_COMMAND_DIAG` 로그 출력은 그 파일에서 유지한다.
-
-Command font diagnostic state는 `VulkanRendererBackend.CommandFontDiagnosticState.cs`에 둔다. `DUXEL_VK_FONT_DIAG` 로그 출력, pass별 font diagnostic count, missing texture font diagnostic, normal font command diagnostic, index/vertex/UV bounds validation은 그 파일에서 유지하고, command recording과 texture lookup은 font-specific counter나 log formatting을 직접 소유하지 말고 이 경계를 호출해야 한다.
+Image layout transition policy는 `Resources` 모듈에 둔다. Texture/page upload가 barrier-heavy인지 copy-heavy인지는 `imgTrans(total=... toDst=... toShader=... present=... color=... xferStage=... gfxStage=... us=...)`로 증명한다. `texture_upload_barrier_bench_fba.cs`에서는 같은 texture의 non-overlapping region batch가 `total=2`, many-texture update가 `total=2 * textureCount`로 나와야 한다. `xferStage`는 stage mask가 transfer queue와 호환된다는 뜻이고, `gfxStage`는 transfer-only upload recording 전에 graphics/fragment/color stage mask를 split하거나 옮겨야 한다는 뜻이다.
 
 폰트 command 진단은 `DUXEL_VK_FONT_DIAG=1`로 켠다. 매우 자세한 command 로그는 `DUXEL_VK_FONT_DIAG_OUT`으로 파일에 기록할 수 있다.
 
@@ -1045,9 +1179,7 @@ Command font diagnostic state는 `VulkanRendererBackend.CommandFontDiagnosticSta
 
 Draw-list command 병합에서 callback 없는 zero-element command는 draw-order barrier가 아니라 state placeholder로 취급한다. 실제 draw를 추가할 때 builder는 trailing empty placeholder를 제거한 뒤 contiguous command merge 가능성을 검사한다. 병합 조건에는 opacity, texture, clip, translation, kind, vertex offset, callback, user data를 계속 포함해야 한다. caller가 effective clip을 이미 알고 있으면 draw 하나를 위해 builder clip stack을 push/pop하지 말고 clipped `AddImage(...)` 같은 clipped draw helper를 우선 사용한다.
 
-solid triangle을 sampler 없이 그리는 pipeline은 `DUXEL_VK_TRIANGLE_COLOR_PIPELINE=auto`가 기본이다. 자동 정책은 NVIDIA/AMD discrete GPU에서 켜고, 그 외 장치는 보수적으로 끈다. 장면별 A/B는 `1/true/on`으로 강제 활성화하거나 `0/false/off`로 강제 비활성화해서 수행한다.
-
-solid triangle과 solid rect/circle primitive를 하나의 Vulkan pipeline에서 그리는 dynamic 경로는 `DUXEL_VK_SOLID_UNIFIED_PIPELINE=auto`가 기본이지만, 현재 자동 정책은 vendor/device gate에서 일관된 FPS 이득이 증명될 때까지 모든 장치에서 비활성으로 resolve한다. `1/true/on`으로 강제 활성화하거나 `0/false/off`로 강제 비활성화할 수 있다. Dynamic primitive buffer의 instance `0`은 solid triangle sentinel로 예약하고 실제 dynamic rect/circle primitive는 `firstInstance + 1`로 그려서 triangle과 primitive가 같은 binding `1` buffer를 유지한다. Static cached draw-list의 unified 실험은 `DUXEL_VK_SOLID_UNIFIED_STATIC=1`을 추가로 켠다. 이 경우 static primitive buffer도 instance `0`에 solid triangle sentinel을 예약한다. 확장하지 않은 static primitive instance는 base offset 뒤에 배치하고, triangle geometry로 확장된 static primitive는 sentinel을 binding해서 solid unified draw로 그릴 수 있다. static full unified는 command-state 모양은 좋지만 mixed scene FPS가 아직 약해서 기본 경로가 아니다.
+Sampler-free pipeline variant는 더 이상 존재하지 않는다. GPU-driven 렌더러 전환 이후 모든 draw가 bindless texture 배열을 샘플링하고, solid draw는 앱의 1x1 흰색 텍스처를 샘플링하며, pipeline이 하나뿐이므로 pipeline 선택 비용 자체가 사라졌다. `DUXEL_VK_TRIANGLE_COLOR_PIPELINE`, `DUXEL_VK_SOLID_UNIFIED_PIPELINE`, `DUXEL_VK_SOLID_UNIFIED_STATIC`은 분리 pipeline 및 solid-triangle sentinel과 함께 제거되었으므로 다시 도입하지 않는다.
 
 텍스트 렌더러 A/B 프로파일링은 `DUXEL_TEXT_RENDERING=direct`, `atlas`, `auto`로 수행한다. 기본값은 `DirectText`다. 명시적 `atlas`는 atlas renderer 비교용이고, 명시적 `auto`는 atlas 우선 렌더링을 유지하되 atlas에 없는 글자만 DirectText로 즉시 시각 fallback하므로 그 fallback 동작이 의도된 경우에만 사용한다.
 

@@ -1,6 +1,6 @@
 # Duxel GUI 디자인 문서
 
-> 마지막 동기화: 2026-03-25
+> 마지막 동기화: 2026-07-03
 
 이 문서는 Duxel의 설계 기준과 ImGui 호환성 기준/현황/로드맵을 단일 기준으로 통합해 관리한다.
 
@@ -24,6 +24,12 @@
 
 ### Renderer (Vulkan)
 - 입력: `ImDrawData`
+- GPU-driven 구조 (2026-07-03 전환)
+  - graphics pipeline 1개: dual-source blend 통합, vertex input state 없음(vertex pulling)
+  - bindless texture: 전역 `sampler2D[]` descriptor set 1개를 프레임당 1회 bind, 커맨드는 push constant로 texture slot index 전달
+  - vertex/primitive 데이터는 buffer device address로 셔이더에서 직접 읽음; dynamic buffer는 BAR 메모리 우선 할당
+  - dynamic rendering: render pass/framebuffer 객체 없이 `vkCmdBeginRenderingKHR` + 명시적 image barrier로 프레임 구성, MSAA는 inline resolve
+  - 필수 device feature/extension(없으면 명시적 실패): descriptor indexing 4종 + `runtimeDescriptorArray` + `bufferDeviceAddress` + `dualSrcBlend` + `VK_KHR_dynamic_rendering`
 - 책임
   - 파이프라인/디스크립터/샘플러/폰트 텍스처 생명주기
   - 클립 사각형(`ClipRect`) 기반 scissor 적용
@@ -69,7 +75,7 @@
 ### 현재 상태
 - ImGui 스타일 API 400+ 항목 구현
 - DSL 런타임은 즉시 모드 프레임 흐름과 동등 라이프사이클 유지
-- Vulkan 렌더러는 Silk.NET 패키지 의존성 없이 내부 Vulkan 바인딩으로 동작
+- Vulkan 렌더러는 GPU-driven 구조(단일 파이프라인 + bindless + vertex pulling)로 동작하며 내부 Vulkan 바인딩만 사용
 
 ### 남은 작업(호환성 관점)
 - Idle Frame Skip 정책 확정(입력/애니메이션/외부 이벤트)

@@ -4,6 +4,7 @@ public enum Result : int
 {
     Success = 0,
     NotReady = 1,
+    Timeout = 2,
     SuboptimalKhr = 1000001003,
     ErrorOutOfDateKhr = -1000001004,
     ErrorSurfaceLostKhr = -1000000000,
@@ -55,6 +56,16 @@ public enum StructureType : int
     PresentInfoKhr = 1000001001,
     DebugUtilsMessengerCreateInfoExt = 1000128004,
     ImageMemoryBarrier = 44,
+    RenderingInfo = 1000044000,
+    RenderingAttachmentInfo = 1000044001,
+    PipelineRenderingCreateInfo = 1000044002,
+    PhysicalDeviceDynamicRenderingFeatures = 1000044003,
+    PhysicalDeviceFeatures2 = 1000059000,
+    MemoryAllocateFlagsInfo = 1000060000,
+    DescriptorSetLayoutBindingFlagsCreateInfo = 1000161000,
+    PhysicalDeviceDescriptorIndexingFeatures = 1000161001,
+    BufferDeviceAddressInfo = 1000244001,
+    PhysicalDeviceBufferDeviceAddressFeatures = 1000257000,
 }
 
 [Flags]
@@ -94,6 +105,24 @@ public enum BufferUsageFlags : uint
     StorageBuffer = 0x00000020,
     IndexBufferBit = 0x00000040,
     VertexBufferBit = 0x00000080,
+    ShaderDeviceAddressBit = 0x00020000,
+}
+
+[Flags]
+public enum MemoryAllocateFlags : uint
+{
+    None = 0,
+    DeviceAddressBit = 0x00000002,
+}
+
+[Flags]
+public enum ResolveModeFlags : uint
+{
+    None = 0,
+    SampleZeroBit = 0x00000001,
+    AverageBit = 0x00000002,
+    MinBit = 0x00000004,
+    MaxBit = 0x00000008,
 }
 
 [Flags]
@@ -124,6 +153,24 @@ public enum DependencyFlags : uint
 public enum DescriptorPoolCreateFlags : uint
 {
     FreeDescriptorSetBit = 0x00000001,
+    UpdateAfterBindBit = 0x00000002,
+}
+
+[Flags]
+public enum DescriptorSetLayoutCreateFlags : uint
+{
+    None = 0,
+    UpdateAfterBindPoolBit = 0x00000002,
+}
+
+[Flags]
+public enum DescriptorBindingFlags : uint
+{
+    None = 0,
+    UpdateAfterBindBit = 0x00000001,
+    UpdateUnusedWhilePendingBit = 0x00000002,
+    PartiallyBoundBit = 0x00000004,
+    VariableDescriptorCountBit = 0x00000008,
 }
 
 [Flags]
@@ -383,7 +430,9 @@ public enum PolygonMode : int
 public enum PresentModeKHR : int
 {
     ImmediateKhr = 0,
+    MailboxKhr = 1,
     FifoKhr = 2,
+    FifoRelaxedKhr = 3,
 }
 
 [Flags]
@@ -434,12 +483,6 @@ public enum SharingMode : int
 {
     Exclusive = 0,
     Concurrent = 1,
-}
-
-public enum SubpassContents : int
-{
-    Inline = 0,
-    SecondaryCommandBuffers = 1,
 }
 
 public enum VertexInputRate : int

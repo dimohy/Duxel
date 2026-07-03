@@ -7,6 +7,8 @@ namespace Duxel.Vulkan;
 public sealed unsafe partial class VulkanRendererBackend
 {
     private readonly Dictionary<UiTextureId, TextureResource> _textures = new();
+    private readonly Stack<uint> _freeBindlessTextureSlots = new();
+    private uint _nextBindlessTextureSlot;
     private readonly nuint _fontTextureIdValue;
     private readonly nuint _whiteTextureIdValue;
 
@@ -195,9 +197,9 @@ public sealed unsafe partial class VulkanRendererBackend
 
         var view = CreateImageView(image, format);
         var isFontTexture = IsFontTextureId(update.TextureId);
-        var descriptorSet = AllocateTextureDescriptorSet(view, isFontTexture);
+        var slotIndex = AllocateBindlessTextureSlot(view, isFontTexture);
 
-        return new TextureResource(image, memory, view, descriptorSet, update.Width, update.Height, format);
+        return new TextureResource(image, memory, view, slotIndex, update.Width, update.Height, format);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -260,11 +262,9 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         ForgetPendingTextureShaderReadTransition(resource.Image);
 
-        if (_descriptorPool.Handle is not 0 && resource.DescriptorSet.Handle is not 0)
-        {
-            var descriptorSet = resource.DescriptorSet;
-            _vk.FreeDescriptorSets(_device, _descriptorPool, 1, &descriptorSet);
-        }
+        // The bindless slot is recycled once the deferred destroy point is reached,
+        // so no in-flight frame can still reference it when it is rewritten.
+        _freeBindlessTextureSlots.Push(resource.SlotIndex);
 
         if (resource.View.Handle is not 0)
         {
@@ -573,20 +573,25 @@ public sealed unsafe partial class VulkanRendererBackend
         return (nuint)width * (nuint)height * (nuint)bytesPerPixel;
     }
 
-    private DescriptorSet AllocateTextureDescriptorSet(ImageView view, bool isFontTexture)
+    private uint AllocateBindlessTextureSlot(ImageView view, bool isFontTexture)
     {
-        var layout = _descriptorSetLayout;
-        var allocInfo = new DescriptorSetAllocateInfo
+        if (!_freeBindlessTextureSlots.TryPop(out var slot))
         {
-            SType = StructureType.DescriptorSetAllocateInfo,
-            DescriptorPool = _descriptorPool,
-            DescriptorSetCount = 1,
-            PSetLayouts = &layout,
-        };
+            if (_nextBindlessTextureSlot >= BindlessTextureCapacity)
+            {
+                throw new InvalidOperationException(
+                    $"Bindless texture capacity exceeded ({BindlessTextureCapacity} slots).");
+            }
 
-        DescriptorSet descriptorSet = default;
-        Check(_vk.AllocateDescriptorSets(_device, &allocInfo, &descriptorSet));
+            slot = _nextBindlessTextureSlot++;
+        }
 
+        WriteBindlessTextureSlot(slot, view, isFontTexture);
+        return slot;
+    }
+
+    private void WriteBindlessTextureSlot(uint slot, ImageView view, bool isFontTexture)
+    {
         var imageInfo = new DescriptorImageInfo
         {
             Sampler = isFontTexture ? _fontSampler : _imageSampler,
@@ -597,15 +602,14 @@ public sealed unsafe partial class VulkanRendererBackend
         var write = new WriteDescriptorSet
         {
             SType = StructureType.WriteDescriptorSet,
-            DstSet = descriptorSet,
+            DstSet = _bindlessTextureSet,
             DstBinding = 0,
-            DstArrayElement = 0,
+            DstArrayElement = slot,
             DescriptorType = DescriptorType.CombinedImageSampler,
             DescriptorCount = 1,
             PImageInfo = &imageInfo,
         };
 
         _vk.UpdateDescriptorSets(_device, 1, &write, 0, null);
-        return descriptorSet;
     }
 }

@@ -69,10 +69,7 @@ public sealed unsafe partial class VulkanRendererBackend
         public readonly int CirclePrimitivePipelineBindCount;
         public readonly int ActualFontPipelineBindCount;
         public readonly int ActualTexturedTrianglePipelineBindCount;
-        public readonly int ActualColorTrianglePipelineBindCount;
         public readonly int ActualTexturedPrimitivePipelineBindCount;
-        public readonly int ActualColorPrimitivePipelineBindCount;
-        public readonly int ActualSolidUnifiedPipelineBindCount;
         public readonly int TriangleToPrimitiveTransitionCount;
         public readonly int PrimitiveToTriangleTransitionCount;
         public readonly int RectCircleTransitionCount;
@@ -127,10 +124,7 @@ public sealed unsafe partial class VulkanRendererBackend
             int circlePrimitivePipelineBindCount,
             int actualFontPipelineBindCount,
             int actualTexturedTrianglePipelineBindCount,
-            int actualColorTrianglePipelineBindCount,
             int actualTexturedPrimitivePipelineBindCount,
-            int actualColorPrimitivePipelineBindCount,
-            int actualSolidUnifiedPipelineBindCount,
             int triangleToPrimitiveTransitionCount,
             int primitiveToTriangleTransitionCount,
             int rectCircleTransitionCount,
@@ -184,10 +178,7 @@ public sealed unsafe partial class VulkanRendererBackend
             CirclePrimitivePipelineBindCount = circlePrimitivePipelineBindCount;
             ActualFontPipelineBindCount = actualFontPipelineBindCount;
             ActualTexturedTrianglePipelineBindCount = actualTexturedTrianglePipelineBindCount;
-            ActualColorTrianglePipelineBindCount = actualColorTrianglePipelineBindCount;
             ActualTexturedPrimitivePipelineBindCount = actualTexturedPrimitivePipelineBindCount;
-            ActualColorPrimitivePipelineBindCount = actualColorPrimitivePipelineBindCount;
-            ActualSolidUnifiedPipelineBindCount = actualSolidUnifiedPipelineBindCount;
             TriangleToPrimitiveTransitionCount = triangleToPrimitiveTransitionCount;
             PrimitiveToTriangleTransitionCount = primitiveToTriangleTransitionCount;
             RectCircleTransitionCount = rectCircleTransitionCount;
@@ -266,6 +257,11 @@ public sealed unsafe partial class VulkanRendererBackend
     }
 
     private void LogProfileFrame(
+        long targetTicks,
+        long beginTicks,
+        long frameFenceTicks,
+        long acquireTicks,
+        long imageFenceTicks,
         long uploadTicks,
         long recordTicks,
         long recordTextureLookupTicks,
@@ -283,6 +279,11 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
+        var targetUs = TicksToMicroseconds(targetTicks);
+        var beginUs = TicksToMicroseconds(beginTicks);
+        var frameFenceUs = TicksToMicroseconds(frameFenceTicks);
+        var acquireUs = TicksToMicroseconds(acquireTicks);
+        var imageFenceUs = TicksToMicroseconds(imageFenceTicks);
         var uploadUs = TicksToMicroseconds(uploadTicks);
         var recordUs = TicksToMicroseconds(recordTicks);
         var recordTextureLookupUs = TicksToMicroseconds(recordTextureLookupTicks);
@@ -303,7 +304,7 @@ public sealed unsafe partial class VulkanRendererBackend
         var presentUs = TicksToMicroseconds(presentTicks);
         var gpuRenderText = double.IsNaN(gpuRenderUs) ? "n/a" : $"{gpuRenderUs:0.000}";
         var staticGeometryMemory = GetStaticGeometryMemoryStats();
-        var line = $"[duxel-vk-prof] {CreateProfileDevicePolicyText()} upload={uploadUs:0.000} record={recordUs:0.000}(tex={recordTextureLookupUs:0.000} clip={recordClippingUs:0.000} state={recordDescriptorBindUs:0.000} draw={recordDrawCallUs:0.000}) submit={submitUs:0.000} present={presentUs:0.000} gpuRender={gpuRenderText} "
+        var line = $"[duxel-vk-prof] {CreateProfileDevicePolicyText()} target={targetUs:0.000} begin={beginUs:0.000}(frameFence={frameFenceUs:0.000} acquire={acquireUs:0.000} imageFence={imageFenceUs:0.000}) upload={uploadUs:0.000} record={recordUs:0.000}(tex={recordTextureLookupUs:0.000} clip={recordClippingUs:0.000} state={recordDescriptorBindUs:0.000} draw={recordDrawCallUs:0.000}) submit={submitUs:0.000} present={presentUs:0.000} gpuRender={gpuRenderText} "
             + $"lists(static={recordStats.StaticDrawListCount} dyn={recordStats.DynamicDrawListCount}) "
             + $"staticSec(cand={recordStats.StaticSecondaryCandidateDrawListCount} cmds={recordStats.StaticSecondaryCandidateCommandCount} draws={recordStats.StaticSecondaryCandidateDrawCallCount}) "
             + $"listWork(staticCmd={recordStats.StaticCommandCount} dynCmd={recordStats.DynamicCommandCount} staticDraw={recordStats.StaticDrawCallCount} dynDraw={recordStats.DynamicDrawCallCount} staticPipe={recordStats.StaticPipelineBindCount} dynPipe={recordStats.DynamicPipelineBindCount} staticClip={recordStats.StaticScissorComputeCount} dynClip={recordStats.DynamicScissorComputeCount} staticScissor={recordStats.StaticScissorSetCount} dynScissor={recordStats.DynamicScissorSetCount} staticPush={recordStats.StaticPushConstantCount} dynPush={recordStats.DynamicPushConstantCount} staticGeom={recordStats.StaticGeometryBindCount} dynGeom={recordStats.DynamicGeometryBindCount} staticPrim={recordStats.StaticPrimitiveBindCount} dynPrim={recordStats.DynamicPrimitiveBindCount}) "
@@ -313,25 +314,27 @@ public sealed unsafe partial class VulkanRendererBackend
             + $"upSched(sub={_profileUploadSubmissionCount} prepSub={_profileUploadPrepareSubmissionCount} wait={_profileUploadWaitCount} flush={_profileUploadBatchFlushCount} bytes={_profileUploadStagingBytes} texRegions={_profileUploadTextureCopyRegionCount} bufCopies={_profileUploadBufferCopyCount} submitUs={uploadSubmitUs:0.000} prepUs={uploadPrepareSubmitUs:0.000} waitUs={uploadWaitUs:0.000}) "
             + $"imgTrans(total={_profileImageTransitionCount} toDst={_profileImageTransitionToTransferDstCount} toShader={_profileImageTransitionToShaderReadCount} present={_profileImageTransitionPresentCount} color={_profileImageTransitionColorAttachmentCount} xferStage={_profileImageTransitionTransferStageCompatibleCount} gfxStage={_profileImageTransitionGraphicsStageRequiredCount} us={imageTransitionUs:0.000}) "
             + $"cmds={recordStats.CommandCount} draws={recordStats.DrawCallCount} binds(pipe={recordStats.PipelineBindCount} tri={recordStats.TrianglePipelineBindCount} font={recordStats.FontPipelineBindCount} rect={recordStats.RectPrimitivePipelineBindCount} circle={recordStats.CirclePrimitivePipelineBindCount} desc={recordStats.DescriptorBindCount} geom={recordStats.GeometryBindCount} prim={recordStats.PrimitiveBindCount}) "
-            + $"pipeClass(font={recordStats.ActualFontPipelineBindCount} texTri={recordStats.ActualTexturedTrianglePipelineBindCount} colorTri={recordStats.ActualColorTrianglePipelineBindCount} texPrim={recordStats.ActualTexturedPrimitivePipelineBindCount} colorPrim={recordStats.ActualColorPrimitivePipelineBindCount} solid={recordStats.ActualSolidUnifiedPipelineBindCount}) "
+            + $"pipeClass(font={recordStats.ActualFontPipelineBindCount} texTri={recordStats.ActualTexturedTrianglePipelineBindCount} texPrim={recordStats.ActualTexturedPrimitivePipelineBindCount}) "
             + $"transitions(tri2prim={recordStats.TriangleToPrimitiveTransitionCount} prim2tri={recordStats.PrimitiveToTriangleTransitionCount} rectCircle={recordStats.RectCircleTransitionCount}) "
             + $"state(scissor={recordStats.ScissorSetCount} push={recordStats.PushConstantCount}) clipCache(calc={recordStats.ScissorComputeCount} reuse={recordStats.ScissorComputeReuseCount}) "
             + $"sched(probe={recordStats.SchedulerProbeCount} hit={recordStats.SchedulerCacheHitCount} miss={recordStats.SchedulerCacheMissCount} nochange={recordStats.SchedulerNoChangeCount} lists={recordStats.SchedulerScheduledListCount} merged={recordStats.SchedulerMergedCommandCount} us={schedulerUs:0.000}) "
             + $"stateUs(pipe={pipelineBindUs:0.000} desc={descriptorBindUs:0.000} buf={bufferBindUs:0.000} push={pushConstantUs:0.000} scissor={scissorSetUs:0.000})";
-        Console.WriteLine(line);
-        if (!string.IsNullOrWhiteSpace(VulkanProfileLogPath))
+        if (string.IsNullOrWhiteSpace(VulkanProfileLogPath))
         {
-            var path = VulkanProfileLogPath!;
-            var directory = Path.GetDirectoryName(path);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
+            Console.WriteLine(line);
+            return;
+        }
 
-            lock (VulkanProfileLogLock)
-            {
-                File.AppendAllText(path, line + Environment.NewLine);
-            }
+        var path = VulkanProfileLogPath!;
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        lock (VulkanProfileLogLock)
+        {
+            File.AppendAllText(path, line + Environment.NewLine);
         }
     }
 
@@ -339,7 +342,7 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         var uploadQueue = _devicePolicy.UseGraphicsQueueForUploads ? "graphics" : "transfer";
 
-        return $"device(vendor={_devicePolicy.Vendor} vid={_devicePolicy.VendorId:x4} did={_devicePolicy.DeviceId:x4} type={_devicePolicy.DeviceType} name={ToProfileToken(_devicePolicy.DeviceName)} gfxQ={_graphicsQueueFamily} uploadQ={_transferQueueFamily} xferCandQ={_dedicatedTransferQueueFamily} tsBits={_devicePolicy.GraphicsQueueTimestampValidBits} tsPeriodNs={_devicePolicy.TimestampPeriodNanoseconds:0.###} gpuTs={BoolToInt(_gpuProfilingEnabled)}) policy(upload={uploadQueue} transferCandidate={BoolToInt(_devicePolicy.DedicatedTransferQueueCandidate)} triColor={BoolToInt(_triangleColorPipelineEnabled)} solidUnified={BoolToInt(_solidUnifiedPipelineEnabled)} solidUnifiedStatic={BoolToInt(_solidUnifiedStaticEnabled)} staticPrimTri={BoolToInt(_staticPrimitiveTrianglesEnabled)} staticUpdate={ToProfileModeToken(_resolvedStaticGeometryUpdateMode)} staticUpdateReq={ToProfileModeToken(_staticGeometryUpdateMode)} scheduler={ToProfileModeToken(_commandSchedulerMode)} schedWindow={_commandSchedulerMaxWindow} staticSecondaryMin={_devicePolicy.StaticSecondaryMinDrawCount})";
+        return $"device(vendor={_devicePolicy.Vendor} vid={_devicePolicy.VendorId:x4} did={_devicePolicy.DeviceId:x4} type={_devicePolicy.DeviceType} name={ToProfileToken(_devicePolicy.DeviceName)} gfxQ={_graphicsQueueFamily} uploadQ={_transferQueueFamily} xferCandQ={_dedicatedTransferQueueFamily} tsBits={_devicePolicy.GraphicsQueueTimestampValidBits} tsPeriodNs={_devicePolicy.TimestampPeriodNanoseconds:0.###} gpuTs={BoolToInt(_gpuProfilingEnabled)}) policy(upload={uploadQueue} transferCandidate={BoolToInt(_devicePolicy.DedicatedTransferQueueCandidate)} staticPrimTri={BoolToInt(_staticPrimitiveTrianglesEnabled)} staticUpdate={ToProfileModeToken(_resolvedStaticGeometryUpdateMode)} staticUpdateReq={ToProfileModeToken(_staticGeometryUpdateMode)} scheduler={ToProfileModeToken(_commandSchedulerMode)} schedWindow={_commandSchedulerMaxWindow} staticSecondaryMin={_devicePolicy.StaticSecondaryMinDrawCount})";
     }
 
     private static int BoolToInt(bool value) => value ? 1 : 0;
@@ -481,19 +484,14 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private static string GetCommandDiagPipelineLabel(
         UiDrawCommandKind kind,
-        bool isFontCommand,
-        bool triangleUsesColorPipeline,
-        bool primitiveUsesTexture)
+        bool isFontCommand)
     {
         return kind switch
         {
             UiDrawCommandKind.Triangles when isFontCommand => "font",
-            UiDrawCommandKind.Triangles when triangleUsesColorPipeline => "tri-color",
-            UiDrawCommandKind.Triangles => "tri-texture",
-            UiDrawCommandKind.RectFilledPrimitives when primitiveUsesTexture => "rect-texture",
-            UiDrawCommandKind.RectFilledPrimitives => "rect-color",
-            UiDrawCommandKind.CircleFilledPrimitives when primitiveUsesTexture => "circle-texture",
-            UiDrawCommandKind.CircleFilledPrimitives => "circle-color",
+            UiDrawCommandKind.Triangles => "tri",
+            UiDrawCommandKind.RectFilledPrimitives => "rect",
+            UiDrawCommandKind.CircleFilledPrimitives => "circle",
             _ => kind.ToString(),
         };
     }

@@ -68,7 +68,7 @@ public sealed unsafe partial class VulkanRendererBackend
         ReadOnlySpan<UiCircleFilledPrimitive> circlePrimitives,
         bool suppressForMutation)
     {
-        if (!_staticPrimitiveTrianglesEnabled || !_triangleColorPipelineEnabled)
+        if (!_staticPrimitiveTrianglesEnabled)
         {
             return default;
         }

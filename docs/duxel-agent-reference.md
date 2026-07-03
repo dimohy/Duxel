@@ -1,6 +1,6 @@
 # Duxel Agent Reference
 
-> Last synced: 2026-06-06
+> Last synced: 2026-07-03
 > Audience: coding agents and developers building apps, samples, and reusable UI components with Duxel
 > Scope: Duxel feature map, architecture boundaries, recommended workflows, and sample anchors
 
@@ -94,7 +94,7 @@ Preserve these boundaries when adding or modifying features:
 - `Duxel.Core`
   - owns immediate-mode behavior, layout, widgets, draw list generation, state, text-facing APIs
 - `Duxel.Platform.Windows`
-  - owns Windows-specific behavior such as input, clipboard, text backend integration, and native windowing
+  - owns Windows-specific behavior such as input, clipboard, IME/TSF integration, text backend integration, and native windowing
 - `Duxel.Vulkan`
   - owns rendering, GPU resources, swapchain flow, and submission
 - `Duxel.App` and `Duxel.Windows.App`
@@ -108,12 +108,21 @@ The most important downstream-facing surfaces are:
 
 - `UiScreen`
 - `UiImmediateContext`
+- declarative UI API:
+  - `IUiView`
+  - `DuxelView`
+  - `Dux`
+  - `DuxelView.Display`
 - `DuxelAppOptions`
 - `DuxelWindowOptions`
 - `DuxelRendererOptions`
 - `DuxelFontOptions`
 - `DuxelFrameOptions`
 - `DuxelDebugOptions`
+- compiled design API:
+  - `UiCompiledDesign`
+  - `IUiDesign`
+  - `UiWindows11Design`
 - `DuxelWindowsApp.Run(...)`
 - custom widget API:
   - `IUiCustomWidget`
@@ -133,7 +142,8 @@ These defaults are safe to rely on when generating ordinary Duxel code.
 | `Font` | `DuxelFontOptions` | `new()` | font paths, atlas sizing, startup glyph strategy |
 | `Frame` | `DuxelFrameOptions` | `new()` | line height, idle frame skip, font rebuild cadence |
 | `Debug` | `DuxelDebugOptions` | `new()` | logging and frame capture |
-| `Theme` | `UiTheme` | `UiTheme.ImGuiDark` | theme preset |
+| `Theme` | `UiTheme` | `UiCompiledDesign.Default.Theme` | fallback theme preset |
+| `Design` | `UiCompiledDesign?` | `null` | optional compiled design; overrides platform default theme tracking when set |
 | `FontTextureId` | `UiTextureId` | `new(1)` | font texture slot |
 | `WhiteTextureId` | `UiTextureId` | `new(2)` | white texture slot |
 | `Screen` | `UiScreen` | (required) | immediate-mode app entry |
@@ -141,6 +151,184 @@ These defaults are safe to rely on when generating ordinary Duxel code.
 | `ImageDecoder` | `IUiImageDecoder?` | `null` | custom image decode path |
 | `KeyRepeatSettingsProvider` | `IKeyRepeatSettingsProvider?` | `null` | custom key repeat timing |
 | `ClipboardFactory` | `Func<IPlatformBackend, IUiClipboard?>?` | `null` | platform-aware clipboard factory |
+
+### Compiled design
+
+By default, Windows apps resolve to `UiCompiledDesign.Windows11` or `UiCompiledDesign.Windows11Dark` from the current OS app theme, and the active design updates when Windows sends an app theme change. Use `DuxelWindowsApp.Run<TDesign>(...)`, `DuxelApp.Options<TDesign>(...)`, or `DuxelAppOptions.Design` when the visual shape of controls must be fixed by code or source generation instead of runtime theme parsing.
+
+```csharp
+DuxelWindowsApp.Run<UiWindows11Design>(
+    new ProductScreen(),
+    title: "Windows 11 styled Duxel",
+    width: 980,
+    height: 700);
+```
+
+For custom compile-time designs, implement `IUiDesign` and pass the generated/static value:
+
+```csharp
+public readonly struct ProductDesign : IUiDesign
+{
+    public static UiCompiledDesign Create()
+        => UiCompiledDesign.Windows11 with
+        {
+            Theme = UiTheme.GitHubDark,
+            Tokens = UiDesignTokens.Windows11 with { ControlCornerRadius = 6f }
+        };
+}
+
+DuxelWindowsApp.Run<ProductDesign>(
+    Dux.App(new ProductScreen()),
+    title: "Product Surface");
+```
+
+`UiTheme` remains the color palette. `UiStyle` remains layout sizing. `UiDesignTokens` controls widget shape such as corner radius, border width, pressed offset, focus ring thickness, and related control geometry. Existing runtime theme changes update colors only; compiled design tokens remain the active shape contract.
+
+When `Design` is `null` and `Theme` is left at its default, Duxel follows the platform theme provider. Explicit `Theme` or `Design` values are treated as app-authored choices and are not overwritten by OS theme changes.
+
+The next homework is a skin layer that can replace rendering strategy per control type. Today, themes, tokens, modifiers, and custom widgets can adjust much of the appearance, but there is not yet an official design-level layer for swapping the built-in rendering policy of controls such as `Button`, `TextField`, `Segmented`, and `Scrollbar`. Start the next session from the [Declarative Control Skin Roadmap](declarative-control-skin-roadmap.md).
+
+### Declarative UI
+
+For SwiftUI/Compose-style composition in C#, use `IUiView` nodes created through the grouped `DuxelView` factories. This keeps dot-completion useful: `DuxelView.Layout`, `DuxelView.Controls`, `DuxelView.Text`, `DuxelView.Display`, `DuxelView.Menus`, and `DuxelView.Windows` expose the common authoring surface without putting every helper into one large class. For compact app code and samples, the `Dux.*` aliases expose the same surface.
+
+```csharp
+var running = Dux.State(true);
+var project = Dux.State("Duxel Control Surface");
+var progress = Dux.State(0.62f);
+var channel = Dux.State(ReleaseChannel.Preview);
+var tabItems = new[] { "Layout", "Theme", "Windows" };
+
+var screen = Dux.Screen(
+    Dux.Group(
+        Dux.MainMenuBar(
+            Dux.Menu(
+                "File",
+                Dux.MenuItem("Reset", () => progress.Value = 0f),
+                Dux.MenuItem("Running", () => running.Value = !running.Value, selected: () => running.Value))),
+        Dux.Window(
+            "Dashboard",
+            Dux.VStack(
+                10f,
+                Dux.Header(
+                    () => project.Value,
+                    Dux.Meta("Preview"),
+                    Dux.Meta(() => running.Value ? "Running" : "Paused", UiTextTone.Success)),
+                Dux.Tabs(
+                    "dashboard-tabs",
+                    Dux.Tab(
+                        "Overview",
+                        Dux.Section(
+                            "Controls",
+                            Dux.Form(
+                                Dux.Field("Project", Dux.TextField("project", project)),
+                                Dux.Field("Channel", Dux.EnumSegmented<ReleaseChannel>("channel", channel)),
+                                Dux.Field("Running", Dux.Toggle("running", running)),
+                                Dux.Field("Progress", Dux.Slider("progress", progress, 0f, 1f).ItemWidth(360f))))),
+                    Dux.Tab(
+                        "Tasks",
+                        Dux.List(
+                            "task-list",
+                            tabItems,
+                            item => Dux.Text(item),
+                            new UiVector2(0f, 120f),
+                            border: true)))),
+            new UiWindowOptions(
+                Position: new UiVector2(24, 24),
+                Size: new UiVector2(420, 260)))));
+
+enum ReleaseChannel
+{
+    Stable,
+    Preview,
+    Canary
+}
+```
+
+`UiState<T>` is the ergonomic state holder for app code. It converts to `UiBinding<T>` for controls, so `Dux.Checkbox("Running", running)` and `Dux.TextField("project", project)` stay concise. The declarative aliases `Dux.TextField(...)`, `Dux.TextArea(...)`, `Dux.NumberField(...)`, and `Dux.Slider(...)` take stable control ids and hide immediate-mode `##` labels from app code. Use `state.Set(value)` and `state.Update(current => next)` for explicit state changes. Use `Dux.Bind(get, set)` when state already lives somewhere else, and `UiBinding<T>.Map(...)` for writable derived bindings. Dynamic text and conditional views accept `Func<T>` so values are evaluated during rendering. `UiComponent` is the base class for reusable view objects that implement `Build()`.
+
+For app-scale surfaces, prefer small `UiComponent` classes over one large render method. A component owns or receives state in its constructor and returns an `IUiView` from `Build()`. The recommended startup shape is `DuxelWindowsApp.Run<ProductDesign>(Dux.App(new ProductScreen(...)))`, which binds the compiled design and root component before the first frame. `Dux.App(...)` is the semantic alias for wrapping a declarative root view into the `UiScreen` expected by the runtime.
+
+Use `Dux.AppShell(...)` for the common product surface shape: an optional menu, a themed sidebar, a dynamic header, meta text, command content, and the selected page body. Navigation items are authored with `Dux.NavItem(...)`. The active page can be controlled by a regular `UiState<int>`/`UiBinding<int>`, but enum-backed `UiState<T>` keeps app navigation type-safe.
+
+```csharp
+Dux.AppShell(
+    () => projectName.Value,
+    selectedPage,
+    [
+        Dux.NavItem(ProjectPage.Overview, "Overview", new OverviewPage(state), "Run controls"),
+        Dux.NavItem(ProjectPage.Tasks, "Tasks", new TasksPage(state), () => $"{tasks.Count} active rows"),
+        Dux.NavItem(ProjectPage.Notes, "Notes", new NotesPage(state), "Composition notes")
+    ],
+    new UiAppShellOptions(WindowTitle: "Workspace", SidebarTitle: "Workspace"),
+    Dux.Meta(() => $"Runs {runs.Value}"),
+    Dux.Meta(() => channel.Value));
+```
+
+High-level layout helpers describe product surfaces in the same shape users see on screen: `Dux.Section(...)` for titled areas, `Dux.Form(...)` and `Dux.Field(...)` for labeled settings, `Dux.Grid(...)` for repeated card/metric layouts, `Dux.List(...)` for repeated rows, `Dux.Tabs(...)` / `Dux.Tab(...)` for tabbed flows, `Dux.Tree(...)` for hierarchical content, and `Dux.Table(...)` / `Dux.TableColumn(...)` for structured data. For dynamic lists and grids, prefer keyed overloads such as `Dux.List("tasks", tasks, task => task.Id, task => Dux.StatusRow(task.Name, task.Owner, () => task.Progress))` or `Dux.Grid(tasks, task => task.Id, task => new TaskTile(task))`; `Dux.Key(...)` and `.Key(...)` expose the same stable ID scope for individual view fragments.
+
+Declarative control flow stays inside the view tree. Use `Dux.When(...)` and `Dux.Unless(...)` for one-sided conditional content, `Dux.Switch(...)` with `Dux.Case(...)` for state-specific fragments, and `Dux.ForEachIndexed(...)` when the displayed row needs its index. These helpers evaluate dynamic values during rendering, so app code can keep state changes in `UiState<T>` while the view remains a pure description of the current screen.
+
+Display helpers make common product UI fragments concise. Use `Dux.AppShell(...)` for sidebar-based product shells, `Dux.Header(...)` for product title plus meta rows, `Dux.Surface(...)` or `Dux.Card(...)` for padded themed panels, `Dux.SettingsGroup(...)` with `Dux.Setting(...)` for labeled settings, `Dux.Callout(...)` for semantic status/help messages, `Dux.EmptyState(...)` for empty/disabled states, `Dux.Toolbar(...)` for compact command rows, `Dux.MetaBar(...)` with `Dux.Meta(...)` for compact status rows, `Dux.PropertyList(...)` with `Dux.Property(...)` for detail key/value lists, `Dux.StatusRow(...)` for selectable progress rows, `Dux.Badge(...)` for semantic status pills (`UiBadgeTone.Neutral`, `Accent`, `Success`, `Warning`, `Danger`), and `Dux.MetricCard(...)` or `Dux.Metric(...)` for dashboard numbers. Use `Dux.PrimaryButton(...)`, `Dux.DangerButton(...)`, or `.ButtonRole(...)` to give commands a product action hierarchy without manually pushing button colors. Surface and child content keeps the regular Duxel scrollbar behavior by default. The grouped factory surface is `DuxelView.Display`.
+
+```csharp
+Dux.Grid(
+    3,
+    Dux.MetricCard("Runs", () => runs.Value.ToString(), "Queued sessions"),
+    Dux.MetricCard("Progress", () => $"{progress.Value:P0}", "Current workflow"),
+    Dux.MetricCard(
+        "Priority",
+        () => priority.Value.ToString(),
+        () => priority.Value >= 4 ? "Needs attention" : "Normal cadence",
+        new UiMetricCardOptions(ValueTone: UiTextTone.Warning)));
+```
+
+For product commands, prefer `Dux.CommandBar(...)` when the action role, tooltip, and enabled state matter. It keeps command semantics in values and lets the compiled design style the buttons:
+
+```csharp
+Dux.CommandBar(
+    Dux.Command("Queue", QueueRun, UiButtonRole.Primary, tooltip: () => "Queue one run"),
+    Dux.Command("Reset", Reset, enabled: () => canReset.Value));
+```
+
+Settings surfaces can use `Dux.SettingsGroup(...)` so each row owns its label, description, and control:
+
+```csharp
+Dux.SettingsGroup(
+    Dux.Setting("Project", Dux.TextField("project", project), "Shown in the workspace shell."),
+    Dux.Setting("Channel", Dux.EnumSegmented<ReleaseChannel>("channel", channel)));
+```
+
+Selection controls include `Dux.Segmented(...)` for compact mode/channel pickers backed by `UiBinding<int>` or typed `UiBinding<T>`. Use `Dux.Choice(value, label)` for typed choices and `Dux.EnumSegmented<TEnum>(...)` when the state is an enum. These are available alongside `Dux.Combo(...)`, `Dux.ListBox(...)`, `Dux.RadioButton(...)`, and `Dux.Selectable(...)`.
+
+`UiModifier` and fluent extension methods provide local, compile-time-authored visual rules. Common modifiers include `.FontSize(...)`, `.Foreground(...)`, `.Tone(...)`, `.Accent()`, `.Success()`, `.Warning()`, `.Danger()`, `.Muted()`, `.Title(...)`, `.Subtitle(...)`, `.Caption(...)`, `.ItemWidth(...)`, `.FillWidth()`, `.Padding(...)`, `.Frame(...)`, `.FillFrameWidth(...)`, `.Width(...)`, `.Height(...)`, `.Background(...)`, `.Border(...)`, `.CornerRadius(...)`, `.Tooltip(...)`, `.VisibleIf(...)`, `.Disabled(...)`, `.StyleColor(...)`, and `.StyleVar(...)`. Text hierarchy can be authored through `Dux.Title(...)`, `Dux.Subtitle(...)`, `Dux.Caption(...)`, or reusable `UiTextStyle` values. Semantic text tone uses `UiTextTone` so app code can say `.Success()` or `.Warning()` instead of carrying color constants. Use the shape modifiers when a view should own its rendered appearance instead of relying on a runtime theme slot:
+
+```csharp
+Dux.Callout(
+    "Run Status",
+    () => status.Value,
+    options: new UiCalloutOptions(Tone: UiTextTone.Success, Height: 88f));
+```
+
+`.Panel(...)` is the built-in Windows 11-style surface modifier. It uses `UiPanelStyle` internally with `UiStyleColor.FrameBg` / `UiStyleColor.Border`, `UiDesignToken.ControlCornerRadius`, 14 px padding, and fills the available content width by default. Use `Dux.Panel(content, ...)` when a factory call reads better than a fluent modifier. Reusable compiled styles are regular C# types; implement `IUiViewStyle` when the same visual rule should be named, tested, and reused like a SwiftUI `ViewModifier`. Styles can use `UiStyleColor` and `UiDesignToken` slots so their colors and radius come from the active compiled design while the view shape remains authored in C#:
+
+```csharp
+readonly record struct DashboardPanelStyle(float Height = 0f) : IUiViewStyle
+{
+    public IUiView Apply(IUiView view)
+        => view
+            .Padding(14f)
+            .Background(UiStyleColor.FrameBg)
+            .Border(UiStyleColor.Border)
+            .CornerRadius(UiDesignToken.ControlCornerRadius)
+            .FillFrameWidth(Height);
+}
+
+Dux.TextWrapped(() => status.Value)
+    .Style(new DashboardPanelStyle(116f));
+```
+
+`Frame` supplies stable layout dimensions, `FillFrameWidth` fills the current content width, and `Background`, `Border`, and `CornerRadius` describe the compiled view shape. `Background` and `Border` accept either explicit `UiColor` values or semantic `UiStyleColor` slots from the active design. `CornerRadius` accepts either a fixed float or a semantic `UiDesignToken`. Padding placed before a shape modifier becomes the decorated view's internal padding, so both left and right padding participate in the measured shape. `IUiViewStyle` composes those same modifiers into a compile-time-authored style type; `.Style<TStyle>()` applies a default struct style and `.Style(style)` applies a configured style instance. For repeated dynamic content, keep using keyed list/grid overloads or wrap the decorated fragment with `.Key(...)` so local interaction state stays stable. Declarative menu composition is available through `Dux.MainMenuBar(...)`, `Dux.Menu(...)`, and `Dux.MenuItem(...)`. `DuxelView.Custom(ui => ...)` is the extension point for custom declarative nodes that need direct `UiImmediateContext` access.
 
 ### `DuxelWindowOptions`
 
@@ -150,6 +338,16 @@ These defaults are safe to rely on when generating ordinary Duxel code.
 | `Height` | `720` |
 | `Title` | `"Duxel"` |
 | `VSync` | `true` |
+| `IconPath` | Duxel default icon |
+| `IntegrateSystemChrome` | `true` |
+| `UseDuxelTitleBar` | `true` |
+| `DuxelTitleBarHeight` | `48f` |
+
+`IntegrateSystemChrome` applies Windows 11 DWM caption, text, border color, rounded corner, and dark-mode attributes from the active startup theme/design. When the app uses the default platform-following design, Windows `WM_SETTINGCHANGE` theme notifications refresh the Duxel theme and render clear color at runtime.
+
+`UseDuxelTitleBar` is enabled by default, so Windows apps remove the native caption and render a Duxel-owned title bar inside the Vulkan surface unless the app explicitly sets `UseDuxelTitleBar = false`. The app runtime wraps the user `UiScreen`, reserves the top viewport inset, draws the app icon, title, minimize/maximize/close buttons, and delegates window move/minimize/maximize/close commands through `IWindowChromeController`.
+
+When `IconPath` and `IconData` are not set, Duxel uses its bundled default `.ico` for the Win32 window/taskbar icon. The `Duxel.Windows.App` package also supplies the same icon as the default `ApplicationIcon` for consuming Windows executables unless the app sets its own icon or `DuxelUseDefaultIcon=false`.
 
 ### `DuxelRendererOptions`
 
@@ -283,7 +481,6 @@ using Duxel.Windows.App;
 
 DuxelWindowsApp.Run(new DuxelAppOptions
 {
-  Theme = UiTheme.ImGuiDark,
   Window = new DuxelWindowOptions
   {
     Title = "Configured Duxel App",
@@ -789,6 +986,7 @@ Prefer an existing sample before inventing a new pattern.
 | Need | Start here |
 |---|---|
 | Broad feature showcase | `samples/fba/all_features.cs` |
+| Declarative C# dashboard | `samples/fba/declarative_dashboard_fba.cs` |
 | Declarative DSL + Theme | `samples/Duxel.ThemeDemo` |
 | Layout and style control | `samples/fba/advanced_layout.cs` |
 | Legacy columns | `samples/fba/columns_demo.cs` |
@@ -923,13 +1121,10 @@ Common runtime toggles used across samples and diagnostics include:
 - `DUXEL_VK_STATIC_GEOMETRY_INPLACE_UPDATE`
 - `DUXEL_VK_STATIC_GEOMETRY_ROTATING_UPDATE`
 - `DUXEL_VK_STATIC_PRIMITIVE_TRIANGLES`
-- `DUXEL_VK_SOLID_UNIFIED_PIPELINE`
-- `DUXEL_VK_SOLID_UNIFIED_STATIC`
-- `DUXEL_VK_TRIANGLE_COLOR_PIPELINE`
 
 When a task depends on a runtime toggle, verify the exact name and meaning in the relevant sample before documenting or using it.
 
-For Vulkan command-recording profiling, set `DUXEL_VK_PROFILE=1`. `DUXEL_VK_PROFILE_EVERY` controls the log interval in frames, and `DUXEL_VK_PROFILE_OUT` appends profile lines to a file. Profile lines include `device(vendor=... vid=... did=... type=... name=... gfxQ=... uploadQ=... xferCandQ=... tsBits=... tsPeriodNs=... gpuTs=...)` and `policy(upload=... transferCandidate=... triColor=... solidUnified=... solidUnifiedStatic=... staticPrimTri=... staticUpdate=... staticUpdateReq=... scheduler=... schedWindow=... staticSecondaryMin=...)` so device/vendor gates remain attributable when artifacts from NVIDIA, AMD, Intel, and integrated/discrete devices are compared later. `uploadQ` is the queue family currently used for upload command buffers; `xferCandQ` is only the detected non-graphics transfer-capable candidate. `policy(upload=graphics transferCandidate=1)` therefore means a candidate exists, not that uploads are already using it. `DUXEL_VK_UPLOAD_QUEUE=transfer` opts into the split transfer upload path only when that candidate exists; `policy(upload=transfer transferCandidate=1)` is the profile proof that upload copy command buffers are using it. `staticUpdateReq` is the requested mode and `staticUpdate` is the resolved device policy. `scheduler` is the resolved command-scheduler mode: `disabled`, `static`, or `all`. Profile lines also include `stateUs(pipe=... desc=... buf=... push=... scissor=...)` to separate pipeline binds, descriptor binds, vertex/index/primitive buffer binds, push constants, and scissor sets. `clipCache(calc=... reuse=...)` reports actual scissor rectangle computation count and consecutive same clip/translation reuse count. `staticSec(cand=... cmds=... draws=...)` reports static draw lists that crossed the active `staticSecondaryMin` threshold, plus the recorded commands/draws inside those candidates; `cand=0` means secondary command buffers are not a useful next-path hypothesis for that frame even if static lists exist. `listWork(staticCmd=... dynCmd=... staticDraw=... dynDraw=... staticPipe=... dynPipe=... staticClip=... dynClip=... staticScissor=... dynScissor=... staticPush=... dynPush=... staticGeom=... dynGeom=... staticPrim=... dynPrim=...)` attributes command-recording work to static cached replay versus dynamic draw lists. Use it to decide whether the next bottleneck is static replay policy or dynamic UI ordering/channelization. `staticGeom(hit=... create=... replace=... update=... reuse=... hash=...)` reports static geometry cache reuse, buffer creation, content replacement, same-shape in-place content update, same-shape rotating-buffer reuse, and fallback content hashing in the upload phase. `staticMem(active=... activeBytes=... retired=... retiredBytes=...)` reports active static geometry entries/bytes and retired rotating-pool entries/bytes for memory-pressure checks. `staticPrim(expand=... expandPrim=... force=... autoSkip=... autoSkipPrim=... autoSkipMut=... expandBytes=... autoSkipBytes=...)` reports per-frame static primitive triangle expansion decisions, which is necessary because `policy(... staticPrimTri=1 ...)` only says the device policy allows the path. `autoSkipMut` is the subset of skipped lists suppressed because the same static geometry tag is actively changing content. `pipeClass(font=... texTri=... colorTri=... texPrim=... colorPrim=... solid=...)` reports the actual pipeline class selected after renderer policy, which is more precise for pipeline-switch analysis than the original source command kind alone. `sched(probe=... hit=... miss=... nochange=... lists=... merged=... us=...)` reports opt-in command scheduler activity and cost. `upSched(sub=... prepSub=... wait=... flush=... bytes=... texRegions=... bufCopies=... submitUs=... prepUs=... waitUs=...)` reports staging upload scheduler submissions, split-transfer graphics-prepare submissions, upload fence waits, batch flushes, staged byte volume, texture copy regions, static/buffer copy commands, and their submission/wait costs. `imgTrans(total=... toDst=... toShader=... present=... color=... xferStage=... gfxStage=... us=...)` reports image layout transition counts and separates transfer-queue-compatible stage masks from barriers that still require graphics stages. `state=` excludes scissor because scissor is also part of the `clip=` bucket, so interpret scissor separately.
+For Vulkan command-recording profiling, set `DUXEL_VK_PROFILE=1`. `DUXEL_VK_PROFILE_EVERY` controls the log interval in frames, and `DUXEL_VK_PROFILE_OUT` appends profile lines to a file. Profile lines include `device(vendor=... vid=... did=... type=... name=... gfxQ=... uploadQ=... xferCandQ=... tsBits=... tsPeriodNs=... gpuTs=...)` and `policy(upload=... transferCandidate=... staticPrimTri=... staticUpdate=... staticUpdateReq=... scheduler=... schedWindow=... staticSecondaryMin=...)` so device/vendor gates remain attributable when artifacts from NVIDIA, AMD, Intel, and integrated/discrete devices are compared later. `uploadQ` is the queue family currently used for upload command buffers; `xferCandQ` is only the detected non-graphics transfer-capable candidate. `policy(upload=graphics transferCandidate=1)` therefore means a candidate exists, not that uploads are already using it. `DUXEL_VK_UPLOAD_QUEUE=transfer` opts into the split transfer upload path only when that candidate exists; `policy(upload=transfer transferCandidate=1)` is the profile proof that upload copy command buffers are using it. `staticUpdateReq` is the requested mode and `staticUpdate` is the resolved device policy. `scheduler` is the resolved command-scheduler mode: `disabled`, `static`, or `all`. Profile lines also include `stateUs(pipe=... desc=... buf=... push=... scissor=...)` to separate pipeline binds, descriptor binds, vertex/index/primitive buffer binds, push constants, and scissor sets. `clipCache(calc=... reuse=...)` reports actual scissor rectangle computation count and consecutive same clip/translation reuse count. `staticSec(cand=... cmds=... draws=...)` reports static draw lists that crossed the active `staticSecondaryMin` threshold, plus the recorded commands/draws inside those candidates; `cand=0` means secondary command buffers are not a useful next-path hypothesis for that frame even if static lists exist. `listWork(staticCmd=... dynCmd=... staticDraw=... dynDraw=... staticPipe=... dynPipe=... staticClip=... dynClip=... staticScissor=... dynScissor=... staticPush=... dynPush=... staticGeom=... dynGeom=... staticPrim=... dynPrim=...)` attributes command-recording work to static cached replay versus dynamic draw lists. Use it to decide whether the next bottleneck is static replay policy or dynamic UI ordering/channelization. `staticGeom(hit=... create=... replace=... update=... reuse=... hash=...)` reports static geometry cache reuse, buffer creation, content replacement, same-shape in-place content update, same-shape rotating-buffer reuse, and fallback content hashing in the upload phase. `staticMem(active=... activeBytes=... retired=... retiredBytes=...)` reports active static geometry entries/bytes and retired rotating-pool entries/bytes for memory-pressure checks. `staticPrim(expand=... expandPrim=... force=... autoSkip=... autoSkipPrim=... autoSkipMut=... expandBytes=... autoSkipBytes=...)` reports per-frame static primitive triangle expansion decisions, which is necessary because `policy(... staticPrimTri=1 ...)` only says the device policy allows the path. `autoSkipMut` is the subset of skipped lists suppressed because the same static geometry tag is actively changing content. `pipeClass(font=... texTri=... colorTri=... texPrim=... colorPrim=... solid=...)` reports the actual pipeline class selected after renderer policy, which is more precise for pipeline-switch analysis than the original source command kind alone. `sched(probe=... hit=... miss=... nochange=... lists=... merged=... us=...)` reports opt-in command scheduler activity and cost. `upSched(sub=... prepSub=... wait=... flush=... bytes=... texRegions=... bufCopies=... submitUs=... prepUs=... waitUs=...)` reports staging upload scheduler submissions, split-transfer graphics-prepare submissions, upload fence waits, batch flushes, staged byte volume, texture copy regions, static/buffer copy commands, and their submission/wait costs. `imgTrans(total=... toDst=... toShader=... present=... color=... xferStage=... gfxStage=... us=...)` reports image layout transition counts and separates transfer-queue-compatible stage masks from barriers that still require graphics stages. `state=` excludes scissor because scissor is also part of the `clip=` bucket, so interpret scissor separately.
 
 Performance demos should match the specific bottleneck being tested. Use broad layer-widget scenes as final regressions, but add or pick a focused FBA demo when the question is narrow. `samples/fba/pipeline_ordering_bench_fba.cs` is the focused gate for dynamic solid/text pipeline ordering cost; it includes alternating, grouped solids-then-text, copy-merge `channelized-solid-text`, and copy-free `channel-drawlists-solid-text` phases and uses `DUXEL_PIPELINE_ORDER_BENCH_OUT`, `DUXEL_PIPELINE_ORDER_PHASE_SECONDS`, and `DUXEL_PIPELINE_ORDER_ITEMS`. `samples/fba/dynamic_widget_ordering_bench_fba.cs` is the focused gate for widget-like dynamic producer ordering with row-clip churn; it includes alternating widget rows, grouped solids-then-text, copy-merge channelized, and copy-free channel-drawlists phases, and uses `DUXEL_DYN_WIDGET_ORDER_BENCH_OUT`, `DUXEL_DYN_WIDGET_ORDER_PHASE_SECONDS`, `DUXEL_DYN_WIDGET_ORDER_WARMUP_SECONDS`, `DUXEL_DYN_WIDGET_ORDER_ITEMS`, and `DUXEL_DYN_WIDGET_ORDER_ROW_CLIPS`. `samples/fba/vector_primitives_bench_fba.cs` is the focused gate for primitive-heavy geometry and accepts `DUXEL_VECTOR_BENCH_WORKLOAD=mixed`, `rect-outline`, or `axis-line`, plus `DUXEL_VECTOR_BENCH_OUT`, `DUXEL_VECTOR_BENCH_PHASE_SECONDS`, and `DUXEL_VECTOR_BENCH_COUNTS`. `samples/fba/Duxel_perf_test_fba.cs` is the polygon physics/perf smoke; it defaults to the Render profile and global static backdrop cache, `DUXEL_PERF_PROFILE=render|display` can override the startup profile, `DUXEL_PERF_GLOBAL_STATIC_CACHE=0` disables the retained static backdrop references, and the Render Profile checkbox applies the profile immediately by switching MSAA between `1x` and `4x`. `samples/fba/global_dirty_strategy_bench.cs` is the focused gate for global static-background caching versus dynamic overlay updates; `DUXEL_GLOBAL_DIRTY_CHANNEL_DRAWLISTS` compares channel copy-merge against separate draw-list output for that exact background/overlay channel structure. `samples/fba/static_layer_moving_order_bench_fba.cs` is the focused gate for moving static-layer replay schedule reuse; it uses `DUXEL_STATIC_LAYER_MOVE_ORDER_BENCH_OUT`, `DUXEL_STATIC_LAYER_MOVE_ORDER_PHASE_SECONDS`, `DUXEL_STATIC_LAYER_MOVE_ORDER_ITEMS`, and `DUXEL_STATIC_LAYER_MOVE_ORDER_AMPLITUDE`. `samples/fba/static_cache_rebuild_bench_fba.cs` is the focused gate for cache replay, false-dirty static rebuilds, mutating static geometry replacement/update cost, Core cache-copy allocation pressure, and static primitive triangle memory pressure; it reports `avgAllocatedBytes` per measured frame and uses `DUXEL_STATIC_CACHE_REBUILD_BENCH_OUT`, `DUXEL_STATIC_CACHE_REBUILD_PHASE_SECONDS`, `DUXEL_STATIC_CACHE_REBUILD_WARMUP_SECONDS`, `DUXEL_STATIC_CACHE_REBUILD_LAYERS`, `DUXEL_STATIC_CACHE_REBUILD_DENSITY`, `DUXEL_STATIC_CACHE_REBUILD_PRIMITIVE_MODE` (`circles`, `rects`, or `mixed`), `DUXEL_STATIC_CACHE_REBUILD_CIRCLE_SEGMENTS`, and optional `DUXEL_STATIC_CACHE_REBUILD_GPU_OVERDRAW` for GPU-bound variants. `samples/fba/texture_upload_barrier_bench_fba.cs` is the focused gate for texture upload copy/barrier behavior before transfer-queue policy changes; it uses `DUXEL_TEXTURE_UPLOAD_BENCH_OUT`, `DUXEL_TEXTURE_UPLOAD_PHASE_SECONDS`, `DUXEL_TEXTURE_UPLOAD_SIZE`, `DUXEL_TEXTURE_UPLOAD_REGION_SIZE`, `DUXEL_TEXTURE_UPLOAD_REGIONS`, `DUXEL_TEXTURE_UPLOAD_TEXTURES`, and `DUXEL_TEXTURE_UPLOAD_WARMUP_FRAMES`. `samples/fba/directtext_page_upload_bench_fba.cs` is the focused gate for DirectText page-style partial texture upload behavior without platform glyph rasterizer cost; it uses `DUXEL_DTPAGE_UPLOAD_BENCH_OUT`, `DUXEL_DTPAGE_UPLOAD_PHASE_SECONDS`, `DUXEL_DTPAGE_UPLOAD_PAGE_SIZE`, `DUXEL_DTPAGE_UPLOAD_REGION_WIDTH`, `DUXEL_DTPAGE_UPLOAD_REGION_HEIGHT`, `DUXEL_DTPAGE_UPLOAD_REGIONS`, `DUXEL_DTPAGE_UPLOAD_PAGES`, and `DUXEL_DTPAGE_UPLOAD_WARMUP_FRAMES`.
 
@@ -951,111 +1146,50 @@ When a dirty static layer rebuilds to the same draw-list shape, Core should refr
 
 For GPU timestamp profiling, also set `DUXEL_VK_GPU_PROFILE=1`. It only activates when the selected graphics queue supports timestamps, and profile lines add `gpuRender=...` with render-pass GPU execution time in microseconds. Use it to separate CPU command-recording cost from shader/GPU-side cost.
 
-Static cached rect/circle primitive expansion to triangle vertex/index geometry defaults to `DUXEL_VK_STATIC_PRIMITIVE_TRIANGLES=auto`. The automatic policy enables it only on NVIDIA/AMD discrete GPUs when the triangle color pipeline is enabled, then applies per-draw-list byte and mutation guards. `auto` skips expansion when estimated expanded vertex/index bytes exceed `32x` the primitive-instance bytes; it also suppresses expansion for a static geometry tag for `30` frames after the tag's content hash changes, so mutating static layers use the upload-cheaper primitive-instance path until stable. Force expansion with `1/true/on` or disable it with `0/false/off`. This path keeps cached static draw-list command order, clipping, opacity, and texture state while reducing static primitive buffer binds and avoiding the primitive shader path. Use profile `staticPrim(...)` counters to verify actual expand/skip decisions instead of relying only on the device policy block.
+Static cached rect/circle primitive expansion to triangle vertex/index geometry defaults to `DUXEL_VK_STATIC_PRIMITIVE_TRIANGLES=auto`. The automatic policy enables it only on NVIDIA/AMD discrete GPUs, then applies per-draw-list byte and mutation guards. `auto` skips expansion when estimated expanded vertex/index bytes exceed `32x` the primitive-instance bytes; it also suppresses expansion for a static geometry tag for `30` frames after the tag's content hash changes, so mutating static layers use the upload-cheaper primitive-instance path until stable. Force expansion with `1/true/on` or disable it with `0/false/off`. This path keeps cached static draw-list command order, clipping, opacity, and texture state while letting expanded primitives ride the indexed triangle draw mode. Use profile `staticPrim(...)` counters to verify actual expand/skip decisions instead of relying only on the device policy block.
 
-The implementation boundary for static primitive auto decisions is `VulkanRendererBackend.StaticPrimitivePolicy.cs`; `VulkanRendererBackend.StaticGeometry.cs` should call this policy boundary instead of embedding device/heuristic decisions in upload code.
+The implementation boundary for static primitive auto decisions is `VulkanRendererBackend.StaticPrimitivePolicy.cs`; static geometry code should call this policy boundary instead of embedding device/heuristic decisions in upload code.
+
+### GPU-driven renderer architecture (2026-07-03)
+
+The Vulkan backend is a GPU-driven renderer with exactly **one graphics pipeline**, **one bindless texture descriptor set**, and **two shaders** (`Shaders/imgui.vert`, `Shaders/imgui.frag`):
+
+- **Bindless textures**: one global `sampler2D[]` combined-image-sampler array (capacity 4096, UPDATE_AFTER_BIND + PARTIALLY_BOUND), bound once per frame. Textures get slot indices from a free-list allocator in `TextureResources`; slots are recycled at the deferred texture-destroy point. There are no per-texture descriptor sets.
+- **Unified dual-source blending**: every draw outputs premultiplied color plus a per-channel blend factor (`One/OneMinusSrc1Color`, `One/OneMinusSrc1Alpha`). Standard draws emit `blendFactor = vec4(alpha)` (exactly equivalent to `SrcAlpha/OneMinusSrcAlpha`); ClearType subpixel text emits per-channel coverage, selected by the high bit of the fragment texture-index push constant.
+- **Vertex pulling**: the pipeline has no vertex input state. The vertex shader reads `UiVertex` streams and packed `PrimitiveInstance` records (both 20-byte/5-dword layouts) through buffer device addresses (`GL_EXT_buffer_reference`).
+- **Push constant layout**: vertex range `[0,40)` = `scale`(8) + `translate`(8) + `opacity`(4) + `drawMode`(4) + vertex-buffer address(8) + primitive-buffer address(8); fragment range `[40,44)` = packed texture index + subpixel mode bit. `drawMode` 0 = indexed triangle pulling, 1 = primitive instance expansion (rect corners / circle fans in-shader).
+- **Per-draw state**: `vkCmdBindPipeline` happens once per frame; per-draw variation is only push constants, index-buffer binds, and dynamic scissor. `vkCmdBindVertexBuffers` no longer exists in the backend.
+- **Dynamic rendering**: there are no render pass or framebuffer objects. Frames record `vkCmdBeginRenderingKHR`/`vkCmdEndRenderingKHR` with `RenderingAttachmentInfo`; MSAA resolves inline (`resolveMode = AVERAGE`, MSAA target → swapchain image). Explicit image barriers replace implicit render-pass transitions: `UNDEFINED→COLOR_ATTACHMENT` before rendering and `COLOR_ATTACHMENT→PRESENT_SRC` after. The pipeline chains `PipelineRenderingCreateInfo` with the swapchain format.
+- **Required device features** (explicit failure when missing, no fallback): `shaderSampledImageArrayDynamicIndexing`, `descriptorBindingSampledImageUpdateAfterBind`, `descriptorBindingUpdateUnusedWhilePending`, `descriptorBindingPartiallyBound`, `runtimeDescriptorArray`, `bufferDeviceAddress`, `dualSrcBlend`, `dynamicRendering` (`VK_KHR_dynamic_rendering`).
+- **Dynamic geometry memory**: per-frame vertex/primitive buffers prefer BAR memory (`DEVICE_LOCAL|HOST_VISIBLE|HOST_COHERENT`) and fall back to the stated host-visible requirement when the device lacks it. This preference is required for vertex-pulling performance: shader BDA reads from plain host memory cross PCIe per vertex and measurably regress dynamic scenes.
+
+### Renderer module map
+
+`VulkanRendererBackend` is organized into 19 partial-class modules. Extend the matching module instead of adding new single-purpose files:
+
+- `VulkanRendererBackend.cs` — `IRendererBackend` shell, constructor/bootstrap order, lifecycle/teardown, render-entry frame order, settings/API mutation.
+- `VulkanRendererBackend.Device.cs` — instance/surface/physical-device/queue/device setup, required-feature gating, vendor/device policy state and env parsing, pipeline cache identity.
+- `VulkanRendererBackend.Swapchain.cs` — swapchain selection policy, swapchain resources/recreate flow, render pass/framebuffers/MSAA targets, sync/query resources.
+- `VulkanRendererBackend.PipelineResources.cs` — bindless descriptor layout/pool/set, pipeline layout/push ranges, the single graphics pipeline, samplers, pipeline cache load/save, embedded shader loading.
+- `VulkanRendererBackend.Resources.cs` — generic buffer/image/view/memory helpers (`CreateBuffer` with preferred-memory selection, `GetBufferDeviceAddress`), image layout transition policy and `imgTrans(...)` counters.
+- `VulkanRendererBackend.TextureResources.cs` — texture create/update/destroy, bindless slot allocator and descriptor writes, upload batching, font/white texture id classification, deferred destroys.
+- `VulkanRendererBackend.UploadScheduler.cs` — staging buffer lifetime, upload batching (`DUXEL_VK_UPLOAD_BATCH`), upload queue policy (`DUXEL_VK_UPLOAD_QUEUE`), submission/wait accounting.
+- `VulkanRendererBackend.DynamicGeometry.cs` — per-frame vertex/index/primitive buffer capacity/mapping (BAR-preferred), dynamic geometry upload, frame geometry preparation.
+- `VulkanRendererBackend.StaticGeometry.cs` — static cache identity/lifetime/LRU, content/shape derivation, frame preparation, policy application, replacement policy.
+- `VulkanRendererBackend.StaticGeometryStorage.cs` — static device-local buffer materialization (with device addresses), static upload/layout writing, retired-buffer pool.
+- `VulkanRendererBackend.StaticPrimitivePolicy.cs` — static primitive triangle-expansion auto policy (`DUXEL_VK_STATIC_PRIMITIVE_TRIANGLES`), byte/mutation guards, decision profiling.
+- `VulkanRendererBackend.Frame.cs` — frame orchestration (acquire/submit/present/fences), shared frame-fence waits, frame command-recording preparation, frame completion.
+- `VulkanRendererBackend.CommandRecording.cs` — `RecordCommandBuffer` (binds the bindless set and the single pipeline once), frame/render-pass begin/end, recording state aggregation, frame/draw-list contexts, draw-list traversal.
+- `VulkanRendererBackend.CommandState.cs` — draw-mode push state, texture-index push state, vertex/primitive address push + index-buffer bind state, transform/opacity push state, scissor state.
+- `VulkanRendererBackend.CommandDraw.cs` — draw-path orchestration, draw dispatch (indexed/instanced), command classification, texture lookup cache, primitive instance encoding.
+- `VulkanRendererBackend.CommandScheduling.cs` — opt-in overlap-constrained command scheduler (`DUXEL_VK_COMMAND_SCHEDULER`), schedule cache, merge expansion.
+- `VulkanRendererBackend.CommandDiagnostics.cs` — command diag gating/labels (`DUXEL_VK_COMMAND_DIAG`), font diagnostics (`DUXEL_VK_FONT_DIAG`), record profile counters and `CommandRecordStats` construction.
+- `VulkanRendererBackend.Diagnostics.cs` — profile line output, device/policy text, GPU timestamp interpretation, failure tracing.
+- `VulkanRendererBackend.Types.cs` — shared renderer records (`StaticGeometryBuffer` with device addresses, `TextureResource` with slot index, frame resources).
 
 Upload command pooling, staging buffer lifetime, `DUXEL_VK_UPLOAD_BATCH`, `DUXEL_VK_UPLOAD_QUEUE`, staging offset reservation, batch flush, graphics upload-prepare command submission, transfer upload-copy submission, and single-time upload submission belong in `VulkanRendererBackend.UploadScheduler.cs`. Texture updates and static geometry upload code should call this boundary instead of growing their own staging command paths. Upload batching defaults to enabled; set `DUXEL_VK_UPLOAD_BATCH=0`, `false`, or `off` only for diagnosis. The transfer upload path is opt-in only: keep the default graphics path until focused texture/page upload gates prove the split path is faster on the target vendor/device. On the local NVIDIA `10de:2f58` gate, transfer was slower by about `12-13%` on generic texture updates and `15-19%` on DirectText page updates because `upSched(prepSub=1 ...)` and higher upload waits outweighed shorter transfer-copy submissions.
 
-Rotating static geometry retired-buffer pool ownership belongs in `VulkanRendererBackend.StaticGeometryRetiredPool.cs`. Keep frame-safe availability checks, per-tag pool caps, idle pruning, retired memory stats, and retired-buffer teardown there; `VulkanRendererBackend.StaticGeometry.cs` should call that boundary from active cache creation/replacement/prune/teardown code.
-
-Active static geometry cache identity and lifetime belong in `VulkanRendererBackend.StaticGeometryCache.cs`. Keep static tag recognition, active entry get/set, seen-frame tracking, LRU prune, active memory stats, and active-buffer teardown there; `VulkanRendererBackend.StaticGeometry.cs` should focus on same-shape replacement policy orchestration.
-
-Static geometry upload/layout writing belongs in `VulkanRendererBackend.StaticGeometryUpload.cs`. Keep static vertex/index/primitive staging writes, expanded primitive triangle layout/writers, primitive instance writers, and solid sentinel reservation helpers there.
-
-Same-shape static geometry replacement policy belongs in `VulkanRendererBackend.StaticGeometryReplacementPolicy.cs`. Keep `StaticGeometryShape`, cache-entry match checks, resource presence checks, and in-place compatibility checks there; `VulkanRendererBackend.StaticGeometry.cs` should orchestrate the selected path and call cache/upload/retired-pool boundaries.
-
-Dynamic per-frame geometry upload belongs in `VulkanRendererBackend.DynamicGeometryUpload.cs`. Keep dynamic draw-list index ownership, mapped frame vertex/index writes, dynamic primitive instance writes, and dynamic primitive sentinel count there; `VulkanRendererBackend.StaticGeometry.cs` should only prepare static bindings and dynamic counts, while the frame loop should call dynamic upload and static cache pruning as separate steps.
-
-Dynamic frame geometry buffer ownership belongs in `VulkanRendererBackend.GeometryBuffers.cs`. Keep dynamic frame vertex/index/primitive buffer capacity growth, host-visible memory mapping/unmapping, queued replacement destroy, and frame geometry buffer teardown there. `VulkanRendererBackend.FrameGeometry.cs` should decide capacity requirements and call this boundary; lifecycle and swapchain teardown should call `DestroyGeometryBuffers()`.
-
-Static geometry buffer materialization belongs in `VulkanRendererBackend.StaticGeometryMaterialization.cs`. Keep static device-local buffer allocation, common static vertex/index/primitive upload fan-out, create-path materialization, and same-shape reupload materialization there; `VulkanRendererBackend.StaticGeometry.cs` should choose the high-level cache/reuse/update/replace/create policy and call this boundary.
-
-Per-frame static/dynamic draw-list preparation belongs in `VulkanRendererBackend.StaticGeometryFramePreparation.cs`. Keep static binding dictionary ownership, dynamic vertex/index/primitive counters, static draw-list binding classification, and static-geometry profile counter resets there; the render loop should consume `FrameGeometryCounts` for frame buffer sizing.
-
-Static geometry content/shape derivation belongs in `VulkanRendererBackend.StaticGeometryContent.cs`. Keep `StaticGeometryContent`, content hash selection, fallback hash profiling, static primitive triangle decision recording, mutation-suppression input, expanded primitive layout selection, and shape packing there; `VulkanRendererBackend.StaticGeometry.cs` should consume the prepared content and apply cache/reuse/update/replace/create policy.
-
-Static geometry policy application belongs in `VulkanRendererBackend.StaticGeometryPolicyApplication.cs`. Keep cache-hit accounting, reusable-buffer activation, in-place update activation, replacement teardown/retire choice, creation counting, and materialize+activate calls there; `VulkanRendererBackend.StaticGeometry.cs` should stay a thin branch selector over prepared content and shape.
-
-Primitive instance encoding belongs in `VulkanRendererBackend.PrimitiveInstanceEncoding.cs`. Keep `PrimitiveInstance` payload flags, the solid-triangle sentinel payload, dynamic/static primitive sentinel counts, primitive instance creators, and sentinel reservation predicates there; dynamic/static upload and command recording code should call this boundary instead of defining ad hoc payload or sentinel constants.
-
-Command pipeline binding state belongs in `VulkanRendererBackend.CommandPipelineState.cs`. Keep current-pipeline caching, `vkCmdBindPipeline` timing, source command-kind bind counters, and actual pipeline-class counters there; `VulkanRendererBackend.CommandRecording.cs` should choose the desired pipeline and call the command-state boundary.
-
-Command descriptor-set binding state belongs in `VulkanRendererBackend.CommandDescriptorState.cs`. Keep last descriptor-set caching, `vkCmdBindDescriptorSets` timing, and descriptor bind counters there; command recording should call this boundary after resolving the texture resource.
-
-Command geometry/primitive buffer binding state belongs in `VulkanRendererBackend.CommandBufferBindingState.cs`. Keep geometry vertex/index buffer cache, primitive instance buffer cache, `vkCmdBindVertexBuffers`/`vkCmdBindIndexBuffer` timing, and geometry/primitive bind counters there; command recording should call this boundary for triangle, expanded static primitive, unified solid primitive, and primitive-instance draw paths.
-
-Command frame/render-pass recording belongs in `VulkanRendererBackend.CommandFrameRecording.cs`. Keep command-buffer begin/end, main render-pass begin/end, and GPU timestamp query reset/write helpers there; `VulkanRendererBackend.CommandRecording.cs` should call this frame boundary instead of embedding raw render-pass setup.
-
-Render-entry shell ownership belongs in `VulkanRendererBackend.RenderEntry.cs`. Keep `RenderDrawData(...)` there as the high-level frame order only: profile reset, texture update, frame target/begin, frame geometry preparation, command recording preparation, and frame completion. Do not inline texture lifetime, swapchain acquire, geometry upload, command-buffer recording, submit/present, or profile-output internals into this shell.
-
-Frame orchestration belongs in `VulkanRendererBackend.FrameOrchestration.cs`. Keep frame target validation, swapchain image acquire/recreate retry, per-frame fence waits, image-in-flight ownership, pending destroy flush, low-level submit/present helpers, present-result handling, and frame-profile timing/output helpers there. `VulkanRendererBackend.RenderEntry.cs` should preserve only the high-level frame order and should not inline swapchain acquire, queue submit, queue present, or frame-profile output construction again.
-
-Frame geometry preparation/upload belongs in `VulkanRendererBackend.FrameGeometry.cs`. Keep per-frame static binding preparation, dynamic geometry capacity decisions, dynamic primitive sentinel capacity, dynamic geometry upload, static cache pruning, upload timing, and the geometry-buffer tuple passed to command recording there. `RenderDrawData(...)` should call this boundary and should not inline static/dynamic geometry preparation or upload phase logic again.
-
-Frame command recording preparation belongs in `VulkanRendererBackend.FrameCommandRecording.cs`. Keep frame command-pool reset, command recording timing, `RecordCommandBuffer(...)` invocation, GPU timestamp-issued bookkeeping, and the command buffer returned for submit there. `RenderDrawData(...)` should call this boundary and should not inline `ResetCommandPool`, record timing, or timestamp-issued logic again.
-
-Frame completion belongs in `VulkanRendererBackend.FrameCompletion.cs`. Keep final semaphore extraction, `SubmitFrame(...)`, `PresentFrame(...)`, present-result handling call, profile emission, and frame-index advance there. `RenderDrawData(...)` should call this boundary and should not inline submit/present/profile/frame-index completion logic again.
-
-Command frame/list recording context belongs in `VulkanRendererBackend.CommandContext.cs`. Keep `CommandFrameContext`, `CommandDrawListContext`, and `CreateCommandFrameContext(...)` there; `VulkanRendererBackend.CommandRecording.cs` should create them at frame and draw-list boundaries, while scissor, push-constant, and draw-path boundaries consume them instead of long transform, clip, buffer, and offset scalar bundles. Keep integer framebuffer extents on the frame context for render-pass setup, and do not reintroduce standalone TAA/jitter scalar parameters on `RecordCommandBuffer(...)`; restore temporal jitter through the frame context boundary only when a real TAA path exists.
-
-Command recording state aggregation belongs in `VulkanRendererBackend.CommandRecordingState.cs`. Keep the per-pass profile, diagnostic, texture, scissor, pipeline, descriptor, buffer, push, and draw-dispatch state bundle there so command recording and draw-list recording pass one state aggregate instead of widening every boundary. Final record timing/stat output construction also belongs there through `CompleteCommandRecordingState(...)` and `BuildCommandRecordStats(...)`; `VulkanRendererBackend.CommandRecording.cs` should not rebuild output ticks or profile stats from individual state fields inline.
-
-Command draw-list recording belongs in `VulkanRendererBackend.CommandDrawListRecording.cs`. Keep viewport setup, draw-list offset tracking, static binding lookup, scheduler setup/profile events, command iteration, per-command diagnostic/texture/font/scissor sequencing, and draw-path dispatch there. `VulkanRendererBackend.CommandRecording.cs` should call this boundary after frame begin and should not grow another local draw-list traversal loop.
-
-Command push-constant state belongs in `VulkanRendererBackend.CommandPushConstantState.cs`. Keep transform/opacity push cache, `vkCmdPushConstants` range selection, timing, and push counters there; command recording should provide command translation/opacity and frame context data, then call this boundary.
-
-Command scissor state belongs in `VulkanRendererBackend.CommandScissorState.cs`. Keep computed scissor rectangle helpers, scissor reuse, current scissor cache, visibility rejection, clipping timing, `vkCmdSetScissor` timing, and scissor counters there; command recording should call this boundary before pipeline and draw dispatch. `TryComputeScissorRect(...)` should clamp once at the float clip-bound stage and avoid a second integer framebuffer clamp unless a focused profile proves the extra boundary check is needed.
-
-Command draw dispatch belongs in `VulkanRendererBackend.CommandDrawDispatch.cs`. Keep triangle indexed draw dispatch, expanded static primitive indexed draw dispatch, primitive-instance draw dispatch, index/instance calculations, and draw-call timing/counting there; command recording should bind required state first, then call this boundary for the selected draw path.
-
-Command classification belongs in `VulkanRendererBackend.CommandClassification.cs`. Keep per-command triangle/primitive classification, white/font texture classification, texture-need flags, and static-expanded-primitive geometry flags there; command recording should consume the classification value instead of recomputing these hot-path booleans inline.
-
-Command texture lookup state belongs in `VulkanRendererBackend.CommandTextureState.cs`. Keep the last-texture cache, texture dictionary lookup, and texture lookup timing there; command recording should resolve a `TextureResource` through this boundary before descriptor binding only when `CommandClassification.CommandNeedsTexture` is true. Non-texture solid/color commands should skip this boundary entirely. Missing required textures should report through the font diagnostic boundary when relevant.
-
-Texture resource/update ownership belongs in `VulkanRendererBackend.TextureResources.cs`. Keep `ApplyTextureUpdates(...)`, texture create/update/destroy, pending texture-destroy flushes, texture data upload/batching, font/white texture id classification, texture dictionary/font-white id state, and texture descriptor allocation there. `RenderDrawData(...)` should only call `ApplyTextureUpdates(...)`; command recording should use texture id classification from this boundary and should not grow texture lifetime or upload code.
-
-Generic Vulkan resource helpers belong in `VulkanRendererBackend.ResourceHelpers.cs`. Keep swapchain image-view creation, frame-safe buffer destroy helpers, `CreateBuffer(...)`, `CreateImage(...)`, `CreateImageView(...)`, `FindMemoryType(...)`, `ToVkFormat(...)`, and MSAA color image create/destroy there. Texture, static geometry, dynamic geometry, staging upload, swapchain, and MSAA paths should consume this boundary instead of growing allocation or memory-type code in `VulkanRendererBackend.cs`.
-
-Image layout transition policy belongs in `VulkanRendererBackend.ImageTransitions.cs`. Keep `TransitionImageLayout(...)`, texture upload prepare/finalize layout helpers, pending texture shader-read finalization state, layout-pair resolution, access mask selection, pipeline stage mask selection, and `imgTrans(...)` profile counters there. Do not hide shader/color-attachment stage dependencies in upload or generic allocation code; transfer-queue work must keep the active upload queue (`uploadQ`) separate from the candidate queue (`xferCandQ`) and must model queue ownership and stage masks explicitly before changing the default upload queue policy. Use `imgTrans(total=... toDst=... toShader=... present=... color=... xferStage=... gfxStage=... us=...)` to prove whether texture/page uploads are barrier-heavy or copy-heavy; `texture_upload_barrier_bench_fba.cs` should show same-texture non-overlapping region batches at `total=2` and many-texture updates at `total=2 * textureCount`. `xferStage` means the stage masks are transfer-queue-compatible; `gfxStage` means graphics/fragment/color stage masks must be split or moved before transfer-only upload recording.
-
-Render-target setup belongs in `VulkanRendererBackend.RenderTargets.cs`. Keep render-pass creation, swapchain framebuffer creation, render-pass/framebuffer state, MSAA sample-count state, and MSAA color image/view state there, including the single-sample path, MSAA color attachment, resolve attachment, subpass dependency, and framebuffer attachment list rules. Do not grow raw render-pass/framebuffer setup back into `VulkanRendererBackend.cs` or command-recording files.
-
-Pipeline resource setup belongs in `VulkanRendererBackend.PipelineResources.cs`. Keep descriptor pool creation, descriptor/pipeline layout creation, graphics pipeline assembly, sampler creation/state, pipeline/cache/shader/descriptor state, pipeline cache load/save/destroy, shader module creation, and embedded shader loading there. Do not mix pipeline object creation, descriptor pool setup, pipeline cache policy, or shader-loader policy back into frame orchestration or command recording.
-
-Sync/query setup belongs in `VulkanRendererBackend.SyncResources.cs`. Keep frame command pool/buffer allocation, per-frame fence creation/state, image-in-flight state, semaphore ring creation/state, upload command resource entry, GPU timestamp query constants, and GPU timestamp query-pool creation there. Frame orchestration should consume these initialized resources and should not grow frame sync allocation or query-pool creation code. GPU profiling request/resolved state belongs with diagnostics because profile output and query-result interpretation consume it.
-
-Shared frame-fence wait helpers belong in `VulkanRendererBackend.FrameSync.cs`. Keep the all-in-flight frame fence wait used by resource replacement, texture teardown, static geometry updates, and other cross-frame hazard-avoidance paths there. Per-frame acquire/present waits should stay in `VulkanRendererBackend.FrameOrchestration.cs`; sync allocation should stay in `VulkanRendererBackend.SyncResources.cs`.
-
-Swapchain selection policy belongs in `VulkanRendererBackend.SwapchainPolicy.cs`. Keep surface format selection, present mode selection, platform framebuffer state, and framebuffer extent selection there. `CreateSwapchain(...)` may consume those decisions, but should not inline preference lists, VSync fallback messaging, or platform framebuffer clamping again.
-
-Swapchain resource creation and lifecycle belongs in `VulkanRendererBackend.SwapchainResources.cs`. Keep `CreateSwapchain(...)`, surface capability/mode enumeration, desired image-count clamping/state, composite-alpha fallback, `SwapchainCreateInfoKHR` construction, swapchain handle creation/state, swapchain image/view format/extent state, swapchain image retrieval, `CreateSwapchainResources(...)`, `RecreateSwapchain(...)`, `TryRecreateSwapchain(...)`, and `DestroySwapchainDependentResources(...)` there. Do not merge resource creation, recreate flow, or swapchain-dependent destruction back into selection policy or the main backend lifecycle method.
-
-Device/backend lifecycle belongs in `VulkanRendererBackend.Lifecycle.cs`. Keep `Dispose()` and `DestroyDeviceResources(...)` there so pipeline-cache save, swapchain-dependent destruction, device-level resource destruction, and instance/surface/device handle cleanup stay in one teardown boundary. Do not re-inline device-level destruction into `VulkanRendererBackend.cs`.
-
-Device resource setup belongs in `VulkanRendererBackend.DeviceResources.cs`. Keep instance creation/state, instance extension loading, surface creation/state, physical-device selection/state, graphics/present queue-family selection/state, dedicated transfer candidate discovery/state, logical device creation/state, queue retrieval/state, device extension loading, device policy state, and MSAA sample-count resolution there. Do not grow device/queue setup back into the bootstrap constructor; it should preserve initialization order and consume this boundary.
-
-Device/vendor renderer policy belongs in `VulkanRendererBackend.DevicePolicy.cs`. Keep GPU vendor classification, upload queue policy parsing/resolution, triangle color pipeline policy, solid unified pipeline policy, static primitive triangle policy, static geometry update policy, requested/resolved policy state, and pipeline cache identity there. Diagnostics should report resolved policy but should not own renderer-policy env parsing.
-
-Renderer bootstrap ownership belongs in `VulkanRendererBackend.Bootstrap.cs`. Keep the constructor initialization order, surface-source validation, texture id defaults, initial swapchain creation, and selected-device policy resolution there. Device/queue creation details should stay in `DeviceResources`, pipeline resources in `PipelineResources`, settings mutation in `Settings`, and frame rendering in `RenderEntry`.
-
-Renderer state declarations belong beside the owner file that already owns the matching lifecycle or behavior. `VulkanRendererBackend.State.cs` is only for truly shared primitives without a narrower owner; currently that means the shared `Vk` API handle. `VulkanRendererBackend.cs` should remain only the `IRendererBackend` partial-class shell and should not regain fields, shader blobs, setup code, or frame code.
-
-Renderer settings/API ownership belongs in `VulkanRendererBackend.Settings.cs`. Keep public device-object invalidation/recreation entry points, clear-color conversion, minimum image count, VSync, MSAA sample setting, settings-triggered swapchain recreation, and settings-related environment parsing there. Do not grow runtime render-entry or constructor code with settings mutation branches.
-
-Command pipeline selection belongs in `VulkanRendererBackend.CommandPipelineSelection.cs`. Keep target vertex/index/primitive buffer selection, solid-unified availability checks, desired graphics pipeline selection, and solid-unified use detection there; command recording should consume `CommandPipelineSelection` for pipeline binding, buffer binding, and draw-path branching.
-
-Command scheduling belongs in `VulkanRendererBackend.CommandScheduling.cs`. Keep overlap-constrained scheduled-order lookup/cache, scheduling compatibility checks, scheduling bounds merge, adjacent scheduled-command run merge expansion, and command-iteration cursor/step selection there. Command recording should consume `CommandIterationStep`, use the step's command index and next order index, and report only the merged-count event to `CommandRecordProfileState`.
-
-Command scheduler policy state also belongs in `VulkanRendererBackend.CommandScheduling.cs`. Keep `DUXEL_VK_COMMAND_SCHEDULER` parsing, `DUXEL_VK_COMMAND_SCHEDULER_MAX_WINDOW`, resolved scheduler mode/window state, schedule cache ownership, and scheduling algorithms together.
-
-Command draw-path orchestration belongs in `VulkanRendererBackend.CommandDrawPath.cs`. Keep the triangle, expanded static primitive, and primitive-instance draw-path branch orchestration there, including pipeline-selection consumption, pipeline/push/descriptor binding order, geometry/primitive buffer binding requirements, primitive instance buffer validation, and calls into `CommandDrawDispatch`. `VulkanRendererBackend.CommandRecording.cs` should prepare command classification, diagnostics, texture resolution, and scissor visibility, then call this draw-path boundary instead of owning draw-path branches inline.
-
-Command record profile state belongs in `VulkanRendererBackend.CommandRecordProfileState.cs`. Keep command-record profile counters, draw-list static/dynamic counts, scheduler hit/miss/timing counts, scheduled merge counts, transition counters, and final `CommandRecordStats` construction there; command recording should report profile events through this boundary.
-
-General command diagnostic state belongs in `VulkanRendererBackend.CommandDiagnosticState.cs`. Keep command diagnostic frame gating, per-pass emission counts, pipeline label selection, and `DUXEL_VK_COMMAND_DIAG` log emission there.
-
-Command font diagnostic state belongs in `VulkanRendererBackend.CommandFontDiagnosticState.cs`. Keep `DUXEL_VK_FONT_DIAG` log writing, per-pass font diagnostic counts, missing texture font diagnostics, normal font command diagnostics, and index/vertex/UV bounds validation there; command recording and texture lookup should call this boundary instead of owning font-specific counters or log formatting.
+Image layout transition policy stays in the `Resources` module. Use `imgTrans(total=... toDst=... toShader=... present=... color=... xferStage=... gfxStage=... us=...)` to prove whether texture/page uploads are barrier-heavy or copy-heavy; `texture_upload_barrier_bench_fba.cs` should show same-texture non-overlapping region batches at `total=2` and many-texture updates at `total=2 * textureCount`. `xferStage` means the stage masks are transfer-queue-compatible; `gfxStage` means graphics/fragment/color stage masks must be split or moved before transfer-only upload recording.
 
 For font command diagnostics, set `DUXEL_VK_FONT_DIAG=1`. Use `DUXEL_VK_FONT_DIAG_OUT` to redirect the verbose command log to a file.
 
@@ -1063,9 +1197,7 @@ For general Vulkan command sequence diagnostics, set `DUXEL_VK_COMMAND_DIAG=1`. 
 
 Draw-list command merging must treat callback-free zero-element commands as state placeholders, not draw-order barriers. When adding a real draw, the builder removes a trailing empty placeholder before testing contiguous command merge eligibility; keep opacity, texture, clip, translation, kind, vertex offset, callback, and user data in the merge predicate. Prefer clipped draw helpers such as clipped `AddImage(...)` when the caller already knows the effective clip, instead of pushing/popping the builder clip stack around one draw.
 
-Sampler-free solid triangle rendering defaults to `DUXEL_VK_TRIANGLE_COLOR_PIPELINE=auto`. The automatic policy enables it for NVIDIA/AMD discrete GPUs and keeps it off for other devices. For scene-specific A/B profiling, force it with `1/true/on` or disable it with `0/false/off`.
-
-The dynamic path that draws solid triangles and solid rect/circle primitives through one Vulkan pipeline defaults to `DUXEL_VK_SOLID_UNIFIED_PIPELINE=auto`, but the current automatic policy resolves it to disabled on all devices until a vendor/device gate proves a consistent FPS win. Force it with `1/true/on` or disable it with `0/false/off`. Dynamic primitive buffer instance `0` is reserved for the solid-triangle sentinel, and real dynamic rect/circle primitives draw at `firstInstance + 1`, so triangles and primitives keep the same binding `1` buffer. For static-cached draw-list experiments, also set `DUXEL_VK_SOLID_UNIFIED_STATIC=1`. In that mode, static primitive buffers reserve instance `0` for the solid-triangle sentinel; non-expanded static primitive instances are placed after that base offset, and expanded static primitive geometry can bind the sentinel for solid unified draws. Static full unified has the desired command-state shape, but it is not a default path yet because FPS still regresses in mixed scenes.
+Sampler-free pipeline variants no longer exist: since the GPU-driven renderer migration every draw samples the bindless texture array, solid draws sample the app 1x1 white texture, and pipeline selection cost is gone because there is only one pipeline. `DUXEL_VK_TRIANGLE_COLOR_PIPELINE`, `DUXEL_VK_SOLID_UNIFIED_PIPELINE`, and `DUXEL_VK_SOLID_UNIFIED_STATIC` were removed together with the split pipelines and the solid-triangle sentinel; do not reintroduce them.
 
 For text renderer A/B profiling, set `DUXEL_TEXT_RENDERING=direct`, `atlas`, or `auto`. `DirectText` is the default. Explicit `atlas` forces the atlas renderer for comparison, and explicit `auto` keeps atlas-first rendering but uses DirectText as an immediate visual fallback for missing atlas glyphs; use it only when that fallback behavior is intentional.
 

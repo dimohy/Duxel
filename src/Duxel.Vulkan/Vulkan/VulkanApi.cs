@@ -6,7 +6,6 @@ namespace Duxel.Vulkan;
 public sealed unsafe partial class Vk
 {
     public const uint False = 0;
-    public const uint SubpassExternal = ~0u;
     public const uint QueueFamilyIgnored = ~0u;
     public static Version32 Version12 => new(1, 2, 0);
 
@@ -109,6 +108,8 @@ public sealed unsafe partial class Vk
     public Result EnumeratePhysicalDevices(Instance instance, uint* physicalDeviceCount, PhysicalDevice* physicalDevices) => vkEnumeratePhysicalDevices(instance, physicalDeviceCount, physicalDevices);
     public void GetPhysicalDeviceQueueFamilyProperties(PhysicalDevice physicalDevice, uint* queueFamilyPropertyCount, QueueFamilyProperties* queueFamilyProperties) => vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, queueFamilyPropertyCount, queueFamilyProperties);
     public void GetPhysicalDeviceProperties(PhysicalDevice physicalDevice, out PhysicalDeviceProperties properties) => vkGetPhysicalDeviceProperties(physicalDevice, out properties);
+    public void GetPhysicalDeviceFeatures2(PhysicalDevice physicalDevice, PhysicalDeviceFeatures2* features) => vkGetPhysicalDeviceFeatures2(physicalDevice, features);
+    public ulong GetBufferDeviceAddress(Device device, BufferDeviceAddressInfo* info) => vkGetBufferDeviceAddress(device, info);
     public void GetPhysicalDeviceMemoryProperties(PhysicalDevice physicalDevice, out PhysicalDeviceMemoryProperties properties) => vkGetPhysicalDeviceMemoryProperties(physicalDevice, out properties);
     public Result CreateDevice(PhysicalDevice physicalDevice, DeviceCreateInfo* createInfo, AllocationCallbacks* allocator, Device* device) => vkCreateDevice(physicalDevice, createInfo, allocator, device);
     public void DestroyDevice(Device device, AllocationCallbacks* allocator) => vkDestroyDevice(device, allocator);
@@ -126,8 +127,6 @@ public sealed unsafe partial class Vk
     public Result BindImageMemory(Device device, Image image, DeviceMemory memory, ulong memoryOffset) => vkBindImageMemory(device, image, memory, memoryOffset);
     public Result CreateImageView(Device device, ImageViewCreateInfo* createInfo, AllocationCallbacks* allocator, ImageView* view) => vkCreateImageView(device, createInfo, allocator, view);
     public void DestroyImageView(Device device, ImageView imageView, AllocationCallbacks* allocator) => vkDestroyImageView(device, imageView, allocator);
-    public Result CreateRenderPass(Device device, RenderPassCreateInfo* createInfo, AllocationCallbacks* allocator, RenderPass* renderPass) => vkCreateRenderPass(device, createInfo, allocator, renderPass);
-    public void DestroyRenderPass(Device device, RenderPass renderPass, AllocationCallbacks* allocator) => vkDestroyRenderPass(device, renderPass, allocator);
     public Result CreateDescriptorSetLayout(Device device, DescriptorSetLayoutCreateInfo* createInfo, AllocationCallbacks* allocator, DescriptorSetLayout* setLayout) => vkCreateDescriptorSetLayout(device, createInfo, allocator, setLayout);
     public void DestroyDescriptorSetLayout(Device device, DescriptorSetLayout descriptorSetLayout, AllocationCallbacks* allocator) => vkDestroyDescriptorSetLayout(device, descriptorSetLayout, allocator);
     public Result CreatePipelineLayout(Device device, PipelineLayoutCreateInfo* createInfo, AllocationCallbacks* allocator, PipelineLayout* pipelineLayout) => vkCreatePipelineLayout(device, createInfo, allocator, pipelineLayout);
@@ -149,8 +148,6 @@ public sealed unsafe partial class Vk
     public Result AllocateDescriptorSets(Device device, DescriptorSetAllocateInfo* allocateInfo, DescriptorSet* descriptorSets) => vkAllocateDescriptorSets(device, allocateInfo, descriptorSets);
     public Result FreeDescriptorSets(Device device, DescriptorPool descriptorPool, uint descriptorSetCount, DescriptorSet* descriptorSets) => vkFreeDescriptorSets(device, descriptorPool, descriptorSetCount, descriptorSets);
     public void UpdateDescriptorSets(Device device, uint descriptorWriteCount, WriteDescriptorSet* descriptorWrites, uint descriptorCopyCount, void* descriptorCopies) => vkUpdateDescriptorSets(device, descriptorWriteCount, descriptorWrites, descriptorCopyCount, descriptorCopies);
-    public Result CreateFramebuffer(Device device, FramebufferCreateInfo* createInfo, AllocationCallbacks* allocator, Framebuffer* framebuffer) => vkCreateFramebuffer(device, createInfo, allocator, framebuffer);
-    public void DestroyFramebuffer(Device device, Framebuffer framebuffer, AllocationCallbacks* allocator) => vkDestroyFramebuffer(device, framebuffer, allocator);
     public Result CreateCommandPool(Device device, CommandPoolCreateInfo* createInfo, AllocationCallbacks* allocator, CommandPool* commandPool) => vkCreateCommandPool(device, createInfo, allocator, commandPool);
     public void DestroyCommandPool(Device device, CommandPool commandPool, AllocationCallbacks* allocator) => vkDestroyCommandPool(device, commandPool, allocator);
     public Result ResetCommandPool(Device device, CommandPool commandPool, uint flags) => vkResetCommandPool(device, commandPool, flags);
@@ -181,8 +178,6 @@ public sealed unsafe partial class Vk
     public void CmdPushConstants(CommandBuffer commandBuffer, PipelineLayout layout, ShaderStageFlags stageFlags, uint offset, uint size, void* values) => vkCmdPushConstants(commandBuffer, layout, stageFlags, offset, size, values);
     public void CmdDraw(CommandBuffer commandBuffer, uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance) => vkCmdDraw(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
     public void CmdDrawIndexed(CommandBuffer commandBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance) => vkCmdDrawIndexed(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
-    public void CmdBeginRenderPass(CommandBuffer commandBuffer, RenderPassBeginInfo* renderPassBegin, SubpassContents contents) => vkCmdBeginRenderPass(commandBuffer, renderPassBegin, contents);
-    public void CmdEndRenderPass(CommandBuffer commandBuffer) => vkCmdEndRenderPass(commandBuffer);
     public void CmdClearAttachments(CommandBuffer commandBuffer, uint attachmentCount, ClearAttachment* attachments, uint rectCount, ClearRect* rects) => vkCmdClearAttachments(commandBuffer, attachmentCount, attachments, rectCount, rects);
     public void CmdCopyImage(CommandBuffer commandBuffer, Image srcImage, ImageLayout srcImageLayout, Image dstImage, ImageLayout dstImageLayout, uint regionCount, ImageCopy* regions) => vkCmdCopyImage(commandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, regions);
     public void CmdCopyImageToBuffer(CommandBuffer commandBuffer, Image srcImage, ImageLayout srcImageLayout, Buffer dstBuffer, uint regionCount, BufferImageCopy* regions) => vkCmdCopyImageToBuffer(commandBuffer, srcImage, srcImageLayout, dstBuffer, regionCount, regions);
@@ -214,6 +209,10 @@ public sealed unsafe partial class Vk
     private static partial void vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice physicalDevice, uint* queueFamilyPropertyCount, QueueFamilyProperties* queueFamilyProperties);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetPhysicalDeviceProperties")]
     private static partial void vkGetPhysicalDeviceProperties(PhysicalDevice physicalDevice, out PhysicalDeviceProperties properties);
+    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetPhysicalDeviceFeatures2")]
+    private static partial void vkGetPhysicalDeviceFeatures2(PhysicalDevice physicalDevice, PhysicalDeviceFeatures2* features);
+    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetBufferDeviceAddress")]
+    private static partial ulong vkGetBufferDeviceAddress(Device device, BufferDeviceAddressInfo* info);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetPhysicalDeviceMemoryProperties")]
     private static partial void vkGetPhysicalDeviceMemoryProperties(PhysicalDevice physicalDevice, out PhysicalDeviceMemoryProperties properties);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateDevice")]
@@ -248,10 +247,7 @@ public sealed unsafe partial class Vk
     private static partial Result vkCreateImageView(Device device, ImageViewCreateInfo* createInfo, AllocationCallbacks* allocator, ImageView* view);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyImageView")]
     private static partial void vkDestroyImageView(Device device, ImageView imageView, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateRenderPass")]
-    private static partial Result vkCreateRenderPass(Device device, RenderPassCreateInfo* createInfo, AllocationCallbacks* allocator, RenderPass* renderPass);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyRenderPass")]
-    private static partial void vkDestroyRenderPass(Device device, RenderPass renderPass, AllocationCallbacks* allocator);
+
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateDescriptorSetLayout")]
     private static partial Result vkCreateDescriptorSetLayout(Device device, DescriptorSetLayoutCreateInfo* createInfo, AllocationCallbacks* allocator, DescriptorSetLayout* setLayout);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyDescriptorSetLayout")]
@@ -294,10 +290,6 @@ public sealed unsafe partial class Vk
     private static partial Result vkFreeDescriptorSets(Device device, DescriptorPool descriptorPool, uint descriptorSetCount, DescriptorSet* descriptorSets);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkUpdateDescriptorSets")]
     private static partial void vkUpdateDescriptorSets(Device device, uint descriptorWriteCount, WriteDescriptorSet* descriptorWrites, uint descriptorCopyCount, void* descriptorCopies);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateFramebuffer")]
-    private static partial Result vkCreateFramebuffer(Device device, FramebufferCreateInfo* createInfo, AllocationCallbacks* allocator, Framebuffer* framebuffer);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyFramebuffer")]
-    private static partial void vkDestroyFramebuffer(Device device, Framebuffer framebuffer, AllocationCallbacks* allocator);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateCommandPool")]
     private static partial Result vkCreateCommandPool(Device device, CommandPoolCreateInfo* createInfo, AllocationCallbacks* allocator, CommandPool* commandPool);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyCommandPool")]
@@ -358,10 +350,6 @@ public sealed unsafe partial class Vk
     private static partial void vkCmdDraw(CommandBuffer commandBuffer, uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdDrawIndexed")]
     private static partial void vkCmdDrawIndexed(CommandBuffer commandBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdBeginRenderPass")]
-    private static partial void vkCmdBeginRenderPass(CommandBuffer commandBuffer, RenderPassBeginInfo* renderPassBegin, SubpassContents contents);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdEndRenderPass")]
-    private static partial void vkCmdEndRenderPass(CommandBuffer commandBuffer);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdClearAttachments")]
     private static partial void vkCmdClearAttachments(CommandBuffer commandBuffer, uint attachmentCount, ClearAttachment* attachments, uint rectCount, ClearRect* rects);
     [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdCopyImage")]

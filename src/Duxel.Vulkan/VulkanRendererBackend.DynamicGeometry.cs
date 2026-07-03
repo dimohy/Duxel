@@ -1,4 +1,7 @@
-using Duxel.Core;
+﻿using Duxel.Core;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using VkBuffer = Duxel.Vulkan.Buffer;
 
 namespace Duxel.Vulkan;
 
@@ -32,6 +35,7 @@ public sealed unsafe partial class VulkanRendererBackend
             QueueBufferDestroy(renderBuffers.VertexBuffer, renderBuffers.VertexMemory);
             renderBuffers.VertexBuffer = default;
             renderBuffers.VertexMemory = default;
+            renderBuffers.VertexAddress = 0;
         }
 
         var newSize = requiredSize;
@@ -47,10 +51,12 @@ public sealed unsafe partial class VulkanRendererBackend
 
         CreateBuffer(
             newSize,
-            BufferUsageFlags.VertexBufferBit,
+            BufferUsageFlags.ShaderDeviceAddressBit,
             MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
             out renderBuffers.VertexBuffer,
-            out renderBuffers.VertexMemory);
+            out renderBuffers.VertexMemory,
+            preferredProperties: MemoryPropertyFlags.DeviceLocalBit | MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+        renderBuffers.VertexAddress = GetBufferDeviceAddress(renderBuffers.VertexBuffer);
 
         void* mapped;
         Check(_vk.MapMemory(_device, renderBuffers.VertexMemory, 0, newSize, 0, &mapped));
@@ -137,6 +143,7 @@ public sealed unsafe partial class VulkanRendererBackend
             QueueBufferDestroy(renderBuffers.PrimitiveBuffer, renderBuffers.PrimitiveMemory);
             renderBuffers.PrimitiveBuffer = default;
             renderBuffers.PrimitiveMemory = default;
+            renderBuffers.PrimitiveAddress = 0;
         }
 
         var newSize = requiredSize;
@@ -152,10 +159,12 @@ public sealed unsafe partial class VulkanRendererBackend
 
         CreateBuffer(
             newSize,
-            BufferUsageFlags.VertexBufferBit,
+            BufferUsageFlags.ShaderDeviceAddressBit,
             MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
             out renderBuffers.PrimitiveBuffer,
-            out renderBuffers.PrimitiveMemory);
+            out renderBuffers.PrimitiveMemory,
+            preferredProperties: MemoryPropertyFlags.DeviceLocalBit | MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+        renderBuffers.PrimitiveAddress = GetBufferDeviceAddress(renderBuffers.PrimitiveBuffer);
 
         void* mapped;
         Check(_vk.MapMemory(_device, renderBuffers.PrimitiveMemory, 0, newSize, 0, &mapped));
@@ -244,4 +253,130 @@ public sealed unsafe partial class VulkanRendererBackend
         renderBuffers.PrimitiveMemory = default;
         renderBuffers.PrimitiveSize = 0;
     }
+
+    private readonly record struct FrameGeometryBuffers(
+        VkBuffer VertexBuffer,
+        ulong VertexAddress,
+        VkBuffer IndexBuffer,
+        VkBuffer PrimitiveBuffer,
+        ulong PrimitiveAddress);
+
+    private FrameGeometryBuffers PrepareFrameGeometryForRecording(
+        UiDrawData drawData,
+        int frameSlot,
+        FrameResources frameData,
+        bool profileEnabled,
+        out long uploadTicks)
+    {
+        var uploadStart = BeginFrameProfileTiming(profileEnabled);
+        var geometryCounts = PrepareStaticGeometryForFrame(drawData, _frameStaticBindings);
+
+        EnsureDynamicGeometryCapacity(frameSlot, in geometryCounts);
+        UploadDynamicGeometry(frameSlot, drawData, _frameStaticBindings);
+        PruneStaticGeometryCachesIfNeeded(_frameIndex);
+
+        uploadTicks = EndFrameProfileTiming(profileEnabled, uploadStart);
+
+        var renderBuffers = frameData.RenderBuffers;
+        return new FrameGeometryBuffers(
+            renderBuffers.VertexBuffer,
+            renderBuffers.VertexAddress,
+            renderBuffers.IndexBuffer,
+            renderBuffers.PrimitiveBuffer,
+            renderBuffers.PrimitiveAddress);
+    }
+
+    private void EnsureDynamicGeometryCapacity(int frameSlot, in FrameGeometryCounts geometryCounts)
+    {
+        if (geometryCounts.DynamicVertexCount > 0 && geometryCounts.DynamicIndexCount > 0)
+        {
+            EnsureVertexBufferCapacity(frameSlot, geometryCounts.DynamicVertexCount);
+            EnsureIndexBufferCapacity(frameSlot, geometryCounts.DynamicIndexCount);
+        }
+
+        var dynamicPrimitiveSentinelCount = 0;
+        EnsurePrimitiveBufferCapacity(
+            frameSlot,
+            geometryCounts.RectPrimitiveCount + geometryCounts.CirclePrimitiveCount + dynamicPrimitiveSentinelCount);
+    }
+
+    private readonly List<int> _dynamicDrawListIndices = new();
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private void UploadDynamicGeometry(int frame, UiDrawData drawData, Dictionary<int, StaticGeometryBuffer> staticBindings)
+    {
+        var frameData = _frames[frame];
+        var renderBuffers = frameData.RenderBuffers;
+
+        var vertexDst = (byte*)renderBuffers.VertexMappedPtr;
+        var indexDst = (byte*)renderBuffers.IndexMappedPtr;
+        var primitiveDst = (PrimitiveInstance*)renderBuffers.PrimitiveMappedPtr;
+
+        for (var dynamicListIndex = 0; dynamicListIndex < _dynamicDrawListIndices.Count; dynamicListIndex++)
+        {
+            var drawList = drawData.DrawLists[_dynamicDrawListIndices[dynamicListIndex]];
+            var vertices = drawList.Vertices.AsSpan();
+            if (!vertices.IsEmpty)
+            {
+                var vertexOut = (UiVertex*)vertexDst;
+                for (var i = 0; i < vertices.Length; i++)
+                {
+                    ref readonly var src = ref vertices[i];
+                    vertexOut[i] = new UiVertex
+                    {
+                        PositionX = src.Position.X,
+                        PositionY = src.Position.Y,
+                        UVx = src.UV.X,
+                        UVy = src.UV.Y,
+                        Color = src.Color.Rgba,
+                    };
+                }
+
+                vertexDst += (uint)(vertices.Length * sizeof(UiVertex));
+            }
+
+            var indices = drawList.Indices.AsSpan();
+            if (!indices.IsEmpty)
+            {
+                fixed (uint* indexSrc = indices)
+                {
+                    var indexBytes = (uint)(indices.Length * sizeof(uint));
+                    Unsafe.CopyBlockUnaligned(indexDst, indexSrc, indexBytes);
+                    indexDst += indexBytes;
+                }
+            }
+        }
+
+        for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
+        {
+            if (staticBindings.ContainsKey(listIndex))
+            {
+                continue;
+            }
+
+            var drawList = drawData.DrawLists[listIndex];
+            if (drawList.RectFilledPrimitives is not null)
+            {
+                var primitives = drawList.RectFilledPrimitives.AsSpan();
+                for (var i = 0; i < primitives.Length; i++)
+                {
+                    primitiveDst[i] = CreateRectPrimitiveInstance(in primitives[i]);
+                }
+
+                primitiveDst += primitives.Length;
+            }
+
+            if (drawList.CircleFilledPrimitives is not null)
+            {
+                var primitives = drawList.CircleFilledPrimitives.AsSpan();
+                for (var i = 0; i < primitives.Length; i++)
+                {
+                    primitiveDst[i] = CreateCirclePrimitiveInstance(in primitives[i]);
+                }
+
+                primitiveDst += primitives.Length;
+            }
+        }
+    }
 }
+

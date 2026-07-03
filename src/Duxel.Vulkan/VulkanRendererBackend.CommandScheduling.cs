@@ -20,12 +20,10 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private enum CommandSchedulingClass
     {
-        Solid = 0,
-        Font = 1,
-        ColorTriangle = 2,
-        TexturedTriangle = 3,
-        ColorPrimitive = 4,
-        TexturedPrimitive = 5,
+        Font = 0,
+        TexturedTriangle = 1,
+        ColorPrimitive = 2,
+        TexturedPrimitive = 3,
     }
 
     private enum CommandScheduleResult
@@ -533,29 +531,14 @@ public sealed unsafe partial class VulkanRendererBackend
         var isTriangleCommand = cmd.Kind is UiDrawCommandKind.Triangles;
         if (isTriangleCommand)
         {
-            if (_triangleColorPipelineEnabled && IsWhiteTextureId(cmd.TextureId))
-            {
-                return CommandSchedulingClass.ColorTriangle;
-            }
-
             return IsFontTextureId(cmd.TextureId)
                 ? CommandSchedulingClass.Font
                 : CommandSchedulingClass.TexturedTriangle;
         }
 
-        var primitiveUsesTexture = !IsWhiteTextureId(cmd.TextureId);
-        if (primitiveUsesTexture)
-        {
-            return CommandSchedulingClass.TexturedPrimitive;
-        }
-
-        var staticPrimitiveUsesTriangleGeometry = hasStaticBinding
-            && staticBinding.HasExpandedPrimitiveGeometry;
-        var canUseSolidPipeline = _solidUnifiedPipelineEnabled
-            && (!hasStaticBinding || _solidUnifiedStaticEnabled || staticPrimitiveUsesTriangleGeometry);
-        return canUseSolidPipeline
-            ? CommandSchedulingClass.Solid
-            : CommandSchedulingClass.ColorPrimitive;
+        return IsWhiteTextureId(cmd.TextureId)
+            ? CommandSchedulingClass.ColorPrimitive
+            : CommandSchedulingClass.TexturedPrimitive;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -563,12 +546,10 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         return schedulingClass switch
         {
-            CommandSchedulingClass.Solid => 0,
-            CommandSchedulingClass.ColorPrimitive => 1,
-            CommandSchedulingClass.ColorTriangle => 2,
-            CommandSchedulingClass.Font => 3,
-            CommandSchedulingClass.TexturedPrimitive => 4,
-            _ => 5,
+            CommandSchedulingClass.ColorPrimitive => 0,
+            CommandSchedulingClass.Font => 1,
+            CommandSchedulingClass.TexturedPrimitive => 2,
+            _ => 3,
         };
     }
 
