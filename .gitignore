@@ -27,6 +27,11 @@ Thumbs.db
 # Logs
 *.log
 
+# Local secrets
+.env
+.env.*
+!.env.example
+
 # NuGet
 *.nupkg
 packages/
