@@ -16,7 +16,7 @@ Duxel의 버전별 변경 내역 누적 기록.
 - **[개선]** Theme design-token 파이프라인 — `.duxel-theme`에서 `Design.*` 숫자 token을 해석하고, `Windows11` / `Windows11Dark` base preset과 theme accessor 옆 compiled design accessor를 지원.
 - **[개선]** Windows 11 시각 정리 — rounded control geometry, token 기반 radius, button/input/slider/progress/list/table/menu 색상 정리, dark/light 시스템 theme 해석으로 기본 앱 표면을 덜 ImGui스럽게 정리.
 - **[개선]** 선언형 샘플 표면 — 제품 대시보드 FBA 샘플을 추가하고 ThemeDemo 및 FBA 문서를 갱신해 reusable component, app shell, command bar, property list, status row, badge, callout을 확인 가능.
-- **[개선]** GPU renderer 참조 문서 — 이전 GPU-driven renderer 전환 내용을 agent reference와 버전 히스토리에 기록해 `0.2.3-preview` 이후의 shader/pipeline 전제를 추적 가능하게 유지.
+- **[개선]** GPU renderer 문서화 — 이전 GPU-driven renderer 전환 내용을 기록해 `0.2.3-preview` 이후의 shader/pipeline 전제를 추적 가능하게 유지.
 
 ### 주요 버그 수정
 
@@ -32,7 +32,6 @@ Duxel의 버전별 변경 내역 누적 기록.
 
 ### 주요 기능 추가
 
-- **[기능]** 저장소 로컬 Codex 지침 — `AGENTS.md`를 추가해 Codex가 저장소의 `.github/copilot-instructions.md`와 `.github/skills/*/SKILL.md` 카탈로그를 활용하되, Codex 전용 응답 형식과 도구 규칙은 유지하도록 정리.
 - **[기능]** 초점형 FBA 성능 게이트 — pipeline ordering, dynamic widget ordering, static cache rebuild/reuse, moving static-layer ordering, texture upload barrier, DirectText page upload, vector primitive workload를 각각 분리해 측정하는 샘플 추가.
 
 ### 주요 개선 사항
@@ -61,7 +60,7 @@ Duxel의 버전별 변경 내역 누적 기록.
 
 - 성능 프로파일링 문서: `docs/optimization-session-2024-2025-phase1.md`에 Phase 1 렌더링 최적화 상세 내역 및 누적 개선율(~10-15% 프레임 시간 감소 예상) 기록.
 - 최적화 세션 히스토리: `docs/optimization-session-2026-06-05.md`에 renderer optimization 작업, 기본값으로 승격한 항목, 보류한 실험, 측정 gate, 2026-06-06 사용자용 요약 기록.
-- Agent reference 문서: `docs/duxel-agent-reference.md`와 `docs/duxel-agent-reference.ko.md`에 DirectText 기본값, focused FBA gate, 성능 환경변수, opt-in renderer 실험 정책 반영.
+- 개발자 참조 문서에 DirectText 기본값, focused FBA gate, 성능 환경변수, opt-in renderer 실험 정책 반영.
 - 패키지 버전을 `0.2.3-preview`로 상향 (`Duxel.App`, `Duxel.Windows.App`).
 
 ## 0.2.2-preview (2026-04-03)

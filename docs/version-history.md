@@ -16,7 +16,7 @@ This document accumulates version-by-version changes for Duxel.
 - **[Improvement]** Theme design-token pipeline — `.duxel-theme` files now accept `Design.*` numeric tokens, support `Windows11` / `Windows11Dark` base presets, and generate compiled design accessors alongside theme accessors.
 - **[Improvement]** Windows 11 visual polish — rounded control geometry, token-based radii, refined button/input/slider/progress/list/table/menu colors, and dark/light system theme resolution make the default app surface less ImGui-shaped.
 - **[Improvement]** Declarative sample surface — added a product-dashboard FBA sample and refreshed ThemeDemo plus FBA docs so reusable components, app shells, command bars, property lists, status rows, badges, and callouts are discoverable.
-- **[Improvement]** GPU renderer reference docs — recorded the prior GPU-driven renderer migration in agent reference docs and the version history so shader/pipeline assumptions remain traceable after the `0.2.3-preview` release.
+- **[Improvement]** GPU renderer documentation — recorded the prior GPU-driven renderer migration so shader/pipeline assumptions remain traceable after the `0.2.3-preview` release.
 
 ### Major Bug Fixes
 
@@ -32,7 +32,6 @@ This document accumulates version-by-version changes for Duxel.
 
 ### Major Features
 
-- **[Feature]** Repository-local Codex guidance — added `AGENTS.md` so Codex uses the repository's `.github/copilot-instructions.md` and local `.github/skills/*/SKILL.md` catalog while preserving the Codex-specific response and tool rules.
 - **[Feature]** Focused FBA performance gates — added bottleneck-specific samples for pipeline ordering, dynamic widget ordering, static cache rebuild/reuse, moving static-layer ordering, texture upload barriers, DirectText page upload behavior, and vector primitive workloads.
 
 ### Major Improvements
@@ -61,7 +60,7 @@ This document accumulates version-by-version changes for Duxel.
 
 - Performance profiling document: `docs/optimization-session-2024-2025-phase1.md` documents Phase 1 rendering optimization details and cumulative improvements (~10-15% frame time reduction projected).
 - Optimization session history: `docs/optimization-session-2026-06-05.md` records the renderer optimization work, promoted defaults, rejected experiments, measured gates, and a user-facing 2026-06-06 summary.
-- Agent reference documents: `docs/duxel-agent-reference.md` and `docs/duxel-agent-reference.ko.md` now document the DirectText default, focused FBA gates, performance environment variables, and opt-in experimental renderer policies.
+- Developer reference documents now document the DirectText default, focused FBA gates, performance environment variables, and opt-in experimental renderer policies.
 - Bumped package version to `0.2.3-preview` (`Duxel.App`, `Duxel.Windows.App`).
 
 ## 0.2.2-preview (2026-04-03)

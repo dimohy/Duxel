@@ -42,3 +42,4 @@
 - 성능 최적화는 `docs/optimization-policy.ko.md` 기준으로 가설, 변경, 검증, Before/After, 개선율, 리스크를 기록한다.
 - 문서/API/샘플 변경 시 `docs/duxel-agent-reference.md`와 `docs/duxel-agent-reference.ko.md`를 최신 상태로 유지한다.
 - 한국어/영문 문서는 쌍으로 존재하는 경우 함께 갱신한다.
+- 버전 히스토리에는 AI, Codex, Claude, agent가 작업했다는 뉘앙스나 도구 사용 사실을 기록하지 않는다. 변경된 제품 기능, 사용자 가치, API, 성능, 버그, 배포 사실만 기록한다.
