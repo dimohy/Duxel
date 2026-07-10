@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace Duxel.Core;
 
@@ -110,5 +111,96 @@ public static class BenchOptions
         }
 
         return values.Count > 0 ? values.ToArray() : fallback.ToArray();
+    }
+}
+
+public readonly record struct BenchFrameStatistics(
+    int Samples,
+    double MeasuredSeconds,
+    double AverageFps,
+    double MedianFrameMs,
+    double P95FrameMs,
+    double P99FrameMs,
+    double Low1PctFps);
+
+public sealed class BenchFrameRecorder
+{
+    private readonly double[] _frameSeconds;
+    private readonly double[] _sortedFrameSeconds;
+    private int _count;
+    private double _measuredSeconds;
+
+    public BenchFrameRecorder(int capacity)
+    {
+        if (capacity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(capacity));
+        }
+
+        _frameSeconds = new double[capacity];
+        _sortedFrameSeconds = new double[capacity];
+    }
+
+    public int Count => _count;
+    public double MeasuredSeconds => _measuredSeconds;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Record(double frameSeconds)
+    {
+        if (!double.IsFinite(frameSeconds) || frameSeconds <= 0d)
+        {
+            throw new ArgumentOutOfRangeException(nameof(frameSeconds));
+        }
+
+        if (_count >= _frameSeconds.Length)
+        {
+            throw new InvalidOperationException($"Benchmark frame capacity {_frameSeconds.Length} was exceeded.");
+        }
+
+        _frameSeconds[_count++] = frameSeconds;
+        _measuredSeconds += frameSeconds;
+    }
+
+    public BenchFrameStatistics Calculate()
+    {
+        if (_count is 0)
+        {
+            throw new InvalidOperationException("No benchmark frames were recorded.");
+        }
+
+        Array.Copy(_frameSeconds, _sortedFrameSeconds, _count);
+        Array.Sort(_sortedFrameSeconds, 0, _count);
+
+        var slowFrameCount = Math.Max(1, (int)Math.Ceiling(_count * 0.01d));
+        var slowFrameSeconds = 0d;
+        for (var i = _count - slowFrameCount; i < _count; i++)
+        {
+            slowFrameSeconds += _sortedFrameSeconds[i];
+        }
+
+        return new BenchFrameStatistics(
+            _count,
+            _measuredSeconds,
+            _count / _measuredSeconds,
+            Percentile(0.50d) * 1000d,
+            Percentile(0.95d) * 1000d,
+            Percentile(0.99d) * 1000d,
+            slowFrameCount / slowFrameSeconds);
+    }
+
+    public void Reset()
+    {
+        _count = 0;
+        _measuredSeconds = 0d;
+    }
+
+    private double Percentile(double percentile)
+    {
+        var position = (_count - 1) * percentile;
+        var lowerIndex = (int)position;
+        var upperIndex = Math.Min(lowerIndex + 1, _count - 1);
+        var fraction = position - lowerIndex;
+        return _sortedFrameSeconds[lowerIndex]
+            + ((_sortedFrameSeconds[upperIndex] - _sortedFrameSeconds[lowerIndex]) * fraction);
     }
 }

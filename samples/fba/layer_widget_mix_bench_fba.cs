@@ -61,8 +61,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
 
     private int _phaseIndex;
     private double _phaseElapsed;
-    private double _phaseMeasuredSeconds;
-    private int _phaseSampleCount;
+    private readonly BenchFrameRecorder _frameRecorder = new(1_048_576);
 
     private double _lastWallTime;
     private readonly UiFpsCounter _fpsCounter = new(0.25d);
@@ -115,7 +114,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
 
     private static double ReadPhaseSeconds()
     {
-        return BenchOptions.ReadDouble("DUXEL_LAYER_WIDGET_PHASE_SECONDS", 2.2d, minExclusive: 0.8d);
+        return BenchOptions.ReadDouble("DUXEL_LAYER_WIDGET_PHASE_SECONDS", 2.2d, minExclusive: 0.8d, maxInclusive: 30d);
     }
 
     private void BuildPhases()
@@ -154,11 +153,11 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
             return;
         }
 
+        var previousPhaseElapsed = _phaseElapsed;
         _phaseElapsed += delta;
-        if (_phaseElapsed >= _warmupSeconds && delta > 0d)
+        if (previousPhaseElapsed >= _warmupSeconds && delta > 0d)
         {
-            _phaseMeasuredSeconds += delta;
-            _phaseSampleCount++;
+            _frameRecorder.Record(delta);
         }
 
         if (_phaseElapsed < _warmupSeconds + _phaseSeconds)
@@ -166,23 +165,27 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
             return;
         }
 
-        var avgFps = _phaseMeasuredSeconds > 0d ? _phaseSampleCount / _phaseMeasuredSeconds : 0d;
+        var stats = _frameRecorder.Calculate();
         var phase = _phases[_phaseIndex];
         _benchRecords.Add(string.Format(
             CultureInfo.InvariantCulture,
-            "{{\"phase\":{0},\"name\":\"{1}\",\"cache\":{2},\"backend\":\"{3}\",\"densityScale\":{4},\"avgFps\":{5:0.###},\"samples\":{6}}}",
+            "{{\"phase\":{0},\"name\":\"{1}\",\"cache\":{2},\"backend\":\"{3}\",\"densityScale\":{4},\"avgFps\":{5:0.###},\"samples\":{6},\"measuredSeconds\":{7:0.######},\"medianFrameMs\":{8:0.######},\"p95FrameMs\":{9:0.######},\"p99FrameMs\":{10:0.######},\"low1PctFps\":{11:0.###}}}",
             _phaseIndex,
             phase.Name,
             phase.EnableStaticCache ? "true" : "false",
             "drawlist",
             phase.DensityScale,
-            avgFps,
-            _phaseSampleCount));
+            stats.AverageFps,
+            stats.Samples,
+            stats.MeasuredSeconds,
+            stats.MedianFrameMs,
+            stats.P95FrameMs,
+            stats.P99FrameMs,
+            stats.Low1PctFps));
 
         _phaseIndex++;
         _phaseElapsed = 0d;
-        _phaseMeasuredSeconds = 0d;
-        _phaseSampleCount = 0;
+        _frameRecorder.Reset();
 
         if (_phaseIndex >= _phases.Count)
         {
@@ -202,7 +205,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
             return;
         }
 
-        var json = $"{{\"phaseSeconds\":{_phaseSeconds.ToString(CultureInfo.InvariantCulture)},\"warmupSeconds\":{_warmupSeconds.ToString(CultureInfo.InvariantCulture)},\"records\":[{string.Join(',', _benchRecords)}]}}";
+        var json = $"{{\"schemaVersion\":2,\"phaseSeconds\":{_phaseSeconds.ToString(CultureInfo.InvariantCulture)},\"warmupSeconds\":{_warmupSeconds.ToString(CultureInfo.InvariantCulture)},\"records\":[{string.Join(',', _benchRecords)}]}}";
         File.WriteAllText(_benchOutputPath!, json);
     }
 

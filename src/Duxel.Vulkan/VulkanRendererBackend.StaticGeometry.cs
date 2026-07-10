@@ -9,19 +9,20 @@ public sealed unsafe partial class VulkanRendererBackend
     private StaticGeometryBuffer EnsureStaticGeometryBuffer(string staticTag, UiDrawList drawList, bool requiresContentHash)
     {
         var hasExisting = TryGetActiveStaticGeometryBuffer(staticTag, out var existing);
-        var content = CreateStaticGeometryContent(
+        var source = PrepareStaticGeometrySource(
             staticTag,
             drawList,
             requiresContentHash,
             hasExisting,
             in existing);
-        var shape = content.Shape;
         if (hasExisting
-            && TryApplyStaticGeometryCacheHit(in existing, content.ContentHash, in shape, out var cached))
+            && TryApplyStaticGeometryCacheHit(in existing, in source, out var cached))
         {
             return cached;
         }
 
+        var content = CreateStaticGeometryContent(in source);
+        var shape = content.Shape;
         var canUpdateSameShape = CanUpdateStaticGeometryBufferInPlace(in existing, in shape);
         if (_staticGeometryRotatingUpdateEnabled
             && canUpdateSameShape
@@ -317,6 +318,35 @@ public sealed unsafe partial class VulkanRendererBackend
         _frameStaticBindings.Clear();
     }
 
+    private readonly ref struct StaticGeometrySource
+    {
+        public StaticGeometrySource(
+            ulong contentHash,
+            ReadOnlySpan<UiDrawVertex> vertices,
+            ReadOnlySpan<uint> indices,
+            ReadOnlySpan<UiRectFilledPrimitive> rects,
+            ReadOnlySpan<UiCircleFilledPrimitive> circles,
+            int primitiveInstanceBaseCount,
+            bool expandPrimitiveGeometry)
+        {
+            ContentHash = contentHash;
+            Vertices = vertices;
+            Indices = indices;
+            Rects = rects;
+            Circles = circles;
+            PrimitiveInstanceBaseCount = primitiveInstanceBaseCount;
+            ExpandPrimitiveGeometry = expandPrimitiveGeometry;
+        }
+
+        public ulong ContentHash { get; }
+        public ReadOnlySpan<UiDrawVertex> Vertices { get; }
+        public ReadOnlySpan<uint> Indices { get; }
+        public ReadOnlySpan<UiRectFilledPrimitive> Rects { get; }
+        public ReadOnlySpan<UiCircleFilledPrimitive> Circles { get; }
+        public int PrimitiveInstanceBaseCount { get; }
+        public bool ExpandPrimitiveGeometry { get; }
+    }
+
     private readonly ref struct StaticGeometryContent
     {
         public StaticGeometryContent(
@@ -343,17 +373,13 @@ public sealed unsafe partial class VulkanRendererBackend
         public StaticGeometryShape Shape { get; }
     }
 
-    private StaticGeometryContent CreateStaticGeometryContent(
+    private StaticGeometrySource PrepareStaticGeometrySource(
         string staticTag,
         UiDrawList drawList,
         bool requiresContentHash,
         bool hasExisting,
         in StaticGeometryBuffer existing)
     {
-        var vertexCount = drawList.Vertices.Count;
-        var indexCount = drawList.Indices.Count;
-        var rectPrimitiveCount = drawList.RectFilledPrimitives?.Count ?? 0;
-        var circlePrimitiveCount = drawList.CircleFilledPrimitives?.Count ?? 0;
         var vertices = drawList.Vertices.AsSpan();
         var indices = drawList.Indices.AsSpan();
         var rects = drawList.RectFilledPrimitives is null
@@ -371,26 +397,41 @@ public sealed unsafe partial class VulkanRendererBackend
                 hasExisting && existing.ContentHash != contentHash));
         RecordStaticPrimitiveTriangleDecision(primitiveTriangleDecision);
 
-        var expandPrimitiveGeometry = primitiveTriangleDecision.Expand;
-        var primitiveTriangleLayout = expandPrimitiveGeometry
-            ? CreateStaticPrimitiveTriangleLayout(indexCount, rects, circles)
-            : default;
-        var primitiveInstanceBaseCount = 0;
-        var shape = CreateStaticGeometryShape(
-            vertexCount,
-            indexCount,
-            rectPrimitiveCount,
-            circlePrimitiveCount,
-            primitiveInstanceBaseCount,
-            expandPrimitiveGeometry,
-            in primitiveTriangleLayout);
-
-        return new StaticGeometryContent(
+        return new StaticGeometrySource(
             contentHash,
             vertices,
             indices,
             rects,
             circles,
+            primitiveInstanceBaseCount: 0,
+            primitiveTriangleDecision.Expand);
+    }
+
+    private StaticGeometryContent CreateStaticGeometryContent(in StaticGeometrySource source)
+    {
+        if (source.ExpandPrimitiveGeometry)
+        {
+            _profileStaticPrimitiveTriangleLayoutMaterializationCount++;
+        }
+
+        var primitiveTriangleLayout = source.ExpandPrimitiveGeometry
+            ? CreateStaticPrimitiveTriangleLayout(source.Indices.Length, source.Rects, source.Circles)
+            : default;
+        var shape = CreateStaticGeometryShape(
+            source.Vertices.Length,
+            source.Indices.Length,
+            source.Rects.Length,
+            source.Circles.Length,
+            source.PrimitiveInstanceBaseCount,
+            source.ExpandPrimitiveGeometry,
+            in primitiveTriangleLayout);
+
+        return new StaticGeometryContent(
+            source.ContentHash,
+            source.Vertices,
+            source.Indices,
+            source.Rects,
+            source.Circles,
             shape);
     }
 
@@ -507,11 +548,10 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private bool TryApplyStaticGeometryCacheHit(
         in StaticGeometryBuffer existing,
-        ulong contentHash,
-        in StaticGeometryShape shape,
+        in StaticGeometrySource source,
         out StaticGeometryBuffer staticBuffer)
     {
-        if (!StaticGeometryCacheEntryMatches(in existing, contentHash, in shape))
+        if (!StaticGeometryCacheEntryMatches(in existing, in source))
         {
             staticBuffer = default;
             return false;
@@ -648,16 +688,15 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private static bool StaticGeometryCacheEntryMatches(
         in StaticGeometryBuffer existing,
-        ulong contentHash,
-        in StaticGeometryShape shape)
+        in StaticGeometrySource source)
     {
-        return existing.ContentHash == contentHash
-            && existing.VertexCount == shape.VertexCount
-            && existing.IndexCount == shape.IndexCount
-            && existing.PrimitiveInstanceBaseCount == shape.PrimitiveInstanceBaseCount
-            && existing.RectPrimitiveCount == shape.RectPrimitiveCount
-            && existing.CirclePrimitiveCount == shape.CirclePrimitiveCount
-            && existing.HasExpandedPrimitiveGeometry == shape.HasExpandedPrimitiveGeometry;
+        return existing.ContentHash == source.ContentHash
+            && existing.VertexCount == source.Vertices.Length
+            && existing.IndexCount == source.Indices.Length
+            && existing.PrimitiveInstanceBaseCount == source.PrimitiveInstanceBaseCount
+            && existing.RectPrimitiveCount == source.Rects.Length
+            && existing.CirclePrimitiveCount == source.Circles.Length
+            && existing.HasExpandedPrimitiveGeometry == source.ExpandPrimitiveGeometry;
     }
 
     private static bool HasStaticGeometryBufferResources(in StaticGeometryBuffer staticBuffer)

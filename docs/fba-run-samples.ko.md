@@ -1,6 +1,6 @@
 # Duxel FBA 샘플 — 바로 실행하기
 
-> 마지막 동기화: 2026-07-03
+> 마지막 동기화: 2026-07-10
 
 > .NET 10 + Vulkan 즉시 모드 GUI 프레임워크 **Duxel**의 FBA 샘플을 **복사-붙여넣기 한 줄**로 바로 실행하세요.
 
@@ -546,6 +546,28 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 ---
 
+## DirectText Dynamic Text 벤치
+
+DirectText 안정 캐시 hit와 변경 문자열 cache miss를 비교하는 초점형 게이트입니다. 평균 FPS, median/p95/p99 frame time, 1% low FPS, text-work tail latency, frame당 할당량, GC 횟수를 JSON으로 기록합니다.
+
+실행 전에 `DUXEL_DIRECTTEXT_BENCH_OUT`을 쓰기 가능한 JSON 경로로 설정합니다. 선택 제어값은 `DUXEL_DIRECTTEXT_BENCH_PHASE_SECONDS`(기본 `3`, 최대 `30`), `DUXEL_DIRECTTEXT_BENCH_WARMUP_FRAMES`(기본 `96`), `DUXEL_DIRECTTEXT_BENCH_ROWS`(기본 `8`), `DUXEL_DIRECTTEXT_BENCH_CORPUS_FRAMES`(기본 `256`)입니다. `DUXEL_DIRECT_TEXT_PAGE=1`은 현재 page 경로에서 UI가 누락된 대부분 검은 capture를 만들기 때문에 진단용으로만 사용합니다.
+
+**PowerShell**
+```powershell
+$env:DUXEL_DIRECTTEXT_BENCH_OUT = "$PWD/directtext-dynamic-text.json"
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/directtext_dynamic_text_bench_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+export DUXEL_DIRECTTEXT_BENCH_OUT="$PWD/directtext-dynamic-text.json"
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/directtext_dynamic_text_bench_fba.cs -o - | dotnet run -
+```
+
+> stable cache hit · changing-string miss · frame/text tail latency · allocation과 GC
+
+---
+
 ## 전체 한번에 다운로드
 
 모든 FBA 샘플을 한번에 받으려면:
@@ -570,6 +592,7 @@ $files = @(
     "pipeline_ordering_bench_fba.cs", "dynamic_widget_ordering_bench_fba.cs",
     "static_cache_rebuild_bench_fba.cs", "static_layer_moving_order_bench_fba.cs",
     "texture_upload_barrier_bench_fba.cs", "directtext_page_upload_bench_fba.cs",
+    "directtext_dynamic_text_bench_fba.cs",
     "Duxel_perf_test_fba.cs", "ui_mixed_stress.cs"
 )
 New-Item -ItemType Directory -Force -Path fba | Out-Null
@@ -592,6 +615,7 @@ FILES=(all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs \
     pipeline_ordering_bench_fba.cs dynamic_widget_ordering_bench_fba.cs \
     static_cache_rebuild_bench_fba.cs static_layer_moving_order_bench_fba.cs \
     texture_upload_barrier_bench_fba.cs directtext_page_upload_bench_fba.cs \
+    directtext_dynamic_text_bench_fba.cs \
     Duxel_perf_test_fba.cs ui_mixed_stress.cs)
 mkdir -p fba
 for f in "${FILES[@]}"; do curl -sL "$BASE/$f" -o "fba/$f" && echo "Downloaded $f"; done

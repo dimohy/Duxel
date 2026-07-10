@@ -602,8 +602,11 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     private void BeginWindowMoveCore()
     {
-        ReleaseCapture();
+        // A Win32 system move loop is not guaranteed to send the matching client WM_LBUTTONUP.
+        _inputBackend.CancelMouseButtons();
         _ = SendMessageW(_windowHandle, WmSysCommand, ScMove | HtCaption, 0);
+        _inputBackend.CancelMouseButtons();
+        _frameInvalidated?.Invoke();
     }
 
     public void MinimizeWindow()
@@ -919,7 +922,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                     && _showMaximizeButton
                     && IsDuxelCaptionDragClientPoint(hwnd, lParam, _duxelTitleBarHeightPx, _showMinimizeButton, _showMaximizeButton, _dpiScale))
                 {
+                    _inputBackend.CancelMouseButtons();
                     ToggleMaximizeWindow();
+                    _frameInvalidated?.Invoke();
                     return 0;
                 }
 
@@ -936,6 +941,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 break;
             case WmExitSizeMove:
                 Volatile.Write(ref _sizeMoveActive, 0);
+                _inputBackend.CancelMouseButtons();
                 _frameInvalidated?.Invoke();
                 break;
             case WmSize:
@@ -1283,6 +1289,20 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             _middleReleasedEvent = false;
             _wheel = 0;
             _wheelHorizontal = 0;
+        }
+
+        public void CancelMouseButtons()
+        {
+            _leftDown = false;
+            _rightDown = false;
+            _middleDown = false;
+            _leftPressedEvent = false;
+            _leftReleasedEvent = false;
+            _rightPressedEvent = false;
+            _rightReleasedEvent = false;
+            _middlePressedEvent = false;
+            _middleReleasedEvent = false;
+            ReleaseCapture();
         }
 
         public void HandleMessage(uint message, nuint wParam, nint lParam)

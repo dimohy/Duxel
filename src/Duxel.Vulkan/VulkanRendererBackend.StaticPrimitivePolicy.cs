@@ -17,6 +17,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private int _profileStaticPrimitiveTriangleAutoSkippedListCount;
     private int _profileStaticPrimitiveTriangleAutoSkippedPrimitiveCount;
     private int _profileStaticPrimitiveTriangleAutoSkippedMutationListCount;
+    private int _profileStaticPrimitiveTriangleLayoutMaterializationCount;
     private ulong _profileStaticPrimitiveTriangleExpandedBytes;
     private ulong _profileStaticPrimitiveTriangleAutoSkippedBytes;
 
@@ -36,6 +37,7 @@ public sealed unsafe partial class VulkanRendererBackend
         _profileStaticPrimitiveTriangleAutoSkippedListCount = 0;
         _profileStaticPrimitiveTriangleAutoSkippedPrimitiveCount = 0;
         _profileStaticPrimitiveTriangleAutoSkippedMutationListCount = 0;
+        _profileStaticPrimitiveTriangleLayoutMaterializationCount = 0;
         _profileStaticPrimitiveTriangleExpandedBytes = 0UL;
         _profileStaticPrimitiveTriangleAutoSkippedBytes = 0UL;
     }

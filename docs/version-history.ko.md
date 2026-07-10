@@ -2,6 +2,26 @@
 
 Duxel의 버전별 변경 내역 누적 기록.
 
+## 0.2.5-preview (2026-07-10)
+
+### 주요 기능 추가
+
+- **[기능]** 재현 가능한 frame-tail 성능 gate — 저장소 빌드를 .NET SDK `10.0.301`로 고정하고, `BenchFrameRecorder` / `BenchFrameStatistics`, DirectText stable-cache 대비 changing-string FBA gate를 추가했으며, focused benchmark 출력에 median/p95/p99 frame time, 1% low FPS, text-work, allocation, GC 근거를 포함.
+
+### 주요 개선 사항
+
+- **[개선]** DirectWrite changing-string hot path — text-run 단위 glyph lookup과 design-metric 조회를 batch 처리하고 stack/pool 기반 buffer를 사용해 focused Windows/NVIDIA gate에서 text work 27.0%, frame당 allocation 30.5% 감소, 평균 FPS 6.4%, 1% low FPS 19.9% 향상.
+- **[개선]** Vulkan static primitive cache hit — cache 검증 뒤에 expanded triangle-layout을 materialize하도록 순서를 변경하고 `staticPrim(layout=...)` 진단을 추가해 focused circle gate의 연속 cache-hit 2,631프레임에서 반복 layout 생성을 제거.
+
+### 주요 버그 수정
+
+- **[버그]** Custom title bar input-state 복구 — system move, maximize, resize loop 전후에 capture된 mouse-button state를 해제하고 다음 frame을 invalidate해 title bar drag 또는 double click 뒤 control이 눌린 상태로 남는 문제 방지.
+- **[버그]** Windows all-in-one DSL analyzer 전파 — `Duxel.App` 의존성의 analyzer asset이 `Duxel.Windows.App`을 통해 전파되도록 조정해 단일 Windows 패키지 사용자에게 통합 DSL source generator를 제공.
+
+### 배포/릴리스
+
+- 패키지 버전을 `0.2.5-preview`로 상향 (`Duxel.App`, `Duxel.Windows.App`).
+
 ## 0.2.4-preview (2026-07-03)
 
 ### 주요 기능 추가

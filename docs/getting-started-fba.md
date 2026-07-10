@@ -1,6 +1,6 @@
 # Duxel FBA Quick Start Guide
 
-> Last synced: 2026-07-03
+> Last synced: 2026-07-10
 > Korean original: [getting-started-fba.ko.md](getting-started-fba.ko.md)
 
 This guide covers the FBA (File-Based App) flow to run Duxel with a single `.cs` file.
@@ -78,6 +78,7 @@ dotnet run samples/fba/all_features.cs
 | `static_layer_moving_order_bench_fba.cs` | Moving static-layer replay ordering benchmark |
 | `texture_upload_barrier_bench_fba.cs` | Texture upload copy/barrier policy benchmark |
 | `directtext_page_upload_bench_fba.cs` | DirectText page-style partial texture upload benchmark |
+| `directtext_dynamic_text_bench_fba.cs` | DirectText stable-cache versus changing-string frame-tail, text-work, and allocation benchmark |
 | `vector_primitives_bench_fba.cs` | Primitive-heavy vector workload benchmark |
 
 ## Profile / Environment Variable

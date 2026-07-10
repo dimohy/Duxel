@@ -1,6 +1,6 @@
 # Duxel FBA 빠른 시작 가이드
 
-> 마지막 동기화: 2026-07-03
+> 마지막 동기화: 2026-07-10
 
 단일 `.cs` 파일로 Duxel 앱을 실행하는 FBA(File-Based App) 기준 가이드입니다.
 
@@ -77,6 +77,7 @@ dotnet run samples/fba/all_features.cs
 | `static_layer_moving_order_bench_fba.cs` | moving static-layer replay ordering 벤치 |
 | `texture_upload_barrier_bench_fba.cs` | texture upload copy/barrier policy 벤치 |
 | `directtext_page_upload_bench_fba.cs` | DirectText page-style partial texture upload 벤치 |
+| `directtext_dynamic_text_bench_fba.cs` | DirectText 안정 캐시와 변경 문자열의 frame-tail, text-work, 할당 비교 벤치 |
 | `vector_primitives_bench_fba.cs` | primitive-heavy vector workload 벤치 |
 
 ## 프로필/환경 변수

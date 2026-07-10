@@ -2,6 +2,26 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## 0.2.5-preview (2026-07-10)
+
+### Major Features
+
+- **[Feature]** Reproducible frame-tail performance gates — pinned repository builds to .NET SDK `10.0.301`, added `BenchFrameRecorder` / `BenchFrameStatistics`, introduced a DirectText stable-cache versus changing-string FBA gate, and expanded focused benchmark output with median/p95/p99 frame time, 1% low FPS, text-work, allocation, and GC evidence.
+
+### Major Improvements
+
+- **[Improvement]** DirectWrite changing-string hot path — batched text-run glyph lookup and design-metric queries with stack- and pool-backed buffers, reducing measured text work by 27.0% and allocations per frame by 30.5% while raising average FPS by 6.4% and 1% low FPS by 19.9% in the focused Windows/NVIDIA gate.
+- **[Improvement]** Vulkan static primitive cache hits — moved expanded triangle-layout materialization after cache validation and exposed `staticPrim(layout=...)`, eliminating repeated layout construction across 2,631 steady cache-hit frames in the focused circle gate.
+
+### Major Bug Fixes
+
+- **[Bug]** Custom title-bar input-state recovery — cleared captured mouse-button state around system move, maximize, and resize loops and invalidated the next frame, preventing title-bar drag or double-click operations from leaving controls stuck in a pressed state.
+- **[Bug]** Windows all-in-one DSL analyzer propagation — allowed analyzer assets from the `Duxel.App` dependency to flow through `Duxel.Windows.App`, so consumers of the single Windows package receive the integrated DSL source generator.
+
+### Packaging / Release
+
+- Bumped package version to `0.2.5-preview` (`Duxel.App`, `Duxel.Windows.App`).
+
 ## 0.2.4-preview (2026-07-03)
 
 ### Major Features

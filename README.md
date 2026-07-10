@@ -6,7 +6,7 @@
 
 Immediate-mode GUI framework for .NET 10, using a Vulkan renderer with a Windows-native platform backend.
 
-**Current package version:** `0.2.4-preview`
+**Current package version:** `0.2.5-preview`
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
