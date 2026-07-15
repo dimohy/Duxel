@@ -157,8 +157,8 @@ internal static class ThemeParser
                 throw new FormatException($"Line {lineNumber}: expected 'ColorName = #HexValue'.");
             }
 
-            var nameToken = line[..eqIdx].Trim();
-            var valueToken = line[(eqIdx + 1)..].Trim();
+            var nameToken = line.Substring(0, eqIdx).Trim();
+            var valueToken = line.Substring(eqIdx + 1).Trim();
 
             if (valueToken.StartsWith("#", StringComparison.Ordinal))
             {
@@ -194,22 +194,22 @@ internal static class ThemeParser
 
     private static void ParseHeader(string line, int lineNumber, out string name, out string? basePreset)
     {
-        var afterTheme = line[5..].Trim();
+        var afterTheme = line.Substring(5).Trim();
         var firstQuote = afterTheme.IndexOf('"');
         if (firstQuote < 0)
         {
             throw new FormatException($"Line {lineNumber}: Theme name must be quoted.");
         }
 
-        var afterOpen = afterTheme[(firstQuote + 1)..];
+        var afterOpen = afterTheme.Substring(firstQuote + 1);
         var closeQuote = afterOpen.IndexOf('"');
         if (closeQuote < 0)
         {
             throw new FormatException($"Line {lineNumber}: missing closing quote.");
         }
 
-        name = afterOpen[..closeQuote];
-        var rest = afterOpen[(closeQuote + 1)..].Trim();
+        name = afterOpen.Substring(0, closeQuote);
+        var rest = afterOpen.Substring(closeQuote + 1).Trim();
 
         if (rest.Length is 0)
         {
@@ -222,7 +222,7 @@ internal static class ThemeParser
             throw new FormatException($"Line {lineNumber}: expected ':' for base preset.");
         }
 
-        basePreset = rest[1..].Trim();
+        basePreset = rest.Substring(1).Trim();
         if (basePreset.Length is 0)
         {
             throw new FormatException($"Line {lineNumber}: missing preset name after ':'.");
@@ -233,7 +233,7 @@ internal static class ThemeParser
     {
         const string designPrefix = "Design.";
         tokenName = value.StartsWith(designPrefix, StringComparison.OrdinalIgnoreCase)
-            ? value[designPrefix.Length..]
+            ? value.Substring(designPrefix.Length)
             : value;
         return DesignTokenNames.Contains(tokenName);
     }
@@ -249,7 +249,7 @@ internal static class ThemeParser
             return false;
         }
 
-        var hex = value[1..];
+        var hex = value.Substring(1);
 
         if (hex.Length is 6)
         {

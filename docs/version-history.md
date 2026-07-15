@@ -2,6 +2,17 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## 0.2.6-preview (2026-07-15)
+
+### Major Improvements
+
+- **[Improvement]** .NET 9 and .NET 10 multi-target support — package runtime assemblies now ship dedicated `net9.0` and `net10.0` assets for both `Duxel.App` and `Duxel.Windows.App` consumers.
+- **[Improvement]** Cross-SDK DSL analyzer compatibility — retargeted the integrated source generator to `netstandard2.0` so .NET 9 and .NET 10 SDK consumers can load the same analyzer asset while NativeAOT publish keeps the analyzer on its managed build path.
+
+### Packaging / Release
+
+- Bumped package version to `0.2.6-preview` (`Duxel.App`, `Duxel.Windows.App`).
+
 ## 0.2.5-preview (2026-07-10)
 
 ### Major Features

@@ -1,6 +1,6 @@
 # Duxel 에이전트 참조 문서
 
-> Last synced: 2026-07-10
+> Last synced: 2026-07-15
 > 대상: Duxel로 앱, 샘플, 재사용 UI 컴포넌트를 작성하는 코딩 에이전트와 개발자
 > 범위: Duxel 기능 맵, 아키텍처 경계, 권장 워크플로, 샘플 기준점, 바로 사용할 수 있는 생성 템플릿
 
@@ -29,7 +29,7 @@
 
 ## Duxel이 무엇인가
 
-Duxel은 .NET 10 기반 즉시 모드 GUI 프레임워크다.
+Duxel은 .NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 
 현재 구현 방향:
 
@@ -41,6 +41,8 @@ Duxel은 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 - 패키지 표면:
   - `Duxel.App`
   - `Duxel.Windows.App`
+
+두 패키지는 `net9.0`과 `net10.0` 런타임 자산을 함께 제공한다. 파일 기반 앱 기능에는 .NET 10 SDK가 필요하므로 FBA 샘플은 `net10.0`을 유지한다.
 
 `Duxel.Windows.App`은 Windows 단일 패키지 진입점이며 `Duxel.App`에 의존한다. 패키지 의존성은 analyzer asset 전파를 허용해 Windows 패키지 사용자도 통합 `Duxel.Core.Dsl.Generator`를 사용할 수 있어야 한다.
 
@@ -1201,7 +1203,7 @@ DirectText 페이지 텍스처 패킹은 `DUXEL_DIRECT_TEXT_PAGE=1`로만 켠다
 
 아래 저장소 규칙은 작업이 명시적으로 바꾸지 않는 한 유지되는 전제로 본다.
 
-- .NET 10 타깃
+- .NET 9 및 .NET 10 패키지 타깃
 - Windows 우선 플랫폼 현실
 - Vulkan 렌더러 전제
 - NativeAOT 친화 방향

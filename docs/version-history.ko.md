@@ -2,6 +2,17 @@
 
 Duxel의 버전별 변경 내역 누적 기록.
 
+## 0.2.6-preview (2026-07-15)
+
+### 주요 개선 사항
+
+- **[개선]** .NET 9 및 .NET 10 멀티 타깃 지원 — `Duxel.App`과 `Duxel.Windows.App` 소비자를 위해 패키지 런타임 어셈블리에 `net9.0`, `net10.0` 전용 자산을 함께 제공.
+- **[개선]** SDK 간 DSL 분석기 호환성 — 통합 소스 생성기를 `netstandard2.0`으로 재타깃팅해 .NET 9 및 .NET 10 SDK 소비자가 동일 분석기 자산을 로드하고 NativeAOT 게시에서는 분석기를 managed 빌드 경로로 유지.
+
+### 배포/릴리스
+
+- 패키지 버전을 `0.2.6-preview`로 상향 (`Duxel.App`, `Duxel.Windows.App`).
+
 ## 0.2.5-preview (2026-07-10)
 
 ### 주요 기능 추가

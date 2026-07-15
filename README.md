@@ -4,9 +4,11 @@
   <img src="logo.svg" alt="Duxel logo" width="615" />
 </p>
 
-Immediate-mode GUI framework for .NET 10, using a Vulkan renderer with a Windows-native platform backend.
+Immediate-mode GUI framework for .NET 9 and .NET 10, using a Vulkan renderer with a Windows-native platform backend.
 
-**Current package version:** `0.2.5-preview`
+**Current package version:** `0.2.6-preview`
+
+**Supported target frameworks:** `net9.0`, `net10.0`. The file-based app (FBA) workflow requires the .NET 10 SDK.
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)

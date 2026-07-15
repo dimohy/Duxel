@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Duxel.Core.Dsl.Generator\Duxel.Core.Dsl.Generator.csproj"
+                      GlobalPropertiesToRemove="PublishAot;SelfContained;RuntimeIdentifier"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
     <AdditionalFiles Include="Ui\**\*.ui" />

@@ -275,7 +275,7 @@ internal static class UiDslParser
             }
 
             var indent = CountIndent(raw, i + 1);
-            var content = raw[indent..];
+            var content = raw.Substring(indent);
             var tokens = Tokenize(content);
             if (tokens.Count == 0)
             {
@@ -283,7 +283,7 @@ internal static class UiDslParser
             }
 
             var name = tokens[0];
-            var args = tokens.Count > 1 ? tokens[1..] : [];
+            var args = tokens.Count > 1 ? tokens.GetRange(1, tokens.Count - 1) : [];
             var node = new UiDslNode(name, args, []);
 
             while (stack.Count > 0 && indent <= stack.Peek().Indent)
@@ -423,12 +423,12 @@ internal static class UiDslParser
 
             if (ch == '#')
             {
-                return line[..i];
+                return line.Substring(0, i);
             }
 
             if (ch == '/' && i + 1 < line.Length && line[i + 1] == '/')
             {
-                return line[..i];
+                return line.Substring(0, i);
             }
         }
 
@@ -448,7 +448,7 @@ internal static class UiDslParser
             {
                 if (inString && i > 0 && text[i - 1] == '\\')
                 {
-                    sb[^1] = '"';
+                    sb[sb.Length - 1] = '"';
                     continue;
                 }
 

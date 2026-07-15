@@ -1,9 +1,9 @@
 # Duxel FBA Quick Start Guide
 
-> Last synced: 2026-07-10
+> Last synced: 2026-07-15
 > Korean original: [getting-started-fba.ko.md](getting-started-fba.ko.md)
 
-This guide covers the FBA (File-Based App) flow to run Duxel with a single `.cs` file.
+This guide covers the .NET 10 FBA (File-Based App) flow to run Duxel with a single `.cs` file. Duxel packages also support regular `net9.0` project consumers.
 
 ## Requirements
 

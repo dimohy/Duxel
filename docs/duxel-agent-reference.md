@@ -1,6 +1,6 @@
 # Duxel Agent Reference
 
-> Last synced: 2026-07-10
+> Last synced: 2026-07-15
 > Audience: coding agents and developers building apps, samples, and reusable UI components with Duxel
 > Scope: Duxel feature map, architecture boundaries, recommended workflows, and sample anchors
 
@@ -31,7 +31,7 @@ Always keep the `Last synced` date at the top aligned with the most recent meani
 
 ## What Duxel is
 
-Duxel is an immediate-mode GUI framework for .NET 10.
+Duxel is an immediate-mode GUI framework for .NET 9 and .NET 10.
 
 Current implementation direction:
 
@@ -43,6 +43,8 @@ Current implementation direction:
 - package surface:
   - `Duxel.App`
   - `Duxel.Windows.App`
+
+Both packages ship `net9.0` and `net10.0` runtime assets. FBA samples remain `net10.0` because the file-based app feature requires the .NET 10 SDK.
 
 `Duxel.Windows.App` is the single-package Windows entry and depends on `Duxel.App`. Its package dependency must allow analyzer assets to flow so the integrated `Duxel.Core.Dsl.Generator` remains available to Windows-package consumers.
 
@@ -1219,7 +1221,7 @@ As of 2026-07-10, a page-enabled performance run reached `1819.709` FPS, but the
 
 Assume these repository rules are intentional unless the task explicitly changes them:
 
-- .NET 10 target
+- .NET 9 and .NET 10 package targets
 - Windows-first platform reality
 - Vulkan renderer requirement
 - NativeAOT-friendly direction

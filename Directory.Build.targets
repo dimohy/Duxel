@@ -8,8 +8,8 @@
                                 Condition="'%(ProjectReference.Filename)' == 'Duxel.Core.Dsl.Generator'" />
     </ItemGroup>
 
-    <ItemGroup Condition="'@(_DuxelWindowsAppReference)' != '' and '@(_DuxelGeneratorReference)' == '' and Exists('$(MSBuildThisFileDirectory)src\Duxel.Core.Dsl.Generator\bin\$(Configuration)\net10.0\Duxel.Core.Dsl.Generator.dll')">
-      <Analyzer Include="$(MSBuildThisFileDirectory)src\Duxel.Core.Dsl.Generator\bin\$(Configuration)\net10.0\Duxel.Core.Dsl.Generator.dll" />
+    <ItemGroup Condition="'@(_DuxelWindowsAppReference)' != '' and '@(_DuxelGeneratorReference)' == '' and Exists('$(MSBuildThisFileDirectory)src\Duxel.Core.Dsl.Generator\bin\$(Configuration)\netstandard2.0\Duxel.Core.Dsl.Generator.dll')">
+      <Analyzer Include="$(MSBuildThisFileDirectory)src\Duxel.Core.Dsl.Generator\bin\$(Configuration)\netstandard2.0\Duxel.Core.Dsl.Generator.dll" />
     </ItemGroup>
   </Target>
 </Project>

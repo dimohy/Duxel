@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CA2255</NoWarn>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.Windows.App</PackageId>
-    <Version>0.2.5-preview</Version>
+    <Version>0.2.6-preview</Version>
     <Authors>dimohy</Authors>
     <Description>Windows all-in-one Duxel package. Install this single package to build and run Duxel apps on Windows.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -32,6 +32,7 @@
     <ProjectReference Include="..\Duxel.App\Duxel.App.csproj" PrivateAssets="contentfiles;build" />
     <ProjectReference Include="..\Duxel.Platform.Windows\Duxel.Platform.Windows.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\Duxel.Core.Dsl.Generator\Duxel.Core.Dsl.Generator.csproj"
+                      GlobalPropertiesToRemove="PublishAot;SelfContained;RuntimeIdentifier"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>

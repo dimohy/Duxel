@@ -4,9 +4,11 @@
   <img src="logo.svg" alt="Duxel logo" width="615" />
 </p>
 
-.NET 10 기반 즉시 모드 GUI 프레임워크로, Vulkan 렌더러와 Windows 네이티브 플랫폼 백엔드를 사용합니다.
+.NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크로, Vulkan 렌더러와 Windows 네이티브 플랫폼 백엔드를 사용합니다.
 
-**현재 패키지 버전:** `0.2.5-preview`
+**현재 패키지 버전:** `0.2.6-preview`
+
+**지원 대상 프레임워크:** `net9.0`, `net10.0`. 파일 기반 앱(FBA) 워크플로에는 .NET 10 SDK가 필요합니다.
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
