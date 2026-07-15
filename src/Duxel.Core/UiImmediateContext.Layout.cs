@@ -1148,7 +1148,7 @@ public sealed partial class UiImmediateContext
         var titlePos = new UiVector2(collapseRect.X + collapseRect.Width + 6f, rect.Y + (titleBarHeight - _lineHeight) * 0.5f);
         AddTextInternal(_builder,
 
-            title,
+            GetDisplayLabel(title),
             titlePos,
             _theme.WindowTitleText,
             rect,

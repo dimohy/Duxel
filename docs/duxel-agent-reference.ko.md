@@ -596,6 +596,8 @@ DuxelWindowsApp.Run(new DuxelAppOptions
 - 매 프레임 UI를 다시 구성
 - 상태는 화면 인스턴스나 외부 모델에 유지
 
+내부 창 제목도 컨트롤과 같은 label/ID 규칙을 따른다. `표시 제목##stable-id`는 화면에 `표시 제목`만 그리되 전체 문자열은 창 상태 식별자로 유지한다.
+
 기본 권장값: 사용자가 단순히 Duxel 샘플을 요청하면, DSL을 명시적으로 요구하지 않는 한 즉시 모드 `UiScreen` 예제를 생성한다.
 
 ### DSL 패턴

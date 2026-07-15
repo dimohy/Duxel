@@ -6,7 +6,7 @@
 
 Immediate-mode GUI framework for .NET 9 and .NET 10, using a Vulkan renderer with a Windows-native platform backend.
 
-**Current package version:** `0.2.6-preview`
+**Current package version:** `0.2.7-preview`
 
 **Supported target frameworks:** `net9.0`, `net10.0`. The file-based app (FBA) workflow requires the .NET 10 SDK.
 

@@ -2,6 +2,16 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## 0.2.7-preview (2026-07-15)
+
+### Major Bug Fixes
+
+- **[Bug]** Internal window title ID display — hides the `##` ID suffix when rendering internal window captions while retaining the complete title as the stable window state key.
+
+### Packaging / Release
+
+- Bumped package version to `0.2.7-preview` (`Duxel.App`, `Duxel.Windows.App`).
+
 ## 0.2.6-preview (2026-07-15)
 
 ### Major Improvements

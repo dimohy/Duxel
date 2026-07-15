@@ -597,6 +597,8 @@ Use `UiScreen` when building a normal app or sample screen.
 - rebuild the UI every frame
 - keep your own state on the screen instance or external model
 
+Internal window titles follow the same label/ID convention as controls: `Visible title##stable-id` renders only `Visible title` while the complete string remains the window state identity.
+
 Default recommendation: if the user simply asks for a Duxel sample, generate an immediate-mode `UiScreen` example unless they explicitly ask for DSL.
 
 ### DSL pattern
