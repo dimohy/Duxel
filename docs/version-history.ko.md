@@ -2,6 +2,24 @@
 
 Duxel의 버전별 변경 내역 누적 기록.
 
+## 0.2.8-preview (2026-07-16)
+
+### 주요 기능 추가
+
+- **[기능]** 렌더-present 승인 계약 — `IRendererBackend.TryRenderDrawData(...)`와 대화형 리사이즈 sequence를 추가해 platform backend가 system resize 단계를 성공적으로 queue된 frame과 동기화하고 기존 renderer backend의 소스 호환성은 유지.
+
+### 주요 개선 사항
+
+- **[개선]** Vulkan live resize 연속성 — 최신 layout을 현재 swapchain viewport 전체에 연속 렌더링하고 clip을 비례 조정하며, `oldSwapchain` 재사용과 resize 전용 재생성 중 non-swapchain resource 보존, 지원 시 VSync Mailbox present 우선 적용.
+
+### 주요 버그 수정
+
+- **[버그]** 빠른 Windows 리사이즈의 외곽/내용 비동기화 — `WM_SIZING`에서 원자적 client 크기를 예측하고 일치하는 frame이 present될 때까지 각 외곽 단계를 확정하지 않아, timer 또는 고정 240 FPS 제한 없이 빠른 drag에서 외곽 창만 늘고 렌더 내용이 멈추는 현상 방지.
+
+### 배포/릴리스
+
+- 패키지 버전을 `0.2.8-preview`로 상향 (`Duxel.App`, `Duxel.Windows.App`).
+
 ## 0.2.7-preview (2026-07-15)
 
 ### 주요 버그 수정

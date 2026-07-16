@@ -461,16 +461,28 @@ public sealed class DuxelAppSession
                         continue;
                     }
 
-                    if (platform.IsInteractingResize)
+                    var isInteractingResize = platform.IsInteractingResize;
+                    var interactiveResizeSequence = platform.InteractiveResizeSequence;
+                    if (isInteractingResize)
                     {
-                        windowSize = platform.WindowSize;
-                        framebufferSize = platform.FramebufferSize;
+                        while (true)
+                        {
+                            var sequenceBeforeSizeRead = platform.InteractiveResizeSequence;
+                            windowSize = platform.WindowSize;
+                            framebufferSize = platform.FramebufferSize;
+                            interactiveResizeSequence = platform.InteractiveResizeSequence;
+                            if (sequenceBeforeSizeRead == interactiveResizeSequence)
+                            {
+                                break;
+                            }
+                        }
                     }
 
                     var hasInputInvalidation = HasInputDrivenInvalidation(snapshot, lastObservedMousePosition);
                     lastObservedMousePosition = snapshot.MousePosition;
                     var hasPendingRenderWork = fontTextureDirty || pendingGlyphs > 0 || fullAtlasTask is not null || incrementalAtlasTask is not null;
-                    var hasAnimationWork = (frameOptions.IsAnimationActiveProvider?.Invoke() ?? false)
+                    var hasAnimationWork = isInteractingResize
+                        || (frameOptions.IsAnimationActiveProvider?.Invoke() ?? false)
                         || uiContext.State.HasActiveAnimations;
                     var hasRequestedFrame = TryConsumeFrameRequest();
                     if (frameOptions.EnableIdleFrameSkip && renderedFrameNumber > 0)
@@ -719,8 +731,15 @@ public sealed class DuxelAppSession
 
                     var drawData = uiContext.GetDrawData();
                     var t3 = Stopwatch.GetTimestamp();
-                    renderer.RenderDrawData(drawData);
-                    renderedFrameNumber++;
+                    var framePresented = renderer.TryRenderDrawData(drawData);
+                    if (framePresented)
+                    {
+                        renderedFrameNumber++;
+                        if (interactiveResizeSequence > 0)
+                        {
+                            platform.NotifyFramePresented(interactiveResizeSequence);
+                        }
+                    }
                     {
                         var blinkElapsed = Math.Max(0.0, uiContext.State.TimeSeconds - uiContext.State.CaretBlinkStartSeconds);
                         lastRenderedBlinkState = ((int)Math.Floor(blinkElapsed / 0.5) & 1) == 0;
@@ -744,7 +763,7 @@ public sealed class DuxelAppSession
                         }
                     }
 
-                    if (Interlocked.Exchange(ref startupFirstFrameLogged, 1) == 0)
+                    if (framePresented && Interlocked.Exchange(ref startupFirstFrameLogged, 1) == 0)
                     {
                         EmitStartupTiming("FirstFramePresented");
                     }
@@ -765,9 +784,11 @@ public sealed class DuxelAppSession
             }
             catch (Exception ex) when ((Volatile.Read(ref stopRequested) || platform.ShouldClose) && DuxelApp.IsShutdownTimeVulkanException(ex))
             {
+                platform.CancelInteractiveResizeWait();
             }
             catch (Exception ex)
             {
+                platform.CancelInteractiveResizeWait();
                 if (options.Debug.Log is { } log)
                 {
                     log($"RenderThreadException: {ex}");
@@ -835,6 +856,7 @@ public sealed class DuxelAppSession
         {
             Volatile.Write(ref stopRequested, true);
             frameWakeSignal.Set();
+            platform.CancelInteractiveResizeWait();
             renderThread.Join();
             uiContext.Dispose();
             UiFontAtlasBuilder.DiagnosticsLog = previousFontAtlasDiagnosticsLog;

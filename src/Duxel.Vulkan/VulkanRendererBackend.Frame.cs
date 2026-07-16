@@ -74,23 +74,11 @@ public sealed unsafe partial class VulkanRendererBackend
         var expectedFbHeight = (int)(drawData.DisplaySize.Y * drawData.FramebufferScale.Y);
         var hasFramebufferSizeMismatch = expectedFbWidth != (int)_swapchainExtent.Width
             || expectedFbHeight != (int)_swapchainExtent.Height;
+        var isInteractingResize = _platform.IsInteractingResize;
 
-        if (hasFramebufferSizeMismatch
-            && _platform.IsInteractingResize
-            && _swapchainExtent.Width > 0
-            && _swapchainExtent.Height > 0)
-        {
-            return HasDrawableGeometry(drawData);
-        }
-
-        if (hasFramebufferSizeMismatch)
+        if (hasFramebufferSizeMismatch && !isInteractingResize)
         {
             if (!TryRecreateSwapchain())
-            {
-                return false;
-            }
-
-            if (expectedFbWidth != (int)_swapchainExtent.Width || expectedFbHeight != (int)_swapchainExtent.Height)
             {
                 return false;
             }
@@ -335,6 +323,11 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void HandleFramePresentResult(Result presentResult)
     {
+        if (IsSuboptimal(presentResult) && _platform.IsInteractingResize)
+        {
+            return;
+        }
+
         if (presentResult == Result.ErrorOutOfDateKhr || IsSuboptimal(presentResult) || IsSurfaceLost(presentResult))
         {
             _ = TryRecreateSwapchain();
@@ -392,7 +385,7 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
-    private void CompleteRecordedFrame(
+    private bool CompleteRecordedFrame(
         ActiveFrameContext frameContext,
         CommandBuffer commandBuffer,
         bool profileEnabled,
@@ -407,10 +400,12 @@ public sealed unsafe partial class VulkanRendererBackend
             frameContext.FrameData.InFlight);
 
         var presentResult = PresentFrame(frameContext.ImageIndex, renderFinished, out profile.PresentTicks);
+        var framePresented = presentResult == Result.Success || IsSuboptimal(presentResult);
         HandleFramePresentResult(presentResult);
         EmitFrameProfileIfEnabled(profileEnabled, in profile);
 
         _frameIndex++;
+        return framePresented;
     }
 
     private CommandBuffer RecordFrameCommandsForSubmission(

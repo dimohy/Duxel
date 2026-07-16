@@ -2,6 +2,24 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## 0.2.8-preview (2026-07-16)
+
+### Major Features
+
+- **[Feature]** Render-present acknowledgment contract — added `IRendererBackend.TryRenderDrawData(...)` and interactive resize sequences so a platform backend can synchronize a system resize step with a successfully queued frame while existing render backends remain source-compatible.
+
+### Major Improvements
+
+- **[Improvement]** Vulkan live-resize continuity — continuously renders the newest layout across the current swapchain viewport, scales clipping proportionally, reuses `oldSwapchain`, preserves non-swapchain resources during resize-only recreation, and prefers Mailbox presentation for VSync when supported.
+
+### Major Bug Fixes
+
+- **[Bug]** Fast Windows resize border/content desynchronization — predicts atomic client dimensions from `WM_SIZING` and waits for the matching presented frame before committing each border step, preventing rapid dragging from stretching only the outer window while rendered contents remain frozen without relying on a timer or fixed 240 FPS cap.
+
+### Packaging / Release
+
+- Bumped package version to `0.2.8-preview` (`Duxel.App`, `Duxel.Windows.App`).
+
 ## 0.2.7-preview (2026-07-15)
 
 ### Major Bug Fixes

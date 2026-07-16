@@ -2410,6 +2410,11 @@ public interface IRendererBackend : IDisposable
     void CreateDeviceObjects();
     void InvalidateDeviceObjects();
     void RenderDrawData(UiDrawData drawData);
+    bool TryRenderDrawData(UiDrawData drawData)
+    {
+        RenderDrawData(drawData);
+        return true;
+    }
     void SetMinImageCount(int count);
     void SetVSync(bool enable);
     void SetMsaaSamples(int samples);

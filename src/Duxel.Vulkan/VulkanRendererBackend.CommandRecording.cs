@@ -357,12 +357,8 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         var requestedFramebufferWidth = (int)(drawData.DisplaySize.X * drawData.FramebufferScale.X);
         var requestedFramebufferHeight = (int)(drawData.DisplaySize.Y * drawData.FramebufferScale.Y);
-        var framebufferWidth = _swapchainExtent.Width > 0
-            ? Math.Min(requestedFramebufferWidth, (int)_swapchainExtent.Width)
-            : requestedFramebufferWidth;
-        var framebufferHeight = _swapchainExtent.Height > 0
-            ? Math.Min(requestedFramebufferHeight, (int)_swapchainExtent.Height)
-            : requestedFramebufferHeight;
+        var framebufferWidth = _swapchainExtent.Width > 0 ? (int)_swapchainExtent.Width : requestedFramebufferWidth;
+        var framebufferHeight = _swapchainExtent.Height > 0 ? (int)_swapchainExtent.Height : requestedFramebufferHeight;
 
         var displaySize = drawData.DisplaySize;
         var displayPos = drawData.DisplayPos;
@@ -373,6 +369,8 @@ public sealed unsafe partial class VulkanRendererBackend
 
         var clipOffset = drawData.DisplayPos;
         var clipScale = drawData.FramebufferScale;
+        var clipScaleX = clipScale.X * framebufferWidth / requestedFramebufferWidth;
+        var clipScaleY = clipScale.Y * framebufferHeight / requestedFramebufferHeight;
         const bool useTemporalJitter = false;
         return new CommandFrameContext(
             commandBuffer,
@@ -387,8 +385,8 @@ public sealed unsafe partial class VulkanRendererBackend
             translateY,
             clipOffset.X,
             clipOffset.Y,
-            clipScale.X,
-            clipScale.Y,
+            clipScaleX,
+            clipScaleY,
             framebufferWidth,
             framebufferHeight,
             useTemporalJitter,

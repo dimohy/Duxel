@@ -1,6 +1,6 @@
 # Duxel Agent Reference
 
-> Last synced: 2026-07-15
+> Last synced: 2026-07-16
 > Audience: coding agents and developers building apps, samples, and reusable UI components with Duxel
 > Scope: Duxel feature map, architecture boundaries, recommended workflows, and sample anchors
 
@@ -106,6 +106,14 @@ Preserve these boundaries when adding or modifying features:
   - own app bootstrapping, developer-facing entry flow, option validation, and runtime wiring
 
 Do not casually collapse these boundaries.
+
+### Interactive Windows resize flow
+
+During a Win32 move/size modal loop, `Duxel.App` treats `IPlatformBackend.IsInteractingResize` as continuous render work instead of waiting for one-shot invalidation messages. `Duxel.Platform.Windows` updates an atomic cached client size from `WM_SIZE` and predicts the next client size from the `WM_SIZING` drag rectangle, so the render thread consumes the newest dimensions without a cross-thread `GetClientRect` call.
+
+Each `WM_SIZING` request has a monotonically increasing sequence. The window procedure requests a frame and does not let Windows commit that outer-window step until `IRendererBackend.TryRenderDrawData(...)` reports a successful/suboptimal present for draw data captured at that sequence. Renderer failure cancels the wait explicitly. This intentionally couples visible border movement to completed Duxel frame submission: the pointer/window may advance no faster than rendering, but the outer frame cannot visibly outrun its contents.
+
+During the modal loop, a draw-data/swapchain extent mismatch is rendered into the full current swapchain viewport with proportionally scaled clipping instead of forcing a proactive `vkDeviceWaitIdle` recreation for every pointer sample. WSI `OUT_OF_DATE`/surface-loss results still recreate, and the first non-interactive frame recreates to the exact final extent. The resize-only recreate path passes the prior handle through `VkSwapchainCreateInfoKHR.oldSwapchain` and preserves non-swapchain renderer resources. VSync creation prefers tearing-free Mailbox when supported, otherwise the required FIFO mode; VSync-off prefers Immediate. Do not add a fixed 240 FPS cap.
 
 ## Primary public entry points
 
@@ -1183,7 +1191,7 @@ The Vulkan backend is a GPU-driven renderer with exactly **one graphics pipeline
 
 - `VulkanRendererBackend.cs` — `IRendererBackend` shell, constructor/bootstrap order, lifecycle/teardown, render-entry frame order, settings/API mutation.
 - `VulkanRendererBackend.Device.cs` — instance/surface/physical-device/queue/device setup, required-feature gating, vendor/device policy state and env parsing, pipeline cache identity.
-- `VulkanRendererBackend.Swapchain.cs` — swapchain selection policy, swapchain resources/recreate flow, render pass/framebuffers/MSAA targets, sync/query resources.
+- `VulkanRendererBackend.Swapchain.cs` — swapchain selection policy, resize-only versus full recreate flow, image views/MSAA targets, semaphore capacity, and preservation of non-swapchain renderer resources during live resize.
 - `VulkanRendererBackend.PipelineResources.cs` — bindless descriptor layout/pool/set, pipeline layout/push ranges, the single graphics pipeline, samplers, pipeline cache load/save, embedded shader loading.
 - `VulkanRendererBackend.Resources.cs` — generic buffer/image/view/memory helpers (`CreateBuffer` with preferred-memory selection, `GetBufferDeviceAddress`), image layout transition policy and `imgTrans(...)` counters.
 - `VulkanRendererBackend.TextureResources.cs` — texture create/update/destroy, bindless slot allocator and descriptor writes, upload batching, font/white texture id classification, deferred destroys.

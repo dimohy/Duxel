@@ -213,6 +213,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private bool _shouldClose;
     private bool _disposed;
     private int _sizeMoveActive;
+    private int _clientWidth;
+    private int _clientHeight;
+    private long _interactiveResizeSequence;
+    private long _presentedResizeSequence;
+    private int _interactiveResizeWaitCancelled;
+    private readonly AutoResetEvent _interactiveResizeFramePresented = new(false);
     private UiSystemColorScheme _colorScheme;
     private UiMouseCursor _currentCursor = UiMouseCursor.Arrow;
 
@@ -354,6 +360,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             throw new InvalidOperationException($"CreateWindowExW failed: {error}");
         }
 
+        UpdateCachedClientSize(_windowHandle);
+
         _imeHandler = new WindowsImeHandler(_windowHandle, options.FrameInvalidated);
 
         if (_integrateSystemChrome || _useDuxelTitleBar)
@@ -436,12 +444,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     {
         get
         {
-            if (!GetClientRect(_windowHandle, out var rect))
-            {
-                throw new InvalidOperationException($"GetClientRect failed: {Marshal.GetLastPInvokeError()}");
-            }
-
-            return new PlatformSize(rect.right - rect.left, rect.bottom - rect.top);
+            return new PlatformSize(
+                Volatile.Read(ref _clientWidth),
+                Volatile.Read(ref _clientHeight));
         }
     }
 
@@ -450,6 +455,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     public float ContentScale => _dpiScale;
 
     public bool IsInteractingResize => Volatile.Read(ref _sizeMoveActive) == 1;
+
+    public long InteractiveResizeSequence => Volatile.Read(ref _interactiveResizeSequence);
 
     public bool ShouldClose => _shouldClose;
 
@@ -517,6 +524,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         }
 
         _disposed = true;
+        CancelInteractiveResizeWait();
         _imeHandler.Dispose();
         _trayIcon?.Dispose();
 
@@ -526,6 +534,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         }
 
         CleanupRegistrationOnly();
+        _interactiveResizeFramePresented.Dispose();
     }
 
     private static Rect UnsafeRectForCreate(int width, int height) => new()
@@ -598,6 +607,34 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     {
         ThrowIfDisposed();
         BeginWindowMoveCore();
+    }
+
+    public void NotifyFramePresented(long interactiveResizeSequence)
+    {
+        while (true)
+        {
+            var current = Volatile.Read(ref _presentedResizeSequence);
+            if (current >= interactiveResizeSequence)
+            {
+                return;
+            }
+
+            if (Interlocked.CompareExchange(
+                    ref _presentedResizeSequence,
+                    interactiveResizeSequence,
+                    current) == current)
+            {
+                break;
+            }
+        }
+
+        _interactiveResizeFramePresented.Set();
+    }
+
+    public void CancelInteractiveResizeWait()
+    {
+        Volatile.Write(ref _interactiveResizeWaitCancelled, 1);
+        _interactiveResizeFramePresented.Set();
     }
 
     private void BeginWindowMoveCore()
@@ -806,6 +843,36 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         ObjectDisposedException.ThrowIf(_disposed, this);
     }
 
+    private void UpdateCachedClientSize(nint hwnd)
+    {
+        if (!GetClientRect(hwnd, out var rect))
+        {
+            throw new InvalidOperationException($"GetClientRect failed: {Marshal.GetLastPInvokeError()}");
+        }
+
+        Volatile.Write(ref _clientWidth, rect.right - rect.left);
+        Volatile.Write(ref _clientHeight, rect.bottom - rect.top);
+    }
+
+    private unsafe void UpdateCachedClientSizeFromSizingRect(nint hwnd, nint lParam)
+    {
+        if (!GetWindowRect(hwnd, out var currentWindowRect))
+        {
+            throw new InvalidOperationException($"GetWindowRect failed: {Marshal.GetLastPInvokeError()}");
+        }
+
+        var sizingRect = *(Rect*)lParam;
+        var currentWindowWidth = currentWindowRect.right - currentWindowRect.left;
+        var currentWindowHeight = currentWindowRect.bottom - currentWindowRect.top;
+        var nonClientWidth = Math.Max(0, currentWindowWidth - Volatile.Read(ref _clientWidth));
+        var nonClientHeight = Math.Max(0, currentWindowHeight - Volatile.Read(ref _clientHeight));
+        var predictedClientWidth = Math.Max(0, sizingRect.right - sizingRect.left - nonClientWidth);
+        var predictedClientHeight = Math.Max(0, sizingRect.bottom - sizingRect.top - nonClientHeight);
+
+        Volatile.Write(ref _clientWidth, predictedClientWidth);
+        Volatile.Write(ref _clientHeight, predictedClientHeight);
+    }
+
     private void PumpPendingMessages()
     {
         while (PeekMessageW(out var message, nint.Zero, 0, 0, PmRemove))
@@ -936,6 +1003,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 _ = EndPaint(hwnd, ref ps);
                 return 0;
             case WmEnterSizeMove:
+                Volatile.Write(ref _interactiveResizeWaitCancelled, 0);
                 Volatile.Write(ref _sizeMoveActive, 1);
                 _frameInvalidated?.Invoke();
                 break;
@@ -945,6 +1013,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 _frameInvalidated?.Invoke();
                 break;
             case WmSize:
+                Volatile.Write(ref _clientWidth, unchecked((ushort)(nuint)lParam));
+                Volatile.Write(ref _clientHeight, unchecked((ushort)((nuint)lParam >> 16)));
                 if (_trayIcon is not null)
                 {
                     if (wParam == SizeMinimized && _trayIcon.HideWindowOnMinimize)
@@ -967,8 +1037,15 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 _frameInvalidated?.Invoke();
                 break;
             case WmSizing:
+                UpdateCachedClientSizeFromSizingRect(hwnd, lParam);
+                var resizeSequence = Interlocked.Increment(ref _interactiveResizeSequence);
                 _frameInvalidated?.Invoke();
-                break;
+                while (Volatile.Read(ref _presentedResizeSequence) < resizeSequence
+                    && Volatile.Read(ref _interactiveResizeWaitCancelled) == 0)
+                {
+                    _interactiveResizeFramePresented.WaitOne();
+                }
+                return 1;
             case WmNcMouseMove:
                 _frameInvalidated?.Invoke();
                 break;

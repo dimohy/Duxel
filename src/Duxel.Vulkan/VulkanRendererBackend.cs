@@ -114,6 +114,11 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
 
     public void RenderDrawData(UiDrawData drawData)
     {
+        _ = TryRenderDrawData(drawData);
+    }
+
+    public bool TryRenderDrawData(UiDrawData drawData)
+    {
         var profileEnabled = _profilingEnabled;
 
         if (profileEnabled)
@@ -127,13 +132,13 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
         var targetStart = BeginFrameProfileTiming(profileEnabled);
         if (!TryEnsureFrameTarget(drawData))
         {
-            return;
+            return false;
         }
 
         var targetTicks = EndFrameProfileTiming(profileEnabled, targetStart);
         if (!TryBeginRenderFrame(out var frameContext))
         {
-            return;
+            return false;
         }
 
         var frame = frameContext.FrameSlot;
@@ -159,7 +164,7 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
             profileEnabled,
             ref frameProfile);
 
-        CompleteRecordedFrame(frameContext, commandBuffer, profileEnabled, ref frameProfile);
+        return CompleteRecordedFrame(frameContext, commandBuffer, profileEnabled, ref frameProfile);
     }
 
     private VulkanRendererOptions _options;
@@ -241,7 +246,7 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
 
         _frameIndex = 0;
         Array.Clear(_imagesInFlight, 0, _imagesInFlight.Length);
-        _ = TryRecreateSwapchain();
+        _ = TryRecreateSwapchain(rebuildAllResources: true);
     }
 
     private static bool ParseLegacyClipClampPathEnabled()

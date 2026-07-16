@@ -57,10 +57,13 @@ public interface IPlatformBackend : IDisposable
     IVulkanSurfaceSource? VulkanSurface { get; }
     IPlatformTextBackend? TextBackend { get; }
     IUiImeHandler? ImeHandler => null;
+    long InteractiveResizeSequence => 0;
 
     void PollEvents();
     void WaitEvents(int timeoutMilliseconds);
     void SetMouseCursor(UiMouseCursor cursor);
+    void NotifyFramePresented(long interactiveResizeSequence) { }
+    void CancelInteractiveResizeWait() { }
 }
 
 public interface IPlatformThemeProvider

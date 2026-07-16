@@ -1,6 +1,6 @@
 # Duxel 에이전트 참조 문서
 
-> Last synced: 2026-07-15
+> Last synced: 2026-07-16
 > 대상: Duxel로 앱, 샘플, 재사용 UI 컴포넌트를 작성하는 코딩 에이전트와 개발자
 > 범위: Duxel 기능 맵, 아키텍처 경계, 권장 워크플로, 샘플 기준점, 바로 사용할 수 있는 생성 템플릿
 
@@ -105,6 +105,14 @@ Duxel은 .NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크다.
   - 앱 부트스트랩, 개발자 진입 흐름, 옵션 검증, 런타임 연결 소유
 
 이 경계는 임의로 합치지 않는다.
+
+### Windows 대화형 리사이즈 흐름
+
+Win32 이동/크기 조절 모달 루프 동안 `Duxel.App`은 `IPlatformBackend.IsInteractingResize`를 일회성 무효화 메시지가 아니라 연속 렌더 작업으로 취급한다. `Duxel.Platform.Windows`는 `WM_SIZE`에서 원자적 클라이언트 크기 캐시를 갱신하고 `WM_SIZING` drag rectangle에서 다음 클라이언트 크기를 예측하므로, 렌더 스레드는 교차 스레드 `GetClientRect` 호출 없이 최신 치수를 소비한다.
+
+각 `WM_SIZING` 요청에는 단조 증가 sequence가 있다. Window procedure는 프레임을 요청하고, 해당 sequence에서 캡처한 draw data에 대해 `IRendererBackend.TryRenderDrawData(...)`가 성공/suboptimal present를 보고할 때까지 Windows가 그 외곽 창 단계를 확정하지 못하게 한다. Renderer 실패는 대기를 명시적으로 취소한다. 따라서 포인터/창 이동은 렌더보다 빨라질 수 없지만 외곽 프레임이 내부 내용보다 눈에 띄게 앞설 수도 없다.
+
+모달 루프 동안 draw-data와 swapchain extent가 달라도 매 pointer sample마다 `vkDeviceWaitIdle` 재생성을 선제 실행하지 않는다. 최신 draw data를 현재 swapchain viewport 전체에 그리고 clip을 비례 조정한다. WSI `OUT_OF_DATE`/surface-loss 결과는 계속 재생성하고, 대화형 상태가 끝난 첫 프레임은 정확한 최종 extent로 재생성한다. 리사이즈 전용 recreate는 이전 핸들을 `VkSwapchainCreateInfoKHR.oldSwapchain`으로 전달하고 non-swapchain renderer resource를 보존한다. VSync 생성은 지원될 때 tearing 없는 Mailbox를 우선하고, 아니면 필수 FIFO를 사용한다. VSync off는 Immediate를 우선한다. 고정 240 FPS 제한을 추가하지 않는다.
 
 ## 주요 공개 진입점
 
@@ -1165,7 +1173,7 @@ Vulkan backend는 **graphics pipeline 1개**, **bindless texture descriptor set 
 
 - `VulkanRendererBackend.cs` — `IRendererBackend` shell, constructor/bootstrap 순서, lifecycle/teardown, render-entry frame 순서, settings/API mutation.
 - `VulkanRendererBackend.Device.cs` — instance/surface/physical-device/queue/device 셋업, 필수 feature 게이트, vendor/device policy state와 env parsing, pipeline cache identity.
-- `VulkanRendererBackend.Swapchain.cs` — swapchain selection policy, swapchain resource/recreate flow, render pass/framebuffer/MSAA target, sync/query resource.
+- `VulkanRendererBackend.Swapchain.cs` — swapchain selection policy, 리사이즈 전용/전체 recreate 흐름, image view/MSAA target, semaphore capacity, live resize 중 non-swapchain renderer resource 보존.
 - `VulkanRendererBackend.PipelineResources.cs` — bindless descriptor layout/pool/set, pipeline layout/push range, 단일 graphics pipeline, sampler, pipeline cache load/save, embedded shader loading.
 - `VulkanRendererBackend.Resources.cs` — generic buffer/image/view/memory helper(preferred-memory 선택을 포함한 `CreateBuffer`, `GetBufferDeviceAddress`), image layout transition policy와 `imgTrans(...)` counter.
 - `VulkanRendererBackend.TextureResources.cs` — texture create/update/destroy, bindless slot allocator와 descriptor write, upload batching, font/white texture id classification, deferred destroy.

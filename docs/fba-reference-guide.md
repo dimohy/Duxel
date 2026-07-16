@@ -1,6 +1,6 @@
 # FBA Project/Package Reference Switching Guide
 
-> Last synced: 2026-07-15
+> Last synced: 2026-07-16
 > Korean original: [fba-reference-guide.ko.md](fba-reference-guide.ko.md)
 
 ## Core Principles

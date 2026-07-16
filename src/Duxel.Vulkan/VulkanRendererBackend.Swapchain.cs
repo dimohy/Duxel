@@ -12,12 +12,10 @@ public sealed unsafe partial class VulkanRendererBackend
     private ImageView[] _swapchainImageViews = Array.Empty<ImageView>();
     private Format _swapchainFormat;
     private Extent2D _swapchainExtent;
-    private PresentModeKHR _interactivePresentMode;
-    private bool _interactivePresentModeSupported;
 
     private void CreateSwapchainResources()
     {
-        CreateSwapchain();
+        CreateSwapchain(default);
         _framesInFlight = Math.Min(_swapchainImages.Length, Math.Max(2, _minImageCount));
         CreateImageViews();
         CreatePipelineLayouts();
@@ -31,15 +29,52 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void RecreateSwapchain()
     {
-        DestroySwapchainDependentResources();
-        CreateSwapchainResources();
+        _ = TryWaitForDeviceIdle("RecreateSwapchain", throwOnFailure: true);
+
+        FlushPendingTextureDestroysAll();
+        FlushPendingBufferDestroysAll();
+
+        var oldSwapchain = _swapchain;
+        var oldImageViews = _swapchainImageViews;
+        var oldFormat = _swapchainFormat;
+
+        CreateSwapchain(oldSwapchain);
+
+        DestroyMsaaColorImage();
+        DestroyImageViews(oldImageViews);
+        if (oldSwapchain.Handle is not 0)
+        {
+            _khrSwapchain.DestroySwapchain(_device, oldSwapchain, null);
+        }
+
+        CreateImageViews();
+        if (_swapchainFormat != oldFormat)
+        {
+            DestroyGraphicsPipelineResources();
+            CreateGraphicsPipeline();
+        }
+
+        CreateMsaaColorImage();
+        _imagesInFlight = new Fence[_swapchainImages.Length];
+        EnsureFrameSemaphoreCapacity(Math.Max(2, _swapchainImages.Length + 1));
+        _frameIndex = 0;
+        _semaphoreIndex = 0;
     }
 
-    private bool TryRecreateSwapchain()
+    private bool TryRecreateSwapchain(bool rebuildAllResources = false)
     {
         try
         {
-            RecreateSwapchain();
+            if (rebuildAllResources)
+            {
+                DestroySwapchainDependentResources();
+                CreateSwapchainResources();
+            }
+            else
+            {
+                RecreateSwapchain();
+            }
+
             return true;
         }
         catch (InvalidOperationException ex) when (IsRecoverableSwapchainException(ex))
@@ -48,7 +83,7 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
-    private unsafe void CreateSwapchain()
+    private unsafe void CreateSwapchain(SwapchainKHR oldSwapchain)
     {
         var capabilities = new SurfaceCapabilitiesKHR();
         Check(_khrSurface.GetPhysicalDeviceSurfaceCapabilities(_physicalDevice, _surface, &capabilities));
@@ -107,21 +142,21 @@ public sealed unsafe partial class VulkanRendererBackend
             CompositeAlpha = compositeAlpha,
             PresentMode = presentMode,
             Clipped = true,
+            OldSwapchain = oldSwapchain,
         };
 
-        fixed (SwapchainKHR* swapchain = &_swapchain)
-        {
-            Check(_khrSwapchain.CreateSwapchain(_device, &createInfo, null, swapchain));
-        }
+        var newSwapchain = default(SwapchainKHR);
+        Check(_khrSwapchain.CreateSwapchain(_device, &createInfo, null, &newSwapchain));
 
         uint imageCount = 0;
-        Check(_khrSwapchain.GetSwapchainImages(_device, _swapchain, &imageCount, null));
+        Check(_khrSwapchain.GetSwapchainImages(_device, newSwapchain, &imageCount, null));
         var images = new Image[imageCount];
         fixed (Image* imagePtr = images)
         {
-            Check(_khrSwapchain.GetSwapchainImages(_device, _swapchain, &imageCount, imagePtr));
+            Check(_khrSwapchain.GetSwapchainImages(_device, newSwapchain, &imageCount, imagePtr));
         }
 
+        _swapchain = newSwapchain;
         _swapchainImages = images;
         _swapchainFormat = chosenFormat.Format;
         _swapchainExtent = extent;
@@ -181,7 +216,26 @@ public sealed unsafe partial class VulkanRendererBackend
         DestroyUploadCommandResources();
 
         DestroyMsaaColorImage();
+        DestroyGraphicsPipelineResources();
+        DestroyImageViews(_swapchainImageViews);
 
+        if (_swapchain.Handle is not 0)
+        {
+            _khrSwapchain.DestroySwapchain(_device, _swapchain, null);
+            _swapchain = default;
+        }
+
+        _swapchainImages = Array.Empty<Image>();
+        _swapchainImageViews = Array.Empty<ImageView>();
+        _frames = Array.Empty<FrameResources>();
+        _imagesInFlight = Array.Empty<Fence>();
+        _framesInFlight = 0;
+        _frameSemaphores = Array.Empty<FrameSemaphores>();
+        _semaphoreIndex = 0;
+    }
+
+    private void DestroyGraphicsPipelineResources()
+    {
         if (_graphicsPipeline.Handle is not 0)
         {
             _vk.DestroyPipeline(_device, _graphicsPipeline, null);
@@ -199,25 +253,14 @@ public sealed unsafe partial class VulkanRendererBackend
             _vk.DestroyShaderModule(_device, _fragmentShaderModule, null);
             _fragmentShaderModule = default;
         }
+    }
 
-        foreach (var imageView in _swapchainImageViews)
+    private void DestroyImageViews(ImageView[] imageViews)
+    {
+        foreach (var imageView in imageViews)
         {
             _vk.DestroyImageView(_device, imageView, null);
         }
-
-        if (_swapchain.Handle is not 0)
-        {
-            _khrSwapchain.DestroySwapchain(_device, _swapchain, null);
-            _swapchain = default;
-        }
-
-        _swapchainImages = Array.Empty<Image>();
-        _swapchainImageViews = Array.Empty<ImageView>();
-        _frames = Array.Empty<FrameResources>();
-        _imagesInFlight = Array.Empty<Fence>();
-        _framesInFlight = 0;
-        _frameSemaphores = Array.Empty<FrameSemaphores>();
-        _semaphoreIndex = 0;
     }
 
     private readonly IPlatformBackend _platform;
@@ -252,23 +295,12 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private unsafe PresentModeKHR ChoosePresentMode(PresentModeKHR* modes, uint count)
     {
-        _interactivePresentModeSupported = false;
-        _interactivePresentMode = PresentModeKHR.FifoKhr;
         var hasImmediate = false;
+        var hasMailbox = false;
         for (var i = 0u; i < count; i++)
         {
             hasImmediate |= modes[i] == PresentModeKHR.ImmediateKhr;
-            if (modes[i] == PresentModeKHR.MailboxKhr)
-            {
-                _interactivePresentMode = PresentModeKHR.MailboxKhr;
-                _interactivePresentModeSupported = true;
-            }
-        }
-
-        if (!_interactivePresentModeSupported && hasImmediate)
-        {
-            _interactivePresentMode = PresentModeKHR.ImmediateKhr;
-            _interactivePresentModeSupported = true;
+            hasMailbox |= modes[i] == PresentModeKHR.MailboxKhr;
         }
 
         if (!_options.EnableVSync)
@@ -278,13 +310,18 @@ public sealed unsafe partial class VulkanRendererBackend
                 return PresentModeKHR.ImmediateKhr;
             }
 
-            if (_interactivePresentModeSupported)
+            if (hasMailbox)
             {
-                return _interactivePresentMode;
+                return PresentModeKHR.MailboxKhr;
             }
 
             Console.WriteLine("[Duxel.Vulkan] VSync OFF requested but Immediate present mode is unavailable; falling back to FIFO (refresh-capped).");
             return PresentModeKHR.FifoKhr;
+        }
+
+        if (hasMailbox)
+        {
+            return PresentModeKHR.MailboxKhr;
         }
 
         return PresentModeKHR.FifoKhr;
@@ -327,7 +364,7 @@ public sealed unsafe partial class VulkanRendererBackend
         _semaphoreIndex = 0;
 
         var semaphoreCount = Math.Max(2, _swapchainImages.Length + 1);
-        _frameSemaphores = new FrameSemaphores[semaphoreCount];
+        _frameSemaphores = [];
 
         var poolInfo = new CommandPoolCreateInfo
         {
@@ -351,16 +388,9 @@ public sealed unsafe partial class VulkanRendererBackend
 
         var poolPtr = stackalloc CommandPool[1];
         var commandBufferPtr = stackalloc CommandBuffer[1];
-        var imageAvailablePtr = stackalloc VulkanSemaphore[1];
-        var renderFinishedPtr = stackalloc VulkanSemaphore[1];
         var fencePtr = stackalloc Fence[1];
 
-        for (var i = 0; i < semaphoreCount; i++)
-        {
-            Check(_vk.CreateSemaphore(_device, &semaphoreInfo, null, imageAvailablePtr));
-            Check(_vk.CreateSemaphore(_device, &semaphoreInfo, null, renderFinishedPtr));
-            _frameSemaphores[i] = new FrameSemaphores(imageAvailablePtr[0], renderFinishedPtr[0]);
-        }
+        EnsureFrameSemaphoreCapacity(semaphoreCount, semaphoreInfo);
 
         for (var i = 0; i < framesInFlight; i++)
         {
@@ -395,6 +425,34 @@ public sealed unsafe partial class VulkanRendererBackend
             }
 
             _frames[i] = frame;
+        }
+    }
+
+    private unsafe void EnsureFrameSemaphoreCapacity(int requiredCount)
+    {
+        var semaphoreInfo = new SemaphoreCreateInfo
+        {
+            SType = StructureType.SemaphoreCreateInfo,
+        };
+        EnsureFrameSemaphoreCapacity(requiredCount, semaphoreInfo);
+    }
+
+    private unsafe void EnsureFrameSemaphoreCapacity(int requiredCount, SemaphoreCreateInfo semaphoreInfo)
+    {
+        if (_frameSemaphores.Length >= requiredCount)
+        {
+            return;
+        }
+
+        var previousCount = _frameSemaphores.Length;
+        Array.Resize(ref _frameSemaphores, requiredCount);
+        var imageAvailable = default(VulkanSemaphore);
+        var renderFinished = default(VulkanSemaphore);
+        for (var i = previousCount; i < requiredCount; i++)
+        {
+            Check(_vk.CreateSemaphore(_device, &semaphoreInfo, null, &imageAvailable));
+            Check(_vk.CreateSemaphore(_device, &semaphoreInfo, null, &renderFinished));
+            _frameSemaphores[i] = new FrameSemaphores(imageAvailable, renderFinished);
         }
     }
 
