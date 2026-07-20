@@ -46,7 +46,7 @@ Current implementation direction:
 
 Both packages ship `net8.0`, `net9.0`, and `net10.0` runtime assets. FBA samples remain `net10.0` because the file-based app feature requires the .NET 10 SDK; ordinary project consumers may target any of the three frameworks.
 
-This is the `0.2.9-preview` public package contract. `Duxel.App` and `Duxel.Windows.App` expose `net8.0`, `net9.0`, and `net10.0` assets; FBA remains a .NET 10 SDK workflow.
+This is the `0.2.10-preview` public package contract. `Duxel.App` and `Duxel.Windows.App` expose `net8.0`, `net9.0`, and `net10.0` assets; FBA remains a .NET 10 SDK workflow.
 
 For Windows app generation, prefer `net8.0-windows7.0`, `net9.0-windows7.0`, or `net10.0-windows7.0` in the consuming executable so platform analysis is explicit. The Duxel package projects themselves intentionally use portable `net8.0`, `net9.0`, and `net10.0` TFMs.
 

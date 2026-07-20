@@ -5,7 +5,7 @@
 
 ## Core Principles
 
-- Duxel `0.2.9-preview` packages target `net8.0`, `net9.0`, and `net10.0`; FBA samples target `net10.0` because file-based apps require the .NET 10 SDK.
+- Duxel `0.2.10-preview` packages target `net8.0`, `net9.0`, and `net10.0`; FBA samples target `net10.0` because file-based apps require the .NET 10 SDK.
 - Current FBA samples use `#:package Duxel.$(platform).App@*-*`.
 - End users run NuGet package mode via `dotnet run <file>.cs`.
 - Contributors run local project-reference mode via `./run-fba.ps1`.

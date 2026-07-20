@@ -2,7 +2,7 @@
 
 > 마지막 동기화: 2026-07-20
 
-> .NET 10 파일 기반 앱 기능을 사용하는 **Duxel** FBA 샘플을 **복사-붙여넣기 한 줄**로 바로 실행하세요. Duxel `0.2.9-preview` 패키지는 일반 .NET 8, .NET 9, .NET 10 프로젝트를 지원합니다.
+> .NET 10 파일 기반 앱 기능을 사용하는 **Duxel** FBA 샘플을 **복사-붙여넣기 한 줄**로 바로 실행하세요. Duxel `0.2.10-preview` 패키지는 일반 .NET 8, .NET 9, .NET 10 프로젝트를 지원합니다.
 
 > 참고: 로컬 소스 변경을 반영해 실행하려면 `./run-fba.ps1 samples/fba/<파일명>.cs`를 사용하세요.
 
@@ -460,6 +460,24 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 ---
 
+## 해석적 둥근 프리미티브 벤치
+
+해석적 rounded fill, fill/border 결합 panel, rounded outline, circle의 1x-MSAA 시각·성능을 검증하는 초점형 게이트입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/analytic_rounded_primitives_bench_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/analytic_rounded_primitives_bench_fba.cs -o - | dotnet run -
+```
+
+> GPU signed-distance coverage · fill/border 결합 shading · border-only 8-cell perimeter · frame-tail JSON 게이트
+
+---
+
 ## Pipeline Ordering 벤치
 
 동적 solid/text pipeline ordering 비용을 분리 측정하는 초점형 게이트입니다.
@@ -612,6 +630,7 @@ $files = @(
     "layer_dirty_strategy_bench.cs", "layer_widget_mix_bench_fba.cs",
     "scrolling_static_layer_bench_fba.cs",
     "global_dirty_strategy_bench.cs", "vector_primitives_bench_fba.cs",
+    "analytic_rounded_primitives_bench_fba.cs",
     "pipeline_ordering_bench_fba.cs", "dynamic_widget_ordering_bench_fba.cs",
     "static_cache_rebuild_bench_fba.cs", "static_layer_moving_order_bench_fba.cs",
     "texture_upload_barrier_bench_fba.cs", "directtext_page_upload_bench_fba.cs",
@@ -634,7 +653,7 @@ FILES=(all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs extended_
     font_style_validation_fba.cs \
     idle_layer_validation.cs \
     layer_dirty_strategy_bench.cs layer_widget_mix_bench_fba.cs scrolling_static_layer_bench_fba.cs \
-    global_dirty_strategy_bench.cs vector_primitives_bench_fba.cs \
+    global_dirty_strategy_bench.cs vector_primitives_bench_fba.cs analytic_rounded_primitives_bench_fba.cs \
     pipeline_ordering_bench_fba.cs dynamic_widget_ordering_bench_fba.cs \
     static_cache_rebuild_bench_fba.cs static_layer_moving_order_bench_fba.cs \
     texture_upload_barrier_bench_fba.cs directtext_page_upload_bench_fba.cs \

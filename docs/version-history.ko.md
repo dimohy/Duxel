@@ -2,7 +2,7 @@
 
 Duxel의 버전별 변경 내역 누적 기록.
 
-## 미출시
+## 0.2.10-preview (2026-07-20)
 
 ### 주요 개선 사항
 
@@ -13,6 +13,10 @@ Duxel의 버전별 변경 내역 누적 기록.
 
 - **[버그]** 1x MSAA 둥근 control의 톱니 현상 — circle primitive가 있는데도 선언형 panel을 각져 보이게 만들던 독립적인 저 segment rounded-rectangle 경로 제거.
 - **[버그]** Rounded primitive replay — draw list append/replay 뒤에도 border-only GPU geometry variant가 보존되도록 수정.
+
+### 배포/릴리스
+
+- **[개선]** 패키지 릴리스 — `Duxel.App`과 `Duxel.Windows.App`을 `0.2.10-preview`로 상향하고 `net8.0`, `net9.0`, `net10.0` 자산을 포함.
 
 ## 0.2.9-preview (2026-07-20)
 

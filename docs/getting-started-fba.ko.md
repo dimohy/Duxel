@@ -2,7 +2,7 @@
 
 > 마지막 동기화: 2026-07-20
 
-단일 `.cs` 파일로 Duxel 앱을 실행하는 .NET 10 FBA(File-Based App) 기준 가이드입니다. Duxel `0.2.9-preview` 패키지는 일반 `net8.0`, `net9.0`, `net10.0` 프로젝트를 지원합니다.
+단일 `.cs` 파일로 Duxel 앱을 실행하는 .NET 10 FBA(File-Based App) 기준 가이드입니다. Duxel `0.2.10-preview` 패키지는 일반 `net8.0`, `net9.0`, `net10.0` 프로젝트를 지원합니다.
 
 ## 필수 환경
 
@@ -80,6 +80,7 @@ dotnet run samples/fba/all_features.cs
 | `directtext_page_upload_bench_fba.cs` | DirectText page-style partial texture upload 벤치 |
 | `directtext_dynamic_text_bench_fba.cs` | DirectText 안정 캐시와 변경 문자열의 frame-tail, text-work, 할당 비교 벤치 |
 | `vector_primitives_bench_fba.cs` | primitive-heavy vector workload 벤치 |
+| `analytic_rounded_primitives_bench_fba.cs` | 해석적 rounded fill, outline, fill/border 결합 panel, circle의 1x-MSAA 시각·성능 게이트 |
 
 ## 프로필/환경 변수
 

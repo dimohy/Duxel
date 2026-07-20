@@ -2,7 +2,7 @@
 
 This document accumulates version-by-version changes for Duxel.
 
-## Unreleased
+## 0.2.10-preview (2026-07-20)
 
 ### Major Improvements
 
@@ -13,6 +13,10 @@ This document accumulates version-by-version changes for Duxel.
 
 - **[Bug]** Jagged rounded controls at 1x MSAA — removed the independent low-segment rounded-rectangle path that made declarative panels visibly faceted even though circle primitives already existed.
 - **[Bug]** Rounded primitive replay — preserves the border-only GPU geometry variant when draw lists are appended or replayed.
+
+### Packaging / Release
+
+- **[Improvement]** Package release — bumped `Duxel.App` and `Duxel.Windows.App` to `0.2.10-preview` with `net8.0`, `net9.0`, and `net10.0` assets.
 
 ## 0.2.9-preview (2026-07-20)
 

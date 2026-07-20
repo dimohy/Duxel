@@ -3,7 +3,7 @@
 > Last synced: 2026-07-20
 > Korean: [fba-run-samples.ko.md](fba-run-samples.ko.md)
 
-> Run **Duxel** FBA samples with a **single copy-paste command**. These samples use the .NET 10 file-based app feature. Duxel `0.2.9-preview` packages support regular .NET 8, .NET 9, and .NET 10 projects.
+> Run **Duxel** FBA samples with a **single copy-paste command**. These samples use the .NET 10 file-based app feature. Duxel `0.2.10-preview` packages support regular .NET 8, .NET 9, and .NET 10 projects.
 
 > Note: To run with local source changes, use `./run-fba.ps1 samples/fba/<filename>.cs`.
 
@@ -461,6 +461,24 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 ---
 
+## Analytic Rounded Primitives Bench
+
+Focused 1x-MSAA visual and performance gate for analytic rounded fills, combined fill/border panels, rounded outlines, and circles.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/analytic_rounded_primitives_bench_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/analytic_rounded_primitives_bench_fba.cs -o - | dotnet run -
+```
+
+> GPU signed-distance coverage · combined fill/border shading · border-only eight-cell perimeter · frame-tail JSON gate
+
+---
+
 ## Pipeline Ordering Bench
 
 Focused gate for dynamic solid/text pipeline ordering cost.
@@ -613,6 +631,7 @@ $files = @(
     "layer_dirty_strategy_bench.cs", "layer_widget_mix_bench_fba.cs",
     "scrolling_static_layer_bench_fba.cs",
     "global_dirty_strategy_bench.cs", "vector_primitives_bench_fba.cs",
+    "analytic_rounded_primitives_bench_fba.cs",
     "pipeline_ordering_bench_fba.cs", "dynamic_widget_ordering_bench_fba.cs",
     "static_cache_rebuild_bench_fba.cs", "static_layer_moving_order_bench_fba.cs",
     "texture_upload_barrier_bench_fba.cs", "directtext_page_upload_bench_fba.cs",
@@ -635,7 +654,7 @@ FILES=(all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs extended_
     font_style_validation_fba.cs \
     idle_layer_validation.cs \
     layer_dirty_strategy_bench.cs layer_widget_mix_bench_fba.cs scrolling_static_layer_bench_fba.cs \
-    global_dirty_strategy_bench.cs vector_primitives_bench_fba.cs \
+    global_dirty_strategy_bench.cs vector_primitives_bench_fba.cs analytic_rounded_primitives_bench_fba.cs \
     pipeline_ordering_bench_fba.cs dynamic_widget_ordering_bench_fba.cs \
     static_cache_rebuild_bench_fba.cs static_layer_moving_order_bench_fba.cs \
     texture_upload_barrier_bench_fba.cs directtext_page_upload_bench_fba.cs \

@@ -3,7 +3,7 @@
 > Last synced: 2026-07-20
 > Korean original: [getting-started-fba.ko.md](getting-started-fba.ko.md)
 
-This guide covers the .NET 10 FBA (File-Based App) flow to run Duxel with a single `.cs` file. Duxel `0.2.9-preview` packages support regular `net8.0`, `net9.0`, and `net10.0` project consumers.
+This guide covers the .NET 10 FBA (File-Based App) flow to run Duxel with a single `.cs` file. Duxel `0.2.10-preview` packages support regular `net8.0`, `net9.0`, and `net10.0` project consumers.
 
 ## Requirements
 
@@ -81,6 +81,7 @@ dotnet run samples/fba/all_features.cs
 | `directtext_page_upload_bench_fba.cs` | DirectText page-style partial texture upload benchmark |
 | `directtext_dynamic_text_bench_fba.cs` | DirectText stable-cache versus changing-string frame-tail, text-work, and allocation benchmark |
 | `vector_primitives_bench_fba.cs` | Primitive-heavy vector workload benchmark |
+| `analytic_rounded_primitives_bench_fba.cs` | 1x-MSAA visual and performance gate for analytic rounded fills, outlines, combined fill/border panels, and circles |
 
 ## Profile / Environment Variable
 

@@ -44,7 +44,7 @@ Duxel은 .NET 8, .NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 
 두 패키지는 `net8.0`, `net9.0`, `net10.0` 런타임 자산을 함께 제공한다. 파일 기반 앱 기능에는 .NET 10 SDK가 필요하므로 FBA 샘플은 `net10.0`을 유지하며, 일반 프로젝트 사용자는 세 프레임워크 중 하나를 대상으로 할 수 있다.
 
-이는 공개 `0.2.9-preview` 패키지 계약이다. `Duxel.App`과 `Duxel.Windows.App`은 `net8.0`, `net9.0`, `net10.0` 자산을 제공하며 FBA는 계속 .NET 10 SDK 워크플로를 사용한다.
+이는 공개 `0.2.10-preview` 패키지 계약이다. `Duxel.App`과 `Duxel.Windows.App`은 `net8.0`, `net9.0`, `net10.0` 자산을 제공하며 FBA는 계속 .NET 10 SDK 워크플로를 사용한다.
 
 Windows 앱을 생성할 때 소비자 실행 프로젝트는 플랫폼 분석이 명확하도록 `net8.0-windows7.0`, `net9.0-windows7.0`, `net10.0-windows7.0` 중 해당 버전을 우선한다. Duxel 패키지 프로젝트 자체는 의도적으로 이식 가능한 `net8.0`, `net9.0`, `net10.0` TFM을 사용한다.
 
