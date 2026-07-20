@@ -16,6 +16,7 @@ Immediate-mode GUI framework for .NET 9 and .NET 10, using a Vulkan renderer wit
 - 한국어 문서: [README.ko.md](README.ko.md)
 - Version history: [docs/version-history.md](docs/version-history.md) · [한국어](docs/version-history.ko.md)
 - Duxel agent reference: [docs/duxel-agent-reference.md](docs/duxel-agent-reference.md) · [한국어](docs/duxel-agent-reference.ko.md)
+- Extended title bar guide: [docs/extended-title-bar-guide.md](docs/extended-title-bar-guide.md) · [한국어](docs/extended-title-bar-guide.ko.md)
 
 ## What it provides
 
@@ -109,6 +110,7 @@ Duxel supports declarative `.ui` files (indent-based tree) and runtime/state bin
 
 - DSL reference: [docs/ui-dsl.md](docs/ui-dsl.md) · [한국어](docs/ui-dsl.ko.md)
 - Agent reference: [docs/duxel-agent-reference.md](docs/duxel-agent-reference.md) · [한국어](docs/duxel-agent-reference.ko.md)
+- Extended title bar: [docs/extended-title-bar-guide.md](docs/extended-title-bar-guide.md) · [한국어](docs/extended-title-bar-guide.ko.md)
 - FBA getting started: [docs/getting-started-fba.md](docs/getting-started-fba.md) · [한국어](docs/getting-started-fba.ko.md)
 - FBA reference guide: [docs/fba-reference-guide.md](docs/fba-reference-guide.md) · [한국어](docs/fba-reference-guide.ko.md)
 - FBA sample catalog: [docs/fba-run-samples.md](docs/fba-run-samples.md) · [한국어](docs/fba-run-samples.ko.md)

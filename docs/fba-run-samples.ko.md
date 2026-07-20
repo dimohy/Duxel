@@ -1,6 +1,6 @@
 # Duxel FBA 샘플 — 바로 실행하기
 
-> 마지막 동기화: 2026-07-16
+> 마지막 동기화: 2026-07-20
 
 > .NET 10 파일 기반 앱 기능을 사용하는 **Duxel** FBA 샘플을 **복사-붙여넣기 한 줄**로 바로 실행하세요. Duxel 패키지는 일반 .NET 9 프로젝트도 지원합니다.
 
@@ -82,6 +82,26 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 ```
 
 > `PushFontSize` 계층 · 단일 창 최소 샘플 · hello-world 출발점
+
+---
+
+## 확장 타이틀바
+
+애플리케이션 탭을 타이틀바 영역에 배치하면서 Windows 캡션 버튼, Snap Layout 히트 테스트, 리사이즈 테두리, 드래그/더블클릭 동작, DPI 좌표, 최대화 모니터 작업영역을 유지하는 샘플입니다.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/extended_title_bar_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/extended_title_bar_fba.cs -o - | dotnet run -
+```
+
+> `DuxelTitleBarMode.ExtendedContent` · `TryGetCaptionButtonBounds` · `SetTitleBarDragRegions` · 네이티브 DWM 캡션 버튼
+
+상세한 레이아웃 규칙, DPI/다중 모니터 계약, NativeAOT 진단 절차는 [확장 타이틀바 가이드](extended-title-bar-guide.ko.md)를 참고하세요.
 
 ---
 
@@ -579,6 +599,7 @@ $files = @(
     "all_features.cs",
     "declarative_dashboard_fba.cs",
     "hello_duxel_fba.cs",
+    "extended_title_bar_fba.cs",
     "advanced_layout.cs", "columns_demo.cs",
     "image_and_popups.cs", "image_widget_effects_fba.cs",
     "input_queries.cs", "item_status.cs",
@@ -603,7 +624,7 @@ Write-Host "`nRun: dotnet run fba/all_features.cs"
 **Bash**
 ```bash
 BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
-FILES=(all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs \
+FILES=(all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs extended_title_bar_fba.cs \
     advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
     input_queries.cs item_status.cs \
     windows_calculator_fba.cs windows_calculator_duxel_showcase_fba.cs \

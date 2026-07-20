@@ -16,6 +16,7 @@
 - English: [README.md](README.md)
 - 버전 이력: [docs/version-history.ko.md](docs/version-history.ko.md) · [English](docs/version-history.md)
 - Duxel 에이전트 참조 문서: [docs/duxel-agent-reference.ko.md](docs/duxel-agent-reference.ko.md) · [English](docs/duxel-agent-reference.md)
+- 확장 타이틀바 가이드: [docs/extended-title-bar-guide.ko.md](docs/extended-title-bar-guide.ko.md) · [English](docs/extended-title-bar-guide.md)
 
 ## 제공 기능
 
@@ -109,6 +110,7 @@ dotnet run hello.cs
 
 - DSL 문서: [docs/ui-dsl.ko.md](docs/ui-dsl.ko.md) · [English](docs/ui-dsl.md)
 - 에이전트 참조 문서: [docs/duxel-agent-reference.ko.md](docs/duxel-agent-reference.ko.md) · [English](docs/duxel-agent-reference.md)
+- 확장 타이틀바: [docs/extended-title-bar-guide.ko.md](docs/extended-title-bar-guide.ko.md) · [English](docs/extended-title-bar-guide.md)
 - FBA 시작 가이드: [docs/getting-started-fba.ko.md](docs/getting-started-fba.ko.md) · [English](docs/getting-started-fba.md)
 - FBA 참조 가이드: [docs/fba-reference-guide.ko.md](docs/fba-reference-guide.ko.md) · [English](docs/fba-reference-guide.md)
 - FBA 샘플 카탈로그: [docs/fba-run-samples.ko.md](docs/fba-run-samples.ko.md) · [English](docs/fba-run-samples.md)

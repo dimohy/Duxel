@@ -1,6 +1,6 @@
 # Duxel 에이전트 참조 문서
 
-> Last synced: 2026-07-16
+> Last synced: 2026-07-20
 > 대상: Duxel로 앱, 샘플, 재사용 UI 컴포넌트를 작성하는 코딩 에이전트와 개발자
 > 범위: Duxel 기능 맵, 아키텍처 경계, 권장 워크플로, 샘플 기준점, 바로 사용할 수 있는 생성 템플릿
 
@@ -65,6 +65,7 @@ Duxel은 .NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 2. 영문 대응 문서: `docs/duxel-agent-reference.md`
 3. `README.ko.md`
 4. 작업별 문서:
+   - `docs/extended-title-bar-guide.ko.md`
    - `docs/fba-reference-guide.ko.md`
    - `docs/fba-run-samples.ko.md`
    - `docs/getting-started-fba.ko.md`
@@ -352,12 +353,34 @@ Dux.TextWrapped(() => status.Value)
 | `VSync` | `true` |
 | `IconPath` | Duxel 기본 아이콘 |
 | `IntegrateSystemChrome` | `true` |
+| `TitleBarMode` | `DuxelTitleBarMode.Default` |
 | `UseDuxelTitleBar` | `true` |
 | `DuxelTitleBarHeight` | `48f` |
 
 `IntegrateSystemChrome`은 활성 시작 테마/디자인에서 Windows 11 DWM 캡션 색상, 텍스트 색상, 테두리 색상, 라운드 코너, 다크 모드 속성을 적용한다. 앱이 기본 플랫폼 추적 디자인을 사용할 때는 Windows `WM_SETTINGCHANGE` 테마 알림으로 Duxel 테마와 렌더러 clear color가 런타임에 갱신된다.
 
 `UseDuxelTitleBar`는 기본적으로 켜져 있으므로, 앱이 명시적으로 `UseDuxelTitleBar = false`를 지정하지 않는 한 Windows 앱은 네이티브 캡션을 제거하고 Vulkan surface 안에 Duxel 소유 타이틀바를 렌더링한다. 앱 런타임은 사용자 `UiScreen`을 감싸고, 상단 viewport inset을 예약하며, 앱 아이콘/제목/최소화/최대화/닫기 버튼을 그리고, 창 이동/최소화/최대화/닫기 명령은 `IWindowChromeController`를 통해 플랫폼에 위임한다.
+
+`TitleBarMode`는 `System`, `Duxel`, `ExtendedContent`를 명시적으로 선택한다. 기본값 `Default`는 기존 소스 호환성을 위해 `UseDuxelTitleBar`에서 실제 모드를 결정하며, 명시한 비기본 모드가 우선한다. `ExtendedContent`는 Windows/DWM 캡션 버튼과 시스템 메뉴, 리사이즈, 최대화, Snap Layout 계약을 유지하면서 전체 Vulkan 클라이언트 영역을 `(0, 0)`부터 사용할 수 있게 한다.
+
+`ExtendedContent`에서는 DWM 소유 버튼 묶음의 경계를 조회하고 현재 UI 프레임에서 플랫폼 드래그 영역 스냅샷을 교체한다.
+
+```csharp
+if (ui.TryGetCaptionButtonBounds(out var captionButtons))
+{
+    var dragLeft = 320f;
+    var dragRight = captionButtons.X;
+    ui.SetTitleBarDragRegions(dragRight > dragLeft
+        ? [new UiRect(dragLeft, 0f, dragRight - dragLeft, 48f)]
+        : []);
+}
+else
+{
+    ui.SetTitleBarDragRegions([]);
+}
+```
+
+사각형은 Duxel 논리 클라이언트 좌표를 사용한다. 호출할 때마다 이전 영역 집합을 원자적으로 교체하며, `[]`를 전달하면 비운다. 탭, 버튼, 메뉴, 텍스트 입력 등 상호작용 요소는 해당 사각형 밖에 두어 히트 테스트가 `HTCLIENT`로 남게 한다. Windows는 숨겨지거나 최소화된 창의 DWM 경계를 유효하지 않은 값으로 정의하므로 이 상태에서는 `TryGetCaptionButtonBounds`가 `false`를 반환할 수 있다. 전체 레이아웃, Win32/DWM 계약, AI 검증 절차는 `docs/extended-title-bar-guide.ko.md`, 실행 가능한 기준 샘플은 `samples/fba/extended_title_bar_fba.cs`를 참고한다.
 
 `IconPath`와 `IconData`를 지정하지 않으면 Duxel은 번들된 기본 `.ico`를 Win32 창/작업표시줄 아이콘으로 사용한다. `Duxel.Windows.App` 패키지도 같은 아이콘을 Windows 실행 파일의 기본 `ApplicationIcon`으로 제공하며, 앱이 자체 아이콘을 지정하거나 `DuxelUseDefaultIcon=false`를 설정하면 이를 사용하지 않는다.
 
@@ -1238,6 +1261,7 @@ DirectText 페이지 텍스처 패킹은 `DUXEL_DIRECT_TEXT_PAGE=1`로만 켠다
 
 - `README.ko.md` — 패키지 개요와 빠른 시작
 - `docs/duxel-agent-reference.md` — 영문 대응 기준 문서
+- `docs/extended-title-bar-guide.ko.md` — ExtendedContent 타이틀바의 앱 레이아웃, 플랫폼 계약, AI 검증 절차
 - `docs/getting-started-fba.ko.md` — FBA 첫 시작 가이드
 - `docs/fba-reference-guide.ko.md` — 패키지/프로젝트 전환과 `run-fba.ps1`
 - `docs/fba-run-samples.ko.md` — 샘플 카탈로그와 원클릭 실행

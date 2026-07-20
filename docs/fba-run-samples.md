@@ -1,6 +1,6 @@
 # Duxel FBA Samples — Run Instantly
 
-> Last synced: 2026-07-16
+> Last synced: 2026-07-20
 > Korean: [fba-run-samples.ko.md](fba-run-samples.ko.md)
 
 > Run **Duxel** FBA samples with a **single copy-paste command**. These samples use the .NET 10 file-based app feature; Duxel packages also support regular .NET 9 projects.
@@ -83,6 +83,26 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 ```
 
 > `PushFontSize` hierarchy · one-window minimal sample · hello-world style starting point
+
+---
+
+## Extended Title Bar
+
+Places application tabs in the title-bar area while preserving Windows caption buttons, Snap Layout hit testing, resize borders, drag/double-click behavior, DPI coordinates, and the maximized monitor work area.
+
+**PowerShell**
+```powershell
+irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/extended_title_bar_fba.cs | dotnet run -
+```
+
+**Bash**
+```bash
+curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/extended_title_bar_fba.cs -o - | dotnet run -
+```
+
+> `DuxelTitleBarMode.ExtendedContent` · `TryGetCaptionButtonBounds` · `SetTitleBarDragRegions` · native DWM caption buttons
+
+See the [Extended Title Bar Guide](extended-title-bar-guide.md) for layout rules, DPI/multi-monitor contracts, and the NativeAOT diagnostic workflow.
 
 ---
 
@@ -580,6 +600,7 @@ $files = @(
     "all_features.cs",
     "declarative_dashboard_fba.cs",
     "hello_duxel_fba.cs",
+    "extended_title_bar_fba.cs",
     "advanced_layout.cs", "columns_demo.cs",
     "image_and_popups.cs", "image_widget_effects_fba.cs",
     "input_queries.cs", "item_status.cs",
@@ -604,7 +625,7 @@ Write-Host "`nRun: dotnet run fba/all_features.cs"
 **Bash**
 ```bash
 BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
-FILES=(all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs \
+FILES=(all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs extended_title_bar_fba.cs \
     advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
     input_queries.cs item_status.cs \
     windows_calculator_fba.cs windows_calculator_duxel_showcase_fba.cs \

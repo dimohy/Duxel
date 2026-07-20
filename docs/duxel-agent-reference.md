@@ -1,6 +1,6 @@
 # Duxel Agent Reference
 
-> Last synced: 2026-07-16
+> Last synced: 2026-07-20
 > Audience: coding agents and developers building apps, samples, and reusable UI components with Duxel
 > Scope: Duxel feature map, architecture boundaries, recommended workflows, and sample anchors
 
@@ -66,6 +66,7 @@ When you need authoritative context, read in this order:
 1. this file: `docs/duxel-agent-reference.md`
 2. `README.md`
 3. task-specific docs:
+   - `docs/extended-title-bar-guide.md`
    - `docs/fba-reference-guide.md`
    - `docs/fba-run-samples.md`
    - `docs/getting-started-fba.md`
@@ -353,12 +354,34 @@ Dux.TextWrapped(() => status.Value)
 | `VSync` | `true` |
 | `IconPath` | Duxel default icon |
 | `IntegrateSystemChrome` | `true` |
+| `TitleBarMode` | `DuxelTitleBarMode.Default` |
 | `UseDuxelTitleBar` | `true` |
 | `DuxelTitleBarHeight` | `48f` |
 
 `IntegrateSystemChrome` applies Windows 11 DWM caption, text, border color, rounded corner, and dark-mode attributes from the active startup theme/design. When the app uses the default platform-following design, Windows `WM_SETTINGCHANGE` theme notifications refresh the Duxel theme and render clear color at runtime.
 
 `UseDuxelTitleBar` is enabled by default, so Windows apps remove the native caption and render a Duxel-owned title bar inside the Vulkan surface unless the app explicitly sets `UseDuxelTitleBar = false`. The app runtime wraps the user `UiScreen`, reserves the top viewport inset, draws the app icon, title, minimize/maximize/close buttons, and delegates window move/minimize/maximize/close commands through `IWindowChromeController`.
+
+`TitleBarMode` explicitly selects `System`, `Duxel`, or `ExtendedContent`. Its `Default` value preserves source compatibility by resolving from `UseDuxelTitleBar`; an explicit non-default mode takes precedence. `ExtendedContent` makes the complete Vulkan client area available from `(0, 0)` while preserving the Windows/DWM caption buttons and system-menu, resize, maximize, and Snap Layout contracts.
+
+In `ExtendedContent`, query the DWM-owned button cluster and replace the platform drag-region snapshot from the current UI frame:
+
+```csharp
+if (ui.TryGetCaptionButtonBounds(out var captionButtons))
+{
+    var dragLeft = 320f;
+    var dragRight = captionButtons.X;
+    ui.SetTitleBarDragRegions(dragRight > dragLeft
+        ? [new UiRect(dragLeft, 0f, dragRight - dragLeft, 48f)]
+        : []);
+}
+else
+{
+    ui.SetTitleBarDragRegions([]);
+}
+```
+
+The rectangles use Duxel logical client coordinates. Each call atomically replaces the previous region set; pass `[]` to clear it. Keep tabs, buttons, menus, text inputs, and other interactive controls outside those rectangles so their hit test remains `HTCLIENT`. `TryGetCaptionButtonBounds` can return `false` while the native window is hidden or minimized because Windows defines the DWM bounds as unavailable in that state. See `docs/extended-title-bar-guide.md` for the complete layout, Win32/DWM contract, and AI validation workflow, and `samples/fba/extended_title_bar_fba.cs` for the executable reference sample.
 
 When `IconPath` and `IconData` are not set, Duxel uses its bundled default `.ico` for the Win32 window/taskbar icon. The `Duxel.Windows.App` package also supplies the same icon as the default `ApplicationIcon` for consuming Windows executables unless the app sets its own icon or `DuxelUseDefaultIcon=false`.
 
@@ -1257,6 +1280,7 @@ Recommended sequence:
 Use these documents together with this reference:
 
 - `README.md` — package-facing overview and quick start
+- `docs/extended-title-bar-guide.md` — ExtendedContent app layout, platform contracts, and AI validation workflow
 - `docs/getting-started-fba.md` — first-time FBA walkthrough
 - `docs/fba-reference-guide.md` — package/project switching and `run-fba.ps1`
 - `docs/fba-run-samples.md` — sample catalog and one-command runs
