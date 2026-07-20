@@ -117,10 +117,13 @@ public sealed unsafe partial class VulkanRendererBackend
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     private struct PrimitiveInstance
     {
-        public float DataX;
-        public float DataY;
-        public float DataZ;
-        public uint Payload;
-        public uint Color;
+        public float X;
+        public float Y;
+        public float Width;
+        public float Height;
+        public float Radius;
+        public float BorderThickness;
+        public uint FillColor;
+        public uint BorderColor;
     }
 }

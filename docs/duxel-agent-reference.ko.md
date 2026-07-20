@@ -1076,6 +1076,9 @@ FBA 샘플은 다음과 같은 패키지 지시문을 사용한다.
 - 기본적으로 NativeAOT 경로를 지원한다.
 - `-Wait`로 NativeAOT GUI 샘플 종료까지 대기할 수 있어 자동 파일 로그 벤치마크 수집에 적합하다.
 - 단순 패키지 모드와 달리 현재 워크스페이스 소스 변경을 반영한다.
+- 샘플·자산·출력 파일을 리터럴 경로로 해석하며, 저장소 스크립트는 PowerShell provider에 파일 시스템 와일드카드를 넘기지 않고 리터럴 디렉터리를 열거한 뒤 파일 속성으로 필터링한다.
+
+PowerShell 스크립트를 프로그래밍 방식으로 호출할 때 이름 있는 매개변수는 해시테이블 스플래팅을 사용한다. 네이티브 실행 파일에는 인수 배열을 사용한다. `-Path` 같은 토큰을 문자열 배열에 넣어 PowerShell 스크립트에 전달하면 위치 인수 값으로 바인딩될 수 있으므로 사용하지 않는다.
 
 로컬 소스 수정 검증에 `dotnet run samples/fba/<file>.cs`를 기준으로 삼지 않는다.
 
@@ -1172,7 +1175,9 @@ Vulkan 커맨드 기록 프로파일링은 `DUXEL_VK_PROFILE=1`로 켠다. `DUXE
 
 `samples/fba/directtext_dynamic_text_bench_fba.cs`는 안정 DirectText cache hit와 변경 문자열 cache miss를 비교하는 초점형 gate다. `DUXEL_DIRECTTEXT_BENCH_OUT`은 필수이며 제어값은 `DUXEL_DIRECTTEXT_BENCH_PHASE_SECONDS`, `DUXEL_DIRECTTEXT_BENCH_WARMUP_FRAMES`, `DUXEL_DIRECTTEXT_BENCH_ROWS`, `DUXEL_DIRECTTEXT_BENCH_CORPUS_FRAMES`다. JSON에는 frame과 text-work의 median/p95/p99 tail, 1% low FPS, frame당 평균 할당량, generation별 collection 횟수가 포함된다.
 
-축 정렬 `UiDrawListBuilder.AddRect(...)` 외곽선은 `rounding <= 0`일 때 triangle polyline geometry가 아니라 rect-filled primitive emission을 사용해야 한다. 수평/수직 `UiDrawListBuilder.AddLine(...)`도 rect-filled primitive emission을 사용하고, diagonal line은 기존 quad triangle path를 유지한다. 이렇게 하면 일반 사각형 border와 축 정렬 separator가 primitive path에 남아 text/triangle/primitive pipeline churn이 줄어든다. Rounded outline은 기존 polyline path를 유지한다.
+`samples/fba/analytic_rounded_primitives_bench_fba.cs`는 rounded fill, fill/border 결합 panel, border-only rounded rectangle, circle을 위한 1x-MSAA 초점형 화질/성능 gate다. `DUXEL_ROUNDED_BENCH_OUT`이 없으면 큰 visual reference shape를 표시한다. 출력 경로가 있으면 `DUXEL_ROUNDED_BENCH_COUNTS`, `DUXEL_ROUNDED_BENCH_PHASE_SECONDS`, `DUXEL_ROUNDED_BENCH_WARMUP_SECONDS`로 제어되는 self-terminating benchmark를 실행하고 평균 FPS, median/p95/p99 frame time, 1% low FPS를 기록한다. 시작 시 rounded rectangle/circle이 CPU polygon vertex가 아니라 primitive instance를 만들고 replay 뒤에도 border-only geometry variant가 보존되는지 단언한다.
+
+축 정렬 `UiDrawListBuilder.AddRect(...)` 외곽선은 triangle polyline geometry 대신 rect-filled primitive emission을 사용한다. Rounded outline, rounded fill, `AddCircleFilled(...)`는 GPU primitive instance로 유지되고 fragment shader가 signed distance와 derivative 기반 coverage를 계산하므로 caller가 넘긴 circle segment 수와 화질이 무관하다. Fill+border `AddRectFilledRounded(...)` overload는 결합 instance 하나와 blend pass 하나를 만든다. Border-only rounded rectangle은 vertex shader가 생성하는 겹치지 않는 perimeter cell 8개만 사용해 항상 비어 있는 중앙 영역의 full-panel fragment overdraw를 제거한다. 수평/수직 `UiDrawListBuilder.AddLine(...)`도 rect-filled primitive를 사용하고 diagonal line은 기존 quad triangle path를 유지한다.
 
 `DUXEL_VK_STATIC_GEOMETRY_UPDATE`는 같은 shape의 static geometry content change 정책을 제어한다. 유효한 값은 `auto`, `replace`, `inplace`, `rotating`이다. `auto`는 검증된 NVIDIA discrete GPU에서는 `rotating`으로, AMD/Intel과 그 외 장치에서는 같은 정책을 증명하는 gate가 쌓일 때까지 `replace`로 resolve된다. `replace`는 allocation/replacement를 강제하고, `inplace`는 fence-waited existing-buffer reupload를 강제하며, `rotating`은 retired-buffer reuse를 강제한다.
 
@@ -1192,6 +1197,8 @@ GPU timestamp 계측은 `DUXEL_VK_GPU_PROFILE=1`로 추가로 켠다. 이 값은
 
 Static cached rect/circle primitive를 triangle vertex/index geometry로 확장하는 경로는 `DUXEL_VK_STATIC_PRIMITIVE_TRIANGLES=auto`가 기본이다. 자동 정책은 NVIDIA/AMD discrete GPU에서만 켠 뒤 draw-list별 byte guard와 mutation guard를 적용한다. `auto`는 예상 expanded vertex/index bytes가 primitive-instance bytes의 `32x`를 넘으면 확장하지 않아 high-segment primitive-heavy cache를 static primitive-instance 경로에 남긴다. 또한 같은 static geometry tag의 content hash가 바뀌면 해당 tag는 `30`프레임 동안 확장을 억제해서 mutating static layer가 안정될 때까지 upload가 싼 primitive-instance 경로를 사용하게 한다. `1/true/on`은 확장을 강제하고 `0/false/off`는 비활성화를 강제한다. 이 경로는 cached static draw-list의 command 순서, clip, opacity, texture state를 유지하면서 확장된 primitive를 indexed triangle draw mode로 태운다. 실제 expand/skip 여부는 장치 정책 블록만 보지 말고 profile의 `staticPrim(...)` 카운터로 확인한다.
 
+Circle, rounded rectangle, primitive border를 포함한 static list는 static primitive expansion을 강제해도 legacy triangle geometry로 확장하지 않는다. 이 shape는 analytic fragment coverage가 필요하므로 primitive-instance 경로에 남고, plain filled rectangle만 static triangle expansion 대상이 될 수 있다.
+
 `staticPrim(...)` profile block의 `layout=...`은 해당 frame에서 materialize한 expanded primitive layout 수다. 안정 static circle cache는 생성/rebuild에서만 layout을 materialize해 `layout>0`을 기록하고 cache-hit frame에서는 `layout=0`이어야 한다. steady-hit에서 0이 아니면 CPU layout work가 반복되고 있다는 뜻이다.
 
 Static primitive auto decision의 구현 경계는 `VulkanRendererBackend.StaticPrimitivePolicy.cs`다. Static geometry 코드는 upload code 안에 device/heuristic decision을 직접 넣지 말고 이 policy 경계를 호출해야 한다.
@@ -1202,8 +1209,8 @@ Vulkan backend는 **graphics pipeline 1개**, **bindless texture descriptor set 
 
 - **Bindless texture**: 전역 `sampler2D[]` combined-image-sampler 배열(용량 4096, UPDATE_AFTER_BIND + PARTIALLY_BOUND) 하나를 프레임당 1회 bind한다. Texture는 `TextureResources`의 free-list allocator에서 slot index를 받고, slot은 deferred texture-destroy 시점에 재활용된다. Per-texture descriptor set은 존재하지 않는다.
 - **통합 dual-source blending**: 모든 draw가 premultiplied color와 per-channel blend factor를 출력한다(`One/OneMinusSrc1Color`, `One/OneMinusSrc1Alpha`). 일반 draw는 `blendFactor = vec4(alpha)`를 출력해 `SrcAlpha/OneMinusSrcAlpha`와 수학적으로 동일하고, ClearType subpixel 텍스트는 per-channel coverage를 출력하며 fragment texture-index push constant의 최상위 비트로 선택된다.
-- **Vertex pulling**: pipeline에 vertex input state가 없다. Vertex shader가 buffer device address(`GL_EXT_buffer_reference`)로 `UiVertex` 스트림과 packed `PrimitiveInstance` 레코드(둘 다 20바이트/5-dword)를 직접 읽는다.
-- **Push constant 레이아웃**: vertex range `[0,40)` = `scale`(8) + `translate`(8) + `opacity`(4) + `drawMode`(4) + vertex-buffer address(8) + primitive-buffer address(8); fragment range `[40,44)` = packed texture index + subpixel mode bit. `drawMode` 0 = indexed triangle pulling, 1 = primitive instance expansion(셰이더 내 rect corner/circle fan 전개).
+- **Vertex pulling**: pipeline에 vertex input state가 없다. Vertex shader가 buffer device address(`GL_EXT_buffer_reference`)로 20바이트/5-dword `UiVertex` 스트림과 32바이트/8-dword packed `PrimitiveInstance` 레코드를 직접 읽는다. Primitive record는 bounds, radius/type encoding, border thickness, fill color, border color를 담는다.
+- **Push constant 레이아웃**: vertex range `[0,40)` = `scale`(8) + `translate`(8) + `opacity`(4) + `drawMode`(4) + vertex-buffer address(8) + primitive-buffer address(8); fragment range `[40,44)` = packed texture index + subpixel mode bit. `drawMode` 0 = indexed triangle pulling, 1 = analytic primitive instance(fill/circle은 6-vertex bounding quad, border-only rounded rectangle은 48-vertex 8-cell perimeter).
 - **Per-draw state**: `vkCmdBindPipeline`은 프레임당 1회다. Draw별 변화는 push constant, index-buffer bind, dynamic scissor뿐이다. `vkCmdBindVertexBuffers`는 backend에 더 이상 존재하지 않는다.
 - **Dynamic rendering**: render pass/framebuffer 객체가 없다. 프레임은 `RenderingAttachmentInfo`와 함께 `vkCmdBeginRenderingKHR`/`vkCmdEndRenderingKHR`로 기록하며, MSAA는 inline resolve(`resolveMode = AVERAGE`, MSAA target → swapchain image)로 처리한다. 암묵적 render-pass 전환 대신 명시적 image barrier를 사용한다: 렌더링 전 `UNDEFINED→COLOR_ATTACHMENT`, 후 `COLOR_ATTACHMENT→PRESENT_SRC`. Pipeline은 swapchain format을 담은 `PipelineRenderingCreateInfo`를 체인한다.
 - **필수 device feature**(없으면 명시적 실패, fallback 없음): `shaderSampledImageArrayDynamicIndexing`, `descriptorBindingSampledImageUpdateAfterBind`, `descriptorBindingUpdateUnusedWhilePending`, `descriptorBindingPartiallyBound`, `runtimeDescriptorArray`, `bufferDeviceAddress`, `dualSrcBlend`, `dynamicRendering`(`VK_KHR_dynamic_rendering`).

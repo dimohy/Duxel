@@ -1207,28 +1207,7 @@ public sealed partial class UiImmediateContext
 
     private void AddRoundedRectFilled(UiRect rect, UiColor color, float radius)
     {
-        var w = MathF.Max(0f, rect.Width);
-        var h = MathF.Max(0f, rect.Height);
-        if (w <= 0f || h <= 0f)
-        {
-            return;
-        }
-
-        var r = MathF.Min(radius, MathF.Min(w, h) * 0.5f);
-        if (r <= 0.01f)
-        {
-            AddRectFilled(rect, color, _whiteTexture);
-            return;
-        }
-
-        AddRectFilled(new UiRect(rect.X + r, rect.Y, w - (r * 2f), h), color, _whiteTexture);
-        AddRectFilled(new UiRect(rect.X, rect.Y + r, r, h - (r * 2f)), color, _whiteTexture);
-        AddRectFilled(new UiRect(rect.X + w - r, rect.Y + r, r, h - (r * 2f)), color, _whiteTexture);
-
-        AddCircleFilled(new UiVector2(rect.X + r, rect.Y + r), r, color, _whiteTexture, 10);
-        AddCircleFilled(new UiVector2(rect.X + w - r, rect.Y + r), r, color, _whiteTexture, 10);
-        AddCircleFilled(new UiVector2(rect.X + r, rect.Y + h - r), r, color, _whiteTexture, 10);
-        AddCircleFilled(new UiVector2(rect.X + w - r, rect.Y + h - r), r, color, _whiteTexture, 10);
+        AddRectFilledRounded(rect, color, _whiteTexture, radius);
     }
 
     private void AddRoundedTopRectFilled(UiRect rect, UiColor color, float radius)

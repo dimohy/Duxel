@@ -78,30 +78,19 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
 
     public void AddRectFilledRounded(UiRect rect, UiColor color, UiTextureId textureId, float rounding, UiRect clipRect)
     {
-        if (rect.Width <= 0f || rect.Height <= 0f)
-        {
-            return;
-        }
+        AddRoundedRectPrimitive(rect, color, default, textureId, rounding, 0f, clipRect);
+    }
 
-        var radius = MathF.Min(MathF.Max(0f, rounding), MathF.Min(rect.Width, rect.Height) * 0.5f);
-        if (radius <= 0f)
-        {
-            AddRectFilled(rect, color, textureId, clipRect);
-            return;
-        }
-
-        clipRect = Intersect(clipRect, _currentClipRect);
-        var segments = Math.Clamp((int)MathF.Ceiling(radius / 2.5f), 3, 8);
-        var pointsPerCorner = segments + 1;
-        Span<UiVector2> points = stackalloc UiVector2[pointsPerCorner * 4];
-        var index = 0;
-
-        AddArc(points, ref index, new UiVector2(rect.X + rect.Width - radius, rect.Y + radius), radius, -MathF.PI * 0.5f, 0f, segments);
-        AddArc(points, ref index, new UiVector2(rect.X + rect.Width - radius, rect.Y + rect.Height - radius), radius, 0f, MathF.PI * 0.5f, segments);
-        AddArc(points, ref index, new UiVector2(rect.X + radius, rect.Y + rect.Height - radius), radius, MathF.PI * 0.5f, MathF.PI, segments);
-        AddArc(points, ref index, new UiVector2(rect.X + radius, rect.Y + radius), radius, MathF.PI, MathF.PI * 1.5f, segments);
-
-        AddConvexPolyFilled(points[..index], color, textureId, clipRect);
+    public void AddRectFilledRounded(
+        UiRect rect,
+        UiColor fillColor,
+        UiColor borderColor,
+        UiTextureId textureId,
+        float rounding,
+        float borderThickness,
+        UiRect clipRect)
+    {
+        AddRoundedRectPrimitive(rect, fillColor, borderColor, textureId, rounding, borderThickness, clipRect);
     }
 
     private void AddRectFilledGeometry(UiRect rect, UiColor color, UiTextureId textureId, UiRect clipRect)
@@ -111,8 +100,45 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         AddRectFilledPrimitiveCommand(clipRect, textureId, primitiveOffset, rect);
     }
 
+    private void AddRoundedRectPrimitive(
+        UiRect rect,
+        UiColor fillColor,
+        UiColor borderColor,
+        UiTextureId textureId,
+        float rounding,
+        float borderThickness,
+        UiRect clipRect)
+    {
+        if (rect.Width <= 0f || rect.Height <= 0f)
+        {
+            return;
+        }
+
+        var halfExtent = MathF.Min(rect.Width, rect.Height) * 0.5f;
+        var radius = Math.Clamp(rounding, 0f, halfExtent);
+        var thickness = borderColor.Rgba is 0
+            ? 0f
+            : Math.Clamp(borderThickness, 0f, halfExtent);
+        if (radius <= 0f && thickness <= 0f)
+        {
+            AddRectFilledGeometry(rect, fillColor, textureId, Intersect(clipRect, _currentClipRect));
+            return;
+        }
+
+        clipRect = Intersect(clipRect, _currentClipRect);
+        var primitiveOffset = (uint)_rectFilledPrimitives.Count;
+        _rectFilledPrimitives.Add(new UiRectFilledPrimitive(rect, fillColor, radius, thickness, borderColor));
+        var geometryVariant = fillColor.Rgba is 0 && thickness > 0f ? 1u : 0u;
+        AddRectFilledPrimitiveCommand(clipRect, textureId, primitiveOffset, rect, geometryVariant);
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void AddRectFilledPrimitiveCommand(UiRect clipRect, UiTextureId textureId, uint primitiveOffset, UiRect bounds)
+    private void AddRectFilledPrimitiveCommand(
+        UiRect clipRect,
+        UiTextureId textureId,
+        uint primitiveOffset,
+        UiRect bounds,
+        uint geometryVariant = 0u)
     {
         var userData = _currentCommandUserData;
         if (_commands.Count > 0)
@@ -120,6 +146,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             var last = _commands[^1];
             if (last.Kind == UiDrawCommandKind.RectFilledPrimitives
                 && last.IndexOffset + last.ElementCount == primitiveOffset
+                && last.VertexOffset == geometryVariant
                 && last.TextureId == textureId
                 && last.ClipRect == clipRect
                 && last.Translation == default
@@ -136,7 +163,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             }
         }
 
-        _commands.Add(new UiDrawCommand(clipRect, textureId, primitiveOffset, 1, 0, UserData: userData, Kind: UiDrawCommandKind.RectFilledPrimitives, Bounds: bounds, HasBounds: true));
+        _commands.Add(new UiDrawCommand(clipRect, textureId, primitiveOffset, 1, geometryVariant, UserData: userData, Kind: UiDrawCommandKind.RectFilledPrimitives, Bounds: bounds, HasBounds: true));
     }
 
     public void AddText(
@@ -413,11 +440,11 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
         segments = Math.Max(3, segments);
         var primitiveOffset = (uint)_circleFilledPrimitives.Count;
         _circleFilledPrimitives.Add(new UiCircleFilledPrimitive(center, radius, color, segments));
-        AddCircleFilledPrimitiveCommand(clipRect, textureId, primitiveOffset, (uint)segments, CreateCircleBounds(center, radius));
+        AddCircleFilledPrimitiveCommand(clipRect, textureId, primitiveOffset, CreateCircleBounds(center, radius));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void AddCircleFilledPrimitiveCommand(UiRect clipRect, UiTextureId textureId, uint primitiveOffset, uint segments, UiRect bounds)
+    private void AddCircleFilledPrimitiveCommand(UiRect clipRect, UiTextureId textureId, uint primitiveOffset, UiRect bounds)
     {
         var userData = _currentCommandUserData;
         if (_commands.Count > 0)
@@ -425,7 +452,6 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             var last = _commands[^1];
             if (last.Kind == UiDrawCommandKind.CircleFilledPrimitives
                 && last.IndexOffset + last.ElementCount == primitiveOffset
-                && last.VertexOffset == segments
                 && last.TextureId == textureId
                 && last.ClipRect == clipRect
                 && last.Translation == default
@@ -442,7 +468,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             }
         }
 
-        _commands.Add(new UiDrawCommand(clipRect, textureId, primitiveOffset, 1, segments, UserData: userData, Kind: UiDrawCommandKind.CircleFilledPrimitives, Bounds: bounds, HasBounds: true));
+        _commands.Add(new UiDrawCommand(clipRect, textureId, primitiveOffset, 1, 0, UserData: userData, Kind: UiDrawCommandKind.CircleFilledPrimitives, Bounds: bounds, HasBounds: true));
     }
 
     public void PushClipRect(UiRect rect, bool intersectWithCurrentClipRect = true)
@@ -579,24 +605,7 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             return;
         }
 
-        var radius = MathF.Min(MathF.Max(0f, rounding), MathF.Min(rect.Width, rect.Height) * 0.5f);
-        if (radius <= 0f)
-        {
-            AddAxisAlignedRectStroke(rect, color, thickness, _currentTexture, _currentClipRect);
-            return;
-        }
-
-        var segments = Math.Clamp((int)MathF.Ceiling(radius / 2.5f), 3, 8);
-        var pointsPerCorner = segments + 1;
-        Span<UiVector2> points = stackalloc UiVector2[pointsPerCorner * 4];
-        var index = 0;
-
-        AddArc(points, ref index, new UiVector2(rect.X + rect.Width - radius, rect.Y + radius), radius, -MathF.PI * 0.5f, 0f, segments);
-        AddArc(points, ref index, new UiVector2(rect.X + rect.Width - radius, rect.Y + rect.Height - radius), radius, 0f, MathF.PI * 0.5f, segments);
-        AddArc(points, ref index, new UiVector2(rect.X + radius, rect.Y + rect.Height - radius), radius, MathF.PI * 0.5f, MathF.PI, segments);
-        AddArc(points, ref index, new UiVector2(rect.X + radius, rect.Y + radius), radius, MathF.PI, MathF.PI * 1.5f, segments);
-
-        AddPolyline(points[..index], true, color, thickness);
+        AddRoundedRectPrimitive(rect, default, color, _currentTexture, rounding, thickness, _currentClipRect);
     }
 
     private void AddAxisAlignedRectStroke(UiRect rect, UiColor color, float thickness, UiTextureId textureId, UiRect clipRect)
@@ -1882,7 +1891,9 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
             AddCommand(cmd with
             {
                 IndexOffset = offset,
-                VertexOffset = cmd.Kind == UiDrawCommandKind.CircleFilledPrimitives ? cmd.VertexOffset : 0
+                VertexOffset = cmd.Kind is UiDrawCommandKind.RectFilledPrimitives or UiDrawCommandKind.CircleFilledPrimitives
+                    ? cmd.VertexOffset
+                    : 0
             });
         }
     }
@@ -2057,7 +2068,13 @@ public sealed class UiDrawListBuilder(UiRect clipRect)
                 UiDrawCommandKind.CircleFilledPrimitives => command.IndexOffset + circleOffset,
                 _ => command.IndexOffset + indexOffset,
             };
-            AddCommand(command with { IndexOffset = offset });
+            AddCommand(command with
+            {
+                IndexOffset = offset,
+                VertexOffset = command.Kind is UiDrawCommandKind.RectFilledPrimitives or UiDrawCommandKind.CircleFilledPrimitives
+                    ? command.VertexOffset
+                    : 0
+            });
         }
     }
 

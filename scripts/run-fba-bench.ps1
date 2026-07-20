@@ -73,7 +73,8 @@ if ($null -eq $SamplePaths -or $SamplePaths.Count -eq 0) {
     throw "벤치 대상 샘플이 비어 있습니다. -SamplePaths 또는 -SamplePath를 지정하세요."
 }
 
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
+$repoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')
+$runFbaPath = Join-Path $repoRoot 'run-fba.ps1'
 Push-Location $repoRoot
 try {
     $activeSamplePath = ''
@@ -82,11 +83,11 @@ try {
     function Get-NoPresentEstimate {
         param([string]$LogPath)
 
-        if (-not (Test-Path $LogPath)) {
+        if (-not (Test-Path -LiteralPath $LogPath)) {
             return $null
         }
 
-        $lines = Get-Content $LogPath -Encoding UTF8
+        $lines = Get-Content -LiteralPath $LogPath -Encoding UTF8
         if ($null -eq $lines -or $lines.Count -eq 0) {
             return $null
         }
@@ -129,11 +130,11 @@ try {
 
         $outJson = Join-Path $artifactDir ("bench-{0}-{1:00}.json" -f $Mode.ToLowerInvariant(), $Index)
         $outLog = Join-Path $artifactDir ("bench-{0}-{1:00}.log" -f $Mode.ToLowerInvariant(), $Index)
-        if (Test-Path $outJson) {
-            Remove-Item $outJson -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $outJson) {
+            Remove-Item -LiteralPath $outJson -Force -ErrorAction SilentlyContinue
         }
-        if (Test-Path $outLog) {
-            Remove-Item $outLog -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $outLog) {
+            Remove-Item -LiteralPath $outLog -Force -ErrorAction SilentlyContinue
         }
 
         $oldSeconds = $env:DUXEL_PERF_BENCH_SECONDS
@@ -143,7 +144,7 @@ try {
         $oldLayerParticles = $env:DUXEL_LAYER_BENCH_PARTICLES
         $oldLayerPhaseSeconds = $env:DUXEL_LAYER_BENCH_PHASE_SECONDS
         try {
-            $isLayerBenchSample = $activeSamplePath -like '*idle_layer_validation.cs'
+            $isLayerBenchSample = [System.IO.Path]::GetFileName($activeSamplePath) -eq 'idle_layer_validation.cs'
             if ($isLayerBenchSample) {
                 $env:DUXEL_LAYER_BENCH_OUT = $outJson
                 $env:DUXEL_LAYER_BENCH_PARTICLES = $LayerBenchParticles
@@ -166,15 +167,20 @@ try {
                 & $ExecutablePath *> $outLog
             }
             else {
-                & ./run-fba.ps1 $activeSamplePath -Managed -Configuration $Configuration *> $outLog
+                $managedParameters = @{
+                    Path = $activeSamplePath
+                    Managed = $true
+                    Configuration = $Configuration
+                }
+                & $runFbaPath @managedParameters *> $outLog
             }
             $sw.Stop()
 
-            if (-not (Test-Path $outJson)) {
+            if (-not (Test-Path -LiteralPath $outJson)) {
                 throw "벤치 출력 파일이 생성되지 않았습니다: $outJson"
             }
 
-            $json = Get-Content $outJson -Raw -Encoding UTF8 | ConvertFrom-Json
+            $json = Get-Content -LiteralPath $outJson -Raw -Encoding UTF8 | ConvertFrom-Json
             $isLayerResult = $null -ne $json.results
             $avgFps = 0.0
             $samples = 0
@@ -228,7 +234,7 @@ try {
 
     foreach ($sample in $SamplePaths) {
         $activeSamplePath = $sample
-        $sampleAbs = Resolve-Path $activeSamplePath
+        $sampleAbs = Resolve-Path -LiteralPath $activeSamplePath
         $sampleDir = Split-Path $sampleAbs -Parent
         $sampleBase = [System.IO.Path]::GetFileNameWithoutExtension($sampleAbs)
         $artifactDir = Join-Path $sampleDir ("artifacts/{0}" -f $sampleBase)
@@ -240,9 +246,15 @@ try {
         $results = New-Object System.Collections.Generic.List[object]
 
         Write-Host "[bench] NativeAOT 게시 준비..." -ForegroundColor Cyan
-        & ./run-fba.ps1 $activeSamplePath -RuntimeIdentifier $RuntimeIdentifier -Configuration $Configuration
+        $publishParameters = @{
+            Path = $activeSamplePath
+            RuntimeIdentifier = $RuntimeIdentifier
+            Configuration = $Configuration
+        }
+        & $runFbaPath @publishParameters
 
-        $nativeExe = Get-ChildItem -Path $artifactDir -Filter '*.exe' -File -Recurse |
+        $nativeExe = Get-ChildItem -LiteralPath $artifactDir -File -Recurse |
+            Where-Object { $_.Extension -eq '.exe' } |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
         if ($null -eq $nativeExe) {

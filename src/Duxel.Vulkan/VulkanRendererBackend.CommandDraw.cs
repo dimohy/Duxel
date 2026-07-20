@@ -184,9 +184,9 @@ public sealed unsafe partial class VulkanRendererBackend
             : (hasStaticBinding
                 ? command.IndexOffset + (uint)staticBinding.RectPrimitiveCount
                 : command.IndexOffset + globalPrimitiveOffset + (uint)drawListRectPrimitiveCount);
-        var vertexCount = command.Kind is UiDrawCommandKind.RectFilledPrimitives
-            ? 6u
-            : command.VertexOffset * 3u;
+        var vertexCount = command.Kind is UiDrawCommandKind.RectFilledPrimitives && command.VertexOffset == 1u
+            ? 48u
+            : 6u;
         var drawCallStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
         _vk.CmdDraw(commandBuffer, vertexCount, command.ElementCount, 0, firstInstance);
         RecordDrawCallProfile(profileEnabled, drawCallStart, ref state);
@@ -318,32 +318,37 @@ public sealed unsafe partial class VulkanRendererBackend
         state.LookupTicks += Stopwatch.GetTimestamp() - textureLookupStart;
     }
 
-    private const uint PrimitiveRectPayloadFlag = 0x80000000u;
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static PrimitiveInstance CreateRectPrimitiveInstance(in UiRectFilledPrimitive primitive)
     {
         var rect = primitive.Rect;
         return new PrimitiveInstance
         {
-            DataX = rect.X,
-            DataY = rect.Y,
-            DataZ = rect.Width,
-            Payload = PrimitiveRectPayloadFlag | BitConverter.SingleToUInt32Bits(rect.Height),
-            Color = primitive.Color.Rgba,
+            X = rect.X,
+            Y = rect.Y,
+            Width = rect.Width,
+            Height = rect.Height,
+            Radius = primitive.CornerRadius,
+            BorderThickness = primitive.BorderThickness,
+            FillColor = primitive.Color.Rgba,
+            BorderColor = primitive.BorderColor.Rgba,
         };
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static PrimitiveInstance CreateCirclePrimitiveInstance(in UiCircleFilledPrimitive primitive)
     {
+        var diameter = primitive.Radius * 2f;
         return new PrimitiveInstance
         {
-            DataX = primitive.Center.X,
-            DataY = primitive.Center.Y,
-            DataZ = primitive.Radius,
-            Payload = (uint)primitive.Segments,
-            Color = primitive.Color.Rgba,
+            X = primitive.Center.X - primitive.Radius,
+            Y = primitive.Center.Y - primitive.Radius,
+            Width = diameter,
+            Height = diameter,
+            Radius = -primitive.Radius,
+            BorderThickness = 0f,
+            FillColor = primitive.Color.Rgba,
+            BorderColor = 0u,
         };
     }
 }

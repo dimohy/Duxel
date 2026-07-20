@@ -38,6 +38,8 @@
 ## Project Policy Summary
 
 - 소스코드 변경 후에는 가능한 경우 빌드 또는 관련 검증 명령으로 확인한다.
+- PowerShell 파일 시스템 작업은 와일드카드 확장에 의존하지 않는다. 경로는 먼저 확정하고 `-LiteralPath`를 사용하며, 여러 파일은 리터럴 디렉터리를 열거한 뒤 확장자/이름 속성으로 필터링한다.
+- 네이티브 실행 파일 인수는 보간된 단일 명령 문자열 대신 인수 배열로 전달한다. PowerShell 스크립트/함수의 이름 있는 매개변수는 문자열 배열이 아니라 해시테이블 스플래팅으로 전달한다. `rg`처럼 패턴이 옵션으로 오인될 수 있는 명령에는 옵션 종결자 `--`를 명시한다.
 - FBA 샘플을 로컬 소스 기준으로 실행할 때는 `./run-fba.ps1 samples/fba/<file>.cs -NoCache` 경로를 우선한다.
 - 성능 최적화는 `docs/optimization-policy.ko.md` 기준으로 가설, 변경, 검증, Before/After, 개선율, 리스크를 기록한다.
 - 문서/API/샘플 변경 시 `docs/duxel-agent-reference.md`와 `docs/duxel-agent-reference.ko.md`를 최신 상태로 유지한다.

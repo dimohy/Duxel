@@ -71,17 +71,17 @@ $ErrorActionPreference = 'Stop'
 
 # 스크립트가 레포 루트에서 실행되는지 확인
 $repoRoot = $PSScriptRoot
-if (-not (Test-Path (Join-Path $repoRoot 'Duxel.slnx'))) {
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'Duxel.slnx'))) {
     $repoRoot = Get-Location
-    if (-not (Test-Path (Join-Path $repoRoot 'Duxel.slnx'))) {
+    if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'Duxel.slnx'))) {
         Write-Error "레포 루트를 찾을 수 없습니다. Duxel.slnx가 있는 디렉토리에서 실행하세요."
         exit 1
     }
 }
 
 # 원본 파일 경로 해석
-$sourcePath = Resolve-Path $Path -ErrorAction Stop
-$sourceContent = Get-Content $sourcePath -Raw -Encoding UTF8
+$sourcePath = Resolve-Path -LiteralPath $Path -ErrorAction Stop
+$sourceContent = Get-Content -LiteralPath $sourcePath -Raw -Encoding UTF8
 $baseName = [System.IO.Path]::GetFileNameWithoutExtension($sourcePath)
 
 function Resolve-PlatformFromExtraArgs {
@@ -278,7 +278,7 @@ else {
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("run-fba-{0}" -f ([guid]::NewGuid().ToString('N')))
     New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
     $tempPath = Join-Path $tempRoot ("$baseName.cs")
-    Set-Content -Path $tempPath -Value $replaced -Encoding UTF8 -NoNewline
+    Set-Content -LiteralPath $tempPath -Value $replaced -Encoding UTF8 -NoNewline
 }
 
 $runPath = if ($tempPath) { $tempPath } else { $sourcePath }
@@ -299,7 +299,19 @@ function Invoke-ManagedRunWithTimeout {
         [switch]$KillTree
     )
 
-    $proc = Start-Process -FilePath 'dotnet' -ArgumentList $DotnetArgs -NoNewWindow -PassThru
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = 'dotnet'
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    foreach ($argument in $DotnetArgs) {
+        $startInfo.ArgumentList.Add($argument)
+    }
+
+    $proc = [System.Diagnostics.Process]::Start($startInfo)
+    if ($null -eq $proc) {
+        throw 'dotnet managed run process could not be started.'
+    }
+
     try {
         if ($TimeoutSeconds -le 0) {
             $proc.WaitForExit()
@@ -342,6 +354,7 @@ function Invoke-ManagedRunWithTimeout {
                 }
             }
         }
+        $proc.Dispose()
     }
 }
 
@@ -411,7 +424,7 @@ function Wait-DetachedSampleProcessExit {
 function Stop-RunningProcessForImagePath {
     param([string]$ImagePath)
 
-    if ([string]::IsNullOrWhiteSpace($ImagePath) -or -not (Test-Path $ImagePath)) {
+    if ([string]::IsNullOrWhiteSpace($ImagePath) -or -not (Test-Path -LiteralPath $ImagePath)) {
         return
     }
 
@@ -430,7 +443,7 @@ function Stop-RunningProcessForImagePath {
 function Get-RunningProcessForImagePath {
     param([string]$ImagePath)
 
-    if ([string]::IsNullOrWhiteSpace($ImagePath) -or -not (Test-Path $ImagePath)) {
+    if ([string]::IsNullOrWhiteSpace($ImagePath) -or -not (Test-Path -LiteralPath $ImagePath)) {
         return @()
     }
 
@@ -479,17 +492,21 @@ try {
         }
 
         $assetsDir = Join-Path $sourceDir 'assets'
-        if (Test-Path $assetsDir) {
+        if (Test-Path -LiteralPath $assetsDir) {
             $publishAssetsDir = Join-Path $publishDir 'assets'
             New-Item -ItemType Directory -Path $publishAssetsDir -Force | Out-Null
-            Copy-Item -Path (Join-Path $assetsDir '*') -Destination $publishAssetsDir -Recurse -Force
+            foreach ($asset in Get-ChildItem -LiteralPath $assetsDir -Force) {
+                Copy-Item -LiteralPath $asset.FullName -Destination $publishAssetsDir -Recurse -Force
+            }
         }
 
         $shouldLaunch = -not $NoLaunch
         if ($shouldLaunch) {
             $exePath = Join-Path $publishDir ("{0}.exe" -f $runBaseName)
-            if (-not (Test-Path $exePath)) {
-                $fallbackExe = Get-ChildItem -Path $publishDir -Filter '*.exe' -File | Select-Object -First 1
+            if (-not (Test-Path -LiteralPath $exePath)) {
+                $fallbackExe = Get-ChildItem -LiteralPath $publishDir -File |
+                    Where-Object { $_.Extension -eq '.exe' } |
+                    Select-Object -First 1
                 if ($null -eq $fallbackExe) {
                     throw "게시 결과 실행 파일을 찾을 수 없습니다: $exePath"
                 }
@@ -551,11 +568,11 @@ try {
 }
 finally {
     # 임시 파일 정리
-    if ($tempPath -and (Test-Path $tempPath)) {
-        Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
+    if ($tempPath -and (Test-Path -LiteralPath $tempPath)) {
+        Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue
     }
 
-    if ($tempRoot -and (Test-Path $tempRoot)) {
-        Remove-Item $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    if ($tempRoot -and (Test-Path -LiteralPath $tempRoot)) {
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 }

@@ -22,7 +22,7 @@ try {
 
         $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
         while ((Get-Date) -lt $deadline) {
-            if (Test-Path $Path) {
+            if (Test-Path -LiteralPath $Path) {
                 return
             }
 
@@ -48,12 +48,24 @@ try {
     function Invoke-RunFbaWithTimeout {
         param([string]$RunFbaPath)
 
-        $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $RunFbaPath, '-Path', $SamplePath)
+        $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $RunFbaPath, '-Path', $SamplePath)
         if ($Managed) {
-            $args += '-Managed'
+            $arguments += '-Managed'
         }
 
-        $proc = Start-Process -FilePath 'pwsh' -ArgumentList $args -PassThru
+        $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+        $startInfo.FileName = 'pwsh'
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $true
+        foreach ($argument in $arguments) {
+            $startInfo.ArgumentList.Add($argument)
+        }
+
+        $proc = [System.Diagnostics.Process]::Start($startInfo)
+        if ($null -eq $proc) {
+            throw 'Failed to start pwsh for run-fba.'
+        }
+
         try {
             if ($RunFbaTimeoutSeconds -le 0) {
                 $proc.WaitForExit()
@@ -79,6 +91,7 @@ try {
             if (-not $proc.HasExited) {
                 & taskkill /PID $proc.Id /T /F 2>$null | Out-Null
             }
+            $proc.Dispose()
         }
     }
 
@@ -90,11 +103,11 @@ try {
 
         $fullOut = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $OutPath))
         $outDir = Split-Path -Parent $fullOut
-        if (-not (Test-Path $outDir)) {
+        if (-not (Test-Path -LiteralPath $outDir)) {
             New-Item -ItemType Directory -Path $outDir | Out-Null
         }
-        if (Test-Path $fullOut) {
-            Remove-Item $fullOut -Force
+        if (Test-Path -LiteralPath $fullOut) {
+            Remove-Item -LiteralPath $fullOut -Force
         }
 
         $prevLegacy = $env:DUXEL_VK_LEGACY_CLIP_CLAMP
@@ -128,8 +141,8 @@ try {
     $legacyPath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $LegacyOut))
     $optimizedPath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $OptimizedOut))
 
-    $legacy = Get-Content $legacyPath -Raw | ConvertFrom-Json
-    $optimized = Get-Content $optimizedPath -Raw | ConvertFrom-Json
+    $legacy = Get-Content -LiteralPath $legacyPath -Raw | ConvertFrom-Json
+    $optimized = Get-Content -LiteralPath $optimizedPath -Raw | ConvertFrom-Json
 
     if ($legacy.records.Count -ne $optimized.records.Count) {
         throw "legacy/optimized records count mismatch"

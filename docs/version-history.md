@@ -2,6 +2,18 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## Unreleased
+
+### Major Improvements
+
+- **[Improvement]** Analytic rounded primitives — rounded fills, combined fill/border panels, rounded outlines, and circles now use derivative-antialiased GPU signed-distance coverage instead of fixed-segment CPU polygon approximation. Border-only rounded rectangles shade an eight-cell perimeter rather than the empty panel interior.
+- **[Improvement]** Literal PowerShell execution paths — local FBA and benchmark scripts now resolve filesystem targets literally, enumerate assets/executables without wildcard paths, and document correct hashtable splatting for PowerShell named parameters.
+
+### Major Bug Fixes
+
+- **[Bug]** Jagged rounded controls at 1x MSAA — removed the independent low-segment rounded-rectangle path that made declarative panels visibly faceted even though circle primitives already existed.
+- **[Bug]** Rounded primitive replay — preserves the border-only GPU geometry variant when draw lists are appended or replayed.
+
 ## 0.2.9-preview (2026-07-20)
 
 ### Major Features

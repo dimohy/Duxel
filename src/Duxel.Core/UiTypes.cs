@@ -1262,7 +1262,12 @@ public enum UiDrawCommandKind
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly record struct UiRectFilledPrimitive(UiRect Rect, UiColor Color);
+public readonly record struct UiRectFilledPrimitive(
+    UiRect Rect,
+    UiColor Color,
+    float CornerRadius = 0f,
+    float BorderThickness = 0f,
+    UiColor BorderColor = default);
 
 [StructLayout(LayoutKind.Sequential)]
 public readonly record struct UiCircleFilledPrimitive(UiVector2 Center, float Radius, UiColor Color, int Segments);

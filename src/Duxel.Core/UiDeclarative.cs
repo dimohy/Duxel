@@ -1900,11 +1900,14 @@ public sealed class DuxelDisplayFactory
             var radius = MathF.Max(0f, effectiveOptions.Radius);
             var drawList = ui.GetWindowDrawList();
 
-            drawList.AddRectFilledRounded(rect, background, ui.WhiteTextureId, radius, rect);
-            if (border.Rgba != 0)
-            {
-                drawList.AddRect(rect, border, radius, 1f);
-            }
+            drawList.AddRectFilledRounded(
+                rect,
+                background,
+                border,
+                ui.WhiteTextureId,
+                radius,
+                border.Rgba is 0 ? 0f : 1f,
+                rect);
 
             var opened = ui.BeginChild(id, size, border: false);
             try
@@ -1976,11 +1979,14 @@ public sealed class DuxelDisplayFactory
             var radius = options.Radius <= 0f ? height * 0.5f : MathF.Min(options.Radius, height * 0.5f);
             var drawList = ui.GetWindowDrawList();
 
-            drawList.AddRectFilledRounded(rect, palette.Background, ui.WhiteTextureId, radius, rect);
-            if (palette.Border.Rgba != 0)
-            {
-                drawList.AddRect(rect, palette.Border, radius, 1f);
-            }
+            drawList.AddRectFilledRounded(
+                rect,
+                palette.Background,
+                palette.Border,
+                ui.WhiteTextureId,
+                radius,
+                palette.Border.Rgba is 0 ? 0f : 1f,
+                rect);
 
             ui.DrawTextAligned(
                 rect,
@@ -2575,11 +2581,14 @@ public sealed class DuxelDisplayFactory
             MathF.Min(rect.Width, rect.Height) * 0.5f);
         var drawList = ui.GetWindowDrawList();
 
-        drawList.AddRectFilledRounded(rect, background, ui.WhiteTextureId, radius, rect);
-        if (border.Rgba != 0)
-        {
-            drawList.AddRect(rect, border, radius, 1f);
-        }
+        drawList.AddRectFilledRounded(
+            rect,
+            background,
+            border,
+            ui.WhiteTextureId,
+            radius,
+            border.Rgba is 0 ? 0f : 1f,
+            rect);
 
         var paddedRect = new UiRect(
             rect.X + padding,
@@ -3115,15 +3124,26 @@ internal sealed class UiDecoratedView : IUiView
         var radius = MathF.Min(MathF.Max(0f, ResolveDecorationRadius(ui)), MathF.Min(rect.Width, rect.Height) * 0.5f);
         var drawList = ui.GetWindowDrawList();
         var background = ResolveDecorationColor(ui, _options.Background, _options.BackgroundStyle);
-        if (includeBackground && background is { Rgba: not 0 } backgroundColor)
-        {
-            drawList.AddRectFilledRounded(rect, backgroundColor, ui.WhiteTextureId, radius, rect);
-        }
-
+        var fillColor = includeBackground && background is { Rgba: not 0 } resolvedBackground
+            ? resolvedBackground
+            : default;
         var border = ResolveDecorationColor(ui, _options.Border, _options.BorderStyle);
-        if (border is { Rgba: not 0 } borderColor && _options.BorderThickness > 0f)
+        var borderColor = border is { Rgba: not 0 } resolvedBorder && _options.BorderThickness > 0f
+            ? resolvedBorder
+            : default;
+        var borderThickness = borderColor.Rgba is 0
+            ? 0f
+            : MathF.Max(0.5f, _options.BorderThickness);
+        if (fillColor.Rgba is not 0 || borderThickness > 0f)
         {
-            drawList.AddRect(rect, borderColor, radius, MathF.Max(0.5f, _options.BorderThickness));
+            drawList.AddRectFilledRounded(
+                rect,
+                fillColor,
+                borderColor,
+                ui.WhiteTextureId,
+                radius,
+                borderThickness,
+                rect);
         }
     }
 

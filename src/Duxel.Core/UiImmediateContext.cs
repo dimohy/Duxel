@@ -2009,22 +2009,27 @@ public sealed partial class UiImmediateContext
         var thickness = MathF.Max(0f, borderWidth);
         if (thickness > 0f)
         {
-            AddRectFilledRounded(rect, borderColor, _whiteTexture, radius);
+            _builder.AddRectFilledRounded(
+                rect,
+                fillColor,
+                borderColor,
+                _whiteTexture,
+                radius,
+                thickness,
+                CurrentClipRect);
+        }
+        else
+        {
+            AddRectFilledRounded(rect, fillColor, _whiteTexture, radius);
         }
 
-        var innerRect = thickness > 0f
+        return thickness > 0f
             ? new UiRect(
                 rect.X + thickness,
                 rect.Y + thickness,
                 MathF.Max(0f, rect.Width - (thickness * 2f)),
                 MathF.Max(0f, rect.Height - (thickness * 2f)))
             : rect;
-        if (innerRect.Width > 0f && innerRect.Height > 0f)
-        {
-            AddRectFilledRounded(innerRect, fillColor, _whiteTexture, MathF.Max(0f, radius - thickness));
-        }
-
-        return innerRect;
     }
 
     private void AddFocusRing(UiRect rect, UiColor color, float radius)

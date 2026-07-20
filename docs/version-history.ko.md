@@ -2,6 +2,18 @@
 
 Duxel의 버전별 변경 내역 누적 기록.
 
+## 미출시
+
+### 주요 개선 사항
+
+- **[개선]** 해석적 둥근 프리미티브 — rounded fill, fill/border 결합 panel, rounded outline, circle이 고정 segment CPU polygon 근사 대신 derivative antialiasing이 적용된 GPU signed-distance coverage를 사용. Border-only rounded rectangle은 비어 있는 panel 내부가 아니라 8-cell perimeter만 shade.
+- **[개선]** PowerShell 리터럴 실행 경로 — 로컬 FBA 및 benchmark 스크립트가 파일 시스템 대상을 리터럴로 해석하고, wildcard path 없이 asset/실행 파일을 열거하며, PowerShell 이름 있는 매개변수에 올바른 hashtable splatting을 사용하도록 문서화.
+
+### 주요 버그 수정
+
+- **[버그]** 1x MSAA 둥근 control의 톱니 현상 — circle primitive가 있는데도 선언형 panel을 각져 보이게 만들던 독립적인 저 segment rounded-rectangle 경로 제거.
+- **[버그]** Rounded primitive replay — draw list append/replay 뒤에도 border-only GPU geometry variant가 보존되도록 수정.
+
 ## 0.2.9-preview (2026-07-20)
 
 ### 주요 기능 추가

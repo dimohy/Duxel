@@ -24,6 +24,7 @@ if ($Runs -lt 1) {
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
+$runFbaPath = Join-Path $repoRoot 'run-fba.ps1'
 Push-Location $repoRoot
 try {
     function Invoke-PerfRuns {
@@ -57,24 +58,30 @@ try {
                 $outPath = Join-Path $OutDir ("duxel-perf-{0}-run{1}.json" -f $Label, $i)
                 $fullOutPath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $outPath))
                 $outParent = Split-Path -Parent $fullOutPath
-                if (-not (Test-Path $outParent)) {
+                if (-not (Test-Path -LiteralPath $outParent)) {
                     New-Item -ItemType Directory -Path $outParent | Out-Null
                 }
 
-                if (Test-Path $fullOutPath) {
-                    Remove-Item $fullOutPath -Force
+                if (Test-Path -LiteralPath $fullOutPath) {
+                    Remove-Item -LiteralPath $fullOutPath -Force
                 }
 
                 $env:DUXEL_PERF_BENCH_OUT = $fullOutPath
 
                 Write-Host "[perf:$Label] run $i/$RunCount profile=$Profile globalStaticCache=$EnableGlobalStaticCache taa=$EnableTaa fxaa=$EnableFxaa" -ForegroundColor Cyan
-                ./run-fba.ps1 $SamplePath -Managed -ManagedTimeoutSeconds $ManagedTimeoutSeconds -KillProcessTreeOnTimeout
+                $runParameters = @{
+                    Path = $SamplePath
+                    Managed = $true
+                    ManagedTimeoutSeconds = $ManagedTimeoutSeconds
+                    KillProcessTreeOnTimeout = $true
+                }
+                & $runFbaPath @runParameters
 
-                if (-not (Test-Path $fullOutPath)) {
+                if (-not (Test-Path -LiteralPath $fullOutPath)) {
                     throw "Missing output file: $fullOutPath"
                 }
 
-                $json = Get-Content $fullOutPath -Raw | ConvertFrom-Json
+                $json = Get-Content -LiteralPath $fullOutPath -Raw | ConvertFrom-Json
                 $rows += [PSCustomObject]@{
                     label = $Label
                     run = $i

@@ -81,6 +81,11 @@ public sealed unsafe partial class VulkanRendererBackend
             return default;
         }
 
+        if (RequiresAnalyticPrimitiveCoverage(rectPrimitives, circlePrimitives))
+        {
+            return default;
+        }
+
         if (_staticPrimitiveTriangleMode == VulkanStaticPrimitiveTriangleMode.Enabled)
         {
             var forcedExpandedBytes = _profilingEnabled
@@ -109,6 +114,27 @@ public sealed unsafe partial class VulkanRendererBackend
             AutoSkippedByMutation: !skipByByteCost && suppressForMutation,
             PrimitiveCount: primitiveCount,
             ExpandedBytes: expandedBytes);
+    }
+
+    private static bool RequiresAnalyticPrimitiveCoverage(
+        ReadOnlySpan<UiRectFilledPrimitive> rectPrimitives,
+        ReadOnlySpan<UiCircleFilledPrimitive> circlePrimitives)
+    {
+        if (!circlePrimitives.IsEmpty)
+        {
+            return true;
+        }
+
+        for (var i = 0; i < rectPrimitives.Length; i++)
+        {
+            ref readonly var primitive = ref rectPrimitives[i];
+            if (primitive.CornerRadius > 0f || primitive.BorderThickness > 0f)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private bool ShouldSuppressStaticPrimitiveTriangleAutoForMutation(string staticTag, bool contentChanging)
