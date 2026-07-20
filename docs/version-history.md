@@ -20,6 +20,7 @@ This document accumulates version-by-version changes for Duxel.
 - **[Bug]** Unconfigured application icon — removed implicit Duxel branding and now uses the Windows default application icon consistently across the native window, taskbar, Alt+Tab, and title-bar content when no icon is configured.
 - **[Bug]** Title-bar icon white rectangle — converts the effective `HICON` through WIC and renders it as an image quad with valid UV coordinates instead of sampling a texture as a solid primitive.
 - **[Bug]** Invisible extended caption buttons — keeps caption glyph pixels visible above opaque Vulkan content instead of treating successful DWM hit testing as proof that native button pixels are visible.
+- **[Bug]** Restored/maximized caption alignment mismatch — unified the Duxel and extended title bars on the same caption renderer and logical coordinates so button height, top spacing, and Maximize/Restore glyph placement remain consistent across window-state changes.
 
 ### Packaging / Release
 
