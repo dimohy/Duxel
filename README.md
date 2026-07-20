@@ -80,24 +80,6 @@ If you want to see Duxel beyond a hello-world window, start with these represent
 - `samples/fba/ui_mixed_stress.cs` — a balanced multi-window showcase that fills the screen with controls, forms, long lists, data tables, text rendering, and a dense canvas stress area.
 - `samples/fba/Duxel_perf_test_fba.cs` — a polygon stress-test sample with live controls for VSync, MSAA, cache toggles, polygon settings, and profile-oriented renderer checks.
 
-<p align="center">
-  <img src="captures/all-features-showcase.png" alt="Duxel all features FBA sample" width="1100" />
-</p>
-
-The screenshot above was captured from `all_features.cs`, which now opens the `Markdown Studio` surface on first launch while the menu bar still exposes the wider component gallery.
-
-<p align="center">
-  <img src="captures/ui-mixed-stress-showcase.png" alt="Duxel Mixed UI Stress FBA sample" width="1100" />
-</p>
-
-The screenshot above was captured from `ui_mixed_stress.cs`, a representative FBA sample that shows how Duxel can compose several tool-style windows, high-volume lists and tables, and custom drawing in a single frame.
-
-<p align="center">
-  <img src="captures/duxel-perf-test-showcase.png" alt="Duxel performance test FBA sample" width="1100" />
-</p>
-
-The performance screenshot was captured from `Duxel_perf_test_fba.cs` with a higher initial polygon count so the stress scene is visible immediately.
-
 ## Samples
 
 - Project sample: `samples/Duxel.Sample`
