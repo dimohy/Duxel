@@ -1,4 +1,4 @@
-// FBA: Extended title-bar sample with application tabs and native Windows caption buttons
+// FBA: Extended title-bar sample with application tabs and Duxel caption visuals backed by Windows behavior
 #:property TargetFramework=net10.0
 #:property OutputType=WinExe
 #:property AllowUnsafeBlocks=true
@@ -31,6 +31,7 @@ try
             MinWidth = 440,
             MinHeight = 320,
             TitleBarMode = DuxelTitleBarMode.ExtendedContent,
+            DuxelTitleBarHeight = ExtendedTitleBarScreen.TitleBarHeight,
             IntegrateSystemChrome = true,
             WindowCreated = ExtendedTitleBarDiagnostics.SetWindowHandle,
         },
@@ -45,7 +46,7 @@ catch (Exception exception) when (!string.IsNullOrWhiteSpace(diagnosticOutputPat
 
 public sealed class ExtendedTitleBarScreen : UiScreen
 {
-    private const float TitleBarHeight = 48f;
+    public const float TitleBarHeight = 48f;
     private int _activeTab;
     private int _newTabCount;
     private readonly string? _diagnosticOutputPath = Environment.GetEnvironmentVariable("DUXEL_EXTENDED_TITLEBAR_DIAG_OUT");
@@ -56,17 +57,21 @@ public sealed class ExtendedTitleBarScreen : UiScreen
     {
         var viewport = ui.GetMainViewport();
         var width = viewport.Size.X;
+        var hasWindowIcon = ui.TryGetWindowIcon(out _);
         var hasCaptionBounds = ui.TryGetCaptionButtonBounds(out var captionBounds);
         var captionLeft = hasCaptionBounds ? captionBounds.X : width;
         var dragRegion = DrawApplicationTitleBar(ui, captionLeft);
 
         if (dragRegion.Width > 0f)
         {
-            ui.SetTitleBarDragRegions([dragRegion]);
+            ui.SetTitleBarDragRegions([
+                new UiRect(0f, 0f, 48f, TitleBarHeight),
+                dragRegion,
+            ]);
         }
         else
         {
-            ui.SetTitleBarDragRegions([]);
+            ui.SetTitleBarDragRegions([new UiRect(0f, 0f, 48f, TitleBarHeight)]);
         }
 
         DrawContent(ui, viewport, hasCaptionBounds, captionBounds);
@@ -80,8 +85,9 @@ public sealed class ExtendedTitleBarScreen : UiScreen
             _diagnosticStage = 1;
             ExtendedTitleBarDiagnostics.Begin(
                 _diagnosticOutputPath,
+                hasWindowIcon,
                 captionBounds,
-                new UiRect(12f, 8f, 112f, 32f),
+                new UiRect(48f, 8f, 112f, 40f),
                 dragRegion);
         }
         else if (_diagnosticStage == 1
@@ -103,17 +109,34 @@ public sealed class ExtendedTitleBarScreen : UiScreen
         drawList.AddRectFilled(new UiRect(0f, 0f, width, TitleBarHeight), background);
         drawList.AddRectFilled(new UiRect(0f, TitleBarHeight - 1f, width, 1f), border);
 
-        const float left = 12f;
+        const float iconLeft = 12f;
+        const float iconSize = 24f;
+        const float left = 48f;
         const float top = 8f;
         const float tabWidth = 112f;
-        const float tabHeight = 32f;
-        const float gap = 6f;
+        const float tabHeight = 40f;
+        const float gap = 4f;
+
+        if (ui.TryGetWindowIcon(out var windowIcon))
+        {
+            windowIcon.Prepare(ui, UiImageEffects.Default);
+            var iconTop = MathF.Max(0f, TitleBarHeight - iconSize) * 0.5f;
+            var iconRect = new UiRect(iconLeft, iconTop, iconSize, iconSize);
+            drawList.AddImage(
+                windowIcon.TextureId,
+                new UiVector2(iconRect.X, iconRect.Y),
+                new UiVector2(iconRect.X + iconRect.Width, iconRect.Y + iconRect.Height),
+                new UiVector2(0f, 0f),
+                new UiVector2(1f, 1f),
+                new UiColor(0xFFFFFFFF),
+                iconRect);
+        }
 
         var x = left;
         for (var i = 0; i < 2; i++)
         {
-            ui.SetCursorScreenPos(new UiVector2(x, top));
-            if (ui.Button($"{(i == 0 ? "Home" : "Documents")}##extended-tab-{i}", new UiVector2(tabWidth, tabHeight)))
+            var label = i == 0 ? "Home" : "Documents";
+            if (DrawTitleTab(ui, label, $"##extended-tab-{i}", new UiRect(x, top, tabWidth, tabHeight), _activeTab == i))
             {
                 _activeTab = i;
             }
@@ -121,8 +144,7 @@ public sealed class ExtendedTitleBarScreen : UiScreen
             x += tabWidth + gap;
         }
 
-        ui.SetCursorScreenPos(new UiVector2(x, top));
-        if (ui.Button("+##extended-new-tab", new UiVector2(36f, tabHeight)))
+        if (DrawNewTabButton(ui, new UiRect(x, top, 36f, tabHeight)))
         {
             _newTabCount++;
         }
@@ -142,6 +164,62 @@ public sealed class ExtendedTitleBarScreen : UiScreen
         return new UiRect(x, 0f, MathF.Max(0f, dragRight - x), TitleBarHeight);
     }
 
+    private static bool DrawTitleTab(UiImmediateContext ui, string label, string id, UiRect rect, bool active)
+    {
+        ui.SetCursorScreenPos(new UiVector2(rect.X, rect.Y));
+        var clicked = ui.InvisibleButton(id, new UiVector2(rect.Width, rect.Height));
+        var hovered = ui.IsItemHovered();
+        var drawList = ui.GetForegroundDrawList();
+        var visualRect = active
+            ? new UiRect(rect.X, rect.Y - 1f, rect.Width, rect.Height + 1f)
+            : new UiRect(rect.X, rect.Y + 3f, rect.Width, rect.Height - 3f);
+        var background = active
+            ? ui.GetColorU32(UiStyleColor.TabActive)
+            : hovered
+                ? ui.GetColorU32(UiStyleColor.TabHovered)
+                : ui.GetColorU32(UiStyleColor.Tab);
+
+        drawList.AddRectFilledRounded(visualRect, background, ui.WhiteTextureId, 7f, visualRect);
+        drawList.AddRect(visualRect, ui.GetColorU32(UiStyleColor.Border), rounding: 7f, thickness: 1f);
+        if (active)
+        {
+            drawList.AddRectFilled(
+                new UiRect(visualRect.X + 10f, visualRect.Y + visualRect.Height - 3f, visualRect.Width - 20f, 2f),
+                ui.GetColorU32(UiStyleColor.CheckMark),
+                ui.WhiteTextureId,
+                visualRect);
+        }
+
+        var textSize = ui.CalcTextSize(label);
+        drawList.AddText(
+            new UiVector2(
+                visualRect.X + MathF.Max(0f, visualRect.Width - textSize.X) * 0.5f,
+                visualRect.Y + MathF.Max(0f, visualRect.Height - textSize.Y) * 0.5f),
+            ui.GetColorU32(UiStyleColor.TabText),
+            label);
+        return clicked;
+    }
+
+    private static bool DrawNewTabButton(UiImmediateContext ui, UiRect rect)
+    {
+        ui.SetCursorScreenPos(new UiVector2(rect.X, rect.Y));
+        var clicked = ui.InvisibleButton("##extended-new-tab", new UiVector2(rect.Width, rect.Height));
+        var hovered = ui.IsItemHovered();
+        var drawList = ui.GetForegroundDrawList();
+        var visualRect = new UiRect(rect.X, rect.Y + 3f, rect.Width, rect.Height - 3f);
+        var background = hovered
+            ? ui.GetColorU32(UiStyleColor.TabHovered)
+            : ui.GetColorU32(UiStyleColor.Tab);
+        drawList.AddRectFilledRounded(visualRect, background, ui.WhiteTextureId, 7f, visualRect);
+        drawList.AddRect(visualRect, ui.GetColorU32(UiStyleColor.Border), rounding: 7f, thickness: 1f);
+
+        var center = new UiVector2(visualRect.X + visualRect.Width * 0.5f, visualRect.Y + visualRect.Height * 0.5f);
+        var color = ui.GetColorU32(UiStyleColor.TabText);
+        drawList.AddLine(new UiVector2(center.X - 4f, center.Y), new UiVector2(center.X + 4f, center.Y), color, 1.5f);
+        drawList.AddLine(new UiVector2(center.X, center.Y - 4f), new UiVector2(center.X, center.Y + 4f), color, 1.5f);
+        return clicked;
+    }
+
     private void DrawContent(UiImmediateContext ui, UiViewport viewport, bool hasCaptionBounds, UiRect captionBounds)
     {
         const float margin = 24f;
@@ -155,18 +233,19 @@ public sealed class ExtendedTitleBarScreen : UiScreen
         ui.Text(_activeTab == 0 ? "Home" : "Documents");
         ui.PopFontSize();
         ui.Separator();
-        ui.Text("The application renders tabs at y=0 while Windows owns the caption buttons.");
+        ui.Text("The app draws the effective icon and tabs; Duxel draws caption glyphs while Windows owns their behavior.");
+        ui.Text("TryGetWindowIcon, TryGetCaptionButtonBounds, and SetTitleBarDragRegions are public Duxel APIs.");
         ui.Text("Drag the empty title-bar area, double-click it, resize the borders, or hover Maximize for Snap Layouts.");
         ui.Text($"New tab clicks: {_newTabCount}");
         ui.Spacing();
 
         if (hasCaptionBounds)
         {
-            ui.Text($"Native caption bounds: X={captionBounds.X:0.0}, Y={captionBounds.Y:0.0}, W={captionBounds.Width:0.0}, H={captionBounds.Height:0.0}");
+            ui.Text($"Duxel caption bounds: X={captionBounds.X:0.0}, Y={captionBounds.Y:0.0}, W={captionBounds.Width:0.0}, H={captionBounds.Height:0.0}");
         }
         else
         {
-            ui.Text("Native caption bounds are temporarily unavailable while the window is not visible.");
+            ui.Text("Duxel caption bounds are temporarily unavailable while the window is not visible.");
         }
 
         ui.EndWindow();
@@ -195,6 +274,8 @@ public static partial class ExtendedTitleBarDiagnostics
     private const int DwmwaCaptionButtonBounds = 5;
     private const int DwmwaExtendedFrameBounds = 9;
     private const uint MonitorDefaultToNearest = 2;
+    private const float CaptionButtonWidth = 48f;
+    private const float CaptionButtonHeight = 48f;
     private static nint _windowHandle;
     private static List<string>? _checks;
     private static string? _outputPath;
@@ -204,13 +285,14 @@ public static partial class ExtendedTitleBarDiagnostics
         _windowHandle = windowHandle;
     }
 
-    public static unsafe void Begin(string outputPath, UiRect publicCaptionBounds, UiRect tabRegion, UiRect dragRegion)
+    public static unsafe void Begin(string outputPath, bool hasWindowIcon, UiRect publicCaptionBounds, UiRect tabRegion, UiRect dragRegion)
     {
         var checks = new List<string>();
         _checks = checks;
         _outputPath = outputPath;
         var hwnd = _windowHandle;
         AddCheck(checks, "window-handle", hwnd != nint.Zero, $"0x{hwnd:X}");
+        AddCheck(checks, "window-icon-api", hasWindowIcon, $"available={hasWindowIcon}");
 
         var style = unchecked((uint)GetWindowLongPtrW(hwnd, GwlStyle).ToInt64());
         AddCheck(checks, "style-caption", (style & WsCaption) == WsCaption, $"0x{style:X8}");
@@ -228,22 +310,28 @@ public static partial class ExtendedTitleBarDiagnostics
 
         var dpi = GetDpiForWindow(hwnd);
         var scale = dpi / 96f;
-        var logicalNativeCaptionBounds = new UiRect(
-            nativeCaptionBounds.Left / scale,
-            nativeCaptionBounds.Top / scale,
-            nativeCaptionBounds.Width / scale,
-            nativeCaptionBounds.Height / scale);
-        AddCheck(checks, "public-caption-bounds", RectsApproximatelyEqual(publicCaptionBounds, logicalNativeCaptionBounds, 1f),
-            $"public={publicCaptionBounds};native={logicalNativeCaptionBounds};dpi={dpi}");
+        var clientRectOk = GetClientRect(hwnd, out var clientRect);
+        var expectedCaptionBounds = new UiRect(
+            clientRect.Width / scale - CaptionButtonWidth * 3f,
+            0f,
+            CaptionButtonWidth * 3f,
+            CaptionButtonHeight);
+        AddCheck(checks, "public-caption-bounds",
+            clientRectOk && RectsApproximatelyEqual(publicCaptionBounds, expectedCaptionBounds, 0.1f),
+            $"public={publicCaptionBounds};expected={expectedCaptionBounds};native={nativeCaptionBounds};dpi={dpi}");
 
-        var nativeButtonWidth = logicalNativeCaptionBounds.Width / 3f;
-        var nativeButtonY = logicalNativeCaptionBounds.Y + logicalNativeCaptionBounds.Height * 0.5f;
+        var captionButtonY = publicCaptionBounds.Y + publicCaptionBounds.Height * 0.5f;
         AddHitTest(checks, "hit-minimize", hwnd,
-            logicalNativeCaptionBounds.X + nativeButtonWidth * 0.5f, nativeButtonY, scale, HtMinButton);
+            publicCaptionBounds.X + CaptionButtonWidth * 0.5f, captionButtonY, scale, HtMinButton);
         AddHitTest(checks, "hit-maximize", hwnd,
-            logicalNativeCaptionBounds.X + nativeButtonWidth * 1.5f, nativeButtonY, scale, HtMaxButton);
+            publicCaptionBounds.X + CaptionButtonWidth * 1.5f, captionButtonY, scale, HtMaxButton);
         AddHitTest(checks, "hit-close", hwnd,
-            logicalNativeCaptionBounds.X + nativeButtonWidth * 2.5f, nativeButtonY, scale, HtClose);
+            publicCaptionBounds.X + CaptionButtonWidth * 2.5f, captionButtonY, scale, HtClose);
+        AddHitTest(checks, "hit-maximize-full-height", hwnd,
+            publicCaptionBounds.X + CaptionButtonWidth * 1.5f,
+            publicCaptionBounds.Y + publicCaptionBounds.Height - 4f,
+            scale,
+            HtMaxButton);
         AddHitTest(checks, "hit-tab-client", hwnd,
             tabRegion.X + tabRegion.Width * 0.5f, tabRegion.Y + tabRegion.Height * 0.5f, scale, HtClient);
         AddHitTest(checks, "hit-drag-caption", hwnd,
@@ -283,19 +371,21 @@ public static partial class ExtendedTitleBarDiagnostics
             clientOrigin.Y,
             clientOrigin.X + clientRect.Width,
             clientOrigin.Y + clientRect.Height);
-        var maximizedCaptionHr = DwmGetWindowAttribute(hwnd, DwmwaCaptionButtonBounds, out var maximizedNativeCaption, Marshal.SizeOf<Rect>());
         var dpi = GetDpiForWindow(hwnd);
         var scale = dpi / 96f;
-        var clientOffsetX = clientOrigin.X - maximizedWindowRect.Left;
-        var clientOffsetY = clientOrigin.Y - maximizedWindowRect.Top;
-        var logicalMaximizedCaption = new UiRect(
-            (maximizedNativeCaption.Left - clientOffsetX) / scale,
-            (maximizedNativeCaption.Top - clientOffsetY) / scale,
-            maximizedNativeCaption.Width / scale,
-            maximizedNativeCaption.Height / scale);
+        var expectedMaximizedCaption = new UiRect(
+            clientRect.Width / scale - CaptionButtonWidth * 3f,
+            0f,
+            CaptionButtonWidth * 3f,
+            CaptionButtonHeight);
         AddCheck(checks, "maximized-public-caption-bounds",
-            maximizedCaptionHr == 0 && RectsApproximatelyEqual(publicCaptionBounds, logicalMaximizedCaption, 1f),
-            $"public={publicCaptionBounds};native={logicalMaximizedCaption};dpi={dpi}");
+            clientRectOk && RectsApproximatelyEqual(publicCaptionBounds, expectedMaximizedCaption, 0.1f),
+            $"public={publicCaptionBounds};expected={expectedMaximizedCaption};dpi={dpi}");
+        AddHitTest(checks, "maximized-hit-maximize-full-height", hwnd,
+            publicCaptionBounds.X + CaptionButtonWidth * 1.5f,
+            publicCaptionBounds.Y + publicCaptionBounds.Height - 4f,
+            scale,
+            HtMaxButton);
         var respectsWorkArea = monitorInfoOk
             && frameHr == 0
             && windowRectOk
@@ -328,14 +418,15 @@ public static partial class ExtendedTitleBarDiagnostics
 
     private static Point ToScreenPoint(nint hwnd, float logicalX, float logicalY, float scale)
     {
-        if (!GetWindowRect(hwnd, out var windowRect))
+        var point = new Point(
+            (int)MathF.Round(logicalX * scale),
+            (int)MathF.Round(logicalY * scale));
+        if (!ClientToScreen(hwnd, ref point))
         {
-            throw new InvalidOperationException($"GetWindowRect failed: {Marshal.GetLastPInvokeError()}.");
+            throw new InvalidOperationException($"ClientToScreen failed: {Marshal.GetLastPInvokeError()}.");
         }
 
-        return new Point(
-            windowRect.Left + (int)MathF.Round(logicalX * scale),
-            windowRect.Top + (int)MathF.Round(logicalY * scale));
+        return point;
     }
 
     private static nint PackPoint(Point point)

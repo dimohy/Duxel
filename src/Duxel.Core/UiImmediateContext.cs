@@ -62,6 +62,7 @@ public sealed partial class UiImmediateContext
     private string? _directTextSecondaryFontPath;
     private IPlatformTextBackend? _platformTextBackend;
     private IWindowTitleBarPlatform? _windowTitleBar;
+    private UiImageTexture? _windowIcon;
     private float _directTextBaseFontSize;
     private bool _directTextEnabled;
     private bool _directTextFallbackEnabled;
@@ -2415,6 +2416,12 @@ public sealed partial class UiImmediateContext
         return _windowTitleBar.TryGetCaptionButtonBounds(out bounds);
     }
 
+    public bool TryGetWindowIcon(out UiImageTexture windowIcon)
+    {
+        windowIcon = _windowIcon!;
+        return windowIcon is not null;
+    }
+
     public void SetTitleBarDragRegions(ReadOnlySpan<UiRect> regions)
     {
         if (_windowTitleBar is null)
@@ -2442,6 +2449,11 @@ public sealed partial class UiImmediateContext
     internal void SetWindowTitleBarPlatform(IWindowTitleBarPlatform? windowTitleBar)
     {
         _windowTitleBar = windowTitleBar;
+    }
+
+    internal void SetWindowIcon(UiImageTexture? windowIcon)
+    {
+        _windowIcon = windowIcon;
     }
 
     public float GetMainMenuBarHeight() => _mainMenuBarHeight;

@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.App</PackageId>
-    <Version>0.2.8-preview</Version>
+    <Version>0.2.9-preview</Version>
     <Authors>dimohy</Authors>
     <Description>Duxel app facade with bundled Core/Platform/Vulkan and integrated DSL source generator analyzer.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -43,7 +43,7 @@
   <Target Name="IncludeDslGeneratorAnalyzerInPackage" DependsOnTargets="Build">
     <ItemGroup>
       <TfmSpecificPackageFile Include="..\Duxel.Core.Dsl.Generator\bin\$(Configuration)\netstandard2.0\Duxel.Core.Dsl.Generator.dll"
-                              Condition="'$(TargetFramework)' == 'net9.0'"
+                              Condition="'$(TargetFramework)' == 'net8.0'"
                               PackagePath="analyzers/dotnet/cs" />
     </ItemGroup>
   </Target>

@@ -50,6 +50,7 @@ public sealed class UiContext(
     private float _contentScale = 1f;
     private IPlatformTextBackend? _platformTextBackend;
     private IWindowTitleBarPlatform? _windowTitleBar;
+    private UiImageTexture? _windowIcon;
     private int _reserveVertices;
     private int _reserveIndices;
     private int _reserveCommands;
@@ -202,6 +203,11 @@ public sealed class UiContext(
     public void SetWindowTitleBarPlatform(IWindowTitleBarPlatform? windowTitleBar)
     {
         _windowTitleBar = windowTitleBar;
+    }
+
+    public void SetWindowIcon(UiImageTexture? windowIcon)
+    {
+        _windowIcon = windowIcon;
     }
 
     public void SetTheme(UiTheme theme)
@@ -916,6 +922,7 @@ public sealed class UiContext(
         ui.SetDirectTextFallbackEnabled(_directTextFallbackEnabled);
         ui.SetContentScale(_contentScale);
         ui.SetWindowTitleBarPlatform(_windowTitleBar);
+        ui.SetWindowIcon(_windowIcon);
         screen.Render(ui);
         _state.EndFrame();
         var drawLists = ui.BuildDrawLists();

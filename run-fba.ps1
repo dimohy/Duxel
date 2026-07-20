@@ -163,7 +163,6 @@ $sourceDir = Split-Path $sourcePath -Parent
 $appCsprojAbs = (Join-Path $repoRoot 'src/Duxel.App/Duxel.App.csproj') -replace '\\', '/'
 $windowsAppCsprojAbs = (Join-Path $repoRoot 'src/Duxel.Windows.App/Duxel.Windows.App.csproj') -replace '\\', '/'
 $coreCsprojAbs = (Join-Path $repoRoot 'src/Duxel.Core/Duxel.Core.csproj') -replace '\\', '/'
-$defaultWindowsIconAbs = (Join-Path $repoRoot 'src/Duxel.Platform.Windows/assets/duxel.ico') -replace '\\', '/'
 
 $platformArgs = Resolve-PlatformFromExtraArgs -Args $ExtraArgs
 $selectedPlatform = $platformArgs.Platform
@@ -266,9 +265,6 @@ else {
             }
         }
 
-        if ((Test-Path $defaultWindowsIconAbs) -and $replaced -notmatch '(?im)^\s*#:property\s+ApplicationIcon\s*=') {
-            $replaced = "#:property ApplicationIcon=$defaultWindowsIconAbs`n$replaced"
-        }
     }
 
     if ($packageName -eq 'Duxel.Windows.App') {

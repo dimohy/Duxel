@@ -215,11 +215,18 @@ public sealed class DuxelAppSession
         uiContext.SetDirectTextEnabled(directTextEnabled);
         uiContext.SetDirectTextFallbackEnabled(directTextFallbackEnabled);
         uiContext.SetContentScale(contentScale);
-        var windowIcon = CreateWindowIconTexture(options.Window);
+        var windowIcon = CreateWindowIconTexture(options.Window, platform);
+        uiContext.SetWindowIcon(windowIcon);
         var titleBarMode = ResolveTitleBarMode(options.Window);
-        var activeScreen = titleBarMode is DuxelTitleBarMode.Duxel && platform is IWindowChromeController chrome
-            ? new DuxelWindowChromeScreen(options.Screen, chrome, options.Window.DuxelTitleBarHeight, windowIcon)
-            : options.Screen;
+        var activeScreen = titleBarMode switch
+        {
+            DuxelTitleBarMode.Duxel when platform is IWindowChromeController chrome
+                => new DuxelWindowChromeScreen(options.Screen, chrome, options.Window.DuxelTitleBarHeight, windowIcon),
+            DuxelTitleBarMode.ExtendedContent when platform is IWindowChromeController chrome
+                && platform.WindowTitleBar is { } titleBar
+                => new ExtendedContentWindowChromeScreen(options.Screen, chrome, titleBar),
+            _ => options.Screen,
+        };
         uiContext.SetScreen(activeScreen);
         DuxelApp.ConfigureContext(uiContext, options, platform);
         uiContext.State.VSync = window.VSync;
@@ -872,11 +879,22 @@ public sealed class DuxelAppSession
             ? options.UseDuxelTitleBar ? DuxelTitleBarMode.Duxel : DuxelTitleBarMode.System
             : options.TitleBarMode;
 
-    private static UiImageTexture? CreateWindowIconTexture(DuxelWindowOptions window)
+    private static UiImageTexture? CreateWindowIconTexture(DuxelWindowOptions window, IPlatformBackend platform)
     {
-        if (string.IsNullOrWhiteSpace(window.IconPath) || !File.Exists(window.IconPath))
+        if (platform is IWindowIconProvider iconProvider)
+        {
+            var image = iconProvider.GetWindowIconImage();
+            return new UiImageTexture(WindowIconTextureId, image.Width, image.Height, image.RgbaPixels);
+        }
+
+        if (string.IsNullOrWhiteSpace(window.IconPath))
         {
             return null;
+        }
+
+        if (!File.Exists(window.IconPath))
+        {
+            throw new FileNotFoundException("The window icon file does not exist.", window.IconPath);
         }
 
         return UiImageTexture.LoadFromFile(window.IconPath, WindowIconTextureId);

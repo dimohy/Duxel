@@ -3,7 +3,7 @@
 > Last synced: 2026-07-20
 > Korean: [fba-run-samples.ko.md](fba-run-samples.ko.md)
 
-> Run **Duxel** FBA samples with a **single copy-paste command**. These samples use the .NET 10 file-based app feature; Duxel packages also support regular .NET 9 projects.
+> Run **Duxel** FBA samples with a **single copy-paste command**. These samples use the .NET 10 file-based app feature. Duxel `0.2.9-preview` packages support regular .NET 8, .NET 9, and .NET 10 projects.
 
 > Note: To run with local source changes, use `./run-fba.ps1 samples/fba/<filename>.cs`.
 
@@ -88,7 +88,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 ## Extended Title Bar
 
-Places application tabs in the title-bar area while preserving Windows caption buttons, Snap Layout hit testing, resize borders, drag/double-click behavior, DPI coordinates, and the maximized monitor work area.
+Demonstrates the library-supported `ExtendedContent` APIs with the effective window icon, tab-shaped Home/Documents controls, and application content in the title-bar area. `ExtendedContent` and conventional `Duxel` chrome use the same 48-pixel caption-button renderer and state-aware Maximize/Restore glyphs. Their visual position remains at `Y = 0` with the configured Duxel title-bar height in both restored and maximized states, while Windows preserves button commands, Snap Layout hit testing, resize borders, drag/double-click behavior, DPI coordinates, the icon right-click system menu, and the maximized monitor work area. `ExtendedTitleBarScreen` is application-side reference code; `ExtendedTitleBarDiagnostics` is test-only instrumentation.
 
 **PowerShell**
 ```powershell
@@ -100,9 +100,11 @@ irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/e
 curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/extended_title_bar_fba.cs -o - | dotnet run -
 ```
 
-> `DuxelTitleBarMode.ExtendedContent` · `TryGetCaptionButtonBounds` · `SetTitleBarDragRegions` · native DWM caption buttons
+> `DuxelTitleBarMode.ExtendedContent` · `TryGetWindowIcon` · `TryGetCaptionButtonBounds` · `SetTitleBarDragRegions` · Duxel caption visuals + native DWM behavior
 
 See the [Extended Title Bar Guide](extended-title-bar-guide.md) for layout rules, DPI/multi-monitor contracts, and the NativeAOT diagnostic workflow.
+
+The remote one-line command uses the published `0.2.9-preview` or later NuGet package. Use `./run-fba.ps1 samples/fba/extended_title_bar_fba.cs -NoCache` when validating newer unpublished local changes.
 
 ---
 
@@ -281,7 +283,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 ## Windows Calculator
 
-Windows-style calculator with cyber backdrop, ripple effects, FX buttons, translucent UI.
+Windows-style calculator with cyber backdrop, ripple effects, FX buttons, translucent UI, and library-owned Duxel chrome. Maximize it to verify that the one-square Maximize glyph changes to the overlapping-squares Restore glyph without sample-side title-bar code.
 
 **PowerShell**
 ```powershell
@@ -293,7 +295,7 @@ irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/w
 curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/windows_calculator_fba.cs -o - | dotnet run -
 ```
 
-> Cyber grid background · Button ripple effects · Neon glow FX buttons · AnimateFloat real-time transitions
+> Duxel-owned title bar · state-aware Maximize/Restore glyph · cyber grid background · button ripple effects · neon glow FX buttons · AnimateFloat real-time transitions
 
 ---
 

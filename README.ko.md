@@ -4,11 +4,11 @@
   <img src="logo.svg" alt="Duxel logo" width="615" />
 </p>
 
-.NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크로, Vulkan 렌더러와 Windows 네이티브 플랫폼 백엔드를 사용합니다.
+.NET 8, .NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크로, Vulkan 렌더러와 Windows 네이티브 플랫폼 백엔드를 사용합니다.
 
-**현재 패키지 버전:** `0.2.8-preview`
+**현재 공개 패키지 버전:** `0.2.9-preview`
 
-**지원 대상 프레임워크:** `net9.0`, `net10.0`. 파일 기반 앱(FBA) 워크플로에는 .NET 10 SDK가 필요합니다.
+**지원 패키지 타깃:** `net8.0`, `net9.0`, `net10.0`. 파일 기반 앱(FBA) 워크플로에는 계속 .NET 10 SDK가 필요합니다.
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -23,6 +23,7 @@
 - `UiScreen.Render(...)` 기반 즉시 모드 위젯 API (`UiImmediateContext`).
 - 프로필 기반 렌더 설정(`Display` / `Render`)과 MSAA 설정.
 - Windows 네이티브 입력/IME/클립보드 지원.
+- 애플리케이션 탭, 네이티브 캡션 동작, Snap Layout, 시스템 메뉴, DPI, 다중 모니터를 지원하는 Windows 11 스타일 확장 타이틀바.
 - NativeAOT 친화 런타임 구성.
 - UI DSL(`.ui`) 파서/런타임 및 소스 생성기 경로.
 
@@ -32,6 +33,8 @@
 |---|---|
 | `Duxel.App` | 앱 파사드 및 공용 런타임 파이프라인 |
 | `Duxel.Windows.App` | Windows 플랫폼 러너 (`DuxelWindowsApp.Run`) |
+
+일반 .NET 8 Windows 애플리케이션은 `net8.0-windows7.0` 또는 그 이후 Windows TFM을 사용하세요. Duxel 패키지 어셈블리는 이식 가능한 `net8.0` 자산으로 제공하고, 소비자 프로젝트의 Windows TFM이 플랫폼 요구사항을 분석기와 빌드에 명확히 전달합니다. 파일 기반 앱에는 .NET 10 SDK가 필요하므로 FBA 샘플은 계속 `net10.0`을 사용합니다.
 
 ## 빠른 시작 (FBA, Windows)
 

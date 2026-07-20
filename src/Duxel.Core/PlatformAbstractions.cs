@@ -79,7 +79,20 @@ public interface IWindowTitleBarPlatform
 {
     bool TryGetCaptionButtonBounds(out UiRect bounds);
     void SetTitleBarDragRegions(ReadOnlySpan<UiRect> regions);
+    UiCaptionButtonVisualState CaptionButtonVisualState => default;
 }
+
+public enum UiCaptionButtonKind
+{
+    None,
+    Minimize,
+    Maximize,
+    Close,
+}
+
+public readonly record struct UiCaptionButtonVisualState(
+    UiCaptionButtonKind Hovered,
+    UiCaptionButtonKind Pressed);
 
 public interface IPlatformThemeProvider
 {
@@ -89,6 +102,11 @@ public interface IPlatformThemeProvider
 public interface IWin32PlatformBackend
 {
     nint WindowHandle { get; }
+}
+
+public interface IWindowIconProvider
+{
+    UiImageData GetWindowIconImage();
 }
 
 public interface IWindowChromeController

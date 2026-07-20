@@ -31,7 +31,7 @@ Always keep the `Last synced` date at the top aligned with the most recent meani
 
 ## What Duxel is
 
-Duxel is an immediate-mode GUI framework for .NET 9 and .NET 10.
+Duxel is an immediate-mode GUI framework for .NET 8, .NET 9, and .NET 10.
 
 Current implementation direction:
 
@@ -44,7 +44,11 @@ Current implementation direction:
   - `Duxel.App`
   - `Duxel.Windows.App`
 
-Both packages ship `net9.0` and `net10.0` runtime assets. FBA samples remain `net10.0` because the file-based app feature requires the .NET 10 SDK.
+Both packages ship `net8.0`, `net9.0`, and `net10.0` runtime assets. FBA samples remain `net10.0` because the file-based app feature requires the .NET 10 SDK; ordinary project consumers may target any of the three frameworks.
+
+This is the `0.2.9-preview` public package contract. `Duxel.App` and `Duxel.Windows.App` expose `net8.0`, `net9.0`, and `net10.0` assets; FBA remains a .NET 10 SDK workflow.
+
+For Windows app generation, prefer `net8.0-windows7.0`, `net9.0-windows7.0`, or `net10.0-windows7.0` in the consuming executable so platform analysis is explicit. The Duxel package projects themselves intentionally use portable `net8.0`, `net9.0`, and `net10.0` TFMs.
 
 `Duxel.Windows.App` is the single-package Windows entry and depends on `Duxel.App`. Its package dependency must allow analyzer assets to flow so the integrated `Duxel.Core.Dsl.Generator` remains available to Windows-package consumers.
 
@@ -352,7 +356,7 @@ Dux.TextWrapped(() => status.Value)
 | `Height` | `720` |
 | `Title` | `"Duxel"` |
 | `VSync` | `true` |
-| `IconPath` | Duxel default icon |
+| `IconPath` | `null` (Windows default application icon) |
 | `IntegrateSystemChrome` | `true` |
 | `TitleBarMode` | `DuxelTitleBarMode.Default` |
 | `UseDuxelTitleBar` | `true` |
@@ -360,11 +364,24 @@ Dux.TextWrapped(() => status.Value)
 
 `IntegrateSystemChrome` applies Windows 11 DWM caption, text, border color, rounded corner, and dark-mode attributes from the active startup theme/design. When the app uses the default platform-following design, Windows `WM_SETTINGCHANGE` theme notifications refresh the Duxel theme and render clear color at runtime.
 
-`UseDuxelTitleBar` is enabled by default, so Windows apps remove the native caption and render a Duxel-owned title bar inside the Vulkan surface unless the app explicitly sets `UseDuxelTitleBar = false`. The app runtime wraps the user `UiScreen`, reserves the top viewport inset, draws the app icon, title, minimize/maximize/close buttons, and delegates window move/minimize/maximize/close commands through `IWindowChromeController`.
+`UseDuxelTitleBar` is enabled by default, so Windows apps remove the native caption and render a Duxel-owned title bar inside the Vulkan surface unless the app explicitly sets `UseDuxelTitleBar = false`. The app runtime wraps the user `UiScreen`, reserves the top viewport inset, draws the app icon, title, minimize/maximize/close buttons, and delegates window move/minimize/maximize/close commands through `IWindowChromeController`. This is library-owned chrome: application screens do not draw or synchronize these buttons. The Maximize button reads `IWindowChromeController.IsMaximized` every frame, displays one square while restored, changes to the overlapping-squares Restore glyph while maximized, and returns to the Maximize glyph after restore.
 
-`TitleBarMode` explicitly selects `System`, `Duxel`, or `ExtendedContent`. Its `Default` value preserves source compatibility by resolving from `UseDuxelTitleBar`; an explicit non-default mode takes precedence. `ExtendedContent` makes the complete Vulkan client area available from `(0, 0)` while preserving the Windows/DWM caption buttons and system-menu, resize, maximize, and Snap Layout contracts.
+`TitleBarMode` explicitly selects `System`, `Duxel`, or `ExtendedContent`. Its `Default` value preserves source compatibility by resolving from `UseDuxelTitleBar`; an explicit non-default mode takes precedence. `ExtendedContent` makes the complete Vulkan client area available from `(0, 0)`. Duxel draws visible caption glyphs over the opaque Vulkan surface while Windows/DWM retains the native button hit codes, commands, system menu, resize, maximize, and Snap Layout contracts.
 
-In `ExtendedContent`, query the DWM-owned button cluster and replace the platform drag-region snapshot from the current UI frame:
+`ExtendedContent` is a library feature, not behavior implemented only by an FBA sample. The supported application surface is:
+
+This is the current repository-source/local-package contract. Do not claim that a public NuGet version contains the APIs until that exact package version has been published and verified.
+
+| Public library API | Role |
+|---|---|
+| `DuxelTitleBarMode.ExtendedContent` | Enables the library-owned extended client/frame path |
+| `ui.TryGetWindowIcon(out UiImageTexture)` | Returns the effective icon already used by the native window and taskbar |
+| `ui.TryGetCaptionButtonBounds(out UiRect)` | Returns Duxel's right-anchored logical caption cluster at `Y = 0` with `DuxelTitleBarHeight` |
+| `ui.SetTitleBarDragRegions(ReadOnlySpan<UiRect>)` | Delegates the supplied non-interactive spans to the Windows backend as native caption hit regions |
+
+The library owns DWM frame extension, the shared `DuxelCaptionButtonRenderer`, native caption hit codes, Snap Layout compatibility, non-client hover/pressed state, system styles/menu, DPI conversion, resize borders, and maximized monitor work-area sizing. `Duxel` and `ExtendedContent` therefore use identical 48-pixel button placement and glyph geometry. The public cluster remains at logical `Y = 0` with `DuxelTitleBarHeight` in restored and maximized states; the maximized DWM metadata value such as `Y = -8` and its native 30-pixel height are not used for Duxel visual placement. Application code owns only the visual arrangement of its icon, tabs, search, menus, title text, and empty drag gaps. In `samples/fba/extended_title_bar_fba.cs`, `ExtendedTitleBarScreen` demonstrates this public application contract with tab-shaped Home/Documents controls; the centered empty-area label is intentional sample UI. `ExtendedTitleBarDiagnostics` is verification-only P/Invoke code and must not be treated as required production implementation. Coding agents should use the public APIs instead of recreating Win32 caption behavior. They must visually verify button pixels and the icon right-click system menu because successful Win32 hit-test diagnostics alone are insufficient. If a request needs only conventional Duxel chrome, select `DuxelTitleBarMode.Duxel`; select `ExtendedContent` only when application UI must occupy `y = 0`.
+
+In `ExtendedContent`, query the Duxel-owned button cluster and replace the platform drag-region snapshot from the current UI frame:
 
 ```csharp
 if (ui.TryGetCaptionButtonBounds(out var captionButtons))
@@ -381,9 +398,11 @@ else
 }
 ```
 
-The rectangles use Duxel logical client coordinates. Each call atomically replaces the previous region set; pass `[]` to clear it. Keep tabs, buttons, menus, text inputs, and other interactive controls outside those rectangles so their hit test remains `HTCLIENT`. `TryGetCaptionButtonBounds` can return `false` while the native window is hidden or minimized because Windows defines the DWM bounds as unavailable in that state. See `docs/extended-title-bar-guide.md` for the complete layout, Win32/DWM contract, and AI validation workflow, and `samples/fba/extended_title_bar_fba.cs` for the executable reference sample.
+The rectangles use Duxel logical client coordinates. Each call atomically replaces the previous region set; pass `[]` to clear it. Keep tabs, buttons, menus, text inputs, and other interactive controls outside those rectangles so their hit test remains `HTCLIENT`. `TryGetCaptionButtonBounds` can return `false` before a usable client width is available. See `docs/extended-title-bar-guide.md` for the complete layout, Win32/DWM contract, and AI validation workflow, and `samples/fba/extended_title_bar_fba.cs` for the executable reference sample.
 
-When `IconPath` and `IconData` are not set, Duxel uses its bundled default `.ico` for the Win32 window/taskbar icon. The `Duxel.Windows.App` package also supplies the same icon as the default `ApplicationIcon` for consuming Windows executables unless the app sets its own icon or `DuxelUseDefaultIcon=false`.
+`IconData` takes precedence over `IconPath`. When neither is set, Duxel explicitly assigns the Win32 system `IDI_APPLICATION` icon to the window class so the native window, taskbar, and Alt+Tab do not reselect a Duxel-branded icon from the executable or icon cache. The Duxel-owned title bar converts that same effective `HICON` to RGBA through WIC and receives it from `IWindowIconProvider.GetWindowIconImage()`, so its icon is identical to the window icon rather than a separately selected fallback. Its title is left-aligned after the icon by default. Right-clicking the icon, title, or another non-button point in the title bar opens the native window system menu; dragging, title-bar double-click maximize/restore, and Alt+Space remain available. `Duxel.Windows.App` no longer injects a branded `ApplicationIcon`; set the application's `ApplicationIcon`, `IconPath`, or `IconData` explicitly when branding is required. An explicit missing `IconPath` or invalid `IconData` fails at startup instead of silently changing the icon.
+
+An `ExtendedContent` screen can call `ui.TryGetWindowIcon(out var windowIcon)` and draw that texture in its application-owned title bar. This exposes the already resolved effective window icon and keeps the in-content icon consistent with the taskbar instead of requiring the sample or application to select another image. Registering the icon rectangle as a drag region also gives it native caption semantics; the Windows backend routes its non-client right-click to the standard system menu. For a copyable developer bootstrap, complete screen implementation, library/sample responsibility table, and coding-AI completion workflow, use `docs/extended-title-bar-guide.md`.
 
 ### `DuxelRendererOptions`
 
@@ -1254,7 +1273,7 @@ As of 2026-07-10, a page-enabled performance run reached `1819.709` FPS, but the
 
 Assume these repository rules are intentional unless the task explicitly changes them:
 
-- .NET 9 and .NET 10 package targets
+- .NET 8, .NET 9, and .NET 10 package targets
 - Windows-first platform reality
 - Vulkan renderer requirement
 - NativeAOT-friendly direction

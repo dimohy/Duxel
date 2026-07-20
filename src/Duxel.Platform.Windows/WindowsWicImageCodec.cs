@@ -41,6 +41,38 @@ public static class WindowsWicImageCodec
         return animation.Frames[0];
     }
 
+    internal static UiImageData DecodeIcon(nint iconHandle)
+    {
+        if (iconHandle == nint.Zero)
+        {
+            throw new ArgumentException("The icon handle must not be null.", nameof(iconHandle));
+        }
+
+        using var comScope = ComScope.Initialize();
+
+        nint factory = nint.Zero;
+        nint bitmap = nint.Zero;
+
+        try
+        {
+            factory = CreateFactory();
+            WicNative.IWICImagingFactory_CreateBitmapFromHICON(factory, iconHandle, out bitmap)
+                .ThrowIfFailed("Failed to create a WIC bitmap from the window icon.");
+
+            if (bitmap == nint.Zero)
+            {
+                throw new InvalidOperationException("WIC icon bitmap creation returned a null pointer.");
+            }
+
+            return ReadBitmapSource(factory, bitmap);
+        }
+        finally
+        {
+            Release(bitmap);
+            Release(factory);
+        }
+    }
+
     public static WindowsWicAnimationData Decode(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -661,6 +693,9 @@ internal static partial class WicNative
         uint desiredAccess,
         uint metadataOptions,
         out nint decoder);
+
+    [LibraryImport("windowscodecs.dll", EntryPoint = "IWICImagingFactory_CreateBitmapFromHICON_Proxy")]
+    internal static partial int IWICImagingFactory_CreateBitmapFromHICON(nint @this, nint icon, out nint bitmap);
 
     [LibraryImport("windowscodecs.dll", EntryPoint = "IWICBitmapDecoder_GetFrameCount_Proxy")]
     internal static partial int IWICBitmapDecoder_GetFrameCount(nint @this, out uint frameCount);

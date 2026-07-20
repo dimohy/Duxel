@@ -29,7 +29,7 @@
 
 ## Duxel이 무엇인가
 
-Duxel은 .NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크다.
+Duxel은 .NET 8, .NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 
 현재 구현 방향:
 
@@ -42,7 +42,11 @@ Duxel은 .NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크다.
   - `Duxel.App`
   - `Duxel.Windows.App`
 
-두 패키지는 `net9.0`과 `net10.0` 런타임 자산을 함께 제공한다. 파일 기반 앱 기능에는 .NET 10 SDK가 필요하므로 FBA 샘플은 `net10.0`을 유지한다.
+두 패키지는 `net8.0`, `net9.0`, `net10.0` 런타임 자산을 함께 제공한다. 파일 기반 앱 기능에는 .NET 10 SDK가 필요하므로 FBA 샘플은 `net10.0`을 유지하며, 일반 프로젝트 사용자는 세 프레임워크 중 하나를 대상으로 할 수 있다.
+
+이는 공개 `0.2.9-preview` 패키지 계약이다. `Duxel.App`과 `Duxel.Windows.App`은 `net8.0`, `net9.0`, `net10.0` 자산을 제공하며 FBA는 계속 .NET 10 SDK 워크플로를 사용한다.
+
+Windows 앱을 생성할 때 소비자 실행 프로젝트는 플랫폼 분석이 명확하도록 `net8.0-windows7.0`, `net9.0-windows7.0`, `net10.0-windows7.0` 중 해당 버전을 우선한다. Duxel 패키지 프로젝트 자체는 의도적으로 이식 가능한 `net8.0`, `net9.0`, `net10.0` TFM을 사용한다.
 
 `Duxel.Windows.App`은 Windows 단일 패키지 진입점이며 `Duxel.App`에 의존한다. 패키지 의존성은 analyzer asset 전파를 허용해 Windows 패키지 사용자도 통합 `Duxel.Core.Dsl.Generator`를 사용할 수 있어야 한다.
 
@@ -351,7 +355,7 @@ Dux.TextWrapped(() => status.Value)
 | `Height` | `720` |
 | `Title` | `"Duxel"` |
 | `VSync` | `true` |
-| `IconPath` | Duxel 기본 아이콘 |
+| `IconPath` | `null` (Windows 시스템 기본 애플리케이션 아이콘) |
 | `IntegrateSystemChrome` | `true` |
 | `TitleBarMode` | `DuxelTitleBarMode.Default` |
 | `UseDuxelTitleBar` | `true` |
@@ -359,11 +363,24 @@ Dux.TextWrapped(() => status.Value)
 
 `IntegrateSystemChrome`은 활성 시작 테마/디자인에서 Windows 11 DWM 캡션 색상, 텍스트 색상, 테두리 색상, 라운드 코너, 다크 모드 속성을 적용한다. 앱이 기본 플랫폼 추적 디자인을 사용할 때는 Windows `WM_SETTINGCHANGE` 테마 알림으로 Duxel 테마와 렌더러 clear color가 런타임에 갱신된다.
 
-`UseDuxelTitleBar`는 기본적으로 켜져 있으므로, 앱이 명시적으로 `UseDuxelTitleBar = false`를 지정하지 않는 한 Windows 앱은 네이티브 캡션을 제거하고 Vulkan surface 안에 Duxel 소유 타이틀바를 렌더링한다. 앱 런타임은 사용자 `UiScreen`을 감싸고, 상단 viewport inset을 예약하며, 앱 아이콘/제목/최소화/최대화/닫기 버튼을 그리고, 창 이동/최소화/최대화/닫기 명령은 `IWindowChromeController`를 통해 플랫폼에 위임한다.
+`UseDuxelTitleBar`는 기본적으로 켜져 있으므로, 앱이 명시적으로 `UseDuxelTitleBar = false`를 지정하지 않는 한 Windows 앱은 네이티브 캡션을 제거하고 Vulkan surface 안에 Duxel 소유 타이틀바를 렌더링한다. 앱 런타임은 사용자 `UiScreen`을 감싸고, 상단 viewport inset을 예약하며, 앱 아이콘/제목/최소화/최대화/닫기 버튼을 그리고, 창 이동/최소화/최대화/닫기 명령은 `IWindowChromeController`를 통해 플랫폼에 위임한다. 이 크롬은 라이브러리 소유이므로 애플리케이션 화면이 버튼을 직접 그리거나 상태를 동기화하지 않는다. 최대화 버튼은 매 프레임 `IWindowChromeController.IsMaximized`를 읽어 복원 상태에서는 단일 사각형, 최대화 상태에서는 겹친 두 사각형 복원 아이콘을 표시하고 창이 복원되면 다시 최대화 아이콘으로 돌아간다.
 
-`TitleBarMode`는 `System`, `Duxel`, `ExtendedContent`를 명시적으로 선택한다. 기본값 `Default`는 기존 소스 호환성을 위해 `UseDuxelTitleBar`에서 실제 모드를 결정하며, 명시한 비기본 모드가 우선한다. `ExtendedContent`는 Windows/DWM 캡션 버튼과 시스템 메뉴, 리사이즈, 최대화, Snap Layout 계약을 유지하면서 전체 Vulkan 클라이언트 영역을 `(0, 0)`부터 사용할 수 있게 한다.
+`TitleBarMode`는 `System`, `Duxel`, `ExtendedContent`를 명시적으로 선택한다. 기본값 `Default`는 기존 소스 호환성을 위해 `UseDuxelTitleBar`에서 실제 모드를 결정하며, 명시한 비기본 모드가 우선한다. `ExtendedContent`는 전체 Vulkan 클라이언트 영역을 `(0, 0)`부터 사용할 수 있게 한다. Duxel은 불투명 Vulkan surface 위에 보이는 캡션 아이콘을 그리고 Windows/DWM은 네이티브 버튼 히트 코드와 명령, 시스템 메뉴, 리사이즈, 최대화, Snap Layout 계약을 유지한다.
 
-`ExtendedContent`에서는 DWM 소유 버튼 묶음의 경계를 조회하고 현재 UI 프레임에서 플랫폼 드래그 영역 스냅샷을 교체한다.
+`ExtendedContent`는 FBA 샘플에만 구현된 동작이 아니라 라이브러리 기능이다. 애플리케이션이 사용하는 공개 표면은 다음과 같다.
+
+이는 현재 저장소 소스/로컬 패키지 계약이다. 해당 API가 포함된 정확한 패키지 버전을 게시하고 검증하기 전에는 공개 NuGet 버전이 지원한다고 선언하지 않는다.
+
+| 공개 라이브러리 API | 역할 |
+|---|---|
+| `DuxelTitleBarMode.ExtendedContent` | 라이브러리 소유 확장 클라이언트/프레임 경로 활성화 |
+| `ui.TryGetWindowIcon(out UiImageTexture)` | 네이티브 창과 작업 표시줄이 이미 사용하는 유효 아이콘 반환 |
+| `ui.TryGetCaptionButtonBounds(out UiRect)` | `Y = 0`과 `DuxelTitleBarHeight`를 사용하는 오른쪽 고정 Duxel 논리 캡션 묶음 반환 |
+| `ui.SetTitleBarDragRegions(ReadOnlySpan<UiRect>)` | 전달한 비상호작용 구간을 Windows 백엔드의 네이티브 캡션 히트 영역으로 위임 |
+
+라이브러리는 DWM 프레임 확장, 공통 `DuxelCaptionButtonRenderer`, 네이티브 캡션 히트 코드, Snap Layout 호환성, 비클라이언트 호버/누름 상태, 시스템 스타일/메뉴, DPI 변환, 리사이즈 테두리, 최대화 모니터 작업영역 크기를 담당한다. 따라서 `Duxel`과 `ExtendedContent`는 같은 48픽셀 버튼 위치와 아이콘 기하를 사용한다. 공개 버튼 묶음은 복원·최대화 모두 논리 `Y = 0`과 `DuxelTitleBarHeight`를 유지하며, 최대화된 DWM 메타데이터의 `Y = -8` 같은 값이나 네이티브 30픽셀 높이를 Duxel 시각 위치에 사용하지 않는다. 애플리케이션 코드는 아이콘, 탭, 검색창, 메뉴, 제목 텍스트, 빈 드래그 구간의 시각 배치만 담당한다. `samples/fba/extended_title_bar_fba.cs`에서 `ExtendedTitleBarScreen`은 탭 모양 Home/Documents 컨트롤로 이 공개 애플리케이션 계약을 시연하며 빈 영역의 가운데 안내 문구는 의도된 샘플 UI다. `ExtendedTitleBarDiagnostics`는 검증 전용 P/Invoke 코드다. 코딩 에이전트는 진단 코드를 제품 구현으로 복제하지 말고 공개 API를 사용한다. Win32 히트 테스트 통과만으로는 부족하므로 버튼 픽셀과 창 아이콘 우클릭 시스템 메뉴를 육안 확인해야 한다. 요청이 일반 Duxel 크롬만 필요하면 `DuxelTitleBarMode.Duxel`, 애플리케이션 UI가 `y = 0`을 차지해야 할 때만 `ExtendedContent`를 선택한다.
+
+`ExtendedContent`에서는 Duxel 소유 버튼 묶음의 경계를 조회하고 현재 UI 프레임에서 플랫폼 드래그 영역 스냅샷을 교체한다.
 
 ```csharp
 if (ui.TryGetCaptionButtonBounds(out var captionButtons))
@@ -380,9 +397,11 @@ else
 }
 ```
 
-사각형은 Duxel 논리 클라이언트 좌표를 사용한다. 호출할 때마다 이전 영역 집합을 원자적으로 교체하며, `[]`를 전달하면 비운다. 탭, 버튼, 메뉴, 텍스트 입력 등 상호작용 요소는 해당 사각형 밖에 두어 히트 테스트가 `HTCLIENT`로 남게 한다. Windows는 숨겨지거나 최소화된 창의 DWM 경계를 유효하지 않은 값으로 정의하므로 이 상태에서는 `TryGetCaptionButtonBounds`가 `false`를 반환할 수 있다. 전체 레이아웃, Win32/DWM 계약, AI 검증 절차는 `docs/extended-title-bar-guide.ko.md`, 실행 가능한 기준 샘플은 `samples/fba/extended_title_bar_fba.cs`를 참고한다.
+사각형은 Duxel 논리 클라이언트 좌표를 사용한다. 호출할 때마다 이전 영역 집합을 원자적으로 교체하며, `[]`를 전달하면 비운다. 탭, 버튼, 메뉴, 텍스트 입력 등 상호작용 요소는 해당 사각형 밖에 두어 히트 테스트가 `HTCLIENT`로 남게 한다. 사용할 수 있는 클라이언트 폭이 아직 없으면 `TryGetCaptionButtonBounds`가 `false`를 반환할 수 있다. 전체 레이아웃, Win32/DWM 계약, AI 검증 절차는 `docs/extended-title-bar-guide.ko.md`, 실행 가능한 기준 샘플은 `samples/fba/extended_title_bar_fba.cs`를 참고한다.
 
-`IconPath`와 `IconData`를 지정하지 않으면 Duxel은 번들된 기본 `.ico`를 Win32 창/작업표시줄 아이콘으로 사용한다. `Duxel.Windows.App` 패키지도 같은 아이콘을 Windows 실행 파일의 기본 `ApplicationIcon`으로 제공하며, 앱이 자체 아이콘을 지정하거나 `DuxelUseDefaultIcon=false`를 설정하면 이를 사용하지 않는다.
+`IconData`가 `IconPath`보다 우선한다. 둘 다 지정하지 않으면 Duxel은 Win32 시스템 기본 `IDI_APPLICATION`을 창 클래스에 명시해 네이티브 창, 작업 표시줄, Alt+Tab이 실행 파일이나 아이콘 캐시에 남은 Duxel 브랜드 아이콘을 다시 선택하지 않게 한다. Duxel 소유 타이틀바는 같은 유효 `HICON`을 WIC로 RGBA 변환해 `IWindowIconProvider.GetWindowIconImage()`로 전달받으므로 별도 fallback이 아니라 실제 창 아이콘과 같은 아이콘을 표시한다. 제목은 기본적으로 아이콘 다음 위치에 왼쪽 정렬한다. 아이콘, 제목 또는 타이틀바의 버튼이 아닌 영역을 오른쪽 클릭하면 네이티브 창 시스템 메뉴가 열리며, 창 드래그, 타이틀 영역 더블클릭 최대화/복원, Alt+Space도 유지된다. `Duxel.Windows.App`은 더 이상 브랜드 `ApplicationIcon`을 자동 주입하지 않으며, 브랜딩이 필요하면 앱의 `ApplicationIcon`, `IconPath`, `IconData`를 명시한다. 명시한 `IconPath`가 없거나 `IconData`가 올바르지 않으면 다른 아이콘으로 조용히 바꾸지 않고 시작 시 실패한다.
+
+`ExtendedContent` 화면은 `ui.TryGetWindowIcon(out var windowIcon)`으로 이미 결정된 유효 창 아이콘 텍스처를 조회해 애플리케이션 소유 타이틀바에 그릴 수 있다. 따라서 샘플이나 앱이 별도 이미지를 다시 선택하지 않아도 콘텐츠 안의 아이콘과 작업 표시줄 아이콘이 일치한다. 아이콘 사각형을 드래그 영역으로 등록하면 네이티브 캡션 의미도 부여되며, Windows 백엔드가 그 비클라이언트 우클릭을 표준 시스템 메뉴로 연결한다. 복사 가능한 개발자 시작 코드, 전체 화면 구현, 라이브러리/샘플 책임표, 코딩 AI 완료 절차는 `docs/extended-title-bar-guide.ko.md`를 기준으로 한다.
 
 ### `DuxelRendererOptions`
 
@@ -1236,7 +1255,7 @@ DirectText 페이지 텍스처 패킹은 `DUXEL_DIRECT_TEXT_PAGE=1`로만 켠다
 
 아래 저장소 규칙은 작업이 명시적으로 바꾸지 않는 한 유지되는 전제로 본다.
 
-- .NET 9 및 .NET 10 패키지 타깃
+- .NET 8, .NET 9 및 .NET 10 패키지 타깃
 - Windows 우선 플랫폼 현실
 - Vulkan 렌더러 전제
 - NativeAOT 친화 방향

@@ -2,7 +2,7 @@
 
 > 마지막 동기화: 2026-07-20
 
-> .NET 10 파일 기반 앱 기능을 사용하는 **Duxel** FBA 샘플을 **복사-붙여넣기 한 줄**로 바로 실행하세요. Duxel 패키지는 일반 .NET 9 프로젝트도 지원합니다.
+> .NET 10 파일 기반 앱 기능을 사용하는 **Duxel** FBA 샘플을 **복사-붙여넣기 한 줄**로 바로 실행하세요. Duxel `0.2.9-preview` 패키지는 일반 .NET 8, .NET 9, .NET 10 프로젝트를 지원합니다.
 
 > 참고: 로컬 소스 변경을 반영해 실행하려면 `./run-fba.ps1 samples/fba/<파일명>.cs`를 사용하세요.
 
@@ -87,7 +87,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 ## 확장 타이틀바
 
-애플리케이션 탭을 타이틀바 영역에 배치하면서 Windows 캡션 버튼, Snap Layout 히트 테스트, 리사이즈 테두리, 드래그/더블클릭 동작, DPI 좌표, 최대화 모니터 작업영역을 유지하는 샘플입니다.
+라이브러리가 지원하는 `ExtendedContent` API로 유효 창 아이콘, 탭 모양 Home/Documents 컨트롤, 애플리케이션 콘텐츠를 타이틀바 영역에 배치하는 샘플입니다. `ExtendedContent`와 일반 `Duxel` 크롬은 같은 48픽셀 캡션 버튼 렌더러와 상태 기반 최대화/복원 아이콘을 사용합니다. 복원·최대화 모두 시각 위치는 `Y = 0`과 설정된 Duxel 타이틀바 높이를 유지하고, Windows는 버튼 명령, Snap Layout 히트 테스트, 리사이즈 테두리, 드래그/더블클릭 동작, DPI 좌표, 창 아이콘 우클릭 시스템 메뉴, 최대화 모니터 작업영역을 보존합니다. `ExtendedTitleBarScreen`은 앱 측 참고 코드이고 `ExtendedTitleBarDiagnostics`는 테스트 전용 계측 코드입니다.
 
 **PowerShell**
 ```powershell
@@ -99,9 +99,11 @@ irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/e
 curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/extended_title_bar_fba.cs -o - | dotnet run -
 ```
 
-> `DuxelTitleBarMode.ExtendedContent` · `TryGetCaptionButtonBounds` · `SetTitleBarDragRegions` · 네이티브 DWM 캡션 버튼
+> `DuxelTitleBarMode.ExtendedContent` · `TryGetWindowIcon` · `TryGetCaptionButtonBounds` · `SetTitleBarDragRegions` · Duxel 캡션 시각 요소 + 네이티브 DWM 동작
 
 상세한 레이아웃 규칙, DPI/다중 모니터 계약, NativeAOT 진단 절차는 [확장 타이틀바 가이드](extended-title-bar-guide.ko.md)를 참고하세요.
+
+위 원격 한 줄 명령은 공개 `0.2.9-preview` 이상 NuGet 패키지를 사용합니다. 그보다 새로운 미게시 로컬 변경을 확인할 때는 `./run-fba.ps1 samples/fba/extended_title_bar_fba.cs -NoCache`를 사용하세요.
 
 ---
 
@@ -280,7 +282,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 
 ## Windows 계산기
 
-Windows 스타일 계산기에 사이버 backdrop, 리플 효과, FX 버튼, 반투명 UI를 적용한 데모입니다.
+Windows 스타일 계산기에 사이버 backdrop, 리플 효과, FX 버튼, 반투명 UI와 라이브러리 소유 Duxel 크롬을 적용한 데모입니다. 최대화하면 샘플 측 타이틀바 코드 없이 단일 사각형 최대화 아이콘이 겹친 사각형 복원 아이콘으로 바뀌는지 확인할 수 있습니다.
 
 **PowerShell**
 ```powershell
@@ -292,7 +294,7 @@ irm https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/w
 curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/fba/windows_calculator_fba.cs -o - | dotnet run -
 ```
 
-> 사이버 그리드 배경 · 버튼 리플 이펙트 · 네온 글로우 FX 버튼 · AnimateFloat 실시간 전환
+> Duxel 소유 타이틀바 · 상태 기반 최대화/복원 아이콘 · 사이버 그리드 배경 · 버튼 리플 이펙트 · 네온 글로우 FX 버튼 · AnimateFloat 실시간 전환
 
 ---
 

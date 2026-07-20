@@ -4,11 +4,11 @@
   <img src="logo.svg" alt="Duxel logo" width="615" />
 </p>
 
-Immediate-mode GUI framework for .NET 9 and .NET 10, using a Vulkan renderer with a Windows-native platform backend.
+Immediate-mode GUI framework for .NET 8, .NET 9, and .NET 10, using a Vulkan renderer with a Windows-native platform backend.
 
-**Current package version:** `0.2.8-preview`
+**Current published package version:** `0.2.9-preview`
 
-**Supported target frameworks:** `net9.0`, `net10.0`. The file-based app (FBA) workflow requires the .NET 10 SDK.
+**Supported package targets:** `net8.0`, `net9.0`, `net10.0`. The file-based app (FBA) workflow still requires the .NET 10 SDK.
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -23,6 +23,7 @@ Immediate-mode GUI framework for .NET 9 and .NET 10, using a Vulkan renderer wit
 - Immediate-mode widget API (`UiImmediateContext`) with `UiScreen.Render(...)` lifecycle.
 - Vulkan backend with profile-based defaults (`Display` / `Render`) and configurable MSAA.
 - Windows-native window/input backend (keyboard, mouse, wheel, IME, clipboard).
+- Windows 11-style extended title bars with application tabs, native caption behavior, Snap Layout, system menus, DPI, and multi-monitor support.
 - NativeAOT-friendly runtime patterns.
 - UI DSL (`.ui`) parser/runtime and source-generator path.
 
@@ -32,6 +33,8 @@ Immediate-mode GUI framework for .NET 9 and .NET 10, using a Vulkan renderer wit
 |---|---|
 | `Duxel.App` | Core app facade and shared runtime pipeline |
 | `Duxel.Windows.App` | Windows platform runner package (`DuxelWindowsApp.Run`) |
+
+For a regular .NET 8 Windows application, target `net8.0-windows7.0` (or a later Windows TFM). Duxel package assemblies provide portable `net8.0` assets, while the Windows TFM makes the platform requirement explicit to analyzers and consumers. FBA samples continue to use `net10.0` because file-based apps require the .NET 10 SDK.
 
 ## Quick start (FBA, Windows)
 

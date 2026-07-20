@@ -2,6 +2,29 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## 0.2.9-preview (2026-07-20)
+
+### Major Features
+
+- **[Feature]** Extended application title bar — added `DuxelTitleBarMode.ExtendedContent`, effective-window-icon access, live caption-button bounds, and per-frame drag-region APIs so tabs, search, menus, and other application UI can occupy the window top while Windows retains caption commands, Snap Layout, resize, DPI, multi-monitor, and maximized work-area behavior.
+- **[Feature]** .NET 8 package support — added `net8.0` assets alongside `net9.0` and `net10.0` in `Duxel.App` and `Duxel.Windows.App`, while the integrated DSL analyzer remains a managed `netstandard2.0` build asset for NativeAOT consumers.
+
+### Major Improvements
+
+- **[Improvement]** Extended caption rendering — added library-owned Minimize, Maximize/Restore, and Close glyph overlays for opaque Vulkan client surfaces while preserving DWM hit codes, commands, non-client hover/press state, and Windows 11 Snap Layout behavior.
+- **[Improvement]** Conventional title-bar behavior — left-aligned the Duxel title, synchronized Maximize/Restore glyphs with the actual window state, exposed the effective native/taskbar icon to application UI, and routed title/icon right-clicks to the standard Windows system menu.
+- **[Improvement]** Extended title-bar developer guidance — added paired Korean/English implementation guides, public API contracts, application/library responsibility boundaries, FBA usage, and real-HWND validation guidance.
+
+### Major Bug Fixes
+
+- **[Bug]** Unconfigured application icon — removed implicit Duxel branding and now uses the Windows default application icon consistently across the native window, taskbar, Alt+Tab, and title-bar content when no icon is configured.
+- **[Bug]** Title-bar icon white rectangle — converts the effective `HICON` through WIC and renders it as an image quad with valid UV coordinates instead of sampling a texture as a solid primitive.
+- **[Bug]** Invisible extended caption buttons — keeps caption glyph pixels visible above opaque Vulkan content instead of treating successful DWM hit testing as proof that native button pixels are visible.
+
+### Packaging / Release
+
+- **[Improvement]** Package release — bumped `Duxel.App` and `Duxel.Windows.App` to `0.2.9-preview` with `net8.0`, `net9.0`, and `net10.0` assets.
+
 ## 0.2.8-preview (2026-07-16)
 
 ### Major Features

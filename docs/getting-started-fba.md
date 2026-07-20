@@ -3,7 +3,7 @@
 > Last synced: 2026-07-20
 > Korean original: [getting-started-fba.ko.md](getting-started-fba.ko.md)
 
-This guide covers the .NET 10 FBA (File-Based App) flow to run Duxel with a single `.cs` file. Duxel packages also support regular `net9.0` project consumers.
+This guide covers the .NET 10 FBA (File-Based App) flow to run Duxel with a single `.cs` file. Duxel `0.2.9-preview` packages support regular `net8.0`, `net9.0`, and `net10.0` project consumers.
 
 ## Requirements
 
@@ -67,8 +67,8 @@ dotnet run samples/fba/all_features.cs
 | `all_features.cs` | Full widget showcase demo with dedicated typography, layout, popup/context, input-query, item-status, multi-select, and layer/animation windows |
 | `declarative_dashboard_fba.cs` | Declarative C# dashboard using `UiState<T>`, reusable `UiComponent` classes, compiled Windows 11 design tokens, and product-shell helpers |
 | `hello_duxel_fba.cs` | Ultra-minimal hello sample with a small `Hello` and a large `Duxel!` |
-| `extended_title_bar_fba.cs` | Windows 11-style extended title bar with application tabs, native caption buttons, drag regions, and built-in Win32/DWM diagnostics |
-| `windows_calculator_fba.cs` | Calculator UI demo |
+| `extended_title_bar_fba.cs` | Windows 11-style extended title bar using the effective window icon, tab-shaped application controls, caption buttons visually identical to Duxel chrome in restored/maximized states, native Windows behavior, public drag/bounds APIs, and test-only Win32/DWM diagnostics |
+| `windows_calculator_fba.cs` | Calculator UI demo using library-owned Duxel chrome, including state-aware Maximize/Restore glyphs |
 | `text_render_validation_fba.cs` | Text rendering validation |
 | `font_style_validation_fba.cs` | Font style/size rendering validation |
 | `scrolling_static_layer_bench_fba.cs` | Scrolling/clip static layer benchmark for visual regression and cache invalidation validation |

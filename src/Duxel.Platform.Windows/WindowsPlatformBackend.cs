@@ -43,9 +43,9 @@ public readonly record struct WindowsPlatformBackendOptions(
 public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32PlatformBackend
     , IWindowChromeController
     , IWindowTitleBarPlatform
+    , IWindowIconProvider
     , IPlatformThemeProvider
 {
-    private const string DefaultIconResourceName = "Duxel.Platform.Windows.assets.duxel.ico";
     private const uint VkStructureTypeWin32SurfaceCreateInfoKhr = 1000009000;
     private const int VkSuccess = 0;
 
@@ -69,12 +69,20 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const int DwmwaTextColor = 36;
     private const int DwmwaUseImmersiveDarkMode = 20;
     private const int DwmwaAllowNcPaint = 4;
-    private const int DwmwaCaptionButtonBounds = 5;
     private const int DwmWindowCornerPreferenceRound = 2;
     private const uint ImageIcon = 1;
     private const uint LrLoadFromFile = 0x0010;
-    private const uint LrDefaultSize = 0x0040;
+    private const uint LrShared = 0x8000;
     private const uint CsDblClks = 0x0008;
+    private const int SmCxIcon = 11;
+    private const int SmCyIcon = 12;
+    private const int SmCxSmallIcon = 49;
+    private const int SmCySmallIcon = 50;
+    private const int IdiApplication = 32512;
+    private const uint TpmLeftAlign = 0x0000;
+    private const uint TpmTopAlign = 0x0000;
+    private const uint TpmRightButton = 0x0002;
+    private const uint TpmReturnCmd = 0x0100;
 
     private const int CwUseDefault = unchecked((int)0x80000000);
 
@@ -100,6 +108,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WmNcCalcSize = 0x0083;
     private const uint WmNcHitTest = 0x0084;
     private const uint WmNcMouseMove = 0x00A0;
+    private const uint WmNcLButtonDown = 0x00A1;
+    private const uint WmNcLButtonUp = 0x00A2;
+    private const uint WmNcRButtonUp = 0x00A5;
     private const uint WmCommand = 0x0111;
     private const uint WmSetCursor = 0x0020;
     private const uint WmKeyDown = 0x0100;
@@ -134,6 +145,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     private const int HtClient = 1;
     private const int HtCaption = 2;
+    private const int HtSysMenu = 3;
     private const int HtMinButton = 8;
     private const int HtMaxButton = 9;
     private const int HtLeft = 10;
@@ -148,6 +160,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const nuint SizeRestored = 0;
     private const nuint SizeMinimized = 1;
     private const uint WmSysCommand = 0x0112;
+    private const uint TmeLeave = 0x00000002;
+    private const uint TmeNonClient = 0x00000010;
 
     private const int VkTab = 0x09;
     private const int VkLeft = 0x25;
@@ -219,12 +233,14 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private readonly nint _ownerWindowHandle;
     private readonly nint _largeIconHandle;
     private readonly nint _smallIconHandle;
+    private readonly bool _ownsWindowIconHandles;
     private readonly WindowsTrayIconHost? _trayIcon;
     private readonly WindowsImeHandler _imeHandler;
-    private readonly Lock _titleBarDragRegionLock = new();
+    private readonly object _titleBarDragRegionLock = new();
     private UiRect[] _titleBarDragRegions = [];
     private int _titleBarDragRegionCount;
-    private int _extendedTitleBarFrameHeightPx;
+    private int _hoveredCaptionButtonHitTest;
+    private int _pressedCaptionButtonHitTest;
 
     private float _dpiScale;
 
@@ -292,7 +308,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         _centerOnScreen = options.CenterOnScreen;
         _centerOnOwner = options.CenterOnOwner;
         _ownerWindowHandle = options.OwnerWindowHandle;
-        (_largeIconHandle, _smallIconHandle) = LoadWindowIcons(options.IconPath, options.IconData);
+        (_largeIconHandle, _smallIconHandle, _ownsWindowIconHandles) = LoadWindowIcons(options.IconPath, options.IconData);
 
         if (options.MinWidth > 0 || options.MinHeight > 0)
         {
@@ -500,6 +516,10 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     public IWindowTitleBarPlatform? WindowTitleBar => this;
 
+    public UiCaptionButtonVisualState CaptionButtonVisualState => new(
+        CaptionButtonKindFromHitTest(Volatile.Read(ref _hoveredCaptionButtonHitTest)),
+        CaptionButtonKindFromHitTest(Volatile.Read(ref _pressedCaptionButtonHitTest)));
+
     public bool TryGetCaptionButtonBounds(out UiRect bounds)
     {
         ThrowIfDisposed();
@@ -509,37 +529,21 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             return false;
         }
 
-        var result = DwmGetWindowAttribute(
-            _windowHandle,
-            DwmwaCaptionButtonBounds,
-            out var buttonBounds,
-            Marshal.SizeOf<Rect>());
-        if (result != 0
-            || buttonBounds.right <= buttonBounds.left
-            || buttonBounds.bottom <= buttonBounds.top)
+        var clientWidthPx = Volatile.Read(ref _clientWidth);
+        if (clientWidthPx <= 0)
         {
             return false;
         }
 
-        if (!GetWindowRect(_windowHandle, out var windowRect))
-        {
-            throw new InvalidOperationException($"GetWindowRect failed: {Marshal.GetLastPInvokeError()}.");
-        }
-
-        var clientOrigin = new Point();
-        if (!ClientToScreen(_windowHandle, ref clientOrigin))
-        {
-            throw new InvalidOperationException($"ClientToScreen failed: {Marshal.GetLastPInvokeError()}.");
-        }
-
-        var clientOffsetX = clientOrigin.x - windowRect.left;
-        var clientOffsetY = clientOrigin.y - windowRect.top;
-        var inverseScale = 1f / MathF.Max(1f, _dpiScale);
+        var scale = MathF.Max(1f, _dpiScale);
+        var buttonCount = 1 + (_showMinimizeButton ? 1 : 0) + (_showMaximizeButton ? 1 : 0);
+        var width = DuxelChromeButtonLogicalWidth * buttonCount;
+        var clientWidth = clientWidthPx / scale;
         bounds = new UiRect(
-            (buttonBounds.left - clientOffsetX) * inverseScale,
-            (buttonBounds.top - clientOffsetY) * inverseScale,
-            (buttonBounds.right - buttonBounds.left) * inverseScale,
-            (buttonBounds.bottom - buttonBounds.top) * inverseScale);
+            MathF.Max(0f, clientWidth - width),
+            0f,
+            width,
+            _duxelTitleBarHeight);
         return true;
     }
 
@@ -675,12 +679,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             Marshal.FreeHGlobal(_classNamePtr);
         }
 
-        if (_smallIconHandle != nint.Zero)
+        if (_ownsWindowIconHandles && _smallIconHandle != nint.Zero)
         {
             _ = DestroyIcon(_smallIconHandle);
         }
 
-        if (_largeIconHandle != nint.Zero)
+        if (_ownsWindowIconHandles && _largeIconHandle != nint.Zero)
         {
             _ = DestroyIcon(_largeIconHandle);
         }
@@ -693,6 +697,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     public bool CanMaximize => _showMaximizeButton;
 
     public bool IsMaximized => IsZoomed(_windowHandle);
+
+    public UiImageData GetWindowIconImage()
+    {
+        ThrowIfDisposed();
+        return WindowsWicImageCodec.DecodeIcon(_smallIconHandle);
+    }
 
     public void BeginWindowMove()
     {
@@ -807,10 +817,10 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         var topFrameHeight = GetSystemMetricsForDpi(smCyCaption, dpi)
             + GetSystemMetricsForDpi(smCySizeFrame, dpi)
             + GetSystemMetricsForDpi(smCyPaddedBorder, dpi);
-        _extendedTitleBarFrameHeightPx = Math.Max(1, topFrameHeight);
+        var extendedTitleBarFrameHeightPx = Math.Max(1, topFrameHeight);
         var margins = new Margins
         {
-            cyTopHeight = _extendedTitleBarFrameHeightPx,
+            cyTopHeight = extendedTitleBarFrameHeightPx,
         };
         var result = DwmExtendFrameIntoClientArea(_windowHandle, ref margins);
         if (result != 0)
@@ -838,64 +848,95 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         return ((r * 299) + (g * 587) + (b * 114)) < 128000;
     }
 
-    private static (nint LargeIconHandle, nint SmallIconHandle) LoadWindowIcons(string? iconPath, ReadOnlyMemory<byte> iconData)
+    private static (nint LargeIconHandle, nint SmallIconHandle, bool OwnsHandles) LoadWindowIcons(
+        string? iconPath,
+        ReadOnlyMemory<byte> iconData)
     {
         if (iconData.Length > 0)
         {
-            var largeCx = GetSystemMetrics(11);
-            var largeCy = GetSystemMetrics(12);
-            var smallCx = GetSystemMetrics(49);
-            var smallCy = GetSystemMetrics(50);
+            var largeCx = GetSystemMetrics(SmCxIcon);
+            var largeCy = GetSystemMetrics(SmCyIcon);
+            var smallCx = GetSystemMetrics(SmCxSmallIcon);
+            var smallCy = GetSystemMetrics(SmCySmallIcon);
 
             var largeHandle = LoadIconFromIcoData(iconData.Span, largeCx, largeCy);
             var smallHandle = LoadIconFromIcoData(iconData.Span, smallCx, smallCy);
-            return (largeHandle, smallHandle != nint.Zero ? smallHandle : largeHandle);
+            var icons = ValidateWindowIcons(largeHandle, smallHandle, "IconData", ownsHandles: true);
+            return (icons.LargeIconHandle, icons.SmallIconHandle, true);
         }
 
-        if (string.IsNullOrWhiteSpace(iconPath) || !File.Exists(iconPath))
+        if (string.IsNullOrWhiteSpace(iconPath))
         {
-            return LoadDefaultWindowIcons();
+            return LoadSystemDefaultWindowIcons();
         }
 
-        var largeHandleFile = LoadImageW(nint.Zero, iconPath, ImageIcon, 0, 0, LrLoadFromFile | LrDefaultSize);
-        var smallHandleFile = LoadImageW(nint.Zero, iconPath, ImageIcon, GetSystemMetrics(49), GetSystemMetrics(50), LrLoadFromFile);
+        if (!File.Exists(iconPath))
+        {
+            throw new FileNotFoundException("The window icon file does not exist.", iconPath);
+        }
 
-        return (largeHandleFile, smallHandleFile != nint.Zero ? smallHandleFile : largeHandleFile);
+        var largeHandleFile = LoadImageW(
+            nint.Zero,
+            iconPath,
+            ImageIcon,
+            GetSystemMetrics(SmCxIcon),
+            GetSystemMetrics(SmCyIcon),
+            LrLoadFromFile);
+        var smallHandleFile = LoadImageW(
+            nint.Zero,
+            iconPath,
+            ImageIcon,
+            GetSystemMetrics(SmCxSmallIcon),
+            GetSystemMetrics(SmCySmallIcon),
+            LrLoadFromFile);
+
+        var fileIcons = ValidateWindowIcons(largeHandleFile, smallHandleFile, iconPath, ownsHandles: true);
+        return (fileIcons.LargeIconHandle, fileIcons.SmallIconHandle, true);
     }
 
-    private static (nint LargeIconHandle, nint SmallIconHandle) LoadDefaultWindowIcons()
+    private static (nint LargeIconHandle, nint SmallIconHandle, bool OwnsHandles) LoadSystemDefaultWindowIcons()
     {
-        using var stream = typeof(WindowsPlatformBackend).Assembly.GetManifestResourceStream(DefaultIconResourceName);
-        if (stream is null)
+        var largeIconHandle = LoadImageResourceW(
+            nint.Zero,
+            (nint)IdiApplication,
+            ImageIcon,
+            GetSystemMetrics(SmCxIcon),
+            GetSystemMetrics(SmCyIcon),
+            LrShared);
+        var smallIconHandle = LoadImageResourceW(
+            nint.Zero,
+            (nint)IdiApplication,
+            ImageIcon,
+            GetSystemMetrics(SmCxSmallIcon),
+            GetSystemMetrics(SmCySmallIcon),
+            LrShared);
+        var icons = ValidateWindowIcons(largeIconHandle, smallIconHandle, "IDI_APPLICATION", ownsHandles: false);
+        return (icons.LargeIconHandle, icons.SmallIconHandle, false);
+    }
+
+    private static (nint LargeIconHandle, nint SmallIconHandle) ValidateWindowIcons(
+        nint largeIconHandle,
+        nint smallIconHandle,
+        string source,
+        bool ownsHandles)
+    {
+        if (largeIconHandle != nint.Zero && smallIconHandle != nint.Zero)
         {
-            return (nint.Zero, nint.Zero);
+            return (largeIconHandle, smallIconHandle);
         }
 
-        var iconData = new byte[stream.Length];
-        var read = 0;
-        while (read < iconData.Length)
+        var error = Marshal.GetLastPInvokeError();
+        if (ownsHandles && smallIconHandle != nint.Zero)
         {
-            var count = stream.Read(iconData, read, iconData.Length - read);
-            if (count <= 0)
-            {
-                break;
-            }
-
-            read += count;
+            _ = DestroyIcon(smallIconHandle);
         }
 
-        if (read != iconData.Length)
+        if (ownsHandles && largeIconHandle != nint.Zero)
         {
-            return (nint.Zero, nint.Zero);
+            _ = DestroyIcon(largeIconHandle);
         }
 
-        var largeCx = GetSystemMetrics(11);
-        var largeCy = GetSystemMetrics(12);
-        var smallCx = GetSystemMetrics(49);
-        var smallCy = GetSystemMetrics(50);
-        var largeHandle = LoadIconFromIcoData(iconData, largeCx, largeCy);
-        var smallHandle = LoadIconFromIcoData(iconData, smallCx, smallCy);
-        return (largeHandle, smallHandle != nint.Zero ? smallHandle : largeHandle);
+        throw new InvalidDataException($"Failed to load the large and small window icons from '{source}'. Win32 error: {error}.");
     }
 
     internal static nint LoadIconFromIcoData(ReadOnlySpan<byte> icoData, int desiredWidth, int desiredHeight)
@@ -1062,11 +1103,35 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             return 1;
         }
 
-        if (_titleBarMode is DuxelTitleBarMode.ExtendedContent
-            && message is WmNcHitTest or WmNcMouseLeave
-            && DwmDefWindowProc(hwnd, message, wParam, lParam, out var dwmResult))
+        if (_titleBarMode is DuxelTitleBarMode.ExtendedContent)
         {
-            return dwmResult;
+            UpdateExtendedCaptionButtonVisualState(hwnd, message, wParam);
+            if (message == WmNcHitTest)
+            {
+                if (TryHitTestExtendedCaptionButtons(hwnd, lParam, out var hitTest))
+                {
+                    return hitTest;
+                }
+
+                if (_resizable && TryHitTestResizeBorder(hwnd, lParam, out hitTest))
+                {
+                    return hitTest;
+                }
+
+                return IsExtendedTitleBarDragPoint(hwnd, lParam) ? HtCaption : HtClient;
+            }
+
+            if (message == WmNcRButtonUp
+                && unchecked((int)wParam) is HtCaption or HtSysMenu)
+            {
+                ShowWindowSystemMenuAtScreenPoint(hwnd, PointFromLParam(lParam));
+                return 0;
+            }
+
+            if (DwmDefWindowProc(hwnd, message, wParam, lParam, out var dwmResult))
+            {
+                return dwmResult;
+            }
         }
 
         _inputBackend.HandleMessage(message, wParam, lParam);
@@ -1100,27 +1165,22 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                     return hitTest;
                 }
 
-                if (_titleBarMode is DuxelTitleBarMode.ExtendedContent)
-                {
-                    if (TryHitTestNativeCaptionButtons(hwnd, lParam, out hitTest))
-                    {
-                        return hitTest;
-                    }
-
-                    if (_resizable && TryHitTestResizeBorder(hwnd, lParam, out hitTest))
-                    {
-                        return hitTest;
-                    }
-
-                    return IsExtendedTitleBarDragPoint(hwnd, lParam) ? HtCaption : HtClient;
-                }
-
                 break;
             case WmLButtonDown:
                 if (_useDuxelTitleBar
                     && IsDuxelCaptionDragClientPoint(hwnd, lParam, _duxelTitleBarHeightPx, _showMinimizeButton, _showMaximizeButton, _dpiScale))
                 {
                     BeginWindowMoveCore();
+                    return 0;
+                }
+
+                break;
+            case WmRButtonUp:
+                if (_useDuxelTitleBar
+                    && IsDuxelCaptionDragClientPoint(hwnd, lParam, _duxelTitleBarHeightPx, _showMinimizeButton, _showMaximizeButton, _dpiScale))
+                {
+                    _inputBackend.CancelMouseButtons();
+                    ShowWindowSystemMenu(hwnd, lParam);
                     return 0;
                 }
 
@@ -1456,39 +1516,32 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         }
     }
 
-    private bool TryHitTestNativeCaptionButtons(nint hwnd, nint lParam, out nint hitTest)
+    private bool TryHitTestExtendedCaptionButtons(nint hwnd, nint lParam, out nint hitTest)
     {
         hitTest = 0;
-        if (!GetWindowRect(hwnd, out var windowRect))
-        {
-            throw new InvalidOperationException($"GetWindowRect failed: {Marshal.GetLastPInvokeError()}.");
-        }
-
         var point = PointFromLParam(lParam);
-        var x = point.x - windowRect.left;
-        var y = point.y - windowRect.top;
-        if (y < 0 || y >= Volatile.Read(ref _extendedTitleBarFrameHeightPx))
+        if (!ScreenToClient(hwnd, ref point))
         {
-            return false;
+            throw new InvalidOperationException($"ScreenToClient failed: {Marshal.GetLastPInvokeError()}.");
         }
 
-        var result = DwmGetWindowAttribute(
-            hwnd,
-            DwmwaCaptionButtonBounds,
-            out var bounds,
-            Marshal.SizeOf<Rect>());
-        if (result != 0 || bounds.right <= bounds.left || bounds.bottom <= bounds.top)
-        {
-            return false;
-        }
-
-        if (x < bounds.left || x >= bounds.right || y < bounds.top || y >= bounds.bottom)
-        {
-            return false;
-        }
-
+        var clientWidth = Volatile.Read(ref _clientWidth);
         var buttonCount = 1 + (_showMinimizeButton ? 1 : 0) + (_showMaximizeButton ? 1 : 0);
-        var buttonIndex = Math.Min(buttonCount - 1, (x - bounds.left) * buttonCount / Math.Max(1, bounds.right - bounds.left));
+        var buttonAreaWidth = Math.Max(
+            1,
+            (int)MathF.Ceiling(DuxelChromeButtonLogicalWidth * MathF.Max(1f, _dpiScale) * buttonCount));
+        var buttonAreaLeft = Math.Max(0, clientWidth - buttonAreaWidth);
+        if (point.x < buttonAreaLeft
+            || point.x >= clientWidth
+            || point.y < 0
+            || point.y >= _duxelTitleBarHeightPx)
+        {
+            return false;
+        }
+
+        var buttonIndex = Math.Min(
+            buttonCount - 1,
+            (point.x - buttonAreaLeft) * buttonCount / buttonAreaWidth);
         if (_showMinimizeButton && buttonIndex-- is 0)
         {
             hitTest = HtMinButton;
@@ -1523,6 +1576,90 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             x = (short)(value & 0xFFFF),
             y = (short)((value >> 16) & 0xFFFF),
         };
+    }
+
+    private void UpdateExtendedCaptionButtonVisualState(nint hwnd, uint message, nuint wParam)
+    {
+        var hitTest = unchecked((int)wParam);
+        switch (message)
+        {
+            case WmNcMouseMove:
+                SetCaptionButtonVisualState(
+                    hitTest is HtMinButton or HtMaxButton or HtClose ? hitTest : 0,
+                    Volatile.Read(ref _pressedCaptionButtonHitTest));
+                var tracking = new TrackMouseEventData
+                {
+                    cbSize = (uint)Marshal.SizeOf<TrackMouseEventData>(),
+                    dwFlags = TmeLeave | TmeNonClient,
+                    hwndTrack = hwnd,
+                };
+                _ = TrackMouseEventNative(ref tracking);
+                break;
+            case WmNcLButtonDown:
+                SetCaptionButtonVisualState(
+                    hitTest is HtMinButton or HtMaxButton or HtClose ? hitTest : 0,
+                    hitTest is HtMinButton or HtMaxButton or HtClose ? hitTest : 0);
+                break;
+            case WmNcLButtonUp:
+                SetCaptionButtonVisualState(
+                    hitTest is HtMinButton or HtMaxButton or HtClose ? hitTest : 0,
+                    0);
+                break;
+            case WmNcMouseLeave:
+                SetCaptionButtonVisualState(0, 0);
+                break;
+        }
+    }
+
+    private void SetCaptionButtonVisualState(int hoveredHitTest, int pressedHitTest)
+    {
+        var previousHovered = Interlocked.Exchange(ref _hoveredCaptionButtonHitTest, hoveredHitTest);
+        var previousPressed = Interlocked.Exchange(ref _pressedCaptionButtonHitTest, pressedHitTest);
+        if (previousHovered != hoveredHitTest || previousPressed != pressedHitTest)
+        {
+            _frameInvalidated?.Invoke();
+        }
+    }
+
+    private static UiCaptionButtonKind CaptionButtonKindFromHitTest(int hitTest) => hitTest switch
+    {
+        HtMinButton => UiCaptionButtonKind.Minimize,
+        HtMaxButton => UiCaptionButtonKind.Maximize,
+        HtClose => UiCaptionButtonKind.Close,
+        _ => UiCaptionButtonKind.None,
+    };
+
+    private static void ShowWindowSystemMenu(nint hwnd, nint clientPointLParam)
+    {
+        var point = ClientPointFromLParam(clientPointLParam);
+        if (!ClientToScreen(hwnd, ref point))
+        {
+            throw new InvalidOperationException($"ClientToScreen failed: {Marshal.GetLastPInvokeError()}.");
+        }
+
+        ShowWindowSystemMenuAtScreenPoint(hwnd, point);
+    }
+
+    private static void ShowWindowSystemMenuAtScreenPoint(nint hwnd, Point point)
+    {
+        var menu = GetSystemMenu(hwnd, false);
+        if (menu == nint.Zero)
+        {
+            throw new InvalidOperationException($"GetSystemMenu failed: {Marshal.GetLastPInvokeError()}.");
+        }
+
+        _ = SetForegroundWindow(hwnd);
+        var command = TrackPopupMenuEx(
+            menu,
+            TpmLeftAlign | TpmTopAlign | TpmRightButton | TpmReturnCmd,
+            point.x,
+            point.y,
+            hwnd,
+            nint.Zero);
+        if (command != 0)
+        {
+            _ = SendMessageW(hwnd, WmSysCommand, command, nint.Zero);
+        }
     }
 
     private static int GetResizeBorderWidth(nint hwnd)
@@ -1955,6 +2092,15 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct TrackMouseEventData
+    {
+        public uint cbSize;
+        public uint dwFlags;
+        public nint hwndTrack;
+        public uint dwHoverTime;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct NcCalcSizeParams
     {
         public Rect rgrc0;
@@ -2048,6 +2194,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private static partial bool GetClientRect(nint hWnd, out Rect lpRect);
 
     [LibraryImport("user32.dll", SetLastError = true)]
+    private static partial nint GetSystemMenu(nint hWnd, [MarshalAs(UnmanagedType.Bool)] bool bRevert);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetWindowRect(nint hWnd, out Rect lpRect);
 
@@ -2090,6 +2239,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     [LibraryImport("user32.dll", EntryPoint = "LoadImageW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     private static partial nint LoadImageW(nint hInst, string lpszName, uint uType, int cxDesired, int cyDesired, uint fuLoad);
+
+    [LibraryImport("user32.dll", EntryPoint = "LoadImageW", SetLastError = true)]
+    private static partial nint LoadImageResourceW(nint hInst, nint lpszName, uint uType, int cxDesired, int cyDesired, uint fuLoad);
 
     [LibraryImport("user32.dll", SetLastError = true)]
     private static partial nint CreateIconFromResourceEx(nint presbits, uint dwResSize, [MarshalAs(UnmanagedType.Bool)] bool fIcon, uint dwVer, int cxDesired, int cyDesired, uint flags);
@@ -2134,6 +2286,13 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     [LibraryImport("user32.dll")]
     private static partial nint SendMessageW(nint hWnd, uint msg, nuint wParam, nint lParam);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    private static partial uint TrackPopupMenuEx(nint hMenu, uint uFlags, int x, int y, nint hWnd, nint lptpm);
+
+    [LibraryImport("user32.dll", EntryPoint = "TrackMouseEvent", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool TrackMouseEventNative(ref TrackMouseEventData lpEventTrack);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
