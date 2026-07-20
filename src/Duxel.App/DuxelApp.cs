@@ -271,6 +271,7 @@ public static class DuxelApp
         context.SetDesign(ResolveEffectiveDesign(options, platform));
 
         context.SetPlatformTextBackend(platform.TextBackend);
+        context.SetWindowTitleBarPlatform(platform.WindowTitleBar);
         if (platform.ImeHandler is { } imeHandler)
         {
             context.SetImeHandler(imeHandler);
@@ -394,6 +395,7 @@ public sealed record class DuxelWindowOptions
     public ReadOnlyMemory<byte> IconData { get; init; }
     public Action<nint>? WindowCreated { get; init; }
     public bool IntegrateSystemChrome { get; init; } = true;
+    public DuxelTitleBarMode TitleBarMode { get; init; } = DuxelTitleBarMode.Default;
     public bool UseDuxelTitleBar { get; init; } = true;
     public float DuxelTitleBarHeight { get; init; } = 48f;
     public DuxelTrayOptions Tray { get; init; } = new();

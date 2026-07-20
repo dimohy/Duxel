@@ -10,6 +10,14 @@ public enum UiSystemColorScheme
     Dark,
 }
 
+public enum DuxelTitleBarMode
+{
+    Default,
+    System,
+    Duxel,
+    ExtendedContent,
+}
+
 public readonly record struct InputSnapshot(
     UiVector2 MousePosition,
     bool LeftMouseDown,
@@ -57,6 +65,7 @@ public interface IPlatformBackend : IDisposable
     IVulkanSurfaceSource? VulkanSurface { get; }
     IPlatformTextBackend? TextBackend { get; }
     IUiImeHandler? ImeHandler => null;
+    IWindowTitleBarPlatform? WindowTitleBar => null;
     long InteractiveResizeSequence => 0;
 
     void PollEvents();
@@ -64,6 +73,12 @@ public interface IPlatformBackend : IDisposable
     void SetMouseCursor(UiMouseCursor cursor);
     void NotifyFramePresented(long interactiveResizeSequence) { }
     void CancelInteractiveResizeWait() { }
+}
+
+public interface IWindowTitleBarPlatform
+{
+    bool TryGetCaptionButtonBounds(out UiRect bounds);
+    void SetTitleBarDragRegions(ReadOnlySpan<UiRect> regions);
 }
 
 public interface IPlatformThemeProvider

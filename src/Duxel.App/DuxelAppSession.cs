@@ -216,7 +216,8 @@ public sealed class DuxelAppSession
         uiContext.SetDirectTextFallbackEnabled(directTextFallbackEnabled);
         uiContext.SetContentScale(contentScale);
         var windowIcon = CreateWindowIconTexture(options.Window);
-        var activeScreen = options.Window.UseDuxelTitleBar && platform is IWindowChromeController chrome
+        var titleBarMode = ResolveTitleBarMode(options.Window);
+        var activeScreen = titleBarMode is DuxelTitleBarMode.Duxel && platform is IWindowChromeController chrome
             ? new DuxelWindowChromeScreen(options.Screen, chrome, options.Window.DuxelTitleBarHeight, windowIcon)
             : options.Screen;
         uiContext.SetScreen(activeScreen);
@@ -865,6 +866,11 @@ public sealed class DuxelAppSession
             Volatile.Write(ref _frameWakeSignal, null);
         }
     }
+
+    internal static DuxelTitleBarMode ResolveTitleBarMode(DuxelWindowOptions options)
+        => options.TitleBarMode is DuxelTitleBarMode.Default
+            ? options.UseDuxelTitleBar ? DuxelTitleBarMode.Duxel : DuxelTitleBarMode.System
+            : options.TitleBarMode;
 
     private static UiImageTexture? CreateWindowIconTexture(DuxelWindowOptions window)
     {

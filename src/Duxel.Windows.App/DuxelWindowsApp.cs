@@ -143,7 +143,10 @@ public static class DuxelWindowsApp
                     resolvedOptions.Window.Tray,
                     resolvedOptions.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
                     session.RequestFrame
-                ));
+                )
+                {
+                    TitleBarMode = resolvedOptions.Window.TitleBarMode,
+                });
 
                 session.RunCore(resolvedOptions, platform);
             }
@@ -241,7 +244,10 @@ public static class DuxelWindowsApp
                     resolvedOptions.Window.Tray,
                     resolvedOptions.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
                     session.RequestFrame
-                ));
+                )
+                {
+                    TitleBarMode = resolvedOptions.Window.TitleBarMode,
+                });
 
                 session.RunCore(resolvedOptions, platform);
             }
@@ -381,7 +387,10 @@ public static class DuxelWindowsApp
             resolvedOptions.Window.Tray,
             resolvedOptions.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
             session.RequestFrame
-        ));
+        )
+        {
+            TitleBarMode = resolvedOptions.Window.TitleBarMode,
+        });
 
         session.RunCore(resolvedOptions, platform);
     }

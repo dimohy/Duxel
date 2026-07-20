@@ -61,6 +61,7 @@ public sealed partial class UiImmediateContext
     private string? _directTextPrimaryFontPath;
     private string? _directTextSecondaryFontPath;
     private IPlatformTextBackend? _platformTextBackend;
+    private IWindowTitleBarPlatform? _windowTitleBar;
     private float _directTextBaseFontSize;
     private bool _directTextEnabled;
     private bool _directTextFallbackEnabled;
@@ -2401,6 +2402,46 @@ public sealed partial class UiImmediateContext
     public void SetViewportTopInset(float topInset)
     {
         _viewportTopInset = MathF.Max(0f, topInset);
+    }
+
+    public bool TryGetCaptionButtonBounds(out UiRect bounds)
+    {
+        if (_windowTitleBar is null)
+        {
+            bounds = default;
+            return false;
+        }
+
+        return _windowTitleBar.TryGetCaptionButtonBounds(out bounds);
+    }
+
+    public void SetTitleBarDragRegions(ReadOnlySpan<UiRect> regions)
+    {
+        if (_windowTitleBar is null)
+        {
+            throw new InvalidOperationException("Title-bar drag regions require a platform title-bar implementation.");
+        }
+
+        for (var i = 0; i < regions.Length; i++)
+        {
+            var region = regions[i];
+            if (!float.IsFinite(region.X)
+                || !float.IsFinite(region.Y)
+                || !float.IsFinite(region.Width)
+                || !float.IsFinite(region.Height)
+                || region.Width <= 0f
+                || region.Height <= 0f)
+            {
+                throw new ArgumentOutOfRangeException(nameof(regions), "Title-bar drag regions must contain finite coordinates and positive dimensions.");
+            }
+        }
+
+        _windowTitleBar.SetTitleBarDragRegions(regions);
+    }
+
+    internal void SetWindowTitleBarPlatform(IWindowTitleBarPlatform? windowTitleBar)
+    {
+        _windowTitleBar = windowTitleBar;
     }
 
     public float GetMainMenuBarHeight() => _mainMenuBarHeight;

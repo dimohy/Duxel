@@ -34,11 +34,15 @@ public readonly record struct WindowsPlatformBackendOptions(
     DuxelTrayOptions TrayOptions,
     IKeyRepeatSettingsProvider KeyRepeatSettingsProvider,
     Action? FrameInvalidated
-);
+)
+{
+    public DuxelTitleBarMode TitleBarMode { get; init; } = DuxelTitleBarMode.Default;
+}
 
 [SupportedOSPlatform("windows")]
 public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32PlatformBackend
     , IWindowChromeController
+    , IWindowTitleBarPlatform
     , IPlatformThemeProvider
 {
     private const string DefaultIconResourceName = "Duxel.Platform.Windows.assets.duxel.ico";
@@ -64,6 +68,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const int DwmwaCaptionColor = 35;
     private const int DwmwaTextColor = 36;
     private const int DwmwaUseImmersiveDarkMode = 20;
+    private const int DwmwaAllowNcPaint = 4;
+    private const int DwmwaCaptionButtonBounds = 5;
     private const int DwmWindowCornerPreferenceRound = 2;
     private const uint ImageIcon = 1;
     private const uint LrLoadFromFile = 0x0010;
@@ -77,6 +83,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint QsAllInput = 0x04FF;
     private const uint MwmoInputAvailable = 0x0004;
     private const uint WaitTimeout = 0x00000102;
+    private const uint MonitorDefaultToNearest = 2;
 
     private const int GwlpUserData = -21;
     private const uint ScMinimize = 0xF020;
@@ -120,11 +127,15 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WmPaint = 0x000F;
     private const uint WmSettingChange = 0x001A;
     private const uint WmDpiChanged = 0x02E0;
+    private const uint WmDwmCompositionChanged = 0x031E;
+    private const uint WmNcMouseLeave = 0x02A2;
     private const uint WmApp = 0x8000;
     private const uint WmTrayCallback = WmApp + 1;
 
     private const int HtClient = 1;
     private const int HtCaption = 2;
+    private const int HtMinButton = 8;
+    private const int HtMaxButton = 9;
     private const int HtLeft = 10;
     private const int HtRight = 11;
     private const int HtTop = 12;
@@ -133,6 +144,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const int HtBottom = 15;
     private const int HtBottomLeft = 16;
     private const int HtBottomRight = 17;
+    private const int HtClose = 20;
     private const nuint SizeRestored = 0;
     private const nuint SizeMinimized = 1;
     private const uint WmSysCommand = 0x0112;
@@ -192,8 +204,10 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private readonly string _windowTitle;
     private readonly bool _resizable;
     private readonly bool _integrateSystemChrome;
+    private readonly DuxelTitleBarMode _titleBarMode;
     private readonly bool _useDuxelTitleBar;
-    private readonly int _duxelTitleBarHeightPx;
+    private readonly float _duxelTitleBarHeight;
+    private int _duxelTitleBarHeightPx;
     private readonly bool _followSystemTheme;
     private readonly UiColor _chromeCaptionColor;
     private readonly UiColor _chromeTextColor;
@@ -207,6 +221,10 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private readonly nint _smallIconHandle;
     private readonly WindowsTrayIconHost? _trayIcon;
     private readonly WindowsImeHandler _imeHandler;
+    private readonly Lock _titleBarDragRegionLock = new();
+    private UiRect[] _titleBarDragRegions = [];
+    private int _titleBarDragRegionCount;
+    private int _extendedTitleBarFrameHeightPx;
 
     private float _dpiScale;
 
@@ -258,8 +276,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         _dpiScale = systemDpi > 0 ? systemDpi / 96f : 1f;
         _resizable = options.Resizable;
         _integrateSystemChrome = options.IntegrateSystemChrome;
-        _useDuxelTitleBar = options.UseDuxelTitleBar;
-        _duxelTitleBarHeightPx = Math.Max(1, (int)MathF.Round(MathF.Max(32f, options.DuxelTitleBarHeight) * _dpiScale));
+        _titleBarMode = options.TitleBarMode is DuxelTitleBarMode.Default
+            ? options.UseDuxelTitleBar ? DuxelTitleBarMode.Duxel : DuxelTitleBarMode.System
+            : options.TitleBarMode;
+        _useDuxelTitleBar = _titleBarMode is DuxelTitleBarMode.Duxel;
+        _duxelTitleBarHeight = MathF.Max(32f, options.DuxelTitleBarHeight);
+        _duxelTitleBarHeightPx = Math.Max(1, (int)MathF.Round(_duxelTitleBarHeight * _dpiScale));
         _followSystemTheme = options.FollowSystemTheme;
         _chromeCaptionColor = options.ChromeCaptionColor;
         _chromeTextColor = options.ChromeTextColor;
@@ -324,7 +346,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
         var createWidth = scaledWidth;
         var createHeight = scaledHeight;
-        if (!_useDuxelTitleBar)
+        if (_titleBarMode is DuxelTitleBarMode.System)
         {
             var createRect = UnsafeRectForCreate(scaledWidth, scaledHeight);
             if (!AdjustWindowRectEx(ref createRect, _windowStyle, false, 0))
@@ -364,11 +386,15 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
         _imeHandler = new WindowsImeHandler(_windowHandle, options.FrameInvalidated);
 
-        if (_integrateSystemChrome || _useDuxelTitleBar)
+        if (_integrateSystemChrome || _titleBarMode is not DuxelTitleBarMode.System)
         {
             ApplyCurrentSystemChrome();
         }
-        if (_useDuxelTitleBar)
+        if (_titleBarMode is DuxelTitleBarMode.ExtendedContent)
+        {
+            ApplyExtendedContentFrame();
+        }
+        if (_titleBarMode is not DuxelTitleBarMode.System)
         {
             _ = SetWindowPos(
                 _windowHandle,
@@ -471,6 +497,71 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     public IPlatformTextBackend? TextBackend => WindowsPlatformTextBackend.Instance;
 
     public IUiImeHandler? ImeHandler => _imeHandler;
+
+    public IWindowTitleBarPlatform? WindowTitleBar => this;
+
+    public bool TryGetCaptionButtonBounds(out UiRect bounds)
+    {
+        ThrowIfDisposed();
+        bounds = default;
+        if (_titleBarMode is not DuxelTitleBarMode.ExtendedContent)
+        {
+            return false;
+        }
+
+        var result = DwmGetWindowAttribute(
+            _windowHandle,
+            DwmwaCaptionButtonBounds,
+            out var buttonBounds,
+            Marshal.SizeOf<Rect>());
+        if (result != 0
+            || buttonBounds.right <= buttonBounds.left
+            || buttonBounds.bottom <= buttonBounds.top)
+        {
+            return false;
+        }
+
+        if (!GetWindowRect(_windowHandle, out var windowRect))
+        {
+            throw new InvalidOperationException($"GetWindowRect failed: {Marshal.GetLastPInvokeError()}.");
+        }
+
+        var clientOrigin = new Point();
+        if (!ClientToScreen(_windowHandle, ref clientOrigin))
+        {
+            throw new InvalidOperationException($"ClientToScreen failed: {Marshal.GetLastPInvokeError()}.");
+        }
+
+        var clientOffsetX = clientOrigin.x - windowRect.left;
+        var clientOffsetY = clientOrigin.y - windowRect.top;
+        var inverseScale = 1f / MathF.Max(1f, _dpiScale);
+        bounds = new UiRect(
+            (buttonBounds.left - clientOffsetX) * inverseScale,
+            (buttonBounds.top - clientOffsetY) * inverseScale,
+            (buttonBounds.right - buttonBounds.left) * inverseScale,
+            (buttonBounds.bottom - buttonBounds.top) * inverseScale);
+        return true;
+    }
+
+    public void SetTitleBarDragRegions(ReadOnlySpan<UiRect> regions)
+    {
+        ThrowIfDisposed();
+        if (_titleBarMode is not DuxelTitleBarMode.ExtendedContent)
+        {
+            throw new InvalidOperationException("Title-bar drag regions require DuxelTitleBarMode.ExtendedContent.");
+        }
+
+        lock (_titleBarDragRegionLock)
+        {
+            if (_titleBarDragRegions.Length < regions.Length)
+            {
+                _titleBarDragRegions = new UiRect[Math.Max(regions.Length, _titleBarDragRegions.Length * 2)];
+            }
+
+            regions.CopyTo(_titleBarDragRegions);
+            _titleBarDragRegionCount = regions.Length;
+        }
+    }
 
     public nint WindowHandle => _windowHandle;
 
@@ -702,6 +793,30 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
         var darkMode = IsDarkColor(captionColor) ? 1 : 0;
         SetDwmAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref darkMode);
+    }
+
+    private void ApplyExtendedContentFrame()
+    {
+        var allowNcPaint = 1;
+        SetDwmAttribute(_windowHandle, DwmwaAllowNcPaint, ref allowNcPaint);
+
+        const int smCyCaption = 4;
+        const int smCySizeFrame = 33;
+        const int smCyPaddedBorder = 92;
+        var dpi = Math.Max(96u, GetDpiForWindow(_windowHandle));
+        var topFrameHeight = GetSystemMetricsForDpi(smCyCaption, dpi)
+            + GetSystemMetricsForDpi(smCySizeFrame, dpi)
+            + GetSystemMetricsForDpi(smCyPaddedBorder, dpi);
+        _extendedTitleBarFrameHeightPx = Math.Max(1, topFrameHeight);
+        var margins = new Margins
+        {
+            cyTopHeight = _extendedTitleBarFrameHeightPx,
+        };
+        var result = DwmExtendFrameIntoClientArea(_windowHandle, ref margins);
+        if (result != 0)
+        {
+            throw new InvalidOperationException($"DwmExtendFrameIntoClientArea failed: 0x{result:X8}.");
+        }
     }
 
     private static void SetDwmAttribute(nint hwnd, int attribute, ref int value)
@@ -947,6 +1062,13 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             return 1;
         }
 
+        if (_titleBarMode is DuxelTitleBarMode.ExtendedContent
+            && message is WmNcHitTest or WmNcMouseLeave
+            && DwmDefWindowProc(hwnd, message, wParam, lParam, out var dwmResult))
+        {
+            return dwmResult;
+        }
+
         _inputBackend.HandleMessage(message, wParam, lParam);
 
         if (_trayIcon?.HandleWindowMessage(message, wParam, lParam) == true)
@@ -957,8 +1079,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         switch (message)
         {
             case WmNcCalcSize:
-                if (_useDuxelTitleBar)
+                if (_titleBarMode is not DuxelTitleBarMode.System)
                 {
+                    if (wParam != 0)
+                    {
+                        ConstrainMaximizedClientRectToWorkArea(hwnd, lParam);
+                    }
                     return 0;
                 }
 
@@ -972,6 +1098,21 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 if (_useDuxelTitleBar && TryHitTestDuxelTitleBar(hwnd, lParam, _duxelTitleBarHeightPx, out hitTest))
                 {
                     return hitTest;
+                }
+
+                if (_titleBarMode is DuxelTitleBarMode.ExtendedContent)
+                {
+                    if (TryHitTestNativeCaptionButtons(hwnd, lParam, out hitTest))
+                    {
+                        return hitTest;
+                    }
+
+                    if (_resizable && TryHitTestResizeBorder(hwnd, lParam, out hitTest))
+                    {
+                        return hitTest;
+                    }
+
+                    return IsExtendedTitleBarDragPoint(hwnd, lParam) ? HtCaption : HtClient;
                 }
 
                 break;
@@ -1033,6 +1174,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 break;
 
             case WmWindowPosChanging:
+                _frameInvalidated?.Invoke();
+                break;
             case WmWindowPosChanged:
                 _frameInvalidated?.Invoke();
                 break;
@@ -1067,46 +1210,79 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 }
                 break;
             case WmGetMinMaxInfo:
-                if (_minTrackWidth > 0 || _minTrackHeight > 0)
+                unsafe
                 {
-                    unsafe
+                    var handled = false;
+                    var mmi = (MinMaxInfo*)lParam;
+                    if (_titleBarMode is not DuxelTitleBarMode.System)
                     {
-                        var mmi = (MinMaxInfo*)lParam;
-                        if (_minTrackWidth > 0)
+                        var monitor = MonitorFromWindow(hwnd, MonitorDefaultToNearest);
+                        var monitorInfo = new MonitorInfo { cbSize = (uint)sizeof(MonitorInfo) };
+                        if (monitor != nint.Zero && GetMonitorInfoW(monitor, ref monitorInfo))
                         {
-                            mmi->ptMinTrackSize.x = Math.Max(mmi->ptMinTrackSize.x, _minTrackWidth);
-                        }
-
-                        if (_minTrackHeight > 0)
-                        {
-                            mmi->ptMinTrackSize.y = Math.Max(mmi->ptMinTrackSize.y, _minTrackHeight);
+                            mmi->ptMaxPosition.x = monitorInfo.rcWork.left - monitorInfo.rcMonitor.left;
+                            mmi->ptMaxPosition.y = monitorInfo.rcWork.top - monitorInfo.rcMonitor.top;
+                            mmi->ptMaxSize.x = monitorInfo.rcWork.right - monitorInfo.rcWork.left;
+                            mmi->ptMaxSize.y = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
+                            handled = true;
                         }
                     }
 
-                    return 0;
+                    if (_minTrackWidth > 0)
+                    {
+                        mmi->ptMinTrackSize.x = Math.Max(mmi->ptMinTrackSize.x, _minTrackWidth);
+                        handled = true;
+                    }
+
+                    if (_minTrackHeight > 0)
+                    {
+                        mmi->ptMinTrackSize.y = Math.Max(mmi->ptMinTrackSize.y, _minTrackHeight);
+                        handled = true;
+                    }
+
+                    if (handled)
+                    {
+                        return 0;
+                    }
                 }
 
                 break;
             case WmDpiChanged:
-            {
-                var newDpi = (int)(wParam & 0xFFFF);
-                _dpiScale = newDpi > 0 ? newDpi / 96f : 1f;
-                RecalculateMinTrackSize();
-                unsafe
                 {
-                    var suggestedRect = (Rect*)lParam;
-                    _ = SetWindowPos(
-                        hwnd,
-                        nint.Zero,
-                        suggestedRect->left,
-                        suggestedRect->top,
-                        suggestedRect->right - suggestedRect->left,
-                        suggestedRect->bottom - suggestedRect->top,
-                        0x0004 | 0x0010 | 0x0200); // SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS
+                    var newDpi = (int)(wParam & 0xFFFF);
+                    _dpiScale = newDpi > 0 ? newDpi / 96f : 1f;
+                    _duxelTitleBarHeightPx = Math.Max(1, (int)MathF.Round(_duxelTitleBarHeight * _dpiScale));
+                    RecalculateMinTrackSize();
+                    unsafe
+                    {
+                        var suggestedRect = (Rect*)lParam;
+                        _ = SetWindowPos(
+                            hwnd,
+                            nint.Zero,
+                            suggestedRect->left,
+                            suggestedRect->top,
+                            suggestedRect->right - suggestedRect->left,
+                            suggestedRect->bottom - suggestedRect->top,
+                            0x0004 | 0x0010 | 0x0200); // SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS
+                    }
+                    if (_titleBarMode is DuxelTitleBarMode.ExtendedContent)
+                    {
+                        ApplyExtendedContentFrame();
+                    }
+                    _frameInvalidated?.Invoke();
+                    return 0;
                 }
-                _frameInvalidated?.Invoke();
-                return 0;
-            }
+            case WmDwmCompositionChanged:
+                if (_titleBarMode is DuxelTitleBarMode.ExtendedContent)
+                {
+                    ApplyExtendedContentFrame();
+                    _frameInvalidated?.Invoke();
+                    return 0;
+                }
+
+                break;
+            case WmNcMouseLeave:
+                break;
             case WmSettingChange:
                 if (IsImmersiveColorSetChange(lParam) && RefreshColorSchemeFromSystem())
                 {
@@ -1154,8 +1330,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         }
 
         var point = PointFromLParam(lParam);
-        var borderX = GetResizeBorderWidth();
-        var borderY = GetResizeBorderHeight();
+        var borderX = GetResizeBorderWidth(hwnd);
+        var borderY = GetResizeBorderHeight(hwnd);
         var left = point.x >= rect.left && point.x < rect.left + borderX;
         var right = point.x < rect.right && point.x >= rect.right - borderX;
         var top = point.y >= rect.top && point.y < rect.top + borderY;
@@ -1228,6 +1404,107 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         return point.x < buttonAreaLeft;
     }
 
+    private bool IsExtendedTitleBarDragPoint(nint hwnd, nint lParam)
+    {
+        var point = PointFromLParam(lParam);
+        if (!ScreenToClient(hwnd, ref point))
+        {
+            throw new InvalidOperationException($"ScreenToClient failed: {Marshal.GetLastPInvokeError()}.");
+        }
+
+        var inverseScale = 1f / MathF.Max(1f, _dpiScale);
+        var x = point.x * inverseScale;
+        var y = point.y * inverseScale;
+
+        lock (_titleBarDragRegionLock)
+        {
+            for (var i = 0; i < _titleBarDragRegionCount; i++)
+            {
+                var region = _titleBarDragRegions[i];
+                if (x >= region.X
+                    && y >= region.Y
+                    && x < region.X + region.Width
+                    && y < region.Y + region.Height)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static unsafe void ConstrainMaximizedClientRectToWorkArea(nint hwnd, nint lParam)
+    {
+        var monitor = MonitorFromWindow(hwnd, MonitorDefaultToNearest);
+        var monitorInfo = new MonitorInfo { cbSize = (uint)sizeof(MonitorInfo) };
+        if (monitor == nint.Zero || !GetMonitorInfoW(monitor, ref monitorInfo))
+        {
+            throw new InvalidOperationException($"GetMonitorInfoW failed: {Marshal.GetLastPInvokeError()}.");
+        }
+
+        var parameters = (NcCalcSizeParams*)lParam;
+        var proposed = parameters->rgrc0;
+        var work = monitorInfo.rcWork;
+        var coversWorkArea = proposed.left <= work.left
+            && proposed.top <= work.top
+            && proposed.right >= work.right
+            && proposed.bottom >= work.bottom;
+        if (coversWorkArea)
+        {
+            parameters->rgrc0 = work;
+        }
+    }
+
+    private bool TryHitTestNativeCaptionButtons(nint hwnd, nint lParam, out nint hitTest)
+    {
+        hitTest = 0;
+        if (!GetWindowRect(hwnd, out var windowRect))
+        {
+            throw new InvalidOperationException($"GetWindowRect failed: {Marshal.GetLastPInvokeError()}.");
+        }
+
+        var point = PointFromLParam(lParam);
+        var x = point.x - windowRect.left;
+        var y = point.y - windowRect.top;
+        if (y < 0 || y >= Volatile.Read(ref _extendedTitleBarFrameHeightPx))
+        {
+            return false;
+        }
+
+        var result = DwmGetWindowAttribute(
+            hwnd,
+            DwmwaCaptionButtonBounds,
+            out var bounds,
+            Marshal.SizeOf<Rect>());
+        if (result != 0 || bounds.right <= bounds.left || bounds.bottom <= bounds.top)
+        {
+            return false;
+        }
+
+        if (x < bounds.left || x >= bounds.right || y < bounds.top || y >= bounds.bottom)
+        {
+            return false;
+        }
+
+        var buttonCount = 1 + (_showMinimizeButton ? 1 : 0) + (_showMaximizeButton ? 1 : 0);
+        var buttonIndex = Math.Min(buttonCount - 1, (x - bounds.left) * buttonCount / Math.Max(1, bounds.right - bounds.left));
+        if (_showMinimizeButton && buttonIndex-- is 0)
+        {
+            hitTest = HtMinButton;
+            return true;
+        }
+
+        if (_showMaximizeButton && buttonIndex-- is 0)
+        {
+            hitTest = HtMaxButton;
+            return true;
+        }
+
+        hitTest = HtClose;
+        return true;
+    }
+
     private static Point PointFromLParam(nint lParam)
     {
         var value = unchecked((int)lParam);
@@ -1248,18 +1525,20 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         };
     }
 
-    private static int GetResizeBorderWidth()
+    private static int GetResizeBorderWidth(nint hwnd)
     {
         const int smCxSizeFrame = 32;
         const int smCxPaddedBorder = 92;
-        return Math.Max(1, GetSystemMetrics(smCxSizeFrame) + GetSystemMetrics(smCxPaddedBorder));
+        var dpi = Math.Max(96u, GetDpiForWindow(hwnd));
+        return Math.Max(1, GetSystemMetricsForDpi(smCxSizeFrame, dpi) + GetSystemMetricsForDpi(smCxPaddedBorder, dpi));
     }
 
-    private static int GetResizeBorderHeight()
+    private static int GetResizeBorderHeight(nint hwnd)
     {
         const int smCySizeFrame = 33;
         const int smCyPaddedBorder = 92;
-        return Math.Max(1, GetSystemMetrics(smCySizeFrame) + GetSystemMetrics(smCyPaddedBorder));
+        var dpi = Math.Max(96u, GetDpiForWindow(hwnd));
+        return Math.Max(1, GetSystemMetricsForDpi(smCySizeFrame, dpi) + GetSystemMetricsForDpi(smCyPaddedBorder, dpi));
     }
 
     private void ApplyCurrentSystemChrome()
@@ -1387,15 +1666,15 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             switch (message)
             {
                 case WmNcMouseMove:
-                {
-                    var point = PointFromLParam(lParam);
-                    if (_hwnd != nint.Zero && ScreenToClient(_hwnd, ref point))
                     {
-                        _mousePosition = new UiVector2(point.x, point.y);
-                    }
+                        var point = PointFromLParam(lParam);
+                        if (_hwnd != nint.Zero && ScreenToClient(_hwnd, ref point))
+                        {
+                            _mousePosition = new UiVector2(point.x, point.y);
+                        }
 
-                    break;
-                }
+                        break;
+                    }
                 case WmMouseMove:
                     _mousePosition = new UiVector2(GetXFromLParam(lParam), GetYFromLParam(lParam));
                     break;
@@ -1419,41 +1698,41 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                     SetMouseButton(UiMouseButton.Middle, false);
                     break;
                 case WmMouseWheel:
-                {
-                    var delta = GetWheelDeltaFromWParam(wParam) / 120f;
-                    if (IsKeyDown(VkShift))
                     {
-                        _wheelHorizontal += delta;
+                        var delta = GetWheelDeltaFromWParam(wParam) / 120f;
+                        if (IsKeyDown(VkShift))
+                        {
+                            _wheelHorizontal += delta;
+                        }
+                        else
+                        {
+                            _wheel += delta;
+                        }
+                        break;
                     }
-                    else
-                    {
-                        _wheel += delta;
-                    }
-                    break;
-                }
                 case WmMouseHWheel:
                     _wheelHorizontal += GetWheelDeltaFromWParam(wParam) / 120f;
                     break;
                 case WmKeyDown:
                 case WmSysKeyDown:
-                {
-                    var key = MapVirtualKey((int)wParam);
-                    if (key != UiKey.None)
                     {
-                        _keyEvents.Add(new UiKeyEvent(key, true, GetModifiers()));
+                        var key = MapVirtualKey((int)wParam);
+                        if (key != UiKey.None)
+                        {
+                            _keyEvents.Add(new UiKeyEvent(key, true, GetModifiers()));
+                        }
+                        break;
                     }
-                    break;
-                }
                 case WmKeyUp:
                 case WmSysKeyUp:
-                {
-                    var key = MapVirtualKey((int)wParam);
-                    if (key != UiKey.None)
                     {
-                        _keyEvents.Add(new UiKeyEvent(key, false, GetModifiers()));
+                        var key = MapVirtualKey((int)wParam);
+                        if (key != UiKey.None)
+                        {
+                            _keyEvents.Add(new UiKeyEvent(key, false, GetModifiers()));
+                        }
+                        break;
                     }
-                    break;
-                }
                 case WmChar:
                     // Control characters (< 0x20) are handled via UiKeyEvent, not char events.
                     // Feeding them into charEvents triggers font atlas rebuild for non-renderable glyphs.
@@ -1629,6 +1908,15 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct Margins
+    {
+        public int cxLeftWidth;
+        public int cxRightWidth;
+        public int cyTopHeight;
+        public int cyBottomHeight;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct Msg
     {
         public nint hwnd;
@@ -1655,6 +1943,24 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         public Point ptMaxPosition;
         public Point ptMinTrackSize;
         public Point ptMaxTrackSize;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MonitorInfo
+    {
+        public uint cbSize;
+        public Rect rcMonitor;
+        public Rect rcWork;
+        public uint dwFlags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NcCalcSizeParams
+    {
+        public Rect rgrc0;
+        public Rect rgrc1;
+        public Rect rgrc2;
+        public nint lppos;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -1745,6 +2051,13 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetWindowRect(nint hWnd, out Rect lpRect);
 
+    [LibraryImport("user32.dll")]
+    private static partial nint MonitorFromWindow(nint hwnd, uint dwFlags);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetMonitorInfoW(nint hMonitor, ref MonitorInfo lpmi);
+
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetCursorPos(out Point lpPoint);
@@ -1758,9 +2071,16 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     [LibraryImport("user32.dll")]
     private static partial int GetSystemMetrics(int nIndex);
 
+    [LibraryImport("user32.dll")]
+    private static partial int GetSystemMetricsForDpi(int nIndex, uint dpi);
+
     [LibraryImport("user32.dll", EntryPoint = "ScreenToClient", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool ScreenToClient(nint hWnd, ref Point lpPoint);
+
+    [LibraryImport("user32.dll", EntryPoint = "ClientToScreen", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ClientToScreen(nint hWnd, ref Point lpPoint);
 
     [LibraryImport("user32.dll", SetLastError = true)]
     private static partial nint GetWindowLongPtrW(nint hWnd, int nIndex);
@@ -1853,6 +2173,16 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     [LibraryImport("dwmapi.dll")]
     private static partial int DwmSetWindowAttribute(nint hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
+
+    [LibraryImport("dwmapi.dll")]
+    private static partial int DwmGetWindowAttribute(nint hwnd, int dwAttribute, out Rect pvAttribute, int cbAttribute);
+
+    [LibraryImport("dwmapi.dll")]
+    private static partial int DwmExtendFrameIntoClientArea(nint hwnd, ref Margins pMarInset);
+
+    [LibraryImport("dwmapi.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool DwmDefWindowProc(nint hwnd, uint msg, nuint wParam, nint lParam, out nint plResult);
 
     private static readonly nint DpiAwarenessContextPerMonitorAwareV2 = -4;
 
