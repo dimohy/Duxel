@@ -44,19 +44,21 @@ public sealed partial class UiImmediateContext
         var popupHeight = visibleItems * frameHeight;
         var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
         popupRect = ClampPopupToWindow(popupRect);
+        var popupClipRect = IntersectRect(CurrentClipRect, popupRect);
 
         PushPopup();
-        _state.AddPopupBlockingRect(popupRect, _popupTierDepth);
+        _state.AddPopupBlockingRect(popupClipRect, _popupTierDepth);
+        PushClipRect(popupClipRect, false);
         AddRectFilled(popupRect, _theme.ComboPopupBg, _whiteTexture);
 
-        if (_leftMousePressed && !IsHovering(popupRect) && !IsHovering(comboRect))
+        if (_leftMousePressed && !IsHovering(popupClipRect) && !IsHovering(comboRect))
         {
             _state.OpenComboId = null;
+            PopClipRect();
             PopPopup();
             return false;
         }
 
-        PushClipRect(popupRect, true);
         var start = new UiVector2(popupRect.X + 6f, popupRect.Y + 4f);
         _layouts.Push(new UiLayoutState(start, false, 0f, start.X));
         _comboStack.Push(popupRect);
@@ -128,39 +130,41 @@ public sealed partial class UiImmediateContext
             var popupHeight = displayCount * frameHeight;
             var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
             popupRect = ClampPopupToWindow(popupRect);
+            var popupClipRect = IntersectRect(CurrentClipRect, popupRect);
             var contentHeight = items.Count * frameHeight;
-            var maxScroll = MathF.Max(0f, contentHeight - popupHeight);
+            var viewportHeight = popupClipRect.Height;
+            var maxScroll = MathF.Max(0f, contentHeight - viewportHeight);
             var comboScrollId = $"{resolvedId}##comboscroll";
             var scrollY = _state.GetScrollY(comboScrollId);
             scrollY = Math.Clamp(scrollY, 0f, maxScroll);
 
             PushPopup();
-            _state.AddPopupBlockingRect(popupRect, _popupTierDepth);
+            _state.AddPopupBlockingRect(popupClipRect, _popupTierDepth);
+            PushClipRect(popupClipRect, false);
 
             if (displayCount > 0)
             {
                 AddRectFilled(popupRect, _theme.ComboPopupBg, _whiteTexture);
             }
 
-            var clickedOutside = _leftMousePressed && !IsHovering(popupRect) && !IsHovering(comboRect);
+            var clickedOutside = _leftMousePressed && !IsHovering(popupClipRect) && !IsHovering(comboRect);
             if (clickedOutside)
             {
                 _state.OpenComboId = null;
             }
 
             // Mouse wheel
-            if (IsHovering(popupRect) && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f)
+            if (IsHovering(popupClipRect) && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f)
             {
                 scrollY = Math.Clamp(scrollY - (_mouseWheel * frameHeight * 3f), 0f, maxScroll);
                 _mouseWheel = 0f;
             }
 
             var itemWidth = maxScroll > 0f ? popupRect.Width - ScrollbarSize : popupRect.Width;
-            PushClipRect(popupRect, false);
             for (var i = 0; i < items.Count; i++)
             {
                 var itemY = popupRect.Y + (i * frameHeight) - scrollY;
-                if (itemY + frameHeight < popupRect.Y || itemY > popupRect.Y + popupHeight)
+                if (itemY + frameHeight <= popupClipRect.Y || itemY >= popupClipRect.Y + viewportHeight)
                 {
                     continue;
                 }
@@ -193,21 +197,20 @@ public sealed partial class UiImmediateContext
                     _lineHeight
                 );
             }
-            PopClipRect();
-
             // Scrollbar
             if (maxScroll > 0f)
             {
                 var trackRect = new UiRect(
-                    popupRect.X + popupRect.Width - ScrollbarSize,
-                    popupRect.Y,
+                    popupClipRect.X + popupClipRect.Width - ScrollbarSize,
+                    popupClipRect.Y,
                     ScrollbarSize,
-                    popupRect.Height
+                    viewportHeight
                 );
-                scrollY = RenderScrollbarV($"{resolvedId}##comboscrollbar", trackRect, scrollY, maxScroll, contentHeight, popupRect);
+                scrollY = RenderScrollbarV($"{resolvedId}##comboscrollbar", trackRect, scrollY, maxScroll, contentHeight, popupClipRect);
             }
 
             _state.SetScrollY(comboScrollId, scrollY);
+            PopClipRect();
             PopPopup();
         }
 
@@ -266,39 +269,41 @@ public sealed partial class UiImmediateContext
             var popupHeight = displayCount * frameHeight;
             var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
             popupRect = ClampPopupToWindow(popupRect);
+            var popupClipRect = IntersectRect(CurrentClipRect, popupRect);
             var contentHeight = itemsCount * frameHeight;
-            var maxScroll = MathF.Max(0f, contentHeight - popupHeight);
+            var viewportHeight = popupClipRect.Height;
+            var maxScroll = MathF.Max(0f, contentHeight - viewportHeight);
             var comboScrollId = $"{resolvedId}##comboscroll";
             var scrollY = _state.GetScrollY(comboScrollId);
             scrollY = Math.Clamp(scrollY, 0f, maxScroll);
 
             PushPopup();
-            _state.AddPopupBlockingRect(popupRect, _popupTierDepth);
+            _state.AddPopupBlockingRect(popupClipRect, _popupTierDepth);
+            PushClipRect(popupClipRect, false);
 
             if (displayCount > 0)
             {
                 AddRectFilled(popupRect, _theme.ComboPopupBg, _whiteTexture);
             }
 
-            var clickedOutside = _leftMousePressed && !IsHovering(popupRect) && !IsHovering(comboRect);
+            var clickedOutside = _leftMousePressed && !IsHovering(popupClipRect) && !IsHovering(comboRect);
             if (clickedOutside)
             {
                 _state.OpenComboId = null;
             }
 
             // Mouse wheel
-            if (IsHovering(popupRect) && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f)
+            if (IsHovering(popupClipRect) && MathF.Abs(_mouseWheel) > 0.001f && maxScroll > 0f)
             {
                 scrollY = Math.Clamp(scrollY - (_mouseWheel * frameHeight * 3f), 0f, maxScroll);
                 _mouseWheel = 0f;
             }
 
             var itemWidth = maxScroll > 0f ? popupRect.Width - ScrollbarSize : popupRect.Width;
-            PushClipRect(popupRect, false);
             for (var i = 0; i < itemsCount; i++)
             {
                 var itemY = popupRect.Y + (i * frameHeight) - scrollY;
-                if (itemY + frameHeight < popupRect.Y || itemY > popupRect.Y + popupHeight)
+                if (itemY + frameHeight <= popupClipRect.Y || itemY >= popupClipRect.Y + viewportHeight)
                 {
                     continue;
                 }
@@ -331,21 +336,20 @@ public sealed partial class UiImmediateContext
                     _lineHeight
                 );
             }
-            PopClipRect();
-
             // Scrollbar
             if (maxScroll > 0f)
             {
                 var trackRect = new UiRect(
-                    popupRect.X + popupRect.Width - ScrollbarSize,
-                    popupRect.Y,
+                    popupClipRect.X + popupClipRect.Width - ScrollbarSize,
+                    popupClipRect.Y,
                     ScrollbarSize,
-                    popupRect.Height
+                    viewportHeight
                 );
-                scrollY = RenderScrollbarV($"{resolvedId}##comboscrollbar", trackRect, scrollY, maxScroll, contentHeight, popupRect);
+                scrollY = RenderScrollbarV($"{resolvedId}##comboscrollbar", trackRect, scrollY, maxScroll, contentHeight, popupClipRect);
             }
 
             _state.SetScrollY(comboScrollId, scrollY);
+            PopClipRect();
             PopPopup();
         }
 

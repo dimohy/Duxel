@@ -8,5 +8,6 @@ public readonly record struct VulkanRendererOptions(
     int MsaaSamples = 4,
     bool FontLinearSampling = false,
     UiTextureId FontTextureId = default,
-    UiTextureId WhiteTextureId = default
+    UiTextureId WhiteTextureId = default,
+    Action<string>? DiagnosticsLog = null
 );

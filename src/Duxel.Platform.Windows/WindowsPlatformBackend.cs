@@ -55,7 +55,6 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WsThickFrame = 0x00040000;
     private const uint WsMinimizeBox = 0x00020000;
     private const uint WsMaximizeBox = 0x00010000;
-    private const uint WsVisible = 0x10000000;
     private const uint WsOverlappedWindow = WsOverlapped | WsCaption | WsSysMenu | WsThickFrame | WsMinimizeBox | WsMaximizeBox;
     private const uint SwpNoSize = 0x0001;
     private const uint SwpNoMove = 0x0002;
@@ -142,6 +141,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WmNcMouseLeave = 0x02A2;
     private const uint WmApp = 0x8000;
     private const uint WmTrayCallback = WmApp + 1;
+    private const uint WmShowFirstFrame = WmApp + 2;
 
     private const int HtClient = 1;
     private const int HtCaption = 2;
@@ -252,6 +252,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private long _interactiveResizeSequence;
     private long _presentedResizeSequence;
     private int _interactiveResizeWaitCancelled;
+    private int _firstFrameShowPosted;
+    private int _windowShown;
     private readonly AutoResetEvent _interactiveResizeFramePresented = new(false);
     private UiSystemColorScheme _colorScheme;
     private UiMouseCursor _currentCursor = UiMouseCursor.Arrow;
@@ -380,7 +382,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             0,
             _classNamePtr,
             windowTitle,
-            _windowStyle | WsVisible,
+            _windowStyle,
             CwUseDefault,
             CwUseDefault,
             createWidth,
@@ -432,8 +434,6 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         {
             CenterWindowOnPrimaryMonitor(createWidth, createHeight);
         }
-        ShowWindow(_windowHandle, SwShow);
-        _ = UpdateWindow(_windowHandle);
         options.WindowCreated?.Invoke(_windowHandle);
 
         if (options.TrayOptions.Enabled)
@@ -829,6 +829,20 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         }
     }
 
+    public void NotifyFirstFramePresented()
+    {
+        ThrowIfDisposed();
+        if (Interlocked.Exchange(ref _firstFrameShowPosted, 1) is not 0)
+        {
+            return;
+        }
+
+        if (!PostMessageW(_windowHandle, WmShowFirstFrame, 0, 0))
+        {
+            throw new InvalidOperationException($"PostMessageW(WM_SHOW_FIRST_FRAME) failed: {Marshal.GetLastPInvokeError()}");
+        }
+    }
+
     private static void SetDwmAttribute(nint hwnd, int attribute, ref int value)
     {
         var result = DwmSetWindowAttribute(hwnd, attribute, ref value, sizeof(int));
@@ -1101,6 +1115,16 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 _ = SetWindowLongPtrW(hwnd, GwlpUserData, createStruct->lpCreateParams);
             }
             return 1;
+        }
+
+        if (message == WmShowFirstFrame)
+        {
+            if (Interlocked.Exchange(ref _windowShown, 1) is 0)
+            {
+                _ = ShowWindow(hwnd, SwShow);
+                _ = UpdateWindow(hwnd);
+            }
+            return 0;
         }
 
         if (_titleBarMode is DuxelTitleBarMode.ExtendedContent)
@@ -2252,6 +2276,10 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool PeekMessageW(out Msg lpMsg, nint hWnd, uint wMsgFilterMin, uint wMsgFilterMax, uint wRemoveMsg);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PostMessageW(nint hWnd, uint msg, nuint wParam, nint lParam);
 
     [LibraryImport("user32.dll")]
     private static partial void PostQuitMessage(int nExitCode);

@@ -1,5 +1,8 @@
 using Duxel.Core;
+using System.Buffers.Binary;
+using System.Diagnostics;
 using System.IO;
+using System.Security;
 
 namespace Duxel.Vulkan;
 
@@ -354,16 +357,7 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
-        byte[]? data = null;
-        if (File.Exists(_pipelineCachePath))
-        {
-            data = File.ReadAllBytes(_pipelineCachePath);
-            if (data.Length > 0)
-            {
-                _pipelineCacheSize = (nuint)data.Length;
-                _pipelineCacheHash = ComputeHash(data);
-            }
-        }
+        var data = TryLoadPipelineCacheData();
 
         fixed (byte* dataPtr = data)
         {
@@ -404,18 +398,144 @@ public sealed unsafe partial class VulkanRendererBackend
         var hash = ComputeHash(data);
         if (_pipelineCacheSize == size && _pipelineCacheHash == hash)
         {
+            LogPipelineCache("PipelineCache[Unchanged]");
             return;
         }
 
-        var directory = Path.GetDirectoryName(_pipelineCachePath);
-        if (!string.IsNullOrWhiteSpace(directory))
+        if (TrySavePipelineCacheData(data))
         {
-            Directory.CreateDirectory(directory);
+            _pipelineCacheSize = size;
+            _pipelineCacheHash = hash;
+            LogPipelineCache("PipelineCache[Saved]");
+        }
+    }
+
+    private byte[]? TryLoadPipelineCacheData()
+    {
+        if (string.IsNullOrWhiteSpace(_pipelineCachePath))
+        {
+            LogPipelineCache("PipelineCache[UnavailablePath]");
+            return null;
         }
 
-        File.WriteAllBytes(_pipelineCachePath, data);
-        _pipelineCacheSize = size;
-        _pipelineCacheHash = hash;
+        try
+        {
+            if (!File.Exists(_pipelineCachePath))
+            {
+                LogPipelineCache("PipelineCache[Miss]");
+                return null;
+            }
+
+            using var stream = new FileStream(
+                _pipelineCachePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete,
+                bufferSize: 4096,
+                FileOptions.SequentialScan);
+            if (stream.Length is <= 0 or > int.MaxValue)
+            {
+                LogPipelineCache("PipelineCache[Incompatible]");
+                return null;
+            }
+
+            var data = new byte[(int)stream.Length];
+            stream.ReadExactly(data);
+            if (!IsCompatiblePipelineCacheData(data))
+            {
+                LogPipelineCache("PipelineCache[Incompatible]");
+                return null;
+            }
+
+            _pipelineCacheSize = (nuint)data.Length;
+            _pipelineCacheHash = ComputeHash(data);
+            LogPipelineCache("PipelineCache[Hit]");
+            return data;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        {
+            LogPipelineCache($"PipelineCache[ReadUnavailable] {ex.Message}");
+            return null;
+        }
+    }
+
+    private bool IsCompatiblePipelineCacheData(ReadOnlySpan<byte> data)
+    {
+        const int headerSize = 32;
+        const uint headerVersionOne = 1;
+        if (data.Length < headerSize
+            || BinaryPrimitives.ReadUInt32LittleEndian(data) != headerSize
+            || BinaryPrimitives.ReadUInt32LittleEndian(data[4..]) != headerVersionOne
+            || BinaryPrimitives.ReadUInt32LittleEndian(data[8..]) != _devicePolicy.VendorId
+            || BinaryPrimitives.ReadUInt32LittleEndian(data[12..]) != _devicePolicy.DeviceId)
+        {
+            return false;
+        }
+
+        var expectedUuid = Convert.FromHexString(_devicePolicy.PipelineCacheUuid);
+        return expectedUuid.Length is 16
+            && data.Slice(16, expectedUuid.Length).SequenceEqual(expectedUuid);
+    }
+
+    private bool TrySavePipelineCacheData(ReadOnlySpan<byte> data)
+    {
+        if (string.IsNullOrWhiteSpace(_pipelineCachePath))
+        {
+            return false;
+        }
+
+        var directory = Path.GetDirectoryName(_pipelineCachePath);
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            return false;
+        }
+
+        var temporaryPath = _pipelineCachePath
+            + "."
+            + Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            + "."
+            + Guid.NewGuid().ToString("N")
+            + ".tmp";
+        try
+        {
+            Directory.CreateDirectory(directory);
+            using (var stream = new FileStream(
+                temporaryPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 4096,
+                FileOptions.SequentialScan))
+            {
+                stream.Write(data);
+                stream.Flush(flushToDisk: true);
+            }
+
+            File.Move(temporaryPath, _pipelineCachePath, overwrite: true);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        {
+            LogPipelineCache($"PipelineCache[PersistenceUnavailable] {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(temporaryPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+            {
+                LogPipelineCache($"PipelineCache[TemporaryCleanupUnavailable] {ex.Message}");
+            }
+        }
+    }
+
+    private void LogPipelineCache(string message)
+    {
+        _options.DiagnosticsLog?.Invoke(message);
+        Trace.WriteLine($"[Duxel.Vulkan] {message}");
     }
 
     private static ulong ComputeHash(ReadOnlySpan<byte> data)

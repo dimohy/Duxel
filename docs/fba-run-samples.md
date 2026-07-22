@@ -1,9 +1,9 @@
 # Duxel FBA Samples — Run Instantly
 
-> Last synced: 2026-07-20
+> Last synced: 2026-07-22
 > Korean: [fba-run-samples.ko.md](fba-run-samples.ko.md)
 
-> Run **Duxel** FBA samples with a **single copy-paste command**. These samples use the .NET 10 file-based app feature. Duxel `0.2.10-preview` packages support regular .NET 8, .NET 9, and .NET 10 projects.
+> Run **Duxel** FBA samples with a **single copy-paste command**. These samples use the .NET 10 file-based app feature. Duxel `0.2.11-preview` packages support regular .NET 8, .NET 9, and .NET 10 projects.
 
 > Note: To run with local source changes, use `./run-fba.ps1 samples/fba/<filename>.cs`.
 

@@ -78,6 +78,10 @@ public sealed class DuxelAppSession
             startupLog($"StartupTiming[{phase}]={startupStopwatch.Elapsed.TotalMilliseconds:0.00}ms");
         }
 
+        Action<string>? rendererDiagnosticsLog = startupLog is null
+            ? null
+            : message => startupLog($"{message} @ {startupStopwatch!.Elapsed.TotalMilliseconds:0.00}ms");
+
         if (options.ImageDecoder is not null)
         {
             UiImageTexture.ImageDecoder = options.ImageDecoder;
@@ -96,7 +100,8 @@ public sealed class DuxelAppSession
             requestedMsaaSamples,
             rendererOptions.FontLinearSampling,
             options.FontTextureId,
-            options.WhiteTextureId
+            options.WhiteTextureId,
+            rendererDiagnosticsLog
         ));
         renderer.SetClearColor(theme.WindowBg);
         EmitStartupTiming("StartupClear");
@@ -743,6 +748,10 @@ public sealed class DuxelAppSession
                     if (framePresented)
                     {
                         renderedFrameNumber++;
+                        if (renderedFrameNumber is 1)
+                        {
+                            platform.NotifyFirstFramePresented();
+                        }
                         if (interactiveResizeSequence > 0)
                         {
                             platform.NotifyFramePresented(interactiveResizeSequence);

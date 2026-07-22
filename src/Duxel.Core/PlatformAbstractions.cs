@@ -71,6 +71,7 @@ public interface IPlatformBackend : IDisposable
     void PollEvents();
     void WaitEvents(int timeoutMilliseconds);
     void SetMouseCursor(UiMouseCursor cursor);
+    void NotifyFirstFramePresented() { }
     void NotifyFramePresented(long interactiveResizeSequence) { }
     void CancelInteractiveResizeWait() { }
 }

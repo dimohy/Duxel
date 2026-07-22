@@ -2,6 +2,21 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## 0.2.11-preview (2026-07-22)
+
+### Major Improvements
+
+- **[Improvement]** First-content window presentation — keeps the native window hidden until the first successful Vulkan present, preventing device, pipeline, font, and initial-screen setup from appearing as an empty window without delaying renderer initialization.
+- **[Improvement]** Vulkan pipeline-cache persistence — validates driver-owned cache identity, writes opaque cache bytes atomically for concurrent processes, and reports hit, miss, incompatibility, save, unchanged, and unavailable states through startup diagnostics.
+
+### Major Bug Fixes
+
+- **[Bug]** Combo popup clipping and final-item scrolling — clips popup drawing, input, and scrollbar geometry to the owning content area so internal-window bottom padding stays clean and constrained lists can scroll the final item fully into view.
+
+### Packaging / Release
+
+- **[Improvement]** Package release — bumped `Duxel.App` and `Duxel.Windows.App` to `0.2.11-preview` with `net8.0`, `net9.0`, and `net10.0` assets.
+
 ## 0.2.10-preview (2026-07-20)
 
 ### Major Improvements

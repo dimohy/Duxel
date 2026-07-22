@@ -1,6 +1,6 @@
 # Duxel Agent Reference
 
-> Last synced: 2026-07-20
+> Last synced: 2026-07-22
 > Audience: coding agents and developers building apps, samples, and reusable UI components with Duxel
 > Scope: Duxel feature map, architecture boundaries, recommended workflows, and sample anchors
 
@@ -46,7 +46,7 @@ Current implementation direction:
 
 Both packages ship `net8.0`, `net9.0`, and `net10.0` runtime assets. FBA samples remain `net10.0` because the file-based app feature requires the .NET 10 SDK; ordinary project consumers may target any of the three frameworks.
 
-This is the `0.2.10-preview` public package contract. `Duxel.App` and `Duxel.Windows.App` expose `net8.0`, `net9.0`, and `net10.0` assets; FBA remains a .NET 10 SDK workflow.
+This is the `0.2.11-preview` public package contract. `Duxel.App` and `Duxel.Windows.App` expose `net8.0`, `net9.0`, and `net10.0` assets; FBA remains a .NET 10 SDK workflow.
 
 For Windows app generation, prefer `net8.0-windows7.0`, `net9.0-windows7.0`, or `net10.0-windows7.0` in the consuming executable so platform analysis is explicit. The Duxel package projects themselves intentionally use portable `net8.0`, `net9.0`, and `net10.0` TFMs.
 
@@ -364,6 +364,8 @@ Dux.TextWrapped(() => status.Value)
 
 `IntegrateSystemChrome` applies Windows 11 DWM caption, text, border color, rounded corner, and dark-mode attributes from the active startup theme/design. When the app uses the default platform-following design, Windows `WM_SETTINGCHANGE` theme notifications refresh the Duxel theme and render clear color at runtime.
 
+Windows creates and configures the native HWND without `WS_VISIBLE`. `WindowCreated` still receives the valid hidden HWND for setup and diagnostics, but applications should not show it themselves. After the renderer successfully presents frame 1, `IPlatformBackend.NotifyFirstFramePresented()` posts a private window message; the Windows UI thread then calls `ShowWindow` and `UpdateWindow`. This ordering prevents Vulkan device, pipeline, font, and first-screen work from appearing as an empty native window.
+
 `UseDuxelTitleBar` is enabled by default, so Windows apps remove the native caption and render a Duxel-owned title bar inside the Vulkan surface unless the app explicitly sets `UseDuxelTitleBar = false`. The app runtime wraps the user `UiScreen`, reserves the top viewport inset, draws the app icon, title, minimize/maximize/close buttons, and delegates window move/minimize/maximize/close commands through `IWindowChromeController`. This is library-owned chrome: application screens do not draw or synchronize these buttons. The Maximize button reads `IWindowChromeController.IsMaximized` every frame, displays one square while restored, changes to the overlapping-squares Restore glyph while maximized, and returns to the Maximize glyph after restore.
 
 `TitleBarMode` explicitly selects `System`, `Duxel`, or `ExtendedContent`. Its `Default` value preserves source compatibility by resolving from `UseDuxelTitleBar`; an explicit non-default mode takes precedence. `ExtendedContent` makes the complete Vulkan client area available from `(0, 0)`. Duxel draws visible caption glyphs over the opaque Vulkan surface while Windows/DWM retains the native button hit codes, commands, system menu, resize, maximize, and Snap Layout contracts.
@@ -470,6 +472,8 @@ When touching the DirectWrite atlas glyph path, keep oversampled rasterization m
 | `LogStartupTimings` | `false` |
 | `CaptureOutputDirectory` | `null` |
 | `CaptureFrameIndices` | empty |
+
+With `LogStartupTimings = true`, the startup log also reports `PipelineCache[Hit]`, `PipelineCache[Miss]`, `PipelineCache[Incompatible]`, `PipelineCache[Saved]`, `PipelineCache[Unchanged]`, and cache I/O-unavailable states. Use these events with `StartupClear` and `FirstFramePresented` to distinguish cache behavior from device initialization and first-screen rendering.
 
 ## Copy-paste starter templates
 
@@ -786,6 +790,8 @@ Practical signatures:
 - `bool ListBox(ref int currentIndex, IReadOnlyList<string> items, int visibleItems = 6, string? id = null)`
 - `bool Selectable(string label, ref bool selected)`
 - `bool Selectable(string label, bool selected)`
+
+Combo popup backgrounds, item rendering, hit testing, and scrollbars share the intersection of the popup bounds and the owning content clip. The intersected height is the scrolling viewport, so a constrained popup can still scroll until its final item is fully visible. Items outside an internal window's content area do not render or receive input through its bottom padding.
 
 ### Trees, tabs, menus, popups, tooltips
 
@@ -1217,6 +1223,8 @@ Static cached rect/circle primitive expansion to triangle vertex/index geometry 
 
 Static lists containing circles, rounded rectangles, or primitive borders are never expanded to legacy triangle geometry, even when static primitive expansion is forced. Those shapes require analytic fragment coverage and remain on the primitive-instance path; only plain filled rectangles are eligible for static triangle expansion.
 
+The driver owns the opaque `VkPipelineCache` contents and decides reuse; Duxel owns only persistence of the bytes returned by `vkGetPipelineCacheData`. That persistence file is keyed by vendor ID, device ID, and `pipelineCacheUUID`. Duxel validates the 32-byte Vulkan header before returning data to the driver, treats missing/incompatible/unreadable persistence as an empty in-memory `VkPipelineCache`, and writes new bytes through a unique temporary file plus atomic replacement. Readers allow replacement sharing, so simultaneous Duxel processes see a complete old or new file rather than a partial write. Persistence failure never selects another renderer and never prevents the already valid Vulkan pipeline from rendering. A driver may additionally maintain its own internal cache outside this Duxel-managed file.
+
 The `staticPrim(...)` profile block includes `layout=...`, the number of expanded primitive layouts materialized during that frame. A stable static circle cache should materialize layouts only on creation/rebuild (`layout>0`) and report `layout=0` on cache-hit frames; a nonzero steady-hit value indicates repeated CPU layout work.
 
 The implementation boundary for static primitive auto decisions is `VulkanRendererBackend.StaticPrimitivePolicy.cs`; static geometry code should call this policy boundary instead of embedding device/heuristic decisions in upload code.
@@ -1241,7 +1249,7 @@ The Vulkan backend is a GPU-driven renderer with exactly **one graphics pipeline
 - `VulkanRendererBackend.cs` — `IRendererBackend` shell, constructor/bootstrap order, lifecycle/teardown, render-entry frame order, settings/API mutation.
 - `VulkanRendererBackend.Device.cs` — instance/surface/physical-device/queue/device setup, required-feature gating, vendor/device policy state and env parsing, pipeline cache identity.
 - `VulkanRendererBackend.Swapchain.cs` — swapchain selection policy, resize-only versus full recreate flow, image views/MSAA targets, semaphore capacity, and preservation of non-swapchain renderer resources during live resize.
-- `VulkanRendererBackend.PipelineResources.cs` — bindless descriptor layout/pool/set, pipeline layout/push ranges, the single graphics pipeline, samplers, pipeline cache load/save, embedded shader loading.
+- `VulkanRendererBackend.PipelineResources.cs` — bindless descriptor layout/pool/set, pipeline layout/push ranges, the single graphics pipeline, samplers, validated/atomic pipeline-cache persistence and diagnostics, embedded shader loading.
 - `VulkanRendererBackend.Resources.cs` — generic buffer/image/view/memory helpers (`CreateBuffer` with preferred-memory selection, `GetBufferDeviceAddress`), image layout transition policy and `imgTrans(...)` counters.
 - `VulkanRendererBackend.TextureResources.cs` — texture create/update/destroy, bindless slot allocator and descriptor writes, upload batching, font/white texture id classification, deferred destroys.
 - `VulkanRendererBackend.UploadScheduler.cs` — staging buffer lifetime, upload batching (`DUXEL_VK_UPLOAD_BATCH`), upload queue policy (`DUXEL_VK_UPLOAD_QUEUE`), submission/wait accounting.
