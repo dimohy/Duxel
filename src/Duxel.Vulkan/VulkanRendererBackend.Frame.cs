@@ -91,26 +91,8 @@ public sealed unsafe partial class VulkanRendererBackend
             return false;
         }
 
-        return HasDrawableGeometry(drawData);
-    }
-
-    private static bool HasDrawableGeometry(UiDrawData drawData)
-    {
-        if (drawData.TotalVertexCount > 0 && drawData.TotalIndexCount > 0)
-        {
-            return true;
-        }
-
-        for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
-        {
-            var drawList = drawData.DrawLists[listIndex];
-            if ((drawList.RectFilledPrimitives?.Count ?? 0) > 0 || (drawList.CircleFilledPrimitives?.Count ?? 0) > 0)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        // A frame without draw geometry still has to clear and present the swapchain image.
+        return true;
     }
 
     private bool TryBeginRenderFrame(out ActiveFrameContext context)

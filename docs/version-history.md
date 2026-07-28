@@ -2,6 +2,20 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## 0.2.12-preview (2026-07-28)
+
+### Major Improvements
+
+- **[Improvement]** Nuri.Duxel live-resize integration guidance — documents renderer-owned target mapping, pixel snapping, offscreen composition, and performance gates without introducing per-pointer swapchain recreation.
+
+### Major Bug Fixes
+
+- **[Bug]** Clear-only frame presentation — valid non-zero framebuffer frames now clear, submit, and present even without draw geometry, allowing an empty first screen to become visible and `WM_SIZING` waits to complete while unchanged idle frames remain skipped before renderer submission.
+
+### Packaging / Release
+
+- **[Improvement]** Package release — bumped `Duxel.App` and `Duxel.Windows.App` to `0.2.12-preview` with `net8.0`, `net9.0`, and `net10.0` assets.
+
 ## 0.2.11-preview (2026-07-22)
 
 ### Major Improvements

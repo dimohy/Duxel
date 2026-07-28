@@ -2,6 +2,20 @@
 
 Duxel의 버전별 변경 내역 누적 기록.
 
+## 0.2.12-preview (2026-07-28)
+
+### 주요 개선 사항
+
+- **[개선]** Nuri.Duxel 라이브 리사이즈 통합 지침 — pointer sample별 swapchain 재생성 없이 renderer 소유 target mapping, pixel snapping, offscreen 합성, 성능 gate를 적용하는 경계를 문서화.
+
+### 주요 버그 수정
+
+- **[버그]** Clear-only 프레임 present — framebuffer 크기가 0보다 큰 유효 프레임은 draw geometry가 없어도 clear, submit, present를 수행해 빈 첫 화면을 표시하고 `WM_SIZING` 대기를 완료하며, 변경 없는 idle 프레임은 renderer 제출 전에 계속 건너뜀.
+
+### 배포/릴리스
+
+- **[개선]** 패키지 릴리스 — `Duxel.App`과 `Duxel.Windows.App`을 `0.2.12-preview`로 상향하고 `net8.0`, `net9.0`, `net10.0` 자산을 포함.
+
 ## 0.2.11-preview (2026-07-22)
 
 ### 주요 개선 사항

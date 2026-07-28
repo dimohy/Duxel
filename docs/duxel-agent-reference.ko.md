@@ -1,6 +1,6 @@
 # Duxel 에이전트 참조 문서
 
-> Last synced: 2026-07-22
+> Last synced: 2026-07-28
 > 대상: Duxel로 앱, 샘플, 재사용 UI 컴포넌트를 작성하는 코딩 에이전트와 개발자
 > 범위: Duxel 기능 맵, 아키텍처 경계, 권장 워크플로, 샘플 기준점, 바로 사용할 수 있는 생성 템플릿
 
@@ -44,7 +44,7 @@ Duxel은 .NET 8, .NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크다.
 
 두 패키지는 `net8.0`, `net9.0`, `net10.0` 런타임 자산을 함께 제공한다. 파일 기반 앱 기능에는 .NET 10 SDK가 필요하므로 FBA 샘플은 `net10.0`을 유지하며, 일반 프로젝트 사용자는 세 프레임워크 중 하나를 대상으로 할 수 있다.
 
-이는 공개 `0.2.11-preview` 패키지 계약이다. `Duxel.App`과 `Duxel.Windows.App`은 `net8.0`, `net9.0`, `net10.0` 자산을 제공하며 FBA는 계속 .NET 10 SDK 워크플로를 사용한다.
+이는 공개 `0.2.12-preview` 패키지 계약이다. `Duxel.App`과 `Duxel.Windows.App`은 `net8.0`, `net9.0`, `net10.0` 자산을 제공하며 FBA는 계속 .NET 10 SDK 워크플로를 사용한다.
 
 Windows 앱을 생성할 때 소비자 실행 프로젝트는 플랫폼 분석이 명확하도록 `net8.0-windows7.0`, `net9.0-windows7.0`, `net10.0-windows7.0` 중 해당 버전을 우선한다. Duxel 패키지 프로젝트 자체는 의도적으로 이식 가능한 `net8.0`, `net9.0`, `net10.0` TFM을 사용한다.
 
@@ -118,6 +118,8 @@ Win32 이동/크기 조절 모달 루프 동안 `Duxel.App`은 `IPlatformBackend
 각 `WM_SIZING` 요청에는 단조 증가 sequence가 있다. Window procedure는 프레임을 요청하고, 해당 sequence에서 캡처한 draw data에 대해 `IRendererBackend.TryRenderDrawData(...)`가 성공/suboptimal present를 보고할 때까지 Windows가 그 외곽 창 단계를 확정하지 못하게 한다. Renderer 실패는 대기를 명시적으로 취소한다. 따라서 포인터/창 이동은 렌더보다 빨라질 수 없지만 외곽 프레임이 내부 내용보다 눈에 띄게 앞설 수도 없다.
 
 모달 루프 동안 draw-data와 swapchain extent가 달라도 매 pointer sample마다 `vkDeviceWaitIdle` 재생성을 선제 실행하지 않는다. 최신 draw data를 현재 swapchain viewport 전체에 그리고 clip을 비례 조정한다. WSI `OUT_OF_DATE`/surface-loss 결과는 계속 재생성하고, 대화형 상태가 끝난 첫 프레임은 정확한 최종 extent로 재생성한다. 리사이즈 전용 recreate는 이전 핸들을 `VkSwapchainCreateInfoKHR.oldSwapchain`으로 전달하고 non-swapchain renderer resource를 보존한다. VSync 생성은 지원될 때 tearing 없는 Mailbox를 우선하고, 아니면 필수 FIFO를 사용한다. VSync off는 Immediate를 우선한다. 고정 240 FPS 제한을 추가하지 않는다.
+
+Framebuffer 크기가 0보다 큰 유효 프레임은 draw list에 geometry가 없어도 렌더링할 수 있어야 한다. 렌더러는 clear를 기록하고 submit/present까지 수행해야 빈 첫 화면이 표시되고 `WM_SIZING` sequence도 완료될 수 있다. 이는 일반 idle-frame skip을 끄는 것이 아니다. 변경이 없는 프레임은 렌더러에 제출되기 전에 앱 런타임이 계속 건너뛴다.
 
 ## 주요 공개 진입점
 

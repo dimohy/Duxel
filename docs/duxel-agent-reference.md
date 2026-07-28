@@ -1,6 +1,6 @@
 # Duxel Agent Reference
 
-> Last synced: 2026-07-22
+> Last synced: 2026-07-28
 > Audience: coding agents and developers building apps, samples, and reusable UI components with Duxel
 > Scope: Duxel feature map, architecture boundaries, recommended workflows, and sample anchors
 
@@ -46,7 +46,7 @@ Current implementation direction:
 
 Both packages ship `net8.0`, `net9.0`, and `net10.0` runtime assets. FBA samples remain `net10.0` because the file-based app feature requires the .NET 10 SDK; ordinary project consumers may target any of the three frameworks.
 
-This is the `0.2.11-preview` public package contract. `Duxel.App` and `Duxel.Windows.App` expose `net8.0`, `net9.0`, and `net10.0` assets; FBA remains a .NET 10 SDK workflow.
+This is the `0.2.12-preview` public package contract. `Duxel.App` and `Duxel.Windows.App` expose `net8.0`, `net9.0`, and `net10.0` assets; FBA remains a .NET 10 SDK workflow.
 
 For Windows app generation, prefer `net8.0-windows7.0`, `net9.0-windows7.0`, or `net10.0-windows7.0` in the consuming executable so platform analysis is explicit. The Duxel package projects themselves intentionally use portable `net8.0`, `net9.0`, and `net10.0` TFMs.
 
@@ -119,6 +119,8 @@ During a Win32 move/size modal loop, `Duxel.App` treats `IPlatformBackend.IsInte
 Each `WM_SIZING` request has a monotonically increasing sequence. The window procedure requests a frame and does not let Windows commit that outer-window step until `IRendererBackend.TryRenderDrawData(...)` reports a successful/suboptimal present for draw data captured at that sequence. Renderer failure cancels the wait explicitly. This intentionally couples visible border movement to completed Duxel frame submission: the pointer/window may advance no faster than rendering, but the outer frame cannot visibly outrun its contents.
 
 During the modal loop, a draw-data/swapchain extent mismatch is rendered into the full current swapchain viewport with proportionally scaled clipping instead of forcing a proactive `vkDeviceWaitIdle` recreation for every pointer sample. WSI `OUT_OF_DATE`/surface-loss results still recreate, and the first non-interactive frame recreates to the exact final extent. The resize-only recreate path passes the prior handle through `VkSwapchainCreateInfoKHR.oldSwapchain` and preserves non-swapchain renderer resources. VSync creation prefers tearing-free Mailbox when supported, otherwise the required FIFO mode; VSync-off prefers Immediate. Do not add a fixed 240 FPS cap.
+
+A valid frame with a non-zero framebuffer remains renderable even when its draw lists contain no geometry. The renderer must still record the clear, submit, and present so an empty first screen can become visible and a `WM_SIZING` sequence can complete. This does not disable normal idle-frame skipping: unchanged frames are still filtered by the app runtime before renderer submission.
 
 ## Primary public entry points
 
