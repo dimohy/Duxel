@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Duxel.Core;
 
-public sealed class UiContext(
+public sealed partial class UiContext(
     UiFontAtlas fontAtlas,
     UiTextureId fontTexture,
     UiTextureId whiteTexture
@@ -31,17 +31,32 @@ public sealed class UiContext(
     private UiStyle _style = UiCompiledDesign.Default.Style;
     private UiStyle _baseStyle = UiCompiledDesign.Default.Style;
     private UiDesignTokens _designTokens = UiCompiledDesign.Default.Tokens;
+    private UiControlSkins _controlSkins;
     private IUiClipboard? _clipboard;
     private bool _hasFrame;
     private bool _hasInput;
     private bool _hasClip;
     private bool _hasTextSettings;
     private bool _hasDrawData;
+    private bool _drawDataClaimed;
+    private ulong _drawDataFrameSequence;
     private UiDrawData? _drawData;
     private UiImmediateContext? _immediateContext;
+    private long _textureContentRevision;
+    private readonly Dictionary<UiTextureId, long> _textureContentVersions = [];
     private UiScreen? _screen;
-    private Action? _requestFrame;
+    private UiAccessibilityTree? _accessibilityTree;
+    public void SetAccessibilityTree(UiAccessibilityTree? tree)
+    {
+        _accessibilityTree?.SetRequestFrameCallback(null);
+        _accessibilityTree = tree;
+        tree?.SetRequestFrameCallback(_frameInvalidator.Request);
+    }
+    private readonly UiFrameInvalidator _frameInvalidator = new();
     private Func<float, UiFontResource?>? _resolveFontResource;
+    private UiTypographyFonts? _typographyFonts;
+
+    public void SetTypographyFonts(UiTypographyFonts fonts) => _typographyFonts = fonts ?? throw new ArgumentNullException(nameof(fonts));
     private string? _directTextPrimaryFontPath;
     private string? _directTextSecondaryFontPath;
     private float _directTextBaseFontSize;
@@ -66,14 +81,16 @@ public sealed class UiContext(
     private UiVector2? _queuedMousePos;
     private bool? _queuedMouseDown;
     private bool? _queuedRightMouseDown;
+    private bool? _queuedMiddleMouseDown;
     private float _queuedMouseWheel;
     private float _queuedMouseWheelHorizontal;
     private bool _appAcceptingEvents = true;
     private bool _previousInjectedLeftDown;
     private bool _previousInjectedRightDown;
+    private bool _previousInjectedMiddleDown;
     private char? _pendingHighSurrogate;
-    private UiKeyEvent[] _mergedKeyEventsBuffer = Array.Empty<UiKeyEvent>();
-    private UiCharEvent[] _mergedCharEventsBuffer = Array.Empty<UiCharEvent>();
+    private List<UiKeyEvent>? _mergedKeyEventsBuffer;
+    private List<UiCharEvent>? _mergedCharEventsBuffer;
 
     private enum UiLogTarget
     {
@@ -103,6 +120,7 @@ public sealed class UiContext(
         _theme = design.Theme;
         SetStyle(design.Style);
         _designTokens = design.Tokens;
+        _controlSkins = design.ControlSkins;
     }
 
     public void SetDesign<TDesign>()
@@ -118,13 +136,20 @@ public sealed class UiContext(
 
     public void SetInput(UiInputState input)
     {
+        ValidateInputMetadata(input);
         if (_appAcceptingEvents)
         {
             input = ApplyQueuedInput(input);
         }
 
+        SetInputState(input);
+    }
+
+    private void SetInputState(UiInputState input)
+    {
         _inputState = input;
         _hasInput = true;
+        _state.SetKeyRepeatSource(input.KeyRepeatSettings.Source);
         _state.UpdateInput(input.KeyEvents, input.Modifiers);
         _keyRepeatSettings = input.KeyRepeatSettings;
     }
@@ -158,7 +183,7 @@ public sealed class UiContext(
 
     public void SetRequestFrameCallback(Action? callback)
     {
-        _requestFrame = callback;
+        _frameInvalidator.Callback = callback;
     }
 
     public void SetDirectTextPrimaryFontPath(string? fontPath)
@@ -192,7 +217,9 @@ public sealed class UiContext(
 
     public void SetContentScale(float scale)
     {
-        _contentScale = MathF.Max(1f, scale);
+        if (!float.IsFinite(scale) || scale <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(scale));
+        _contentScale = scale;
     }
 
     public void SetPlatformTextBackend(IPlatformTextBackend? textBackend)
@@ -250,6 +277,10 @@ public sealed class UiContext(
 
     public void QueueTextureUpdate(UiTextureUpdate update)
     {
+        _textureContentRevision++;
+        UiImmediateContext.RecordTextureContentChange(_textureContentVersions, update, _textureContentRevision);
+        if (_immediateContext is { } immediate)
+            immediate.TextureContentRevision = _textureContentRevision;
         if (_textureUpdates.Count > 0)
         {
             var lastIndex = _textureUpdates.Count - 1;
@@ -259,7 +290,14 @@ public sealed class UiContext(
                 && last.CoversEntireTexture
                 && update.CoversEntireTexture)
             {
-                _textureUpdates[lastIndex] = update;
+                if (!ReferenceEquals(last.PixelOwner, update.PixelOwner))
+                    last.PixelOwner?.Dispose();
+                if (!ReferenceEquals(last.PaintGroup, update.PaintGroup))
+                    last.PaintGroup?.Dispose();
+                _textureUpdates[lastIndex] = update with
+                {
+                    IsColorImage = last.IsColorImage || update.IsColorImage
+                };
                 return;
             }
         }
@@ -269,6 +307,7 @@ public sealed class UiContext(
 
     public void NewFrame(UiFrameInfo frameInfo)
     {
+        _inputBatch = null;
         _state.AdvanceTime(frameInfo.DeltaTime);
         _state.BeginFrame();
         if (_state.TryConsumeTheme(out var theme))
@@ -279,8 +318,7 @@ public sealed class UiContext(
         _displaySize = frameInfo.DisplaySize;
         _framebufferScale = frameInfo.DisplayFramebufferScale;
         _hasFrame = true;
-        _hasDrawData = false;
-        _drawData = null;
+        DiscardUnclaimedDrawData(preserveTextureUpdates: true);
     }
 
     public void EndFrame()
@@ -291,9 +329,9 @@ public sealed class UiContext(
         }
 
         _state.EndFrame();
+        _inputBatch = null;
         _hasFrame = false;
-        _hasDrawData = false;
-        _drawData = null;
+        DiscardUnclaimedDrawData(preserveTextureUpdates: true);
     }
 
     public UiIO GetIO()
@@ -325,7 +363,12 @@ public sealed class UiContext(
             _inputState.CharEvents,
             _keyRepeatSettings,
             _state.Modifiers
-        );
+        )
+        {
+            MiddleMouseDown = _inputState.MiddleMouseDown,
+            MiddleMousePressed = _inputState.MiddleMousePressed,
+            MiddleMouseReleased = _inputState.MiddleMouseReleased,
+        };
     }
 
     public UiPlatformIO GetPlatformIO()
@@ -452,6 +495,16 @@ public sealed class UiContext(
 
     public void ClearRendererHandlers()
     {
+        DiscardPendingTextureUpdates();
+    }
+
+    private void DiscardPendingTextureUpdates()
+    {
+        foreach (var update in _textureUpdates)
+        {
+            update.PixelOwner?.Dispose();
+            update.PaintGroup?.Dispose();
+        }
         _textureUpdates.Clear();
     }
 
@@ -556,6 +609,10 @@ public sealed class UiContext(
         {
             _queuedRightMouseDown = down;
         }
+        if (button == (int)UiMouseButton.Middle)
+        {
+            _queuedMiddleMouseDown = down;
+        }
     }
 
     public void AddMouseWheelEvent(float wheelX, float wheelY)
@@ -655,6 +712,8 @@ public sealed class UiContext(
         _queuedCharEvents.Clear();
         _queuedMousePos = null;
         _queuedMouseDown = null;
+        _queuedRightMouseDown = null;
+        _queuedMiddleMouseDown = null;
         _queuedMouseWheel = 0f;
         _queuedMouseWheelHorizontal = 0f;
         _pendingHighSurrogate = null;
@@ -669,6 +728,9 @@ public sealed class UiContext(
     {
         _queuedMousePos = null;
         _queuedMouseDown = null;
+        _queuedRightMouseDown = null;
+        _queuedMiddleMouseDown = null;
+        _previousInjectedMiddleDown = false;
         _queuedMouseWheel = 0f;
         _queuedMouseWheelHorizontal = 0f;
 
@@ -682,6 +744,9 @@ public sealed class UiContext(
                 LeftMouseReleased = false,
                 RightMousePressed = false,
                 RightMouseReleased = false,
+                MiddleMouseDown = false,
+                MiddleMousePressed = false,
+                MiddleMouseReleased = false,
                 MouseWheel = 0f,
                 MouseWheelHorizontal = 0f
             };
@@ -696,15 +761,44 @@ public sealed class UiContext(
         _logActive = true;
     }
 
+    private static IReadOnlyList<T> MergeQueuedEvents<T>(IReadOnlyList<T> source, List<T> queued, ref List<T>? buffer)
+    {
+        if (queued.Count == 0)
+            return source;
+
+        var mergedCount = source.Count + queued.Count;
+        buffer ??= new(mergedCount);
+        if (buffer.Capacity < mergedCount)
+            buffer.Capacity = mergedCount;
+        if (!ReferenceEquals(source, buffer))
+        {
+            buffer.Clear();
+            for (var i = 0; i < source.Count; i++)
+                buffer.Add(source[i]);
+        }
+        for (var i = 0; i < queued.Count; i++)
+            buffer.Add(queued[i]);
+        return buffer;
+    }
+
     private UiInputState ApplyQueuedInput(UiInputState input)
     {
         var mousePos = _queuedMousePos ?? input.MousePosition;
         var leftDown = _queuedMouseDown ?? input.LeftMouseDown;
         var rightDown = _queuedRightMouseDown ?? input.RightMouseDown;
+        var middleDown = _queuedMiddleMouseDown ?? input.MiddleMouseDown;
         var leftPressed = input.LeftMousePressed;
         var leftReleased = input.LeftMouseReleased;
         var rightPressed = input.RightMousePressed;
         var rightReleased = input.RightMouseReleased;
+        var middlePressed = input.MiddleMousePressed;
+        var middleReleased = input.MiddleMouseReleased;
+        if (_queuedMiddleMouseDown.HasValue)
+        {
+            middlePressed = middleDown && !_previousInjectedMiddleDown;
+            middleReleased = !middleDown && _previousInjectedMiddleDown;
+        }
+        _previousInjectedMiddleDown = middleDown;
 
         if (_queuedMouseDown.HasValue)
         {
@@ -731,71 +825,35 @@ public sealed class UiContext(
         var mouseWheel = input.MouseWheel + _queuedMouseWheel;
         var mouseWheelHorizontal = input.MouseWheelHorizontal + _queuedMouseWheelHorizontal;
 
-        var keyEvents = input.KeyEvents;
-        if (_queuedKeyEvents.Count > 0)
-        {
-            var mergedCount = keyEvents.Count + _queuedKeyEvents.Count;
-            if (_mergedKeyEventsBuffer.Length < mergedCount)
-            {
-                _mergedKeyEventsBuffer = new UiKeyEvent[mergedCount];
-            }
-
-            var merged = _mergedKeyEventsBuffer;
-            for (var i = 0; i < keyEvents.Count; i++)
-            {
-                merged[i] = keyEvents[i];
-            }
-            for (var i = 0; i < _queuedKeyEvents.Count; i++)
-            {
-                merged[keyEvents.Count + i] = _queuedKeyEvents[i];
-            }
-            keyEvents = merged;
-        }
-
-        var charEvents = input.CharEvents;
-        if (_queuedCharEvents.Count > 0)
-        {
-            var mergedCount = charEvents.Count + _queuedCharEvents.Count;
-            if (_mergedCharEventsBuffer.Length < mergedCount)
-            {
-                _mergedCharEventsBuffer = new UiCharEvent[mergedCount];
-            }
-
-            var merged = _mergedCharEventsBuffer;
-            for (var i = 0; i < charEvents.Count; i++)
-            {
-                merged[i] = charEvents[i];
-            }
-            for (var i = 0; i < _queuedCharEvents.Count; i++)
-            {
-                merged[charEvents.Count + i] = _queuedCharEvents[i];
-            }
-            charEvents = merged;
-        }
+        var keyEvents = MergeQueuedEvents(input.KeyEvents, _queuedKeyEvents, ref _mergedKeyEventsBuffer);
+        var charEvents = MergeQueuedEvents(input.CharEvents, _queuedCharEvents, ref _mergedCharEventsBuffer);
 
         _queuedKeyEvents.Clear();
         _queuedCharEvents.Clear();
         _queuedMousePos = null;
         _queuedMouseDown = null;
         _queuedRightMouseDown = null;
+        _queuedMiddleMouseDown = null;
         _queuedMouseWheel = 0f;
         _queuedMouseWheelHorizontal = 0f;
 
-        return new UiInputState(
-            mousePos,
-            leftDown,
-            rightDown,
-            leftPressed,
-            leftReleased,
-            rightPressed,
-            rightReleased,
-            mouseWheel,
-            mouseWheelHorizontal,
-            keyEvents,
-            charEvents,
-            input.KeyRepeatSettings,
-            input.Modifiers
-        );
+        return input with
+        {
+            MousePosition = mousePos,
+            LeftMouseDown = leftDown,
+            RightMouseDown = rightDown,
+            LeftMousePressed = leftPressed,
+            LeftMouseReleased = leftReleased,
+            RightMousePressed = rightPressed,
+            RightMouseReleased = rightReleased,
+            MouseWheel = mouseWheel,
+            MouseWheelHorizontal = mouseWheelHorizontal,
+            KeyEvents = keyEvents,
+            CharEvents = charEvents,
+            MiddleMouseDown = middleDown,
+            MiddleMousePressed = middlePressed,
+            MiddleMouseReleased = middleReleased
+        };
     }
 
     public void Render()
@@ -810,6 +868,41 @@ public sealed class UiContext(
 
     public void Render(UiScreen screen)
     {
+        var measurement = new UiInputProcessingMeasurement(_state.InputProfilingEnabled, _inputBatch?.Count ?? 1);
+        var completed = false;
+        try
+        {
+            if (_inputBatch is not { } batch)
+                RenderSingleInput(screen, ref measurement);
+            else
+                RenderInputBatch(screen, batch, ref measurement);
+            completed = true;
+        }
+        finally
+        {
+            _state.InputProcessingMetrics = measurement.Finish(completed);
+        }
+    }
+
+    internal void ProcessHiddenHostVisibility(UiHostVisibility visibility)
+    {
+        // A minimized host can lose its drawable extent before its tooltip lifecycle is observed.
+        // Reuse the last layout extent for one input-only pass, without replaying input or submitting a frame.
+        if (_screen is null || !_hasFrame || !visibility.IsHidden || visibility == _frameInfo.HostVisibility)
+            return;
+
+        SetInputState(new(new(float.MinValue, float.MinValue), false, false, false, false, false, false,
+            0, 0, [], [], _inputState.KeyRepeatSettings, default));
+        NewFrame(_frameInfo with { DeltaTime = 0, HostVisibility = visibility,
+            IsWindowInactive = true, RepaintDiagnosticCleanup = false });
+        var measurement = new UiInputProcessingMeasurement(false, 1);
+        RenderSingleInput(_screen, ref measurement, UiRenderPhase.Input);
+    }
+
+    private void RenderSingleInput(UiScreen screen, ref UiInputProcessingMeasurement measurement,
+        UiRenderPhase phase = UiRenderPhase.Presentation)
+    {
+        var preparationStart = measurement.StartStage();
         if (!_hasFrame)
         {
             throw new InvalidOperationException("NewFrame must be called before Render.");
@@ -836,6 +929,17 @@ public sealed class UiContext(
         }
 
         var ui = _immediateContext;
+        var dispatch = _inputState.Dispatch;
+        _state.ApplyInputTime(_inputState.EventTimeSeconds);
+        _inputState = _inputState with
+        {
+            Dispatch = null,
+            EventTimeSeconds = null
+        };
+        if (dispatch?.RequiredImeHandler is { } required && !ReferenceEquals(required, _imeHandler))
+            throw new InvalidOperationException("Captured native input must be dispatched with its owning IME handler.");
+        dispatch?.Dispatch();
+        DiscardUnclaimedDrawData(preserveTextureUpdates: true);
         if (ui is null)
         {
             ui = new UiImmediateContext(
@@ -867,7 +971,7 @@ public sealed class UiContext(
                 _reserveVertices,
                 _reserveIndices,
                 _reserveCommands,
-                requestFrame: _requestFrame,
+                requestFrame: _frameInvalidator.Request,
                 queueTextureUpdate: QueueTextureUpdate,
                 resolveFontResource: _resolveFontResource,
                 directTextPrimaryFontPath: _directTextPrimaryFontPath,
@@ -877,6 +981,8 @@ public sealed class UiContext(
                 platformTextBackend: _platformTextBackend
             );
             _immediateContext = ui;
+            ui.TextureContentRevision = _textureContentRevision;
+            ui.TextureContentVersions = _textureContentVersions;
         }
         else
         {
@@ -917,29 +1023,73 @@ public sealed class UiContext(
             );
         }
 
+        ui.SetRenderPhase(phase);
+        ui.HostIdleWaitSeconds = _frameInfo.IdleWaitSeconds;
+        ui.SetMiddleMouseState(_inputState.MiddleMouseDown, _inputState.MiddleMousePressed, _inputState.MiddleMouseReleased);
         ui.SetDirectTextBaseFontSize(_directTextBaseFontSize);
         ui.SetDirectTextEnabled(_directTextEnabled);
         ui.SetDirectTextFallbackEnabled(_directTextFallbackEnabled);
         ui.SetContentScale(_contentScale);
+        ui.SetDisplayFramebufferScale(_framebufferScale);
         ui.SetWindowTitleBarPlatform(_windowTitleBar);
         ui.SetWindowIcon(_windowIcon);
-        screen.Render(ui);
-        _state.EndFrame();
+        ui.SetDrawDataFrameId(checked(++_drawDataFrameSequence));
+        ui.SetControlSkins(_controlSkins);
+        ui.SetTypographyFonts(_typographyFonts);
+        ui.IsHostWindowActive = !_frameInfo.IsWindowInactive;
+        ui.BeginTooltipTargets(_frameInfo.HostVisibility);
+        ui.BeginControlNavigation();
+        ui.SetAccessibilityTree(_accessibilityTree);
+        _accessibilityTree?.BeginFrame();
+        measurement.EndPreparation(preparationStart);
+        var compositionStart = measurement.StartStage();
+        try
+        {
+            screen.Render(ui);
+            ui.EndControlNavigation();
+            ui.EndTooltipTargets();
+            _state.EndFrame();
+            ui.EndAccessibilityFrame();
+        }
+        catch
+        {
+            ui.CancelControlPointerFocus();
+            ui.ResetLabelAccessibility();
+            _accessibilityTree?.AbortFrame();
+            ui.DiscardUnpublishedDrawing();
+            throw;
+        }
+        measurement.EndComposition(compositionStart);
+        if (phase == UiRenderPhase.Input)
+        {
+            ui.DiscardUnpublishedDrawing();
+            return;
+        }
+        var finalizationStart = measurement.StartStage();
         var drawLists = ui.BuildDrawLists();
         var totalVertexCount = 0;
         var totalIndexCount = 0;
-        var totalCommandCount = 0;
+        var reserveVertexCount = 0;
+        var reserveIndexCount = 0;
+        var reserveCommandCount = 0;
         for (var i = 0; i < drawLists.Count; i++)
         {
             var list = drawLists[i];
             totalVertexCount += list.Vertices.Count;
             totalIndexCount += list.Indices.Count;
-            totalCommandCount += list.Commands.Count;
+            // Retained lists borrow existing storage. Reserve only one owned
+            // builder chunk, rather than duplicating the entire resident scene.
+            if (list.OwnsBuffers)
+            {
+                reserveVertexCount = Math.Max(reserveVertexCount, list.Vertices.Count);
+                reserveIndexCount = Math.Max(reserveIndexCount, list.Indices.Count);
+                reserveCommandCount = Math.Max(reserveCommandCount, list.Commands.Count);
+            }
         }
 
-        _reserveVertices = Math.Max(256, totalVertexCount + (totalVertexCount >> 2));
-        _reserveIndices = Math.Max(256, totalIndexCount + (totalIndexCount >> 2));
-        _reserveCommands = Math.Max(32, totalCommandCount + (totalCommandCount >> 2));
+        _reserveVertices = Math.Max(256, reserveVertexCount + (reserveVertexCount >> 2));
+        _reserveIndices = Math.Max(256, reserveIndexCount + (reserveIndexCount >> 2));
+        _reserveCommands = Math.Max(32, reserveCommandCount + (reserveCommandCount >> 2));
 
         _drawData = new UiDrawData(
             _displaySize,
@@ -951,11 +1101,19 @@ public sealed class UiContext(
             UiPooledList<UiTextureUpdate>.RentAndCopy(_textureUpdates),
             ComputeDynamicDirtyRect(drawLists, _clipRect, out var hasDynamicDirtyRect),
             hasDynamicDirtyRect
-        );
+        )
+        {
+            FrameSceneLeases = ui.TakeFrameSceneLeases(),
+            LayerFrameLease = ui.TakeLayerFrameLease(),
+            DrawDataFrameId = ui.GetDrawDataFrameId(),
+            RepaintHighlights = ui.RepaintHighlights,
+            RepaintDiagnosticCleanup = _frameInfo.RepaintDiagnosticCleanup
+        };
 
 
         _textureUpdates.Clear();
         _hasDrawData = true;
+        measurement.EndFinalization(finalizationStart);
     }
 
 
@@ -966,15 +1124,57 @@ public sealed class UiContext(
             throw new InvalidOperationException("Render must be called before GetDrawData.");
         }
 
+        _drawDataClaimed = true;
         return _drawData;
     }
 
     public void Dispose()
     {
-        _textureUpdates.Clear();
+        _inputBatch = null;
+        _accessibilityTree?.SetRequestFrameCallback(null);
+        _accessibilityTree = null;
+        _state.ClearScheduledFrame();
+        _frameInvalidator.Callback = null;
+        DiscardUnclaimedDrawData();
+        _immediateContext?.ReleasePresentationResources();
+        _immediateContext?.ReleaseIdentifierResources();
+        _immediateContext?.ReleaseControlNavigation();
+        _immediateContext?.ReleaseControlTypographyResources();
+        UiImmediateContext.ReleaseLayerResources(_state);
+        _immediateContext?.ReleaseDirectTextPixelOwners();
+        _immediateContext?.ReleaseOwnedImageTextures();
+        DiscardPendingTextureUpdates();
+        _textureContentVersions.Clear();
         _state.ReleasePooledBuffers();
         _hasDrawData = false;
         _hasFrame = false;
+    }
+
+    private void DiscardUnclaimedDrawData(bool preserveTextureUpdates = false)
+    {
+        if (!_drawDataClaimed && _drawData is { } data)
+        {
+            if (preserveTextureUpdates && data.TextureUpdates.Count > 0)
+            {
+                // Unclaimed frames have not crossed the producer boundary. Keep their
+                // resource commands before newer pending commands, transferring ownership.
+                var previous = data.TextureUpdates;
+                var pendingCount = _textureUpdates.Count;
+                _textureUpdates.EnsureCapacity(checked(previous.Count + pendingCount));
+                for (var i = 0; i < previous.Count; i++)
+                    _textureUpdates.Add(default);
+                for (var i = pendingCount - 1; i >= 0; i--)
+                    _textureUpdates[previous.Count + i] = _textureUpdates[i];
+                for (var i = 0; i < previous.Count; i++)
+                    _textureUpdates[i] = previous[i];
+                previous.Return();
+            }
+            data.ReleasePooled();
+        }
+        _immediateContext?.ReleasePendingFrameSceneLeases();
+        _drawData = null;
+        _hasDrawData = false;
+        _drawDataClaimed = false;
     }
 
     private UiRect ComputeDynamicDirtyRect(UiPooledList<UiDrawList> drawLists, UiRect fallbackRect, out bool hasDirtyRect)
@@ -988,6 +1188,12 @@ public sealed class UiContext(
         for (var listIndex = 0; listIndex < drawLists.Count; listIndex++)
         {
             var drawList = drawLists[listIndex];
+            if (drawList.Scene3D.HasValue)
+            {
+                // A camera can move static local geometry anywhere in the viewport.
+                hasDirtyRect = true;
+                return fallbackRect;
+            }
             if (IsStaticGeometryTag(drawList.StaticGeometryKey))
             {
                 continue;

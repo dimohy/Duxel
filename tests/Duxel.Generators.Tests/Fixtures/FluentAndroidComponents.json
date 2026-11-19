@@ -1,0 +1,714 @@
+{
+  "schemaVersion": 1,
+  "repository": "microsoft/fluentui-android",
+  "commit": "40095bd360026497c0e92159bc307ac82103e655",
+  "scope": "Reviewed public renderables and infrastructure in the46 README Compose-v2 source families;not final cross-platform scope",
+  "entries": [
+    {
+      "family": "AcrylicPane",
+      "kind": "component",
+      "canonicalNames": [
+        "AcrylicPane"
+      ],
+      "nativeApi": [
+        "AcrylicPane"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_others/src/main/java/com/microsoft/fluentui/tokenized/acrylicpane/AcrylicPane.kt",
+      "classificationEvidence": "android-AcrylicPane.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "e1fa2abd96ef1b39653802bd2a1c489e8725ad9c1890667bf68c5921da72644d"
+    },
+    {
+      "family": "AnnouncementCard",
+      "kind": "component",
+      "canonicalNames": [
+        "AnnouncementCard"
+      ],
+      "nativeApi": [
+        "AnnouncementCard"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_controls/src/main/java/com/microsoft/fluentui/tokenized/controls/AnnouncementCard.kt",
+      "classificationEvidence": "android-AnnouncementCard.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "ce32819b1bef096bbc8a9d481a441212e733cfb5010d3d386ff36472066e9245"
+    },
+    {
+      "family": "AppBar",
+      "kind": "component",
+      "canonicalNames": [
+        "AppBar"
+      ],
+      "nativeApi": [
+        "AppBar"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_topappbars/src/main/java/com/microsoft/fluentui/tokenized/AppBar.kt",
+      "classificationEvidence": "android-AppBar.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "f78d498915ced5c09c9f7b0d2a88018633ab9c8d0cf1f88f3f229bc22dad08f9"
+    },
+    {
+      "family": "Avatar",
+      "kind": "component",
+      "canonicalNames": [
+        "Avatar",
+        "ActivityRing",
+        "ActivityDot"
+      ],
+      "nativeApi": [
+        "Avatar",
+        "ActivityRing",
+        "ActivityDot"
+      ],
+      "reason": "public ActivityRing and ActivityDot renderers are preserved as subcomponent requirements",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_persona/src/main/java/com/microsoft/fluentui/tokenized/persona/Avatar.kt",
+      "classificationEvidence": "android-Avatar.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "7e9d515731b7719d67b4b39a71577f1b9d39e266b1dfe0da91a008ea81652432"
+    },
+    {
+      "family": "AvatarCarousel",
+      "kind": "component",
+      "canonicalNames": [
+        "AvatarCarousel"
+      ],
+      "nativeApi": [
+        "AvatarCarousel"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_persona/src/main/java/com/microsoft/fluentui/tokenized/persona/AvatarCarousel.kt",
+      "classificationEvidence": "android-AvatarCarousel.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "077c365899c77d814b735927504f8ae11d7f1398c84ab87c248c43202aa2ccf8"
+    },
+    {
+      "family": "AvatarGroup",
+      "kind": "component",
+      "canonicalNames": [
+        "AvatarGroup"
+      ],
+      "nativeApi": [
+        "AvatarGroup"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_persona/src/main/java/com/microsoft/fluentui/tokenized/persona/AvatarGroup.kt",
+      "classificationEvidence": "android-AvatarGroup.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "12d5ef871723d6381adc6dbcf40fd723ad1d65ab0192cbb1601bd987039f33ba"
+    },
+    {
+      "family": "Badge",
+      "kind": "component",
+      "canonicalNames": [
+        "Badge"
+      ],
+      "nativeApi": [
+        "Badge"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_notification/src/main/java/com/microsoft/fluentui/tokenized/notification/Badge.kt",
+      "classificationEvidence": "android-Badge.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "7f26c4d3c71ad5faad245db9309d8b3b55ee2ab384b29a7b8f9dae609ef15d06"
+    },
+    {
+      "family": "BasicCard",
+      "kind": "component",
+      "canonicalNames": [
+        "BasicCard"
+      ],
+      "nativeApi": [
+        "BasicCard"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_controls/src/main/java/com/microsoft/fluentui/tokenized/controls/BasicCard.kt",
+      "classificationEvidence": "android-BasicCard.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "4a72e7ec5785869f9204551e1e0e857294efff84047ea169ad0c669a9e5a0a3e"
+    },
+    {
+      "family": "BasicChip",
+      "kind": "component",
+      "canonicalNames": [
+        "BasicChip"
+      ],
+      "nativeApi": [
+        "BasicChip"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_controls/src/main/java/com/microsoft/fluentui/tokenized/controls/BasicChip.kt",
+      "classificationEvidence": "android-BasicChip.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "ccd11f13ba61df1ce4f34ec542c2aed10a96372933d27619253471831434fb06"
+    },
+    {
+      "family": "BottomSheet",
+      "kind": "component",
+      "canonicalNames": [
+        "BottomSheet"
+      ],
+      "nativeApi": [
+        "BottomSheet"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_drawer/src/main/java/com/microsoft/fluentui/tokenized/bottomsheet/BottomSheet.kt",
+      "classificationEvidence": "android-BottomSheet.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "563e1b5a2d7764d82682dbab9be480c4b4226bc895398bf0d21b836f9a6cb8c4"
+    },
+    {
+      "family": "Button",
+      "kind": "component",
+      "canonicalNames": [
+        "Button"
+      ],
+      "nativeApi": [
+        "Button"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_controls/src/main/java/com/microsoft/fluentui/tokenized/controls/Button.kt",
+      "classificationEvidence": "android-Button.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "57b683633a59be20a81a22175a7982c3d43afab0a6047ce044c5c755d7e5fe80"
+    },
+    {
+      "family": "CardNudge",
+      "kind": "component",
+      "canonicalNames": [
+        "CardNudge"
+      ],
+      "nativeApi": [
+        "CardNudge"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_notification/src/main/java/com/microsoft/fluentui/tokenized/notification/CardNudge.kt",
+      "classificationEvidence": "android-CardNudge.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "e8758256040f443af6d09336377f20bc005b9bbfa81fb8527c6901626395274d"
+    },
+    {
+      "family": "Checkbox",
+      "kind": "component",
+      "canonicalNames": [
+        "Checkbox"
+      ],
+      "nativeApi": [
+        "CheckBox"
+      ],
+      "reason": "native CheckBox spelling maps to the existing Checkbox requirement;not marked implemented",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_controls/src/main/java/com/microsoft/fluentui/tokenized/controls/Checkbox.kt",
+      "classificationEvidence": "android-Checkbox.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "b88faa6cf1956f017e1711e009ed819b64ecad5e85c05aa08abed6d1fc07e703"
+    },
+    {
+      "family": "CircularProgressIndicator",
+      "kind": "component",
+      "canonicalNames": [
+        "CircularProgressIndicator"
+      ],
+      "nativeApi": [
+        "CircularProgressIndicator"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_progress/src/main/java/com/microsoft/fluentui/tokenized/progress/CircularProgressIndicator.kt",
+      "classificationEvidence": "android-CircularProgressIndicator.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "5ccfb676b417bdc0edc824adfa1f51199ec59d5f04eaaadbd56424f09883e207"
+    },
+    {
+      "family": "Citation",
+      "kind": "component",
+      "canonicalNames": [
+        "Citation"
+      ],
+      "nativeApi": [
+        "Citation"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_controls/src/main/java/com/microsoft/fluentui/tokenized/controls/Citation.kt",
+      "classificationEvidence": "android-Citation.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "1ea86b7d2eac7ca5db979677e53e7bea58644e4b815f98806c689e66bd20c20c"
+    },
+    {
+      "family": "ContextualCommandBar",
+      "kind": "component",
+      "canonicalNames": [
+        "ContextualCommandBar"
+      ],
+      "nativeApi": [
+        "ContextualCommandBar"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_ccb/src/main/java/com/microsoft/fluentui/tokenized/contextualcommandbar/ContextualCommandBar.kt",
+      "classificationEvidence": "android-ContextualCommandBar.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "cb947ebb20f9a620a33b6647f4ddc33acae26c1cb4b1ee44bdb1c27139800fa5"
+    },
+    {
+      "family": "Dialog",
+      "kind": "component",
+      "canonicalNames": [
+        "Dialog"
+      ],
+      "nativeApi": [
+        "Dialog"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_menus/src/main/java/com/microsoft/fluentui/tokenized/menu/Dialog.kt",
+      "classificationEvidence": "android-Dialog.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "8f1d81ac29e0c1478b753d13824964d7e7c502078f6141eec72b112954470742"
+    },
+    {
+      "family": "Divider",
+      "kind": "component",
+      "canonicalNames": [
+        "Divider"
+      ],
+      "nativeApi": [
+        "Divider"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_listitem/src/main/java/com/microsoft/fluentui/tokenized/divider/Divider.kt",
+      "classificationEvidence": "android-Divider.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "d88bea920326f5b2f69a1356ee308f07db84d521261a5c748fe91898af2a2cce"
+    },
+    {
+      "family": "Drawer",
+      "kind": "component",
+      "canonicalNames": [
+        "Drawer",
+        "BottomDrawer"
+      ],
+      "nativeApi": [
+        "Drawer",
+        "BottomDrawer"
+      ],
+      "reason": "public Drawer and BottomDrawer renderers are both preserved",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_drawer/src/main/java/com/microsoft/fluentui/tokenized/drawer/Drawer.kt",
+      "classificationEvidence": "android-Drawer.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "2a8bb4788aa67e0890168d909136397548392aa20f523eccd6074157f98c7820"
+    },
+    {
+      "family": "FileCard",
+      "kind": "component",
+      "canonicalNames": [
+        "FileCard"
+      ],
+      "nativeApi": [
+        "FileCard"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_controls/src/main/java/com/microsoft/fluentui/tokenized/controls/FileCard.kt",
+      "classificationEvidence": "android-FileCard.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "4eef8f47d0440b6caddcc439e71c5e4a056bd9de455184fc3c64fb5c3c69df09"
+    },
+    {
+      "family": "FloatingActionButton",
+      "kind": "component",
+      "canonicalNames": [
+        "FloatingActionButton"
+      ],
+      "nativeApi": [
+        "FloatingActionButton"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_controls/src/main/java/com/microsoft/fluentui/tokenized/controls/FloatingActionButton.kt",
+      "classificationEvidence": "android-FloatingActionButton.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "4b585447652f62b4e7e83f5280d24a7468e7ea57e93485f0e6fa5b9ad2abbb13"
+    },
+    {
+      "family": "Label",
+      "kind": "component",
+      "canonicalNames": [
+        "Label"
+      ],
+      "nativeApi": [
+        "Label"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_controls/src/main/java/com/microsoft/fluentui/tokenized/controls/Label.kt",
+      "classificationEvidence": "android-Label.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "bc139385b6e818e4bedae88622669d5f1a874468214f6a6496786e13c52a613a"
+    },
+    {
+      "family": "LinearProgressIndicator",
+      "kind": "component",
+      "canonicalNames": [
+        "LinearProgressIndicator"
+      ],
+      "nativeApi": [
+        "LinearProgressIndicator"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_progress/src/main/java/com/microsoft/fluentui/tokenized/progress/LinearProgressIndicator.kt",
+      "classificationEvidence": "android-LinearProgressIndicator.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "c989dbc6b60b49864a4184f7dab6875ad6b1c94e453d87211a26df574d2a436e"
+    },
+    {
+      "family": "ListContentBuilder",
+      "kind": "infrastructure",
+      "canonicalNames": [
+        "ListContentBuilder"
+      ],
+      "nativeApi": [
+        "ListContentBuilder"
+      ],
+      "reason": "public composition/data builder;not a standalone rendered widget",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_listitem/src/main/java/com/microsoft/fluentui/tokenized/contentBuilder/ListContentBuilder.kt",
+      "classificationEvidence": "android-ListContentBuilder.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "a11e4720e0c26d27610bb8770f8f59f86dd47c38efd0e3280eaebbd32ebca03a"
+    },
+    {
+      "family": "ListItem",
+      "kind": "component",
+      "canonicalNames": [
+        "ListItem",
+        "ListItemActionText",
+        "ListItemSectionHeader",
+        "ListItemSectionDescription",
+        "ListItemHeader"
+      ],
+      "nativeApi": [
+        "ListItem.Item",
+        "ListItem.PlaceholderForActionText",
+        "ListItem.SectionHeader",
+        "ListItem.SectionDescription",
+        "ListItem.Header"
+      ],
+      "reason": "public object member renderers are retained as distinct family/subcomponent requirements",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_listitem/src/main/java/com/microsoft/fluentui/tokenized/listitem/ListItem.kt",
+      "classificationEvidence": "android-ListItem.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "7f63414fc41ba7b48f1d9d1e27bcd5ae9a17e49e544e47f93107ad0f85daa97b"
+    },
+    {
+      "family": "Menu",
+      "kind": "component",
+      "canonicalNames": [
+        "Menu"
+      ],
+      "nativeApi": [
+        "Menu"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_menus/src/main/java/com/microsoft/fluentui/tokenized/menu/Menu.kt",
+      "classificationEvidence": "android-Menu.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "2a0eacbc3a1143655dfd7c4ff8f69d135fa967b351328073f2ad5b38b8afe9c7"
+    },
+    {
+      "family": "NotificationCommon",
+      "kind": "infrastructure",
+      "canonicalNames": [
+        "NotificationCommon"
+      ],
+      "nativeApi": [
+        "NotificationCommon"
+      ],
+      "reason": "public animation/state contracts and an internal NotificationContainer;no public standalone control",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_notification/src/main/java/com/microsoft/fluentui/tokenized/notification/NotificationCommon.kt",
+      "classificationEvidence": "android-NotificationCommon.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "7ee1a82ecb5401c1e2ffbcf9fa55acf0d028c3c7f02071b10f88d817a0084654"
+    },
+    {
+      "family": "PeoplePicker",
+      "kind": "component",
+      "canonicalNames": [
+        "PeoplePicker"
+      ],
+      "nativeApi": [
+        "PeoplePicker"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_peoplepicker/src/main/java/com/microsoft/fluentui/tokenized/peoplepicker/PeoplePicker.kt",
+      "classificationEvidence": "android-PeoplePicker.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "6187cadfb02bba85d38e6c68ff35c2b59fdadbd9992062ec11ded886bb17960d"
+    },
+    {
+      "family": "Persona",
+      "kind": "component",
+      "canonicalNames": [
+        "Persona"
+      ],
+      "nativeApi": [
+        "Persona"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_persona/src/main/java/com/microsoft/fluentui/tokenized/persona/Persona.kt",
+      "classificationEvidence": "android-Persona.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "87d51bfc25bd9636f81cab2a1be49ed7fc55d77ec20c63d436151ab54d62f29e"
+    },
+    {
+      "family": "PersonaChip",
+      "kind": "component",
+      "canonicalNames": [
+        "PersonaChip"
+      ],
+      "nativeApi": [
+        "PersonaChip"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_persona/src/main/java/com/microsoft/fluentui/tokenized/persona/PersonaChip.kt",
+      "classificationEvidence": "android-PersonaChip.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "9c3efed8b9296480a796f5e9cc49f4ec16dcb5004eedafb9bc7306f266917cbb"
+    },
+    {
+      "family": "PersonaList",
+      "kind": "component",
+      "canonicalNames": [
+        "PersonaList"
+      ],
+      "nativeApi": [
+        "PersonaList"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_persona/src/main/java/com/microsoft/fluentui/tokenized/persona/PersonaList.kt",
+      "classificationEvidence": "android-PersonaList.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "52c45ad912725afe5081d0d4ee83c9168fe81d003a33ec5095449cd572635e2c"
+    },
+    {
+      "family": "Pill",
+      "kind": "component",
+      "canonicalNames": [
+        "PillButton",
+        "PillBar"
+      ],
+      "nativeApi": [
+        "PillButton",
+        "PillBar"
+      ],
+      "reason": "README names a source family;public rendered entrypoints are PillButton and PillBar",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_tablayout/src/main/java/com/microsoft/fluentui/tokenized/segmentedcontrols/Pill.kt",
+      "classificationEvidence": "android-Pill.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "5a927c315f994a765ddbe14fa5588eea42e38bf35d997f29dfe52c15a91a5249"
+    },
+    {
+      "family": "PillSwitch",
+      "kind": "component",
+      "canonicalNames": [
+        "PillSwitch"
+      ],
+      "nativeApi": [
+        "PillSwitch"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_tablayout/src/main/java/com/microsoft/fluentui/tokenized/segmentedcontrols/PillSwitch.kt",
+      "classificationEvidence": "android-PillSwitch.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "e420ce50e020c071b2e47c1bc6b1c8c0ac8d0ee7fda046e1fa1be3fbde57c22c"
+    },
+    {
+      "family": "PillTabs",
+      "kind": "component",
+      "canonicalNames": [
+        "PillTabs"
+      ],
+      "nativeApi": [
+        "PillTabs"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_tablayout/src/main/java/com/microsoft/fluentui/tokenized/segmentedcontrols/PillTabs.kt",
+      "classificationEvidence": "android-PillTabs.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "ffb96e4f87110512b6e60862a0d17f12b38a056cac94946f05688e6e8afc0d18"
+    },
+    {
+      "family": "ProgressText",
+      "kind": "component",
+      "canonicalNames": [
+        "ProgressText"
+      ],
+      "nativeApi": [
+        "ProgressText"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_progress/src/main/java/com/microsoft/fluentui/tokenized/progress/ProgressText.kt",
+      "classificationEvidence": "android-ProgressText.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "c49ad500ee8f26c86b169df680ddf8ab36b955f55c4376db2c105f163eb0f2af"
+    },
+    {
+      "family": "RadioButton",
+      "kind": "component",
+      "canonicalNames": [
+        "RadioButton"
+      ],
+      "nativeApi": [
+        "RadioButton"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_controls/src/main/java/com/microsoft/fluentui/tokenized/controls/RadioButton.kt",
+      "classificationEvidence": "android-RadioButton.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "7af3b07c191f55228366dfde6951a6f84660f86cbff9f2513435c37bfa7ef418"
+    },
+    {
+      "family": "SearchBar",
+      "kind": "component",
+      "canonicalNames": [
+        "SearchBar"
+      ],
+      "nativeApi": [
+        "SearchBar"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_topappbars/src/main/java/com/microsoft/fluentui/tokenized/SearchBar.kt",
+      "classificationEvidence": "android-SearchBar.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "943742fde69bc7e724e10161c90d0a155cde896c0964eb0941f2804cb60f2060"
+    },
+    {
+      "family": "SearchBarPersonaChip",
+      "kind": "component",
+      "canonicalNames": [
+        "SearchBarPersonaChip"
+      ],
+      "nativeApi": [
+        "SearchBarPersonaChip"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_persona/src/main/java/com/microsoft/fluentui/tokenized/persona/SearchBarPersonaChip.kt",
+      "classificationEvidence": "android-SearchBarPersonaChip.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "fe727cbe7b23171454ac5ea0f7e214b3a2c403d47e767a078fbe9bf56dbe48dd"
+    },
+    {
+      "family": "Shimmer",
+      "kind": "component",
+      "canonicalNames": [
+        "Shimmer"
+      ],
+      "nativeApi": [
+        "Shimmer"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_progress/src/main/java/com/microsoft/fluentui/tokenized/shimmer/Shimmer.kt",
+      "classificationEvidence": "android-Shimmer.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "423a34d303b1cdb2ffad7c6e2623320d471c94f08044be77d83f8df2adfe6828"
+    },
+    {
+      "family": "SideRail",
+      "kind": "component",
+      "canonicalNames": [
+        "SideRail"
+      ],
+      "nativeApi": [
+        "SideRail"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_tablayout/src/main/java/com/microsoft/fluentui/tokenized/navigation/SideRail.kt",
+      "classificationEvidence": "android-SideRail.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "471f5fa8f7d5bcd94c7cad1c9dcb20b8ef13f86860cd3aef0b2cad349b181ec9"
+    },
+    {
+      "family": "Snackbar",
+      "kind": "component",
+      "canonicalNames": [
+        "Snackbar"
+      ],
+      "nativeApi": [
+        "Snackbar"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_notification/src/main/java/com/microsoft/fluentui/tokenized/notification/Snackbar.kt",
+      "classificationEvidence": "android-Snackbar.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "c68d488ade62a2f73d8d7af033883baccecb15cb1da0087b206213d70c43d887"
+    },
+    {
+      "family": "TabBar",
+      "kind": "component",
+      "canonicalNames": [
+        "TabBar"
+      ],
+      "nativeApi": [
+        "TabBar"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_tablayout/src/main/java/com/microsoft/fluentui/tokenized/navigation/TabBar.kt",
+      "classificationEvidence": "android-TabBar.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "78aa9257247497a80330f3d12cb4f8b2dd90b60190fe18d28a65a3c0e02381e6"
+    },
+    {
+      "family": "TabItem",
+      "kind": "component",
+      "canonicalNames": [
+        "TabItem"
+      ],
+      "nativeApi": [
+        "TabItem"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_listitem/src/main/java/com/microsoft/fluentui/tokenized/tabItem/TabItem.kt",
+      "classificationEvidence": "android-TabItem.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "9d81f64c76215611dac631da594d228fa5ade374bcb9f867e6f28c27a9796595"
+    },
+    {
+      "family": "TextField",
+      "kind": "component",
+      "canonicalNames": [
+        "TextField"
+      ],
+      "nativeApi": [
+        "TextField"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_controls/src/main/java/com/microsoft/fluentui/tokenized/controls/TextField.kt",
+      "classificationEvidence": "android-TextField.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "58022da97ce5c92bfdaa749c782eaa7f036e78e3493a4cbe1dff631fcd0491d6"
+    },
+    {
+      "family": "ToggleSwitch",
+      "kind": "component",
+      "canonicalNames": [
+        "ToggleSwitch"
+      ],
+      "nativeApi": [
+        "ToggleSwitch"
+      ],
+      "reason": "README Compose-v2 control and public source declaration",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_controls/src/main/java/com/microsoft/fluentui/tokenized/controls/ToggleSwitch.kt",
+      "classificationEvidence": "android-ToggleSwitch.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "8e99faa845a2c72e4c9409b42f1a4115f4c528f9af8ce353aff14cb19a49e8cb"
+    },
+    {
+      "family": "ToolTip",
+      "kind": "component",
+      "canonicalNames": [
+        "Tooltip"
+      ],
+      "nativeApi": [
+        "ToolTipBox"
+      ],
+      "reason": "native ToolTipBox maps to the existing Tooltip requirement;not marked implemented",
+      "url": "https://raw.githubusercontent.com/microsoft/fluentui-android/40095bd360026497c0e92159bc307ac82103e655/fluentui_notification/src/main/java/com/microsoft/fluentui/tokenized/notification/ToolTip.kt",
+      "classificationEvidence": "android-ToolTip.kt",
+      "implementationStatus": "not inferred from a matching name",
+      "sourceSha256": "bbaa1ab0bbca42afd0c3b57ad3cfd5e14afef4f5421582cfd29cbe10cd811a41"
+    }
+  ]
+}

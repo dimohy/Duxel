@@ -1,4 +1,4 @@
-﻿using Duxel.Core;
+using Duxel.Core;
 using System.Diagnostics;
 using VulkanSemaphore = Duxel.Vulkan.Semaphore;
 
@@ -7,7 +7,10 @@ namespace Duxel.Vulkan;
 public sealed unsafe partial class VulkanRendererBackend
 {
     private int _frameIndex;
+    partial void ObserveValidationWait(string phase);
+    partial void ObserveValidationFrameAttempt(UiDrawData drawData);
     private int _lastImageIndex = -1;
+    private long _profileGpuQueryReadTicks, _profileTextureRetireTicks, _profileBufferRetireTicks;
 
     private readonly struct ActiveFrameContext
     {
@@ -63,6 +66,10 @@ public sealed unsafe partial class VulkanRendererBackend
         public CommandRecordStats RecordStats;
     }
 
+    private static PlatformSize GetDrawFramebufferSize(UiDrawData drawData)=>new(
+        (int)MathF.Round(drawData.DisplaySize.X*drawData.FramebufferScale.X),
+        (int)MathF.Round(drawData.DisplaySize.Y*drawData.FramebufferScale.Y));
+
     private bool TryEnsureFrameTarget(UiDrawData drawData)
     {
         if (drawData.DisplaySize.X <= 0 || drawData.DisplaySize.Y <= 0)
@@ -70,18 +77,25 @@ public sealed unsafe partial class VulkanRendererBackend
             return false;
         }
 
-        var expectedFbWidth = (int)(drawData.DisplaySize.X * drawData.FramebufferScale.X);
-        var expectedFbHeight = (int)(drawData.DisplaySize.Y * drawData.FramebufferScale.Y);
+        var expectedFramebuffer=GetDrawFramebufferSize(drawData);
+        var expectedFbWidth=expectedFramebuffer.Width;
+        var expectedFbHeight=expectedFramebuffer.Height;
+        var committed=_platform.FramebufferSize;
+        // A queued UI snapshot may predate the latest native resize. Do not
+        // recreate the surface for that stale frame or paint it at another extent.
+        if(expectedFbWidth!=committed.Width||expectedFbHeight!=committed.Height)return false;
         var hasFramebufferSizeMismatch = expectedFbWidth != (int)_swapchainExtent.Width
             || expectedFbHeight != (int)_swapchainExtent.Height;
-        var isInteractingResize = _platform.IsInteractingResize;
-
-        if (hasFramebufferSizeMismatch && !isInteractingResize)
+        bool FitsPresentationCapacity()=>_oneToOnePresentation&&UsesPresentationCapacity()
+            &&expectedFbWidth<=(int)_swapchainExtent.Width&&expectedFbHeight<=(int)_swapchainExtent.Height;
+        if ((hasFramebufferSizeMismatch&&!FitsPresentationCapacity())||_swapchainRecreationPending)
         {
             if (!TryRecreateSwapchain())
             {
                 return false;
             }
+            // The native extent can advance while creating the new swapchain.
+            if((expectedFbWidth!=(int)_swapchainExtent.Width||expectedFbHeight!=(int)_swapchainExtent.Height)&&!FitsPresentationCapacity())return false;
         }
 
         var fbWidth = (int)_swapchainExtent.Width;
@@ -90,6 +104,10 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             return false;
         }
+
+        _frameRenderExtent=new((uint)expectedFbWidth,(uint)expectedFbHeight);
+
+        TrimMsaaTargetAfterResize();
 
         // A frame without draw geometry still has to clear and present the swapchain image.
         return true;
@@ -116,23 +134,32 @@ public sealed unsafe partial class VulkanRendererBackend
         var frameFenceTicks = EndFrameProfileTiming(_profilingEnabled, frameFenceStart);
 
         var gpuRenderUs = double.NaN;
+        var queryReadStart = BeginFrameProfileTiming(_profilingEnabled);
         if (_gpuProfilingEnabled)
         {
             gpuRenderUs = TryReadGpuTimestampResult(frameData);
             frameData.TimestampQueryIssued = false;
         }
+        _profileGpuQueryReadTicks = EndFrameProfileTiming(_profilingEnabled, queryReadStart);
+        var retireStart = BeginFrameProfileTiming(_profilingEnabled);
+        FlushRetiredTexturesAfterFrameFence(frameSlot);
+        _profileTextureRetireTicks = EndFrameProfileTiming(_profilingEnabled, retireStart);
+        retireStart = BeginFrameProfileTiming(_profilingEnabled);
+        FlushRetiredBuffersAfterFrameFence(frameSlot);
+        RecycleVectorWorkAfterFrameFence(frameSlot);
+        _profileBufferRetireTicks = EndFrameProfileTiming(_profilingEnabled, retireStart);
 
-        FlushPendingTextureDestroys(frameSlot);
-        FlushPendingBufferDestroys(frameSlot);
-
-        var semaphores = _frameSemaphores[_semaphoreIndex];
-        _semaphoreIndex = (_semaphoreIndex + 1) % _frameSemaphores.Length;
+        // Graphics completion proves that this frame's acquire wait was consumed.
+        var imageAvailable = _frameSemaphores[frameSlot].ImageAvailable;
 
         var acquireStart = BeginFrameProfileTiming(_profilingEnabled);
-        if (!TryAcquireFrameImage(semaphores.ImageAvailable, out var imageIndex))
+        if (!TryAcquireFrameImage(imageAvailable, out var imageIndex))
         {
             return false;
         }
+        // Reacquiring this image orders the previous present's semaphore wait.
+        // A frame/ring index alone cannot prove presentation-engine completion.
+        var semaphores = new FrameSemaphores(imageAvailable,_frameSemaphores[imageIndex].RenderFinished);
         var acquireTicks = EndFrameProfileTiming(_profilingEnabled, acquireStart);
 
         _lastImageIndex = (int)imageIndex;
@@ -156,13 +183,18 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         fixed (Fence* fence = &frameData.InFlight)
         {
+            ObserveValidationWait("frame-fence");
             var waitResult = _vk.WaitForFences(_device, 1, fence, true, _platform.IsInteractingResize ? 0UL : ulong.MaxValue);
+            ObserveValidationWait("frame-fence-complete");
             if (waitResult is Result.Timeout or Result.NotReady)
             {
                 return false;
             }
 
             Check(waitResult);
+            RecordCompletedGraphicsFrame(frameData);
+            FlushRetiredRenderTargets(frameData);
+            CollectRetiredPresentations(frameData);
             return true;
         }
     }
@@ -170,8 +202,12 @@ public sealed unsafe partial class VulkanRendererBackend
     private bool TryAcquireFrameImage(VulkanSemaphore imageAvailable, out uint imageIndex)
     {
         imageIndex = 0;
+        var notReady=false;
+        OverrideValidationAcquireNotReady(ref notReady);
+        if(notReady)return false;
         var acquiredImageIndex = 0u;
         var timeout = _platform.IsInteractingResize ? 0UL : ulong.MaxValue;
+        ObserveValidationWait("acquire-image");
         var acquireResult = _khrSwapchain.AcquireNextImage(
             _device,
             _swapchain,
@@ -186,28 +222,9 @@ public sealed unsafe partial class VulkanRendererBackend
 
         if (acquireResult == Result.ErrorOutOfDateKhr || IsSurfaceLost(acquireResult))
         {
-            if (!TryRecreateSwapchain())
-            {
-                return false;
-            }
-
-            acquiredImageIndex = 0u;
-            acquireResult = _khrSwapchain.AcquireNextImage(
-                _device,
-                _swapchain,
-                timeout,
-                imageAvailable,
-                default,
-                &acquiredImageIndex);
-            if (acquireResult is Result.Timeout or Result.NotReady)
-            {
-                return false;
-            }
-
-            if (acquireResult == Result.ErrorOutOfDateKhr || IsSurfaceLost(acquireResult))
-            {
-                return false;
-            }
+            _ = TryRecreateSwapchain();
+            // Re-enter with a semaphore from the new swapchain generation.
+            return false;
         }
 
         if (acquireResult != Result.Success && !IsSuboptimal(acquireResult))
@@ -215,6 +232,7 @@ public sealed unsafe partial class VulkanRendererBackend
             Check(acquireResult);
         }
 
+        ObserveValidationWait("acquire-image-complete");
         imageIndex = acquiredImageIndex;
         return true;
     }
@@ -232,7 +250,9 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             var fencePtr = stackalloc Fence[1];
             fencePtr[0] = imageFence;
+            ObserveValidationWait("image-fence");
             Check(_vk.WaitForFences(_device, 1, fencePtr, true, ulong.MaxValue));
+            ObserveValidationWait("image-fence-complete");
         }
 
         _imagesInFlight[imageIndex] = frameData.InFlight;
@@ -247,14 +267,14 @@ public sealed unsafe partial class VulkanRendererBackend
         };
     }
 
-    private static long BeginFrameProfileTiming(bool profileEnabled)
+    private long BeginFrameProfileTiming(bool profileEnabled)
     {
-        return profileEnabled ? Stopwatch.GetTimestamp() : 0L;
+        return profileEnabled && _cpuTimingsThisFrame ? Stopwatch.GetTimestamp() : 0L;
     }
 
     private static long EndFrameProfileTiming(bool profileEnabled, long startTicks)
     {
-        return profileEnabled ? Stopwatch.GetTimestamp() - startTicks : 0L;
+        return profileEnabled && startTicks != 0 ? Stopwatch.GetTimestamp() - startTicks : 0L;
     }
 
     private unsafe long SubmitFrame(
@@ -263,7 +283,7 @@ public sealed unsafe partial class VulkanRendererBackend
         VulkanSemaphore renderFinished,
         Fence inFlightFence)
     {
-        WaitForPendingUploadWork();
+        SynchronizeUploadsBeforeFrame();
 
         var waitStage = PipelineStageFlags.ColorAttachmentOutputBit;
         var submitInfo = new SubmitInfo
@@ -279,9 +299,9 @@ public sealed unsafe partial class VulkanRendererBackend
         };
 
         Check(_vk.ResetFences(_device, 1, &inFlightFence));
-        var submitStart = _profilingEnabled ? Stopwatch.GetTimestamp() : 0;
+        var submitStart = BeginFrameProfileTiming(_profilingEnabled);
         Check(_vk.QueueSubmit(_graphicsQueue, 1, &submitInfo, inFlightFence));
-        return _profilingEnabled ? Stopwatch.GetTimestamp() - submitStart : 0L;
+        return _profilingEnabled ? EndFrameProfileTiming(true, submitStart) : 0L;
     }
 
     private unsafe Result PresentFrame(uint imageIndex, VulkanSemaphore renderFinished, out long presentTicks)
@@ -297,15 +317,35 @@ public sealed unsafe partial class VulkanRendererBackend
             PImageIndices = &imageIndex,
         };
 
-        var presentStart = _profilingEnabled ? Stopwatch.GetTimestamp() : 0;
-        var presentResult = _khrSwapchain.QueuePresent(_graphicsQueue, &presentInfo);
-        presentTicks = _profilingEnabled ? Stopwatch.GetTimestamp() - presentStart : 0L;
+        var presentStart = BeginFrameProfileTiming(_profilingEnabled);
+        var rejected=false;
+        RejectValidationPresentation(ref rejected);
+        var presentFence=default(Fence);
+        var presentFenceInfo=new SwapchainPresentFenceInfoEXT
+        {
+            SType=StructureType.SwapchainPresentFenceInfoEXT,SwapchainCount=1,PFences=&presentFence,
+        };
+        if(_swapchainMaintenanceEnabled&&!rejected)
+        {
+            presentFence=RentPresentFence();presentInfo.PNext=&presentFenceInfo;
+        }
+        ObserveValidationWait("queue-present");
+        var presentResult = rejected?Result.ErrorOutOfDateKhr:_khrSwapchain.QueuePresent(_graphicsQueue, &presentInfo);
+        ObserveValidationWait("queue-present-complete");
+        if(presentFence.Handle!=0)
+        {
+            if(presentResult is Result.Success or Result.SuboptimalKhr or Result.ErrorOutOfDateKhr or Result.ErrorSurfaceLostKhr)
+                _activePresentFences.Add(presentFence);
+            else _vk.DestroyFence(_device,presentFence,null);
+        }
+        presentTicks = _profilingEnabled ? EndFrameProfileTiming(true, presentStart) : 0L;
         return presentResult;
     }
 
     private void HandleFramePresentResult(Result presentResult)
     {
-        if (IsSuboptimal(presentResult) && _platform.IsInteractingResize)
+        if (IsSuboptimal(presentResult) && (_platform.IsInteractingResize
+            ||(_oneToOnePresentation&&UsesPresentationCapacity())))
         {
             return;
         }
@@ -322,14 +362,15 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
-    private void EmitFrameProfileIfEnabled(bool profileEnabled, in FrameProfileState profile)
-    {
-        if (!profileEnabled)
-        {
-            return;
-        }
+    partial void RejectValidationPresentation(ref bool rejected);
+    partial void OverrideValidationAcquireNotReady(ref bool notReady);
 
+    private void EmitFrameProfile(ulong drawDataFrameId, uint imageIndex, bool presented, in FrameProfileState profile)
+    {
         LogProfileFrame(
+            drawDataFrameId,
+            imageIndex,
+            presented,
             profile.TargetTicks,
             profile.BeginTicks,
             profile.FrameFenceTicks,
@@ -364,27 +405,32 @@ public sealed unsafe partial class VulkanRendererBackend
 
             var fence = frame.InFlight;
             Check(_vk.WaitForFences(_device, 1, &fence, true, ulong.MaxValue));
+            RecordCompletedGraphicsFrame(frame);
         }
     }
 
     private bool CompleteRecordedFrame(
         ActiveFrameContext frameContext,
         CommandBuffer commandBuffer,
-        bool profileEnabled,
         ref FrameProfileState profile)
     {
         var semaphores = frameContext.Semaphores;
-        var renderFinished = semaphores.RenderFinished;
+        // A render fence does not prove the presentation engine consumed its
+        // wait semaphore. Reacquiring this image does, so key present waits by image.
+        var renderFinished = _frameSemaphores[frameContext.ImageIndex].RenderFinished;
         profile.SubmitTicks = SubmitFrame(
             commandBuffer,
             semaphores.ImageAvailable,
             renderFinished,
             frameContext.FrameData.InFlight);
+        _lastSubmittedFrame=frameContext.FrameData;
+        frameContext.FrameData.SubmittedSequence=++_submittedFrameSequence;
+        ObservePresentationAcquireWait(frameContext.ImageIndex,frameContext.FrameData);
 
         var presentResult = PresentFrame(frameContext.ImageIndex, renderFinished, out profile.PresentTicks);
         var framePresented = presentResult == Result.Success || IsSuboptimal(presentResult);
+        if(framePresented)ObserveAcceptedPresentation(frameContext.ImageIndex);
         HandleFramePresentResult(presentResult);
-        EmitFrameProfileIfEnabled(profileEnabled, in profile);
 
         _frameIndex++;
         return framePresented;
@@ -409,6 +455,7 @@ public sealed unsafe partial class VulkanRendererBackend
             in geometryBuffers,
             _frameStaticBindings,
             _gpuProfilingEnabled ? frameData.TimestampQueryPool : default,
+            out frameData.ProfiledVectorCounts,
             out profile.RecordTextureLookupTicks,
             out profile.RecordClippingTicks,
             out profile.RecordDescriptorBindTicks,

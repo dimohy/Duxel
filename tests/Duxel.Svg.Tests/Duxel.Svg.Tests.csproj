@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/*.svg" Link="Fixtures/Browser/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="../../src/Duxel.Svg/Duxel.Svg.csproj" />
+    <None Include="../Duxel.Graphics.Tests/Fixtures/SvgFontOutlineReference.svg" Link="Fixtures/SvgFontOutlineReference.svg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

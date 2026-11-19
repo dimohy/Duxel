@@ -1,0 +1,17 @@
+{
+  "Light": {
+    "filled": "#ffffff",
+    "filledAlternative": "#fafafa",
+    "outline": "#d1d1d1"
+  },
+  "Dark": {
+    "filled": "#292929",
+    "filledAlternative": "#1f1f1f",
+    "outline": "#666666"
+  },
+  "padding": {
+    "Small": 8,
+    "Medium": 12,
+    "Large": 16
+  }
+}

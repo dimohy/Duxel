@@ -1,0 +1,113 @@
+// Appended only to the generated NativeAOT interaction fixture, never to the shipped sample.
+internal static partial class PerfControlProbe
+{
+    private static readonly Dictionary<string,(UiVector2 Min,UiVector2 Max)> Rectangles = new();
+    private static readonly List<string> Passed = new();
+    private static readonly string[] Actions = ["Dynamic Canvas Layer","Dynamic Canvas Layer","VSync","VSync",
+        "Global Static Cache","Global Static Cache","Render Profile","Render Profile","Add","Remove","Reset","Clear","Add"];
+    private static readonly string Output = Environment.GetEnvironmentVariable("DUXEL_CONTROLS_PROBE_OUT")!;
+    private static int _stage = -1, _click;
+    private static double _ready;
+    private static ulong _maximumUpload;
+    private static int _initialIdentity, _layerPushes;
+    private static int _postedX, _postedY;
+    private static bool _done;
+
+    internal static void Record(UiImmediateContext ui,string label) =>
+        Rectangles[label] = (ui.GetItemRectMin(),ui.GetItemRectMax());
+
+    internal static void Tick(UiImmediateContext ui,int count,UiGpuParticleSystem? system,bool dynamicCanvas,bool cache,bool renderProfile)
+    {
+        if (_done) return;
+        var m = ui.GetRendererFrameMetrics();
+        if (m.DrawDataFrameId == 0) return;
+        var now = ui.GetTime();
+        var identity = system is null ? 0 : System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(system);
+        if (_stage < 0)
+        {
+            if (_ready == 0) { _ready = now + .15; return; }
+            if (now < _ready) return;
+            Require(count == 5000 && dynamicCanvas && cache && renderProfile && !m.VSyncEnabled && m.MsaaSamples == 1,
+                "initial settings and applied renderer state");
+            _initialIdentity = identity; _layerPushes = m.LayerTransformPushes;
+            _stage = 0; _ready = now;
+        }
+        _maximumUpload = Math.Max(_maximumUpload,m.GpuParticleInitialUploadBytes);
+        if (now < _ready) return;
+        if (_click < 2)
+        {
+            var rect = Rectangles[Actions[_stage]];
+            var viewport = ui.GetMainViewport();
+            var x = (int)((rect.Min.X + 8) * m.FramebufferSize.Width / (viewport.Pos.X + viewport.Size.X));
+            var y = (int)((rect.Min.Y + rect.Max.Y) * .5f * m.FramebufferSize.Height / (viewport.Pos.Y + viewport.Size.Y));
+            var hwnd = FindWindow(null,$"Duxel Controls Validation {Environment.ProcessId}");
+            if (hwnd == 0) throw new InvalidOperationException("CONTROL_TEST_WINDOW_MISSING");
+            var point = (nint)((y << 16) | (x & 0xffff));
+            _postedX = x; _postedY = y;
+            Post(hwnd,0x0200,0,point);
+            Post(hwnd,_click == 0 ? 0x0201u : 0x0202u,_click == 0 ? (nuint)1 : 0,point);
+            _click++; _ready = now + (_click == 1 ? .03 : .15);
+            if (_click == 1) _maximumUpload = 0;
+            return;
+        }
+        Write(ui,count,identity,dynamicCanvas,cache,renderProfile,false);
+        switch (_stage)
+        {
+            case 0: Require(!dynamicCanvas && m.LayerTransformPushes < _layerPushes,"dynamic canvas checkbox disables the actual layer transform"); break;
+            case 1: Require(dynamicCanvas && m.LayerTransformPushes == _layerPushes,"dynamic canvas checkbox restores the layer transform"); break;
+            case 2: Require(ui.GetVSync() && m.VSyncEnabled && m.PresentationMode == UiPresentationMode.Fifo,"VSync checkbox applies FIFO presentation"); break;
+            case 3: Require(!ui.GetVSync() && !m.VSyncEnabled && m.PresentationMode != UiPresentationMode.Fifo,"VSync off restores immediate or mailbox presentation"); break;
+            case 4: Require(!cache && m.ResidentHits == 0,"static cache checkbox removes actual backdrop residency"); break;
+            case 5: Require(cache && m.ResidentHits > 0,"static cache checkbox restores actual backdrop residency"); break;
+            case 6: Require(!renderProfile && ui.GetMsaaSamples() == 4 && m.MsaaSamples == 4,"Render Profile off applies Display MSAA4"); break;
+            case 7: Require(renderProfile && ui.GetMsaaSamples() == 1 && m.MsaaSamples == 1,"Render Profile on applies Render MSAA1"); break;
+            case 8: Require(count == 5100 && m.GpuParticleCount == 5100 && _maximumUpload == 4800,"Add uploads only100new bodies in the running NativeAOT application"); break;
+            case 9: Require(count == 5000 && m.GpuParticleCount == 5000 && _maximumUpload == 0,"Remove retains surviving bodies without state uploads"); break;
+            case 10: Require(count == 5000 && m.GpuParticleCount == 5000 && identity != _initialIdentity && _maximumUpload > 0,"Reset explicitly creates a new simulation"); break;
+            case 11: Require(count == 0 && m.GpuParticleCount == 0 && identity == 0,"Clear removes the entire population"); break;
+            case 12: Require(count == 100 && m.GpuParticleCount == 100 && _maximumUpload > 0,"Add after Clear initializes only the new population"); break;
+        }
+        if (_stage < 10)
+            Require(identity == _initialIdentity && (_stage == 8 || _maximumUpload == 0),"checkboxes and edits keep the existing GPU system and state");
+        _stage++; _click = 0; _maximumUpload = 0; _ready = now;
+        if (_stage == Actions.Length)
+        {
+            Write(ui,count,identity,dynamicCanvas,cache,renderProfile,true);
+            _done = true; DuxelApp.Exit();
+        }
+    }
+
+    private static void Require(bool condition,string description)
+    {
+        if (!condition) throw new InvalidOperationException("CONTROL_TEST_FAILED: " + description);
+        Passed.Add(description);
+    }
+    private static void Write(UiImmediateContext ui,int count,int identity,bool dynamicCanvas,bool cache,bool renderProfile,bool complete)
+    {
+        var m=ui.GetRendererFrameMetrics();
+        using (var stream=File.Create(Output+".tmp"))
+        using (var json=new System.Text.Json.Utf8JsonWriter(stream,new(){Indented=true}))
+        {
+            json.WriteStartObject(); json.WriteBoolean("complete",complete); json.WriteNumber("stage",_stage);
+            json.WriteNumber("count",count);json.WriteNumber("gpuCount",m.GpuParticleCount);json.WriteNumber("systemIdentity",identity);
+            json.WriteBoolean("dynamicCanvas",dynamicCanvas);json.WriteBoolean("staticCache",cache);json.WriteBoolean("renderProfile",renderProfile);
+            json.WriteBoolean("uiVsync",ui.GetVSync());json.WriteBoolean("appliedVsync",m.VSyncEnabled);json.WriteString("presentMode",m.PresentationMode.ToString());
+            json.WriteNumber("uiMsaa",ui.GetMsaaSamples());json.WriteNumber("appliedMsaa",m.MsaaSamples);
+            json.WriteNumber("layerPushes",m.LayerTransformPushes);json.WriteNumber("residentHits",m.ResidentHits);json.WriteNumber("maximumStateUpload",_maximumUpload);
+            json.WriteNumber("postedX",_postedX);json.WriteNumber("postedY",_postedY);
+            json.WriteNumber("mouseX",ui.GetMousePos().X);json.WriteNumber("mouseY",ui.GetMousePos().Y);
+            json.WriteNumber("passed",Passed.Count);json.WriteStartArray("checks");foreach(var item in Passed)json.WriteStringValue(item);json.WriteEndArray();json.WriteEndObject();
+        }
+        File.Move(Output+".tmp",Output,true);
+        File.Copy(Output,Output+$".stage-{_stage}.json",true);
+    }
+    private static void Post(nint hwnd,uint message,nuint wParam,nint lParam)
+    {
+        if (!PostMessage(hwnd,message,wParam,lParam)) throw new System.ComponentModel.Win32Exception(System.Runtime.InteropServices.Marshal.GetLastPInvokeError());
+    }
+    [System.Runtime.InteropServices.LibraryImport("user32.dll",EntryPoint="FindWindowW",StringMarshalling=System.Runtime.InteropServices.StringMarshalling.Utf16)]
+    private static partial nint FindWindow(string? className,string title);
+    [System.Runtime.InteropServices.LibraryImport("user32.dll",EntryPoint="PostMessageW",SetLastError=true)]
+    [return:System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static partial bool PostMessage(nint hwnd,uint message,nuint wParam,nint lParam);
+}

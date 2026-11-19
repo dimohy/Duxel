@@ -1,0 +1,30 @@
+{
+  "scope": "Opaque pattern paint server at fill-opacity0.1/0.5/0.9; full RGBA8 from independent native SVG GPU Canvas2D; does not certify general solid/gradient precision",
+  "captureScript": "L:/Cache/Duxel/linux-accessibility-2026-11-14/ego-svg-round31.mjs",
+  "cases": [
+    {
+      "name": "pattern-1",
+      "width": 8,
+      "height": 8,
+      "sourceSha256": "E8E6101A6CD7E2FBF27620CC95AFF37ADB4E043A63D40E83D3C8AE212953CAC9",
+      "rgbaSha256": "B67C2B42DA8E25B33E88D57E69E269D43624AA50E7984403CE66D5C079AA3585",
+      "recordedAtUtc": "2026-11-14T05:36:28.4326956Z"
+    },
+    {
+      "name": "pattern-5",
+      "width": 8,
+      "height": 8,
+      "sourceSha256": "014454C2CBEB4A2BD48C764F570CC2BB7C1C35E86E4E538613BB297807DEF775",
+      "rgbaSha256": "3EB2298770D91CC5798DD9681B821B4B37777FDE35D9552E3DF31FA523F4D98B",
+      "recordedAtUtc": "2026-11-14T05:36:28.4464100Z"
+    },
+    {
+      "name": "pattern-9",
+      "width": 8,
+      "height": 8,
+      "sourceSha256": "6A802D19C9546AB783721878401F4137F6B7A3B041709F70DB7F825665EE5608",
+      "rgbaSha256": "9B6BE346C378C5E5587FDAF69AB6173E9968953BE56BE3EA6775ACBC16FB4FF4",
+      "recordedAtUtc": "2026-11-14T05:36:28.4549130Z"
+    }
+  ]
+}

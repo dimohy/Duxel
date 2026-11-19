@@ -14,6 +14,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private VulkanSemaphore _graphicsUploadPreparedSemaphore;
     private Fence _uploadFence;
     private bool _hasPendingUploadWork;
+    private bool _uploadIncludesBufferCopies;
     private int _uploadBatchDepth;
     private bool _uploadBatchRecording;
     private bool _uploadPrepareRecording;
@@ -21,6 +22,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private VkBuffer _stagingBuffer;
     private DeviceMemory _stagingMemory;
     private nuint _stagingBufferSize;
+    private int _stagingLastUsedFrame;
     private unsafe void* _stagingMappedPtr;
     private bool _stagingMapped;
     private readonly bool _uploadBatchingEnabled = ParseUploadBatchingEnabled();
@@ -34,6 +36,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private long _profileUploadSubmitTicks;
     private long _profileUploadPrepareSubmitTicks;
     private long _profileUploadWaitTicks;
+    private long _profileUploadFrameWaitTicks;
 
     private static bool ParseUploadBatchingEnabled()
     {
@@ -67,6 +70,7 @@ public sealed unsafe partial class VulkanRendererBackend
         _profileUploadSubmitTicks = 0L;
         _profileUploadPrepareSubmitTicks = 0L;
         _profileUploadWaitTicks = 0L;
+        _profileUploadFrameWaitTicks = 0L;
     }
 
     private void RecordUploadStagingBytes(nuint bytes)
@@ -85,8 +89,9 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
-    private void RecordUploadBufferCopyProfile()
+    private void RecordUploadBufferCopy()
     {
+        _uploadIncludesBufferCopies = true;
         if (_profilingEnabled)
         {
             _profileUploadBufferCopyCount++;
@@ -204,25 +209,48 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
-    private unsafe void WaitForPendingUploadWork()
+    private long WaitForPendingUploadWork()
     {
         if (!_hasPendingUploadWork || _uploadFence.Handle is 0)
         {
-            return;
+            return 0;
         }
 
+        var waitStart = BeginFrameProfileTiming(_profilingEnabled);
         fixed (Fence* fence = &_uploadFence)
         {
-            var waitStart = BeginFrameProfileTiming(_profilingEnabled);
             Check(_vk.WaitForFences(_device, 1, fence, true, ulong.MaxValue));
-            if (_profilingEnabled)
-            {
-                _profileUploadWaitCount++;
-                _profileUploadWaitTicks += EndFrameProfileTiming(true, waitStart);
-            }
         }
 
+        var waitTicks = EndFrameProfileTiming(_profilingEnabled, waitStart);
+        if (_profilingEnabled)
+        {
+            _profileUploadWaitCount++;
+            _profileUploadWaitTicks += waitTicks;
+        }
+        MarkUploadComplete();
+        return waitTicks;
+    }
+
+    private void MarkUploadComplete()
+    {
         _hasPendingUploadWork = false;
+        _uploadIncludesBufferCopies = false;
+    }
+
+    partial void RequireValidationUploadFrameWait(ref bool required);
+
+    private void SynchronizeUploadsBeforeFrame()
+    {
+        if (!_hasPendingUploadWork)
+            return;
+        // Texture uploads already end with a transfer-to-fragment barrier.
+        // It orders later draws on this same VkQueue, while the upload fence
+        // still protects the command buffer and mapped staging memory on reuse.
+        var requiresHostWait = _transferQueue.Handle != _graphicsQueue.Handle || _uploadIncludesBufferCopies;
+        RequireValidationUploadFrameWait(ref requiresHostWait);
+        if (requiresHostWait)
+            _profileUploadFrameWaitTicks = WaitForPendingUploadWork();
     }
 
     private bool UsesDedicatedTransferUploadQueue()
@@ -233,6 +261,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private CommandBuffer BeginStagingUpload(nuint size, out nuint stagingOffset)
     {
+        _stagingLastUsedFrame = _frameIndex;
         RecordUploadStagingBytes(size);
         EnsureStagingBuffer(size);
 
@@ -373,6 +402,22 @@ public sealed unsafe partial class VulkanRendererBackend
 
         _stagingBufferSize = 0;
         _stagingBatchOffset = 0;
+    }
+
+    private void TrimIdleStagingBuffer()
+    {
+        // Upload staging has no readers after its upload fence completes. Resident
+        // geometry must not retain the startup upload high-water allocation forever.
+        if (_stagingBuffer.Handle == 0 || _frameIndex - _stagingLastUsedFrame <= StaticGeometryLruGraceFrames
+            || _uploadBatchDepth != 0 || _uploadBatchRecording || _uploadPrepareRecording)
+            return;
+        if (_hasPendingUploadWork)
+        {
+            if (!IsFenceComplete(_uploadFence))
+                return;
+            MarkUploadComplete();
+        }
+        DestroyStagingBuffer();
     }
 
     private void BeginUploadBatch()

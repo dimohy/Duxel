@@ -143,6 +143,8 @@ public sealed class BenchFrameRecorder
 
     public int Count => _count;
     public double MeasuredSeconds => _measuredSeconds;
+    /// <summary>Recorded samples in submission order; the view changes when recording or resetting.</summary>
+    public ReadOnlySpan<double> FrameSeconds => _frameSeconds.AsSpan(0, _count);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Record(double frameSeconds)

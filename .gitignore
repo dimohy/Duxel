@@ -44,3 +44,6 @@ TestResults/
 
 # .NET profiler
 *.profiler
+
+# Project-local pending deletion
+/must_delete/

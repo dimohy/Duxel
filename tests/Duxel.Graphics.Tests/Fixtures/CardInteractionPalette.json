@@ -1,0 +1,70 @@
+{
+  "Light": {
+    "Filled": {
+      "hover": "#f5f5f5",
+      "pressed": "#e0e0e0",
+      "selected": "#ebebeb",
+      "selectedStroke": "#bdbdbd",
+      "selectedHoverStroke": "#bdbdbd",
+      "selectedPressedStroke": "#bdbdbd"
+    },
+    "FilledAlternative": {
+      "hover": "#f0f0f0",
+      "pressed": "#dbdbdb",
+      "selected": "#e6e6e6",
+      "selectedStroke": "#bdbdbd",
+      "selectedHoverStroke": "#bdbdbd",
+      "selectedPressedStroke": "#bdbdbd"
+    },
+    "Outline": {
+      "hover": "transparent",
+      "pressed": "transparent",
+      "selected": "transparent",
+      "selectedStroke": "#bdbdbd",
+      "selectedHoverStroke": "#c7c7c7",
+      "selectedPressedStroke": "#b3b3b3"
+    },
+    "Subtle": {
+      "hover": "#f5f5f5",
+      "pressed": "#e0e0e0",
+      "selected": "#ebebeb",
+      "selectedStroke": "#bdbdbd",
+      "selectedHoverStroke": "#bdbdbd",
+      "selectedPressedStroke": "#bdbdbd"
+    }
+  },
+  "Dark": {
+    "Filled": {
+      "hover": "#3d3d3d",
+      "pressed": "#1f1f1f",
+      "selected": "#383838",
+      "selectedStroke": "#707070",
+      "selectedHoverStroke": "#707070",
+      "selectedPressedStroke": "#707070"
+    },
+    "FilledAlternative": {
+      "hover": "#333333",
+      "pressed": "#141414",
+      "selected": "#2e2e2e",
+      "selectedStroke": "#707070",
+      "selectedHoverStroke": "#707070",
+      "selectedPressedStroke": "#707070"
+    },
+    "Outline": {
+      "hover": "transparent",
+      "pressed": "transparent",
+      "selected": "transparent",
+      "selectedStroke": "#707070",
+      "selectedHoverStroke": "#757575",
+      "selectedPressedStroke": "#6b6b6b"
+    },
+    "Subtle": {
+      "hover": "#383838",
+      "pressed": "#2e2e2e",
+      "selected": "#333333",
+      "selectedStroke": "#707070",
+      "selectedHoverStroke": "#707070",
+      "selectedPressedStroke": "#707070"
+    }
+  }
+}

@@ -1,5 +1,9 @@
 # Duxel
 
+[Rating 별점](docs/fluent2-rating.ko.md): `Fluent.Rating`의 반점·RTL·줄바꿈을 갤러리 **평가** 메뉴에서 확인합니다. 현재 의존성과 일치하는 복원 자산이 있다면 `./run-gallery.ps1 -NoRestore`로 실행할 수 있습니다.
+
+[위젯 계약 통합 검증](docs/widget-contract-validation.ko.md): 선언된 관리 CPU 검사를 하나의 독립 실행 경로로 확인합니다. GPU·NativeAOT·전체 제품 수락은 별도입니다.
+
 <p align="center">
   <img src="logo.svg" alt="Duxel logo" width="615" />
 </p>
@@ -59,9 +63,7 @@ public sealed class HelloScreen : UiScreen
 {
     public override void Render(UiImmediateContext ui)
     {
-        ui.BeginWindow("Hello");
         ui.Text("Hello, Duxel!");
-        ui.EndWindow();
     }
 }
 ```
@@ -112,3 +114,4 @@ dotnet build Duxel.slnx -c Release
 ## 라이선스
 
 MIT
+

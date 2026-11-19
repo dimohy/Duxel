@@ -1,0 +1,70 @@
+{
+  "scope": "Independent native SVG Image GPU Canvas2D layer-boundary fixtures, explicit32x32 pixel buffers",
+  "captureScript": "L:/Cache/Duxel/linux-accessibility-2026-11-14/ego-svg-round28.mjs",
+  "cases": [
+    {
+      "name": "plain",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "7410C6882ADC2789D8A89494BD1EEBEC8AA78E99A06E83AB24CBE36A5CD00860",
+      "rgbaSha256": "ADF9A1F7821113ABC93F352419B9546578A2416B17C754B51D75ACCB94B649B5",
+      "recordedAtUtc": "2026-11-14T05:06:22.7094835Z"
+    },
+    {
+      "name": "duplicate",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "F3FE8C2E0121AA69FD88AF538D8102FEE9135A907A204C0005D46C6D7F8146AD",
+      "rgbaSha256": "85ECF23BED67134B7DB4157DF5390EAB01CF1D5EE622E4849C7AEF3DF5990332",
+      "recordedAtUtc": "2026-11-14T05:06:22.7170049Z"
+    },
+    {
+      "name": "opacity-group",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "8573F072A7D96D5AF210A803131273CF73D8016D753BB58E846BBF686215A5F1",
+      "rgbaSha256": "BC550CF1F3A2D92F94DFAE3CF8E4659D017F7026744907D6B9AB0D60B2294D0F",
+      "recordedAtUtc": "2026-11-14T05:06:22.7305272Z"
+    },
+    {
+      "name": "opacity-shape",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "C6591CE360873885B615D91A14369FC1342BCCDB559D1892FF291424DC5ACE3A",
+      "rgbaSha256": "BC550CF1F3A2D92F94DFAE3CF8E4659D017F7026744907D6B9AB0D60B2294D0F",
+      "recordedAtUtc": "2026-11-14T05:06:22.7380411Z"
+    },
+    {
+      "name": "clip",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "69964A1C947F166F5D7E640AF09A66D5FF6E00AA8FC0E36F0DFD234484BD2662",
+      "rgbaSha256": "85ECF23BED67134B7DB4157DF5390EAB01CF1D5EE622E4849C7AEF3DF5990332",
+      "recordedAtUtc": "2026-11-14T05:06:22.7465571Z"
+    },
+    {
+      "name": "clip-complement",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "9756F4D84B6CC04F7ADEA9B3946010CC2069CC1A4D32351F3F56EBFF91E9E615",
+      "rgbaSha256": "ADF9A1F7821113ABC93F352419B9546578A2416B17C754B51D75ACCB94B649B5",
+      "recordedAtUtc": "2026-11-14T05:06:22.7565767Z"
+    },
+    {
+      "name": "mask",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "55F0202803902259DFC624CA759A63C5052C2EAC2AF01118887F5CE132F01165",
+      "rgbaSha256": "0EE950043D9F69E929F775339A795C73660756B23993528D792F54EE6AB801BD",
+      "recordedAtUtc": "2026-11-14T05:06:22.7681075Z"
+    },
+    {
+      "name": "zero-blur",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "D48C43DBFAA36EAAF3A28FAF68F2E39BC6617878E6E82ADCC394BDF7A4C1FE4C",
+      "rgbaSha256": "003B3DE591AA4417051D7B40F4B1D19CB7A2896FA96DF8715BAFE3258DAEFFB9",
+      "recordedAtUtc": "2026-11-14T05:06:22.8404209Z"
+    }
+  ]
+}

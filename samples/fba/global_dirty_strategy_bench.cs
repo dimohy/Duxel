@@ -93,7 +93,7 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 12f, bounds.Y + 12f));
         ui.SetNextWindowSize(new UiVector2(bounds.Width - 24f, bounds.Height - 220f));
-        ui.BeginWindow("Global Dirty Canvas");
+        ui.BeginPanel("Global Dirty Canvas");
 
         var canvas = ui.BeginWindowCanvas(new UiColor(0xFF111111), ui.WhiteTextureId, clipToCanvas: true);
 
@@ -135,7 +135,7 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
         }
 
         _ = ui.EndWindowCanvas();
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void EnsureBackgroundCache(UiRect canvas, UiTextureId white)
@@ -293,7 +293,7 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 12f, bounds.Y + bounds.Height - 196f));
         ui.SetNextWindowSize(new UiVector2(640f, 184f));
-        ui.BeginWindow("Global Dirty Bench Stats");
+        ui.BeginPanel("Global Dirty Bench Stats");
 
         var benchMode = !string.IsNullOrWhiteSpace(_benchOutputPath);
         ui.TextV("Mode: {0}", benchMode ? "Auto Benchmark" : "Manual Toggle");
@@ -328,7 +328,7 @@ public sealed class GlobalDirtyStrategyBenchScreen : UiScreen
             ui.TextV("Improvement: {0:+0.###;-0.###;0}%", improvement);
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void TickBenchmark(double delta)

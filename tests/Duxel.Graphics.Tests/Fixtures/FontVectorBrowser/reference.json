@@ -1,0 +1,22 @@
+{
+  "height": 300,
+  "fonts": [
+    {
+      "name": "FluentSystemIcons-Filled.ttf",
+      "sha256": "CD88FF3FF72C93A575D39B5504A422E67C6C28278642E7946B76A7B6EF35F46F"
+    },
+    {
+      "name": "FluentSystemIcons-Regular.ttf",
+      "sha256": "AF1B71AB7BB475AE30B8C87172551503F8DE6CF733548FE7DDBDA15FC08DEA34"
+    }
+  ],
+  "width": 400,
+  "region": [
+    20,
+    25,
+    150,
+    40
+  ],
+  "rgbaSha256": "E1F8BAD5CCFF681B70809109C93B93F8C64F8DC85A0C6A236AB399110EDDE670",
+  "provenance": "Captured from Chromium canvas in Ego task space20 using actual Fluent 20-unit TTF contours, 2026-11-16. White glyphs, 28px, origin25/30. Transparent canvas read back to RGBA8 then composited on RGB41. FontTools extraction is diagnostic only, not a product dependency. Exact region comparison does not replace the independent official SVG opaque-background baseline, which still differs."
+}

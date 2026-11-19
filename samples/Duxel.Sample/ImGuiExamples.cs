@@ -2,7 +2,7 @@ using Duxel.Core;
 
 public sealed class ImGuiExamples
 {
-    private bool _showAnotherWindow;
+    private bool _showAnotherPanel;
     private bool _disableControls;
     private float _floatValue = 0.5f;
     private int _counter;
@@ -10,41 +10,55 @@ public sealed class ImGuiExamples
     private float _clearG = 0.55f;
     private float _clearB = 0.60f;
 
-    public void Render(UiImmediateContext ui)
+    public ImmediateSampleSection Section { get; }
+    public ImGuiExamples()
     {
-        ui.BeginWindow("ImGui Example: Hello, world");
-
-        ui.Text("Hello, world!");
-        ui.Checkbox("Another Window", ref _showAnotherWindow);
-        ui.SliderFloat("float", ref _floatValue, 0f, 1f, 0.01f, "0.00");
-        ui.ColorEdit3("clear color", ref _clearR, ref _clearG, ref _clearB);
-
-        if (ui.Button("Button"))
+        Section =
+        ImmediateSampleSection.Define("Hello", ui =>
         {
-            _counter++;
-        }
-        ui.SameLine();
-        ui.Text($"counter = {_counter}");
+            ui.PushID("HelloExample");
 
-        ui.SeparatorText("Disabled");
-        ui.Checkbox("Disable controls", ref _disableControls);
-        ui.BeginDisabled(_disableControls);
-        ui.SliderFloat("disabled float", ref _floatValue, 0f, 1f, 0.01f, "0.00");
-        ui.Button("Disabled Button");
-        ui.EndDisabled();
+            ui.Text("Hello, world!");
+            ui.Checkbox("Another Panel", ref _showAnotherPanel);
+            ui.SliderFloat("float", ref _floatValue, 0f, 1f, 0.01f, "0.00");
+            ui.ColorEdit3("clear color", ref _clearR, ref _clearG, ref _clearB);
 
-        ui.EndWindow();
-
-        if (_showAnotherWindow)
-        {
-            ui.BeginWindow("Another Window");
-            ui.Text("Hello from another window!");
-            if (ui.Button("Close"))
+            if (ui.Button("Button"))
             {
-                _showAnotherWindow = false;
+                _counter++;
             }
-            ui.EndWindow();
-        }
-    }
-}
+            ui.SameLine();
+            ui.Text($"counter = {_counter}");
 
+            ui.SeparatorText("Disabled");
+            ui.Checkbox("Disable controls", ref _disableControls);
+            ui.BeginDisabled(_disableControls);
+            ui.SliderFloat("disabled float", ref _floatValue, 0f, 1f, 0.01f, "0.00");
+            ui.Button("Disabled Button");
+            ui.EndDisabled();
+
+            ui.PopID();
+
+            if (_showAnotherPanel)
+            {
+                ui.BeginPanel("Another Panel");
+                ui.Text("Hello from another panel!");
+                if (ui.Button("Close"))
+                {
+                    _showAnotherPanel = false;
+                }
+                ui.EndPanel();
+            }
+        }, () => (_showAnotherPanel, _disableControls, _floatValue, _counter, _clearR, _clearG, _clearB), () => string.Join("\n",
+            [
+                "bool _showAnotherPanel = " + ImmediateSampleSection.Boolean(_showAnotherPanel) + ";",
+                "bool _disableControls = " + ImmediateSampleSection.Boolean(_disableControls) + ";",
+                "float _floatValue = " + ImmediateSampleSection.Number(_floatValue) + ";",
+                "int _counter = " + ImmediateSampleSection.Integer(_counter) + ";",
+                "float _clearR = " + ImmediateSampleSection.Number(_clearR) + ";",
+                "float _clearG = " + ImmediateSampleSection.Number(_clearG) + ";",
+                "float _clearB = " + ImmediateSampleSection.Number(_clearB) + ";"
+            ]));
+    }
+    public void Render(UiImmediateContext ui) => Section.Render(ui);
+}

@@ -1,0 +1,123 @@
+{
+  "scope": "Independent native SVG GPU Canvas2D raw RGBA8 for active fractional viewport clip per draw/layer, rectangle intersections, opacity/filter boundaries and two unchanged original fill/stroke paths",
+  "captureScripts": [
+    "L:/Cache/Duxel/linux-accessibility-2026-11-14/ego-svg-round40.mjs",
+    "L:/Cache/Duxel/linux-accessibility-2026-11-14/ego-svg-round41.mjs",
+    "L:/Cache/Duxel/linux-accessibility-2026-11-14/ego-svg-round34.mjs"
+  ],
+  "recordedAtUtc": "2026-11-14T06:40:47.7511179Z",
+  "cases": [
+    {
+      "name": "duplicate",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "7596A4A3D680A8CCA304634D18EE077C8D0783991ED37F5BA76EF3893B8B1123",
+      "rgbaSha256": "A4045B8806CAB01FBE106010A61226A2C0DD2E8B524F04EBE33DD50622320271"
+    },
+    {
+      "name": "fill-stroke",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "8716E836B10C25153A3840EBEA0A8D0D511C1DED11144D5775122D83AAEBA2FF",
+      "rgbaSha256": "CEF30E13948F7AE955EE61FE3A7C9D3A7DA3F2766EFA2E9FA3E13DA318E1086A"
+    },
+    {
+      "name": "group-opacity",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "E12D1B4496A034DD5BEB0B2C56BBF8DFD987700F25E4E0F6699DD804D4F345F4",
+      "rgbaSha256": "E1D992F09BCBA94038C33FE267A786F08437677A23140AC57306A3EBCBF2A24C"
+    },
+    {
+      "name": "nested-group",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "397449BFDD3A75A730D3B9DC7CCE93FFFE086A3AA661C0DAF2F4059D7DF068F5",
+      "rgbaSha256": "A53055ECAA9925DA38E31AFBBD1E29E681CA1E42B01DC24421BECB8CED4A4C79"
+    },
+    {
+      "name": "rect-duplicate",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "7ACC84609D01A0EB9BCFCDCC29A3391C36E4A36B311F1F5EDC85961F145530AC",
+      "rgbaSha256": "660043434C6AB9E33540A31C5BF1383ED00B4347110FF4F293B81E93B9C91636"
+    },
+    {
+      "name": "rect-group",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "49371EDA67A4B957592E59E88162FED1DF6DD30A7540ACF6FD11B812F5C06EF8",
+      "rgbaSha256": "66C698739663BA41919E89FA498536452CC375F2E9B96535145FA20C4C43F8FA"
+    },
+    {
+      "name": "single",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "D53D587EF1C7645B0C5E0328CF8D5276405A8AAD318869355196DB0D413144A9",
+      "rgbaSha256": "248E5946550FAE1D28047D727E5343813329E6A8A147E48F25DE6304D3123568"
+    },
+    {
+      "name": "zero-blur",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "B274F29A37CE5959E8D2E644F5358FE4AC0F76C4EFA9F4C54A8068598961E245",
+      "rgbaSha256": "248E5946550FAE1D28047D727E5343813329E6A8A147E48F25DE6304D3123568"
+    },
+    {
+      "name": "crossing-top-1",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "51637205DB315DE2246FB24DF5886F17218C2E44A97BAAB150CCD5B2D5D390B0",
+      "rgbaSha256": "807DDDFAEB003ADDB3FF376D2F53087B00A3860332B85207306226384FA9FA58"
+    },
+    {
+      "name": "crossing-top-2",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "7ABF4BA229670E504EAAB13C56AD19E71EAF43A659FC2468B66C17F11078955F",
+      "rgbaSha256": "660043434C6AB9E33540A31C5BF1383ED00B4347110FF4F293B81E93B9C91636"
+    },
+    {
+      "name": "exact-1",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "23ED776EF19BE8CA238DD3711E3C4D1A97E4C687FFCB245AD6959DECC85E7049",
+      "rgbaSha256": "807DDDFAEB003ADDB3FF376D2F53087B00A3860332B85207306226384FA9FA58"
+    },
+    {
+      "name": "exact-2",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "5346812492D412120EDABC87E8E9EFE9D81714FCD0AD3B0DA49BA1979008ED1D",
+      "rgbaSha256": "660043434C6AB9E33540A31C5BF1383ED00B4347110FF4F293B81E93B9C91636"
+    },
+    {
+      "name": "inside-top-1",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "4906280E87D6974C018F725141262FF521C6F310A61F349688E4C5ADFA1C9EA0",
+      "rgbaSha256": "87D0ABE2D28FDDC1A550D982D767F2F41E70EFED714D66FFE90FCFD14CEF657E"
+    },
+    {
+      "name": "inside-top-2",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "752EE024979C83065054796BFEFD579775BC42C0CEF3D51B7E59E390D615C11A",
+      "rgbaSha256": "D75E4CE9570322BDFA6C2824B3970E06874176AEE78BF1436130877E3DBE2BE1"
+    },
+    {
+      "name": "red-body-fill-stroke",
+      "width": 764,
+      "height": 372,
+      "sourceSha256": "03B2B60EA18C07C1C3C4D8028E0247AAE6ED4EDAF65AC655C1E976505C19AC1F",
+      "rgbaSha256": "FD4538C67C4E975C6093264EA206312AE320B85ECFC8AE319202885CF9A55279"
+    },
+    {
+      "name": "red-window-fill-stroke",
+      "width": 764,
+      "height": 372,
+      "sourceSha256": "80F90139F5DA2BF725A7A20268F44EDE26B7C8B9FCEEC606D61A5BF0A25DC368",
+      "rgbaSha256": "0B2F411FB56580B3303507C65E3A11FED45C40CCD64C181A2409B96B0CA77BAF"
+    }
+  ]
+}

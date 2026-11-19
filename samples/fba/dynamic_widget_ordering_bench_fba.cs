@@ -130,7 +130,7 @@ public sealed class DynamicWidgetOrderingBenchScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(18f, 18f));
         ui.SetNextWindowSize(new UiVector2(1440f, 840f));
-        ui.BeginWindow("Dynamic Widget Ordering");
+        ui.BeginPanel("Dynamic Widget Ordering");
 
         ui.TextV("Phase: {0}", _phaseIndex < _phases.Count ? _phases[_phaseIndex].Name : "done");
         ui.TextV("FPS: {0:0.0}", _fps);
@@ -162,7 +162,7 @@ public sealed class DynamicWidgetOrderingBenchScreen : UiScreen
             }
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawChannelized(UiDrawListBuilder drawList, UiTextureId white, UiVector2 origin, int salt, bool mergeAsDrawLists)

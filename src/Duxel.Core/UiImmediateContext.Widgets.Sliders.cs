@@ -10,7 +10,7 @@ public sealed partial class UiImmediateContext
     public bool SliderInt(string label, ref int value, int min, int max)
     {
         var floatValue = (float)value;
-        var changed = SliderFloat(label, ref floatValue, min, max, 1f, "0");
+        var changed = SliderFloat(label, ref floatValue, min, max, 1f, "0", integer: true);
         var next = Math.Clamp((int)MathF.Round(floatValue), min, max);
         if (next != value)
         {
@@ -188,6 +188,9 @@ public sealed partial class UiImmediateContext
     }
 
     public bool VSliderFloat(string label, UiVector2 size, ref float value, float min, float max, string format = "0.00")
+        => VSliderFloat(label, size, ref value, min, max, format, integer: false);
+
+    private bool VSliderFloat(string label, UiVector2 size, ref float value, float min, float max, string format, bool integer)
     {
         label ??= "VSlider";
         format ??= "0.00";
@@ -196,19 +199,22 @@ public sealed partial class UiImmediateContext
             throw new ArgumentOutOfRangeException(nameof(max), "Max must be greater than min.");
         }
 
-        var frame = GetFrameHeight();
+        var skin = _controlSkins.Slider;
+        var frame = MathF.Max(GetFrameHeight(), skin.MinimumHeight);
         var width = size.X > 0f ? size.X : frame;
         var height = size.Y > 0f ? size.Y : frame * 4f;
         var cursor = AdvanceCursor(new UiVector2(width, height));
         var rect = new UiRect(cursor.X, cursor.Y, width, height);
 
-        var hovered = ItemHoverable(label, rect);
+        var id = ResolveId(label);
+        ClaimAccessibilityField(id);
+        var hovered = ItemHoverable(id, rect);
         if (hovered && _leftMousePressed)
         {
-            _state.ActiveId = label;
+            _state.ActiveId = id;
         }
 
-        var active = _state.ActiveId == label;
+        var active = _state.ActiveId == id;
         if (!_leftMouseDown && active)
         {
             _state.ActiveId = null;
@@ -229,20 +235,31 @@ public sealed partial class UiImmediateContext
             }
         }
 
+        if (ApplyLegacyAccessibilityRangeValue(id, rect, min, max, integer, ref value))
+        {
+            changed = true;
+            normalized = Math.Clamp((value - min) / (max - min), 0f, 1f);
+        }
+        ExposeLegacySlider(id, GetDisplayLabel(label), rect, value, min, max, integer ? 1 : 0, vertical: true, integer);
+
         var backColor = hovered || active ? _theme.SliderBgHovered : _theme.SliderBg;
-        var barWidth = MathF.Max(6f, rect.Width * 0.35f);
+        var barWidth = skin.TrackHeight ?? MathF.Max(6f, rect.Width * 0.35f);
         var barX = rect.X + (rect.Width - barWidth) * 0.5f;
         var barRect = new UiRect(barX, rect.Y, barWidth, rect.Height);
-        AddRectFilled(barRect, backColor, _whiteTexture);
+        AddRectFilledRounded(barRect, backColor, _whiteTexture, skin.TrackCornerRadius ?? 0);
 
         var fillHeight = barRect.Height * normalized;
         var fillRect = new UiRect(barRect.X, barRect.Y + (barRect.Height - fillHeight), barRect.Width, fillHeight);
-        AddRectFilled(fillRect, _theme.SliderGrabActive, _whiteTexture);
+        AddRectFilledRounded(fillRect, _theme.SliderGrabActive, _whiteTexture, skin.TrackCornerRadius ?? 0);
 
-        var grabHeight = MathF.Max(12f, barRect.Width + 6f);
+        var grabHeight = (active ? skin.PressedHandleWidth ?? skin.HandleWidth : skin.HandleWidth)
+            ?? MathF.Max(12f, barRect.Width + 6f);
+        grabHeight = MathF.Min(grabHeight, barRect.Height);
         var grabY = barRect.Y + (barRect.Height - fillHeight) - grabHeight * 0.5f;
-        var grabRect = new UiRect(barRect.X - 2f, Math.Clamp(grabY, barRect.Y, barRect.Y + barRect.Height - grabHeight), barRect.Width + 4f, grabHeight);
-        AddRectFilled(grabRect, active ? _theme.SliderGrabActive : _theme.SliderGrab, _whiteTexture);
+        var grabWidth = skin.HandleHeight ?? barRect.Width + 4f;
+        var grabRect = new UiRect(barRect.X + (barRect.Width - grabWidth) / 2,
+            Math.Clamp(grabY, barRect.Y, barRect.Y + barRect.Height - grabHeight), grabWidth, grabHeight);
+        AddRectFilledRounded(grabRect, active ? _theme.SliderGrabActive : _theme.SliderGrab, _whiteTexture, skin.HandleCornerRadius ?? 0);
 
         var valueText = value.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
         var valueSize = MeasureTextInternal(valueText, _textSettings, _lineHeight);
@@ -287,7 +304,7 @@ public sealed partial class UiImmediateContext
     public bool VSliderInt(string label, UiVector2 size, ref int value, int min, int max)
     {
         var floatValue = (float)value;
-        var changed = VSliderFloat(label, size, ref floatValue, min, max, "0");
+        var changed = VSliderFloat(label, size, ref floatValue, min, max, "0", integer: true);
         var next = Math.Clamp((int)MathF.Round(floatValue), min, max);
         if (next != value)
         {
@@ -304,6 +321,9 @@ public sealed partial class UiImmediateContext
     }
 
     public bool SliderFloat(string label, ref float value, float min, float max, float step, string format)
+        => SliderFloat(label, ref value, min, max, step, format, integer: false);
+
+    private bool SliderFloat(string label, ref float value, float min, float max, float step, string format, bool integer)
     {
         label ??= "Slider";
         format ??= "0.00";
@@ -313,11 +333,13 @@ public sealed partial class UiImmediateContext
         }
 
         var id = ResolveId(label);
+        ClaimAccessibilityField(id);
         var displayLabel = GetDisplayLabel(label);
         var textSize = string.IsNullOrEmpty(displayLabel)
             ? default
             : MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
-        var frameHeight = GetFrameHeight();
+        var skin = _controlSkins.Slider;
+        var frameHeight = MathF.Max(GetFrameHeight(), skin.MinimumHeight);
         var height = MathF.Max(textSize.Y, frameHeight);
         var sliderWidth = ResolveItemWidth(SliderWidth);
         var labelWidth = string.IsNullOrEmpty(displayLabel) ? 0f : textSize.X + ItemSpacingX;
@@ -377,9 +399,9 @@ public sealed partial class UiImmediateContext
                     continue;
                 }
 
-                if (IsRepeatableKey(keyEvent.Key) && !_state.HasRepeatTime(keyEvent.Key))
+                if (_state.KeyRepeatSource == UiKeyRepeatSource.Engine && IsRepeatableKey(keyEvent.Key) && !_state.HasRepeatTime(keyEvent.Key))
                 {
-                    _state.SetRepeatTime(keyEvent.Key, _state.TimeSeconds + _keyRepeatDelaySeconds);
+                    _state.SetRepeatTime(keyEvent.Key, _state.InputTimeSeconds + _keyRepeatDelaySeconds);
                 }
 
                 if (keyEvent.Key == UiKey.LeftArrow)
@@ -407,19 +429,30 @@ public sealed partial class UiImmediateContext
             normalized = Math.Clamp((value - min) / (max - min), 0f, 1f);
         }
 
+        if (ApplyLegacyAccessibilityRangeValue(id, sliderRect, min, max, integer, ref value))
+        {
+            changed = true;
+            normalized = Math.Clamp((value - min) / (max - min), 0f, 1f);
+        }
+        ExposeLegacySlider(id, displayLabel, sliderRect, value, min, max, MathF.Max(0, step), vertical: false, integer);
+
         var backColor = hovered || active ? _theme.SliderBgHovered : _theme.SliderBg;
-        var barHeight = MathF.Max(4f, sliderRect.Height * 0.35f);
+        var barHeight = skin.TrackHeight ?? MathF.Max(4f, sliderRect.Height * 0.35f);
         var barY = sliderRect.Y + (sliderRect.Height - barHeight) * 0.5f;
         var barRect = new UiRect(sliderRect.X, barY, sliderRect.Width, barHeight);
-        AddRectFilled(barRect, backColor, _whiteTexture);
+        AddRectFilledRounded(barRect, backColor, _whiteTexture, skin.TrackCornerRadius ?? 0);
 
         var fillRect = new UiRect(barRect.X, barRect.Y, barRect.Width * normalized, barRect.Height);
-        AddRectFilled(fillRect, _theme.SliderGrabActive, _whiteTexture);
+        AddRectFilledRounded(fillRect, _theme.SliderGrabActive, _whiteTexture, skin.TrackCornerRadius ?? 0);
 
-        var grabWidth = MathF.Max(12f, barHeight * 1.6f);
+        var grabWidth = (active ? skin.PressedHandleWidth ?? skin.HandleWidth : skin.HandleWidth)
+            ?? MathF.Max(12f, barHeight * 1.6f);
+        grabWidth = MathF.Min(grabWidth, barRect.Width);
         var grabX = barRect.X + barRect.Width * normalized - grabWidth * 0.5f;
-        var grabRect = new UiRect(Math.Clamp(grabX, barRect.X, barRect.X + barRect.Width - grabWidth), barRect.Y - 2f, grabWidth, barRect.Height + 4f);
-        AddRectFilled(grabRect, active ? _theme.SliderGrabActive : _theme.SliderGrab, _whiteTexture);
+        var grabHeight = skin.HandleHeight ?? barRect.Height + 4f;
+        var grabRect = new UiRect(Math.Clamp(grabX, barRect.X, barRect.X + barRect.Width - grabWidth),
+            barRect.Y + (barRect.Height - grabHeight) / 2, grabWidth, grabHeight);
+        AddRectFilledRounded(grabRect, active ? _theme.SliderGrabActive : _theme.SliderGrab, _whiteTexture, skin.HandleCornerRadius ?? 0);
 
         var valueText = value.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
         var valueSize = MeasureTextInternal(valueText, _textSettings, _lineHeight);

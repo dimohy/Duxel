@@ -1,11 +1,12 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace Duxel.Core;
 
-public sealed class UiState
+public sealed partial class UiState
 {
     private const int DebugLogMaxEntries = 2048;
     private readonly Dictionary<string, bool> _bools = new(StringComparer.Ordinal);
@@ -35,6 +36,8 @@ public sealed class UiState
     private string? _hoveredId;
     private string? _previousHoveredId;
     private string? _focusedId;
+    private string? _pointerFocusOrigin;
+    private bool _pointerFocusPending;
     private string? _previousActiveId;
     private bool _hoverLoggedThisFrame;
     private string? _openComboId;
@@ -61,7 +64,12 @@ public sealed class UiState
     private bool _hasActiveAnimations;
     private List<(UiRect Rect, int Tier)> _popupBlockingRects = [];
     private List<(UiRect Rect, int Tier)> _prevPopupBlockingRects = [];
+    private readonly record struct PopupInputRegistration(bool BlocksKeyboard, string? Owner);
+    private List<PopupInputRegistration> _popupKeyboardBlocking = [], _prevPopupKeyboardBlocking = [];
     private string? _pendingTextInputFocusId;
+    private string? _textDragId;
+    private int _textDragFrame;
+    private double _textDragTime;
 
     private readonly record struct UiFloatAnimationTrack(
         float From,
@@ -71,9 +79,27 @@ public sealed class UiState
     );
 
     // Frame timing (set by the app loop, read by UI)
-    public float NewFrameTimeMs { get; set; }
-    public float RenderTimeMs { get; set; }
-    public float SubmitTimeMs { get; set; }
+    public float NewFrameTimeMs
+    {
+        get; set;
+    }
+    public float RenderTimeMs
+    {
+        get; set;
+    }
+    public float SubmitTimeMs
+    {
+        get; set;
+    }
+    private readonly UiPresentationHistory _presentationHistory = new();
+    public UiRendererFrameMetrics RendererFrameMetrics
+    {
+        get => _presentationHistory.Latest;
+        set => _presentationHistory.Publish(in value);
+    }
+    internal int DrainPresentedFrames(Span<UiRendererFrameMetrics> destination) => _presentationHistory.Drain(destination);
+    internal ulong OverwrittenPresentationSamples => _presentationHistory.OverwrittenSamples;
+    internal IUiPresentationReader PresentationReader => _presentationHistory;
 
     public bool GetBool(string key, bool defaultValue = false)
     {
@@ -102,7 +128,10 @@ public sealed class UiState
         return next;
     }
 
-    public Action<string>? DebugLog { get; set; }
+    public Action<string>? DebugLog
+    {
+        get; set;
+    }
 
     public IReadOnlyList<string> DebugLogEntries => _debugLogEntries;
 
@@ -116,6 +145,8 @@ public sealed class UiState
                 LogDebug($"ActiveId: {_activeId ?? "<null>"} -> {value ?? "<null>"}");
             }
             _activeId = value;
+            if (_textDragId != value)
+                _textDragId = null;
         }
     }
 
@@ -130,7 +161,54 @@ public sealed class UiState
     public string? FocusedId
     {
         get => _focusedId;
-        set => _focusedId = value;
+        set
+        {
+            if (_focusedId == value)
+                return;
+            var previous = _focusedId;
+            _focusedId = value;
+            if (_pointerFocusPending)
+            {
+                if (value is null)
+                    return;
+                previous = _pointerFocusOrigin;
+                _pointerFocusOrigin = null;
+                _pointerFocusPending = false;
+            }
+            if (previous != value)
+                ControlFocusChanged?.Invoke(previous, value);
+        }
+    }
+    internal event Action<string?, string?>? ControlFocusChanged;
+
+    // Pointer dispatch clears provisional focus before discovering its actual target.
+    // Observers see one logical transition before a destination command can run.
+    internal void ClearControlFocusForPointer()
+    {
+        _pointerFocusOrigin = _focusedId;
+        _pointerFocusPending = _focusedId is not null;
+        _focusedId = null;
+    }
+    internal bool IsControlFocusLeaving(string id) => _focusedId != id
+        && !(_pointerFocusPending && _pointerFocusOrigin == id && _focusedId is null);
+    internal void CompleteControlPointerFocus()
+    {
+        if (!_pointerFocusPending)
+            return;
+        var previous = _pointerFocusOrigin;
+        _pointerFocusOrigin = null;
+        _pointerFocusPending = false;
+        if (previous != _focusedId)
+            ControlFocusChanged?.Invoke(previous, _focusedId);
+    }
+    internal bool CancelControlPointerFocus()
+    {
+        if (!_pointerFocusPending)
+            return false;
+        _focusedId = _pointerFocusOrigin;
+        _pointerFocusOrigin = null;
+        _pointerFocusPending = false;
+        return true;
     }
 
     public string? HoveredId => _hoveredId;
@@ -295,7 +373,7 @@ public sealed class UiState
         {
             track = new UiFloatAnimationTrack(current, target, now, duration);
             _floatAnimations[key] = track;
-            _hasActiveAnimations = true;
+            MarkControlAnimation();
             return current;
         }
 
@@ -303,16 +381,32 @@ public sealed class UiState
         {
             if (MathF.Abs(current - track.To) > 0.0001f)
             {
-                _floatAnimations[key] = track with { From = track.To, StartTimeSeconds = now };
+                _floatAnimations[key] = track with
+                {
+                    From = track.To,
+                    StartTimeSeconds = now
+                };
             }
             return track.To;
         }
 
-        _hasActiveAnimations = true;
+        MarkControlAnimation();
         return current;
     }
 
     public bool HasActiveAnimations => _hasActiveAnimations;
+    internal ulong UnboundedAnimationRequestSerial
+    {
+        get; private set;
+    }
+    internal void MarkControlAnimation(bool active = true, bool bounded = false)
+    {
+        _hasActiveAnimations |= active;
+        if (active)
+            ScheduleFrameAt(_timeSeconds + UiTransitionOptions.DefaultFrameIntervalSeconds);
+        if (!bounded)
+            UnboundedAnimationRequestSerial++;
+    }
 
     private static float EvaluateTrack(UiFloatAnimationTrack track, double nowSeconds, UiAnimationEasing easing)
     {
@@ -328,24 +422,23 @@ public sealed class UiState
     }
 
     private static float Ease(float t, UiAnimationEasing easing)
-    {
-        return easing switch
-        {
-            UiAnimationEasing.Linear => t,
-            UiAnimationEasing.InOutSine => 0.5f - (MathF.Cos(MathF.PI * t) * 0.5f),
-            _ => 1f - MathF.Pow(1f - t, 3f),
-        };
-    }
+        => UiAnimationCurve.Evaluate(t, easing);
 
     public void AdvanceTime(float deltaTime)
     {
         _timeSeconds += deltaTime;
+        if (_inputTimeSeconds is { } inputTime)
+            _inputTimeSeconds = inputTime + deltaTime;
     }
 
     public void BeginFrame()
     {
+        PointerMoveCoalescing = null;
+        DocumentWheelCoalescing = null;
+        DocumentWheelRegion = null;
         _frameCount++;
         _hasActiveAnimations = false;
+        NextScheduledFrameTimeSeconds = null;
         _previousActiveId = _activeId;
         _previousHoveredId = _hoveredId;
         _hoverLoggedThisFrame = false;
@@ -355,17 +448,71 @@ public sealed class UiState
         // Swap popup blocking rects: current → previous, clear current for new frame
         (_prevPopupBlockingRects, _popupBlockingRects) = (_popupBlockingRects, _prevPopupBlockingRects);
         _popupBlockingRects.Clear();
+        (_prevPopupKeyboardBlocking, _popupKeyboardBlocking) = (_popupKeyboardBlocking, _prevPopupKeyboardBlocking);
+        _popupKeyboardBlocking.Clear();
     }
 
     public IReadOnlyList<(UiRect Rect, int Tier)> PreviousPopupBlockingRects => _prevPopupBlockingRects;
+    internal IReadOnlyList<(UiRect Rect, int Tier)> CurrentPopupBlockingRects => _popupBlockingRects;
 
-    public void AddPopupBlockingRect(UiRect rect, int tier)
+    public void AddPopupBlockingRect(UiRect rect, int tier) => AddPopupBlockingRect(rect, tier, UiPopupInputMode.Exclusive);
+    internal void AddPopupBlockingRect(UiRect rect, int tier, UiPopupInputMode inputMode, string? owner = null)
     {
         _popupBlockingRects.Add((rect, tier));
+        _popupKeyboardBlocking.Add(new(inputMode == UiPopupInputMode.Exclusive, owner));
+    }
+    internal bool PreviousPopupBlocksKeyboard(int index) => _prevPopupKeyboardBlocking[index].BlocksKeyboard;
+    internal void ReleasePreviousPopupKeyboard(string owner)
+    {
+        for (var i = 0; i < _prevPopupKeyboardBlocking.Count; i++)
+        {
+            if (_prevPopupKeyboardBlocking[i].Owner == owner)
+                _prevPopupKeyboardBlocking[i] = _prevPopupKeyboardBlocking[i] with
+                {
+                    BlocksKeyboard = false
+                };
+        }
+    }
+    internal int PreviousPopupKeyboardTier
+    {
+        get
+        {
+            var tier = 0;
+            for (var i = 0; i < _prevPopupBlockingRects.Count; i++)
+            {
+                if (_prevPopupKeyboardBlocking[i].BlocksKeyboard)
+                    tier = Math.Max(tier, _prevPopupBlockingRects[i].Tier);
+            }
+            return tier;
+        }
+    }
+    internal int CurrentPopupKeyboardTier
+    {
+        get
+        {
+            var tier = 0;
+            for (var i = 0; i < _popupBlockingRects.Count; i++)
+            {
+                if (_popupKeyboardBlocking[i].BlocksKeyboard)
+                    tier = Math.Max(tier, _popupBlockingRects[i].Tier);
+            }
+            return tier;
+        }
+    }
+
+    internal void RemoveCurrentPopupBlockingRect(UiRect rect, int tier)
+    {
+        var index = _popupBlockingRects.LastIndexOf((rect, tier));
+        if (index < 0)
+            throw new InvalidOperationException("The current popup blocking registration is missing.");
+        _popupBlockingRects.RemoveAt(index);
+        _popupKeyboardBlocking.RemoveAt(index);
     }
 
     public void EndFrame()
     {
+        if (_textDragFrame != _frameCount)
+            _textDragId = null;
         if (_hoverLoggedThisFrame)
         {
             return;
@@ -393,6 +540,8 @@ public sealed class UiState
     public void ClearDebugLog() => _debugLogEntries.Clear();
 
     public void RequestTheme(UiTheme theme) => _requestedTheme = theme;
+
+    internal UiTheme? RequestedTheme => _requestedTheme;
 
     public bool TryConsumeTheme(out UiTheme theme)
     {
@@ -431,8 +580,9 @@ public sealed class UiState
             return;
         }
 
-        foreach (var keyEvent in keyEvents)
+        for (var i = 0; i < keyEvents.Count; i++)
         {
+            var keyEvent = keyEvents[i];
             if (keyEvent.IsDown)
             {
                 _keysDown.Add(keyEvent.Key);
@@ -454,7 +604,12 @@ public sealed class UiState
     public bool IsKeyDown(UiKey key) => _keysDown.Contains(key);
     public bool HasRepeatTime(UiKey key) => _repeatNext.ContainsKey(key);
     public bool TryGetRepeatTime(UiKey key, out double nextTime) => _repeatNext.TryGetValue(key, out nextTime);
-    public void SetRepeatTime(UiKey key, double nextTime) => _repeatNext[key] = nextTime;
+    public void SetRepeatTime(UiKey key, double nextTime)
+    {
+        if (_keyRepeatSource != UiKeyRepeatSource.Engine)
+            throw new InvalidOperationException("Synthetic key repeat timers require engine ownership.");
+        _repeatNext[key] = nextTime;
+    }
     public void ClearRepeatTime(UiKey key) => _repeatNext.Remove(key);
 
     public int GetCursor(string key, int defaultValue = 0)
@@ -674,10 +829,16 @@ public sealed class UiState
     public UiTextEditBuffer GetEditBuffer(string key, string initialValue)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        initialValue ??= string.Empty;
 
         if (_editBuffers.TryGetValue(key, out var buffer))
         {
-            buffer.Sync(initialValue ?? string.Empty);
+            if (!string.Equals(buffer.Text, initialValue, StringComparison.Ordinal))
+            {
+                buffer.Sync(initialValue);
+                if (_histories.TryGetValue(key, out var history))
+                    history.Reset(initialValue);
+            }
             return buffer;
         }
 
@@ -694,6 +855,54 @@ public sealed class UiState
         }
 
         return !string.IsNullOrEmpty(_previousActiveId) && _editBuffers.ContainsKey(_previousActiveId);
+    }
+
+    internal bool HasTextInputStorage(string key) => _editBuffers.ContainsKey(key) || _histories.ContainsKey(key);
+    internal (int EditBuffers, int Histories) TextInputStorage => (_editBuffers.Count, _histories.Count);
+    internal void UpdateTextDragPointer(bool down, bool pressed, bool released)
+    {
+        if (!down || pressed || released)
+            _textDragId = null;
+    }
+    internal void BeginTextDrag(string id)
+    {
+        _textDragId = id;
+        _textDragFrame = _frameCount;
+        _textDragTime = InputTimeSeconds;
+    }
+    internal bool OwnsTextDrag(string id) => _textDragId == id && _activeId == id;
+    internal void ReleaseTextDrag(string id)
+    {
+        if (_textDragId == id)
+            _textDragId = null;
+    }
+    internal bool ContinueTextDrag(string id, out float deltaTime)
+    {
+        deltaTime = 0;
+        if (_textDragId != id || _activeId != id)
+            return false;
+        deltaTime = (float)Math.Clamp(InputTimeSeconds - _textDragTime, 0, 1d / 30);
+        _textDragFrame = _frameCount;
+        _textDragTime = InputTimeSeconds;
+        return true;
+    }
+    internal void ReleaseTextInput(string key)
+    {
+        ReleaseTextDrag(key);
+        if (_histories.Remove(key, out var history))
+            history.ReleasePooled();
+        _editBuffers.Remove(key);
+        _textBuffers.Remove(key);
+        _selections.Remove(key);
+        _cursors.Remove(key);
+        _scrollX.Remove(key);
+        _scrollY.Remove(key);
+        if (_activeId == key)
+            _activeId = null;
+        if (FocusedId == key)
+            FocusedId = null;
+        if (PendingTextInputFocusId == key)
+            PendingTextInputFocusId = null;
     }
 
     public string GetTextBuffer(string key, string fallback)
@@ -829,11 +1038,12 @@ public sealed class UiState
         var dx = position.X - _widgetClickPos.X;
         var dy = position.Y - _widgetClickPos.Y;
         var withinDistance = (dx * dx) + (dy * dy) <= maxDistance * maxDistance;
-        var withinTime = (_timeSeconds - _widgetClickTime) <= doubleClickSeconds;
+        var elapsed = InputTimeSeconds - _widgetClickTime;
+        var withinTime = elapsed >= 0 && elapsed <= doubleClickSeconds;
         var isChained = _widgetClickId == key && withinDistance && withinTime;
 
         _widgetClickId = key;
-        _widgetClickTime = _timeSeconds;
+        _widgetClickTime = InputTimeSeconds;
         _widgetClickPos = position;
         _widgetClickCount = isChained ? _widgetClickCount + 1 : 1;
 
@@ -849,6 +1059,7 @@ public sealed class UiState
 
         _histories.Clear();
         _editBuffers.Clear();
+        _textDragId = null;
     }
 
     private int GetWindowInsertIndex(bool topMost)
@@ -885,6 +1096,7 @@ public sealed class UiTextHistory
     public UiTextHistory(string initialValue)
     {
         _items = ArrayPool<string>.Shared.Rent(DefaultCapacity);
+        Array.Clear(_items);
         _items[0] = initialValue;
         _count = 1;
         _index = 0;
@@ -908,6 +1120,20 @@ public sealed class UiTextHistory
         _count++;
         _index = _count - 1;
         return true;
+    }
+
+    internal void Reset(string value)
+    {
+        if (_items.Length == 0 || _items.Length > DefaultCapacity * 4)
+        {
+            if (_items.Length > 0)
+                ArrayPool<string>.Shared.Return(_items, clearArray: true);
+            _items = ArrayPool<string>.Shared.Rent(DefaultCapacity);
+        }
+        Array.Clear(_items);
+        _items[0] = value;
+        _count = 1;
+        _index = 0;
     }
 
     public bool Undo(out string value)
@@ -943,8 +1169,7 @@ public sealed class UiTextHistory
             return;
         }
 
-        Array.Clear(_items, 0, _count);
-        ArrayPool<string>.Shared.Return(_items, clearArray: false);
+        ArrayPool<string>.Shared.Return(_items, clearArray: true);
         _items = [];
         _count = 0;
         _index = 0;
@@ -960,16 +1185,21 @@ public sealed class UiTextHistory
         var newSize = Math.Max(needed, _items.Length * 2);
         var next = ArrayPool<string>.Shared.Rent(newSize);
         Array.Copy(_items, next, _count);
-        ArrayPool<string>.Shared.Return(_items, clearArray: false);
+        Array.Clear(next, _count, next.Length - _count);
+        ArrayPool<string>.Shared.Return(_items, clearArray: true);
         _items = next;
     }
 }
 
 public sealed class UiTextEditBuffer
 {
+    private UiSingleLineTextLayout? _singleLine;
+    internal UiSingleLineTextLayout SingleLine => _singleLine ??= new();
     private readonly StringBuilder _builder;
     private string _cached;
     private bool _dirty;
+    private int[]? _elementStarts;
+    private byte _elementKind;
 
     public UiTextEditBuffer(string initialValue)
     {
@@ -999,7 +1229,7 @@ public sealed class UiTextEditBuffer
     public void Sync(string value)
     {
         value ??= string.Empty;
-        if (string.Equals(_cached, value, StringComparison.Ordinal))
+        if (!_dirty && string.Equals(_cached, value, StringComparison.Ordinal))
         {
             return;
         }
@@ -1008,6 +1238,7 @@ public sealed class UiTextEditBuffer
         _builder.Append(value);
         _cached = value;
         _dirty = false;
+        InvalidateTextElements();
     }
 
     public void Replace(int start, int length, string insert)
@@ -1018,7 +1249,68 @@ public sealed class UiTextEditBuffer
             _builder.Insert(start, insert);
         }
         _dirty = true;
+        InvalidateTextElements();
     }
+
+    private void InvalidateTextElements()
+    {
+        _elementStarts = null;
+        _elementKind = 0;
+    }
+    private void EnsureTextElements()
+    {
+        if (_elementKind != 0)
+            return;
+        var text = Text;
+        if (Ascii.IsValid(text) && !text.Contains('\r'))
+            _elementKind = 1;
+        else
+        {
+            _elementStarts = StringInfo.ParseCombiningCharacters(text);
+            _elementKind = 2;
+        }
+    }
+    internal int SnapTextElement(int index, bool forward = false)
+    {
+        index = Math.Clamp(index, 0, Length);
+        if (index == 0 || index == Length)
+            return index;
+        EnsureTextElements();
+        if (_elementKind == 1)
+            return index;
+        var position = Array.BinarySearch(_elementStarts!, index);
+        if (position >= 0)
+            return index;
+        position = ~position;
+        return forward ? position < _elementStarts!.Length ? _elementStarts[position] : Length
+            : _elementStarts![Math.Max(0, position - 1)];
+    }
+    internal int PreviousTextElement(int index)
+    {
+        index = Math.Clamp(index, 0, Length);
+        if (index == 0)
+            return 0;
+        EnsureTextElements();
+        if (_elementKind == 1)
+            return index - 1;
+        var position = Array.BinarySearch(_elementStarts!, index);
+        return _elementStarts![Math.Max(0, position >= 0 ? position - 1 : ~position - 1)];
+    }
+    internal int NextTextElement(int index)
+    {
+        index = Math.Clamp(index, 0, Length);
+        if (index == Length)
+            return Length;
+        EnsureTextElements();
+        if (_elementKind == 1)
+            return index + 1;
+        var position = Array.BinarySearch(_elementStarts!, index);
+        position = position >= 0 ? position + 1 : ~position;
+        return position < _elementStarts!.Length ? _elementStarts[position] : Length;
+    }
+    internal UiTextSelection AlignTextElements(UiTextSelection selection) => selection.Start <= selection.End
+        ? new(SnapTextElement(selection.Start), SnapTextElement(selection.End, forward: true))
+        : new(SnapTextElement(selection.Start, forward: true), SnapTextElement(selection.End));
 }
 
 public readonly record struct UiTableSortState(int Column, bool Ascending);

@@ -1,0 +1,186 @@
+{
+  "renderer": "Chromium native SVG Image into Canvas2D; independently captured bytes",
+  "contract": "Source and native pixel hashes preserved from diagnostic captures; raw transparent and white outputs",
+  "references": [
+    {
+      "id": "shadow-linear.image-canvas",
+      "file": "shadow-linear.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "59b126a1496f7da8247a6d6c8d67da2215d1cdaab42c7352470394cb71ed8d04",
+      "mode": "image-canvas",
+      "rgbaSha256": "668d940f81e4abd0ce8781ad8f013cffe2115ff9f11356d5d99727ea98775efa",
+      "transparentRgbaSha256": "7c73afe9b68bea37f0c3d2cc3849752336c703612f9208f3adbeb4e392846bc0",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999779149107,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T19:33:15.542Z"
+    },
+    {
+      "id": "shadow-radial.image-canvas",
+      "file": "shadow-radial.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "1a4ce90b0e1ae6116f7ae4821e5b58bbcfaf025ef281fd3b36afc98a13d687a1",
+      "mode": "image-canvas",
+      "rgbaSha256": "f8552a9e0ad188cd7dd9c720690082f26ea465dfc6d1aee7762b51fc31287858",
+      "transparentRgbaSha256": "824930d0127224bc5bd22c4e3681403eb70499dcdcb4caee14b9b77f2c0b68be",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999779149107,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T19:33:15.555Z"
+    },
+    {
+      "id": "shadow-radial-focus.image-canvas",
+      "file": "shadow-radial-focus.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "66950dd510decc8f70ecb3175bbf5e735f1d4b0ed8561a65ac544e066c6dcd23",
+      "mode": "image-canvas",
+      "rgbaSha256": "92002c46a8a7e42dc7193e42bb73f9906e0fe898e6e0e8f2f63f1c994741b000",
+      "transparentRgbaSha256": "1af4eafd0a8ba1311d6f9c3ded74c2d6cb06643cbfebf4f65fc1b445b33a2930",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999779149107,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T19:33:15.563Z"
+    },
+    {
+      "id": "flat-middle.image-canvas",
+      "file": "flat-middle.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "fec6c3a8e464213f3b16414237065b72d24bc12ce5ae36d0382b3485cd711246",
+      "mode": "image-canvas",
+      "rgbaSha256": "d8d553546719ecc9637714ba865b13783ef9f55aa28c0b79b0dfe2e7042cc38a",
+      "transparentRgbaSha256": "1ac67099c7a8747a83222ee8db1dfce1bef19026ff5056d88efbf077ff454083",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999779149107,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T19:34:03.588Z"
+    },
+    {
+      "id": "two-alpha.image-canvas",
+      "file": "two-alpha.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "0373855cc1750f5d6c10c30a34eaca42a39d144ba7abec897e49147c9d93343f",
+      "mode": "image-canvas",
+      "rgbaSha256": "1e6905d80e8081a04cbd92ec88bbf99e88b9ee8a6bb11f19e29a3fdf3efde656",
+      "transparentRgbaSha256": "2f3a16462a86fa705e5f096d919a844a9ffabb861689cb51fb134a7b5293f55a",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999779149107,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T19:34:03.597Z"
+    },
+    {
+      "id": "shadow-linear-large.image-canvas",
+      "file": "shadow-linear-large.svg",
+      "width": 256,
+      "height": 64,
+      "sourceSha256": "e52f13bd7b1933f05d9aefdfbac5aabd98ab1d85ba7e28a398b12cd4c2ec0d72",
+      "mode": "image-canvas",
+      "rgbaSha256": "b21fbbdadc37ec2b892e062291c37b01bb447c41302fe20bc48b3e251a662c88",
+      "transparentRgbaSha256": "bd7eae376c4c6277c45e8a5238374b9efb4c572da241357abac66c7f9e018d83",
+      "conditions": {
+        "intrinsicWidth": 256,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999779149107,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T19:34:03.611Z"
+    },
+    {
+      "id": "wide-shadow.image-canvas",
+      "file": "wide-shadow.svg",
+      "width": 4096,
+      "height": 1,
+      "sourceSha256": "1ba8f2054c8b08e4ea242db106e9e23f495e752fb48ad6e353470db8ab4c7b3c",
+      "mode": "image-canvas",
+      "rgbaSha256": "81582a83af0054b6dac25d68e2ea8b2fc464eb8bc37810c8b5ba0c4e419106df",
+      "transparentRgbaSha256": "98330cb22725d0fe8d4ed1fbedb1d5b226f04ce280f01ec05ad236a0713d04ad",
+      "conditions": {
+        "intrinsicWidth": 4096,
+        "intrinsicHeight": 1,
+        "dpr": 0.9999999779149107,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T19:45:48.807Z"
+    },
+    {
+      "id": "wide-half.image-canvas",
+      "file": "wide-half.svg",
+      "width": 4096,
+      "height": 1,
+      "sourceSha256": "79278c32396aa61bd951671eca6147f4cea01d31dd9abb52ebd22eabd176d616",
+      "mode": "image-canvas",
+      "rgbaSha256": "f484a97f920ded11c03c963f8f6042fb27f4d2dd40f428c05e0892caaccc66ec",
+      "transparentRgbaSha256": "13e54722bf9434a2305dca83a27e43e1ad4078fbec3868c966959627660505a4",
+      "conditions": {
+        "intrinsicWidth": 4096,
+        "intrinsicHeight": 1,
+        "dpr": 0.9999999779149107,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T19:45:48.818Z"
+    },
+    {
+      "id": "wide-half-position.image-canvas",
+      "file": "wide-half-position.svg",
+      "width": 4096,
+      "height": 1,
+      "sourceSha256": "ed8a2ea1af4ecfa137265cb87d83454b851f8c4b727cd71c969cf20991999685",
+      "mode": "image-canvas",
+      "rgbaSha256": "d9b4c9c8a80e77068c940b2e94c4251cd9b6574b2bf98f08c3274a5cc5d6fa61",
+      "transparentRgbaSha256": "ed2ff11cccda109db35f680d9bc9fa600a7ad6eb4399c1df972e8066cfac31be",
+      "conditions": {
+        "intrinsicWidth": 4096,
+        "intrinsicHeight": 1,
+        "dpr": 0.9999999779149107,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T19:45:48.831Z"
+    }
+  ]
+}

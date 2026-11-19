@@ -1,0 +1,69 @@
+{
+  "renderer": "Chromium156 native SVG image Canvas2D, frozen independent full images",
+  "contract": "Fixed DPR1/sRGB full backing extent; preserve both original opaque and transparent phases",
+  "references": [
+    {
+      "file": "triangle.svg",
+      "width": 764,
+      "height": 372,
+      "sourceSha256": "3650de25ab106bc5f6098fa3f8215b92fd8b80f93c272d942aa41d2325b09afb",
+      "purpose": "Fractional intrinsic root versus equivalent integer-root matrix and baked device points; not original SVG acceptance replacement",
+      "id": "triangle.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "014cc181bcfe72dac955f30c69d7e01562947a80eb20429840af38f60db5656d",
+      "transparentRgbaSha256": "16e9505f88377987e506ff4fe3cc9036850bf305105d00bd5df07a792f3b1140",
+      "conditions": {
+        "intrinsicWidth": 1528.4102783203125,
+        "intrinsicHeight": 744.1569213867188,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T18:45:42.984Z"
+    },
+    {
+      "file": "matrix.svg",
+      "width": 764,
+      "height": 372,
+      "sourceSha256": "c8f2d72b4011da7f8c37a03858fd52558984cc688c9378509abe1f4127e94d5f",
+      "id": "matrix.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "014cc181bcfe72dac955f30c69d7e01562947a80eb20429840af38f60db5656d",
+      "transparentRgbaSha256": "9340a4a8d45ed87757cb2d0b37994c76d361e05dc416fa5a67b26e489da81bee",
+      "conditions": {
+        "intrinsicWidth": 764,
+        "intrinsicHeight": 372,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T18:46:11.793Z",
+      "purpose": "Fractional intrinsic root versus equivalent integer-root matrix and baked device points; not original SVG acceptance replacement"
+    },
+    {
+      "file": "baked.svg",
+      "width": 764,
+      "height": 372,
+      "sourceSha256": "1c462ed28f3b037ec5d58d575ab40f66764f21dc7a63731457316461dc110a41",
+      "id": "baked.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "014cc181bcfe72dac955f30c69d7e01562947a80eb20429840af38f60db5656d",
+      "transparentRgbaSha256": "9340a4a8d45ed87757cb2d0b37994c76d361e05dc416fa5a67b26e489da81bee",
+      "conditions": {
+        "intrinsicWidth": 764,
+        "intrinsicHeight": 372,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T18:46:11.889Z",
+      "purpose": "Fractional intrinsic root versus equivalent integer-root matrix and baked device points; not original SVG acceptance replacement"
+    }
+  ]
+}

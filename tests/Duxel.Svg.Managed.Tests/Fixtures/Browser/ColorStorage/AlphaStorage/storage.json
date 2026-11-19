@@ -1,0 +1,19 @@
+{
+  "width": 129,
+  "height": 255,
+  "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+  "dpr": 0.9999999739883236,
+  "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti Laptop GPU (0x00002F58) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "bits": [
+    8,
+    8,
+    8,
+    8
+  ],
+  "capturedUtc": "2026-11-14T19:34:49.893Z",
+  "inputSha256": "bd3cb9b91d42fa75e12f3392b58290680076372deec4c9e3258bbaca3e6e0a4f",
+  "rgbaSha256": "e5184fcb43ebc848f886544b6a3390044e17afd170d282bc8a49cc3a0e4f945a",
+  "scope": "Independent WebGL float32 alpha uniform into RGBA8 with RGB zero; no SVG grammar/shape qualification",
+  "channel": "alpha",
+  "captureModuleSha256": "e5267ff4fef7a91bf58672c2a50e567ef7ab6843e5648f41b260599778ceaa7a"
+}

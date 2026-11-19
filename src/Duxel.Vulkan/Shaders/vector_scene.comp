@@ -1,0 +1,193 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_buffer_reference_uvec2 : require
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(constant_id = 0) const uint StackCapacity = 8u;
+layout(constant_id = 1) const uint VectorSceneProtocolVersion = 4u;
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer Scene { vec4 data[]; };
+layout(buffer_reference, std430, buffer_reference_align = 4) writeonly buffer Pixels { uint data[]; };
+layout(buffer_reference, std430, buffer_reference_align = 4) readonly buffer ReadPixels { uint data[]; };
+struct Dependency { ReadPixels pixels; uint width; uint height; vec4 bounds; };
+layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer Dependencies { Dependency data[]; };
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer StrokeEdges { vec4 data[]; };
+struct StrokeTarget { StrokeEdges edges; uint capacity; uint count; uint offset; uint reserved0; uint reserved1; uint reserved2; };
+layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer StrokeTargets { StrokeTarget data[]; };
+layout(push_constant, std430) uniform Parameters {
+    Scene scene;
+    Pixels pixels;
+    uint width;
+    uint height;
+    uint commandCount;
+    float sourceWidth;
+    float sourceHeight;
+    Dependencies dependencies;
+    uint tileOffset;
+    uint tileColumns;
+    uint tileRows;
+    uint flags;
+    vec4 camera;
+    StrokeTargets strokes;
+    uint background;
+} pc;
+
+#include "vector_color.glsl"
+#include "vector_conic.glsl"
+#include "vector_curve.glsl"
+#include "vector_stroke.glsl"
+#include "vector_paint.glsl"
+#include "vector_analytic.glsl"
+void main() {
+    if (VectorSceneProtocolVersion != 4u) return;
+    uvec2 pixel = gl_GlobalInvocationID.xy;
+    if (pixel.x >= pc.width || pixel.y >= pc.height) return;
+    vec4 background = unpackUnorm4x8(pc.background);
+    background.rgb *= background.a;
+    background = quantize(background);
+    const vec2 samples[4] = vec2[4](vec2(.375, .125), vec2(.875, .375), vec2(.125, .625), vec2(.625, .875));
+    vec2 sourceSize = vec2(pc.sourceWidth, pc.sourceHeight);
+    vec2 extent = pc.camera.x > 0.0 ? pc.camera.xy : vec2(pc.width, pc.height);
+    vec2 scale = (pc.flags & 2u) != 0u ? extent / sourceSize : vec2(min(extent.x / pc.sourceWidth, extent.y / pc.sourceHeight));
+    vec2 origin = (extent - sourceSize * scale) * .5;
+    vec2 devicePoint = vec2(pixel) + pc.camera.zw + .5;
+    vec2 paintPoint = (devicePoint - origin) / scale;
+    float viewportCoverage = 1.0;
+    if ((pc.flags & 1u) == 0u) {
+        vec2 coverage = min(devicePoint + .5, origin + sourceSize * scale) - max(devicePoint - .5, origin);
+        viewportCoverage = clamp(min(coverage.x, coverage.y), 0.0, 1.0);
+    }
+    if (viewportCoverage == 0.0) {
+        pc.pixels.data[pixel.y * pc.width + pixel.x] = packUnorm4x8(background);
+        return;
+    }
+    vec2 points[4];
+    for (uint sampleIndex = 0u; sampleIndex < 4u; ++sampleIndex)
+        points[sampleIndex] = (vec2(pixel) + pc.camera.zw + samples[sampleIndex] - origin) / scale;
+    vec4 layers[StackCapacity * 4u];
+    vec2 rasterOrigins[StackCapacity];
+    rasterOrigins[0] = vec2(0.0);
+    for (uint sampleIndex = 0u; sampleIndex < 4u; ++sampleIndex) layers[sampleIndex] = background;
+    uint depth = 0u;
+    uint startCommand = 0u;
+    if (pc.tileColumns != 0u) {
+        uint cells[4];
+        bool bounded = true;
+        for (uint sampleIndex = 0u; sampleIndex < 4u; ++sampleIndex) {
+            vec2 point = points[sampleIndex];
+            bounded = bounded && all(greaterThanEqual(point, vec2(0.0))) && all(lessThan(point, sourceSize));
+            uvec2 cell = min(uvec2(max(point / sourceSize, vec2(0.0)) * vec2(pc.tileColumns, pc.tileRows)), uvec2(pc.tileColumns - 1u, pc.tileRows - 1u));
+            cells[sampleIndex] = cell.y * pc.tileColumns + cell.x;
+        }
+        if (bounded && cells[0] == cells[1] && cells[0] == cells[2] && cells[0] == cells[3])
+            startCommand = uint(pc.scene.data[pc.tileOffset + cells[0]].x);
+    }
+    for (uint i = startCommand; i < pc.commandCount; ++i) {
+        uint command = i * 6u;
+        vec4 extra = pc.scene.data[command + 5u];
+        if (extra.w == 1.0) {
+            ++depth;
+            rasterOrigins[depth] = rasterOrigins[depth - 1u];
+            if (pc.scene.data[command + 1u].x == 1.0)
+                rasterOrigins[depth] = floor(pc.scene.data[command].xy * scale + origin);
+            for (uint s = 0u; s < 4u; ++s) layers[depth * 4u + s] = vec4(0.0);
+            continue;
+        }
+        if (extra.w == 2.0) {
+            --depth;
+            float coverage = depth == 0u ? viewportCoverage : 1.0;
+            float sourceCoverage = 1.0;
+            if (pc.scene.data[command + 1u].x == 1.0) {
+                vec4 clip = pc.scene.data[command];
+                vec2 minimum = clip.xy * scale + origin;
+                vec2 maximum = (clip.xy + clip.zw) * scale + origin;
+                sourceCoverage = rectangleCoverage(vec4(minimum, maximum), devicePoint);
+            }
+            for (uint s = 0u; s < 4u; ++s) {
+                vec4 color = layers[(depth + 1u) * 4u + s];
+                color = layerSource(color, extra.z, sourceCoverage);
+                layers[depth * 4u + s] = over(color * coverage, layers[depth * 4u + s]);
+            }
+            continue;
+        }
+        if (extra.w == 3.0) {
+            --depth;
+            for (uint s = 0u; s < 4u; ++s) layers[depth * 4u + s] = quantize(layers[depth * 4u + s] * layers[(depth + 1u) * 4u + s].a);
+            continue;
+        }
+        if (extra.w == 4.0 || extra.w == 6.0) {
+            uint maskIndex = depth * 4u;
+            vec4 mask = resolveSamples(layers[maskIndex], layers[maskIndex + 1u], layers[maskIndex + 2u], layers[maskIndex + 3u]);
+            uint sourceIndex = --depth * 4u;
+            vec4 source = resolveSamples(layers[sourceIndex], layers[sourceIndex + 1u], layers[sourceIndex + 2u], layers[sourceIndex + 3u]);
+            float opacity = extra.w == 6.0 ? mask.a : dot(mask.rgb, vec3(.2126, .7152, .0722));
+            vec4 color = quantize(source * opacity);
+            for (uint s = 0u; s < 4u; ++s) layers[sourceIndex + s] = color;
+            continue;
+        }
+        if (extra.w == 5.0) break;
+        vec4 bounds = pc.scene.data[command];
+        if (any(lessThan(paintPoint, bounds.xy - 1.0 / scale)) || any(greaterThan(paintPoint, bounds.zw + 1.0 / scale))) continue;
+        vec4 specification = pc.scene.data[command + 1u];
+        uint pathFlags = uint(specification.w);
+        float coverage = 1.0;
+        vec2 materialPoint = paintPoint;
+        bool uniformCoverage = (pathFlags & 216u) != 0u;
+        if ((pathFlags & 128u) != 0u) {
+            uint at = uint(specification.x);
+            coverage = analyticCoverage(at, devicePoint, scale, origin, materialPoint);
+            if (specification.y == 2.0) {
+                vec2 innerPoint;
+                coverage = clamp(coverage - analyticCoverage(at + 3u, devicePoint, scale, origin, innerPoint), 0.0, 1.0);
+            }
+        } else if ((pathFlags & 64u) != 0u) {
+            vec4 outer = vec4(bounds.xy * scale + origin, bounds.zw * scale + origin);
+            vec4 inner = pc.scene.data[uint(specification.x)];
+            float hole = all(greaterThan(inner.zw, inner.xy))
+                ? rectangleCoverage(vec4(inner.xy * scale + origin, inner.zw * scale + origin), devicePoint) : 0.0;
+            coverage = clamp(rectangleCoverage(outer, devicePoint) - hole, 0.0, 1.0);
+        } else if ((pathFlags & 8u) != 0u) {
+            coverage = analyticCoverage(uint(specification.x), devicePoint, scale, origin, materialPoint);
+        } else if ((pathFlags & 16u) != 0u) {
+            vec4 rectangle = vec4(bounds.xy * scale + origin, bounds.zw * scale + origin);
+            coverage = rectangleCoverage(rectangle, devicePoint);
+        }
+        if (coverage == 0.0) continue;
+        uint coveredSamples = 15u;
+        if (!uniformCoverage) {
+            coveredSamples = 0u;
+            for (uint s = 0u; s < 4u; ++s) {
+                vec2 point = points[s];
+                if (any(lessThan(point, bounds.xy)) || any(greaterThan(point, bounds.zw)) ||
+                    !containsPoint(point, bounds, specification, scale, origin)) continue;
+                coveredSamples |= 1u << s;
+            }
+            if (coveredSamples == 0u) continue;
+        }
+        vec4 color = paint(command, materialPoint);
+        color.a *= extra.z;
+        color.rgb *= color.a;
+        uint paintFlags = uint(pc.scene.data[command + 3u].w);
+        if ((paintFlags & 8u) != 0u) {
+            color.a = roundEven(clamp(shaderChannel(color.a), 0.0, 1.0) * 255.0) / 255.0;
+            color.rgb = min(color.rgb, vec3(color.a));
+        }
+        if ((paintFlags & 4u) != 0u) {
+            uint rank = 0u;
+            for (uint bit = 0u; bit < 3u; ++bit) {
+                uvec2 ditherPixel = uvec2(ivec2(pixel) + ivec2(pc.camera.zw) - ivec2(rasterOrigins[depth]));
+                uint quadrant = ((ditherPixel.x >> bit) & 1u) + (((ditherPixel.y >> bit) & 1u) * 2u);
+                rank += quadrant << (2u * (2u - bit));
+            }
+            float normalized = floor((float(rank) + .5) / 64.0 * 255.0 + .5) / 255.0;
+            color.rgb = clamp(color.rgb + (normalized - .5) / 255.0, vec3(0.0), vec3(color.a));
+        }
+        color *= coverage * (depth == 0u ? viewportCoverage : 1.0);
+        if ((paintFlags & 4u) != 0u) color = shaderColor(color);
+        for (uint s = 0u; s < 4u; ++s) {
+            if ((coveredSamples & (1u << s)) == 0u) continue;
+            layers[depth * 4u + s] = over(color, layers[depth * 4u + s]);
+        }
+    }
+    pc.pixels.data[pixel.y * pc.width + pixel.x] = strokeOverflow ? packUnorm4x8(vec4(1.0, 0.0, 1.0, 1.0))
+        : packUnorm4x8(resolveSamples(layers[0], layers[1], layers[2], layers[3]));
+}

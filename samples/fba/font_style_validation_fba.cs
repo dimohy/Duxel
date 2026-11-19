@@ -121,7 +121,7 @@ public sealed class FontStyleValidationScreen(string style, string primaryFontPa
 
         ui.SetNextWindowPos(new UiVector2(viewport.Pos.X + margin, viewport.Pos.Y + margin));
         ui.SetNextWindowSize(new UiVector2(420f, viewport.Size.Y - margin * 2f));
-        ui.BeginWindow("Controls");
+        ui.BeginPanel("Controls");
 
         ui.Text($"Current style mode: {style}");
         ui.Text($"Primary font file: {primaryFontPath}");
@@ -147,11 +147,11 @@ public sealed class FontStyleValidationScreen(string style, string primaryFontPa
         ui.BulletText("italic");
         ui.Text("Compare glyph strokes/slant across runs.");
 
-        ui.EndWindow();
+        ui.EndPanel();
 
         ui.SetNextWindowPos(new UiVector2(viewport.Pos.X + 444f, viewport.Pos.Y + margin));
         ui.SetNextWindowSize(new UiVector2(viewport.Size.X - 456f, viewport.Size.Y - margin * 2f));
-        ui.BeginWindow("Font Preview");
+        ui.BeginPanel("Font Preview");
 
         ui.SeparatorText("Live Preview");
         ui.PushFontSize(_previewSize);
@@ -177,6 +177,6 @@ public sealed class FontStyleValidationScreen(string style, string primaryFontPa
         ui.Text("- This runtime supports dynamic font size via PushFontSize/PopFontSize.");
         ui.Text("- Weight/italic comparison is done by switching the startup font file per run.");
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 }

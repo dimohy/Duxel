@@ -1,0 +1,54 @@
+<svg width="40" height="40" viewBox="50 40 180 180" xmlns="http://www.w3.org/2000/svg">
+<!-- Gallery crop of the repository logo.svg symbol; shared geometry, colors and alpha are preserved. -->
+  <defs>
+    <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9D8CFF"/>
+      <stop offset="100%" stop-color="#5B4DCC"/>
+    </linearGradient>
+
+    <linearGradient id="flowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#AFA3FF"/>
+      <stop offset="100%" stop-color="#6E56CF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Back Layer -->
+  <rect x="60" y="50" width="140" height="140" rx="28"
+        fill="#E6E9F8" fill-opacity="0.5" stroke="#6E56CF" stroke-opacity="0.55" stroke-width="4"/>
+
+  <!-- Middle Layer -->
+  <rect x="75" y="65" width="140" height="140" rx="28"
+        fill="url(#mainGrad)"
+        opacity="0.95"/>
+
+  <!-- Subtle Grid Lines -->
+  <line x1="145" y1="65" x2="145" y2="205"
+        stroke="white"
+        stroke-opacity="0.15"
+        stroke-width="2"/>
+  <line x1="75" y1="135" x2="215" y2="135"
+        stroke="white"
+        stroke-opacity="0.15"
+        stroke-width="2"/>
+
+  <!-- Immediate Flow Stroke -->
+  <path d="M90 190 Q150 90 200 80"
+        stroke="url(#flowGrad)"
+        stroke-width="6"
+        fill="none"
+        stroke-linecap="round"/>
+
+  <!-- Stylized D Monogram -->
+  <path d="M115 95 
+           L140 95 
+           C170 95 185 115 185 135 
+           C185 155 170 175 140 175 
+           L115 175 Z
+           M129 108 L140 108
+           C161 108 172 120 172 135
+           C172 150 161 162 140 162
+           L129 162 Z"
+        fill="white" fill-rule="evenodd"
+        opacity="0.95"/>
+
+</svg>

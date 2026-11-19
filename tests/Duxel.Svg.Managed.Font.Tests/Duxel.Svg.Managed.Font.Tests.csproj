@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../src/Duxel.Svg/Managed/*.cs" Link="Rendering/%(Filename)%(Extension)" />
+    <Compile Include="../../src/Duxel.Core/UiRgba8.cs" Link="Rendering/UiRgba8.cs" />
+    <Compile Include="../../src/Duxel.Svg/Fonts/**/*.cs" Link="Fonts/%(Filename)%(Extension)" />
+    <Compile Include="../../src/Duxel.Svg/SvgFontOptions.cs" Link="Fonts/SvgFontOptions.cs" />
+    <Compile Include="../../src/Duxel.Svg/Images/*.cs" Link="Images/%(Filename)%(Extension)" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="14.2.0"
+                      Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-')) or ('$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux')))" />
+  </ItemGroup>
+</Project>

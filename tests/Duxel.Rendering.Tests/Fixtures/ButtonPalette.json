@@ -1,0 +1,62 @@
+{
+  "Light": [
+    {
+      "state": "Rest",
+      "background": "#ffffff",
+      "border": "#d1d1d1",
+      "foreground": "#242424",
+      "focus": "#000000"
+    },
+    {
+      "state": "Hover",
+      "background": "#f5f5f5",
+      "border": "#c7c7c7",
+      "foreground": "#242424",
+      "focus": "#000000"
+    },
+    {
+      "state": "Pressed",
+      "background": "#e0e0e0",
+      "border": "#b3b3b3",
+      "foreground": "#242424",
+      "focus": "#000000"
+    },
+    {
+      "state": "Disabled",
+      "background": "#f0f0f0",
+      "border": "#e0e0e0",
+      "foreground": "#bdbdbd",
+      "focus": "#000000"
+    }
+  ],
+  "Dark": [
+    {
+      "state": "Rest",
+      "background": "#292929",
+      "border": "#666666",
+      "foreground": "#ffffff",
+      "focus": "#ffffff"
+    },
+    {
+      "state": "Hover",
+      "background": "#3d3d3d",
+      "border": "#757575",
+      "foreground": "#ffffff",
+      "focus": "#ffffff"
+    },
+    {
+      "state": "Pressed",
+      "background": "#1f1f1f",
+      "border": "#6b6b6b",
+      "foreground": "#ffffff",
+      "focus": "#ffffff"
+    },
+    {
+      "state": "Disabled",
+      "background": "#141414",
+      "border": "#424242",
+      "foreground": "#5c5c5c",
+      "focus": "#ffffff"
+    }
+  ]
+}

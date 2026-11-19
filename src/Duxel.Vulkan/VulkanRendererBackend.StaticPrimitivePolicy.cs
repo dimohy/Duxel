@@ -62,13 +62,16 @@ public sealed unsafe partial class VulkanRendererBackend
             ? ReadOnlySpan<UiCircleFilledPrimitive>.Empty
             : drawList.CircleFilledPrimitives.AsSpan();
 
-        return GetStaticPrimitiveTriangleDecision(rects, circles, suppressForMutation: false).Expand;
+        return GetStaticPrimitiveTriangleDecision(rects, circles, suppressForMutation: false,
+            hasPairedRecords : HasPairedPrimitiveCommands(drawList)).Expand;
     }
 
     private StaticPrimitiveTriangleDecision GetStaticPrimitiveTriangleDecision(
         ReadOnlySpan<UiRectFilledPrimitive> rectPrimitives,
         ReadOnlySpan<UiCircleFilledPrimitive> circlePrimitives,
-        bool suppressForMutation)
+        bool suppressForMutation,
+        ulong maxAutoByteExpansionRatio = StaticPrimitiveTriangleAutoMaxByteExpansionRatio,
+        bool hasPairedRecords = false)
     {
         if (!_staticPrimitiveTrianglesEnabled)
         {
@@ -81,7 +84,7 @@ public sealed unsafe partial class VulkanRendererBackend
             return default;
         }
 
-        if (RequiresAnalyticPrimitiveCoverage(rectPrimitives, circlePrimitives))
+        if (hasPairedRecords || RequiresAnalyticPrimitiveCoverage(rectPrimitives, circlePrimitives))
         {
             return default;
         }
@@ -102,9 +105,9 @@ public sealed unsafe partial class VulkanRendererBackend
 
         var primitiveBytes = checked((ulong)primitiveCount * (ulong)sizeof(PrimitiveInstance));
         var expandedBytes = EstimateExpandedStaticPrimitiveGeometryBytes(rectPrimitives, circlePrimitives);
-        var maxAutoExpandedBytes = primitiveBytes > ulong.MaxValue / StaticPrimitiveTriangleAutoMaxByteExpansionRatio
+        var maxAutoExpandedBytes = primitiveBytes > ulong.MaxValue / maxAutoByteExpansionRatio
             ? ulong.MaxValue
-            : primitiveBytes * StaticPrimitiveTriangleAutoMaxByteExpansionRatio;
+            : primitiveBytes * maxAutoByteExpansionRatio;
         var skipByByteCost = expandedBytes > maxAutoExpandedBytes;
         var expand = !skipByByteCost && !suppressForMutation;
         return new StaticPrimitiveTriangleDecision(
@@ -128,12 +131,19 @@ public sealed unsafe partial class VulkanRendererBackend
         for (var i = 0; i < rectPrimitives.Length; i++)
         {
             ref readonly var primitive = ref rectPrimitives[i];
-            if (primitive.CornerRadius > 0f || primitive.BorderThickness > 0f)
+            if (primitive.CornerRadius != 0f || primitive.BorderThickness > 0f)
             {
                 return true;
             }
         }
 
+        return false;
+    }
+
+    private static bool HasPairedPrimitiveCommands(UiDrawList drawList)
+    {
+        foreach (ref readonly var command in drawList.Commands.AsSpan())
+            if (command.UsesPairedPrimitiveRecords || command.CircleCutoutIndexPlusOne != 0) return true;
         return false;
     }
 

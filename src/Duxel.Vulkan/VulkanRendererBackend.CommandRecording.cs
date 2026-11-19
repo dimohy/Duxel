@@ -1,4 +1,4 @@
-﻿using Duxel.Core;
+using Duxel.Core;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using VkBuffer = Duxel.Vulkan.Buffer;
@@ -13,14 +13,18 @@ public sealed unsafe partial class VulkanRendererBackend
         uint imageIndex,
         UiDrawData drawData,
         in FrameGeometryBuffers geometryBuffers,
-        Dictionary<int, StaticGeometryBuffer> staticBindings,
+        StaticGeometryFrameBindings staticBindings,
         QueryPool timestampQueryPool,
+        out VectorProfileCounts vectorCounts,
         out long recordTextureLookupTicks,
         out long recordClippingTicks,
         out long recordDescriptorBindTicks,
         out long recordDrawCallTicks,
         out CommandRecordStats recordStats)
     {
+        var usesDepth = _frameUsesDepthLayers;
+        _hasNormalizedPlaneCamera = false;
+        PrepareCompiledLayerGroups(drawData, staticBindings);
         BeginCommandBufferRecording(commandBuffer);
         RecordPendingTextureShaderReadTransitions(commandBuffer);
         var commandFrameContext = CreateCommandFrameContext(
@@ -29,19 +33,32 @@ public sealed unsafe partial class VulkanRendererBackend
             in geometryBuffers);
         var writeGpuTimestamps = timestampQueryPool.Handle is not 0;
         var commandState = CreateCommandRecordingState();
+        if (writeGpuTimestamps)
+        {
+            _vk.CmdResetQueryPool(commandBuffer, timestampQueryPool, GpuProfileStartQuery, GpuProfileTimestampQueryCount);
+            _vk.CmdWriteTimestamp(commandBuffer, PipelineStageFlags.TopOfPipeBit, timestampQueryPool, GpuProfileStartQuery);
+        }
+        RecordGpuParticleSteps(commandBuffer);
+        vectorCounts = RecordVectorScenes(commandBuffer, timestampQueryPool);
+        RecordPaintGroups(commandBuffer, imageIndex);
 
-        BeginCommandRenderPassFrame(
-            commandBuffer,
-            imageIndex,
-            commandFrameContext.FramebufferWidthPixels,
-            commandFrameContext.FramebufferHeightPixels,
-            timestampQueryPool,
-            writeGpuTimestamps);
-        BindGlobalBindlessTextureSet(commandBuffer);
-        // Single GPU-driven pipeline: bound once per frame; per-draw variation is
-        // carried entirely through push constants and dynamic scissor state.
-        _vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, _graphicsPipeline);
-        RecordCommandDrawLists(drawData, imageIndex, staticBindings, in commandFrameContext, ref commandState);
+        AcquireFrameColorAttachments(commandBuffer, imageIndex);
+        var contentArea = _damageArea;
+        var contentEmpty = _damageEmpty;
+        var contentPartial = _damagePartial;
+        if (!contentEmpty || !_repaintDiagnosticRedraw)
+            RecordRepairArea();
+        foreach (var strip in _repaintBorderRepairs)
+        {
+            SynchronizeRepairAttachments(commandBuffer);
+            _damageArea = RepaintRectToRenderArea(strip);
+            _damageEmpty = false;
+            _damagePartial = true;
+            RecordRepairArea();
+        }
+        _damageArea = contentArea;
+        _damageEmpty = contentEmpty;
+        _damagePartial = contentPartial;
         EndCommandRenderPassFrame(commandBuffer, imageIndex, timestampQueryPool, writeGpuTimestamps);
 
         CompleteCommandRecordingState(
@@ -52,6 +69,25 @@ public sealed unsafe partial class VulkanRendererBackend
             out recordDrawCallTicks,
             out recordStats);
         EndCommandBufferRecording(commandBuffer);
+
+        void RecordRepairArea()
+        {
+            BeginRenderArea(commandBuffer, imageIndex, usesDepth);
+            if (!_damageEmpty)
+            {
+                if (!commandState.Pipeline.HasViewport)
+                {
+                    BindGlobalBindlessTextureSet(commandBuffer);
+                    _vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, _graphicsPipeline);
+                }
+                // The same widget clip can produce different scissors in adjacent repairs.
+                commandState.Scissor.HasComputedScissor = false;
+                commandState.Pipeline.HasDepthScope = false;
+                RecordCommandDrawLists(drawData, imageIndex, staticBindings, in commandFrameContext, ref commandState);
+                RecordRepaintHighlight(commandBuffer);
+            }
+            _khrDynamicRendering.CmdEndRendering(commandBuffer);
+        }
     }
 
     private void BeginCommandBufferRecording(CommandBuffer commandBuffer)
@@ -65,29 +101,29 @@ public sealed unsafe partial class VulkanRendererBackend
         Check(_vk.BeginCommandBuffer(commandBuffer, &beginInfo));
     }
 
-    private void BeginCommandRenderPassFrame(
-        CommandBuffer commandBuffer,
-        uint imageIndex,
-        int framebufferWidth,
-        int framebufferHeight,
-        QueryPool timestampQueryPool,
-        bool writeGpuTimestamps)
+    private void AcquireFrameColorAttachments(CommandBuffer commandBuffer, uint imageIndex)
     {
-        if (writeGpuTimestamps)
-        {
-            _vk.CmdResetQueryPool(commandBuffer, timestampQueryPool, GpuProfileStartQuery, GpuProfileTimestampQueryCount);
-            _vk.CmdWriteTimestamp(commandBuffer, PipelineStageFlags.TopOfPipeBit, timestampQueryPool, GpuProfileStartQuery);
-        }
-
         // Dynamic rendering has no implicit render-pass layout transitions, so the
         // frame explicitly moves the target images into color-attachment layout.
         var usesMsaa = _msaaSampleCount != SampleCountFlags.Count1Bit;
         var barrierCount = usesMsaa ? 2 : 1;
         var barriers = stackalloc ImageMemoryBarrier[2];
         barriers[0] = CreateColorAttachmentAcquireBarrier(_swapchainImages[imageIndex]);
+        if (_damageEnabled)
+            barriers[0].DstAccessMask |= AccessFlags.ColorAttachmentReadBit;
+        if (_damageEnabled && _damageImages[imageIndex].Initialized)
+            barriers[0].OldLayout = ImageLayout.PresentSrcKhr;
         if (usesMsaa)
         {
             barriers[1] = CreateColorAttachmentAcquireBarrier(_msaaColorImage);
+            barriers[1].SrcAccessMask = AccessFlags.ColorAttachmentWriteBit;
+            if (_damageEnabled)
+                barriers[1].DstAccessMask |= AccessFlags.ColorAttachmentReadBit;
+            if (_damageEnabled && _damageMsaaInitialized)
+            {
+                barriers[1].OldLayout = ImageLayout.ColorAttachmentOptimal;
+                barriers[1].SrcAccessMask = AccessFlags.ColorAttachmentWriteBit;
+            }
         }
 
         _vk.CmdPipelineBarrier(
@@ -101,7 +137,26 @@ public sealed unsafe partial class VulkanRendererBackend
             null,
             (uint)barrierCount,
             barriers);
+        _damageImages[imageIndex].Initialized = true;
+        _damageMsaaInitialized |= usesMsaa;
+    }
 
+    private void SynchronizeRepairAttachments(CommandBuffer commandBuffer)
+    {
+        // Load, store and resolve may access memory outside their render area.
+        var barrier = new MemoryBarrier
+        {
+            SType = StructureType.MemoryBarrier,
+            SrcAccessMask = AccessFlags.ColorAttachmentWriteBit,
+            DstAccessMask = AccessFlags.ColorAttachmentReadBit | AccessFlags.ColorAttachmentWriteBit,
+        };
+        _vk.CmdPipelineBarrier(commandBuffer, PipelineStageFlags.ColorAttachmentOutputBit,
+            PipelineStageFlags.ColorAttachmentOutputBit, 0, 1, &barrier, 0, null, 0, null);
+    }
+
+    private void BeginRenderArea(CommandBuffer commandBuffer, uint imageIndex, bool usesDepth)
+    {
+        var usesMsaa = _msaaSampleCount != SampleCountFlags.Count1Bit;
         var clearValue = new ClearValue
         {
             Color = _clearColorValue,
@@ -115,20 +170,20 @@ public sealed unsafe partial class VulkanRendererBackend
             ResolveMode = usesMsaa ? ResolveModeFlags.AverageBit : ResolveModeFlags.None,
             ResolveImageView = usesMsaa ? _swapchainImageViews[imageIndex] : default,
             ResolveImageLayout = usesMsaa ? ImageLayout.ColorAttachmentOptimal : ImageLayout.Undefined,
-            LoadOp = AttachmentLoadOp.Clear,
-            StoreOp = usesMsaa ? AttachmentStoreOp.DontCare : AttachmentStoreOp.Store,
+            LoadOp = _damageEmpty ? AttachmentLoadOp.Load : AttachmentLoadOp.Clear,
+            StoreOp = usesMsaa && !_damageEnabled ? AttachmentStoreOp.DontCare : AttachmentStoreOp.Store,
             ClearValue = clearValue,
         };
 
+        var depthAttachment = usesDepth ? PrepareDepthLayerAttachment(commandBuffer) : default;
         var renderingInfo = new RenderingInfo
         {
             SType = StructureType.RenderingInfo,
-            RenderArea = new Rect2D(
-                new Offset2D(0, 0),
-                new Extent2D((uint)framebufferWidth, (uint)framebufferHeight)),
+            RenderArea = _damageArea,
             LayerCount = 1,
             ColorAttachmentCount = 1,
             PColorAttachments = &colorAttachment,
+            PDepthAttachment = usesDepth ? &depthAttachment : null,
         };
 
         _khrDynamicRendering.CmdBeginRendering(commandBuffer, &renderingInfo);
@@ -140,7 +195,7 @@ public sealed unsafe partial class VulkanRendererBackend
         QueryPool timestampQueryPool,
         bool writeGpuTimestamps)
     {
-        _khrDynamicRendering.CmdEndRendering(commandBuffer);
+        RecordValidationReadback(commandBuffer, imageIndex);
 
         // Explicit transition to present layout replaces the old render-pass
         // finalLayout handling.
@@ -181,6 +236,11 @@ public sealed unsafe partial class VulkanRendererBackend
             _vk.CmdWriteTimestamp(commandBuffer, PipelineStageFlags.BottomOfPipeBit, timestampQueryPool, GpuProfileEndQuery);
         }
     }
+
+    // The call is erased from production builds; the implementation is compiled
+    // only by the rendering validation project.
+    partial void RecordValidationReadback(CommandBuffer commandBuffer, uint imageIndex);
+    partial void ObserveValidationScissor(in UiDrawCommand command, int x, int y, uint width, uint height);
 
     private static ImageMemoryBarrier CreateColorAttachmentAcquireBarrier(Image image)
     {
@@ -355,10 +415,11 @@ public sealed unsafe partial class VulkanRendererBackend
         UiDrawData drawData,
         in FrameGeometryBuffers geometryBuffers)
     {
-        var requestedFramebufferWidth = (int)(drawData.DisplaySize.X * drawData.FramebufferScale.X);
-        var requestedFramebufferHeight = (int)(drawData.DisplaySize.Y * drawData.FramebufferScale.Y);
-        var framebufferWidth = _swapchainExtent.Width > 0 ? (int)_swapchainExtent.Width : requestedFramebufferWidth;
-        var framebufferHeight = _swapchainExtent.Height > 0 ? (int)_swapchainExtent.Height : requestedFramebufferHeight;
+        var requestedFramebuffer = GetDrawFramebufferSize(drawData);
+        var requestedFramebufferWidth = requestedFramebuffer.Width;
+        var requestedFramebufferHeight = requestedFramebuffer.Height;
+        var framebufferWidth = _oneToOnePresentation ? requestedFramebufferWidth : (_swapchainExtent.Width > 0 ? (int)_swapchainExtent.Width : requestedFramebufferWidth);
+        var framebufferHeight = _oneToOnePresentation ? requestedFramebufferHeight : (_swapchainExtent.Height > 0 ? (int)_swapchainExtent.Height : requestedFramebufferHeight);
 
         var displaySize = drawData.DisplaySize;
         var displayPos = drawData.DisplayPos;
@@ -397,24 +458,29 @@ public sealed unsafe partial class VulkanRendererBackend
         uint globalIndexOffset,
         uint globalVertexOffset,
         uint globalPrimitiveOffset,
-        int drawListRectPrimitiveCount)
+        int drawListRectPrimitiveCount,
+        bool skipLayerFrustumChecks)
     {
         public uint GlobalIndexOffset { get; } = globalIndexOffset;
         public uint GlobalVertexOffset { get; } = globalVertexOffset;
         public uint GlobalPrimitiveOffset { get; } = globalPrimitiveOffset;
         public int DrawListRectPrimitiveCount { get; } = drawListRectPrimitiveCount;
+        public bool SkipLayerFrustumChecks { get; } = skipLayerFrustumChecks;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private void RecordCommandDrawLists(
         UiDrawData drawData,
         uint imageIndex,
-        Dictionary<int, StaticGeometryBuffer> staticBindings,
+        StaticGeometryFrameBindings staticBindings,
         in CommandFrameContext frameContext,
-        ref CommandRecordingState state)
+        ref CommandRecordingState state,
+        bool allowCompiled = true)
     {
         var viewport = new Viewport(0, 0, frameContext.FramebufferWidth, frameContext.FramebufferHeight, 0, 1);
         _vk.CmdSetViewport(frameContext.CommandBuffer, 0, 1, &viewport);
+        state.Pipeline.HasViewport = true;
+        state.Pipeline.ViewportPixels = new(0, 0, frameContext.FramebufferWidth, frameContext.FramebufferHeight);
 
         uint globalVertexOffset = 0;
         uint globalIndexOffset = 0;
@@ -422,12 +488,41 @@ public sealed unsafe partial class VulkanRendererBackend
 
         for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
         {
+            if (allowCompiled && _compiledFrameGroups.TryGetValue(listIndex, out var compiledSpan))
+            {
+                foreach (var placement in compiledSpan.Groups)
+                    RecordCompiledLayerGroup(placement.Group, drawData, placement.FirstList, staticBindings, imageIndex, in frameContext, ref state);
+                listIndex += compiledSpan.ListCount - 1;
+                continue;
+            }
             var drawList = drawData.DrawLists[listIndex];
             var drawListVertexCount = drawList.Vertices.Count;
             var drawListIndexCount = drawList.Indices.Count;
             var drawListRectPrimitiveCount = drawList.RectFilledPrimitives?.Count ?? 0;
             var drawListCirclePrimitiveCount = drawList.CircleFilledPrimitives?.Count ?? 0;
             var hasStaticBinding = staticBindings.TryGetValue(listIndex, out var staticBinding);
+            staticBinding ??= StaticGeometryBuffer.Empty;
+            LayerViewportTransform layerView;
+            var visibility = LayerVisibility.Intersecting;
+            if (drawList.Scene3D is { } listScene && !IsScreenAlignedScene(listScene))
+            {
+                ref var cachedVisibility = ref GetCachedLayerVisibility(listIndex, drawList, in frameContext);
+                layerView = cachedVisibility.View;
+                visibility = cachedVisibility.Visibility;
+            }
+            else
+                layerView = GetLayerViewportTransform(null, in frameContext);
+            if (visibility == LayerVisibility.Outside)
+            {
+                if (!hasStaticBinding)
+                {
+                    globalVertexOffset += (uint)drawListVertexCount;
+                    globalIndexOffset += (uint)drawListIndexCount;
+                    globalPrimitiveOffset += (uint)(drawListRectPrimitiveCount + drawListCirclePrimitiveCount);
+                }
+                continue;
+            }
+            ApplyDepthLayerState(drawList.Scene3D, in frameContext, in layerView, ref state.Pipeline);
             RecordDrawListProfile(frameContext.ProfileEnabled, hasStaticBinding, ref state.Profile);
             var listProfileCommandStart = frameContext.ProfileEnabled ? state.Profile.CommandCount : 0;
             var listProfileDrawStart = frameContext.ProfileEnabled ? state.DrawDispatch.DrawCallCount : 0;
@@ -439,7 +534,7 @@ public sealed unsafe partial class VulkanRendererBackend
             var listProfilePrimitiveBindStart = frameContext.ProfileEnabled ? state.BufferBinding.PrimitiveBindCount : 0;
 
             var schedulerStart = BeginCommandSchedulerProfile(frameContext.ProfileEnabled);
-            var scheduleResult = TryGetScheduledCommandOrder(drawList, hasStaticBinding, in staticBinding, out var scheduledOrder);
+            var scheduleResult = TryGetScheduledCommandOrder(drawList, hasStaticBinding, staticBinding, out var scheduledOrder);
             RecordCommandSchedulerProfile(
                 scheduleResult,
                 schedulerStart,
@@ -451,7 +546,8 @@ public sealed unsafe partial class VulkanRendererBackend
                 globalIndexOffset,
                 globalVertexOffset,
                 globalPrimitiveOffset,
-                drawListRectPrimitiveCount);
+                drawListRectPrimitiveCount,
+                visibility == LayerVisibility.Inside);
             for (var commandOrderIndex = 0;
                 TryGetNextCommandIterationStep(
                     drawList,
@@ -466,7 +562,7 @@ public sealed unsafe partial class VulkanRendererBackend
                     imageIndex,
                     listIndex,
                     hasStaticBinding,
-                    in staticBinding,
+                    staticBinding,
                     in frameContext,
                     in drawListContext,
                     ref state);
@@ -509,19 +605,31 @@ public sealed unsafe partial class VulkanRendererBackend
         uint imageIndex,
         int listIndex,
         bool hasStaticBinding,
-        in StaticGeometryBuffer staticBinding,
+        StaticGeometryBuffer staticBinding,
         in CommandFrameContext frameContext,
         in CommandDrawListContext drawListContext,
         ref CommandRecordingState state)
     {
         var commandIndex = commandStep.CommandIndex;
         var command = commandStep.Command;
+        if (command.Callback is { } callback)
+        {
+            callback(drawList, command);
+            return;
+        }
+        if (IsOutsideFrameDamage(in command, in frameContext, drawList.Scene3D?.WidgetTransform))
+            return;
+        if (state.Pipeline.Layer3DEnabled && !drawListContext.SkipLayerFrustumChecks
+            && IsOutsideLayerFrustum(in command, in frameContext, in state.Pipeline))
+        {
+            return;
+        }
         RecordMergedScheduledCommandProfile(
             frameContext.ProfileEnabled,
             commandStep.MergedCommandCount,
             ref state.Profile);
 
-        var classification = ClassifyCommand(in command, hasStaticBinding, in staticBinding);
+        var classification = ClassifyCommand(in command, hasStaticBinding, staticBinding);
         EmitCommandDiagnosticIfNeeded(
             in command,
             in classification,
@@ -530,7 +638,7 @@ public sealed unsafe partial class VulkanRendererBackend
             commandIndex,
             hasStaticBinding,
             ref state.Diagnostic);
-        RecordCommandProfile(in command, in classification, frameContext.ProfileEnabled, ref state.Profile);
+        RecordCommandProfile(in command, frameContext.ProfileEnabled, ref state.Profile);
 
         var texture = default(TextureResource);
         if (!TryResolveCommandTexture(
@@ -556,8 +664,31 @@ public sealed unsafe partial class VulkanRendererBackend
             commandIndex,
             ref state.FontDiagnostic);
 
+        var scissorCommand = command;
+        if (_projectedPaintCapture && !command.IsBackdropComposite && state.Pipeline.LayerLocalClip != command.ClipRect)
+        {
+            var clip = command.ClipRect;
+            _vk.CmdPushConstants(frameContext.CommandBuffer, _pipelineLayout, ShaderStageFlags.FragmentBit, 112, 16, &clip);
+            state.Pipeline.LayerLocalClip = clip;
+        }
+        if (state.Pipeline.Layer3DEnabled)
+        {
+            // Local clipping follows the transformed plane in the fragment shader.
+            // A screen-space scissor must not reject rotated or translated content.
+            var clip = command.ClipRect;
+            if (state.Pipeline.LayerLocalClip != clip)
+            {
+                _vk.CmdPushConstants(frameContext.CommandBuffer, _pipelineLayout, ShaderStageFlags.FragmentBit, 112, 16, &clip);
+                state.Pipeline.LayerLocalClip = clip;
+            }
+            scissorCommand = command with
+            {
+                ClipRect = state.Pipeline.LayerScreenClip,
+                Translation = default,
+            };
+        }
         if (!TryApplyScissorForCommand(
-            in command,
+            in scissorCommand,
             in frameContext,
             ref state.Scissor))
         {
@@ -569,7 +700,7 @@ public sealed unsafe partial class VulkanRendererBackend
             in classification,
             in texture,
             hasStaticBinding,
-            in staticBinding,
+            staticBinding,
             in frameContext,
             in drawListContext,
             ref state.Pipeline,
@@ -579,4 +710,3 @@ public sealed unsafe partial class VulkanRendererBackend
             ref state.DrawDispatch);
     }
 }
-

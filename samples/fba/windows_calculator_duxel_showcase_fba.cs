@@ -73,17 +73,17 @@ public sealed class DuxelShowcaseCalculatorScreen : UiScreen
 
         ui.SetNextWindowPos(new UiVector2(viewport.Pos.X + margin, viewport.Pos.Y + margin));
         ui.SetNextWindowSize(new UiVector2(leftWidth, viewport.Size.Y - margin * 2f));
-        ui.BeginWindow("Showcase Calculator");
+        ui.BeginPanel("Showcase Calculator");
         DrawCalculatorPanel(ui, flashBlend);
-        ui.EndWindow();
+        ui.EndPanel();
 
         ui.SetNextWindowPos(new UiVector2(viewport.Pos.X + leftWidth + margin * 2f, viewport.Pos.Y + margin));
         ui.SetNextWindowSize(new UiVector2(viewport.Size.X - leftWidth - margin * 3f, viewport.Size.Y - margin * 2f));
-        ui.BeginWindow("Duxel Differentiation Panel");
+        ui.BeginPanel("Duxel Differentiation Panel");
         DrawTracePanel(ui);
         ui.SeparatorText("Multi-Base + Bit View");
         DrawMultiBaseAndBits(ui);
-        ui.EndWindow();
+        ui.EndPanel();
 
         ui.DrawOverlayText(
             $"FPS {_fps:0.0} | Frame {_lastFrameMs:0.00}ms | Tokens {_expressionTokens.Count} | Trace {_traceLines.Count}",

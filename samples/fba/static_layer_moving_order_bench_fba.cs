@@ -92,7 +92,7 @@ public sealed class StaticLayerMovingOrderBenchScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(18f, 18f));
         ui.SetNextWindowSize(new UiVector2(1240f, 700f));
-        ui.BeginWindow("Moving Static Layer Ordering");
+        ui.BeginPanel("Moving Static Layer Ordering");
 
         ui.TextV("FPS: {0:0.0}", _fps);
         ui.TextV("Items: {0}", _itemCount);
@@ -113,7 +113,7 @@ public sealed class StaticLayerMovingOrderBenchScreen : UiScreen
         }
 
         ui.EndLayer();
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private static void DrawSolid(UiDrawListBuilder drawList, UiTextureId white, UiVector2 origin, int index)

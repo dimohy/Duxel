@@ -11,7 +11,8 @@ public sealed partial class UiImmediateContext
 
         _tooltipActive = true;
         _tooltipPadding = 6f;
-        var start = new UiVector2(_mousePosition.X + 16f, _mousePosition.Y + 16f);
+        var pointer = WidgetScreenPoint(_mousePosition);
+        var start = new UiVector2(pointer.X + 16f, pointer.Y + 16f);
         _tooltipOrigin = start;
         _tooltipMaxRight = start.X + _tooltipPadding;
 
@@ -58,11 +59,13 @@ public sealed partial class UiImmediateContext
             return;
         }
 
+        using var screenSpace = BeginWidgetScreenSpace();
         var textSize = MeasureTextInternal(text, _textSettings, _lineHeight);
         var padding = 6f;
+        var pointer = WidgetScreenPoint(_mousePosition);
         var rect = ClampRectToDisplay(new UiRect(
-            _mousePosition.X + 16f,
-            _mousePosition.Y + 16f,
+            pointer.X + 16f,
+            pointer.Y + 16f,
             textSize.X + (padding * 2f),
             textSize.Y + (padding * 2f)
         ));

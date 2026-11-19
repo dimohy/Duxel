@@ -12,6 +12,9 @@ public static class UiDslParser
 {
     private static readonly Dictionary<string, string> BeginAliases = new(StringComparer.Ordinal)
     {
+        ["Panel"] = "BeginPanel",
+        ["Window"] = "BeginPanel",
+        ["BeginWindow"] = "BeginPanel",
         ["Group"] = "BeginGroup",
         ["Child"] = "BeginChild",
         ["Menu"] = "BeginMenu",
@@ -107,6 +110,7 @@ public static class UiDslParser
     private static bool TryNormalizeName(UiDslNode node, out string normalized)
     {
         normalized = node.Name;
+        if(normalized=="BeginWindow"){normalized="BeginPanel";return true;}
         if (normalized.StartsWith("Begin", StringComparison.Ordinal))
         {
             return false;

@@ -42,9 +42,11 @@ public sealed class UiBinding<T>(Func<T> getValue, Action<T> setValue)
     }
 }
 
-public sealed class UiState<T>
+public sealed partial class UiState<T> : IUiBuildState
 {
     private readonly UiBinding<T> _binding;
+    private T _value = default!;
+    private ulong _revision;
 
     public UiState(T value)
     {
@@ -52,7 +54,19 @@ public sealed class UiState<T>
         _binding = new UiBinding<T>(() => Value, value => Value = value);
     }
 
-    public T Value { get; set; }
+    public T Value
+    {
+        get => _value;
+        set
+        {
+            if (EqualityComparer<T>.Default.Equals(_value, value)) return;
+            _value = value;
+            unchecked { _revision++; }
+            NotifyBuildObservers();
+        }
+    }
+
+    ulong IUiBuildState.Revision => _revision;
 
     public UiBinding<T> Binding => _binding;
 
@@ -247,12 +261,27 @@ public sealed class UiModifier
     private readonly record struct UiModifierScope(Action<UiImmediateContext> Enter, Action<UiImmediateContext> Exit);
 }
 
+[UiComponent("Window",UiComponentExposure.Legacy)]
+[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+public enum UiWindowPlacementCondition {Initial,Always}
+[UiComponent("Window",UiComponentExposure.Legacy)]
+[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+public enum UiWindowPositionSpace {Screen,WorkArea}
+[UiComponent("Window",UiComponentExposure.Legacy)]
+[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
 public readonly record struct UiWindowOptions(
     UiVector2 Position = default,
     UiVector2 Size = default,
     UiBinding<bool>? Open = null,
     bool Focus = false,
-    bool TopMost = false);
+    bool TopMost = false,
+    UiWindowPlacementCondition Placement=UiWindowPlacementCondition.Initial,
+    UiWindowPositionSpace PositionSpace=UiWindowPositionSpace.Screen,
+    bool AutoHeight=false)
+{
+    public void Deconstruct(out UiVector2 position,out UiVector2 size,out UiBinding<bool>? open,out bool focus,out bool topMost)
+    {position=Position;size=Size;open=Open;focus=Focus;topMost=TopMost;}
+}
 
 public readonly record struct UiSectionOptions(
     bool DefaultOpen = true,
@@ -381,6 +410,8 @@ public enum UiBadgeTone
     Danger,
 }
 
+[UiComponent("LegacyBadgeOptions",UiComponentExposure.Legacy)]
+[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
 public readonly record struct UiBadgeOptions(
     UiBadgeTone Tone = UiBadgeTone.Accent,
     UiColor? Background = null,
@@ -479,7 +510,8 @@ public readonly record struct UiAppShellOptions(
     UiBinding<bool>? Open = null,
     IUiView? Menu = null,
     IUiView? Commands = null,
-    IUiView? Footer = null);
+    IUiView? Footer = null,
+    bool UsePanel = false);
 
 public readonly record struct UiSurfaceOptions(
     UiVector2 Size = default,
@@ -547,7 +579,10 @@ public static class DuxelView
     public static DuxelControlFactory Controls { get; } = new();
     public static DuxelTextFactory Text { get; } = new();
     public static DuxelMenuFactory Menus { get; } = new();
+    [UiComponent("Window",UiComponentExposure.Legacy)]
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public static DuxelWindowFactory Windows { get; } = new();
+    public static DuxelPanelFactory Panels {get;}=new();
     public static DuxelDisplayFactory Display { get; } = new();
 
     public static IUiView Custom(Action<UiImmediateContext> render) => new UiView(render);
@@ -1309,13 +1344,11 @@ public sealed class DuxelControlFactory
     internal DuxelControlFactory() { }
 
     public IUiView Button(string label, Action? clicked = null, UiVector2 size = default)
-        => new UiView(ui =>
-        {
-            if (ui.Button(label, size))
-            {
-                clicked?.Invoke();
-            }
-        });
+    {
+        var button = Fluent.Button(label ?? "Button", clicked, UiWidgetIdentity.Parent);
+        button.Size = size;
+        return button;
+    }
 
     public IUiView SmallButton(string label, Action? clicked = null)
         => new UiView(ui =>
@@ -1327,21 +1360,31 @@ public sealed class DuxelControlFactory
         });
 
     public IUiView Checkbox(string label, UiBinding<bool> value)
-        => new UiView(ui =>
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            var current = value.Value;
-            if (ui.Checkbox(label, ref current))
-            {
-                value.Value = current;
-            }
-        });
+        => Fluent.Checkbox(label,value,UiWidgetIdentity.Parent);
+
+    public IUiView Input(string label,UiBinding<string> value,int maxLength,float width=0,UiInputOptions options=default)
+    {var input=Fluent.Input(label,value,maxLength,width,UiWidgetIdentity.Parent);input.Options=options;return input;}
+
+    public UiFluentField Field(UiWidget control,UiVector2 controlSize,UiFieldOptions options=default)=>Fluent.Field(control,controlSize,options);
+    public UiFluentField Field(UiWidget control)=>Fluent.Field(control);
+
+    public IUiView Link(string label,Uri destination,Action<Uri> navigate,float width=0)=>
+        Fluent.Link(label,destination,navigate,width,UiWidgetIdentity.Parent);
+
+    public IUiView RadioGroup(string label,UiBinding<string?> value,ReadOnlyMemory<UiRadioOption> items,float width=0)
+        =>Fluent.RadioGroup(label,value,items,width,UiWidgetIdentity.Parent);
+
+    public IUiView Checkbox(string label, UiBinding<bool?> value)
+        => Fluent.Checkbox(label,value,UiWidgetIdentity.Parent);
 
     public IUiView Checkbox(string label, Func<bool> getValue, Action<bool> setValue)
         => Checkbox(label, Dux.Bind(getValue, setValue));
 
     public IUiView Toggle(string id, UiBinding<bool> value)
-        => Checkbox(HiddenControlLabel(id), value);
+        => Fluent.Switch(HiddenControlLabel(id),value,UiWidgetIdentity.Parent);
+
+    public IUiView ToggleButton(string label, UiBinding<bool> value)
+        => Fluent.ToggleButton(label,value,UiWidgetIdentity.Parent);
 
     public IUiView Toggle(string id, Func<bool> getValue, Action<bool> setValue)
         => Toggle(id, Dux.Bind(getValue, setValue));
@@ -1653,13 +1696,15 @@ public sealed class DuxelControlFactory
         var effectiveOptions = options == default
             ? new UiSegmentedOptions()
             : options;
-        var spacing = MathF.Max(0f, effectiveOptions.Spacing);
+        var skin = ui.SegmentedSkin;
+        var spacing = MathF.Max(0f, options == default ? skin.Spacing ?? effectiveOptions.Spacing : effectiveOptions.Spacing);
         var itemSize = ResolveSegmentedItemSize(ui, labels, effectiveOptions, spacing);
+        itemSize = itemSize with { Y = MathF.Max(itemSize.Y, skin.MinimumHeight) };
         var start = ui.GetCursorScreenPos();
         var totalWidth = (itemSize.X * labels.Count) + (spacing * MathF.Max(0, labels.Count - 1));
         var height = itemSize.Y > 0f ? itemSize.Y : ui.GetFrameHeight();
         var radius = MathF.Min(
-            MathF.Max(0f, ui.GetDesignToken(UiDesignToken.ControlCornerRadius)),
+            MathF.Max(0f, skin.CornerRadius ?? ui.GetDesignToken(UiDesignToken.ControlCornerRadius)),
             MathF.Min(totalWidth, height) * 0.5f);
         var drawList = ui.GetWindowDrawList();
         var groupRect = new UiRect(start.X, start.Y, totalWidth, height);
@@ -1676,14 +1721,16 @@ public sealed class DuxelControlFactory
                 var selected = isSelected(i);
                 var x = start.X + ((itemSize.X + spacing) * i);
                 ui.SetCursorScreenPos(new UiVector2(x, start.Y));
-                var pressed = ui.InvisibleButton($"{label}##{id}:{i}", new UiVector2(itemSize.X, height));
+                var pressed = ui.SegmentedBehavior($"{label}##{id}:{i}", new UiVector2(itemSize.X, height));
                 var hovered = ui.IsItemHovered();
                 var active = ui.IsItemActive();
                 var rect = new UiRect(x, start.Y, itemSize.X, height);
                 if (selected || hovered || active)
                 {
                     var segmentColor = ResolveSegmentColor(ui, selected, hovered, active);
-                    FillSegment(ui, drawList, rect, segmentColor, radius, i, labels.Count);
+                    if (skin.ItemCornerRadius is { } itemRadius)
+                        drawList.AddRectFilledRounded(rect, segmentColor, ui.WhiteTextureId, itemRadius, groupRect);
+                    else FillSegment(ui, drawList, rect, segmentColor, radius, i, labels.Count);
                 }
 
                 ui.DrawTextAligned(
@@ -1849,28 +1896,28 @@ public sealed class DuxelTextFactory
 {
     internal DuxelTextFactory() { }
 
-    public IUiView Block(string text) => new UiView(ui => ui.Text(text));
+    public IUiView Block(string text) => Fluent.Text(text);
 
     public IUiView Block(Func<string> text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        return new UiView(ui => ui.Text(text()));
+        return Fluent.Text(text);
     }
 
-    public IUiView Wrapped(string text) => new UiView(ui => ui.TextWrapped(text));
+    public IUiView Wrapped(string text) => new UiFluentWrappedText(text);
 
     public IUiView Wrapped(Func<string> text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        return new UiView(ui => ui.TextWrapped(text()));
+        return new UiFluentDynamicWrappedText(text);
     }
 
-    public IUiView Colored(UiColor color, string text) => new UiView(ui => ui.TextColored(color, text));
+    public IUiView Colored(UiColor color, string text) => Fluent.Text(text,color);
 
     public IUiView Colored(UiColor color, Func<string> text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        return new UiView(ui => ui.TextColored(color, text()));
+        return Fluent.Text(text,color);
     }
 
     public IUiView Heading(string text, float fontSize = 24f)
@@ -1959,9 +2006,17 @@ public sealed class DuxelDisplayFactory
     public IUiView Card(string id, IUiView content, UiVector2 size = default)
         => Surface(id, content, new UiSurfaceOptions(Size: size));
 
+    public UiFluentBadge Badge(string text)=>Fluent.Badge(text);
+    public UiFluentSpinner Spinner(string? label=null,UiSpinnerOptions options=default)=>Fluent.Spinner(label,options);
+    public UiFluentDynamicBadge Badge(Func<string> text)=>Fluent.Badge(text);
+
+    [UiComponent("LegacyBadge",UiComponentExposure.Legacy)]
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public IUiView Badge(string text, UiBadgeOptions options = default)
         => Badge(() => text, options);
 
+    [UiComponent("LegacyBadge",UiComponentExposure.Legacy)]
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public IUiView Badge(Func<string> text, UiBadgeOptions options = default)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -2336,19 +2391,20 @@ public sealed class DuxelDisplayFactory
         var effectiveOptions = options == default ? new UiAppShellOptions() : options;
         var initialTitle = title() ?? string.Empty;
         ArgumentException.ThrowIfNullOrWhiteSpace(initialTitle);
-        var window = Dux.Window(
+        var content=BuildAppShellContent(title, selectedIndex, items, effectiveOptions, meta);
+        IUiView shell=effectiveOptions.UsePanel?Dux.Panel(
             effectiveOptions.WindowTitle ?? initialTitle,
-            BuildAppShellContent(title, selectedIndex, items, effectiveOptions, meta),
-            new UiWindowOptions(
+            content,
+            new UiPanelOptions(
                 Position: effectiveOptions.Position,
                 Size: effectiveOptions.Size,
                 Open: effectiveOptions.Open,
                 Focus: effectiveOptions.Focus,
-                TopMost: effectiveOptions.TopMost));
+                TopMost: effectiveOptions.TopMost)):content;
 
         return effectiveOptions.Menu is null
-            ? window
-            : Dux.Group(effectiveOptions.Menu, window);
+            ? shell
+            : Dux.Group(effectiveOptions.Menu, shell);
     }
 
     public IUiView AppShell<TValue>(
@@ -2857,59 +2913,15 @@ public sealed class DuxelDisplayFactory
         });
 }
 
+[UiComponent("Window",UiComponentExposure.Legacy)]
+[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
 public sealed class DuxelWindowFactory
 {
     internal DuxelWindowFactory() { }
-
-    public IUiView Window(string title, IUiView content, UiWindowOptions options = default)
-        => new UiView(ui =>
-        {
-            if (options.Open is { Value: false })
-            {
-                ui.SetWindowOpen(title, false);
-                return;
-            }
-
-            if (options.Position != default)
-            {
-                ui.SetNextWindowPos(options.Position);
-            }
-
-            if (options.Size != default)
-            {
-                ui.SetNextWindowSize(options.Size);
-            }
-
-            if (options.Open is not null)
-            {
-                ui.SetNextWindowOpen(options.Open.Value);
-            }
-
-            if (options.Focus)
-            {
-                ui.SetNextWindowFocus();
-            }
-
-            if (options.TopMost)
-            {
-                ui.SetNextWindowTopMost();
-            }
-
-            ui.BeginWindow(title);
-            try
-            {
-                content.Render(ui);
-            }
-            finally
-            {
-                ui.EndWindow();
-            }
-
-            if (options.Open is not null)
-            {
-                options.Open.Value = ui.GetWindowOpen(title);
-            }
-        });
+    public IUiView Window(string title,IUiView content,UiWindowOptions options=default)
+        => new UiView(ui=>DuxelPanelFactory.Render(ui,title,content,
+            new(options.Position,options.Size,options.Open,options.Focus,options.TopMost,
+                (UiPanelPlacementCondition)options.Placement,(UiPanelPositionSpace)options.PositionSpace,options.AutoHeight)));
 }
 
 internal sealed class UiPaddedView : IUiView
@@ -3526,7 +3538,7 @@ public static class DuxelViewExtensions
     }
 }
 
-public static class Dux
+public static partial class Dux
 {
     public static UiState<T> State<T>(T value) => new(value);
     public static UiBinding<T> Bind<T>(Func<T> getValue, Action<T> setValue) => new(getValue, setValue);
@@ -3552,7 +3564,14 @@ public static class Dux
     public static IUiView Caption(Func<string> text, float fontSize = 12f) => Text(text).Caption(fontSize);
     public static IUiView Panel(IUiView content, float height = 0f, float padding = 14f) => content.Panel(height, padding);
     public static IUiView Panel(IUiView content, UiPanelStyle style) => content.Panel(style);
+    public static UiFluentBadge Badge(string text)=>DuxelView.Display.Badge(text);
+    public static UiFluentSpinner Spinner(string? label=null,UiSpinnerOptions options=default)=>DuxelView.Display.Spinner(label,options);
+    public static UiFluentDynamicBadge Badge(Func<string> text)=>DuxelView.Display.Badge(text);
+    [UiComponent("LegacyBadge",UiComponentExposure.Legacy)]
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public static IUiView Badge(string text, UiBadgeOptions options = default) => DuxelView.Display.Badge(text, options);
+    [UiComponent("LegacyBadge",UiComponentExposure.Legacy)]
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public static IUiView Badge(Func<string> text, UiBadgeOptions options = default) => DuxelView.Display.Badge(text, options);
     public static IUiView Metric(string label, string value, UiMetricOptions options = default) => DuxelView.Display.Metric(label, value, options);
     public static IUiView Metric(string label, Func<string> value, UiMetricOptions options = default) => DuxelView.Display.Metric(label, value, options);
@@ -3606,8 +3625,16 @@ public static class Dux
     public static IUiView DangerButton(string label, Action? clicked = null, UiVector2 size = default) => Button(label, clicked, size).DangerButton();
     public static IUiView SmallButton(string label, Action? clicked = null) => DuxelView.Controls.SmallButton(label, clicked);
     public static IUiView Checkbox(string label, UiBinding<bool> value) => DuxelView.Controls.Checkbox(label, value);
+    public static IUiView Input(string label,UiBinding<string> value,int maxLength,float width=0,UiInputOptions options=default)=>DuxelView.Controls.Input(label,value,maxLength,width,options);
+
+    public static UiFluentField Field(UiWidget control,UiVector2 controlSize,UiFieldOptions options=default)=>DuxelView.Controls.Field(control,controlSize,options);
+    public static UiFluentField Field(UiWidget control)=>DuxelView.Controls.Field(control);
+    public static IUiView Link(string label,Uri destination,Action<Uri> navigate,float width=0)=>DuxelView.Controls.Link(label,destination,navigate,width);
+    public static IUiView RadioGroup(string label,UiBinding<string?> value,ReadOnlyMemory<UiRadioOption> items,float width=0)=>DuxelView.Controls.RadioGroup(label,value,items,width);
+    public static IUiView Checkbox(string label, UiBinding<bool?> value) => DuxelView.Controls.Checkbox(label, value);
     public static IUiView Checkbox(string label, Func<bool> getValue, Action<bool> setValue) => DuxelView.Controls.Checkbox(label, getValue, setValue);
     public static IUiView Toggle(string id, UiBinding<bool> value) => DuxelView.Controls.Toggle(id, value);
+    public static IUiView ToggleButton(string label, UiBinding<bool> value) => DuxelView.Controls.ToggleButton(label, value);
     public static IUiView Toggle(string id, Func<bool> getValue, Action<bool> setValue) => DuxelView.Controls.Toggle(id, getValue, setValue);
     public static IUiView RadioButton(string label, UiBinding<int> value, int buttonValue) => DuxelView.Controls.RadioButton(label, value, buttonValue);
     public static IUiView RadioButton(string label, Func<int> getValue, Action<int> setValue, int buttonValue) => DuxelView.Controls.RadioButton(label, getValue, setValue, buttonValue);
@@ -3660,6 +3687,7 @@ public static class Dux
     public static IUiView MenuItem(string label, Action? clicked = null, Func<bool>? selected = null, Func<bool>? enabled = null) => DuxelView.Menus.MenuItem(label, clicked, selected, enabled);
     public static IUiView Spacer(float height = 0f) => DuxelView.Layout.Spacer(height);
     public static IUiView Separator() => DuxelView.Layout.Separator();
+    public static UiFluentDivider Divider(string text="",UiDividerOptions options=default)=>Fluent.Divider(text,options);
     public static IUiView Separator(string text) => DuxelView.Layout.Separator(text);
     public static IUiView Column(params IUiView[] children) => DuxelView.Layout.Column(children);
     public static IUiView Column(float spacing, params IUiView[] children) => DuxelView.Layout.Column(spacing, children);
@@ -3715,7 +3743,10 @@ public static class Dux
     public static IUiView ForEachIndexed<T>(IEnumerable<T> source, Func<int, T, object?> key, Func<int, T, IUiView> content) => DuxelView.Layout.ForEachIndexed(source, key, content);
     public static IUiView ForEachIndexed<T>(Func<IEnumerable<T>> source, Func<int, T, IUiView> content) => DuxelView.Layout.ForEachIndexed(source, content);
     public static IUiView ForEachIndexed<T>(Func<IEnumerable<T>> source, Func<int, T, object?> key, Func<int, T, IUiView> content) => DuxelView.Layout.ForEachIndexed(source, key, content);
+    [UiComponent("Window",UiComponentExposure.Legacy)]
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public static IUiView Window(string title, IUiView content, UiWindowOptions options = default) => DuxelView.Windows.Window(title, content, options);
+    public static UiDefaultPanel Panel(string title,IUiView content,UiPanelOptions options=default)=>DuxelView.Panels.Panel(title,content,options);
     public static UiScreen App(IUiView root) => DuxelView.App(root);
     public static UiScreen Screen(IUiView root) => DuxelView.Screen(root);
 }

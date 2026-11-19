@@ -1,23 +1,44 @@
 using System.Text;
+using System.Buffers;
 using Duxel.Core;
 
 namespace Duxel.Platform.Windows;
 
-internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
+/// <summary>Font textures encode coverage in RGB. Grayscale samples replicate alpha into every coverage channel.</summary>
+public sealed partial class WindowsPlatformTextBackend : IPlatformTextBackend, IPlatformVectorTextBackend, IPlatformFontMetricsBackend, IPlatformTextLayoutBackend, IPlatformFontVariantBackend, IPlatformTextGeometryBackend, IPlatformTextParagraphBackend
 {
+    public string GetFontVariantResource(string fontResource, PlatformFontSimulation simulation) =>
+        WindowsDirectWriteGlyphRasterizer.GetFontVariantResource(fontResource, simulation);
+    public bool TryGetFontMetrics(string fontPath, float fontSize, out PlatformFontMetrics metrics) =>
+        WindowsDirectWriteGlyphRasterizer.TryGetFontMetrics(fontPath, fontSize, out metrics);
     public static readonly WindowsPlatformTextBackend Instance = new();
 
-    private const int Oversample = 1;
+    // Below10 physical pixels, grid fitting can close subpixel counters such as the DND bar.
+    // Rasterize at twice the resolution and use the existing downsampler; normal text is unchanged.
+    private static int OversampleForSize(int size) => size < 10 ? 2 : 1;
+    public ulong TextLayoutVersion => 0;
+
+    public PlatformTextMeshResult CreateTextMesh(in PlatformTextMeshRequest request)
+        => WindowsDirectWriteGlyphRasterizer.CreateTextMesh(request);
 
     public bool TryMeasure(in PlatformTextMeasureRequest request, out PlatformTextMeasureResult result)
     {
         result = default;
-        if (!TryRasterizeInternal(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize, out var rasterized))
-        {
+        if (!TryLayout(request, out var layout))
             return false;
-        }
+        result = new PlatformTextMeasureResult(layout.Width, layout.Height, layout.Baseline);
+        return true;
+    }
 
-        result = new PlatformTextMeasureResult(rasterized.Width, rasterized.Height, rasterized.Baseline);
+    public bool TryLayout(in PlatformTextMeasureRequest request, out PlatformTextLayoutResult result)
+    {
+        result = default;
+        if (!TryRasterizeInternal(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize, out var line, rasterizePixels: false))
+            return false;
+        result = new(line.Width, line.Height, line.Baseline, line.FontAscent, line.Advance)
+        {
+            OriginX = line.OriginX
+        };
         return true;
     }
 
@@ -35,11 +56,15 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
             rasterized.Pixels,
             rasterized.Baseline,
             rasterized.FontAscent,
-            rasterized.Advance);
+            rasterized.Advance)
+        {
+            PixelOwner = rasterized.PixelOwner,
+            OriginX = rasterized.OriginX
+        };
         return true;
     }
 
-    private static bool TryRasterizeInternal(string fontPath, string? secondaryFontPath, string text, float fontSize, out RasterizedLine line)
+    private static bool TryRasterizeInternal(string fontPath, string? secondaryFontPath, string text, float fontSize, out RasterizedLine line, bool rasterizePixels = true)
     {
         line = default;
         if (string.IsNullOrWhiteSpace(fontPath) || string.IsNullOrEmpty(text) || fontSize <= 0f)
@@ -66,7 +91,7 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
                     continue;
                 }
 
-                if (!TryRasterizeInternal(fontPath, secondaryFontPath, segment, fontSize, out var segmentRaster))
+                if (!TryRasterizeInternal(fontPath, secondaryFontPath, segment, fontSize, out var segmentRaster, rasterizePixels))
                 {
                     return false;
                 }
@@ -80,51 +105,68 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
 
             var multilineWidth = Math.Max(1, maxWidth);
             var multilineHeight = Math.Max(1, lineAdvance * lines.Length);
-            var multilinePixels = new byte[multilineWidth * multilineHeight * 4];
-
-            for (var lineIndex = 0; lineIndex < lineRasters.Count; lineIndex++)
+            if (!rasterizePixels)
             {
-                var segmentRaster = lineRasters[lineIndex];
-                if (segmentRaster.Width <= 0 || segmentRaster.Height <= 0)
-                {
-                    continue;
-                }
+                line = new(multilineWidth, multilineHeight, ReadOnlyMemory<byte>.Empty, lineAdvance,
+                    lineRasters.Count > 0 ? lineRasters[0].FontAscent : 0f, multilineWidth);
+                return true;
+            }
+            var pixelOwner = new PooledRasterPixels(checked(multilineWidth * multilineHeight * 4));
+            var transferred = false;
+            try
+            {
+                var multilinePixels = pixelOwner.Memory.Span;
 
-                var yBase = lineIndex * lineAdvance;
-                var segmentPixels = segmentRaster.Pixels.Span;
-                for (var y = 0; y < segmentRaster.Height; y++)
+                for (var lineIndex = 0; lineIndex < lineRasters.Count; lineIndex++)
                 {
-                    var destY = yBase + y;
-                    if ((uint)destY >= (uint)multilineHeight)
+                    var segmentRaster = lineRasters[lineIndex];
+                    if (segmentRaster.Width <= 0 || segmentRaster.Height <= 0)
                     {
-                        break;
+                        continue;
                     }
 
-                    for (var x = 0; x < segmentRaster.Width; x++)
+                    var yBase = lineIndex * lineAdvance;
+                    var segmentPixels = segmentRaster.Pixels.Span;
+                    for (var y = 0; y < segmentRaster.Height; y++)
                     {
-                        if ((uint)x >= (uint)multilineWidth)
+                        var destY = yBase + y;
+                        if ((uint)destY >= (uint)multilineHeight)
                         {
                             break;
                         }
 
-                        var srcIndex = (y * segmentRaster.Width + x) * 4;
-                        var alpha = segmentPixels[srcIndex + 3];
-                        if (alpha == 0)
+                        for (var x = 0; x < segmentRaster.Width; x++)
                         {
-                            continue;
-                        }
+                            if ((uint)x >= (uint)multilineWidth)
+                            {
+                                break;
+                            }
 
-                        var dstIndex = (destY * multilineWidth + x) * 4;
-                        multilinePixels[dstIndex + 0] = segmentPixels[srcIndex + 0];
-                        multilinePixels[dstIndex + 1] = segmentPixels[srcIndex + 1];
-                        multilinePixels[dstIndex + 2] = segmentPixels[srcIndex + 2];
-                        multilinePixels[dstIndex + 3] = alpha;
+                            var srcIndex = (y * segmentRaster.Width + x) * 4;
+                            var alpha = segmentPixels[srcIndex + 3];
+                            if (alpha == 0)
+                            {
+                                continue;
+                            }
+
+                            var dstIndex = (destY * multilineWidth + x) * 4;
+                            multilinePixels[dstIndex + 0] = segmentPixels[srcIndex + 0];
+                            multilinePixels[dstIndex + 1] = segmentPixels[srcIndex + 1];
+                            multilinePixels[dstIndex + 2] = segmentPixels[srcIndex + 2];
+                            multilinePixels[dstIndex + 3] = alpha;
+                        }
                     }
                 }
-            }
 
-            line = new RasterizedLine(multilineWidth, multilineHeight, multilinePixels, lineAdvance, lineRasters.Count > 0 ? lineRasters[0].FontAscent : 0f, multilineWidth);
-            return true;
+                line = new RasterizedLine(multilineWidth, multilineHeight, pixelOwner.Memory, lineAdvance, lineRasters.Count > 0 ? lineRasters[0].FontAscent : 0f, multilineWidth) { PixelOwner = pixelOwner };
+                transferred = true;
+                return true;
+            }
+            finally
+            {
+                if (!transferred)
+                    pixelOwner.Dispose();
+            }
         }
 
         var size = Math.Clamp((int)MathF.Round(fontSize), 1, 512);
@@ -134,101 +176,48 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
             return false;
         }
 
-        if (runs.Count == 1)
-        {
-            return TryRasterizeSingleRun(runs[0].FontPath, runs[0].Text, size, out line);
-        }
-
-        return TryRasterizeMultiRun(runs, size, out line);
+        return TryRasterizeContextualLine(fontPath, secondaryFontPath, runs, size, out line, rasterizePixels);
     }
 
-    private static bool TryRasterizeSingleRun(string fontPath, string text, int size, out RasterizedLine line)
-    {
-        line = default;
-        if (!WindowsDirectWriteGlyphRasterizer.Instance.TryRasterizeTextRun(
-                fontPath, text, size, Oversample, sourceScale: 1f, renderScale: 1f, out var result))
-        {
-            return false;
-        }
-
-        if (result.Width <= 0 || result.Height <= 0)
-        {
-            // Whitespace or invisible glyph — return advance with empty bitmap
-            line = new RasterizedLine(0, 0, ReadOnlyMemory<byte>.Empty, 0f, result.Baseline, result.Advance);
-            return true;
-        }
-
-        var ox = Math.Max(0, result.OffsetX);
-        var totalWidth = ox + result.Width;
-        var pixels = new byte[totalWidth * result.Height * 4];
-        var alpha = result.Alpha;
-        var rgb = result.Rgb;
-        for (var y = 0; y < result.Height; y++)
-        {
-            for (var x = 0; x < result.Width; x++)
-            {
-                var srcIdx = y * result.Width + x;
-                if (alpha[srcIdx] == 0)
-                {
-                    continue;
-                }
-
-                var dstIdx = (y * totalWidth + ox + x) * 4;
-                if (rgb is not null)
-                {
-                    var rgbIdx = srcIdx * 3;
-                    pixels[dstIdx] = rgb[rgbIdx];
-                    pixels[dstIdx + 1] = rgb[rgbIdx + 1];
-                    pixels[dstIdx + 2] = rgb[rgbIdx + 2];
-                    pixels[dstIdx + 3] = alpha[srcIdx];
-                }
-                else
-                {
-                    pixels[dstIdx] = 255;
-                    pixels[dstIdx + 1] = 255;
-                    pixels[dstIdx + 2] = 255;
-                    pixels[dstIdx + 3] = alpha[srcIdx];
-                }
-            }
-        }
-
-        var baseline = MathF.Max(0f, -result.OffsetY);
-        line = new RasterizedLine(totalWidth, result.Height, pixels, baseline, result.Baseline, result.Advance);
-        return true;
-    }
-
-    private static bool TryRasterizeMultiRun(List<FontRun> runs, int size, out RasterizedLine line)
+    private static bool TryRasterizeContextualLine(string primary, string? secondary, List<FontRun> runs, int size, out RasterizedLine line, bool rasterizePixels)
     {
         line = default;
         var runResults = new List<(WindowsDirectWriteGlyphRasterizer.TextRunRasterizationResult Result, float PenX)>(runs.Count);
-        var penX = 0f;
+        var text = string.Concat(runs.Select(run => run.Text));
+        var oversample = OversampleForSize(size);
+        var paragraph = WindowsDirectWriteGlyphRasterizer.ShapeContextualParagraph(primary, secondary, text, size * oversample);
+        var penX = paragraph.Advance / oversample;
 
-        for (var i = 0; i < runs.Count; i++)
+        foreach (var run in paragraph.Runs)
         {
-            var run = runs[i];
             if (!WindowsDirectWriteGlyphRasterizer.Instance.TryRasterizeTextRun(
-                    run.FontPath, run.Text, size, Oversample, sourceScale: 1f, renderScale: 1f, out var result))
+                    run.FontPath, text, size, oversample, sourceScale: 1f, renderScale: 1f, out var result, rasterizePixels,
+                    run.Raster with
+                    {
+                        OriginY = run.Raster.OriginY + paragraph.Baseline
+                    }))
             {
                 return false;
             }
 
             if (result.Width > 0 && result.Height > 0)
             {
-                runResults.Add((result, penX));
+                runResults.Add((result, 0));
             }
-
-            penX += result.Advance;
         }
 
         if (runResults.Count == 0)
         {
-            return false;
+            if (!WindowsDirectWriteGlyphRasterizer.TryGetFontMetrics(runs[0].FontPath, size, out var metrics))
+                return false;
+            line = new(0, 0, ReadOnlyMemory<byte>.Empty, 0, metrics.Ascent, penX);
+            return true;
         }
 
         var minX = 0f;
         var maxX = penX;
-        var minY = 0f;
-        var maxY = 0f;
+        var minY = float.PositiveInfinity;
+        var maxY = float.NegativeInfinity;
 
         for (var i = 0; i < runResults.Count; i++)
         {
@@ -261,8 +250,16 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
 
         var totalWidth = Math.Max(1, (int)MathF.Ceiling(maxX - minX));
         var totalHeight = Math.Max(1, (int)MathF.Ceiling(maxY - minY));
-        var baseline = MathF.Max(0f, -minY);
+        var baseline = paragraph.Baseline / oversample - minY;
         var fontAscent = runResults.Count > 0 ? runResults[0].Result.Baseline : baseline;
+        if (!rasterizePixels)
+        {
+            line = new(totalWidth, totalHeight, ReadOnlyMemory<byte>.Empty, baseline, fontAscent, penX)
+            {
+                OriginX = minX
+            };
+            return true;
+        }
         var pixels = new byte[totalWidth * totalHeight * 4];
 
         for (var i = 0; i < runResults.Count; i++)
@@ -301,65 +298,43 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
                     }
                     else
                     {
-                        pixels[idx] = 255;
-                        pixels[idx + 1] = 255;
-                        pixels[idx + 2] = 255;
+                        pixels[idx] = a;
+                        pixels[idx + 1] = a;
+                        pixels[idx + 2] = a;
                         pixels[idx + 3] = a;
                     }
                 }
             }
         }
 
-        line = new RasterizedLine(totalWidth, totalHeight, pixels, baseline, fontAscent, penX);
+        line = new RasterizedLine(totalWidth, totalHeight, pixels, baseline, fontAscent, penX) { OriginX = minX };
         return true;
     }
 
-    private static List<FontRun> BuildFontRuns(string primaryFontPath, string? secondaryFontPath, string text)
+    internal static List<FontRun> BuildFontRuns(string primaryFontPath, string? secondaryFontPath, string text)
     {
         var runs = new List<FontRun>();
         var builder = new StringBuilder(text.Length);
+        Span<char> utf16 = stackalloc char[2];
         string? currentFontPath = null;
 
         foreach (var rune in text.EnumerateRunes())
         {
-            if (rune.Value < 0x20 && !Rune.IsWhiteSpace(rune))
-            {
-                continue;
-            }
-
-            if (Rune.IsWhiteSpace(rune))
+            // Unicode17 PropList Variation_Selector values remain in the preceding font span for native shaping.
+            if (rune.Value < 0x20 || Rune.IsWhiteSpace(rune) || Rune.GetUnicodeCategory(rune) == System.Globalization.UnicodeCategory.Format
+                || rune.Value is >= 0x180B and <= 0x180D or 0x180F or >= 0xFE00 and <= 0xFE0F or >= 0xE0100 and <= 0xE01EF)
             {
                 if (currentFontPath is null)
                 {
                     currentFontPath = primaryFontPath;
                 }
 
-                builder.Append(rune.ToString());
+                builder.Append(utf16[..rune.EncodeToUtf16(utf16)]);
                 continue;
             }
 
             if (!TryResolveFontPathForRune(primaryFontPath, secondaryFontPath, rune.Value, out var selectedFontPath))
-            {
-                const int replacementCodepoint = 0x25A1;
-                if (!TryResolveFontPathForRune(primaryFontPath, secondaryFontPath, replacementCodepoint, out selectedFontPath))
-                {
-                    continue;
-                }
-
-                if (!string.Equals(currentFontPath, selectedFontPath, StringComparison.Ordinal))
-                {
-                    if (builder.Length > 0 && !string.IsNullOrEmpty(currentFontPath))
-                    {
-                        runs.Add(new FontRun(currentFontPath, builder.ToString()));
-                        builder.Clear();
-                    }
-
-                    currentFontPath = selectedFontPath;
-                }
-
-                builder.Append('□');
-                continue;
-            }
+                throw new NotSupportedException($"No selected font contains U+{rune.Value:X4}.");
 
             if (!string.Equals(currentFontPath, selectedFontPath, StringComparison.Ordinal))
             {
@@ -372,7 +347,7 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
                 currentFontPath = selectedFontPath;
             }
 
-            builder.Append(rune.ToString());
+            builder.Append(utf16[..rune.EncodeToUtf16(utf16)]);
         }
 
         if (builder.Length > 0 && !string.IsNullOrEmpty(currentFontPath))
@@ -402,6 +377,41 @@ internal sealed class WindowsPlatformTextBackend : IPlatformTextBackend
         return false;
     }
 
-    private readonly record struct FontRun(string FontPath, string Text);
-    private readonly record struct RasterizedLine(int Width, int Height, ReadOnlyMemory<byte> Pixels, float Baseline, float FontAscent, float Advance);
+    internal readonly record struct FontRun(string FontPath, string Text);
+    private readonly record struct RasterizedLine(int Width, int Height, ReadOnlyMemory<byte> Pixels, float Baseline, float FontAscent, float Advance)
+    {
+        internal float OriginX
+        {
+            get; init;
+        }
+        internal IMemoryOwner<byte>? PixelOwner
+        {
+            get; init;
+        }
+    }
+
+    private sealed class PooledRasterPixels : IMemoryOwner<byte>
+    {
+        private byte[]? _buffer;
+        private readonly int _length;
+        internal PooledRasterPixels(int length)
+        {
+            _length = length;
+            _buffer = ArrayPool<byte>.Shared.Rent(length);
+            _buffer.AsSpan(0, length).Clear();
+        }
+        public Memory<byte> Memory
+        {
+            get
+            {
+                ObjectDisposedException.ThrowIf(_buffer is null, this);
+                return _buffer.AsMemory(0, _length);
+            }
+        }
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _buffer, null) is { } buffer)
+                ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
 }

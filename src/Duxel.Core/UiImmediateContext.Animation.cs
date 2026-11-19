@@ -14,7 +14,7 @@ public sealed partial class UiImmediateContext
         bool expanded,
         float collapsedDegrees = 0f,
         float expandedDegrees = 90f,
-        float durationSeconds = 0.16f,
+        float durationSeconds = UiDisclosureMotion.DurationSeconds,
         UiAnimationEasing easing = UiAnimationEasing.OutCubic)
     {
         var target = expanded ? expandedDegrees : collapsedDegrees;

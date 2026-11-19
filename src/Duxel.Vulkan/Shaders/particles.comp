@@ -1,0 +1,160 @@
+#version 450
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_buffer_reference_uvec2 : require
+
+layout(local_size_x = 128) in;
+struct Particle {
+    vec2 position;
+    vec2 direction;
+    float rotation;
+    float angularSpeed;
+    float hit;
+    float speedScale;
+    float sizeScale;
+    int sideOffset;
+    uint color;
+    uint reserved;
+};
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer Particles { Particle bodies[]; };
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer Integers { int values[]; };
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer Words { uint values[]; };
+layout(push_constant, std430) uniform Parameters {
+    Particles source;
+    Particles destination;
+    Integers heads;
+    Integers next;
+    Words vertices;
+    float x;
+    float y;
+    float width;
+    float height;
+    uint count;
+    uint maximumSides;
+    float delta;
+    float radius;
+    float speed;
+    float maximumAngular;
+    int sides;
+    uint gridWidth;
+    uint gridHeight;
+    uint mode;
+    float cellSize;
+} pc;
+
+ivec2 Cell(vec2 position) {
+    return clamp(ivec2(floor((position - vec2(pc.x, pc.y)) / pc.cellSize)),
+        ivec2(0), ivec2(pc.gridWidth, pc.gridHeight) - 1);
+}
+void Constrain(inout Particle body) {
+    float r = pc.radius * body.sizeScale;
+    vec2 minimum = vec2(pc.x, pc.y) + vec2(r);
+    vec2 maximum = vec2(pc.x + pc.width, pc.y + pc.height) - vec2(r);
+    if (body.position.x < minimum.x) { body.position.x = minimum.x; body.direction.x = abs(body.direction.x); }
+    if (body.position.x > maximum.x) { body.position.x = maximum.x; body.direction.x = -abs(body.direction.x); }
+    if (body.position.y < minimum.y) { body.position.y = minimum.y; body.direction.y = abs(body.direction.y); }
+    if (body.position.y > maximum.y) { body.position.y = maximum.y; body.direction.y = -abs(body.direction.y); }
+}
+uint HitColor(uint color, float hit) {
+    if (hit <= 0.0001) return color;
+    float r = float((color >> 16u) & 255u);
+    float g = float((color >> 8u) & 255u);
+    float b = float(color & 255u);
+    float t = clamp(hit * 0.28, 0.0, 1.0);
+    uint rr = uint(clamp(roundEven(r + (255.0 - r) * (t * 0.45)), 0.0, 255.0));
+    uint gg = uint(clamp(roundEven(g * (1.0 - t * 0.22)), 0.0, 255.0));
+    uint bb = uint(clamp(roundEven(b * (1.0 - t * 0.35)), 0.0, 255.0));
+    return rr | (gg << 8u) | (bb << 16u) | (color & 0xFF000000u);
+}
+void main() {
+    uint id = gl_GlobalInvocationID.x;
+    if (pc.mode == 1u) {
+        if (id < pc.gridWidth * pc.gridHeight) pc.heads.values[id] = -1;
+        return;
+    }
+    if (id >= pc.count) return;
+    Particle a = pc.source.bodies[id];
+    if (pc.mode == 0u) {
+        a.hit = max(0.0, a.hit - pc.delta * 2.4);
+        a.position += a.direction * (pc.speed * a.speedScale * pc.delta);
+        a.angularSpeed *= max(0.0, 1.0 - pc.delta * 0.7);
+        a.rotation += a.angularSpeed * pc.delta;
+        Constrain(a);
+        pc.destination.bodies[id] = a;
+    } else if (pc.mode == 2u) {
+        ivec2 cell = Cell(a.position);
+        int index = cell.y * int(pc.gridWidth) + cell.x;
+        pc.next.values[id] = atomicExchange(pc.heads.values[index], int(id));
+    } else if (pc.mode == 3u) {
+        ivec2 cell = Cell(a.position);
+        vec2 correction = vec2(0.0);
+        vec2 directionDelta = vec2(0.0);
+        float angularDelta = 0.0;
+        bool touched = false;
+        for (int y = max(0, cell.y - 1); y <= min(int(pc.gridHeight) - 1, cell.y + 1); y++)
+        for (int x = max(0, cell.x - 1); x <= min(int(pc.gridWidth) - 1, cell.x + 1); x++)
+        for (int other = pc.heads.values[y * int(pc.gridWidth) + x]; other >= 0; other = pc.next.values[other]) {
+            if (uint(other) == id) continue;
+            Particle b = pc.source.bodies[other];
+            vec2 displacement = b.position - a.position;
+            precise float distanceSquared = displacement.x * displacement.x + displacement.y * displacement.y;
+            float minimumDistance = pc.radius * (a.sizeScale + b.sizeScale);
+            if (distanceSquared >= minimumDistance * minimumDistance) continue;
+            float distance = sqrt(distanceSquared);
+            vec2 normal;
+            if (distanceSquared <= 0.0) {
+                uint lower = min(id, uint(other));
+                uint upper = max(id, uint(other));
+                float angle = float((lower * 1664525u + upper * 1013904223u) & 65535u) * (6.283185307179586 / 65536.0);
+                normal = vec2(cos(angle), sin(angle)) * (id < uint(other) ? 1.0 : -1.0);
+            } else normal = displacement / distance;
+            correction -= normal * ((minimumDistance - distance) * 0.5);
+            float closing = dot(b.direction - a.direction, normal);
+            // Penetration below coordinate scale * (4 * float machine epsilon) must not create a
+            // second impulse when a previous iteration has already separated a pair.
+            float coordinateScale = max(minimumDistance, max(max(abs(a.position.x), abs(a.position.y)), max(abs(b.position.x), abs(b.position.y))));
+            float contactTolerance = coordinateScale * 0.000000476837158203125;
+            precise float contactMinimum = minimumDistance - contactTolerance;
+            precise float contactMinimumSquared = contactMinimum * contactMinimum;
+            if (closing < 0.0 && contactMinimum > 0.0 && distanceSquared < contactMinimumSquared) {
+                directionDelta += normal * closing;
+                vec2 tangent = vec2(-normal.y, normal.x);
+                // Vanishing normal impulse must not produce finite tangential spin.
+                float angularLimit = -closing * 1.15;
+                float angularImpulse = clamp(dot(b.direction - a.direction, tangent) * 1.15, -angularLimit, angularLimit);
+                angularDelta += id < uint(other) ? -angularImpulse : angularImpulse;
+            }
+            touched = true;
+        }
+        if (touched) {
+            a.position += correction;
+            vec2 direction = a.direction + directionDelta;
+            float lengthSquared = dot(direction, direction);
+            a.direction = lengthSquared <= 0.000001 ? vec2(1.0, 0.0) : direction / sqrt(lengthSquared);
+            a.angularSpeed = clamp(a.angularSpeed + angularDelta, -pc.maximumAngular, pc.maximumAngular);
+            a.hit = 1.0;
+        }
+        Constrain(a);
+        pc.destination.bodies[id] = a;
+    } else if (pc.mode == 4u) {
+        int sides = max(3, pc.sides + a.sideOffset);
+        precise float cs = cos(6.283185307179586 / float(sides));
+        precise float ss = sin(6.283185307179586 / float(sides));
+        precise float ca = cos(a.rotation);
+        precise float sa = sin(a.rotation);
+        float radius = pc.radius * a.sizeScale * (1.0 - a.hit * 0.22);
+        uint color = HitColor(a.color, a.hit);
+        precise vec2 first = a.position + vec2(ca, sa) * radius;
+        for (uint vertex = 0u; vertex < pc.maximumSides; vertex++) {
+            precise vec2 point = vertex < uint(sides) ? a.position + vec2(ca, sa) * radius : first;
+            uint offset = (id * pc.maximumSides + vertex) * 5u;
+            pc.vertices.values[offset] = floatBitsToUint(point.x);
+            pc.vertices.values[offset + 1u] = floatBitsToUint(point.y);
+            pc.vertices.values[offset + 2u] = 0u;
+            pc.vertices.values[offset + 3u] = 0u;
+            pc.vertices.values[offset + 4u] = color;
+            precise float nextCos = ca * cs - sa * ss;
+            sa = sa * cs + ca * ss;
+            ca = nextCos;
+        }
+    }
+}

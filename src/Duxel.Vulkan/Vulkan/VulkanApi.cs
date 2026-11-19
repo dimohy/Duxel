@@ -187,179 +187,179 @@ public sealed unsafe partial class Vk
 
     private const uint TrueValue = 1;
 
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetInstanceProcAddr")]
+    [LibraryImport(LibraryName, EntryPoint = "vkGetInstanceProcAddr")]
     private static partial nint vkGetInstanceProcAddr(Instance instance, byte* name);
 
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetDeviceProcAddr")]
+    [LibraryImport(LibraryName, EntryPoint = "vkGetDeviceProcAddr")]
     private static partial nint vkGetDeviceProcAddr(Device device, byte* name);
 
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkEnumerateInstanceExtensionProperties")]
+    [LibraryImport(LibraryName, EntryPoint = "vkEnumerateInstanceExtensionProperties")]
     private static partial Result vkEnumerateInstanceExtensionProperties(byte* layerName, uint* propertyCount, ExtensionProperties* properties);
 
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkEnumerateDeviceExtensionProperties")]
+    [LibraryImport(LibraryName, EntryPoint = "vkEnumerateDeviceExtensionProperties")]
     private static partial Result vkEnumerateDeviceExtensionProperties(PhysicalDevice physicalDevice, byte* layerName, uint* propertyCount, ExtensionProperties* properties);
 
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateInstance")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateInstance")]
     private static partial Result vkCreateInstance(InstanceCreateInfo* createInfo, AllocationCallbacks* allocator, Instance* instance);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyInstance")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyInstance")]
     private static partial void vkDestroyInstance(Instance instance, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkEnumeratePhysicalDevices")]
+    [LibraryImport(LibraryName, EntryPoint = "vkEnumeratePhysicalDevices")]
     private static partial Result vkEnumeratePhysicalDevices(Instance instance, uint* physicalDeviceCount, PhysicalDevice* physicalDevices);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetPhysicalDeviceQueueFamilyProperties")]
+    [LibraryImport(LibraryName, EntryPoint = "vkGetPhysicalDeviceQueueFamilyProperties")]
     private static partial void vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice physicalDevice, uint* queueFamilyPropertyCount, QueueFamilyProperties* queueFamilyProperties);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetPhysicalDeviceProperties")]
+    [LibraryImport(LibraryName, EntryPoint = "vkGetPhysicalDeviceProperties")]
     private static partial void vkGetPhysicalDeviceProperties(PhysicalDevice physicalDevice, out PhysicalDeviceProperties properties);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetPhysicalDeviceFeatures2")]
+    [LibraryImport(LibraryName, EntryPoint = "vkGetPhysicalDeviceFeatures2")]
     private static partial void vkGetPhysicalDeviceFeatures2(PhysicalDevice physicalDevice, PhysicalDeviceFeatures2* features);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetBufferDeviceAddress")]
+    [LibraryImport(LibraryName, EntryPoint = "vkGetBufferDeviceAddress")]
     private static partial ulong vkGetBufferDeviceAddress(Device device, BufferDeviceAddressInfo* info);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetPhysicalDeviceMemoryProperties")]
+    [LibraryImport(LibraryName, EntryPoint = "vkGetPhysicalDeviceMemoryProperties")]
     private static partial void vkGetPhysicalDeviceMemoryProperties(PhysicalDevice physicalDevice, out PhysicalDeviceMemoryProperties properties);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateDevice")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateDevice")]
     private static partial Result vkCreateDevice(PhysicalDevice physicalDevice, DeviceCreateInfo* createInfo, AllocationCallbacks* allocator, Device* device);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyDevice")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyDevice")]
     private static partial void vkDestroyDevice(Device device, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetDeviceQueue")]
+    [LibraryImport(LibraryName, EntryPoint = "vkGetDeviceQueue")]
     private static partial void vkGetDeviceQueue(Device device, uint queueFamilyIndex, uint queueIndex, out Queue queue);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDeviceWaitIdle")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDeviceWaitIdle")]
     private static partial Result vkDeviceWaitIdle(Device device);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateBuffer")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateBuffer")]
     private static partial Result vkCreateBuffer(Device device, BufferCreateInfo* createInfo, AllocationCallbacks* allocator, Buffer* buffer);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyBuffer")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyBuffer")]
     private static partial void vkDestroyBuffer(Device device, Buffer buffer, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetBufferMemoryRequirements")]
+    [LibraryImport(LibraryName, EntryPoint = "vkGetBufferMemoryRequirements")]
     private static partial void vkGetBufferMemoryRequirements(Device device, Buffer buffer, out MemoryRequirements memoryRequirements);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkAllocateMemory")]
+    [LibraryImport(LibraryName, EntryPoint = "vkAllocateMemory")]
     private static partial Result vkAllocateMemory(Device device, MemoryAllocateInfo* allocateInfo, AllocationCallbacks* allocator, DeviceMemory* memory);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkFreeMemory")]
+    [LibraryImport(LibraryName, EntryPoint = "vkFreeMemory")]
     private static partial void vkFreeMemory(Device device, DeviceMemory memory, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkBindBufferMemory")]
+    [LibraryImport(LibraryName, EntryPoint = "vkBindBufferMemory")]
     private static partial Result vkBindBufferMemory(Device device, Buffer buffer, DeviceMemory memory, ulong memoryOffset);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateImage")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateImage")]
     private static partial Result vkCreateImage(Device device, ImageCreateInfo* createInfo, AllocationCallbacks* allocator, Image* image);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyImage")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyImage")]
     private static partial void vkDestroyImage(Device device, Image image, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetImageMemoryRequirements")]
+    [LibraryImport(LibraryName, EntryPoint = "vkGetImageMemoryRequirements")]
     private static partial void vkGetImageMemoryRequirements(Device device, Image image, out MemoryRequirements memoryRequirements);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkBindImageMemory")]
+    [LibraryImport(LibraryName, EntryPoint = "vkBindImageMemory")]
     private static partial Result vkBindImageMemory(Device device, Image image, DeviceMemory memory, ulong memoryOffset);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateImageView")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateImageView")]
     private static partial Result vkCreateImageView(Device device, ImageViewCreateInfo* createInfo, AllocationCallbacks* allocator, ImageView* view);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyImageView")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyImageView")]
     private static partial void vkDestroyImageView(Device device, ImageView imageView, AllocationCallbacks* allocator);
 
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateDescriptorSetLayout")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateDescriptorSetLayout")]
     private static partial Result vkCreateDescriptorSetLayout(Device device, DescriptorSetLayoutCreateInfo* createInfo, AllocationCallbacks* allocator, DescriptorSetLayout* setLayout);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyDescriptorSetLayout")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyDescriptorSetLayout")]
     private static partial void vkDestroyDescriptorSetLayout(Device device, DescriptorSetLayout descriptorSetLayout, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreatePipelineLayout")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreatePipelineLayout")]
     private static partial Result vkCreatePipelineLayout(Device device, PipelineLayoutCreateInfo* createInfo, AllocationCallbacks* allocator, PipelineLayout* pipelineLayout);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyPipelineLayout")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyPipelineLayout")]
     private static partial void vkDestroyPipelineLayout(Device device, PipelineLayout pipelineLayout, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateSampler")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateSampler")]
     private static partial Result vkCreateSampler(Device device, SamplerCreateInfo* createInfo, AllocationCallbacks* allocator, Sampler* sampler);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroySampler")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroySampler")]
     private static partial void vkDestroySampler(Device device, Sampler sampler, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateShaderModule")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateShaderModule")]
     private static partial Result vkCreateShaderModule(Device device, ShaderModuleCreateInfo* createInfo, AllocationCallbacks* allocator, ShaderModule* shaderModule);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyShaderModule")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyShaderModule")]
     private static partial void vkDestroyShaderModule(Device device, ShaderModule shaderModule, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreatePipelineCache")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreatePipelineCache")]
     private static partial Result vkCreatePipelineCache(Device device, PipelineCacheCreateInfo* createInfo, AllocationCallbacks* allocator, PipelineCache* pipelineCache);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyPipelineCache")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyPipelineCache")]
     private static partial void vkDestroyPipelineCache(Device device, PipelineCache pipelineCache, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetPipelineCacheData")]
+    [LibraryImport(LibraryName, EntryPoint = "vkGetPipelineCacheData")]
     private static partial Result vkGetPipelineCacheData(Device device, PipelineCache pipelineCache, nuint* dataSize, byte* data);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateQueryPool")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateQueryPool")]
     private static partial Result vkCreateQueryPool(Device device, QueryPoolCreateInfo* createInfo, AllocationCallbacks* allocator, QueryPool* queryPool);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyQueryPool")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyQueryPool")]
     private static partial void vkDestroyQueryPool(Device device, QueryPool queryPool, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkGetQueryPoolResults")]
+    [LibraryImport(LibraryName, EntryPoint = "vkGetQueryPoolResults")]
     private static partial Result vkGetQueryPoolResults(Device device, QueryPool queryPool, uint firstQuery, uint queryCount, nuint dataSize, void* data, ulong stride, QueryResultFlags flags);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateGraphicsPipelines")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateGraphicsPipelines")]
     private static partial Result vkCreateGraphicsPipelines(Device device, PipelineCache pipelineCache, uint createInfoCount, GraphicsPipelineCreateInfo* createInfos, AllocationCallbacks* allocator, Pipeline* pipelines);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyPipeline")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyPipeline")]
     private static partial void vkDestroyPipeline(Device device, Pipeline pipeline, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateDescriptorPool")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateDescriptorPool")]
     private static partial Result vkCreateDescriptorPool(Device device, DescriptorPoolCreateInfo* createInfo, AllocationCallbacks* allocator, DescriptorPool* descriptorPool);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyDescriptorPool")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyDescriptorPool")]
     private static partial void vkDestroyDescriptorPool(Device device, DescriptorPool descriptorPool, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkAllocateDescriptorSets")]
+    [LibraryImport(LibraryName, EntryPoint = "vkAllocateDescriptorSets")]
     private static partial Result vkAllocateDescriptorSets(Device device, DescriptorSetAllocateInfo* allocateInfo, DescriptorSet* descriptorSets);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkFreeDescriptorSets")]
+    [LibraryImport(LibraryName, EntryPoint = "vkFreeDescriptorSets")]
     private static partial Result vkFreeDescriptorSets(Device device, DescriptorPool descriptorPool, uint descriptorSetCount, DescriptorSet* descriptorSets);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkUpdateDescriptorSets")]
+    [LibraryImport(LibraryName, EntryPoint = "vkUpdateDescriptorSets")]
     private static partial void vkUpdateDescriptorSets(Device device, uint descriptorWriteCount, WriteDescriptorSet* descriptorWrites, uint descriptorCopyCount, void* descriptorCopies);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateCommandPool")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateCommandPool")]
     private static partial Result vkCreateCommandPool(Device device, CommandPoolCreateInfo* createInfo, AllocationCallbacks* allocator, CommandPool* commandPool);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyCommandPool")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyCommandPool")]
     private static partial void vkDestroyCommandPool(Device device, CommandPool commandPool, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkResetCommandPool")]
+    [LibraryImport(LibraryName, EntryPoint = "vkResetCommandPool")]
     private static partial Result vkResetCommandPool(Device device, CommandPool commandPool, uint flags);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkAllocateCommandBuffers")]
+    [LibraryImport(LibraryName, EntryPoint = "vkAllocateCommandBuffers")]
     private static partial Result vkAllocateCommandBuffers(Device device, CommandBufferAllocateInfo* allocateInfo, CommandBuffer* commandBuffers);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkFreeCommandBuffers")]
+    [LibraryImport(LibraryName, EntryPoint = "vkFreeCommandBuffers")]
     private static partial void vkFreeCommandBuffers(Device device, CommandPool commandPool, uint commandBufferCount, CommandBuffer* commandBuffers);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkResetCommandBuffer")]
+    [LibraryImport(LibraryName, EntryPoint = "vkResetCommandBuffer")]
     private static partial Result vkResetCommandBuffer(CommandBuffer commandBuffer, uint flags);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkBeginCommandBuffer")]
+    [LibraryImport(LibraryName, EntryPoint = "vkBeginCommandBuffer")]
     private static partial Result vkBeginCommandBuffer(CommandBuffer commandBuffer, CommandBufferBeginInfo* beginInfo);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkEndCommandBuffer")]
+    [LibraryImport(LibraryName, EntryPoint = "vkEndCommandBuffer")]
     private static partial Result vkEndCommandBuffer(CommandBuffer commandBuffer);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdExecuteCommands")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdExecuteCommands")]
     private static partial void vkCmdExecuteCommands(CommandBuffer commandBuffer, uint commandBufferCount, CommandBuffer* commandBuffers);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdResetQueryPool")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdResetQueryPool")]
     private static partial void vkCmdResetQueryPool(CommandBuffer commandBuffer, QueryPool queryPool, uint firstQuery, uint queryCount);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdWriteTimestamp")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdWriteTimestamp")]
     private static partial void vkCmdWriteTimestamp(CommandBuffer commandBuffer, PipelineStageFlags pipelineStage, QueryPool queryPool, uint query);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateFence")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateFence")]
     private static partial Result vkCreateFence(Device device, FenceCreateInfo* createInfo, AllocationCallbacks* allocator, Fence* fence);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroyFence")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroyFence")]
     private static partial void vkDestroyFence(Device device, Fence fence, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkResetFences")]
+    [LibraryImport(LibraryName, EntryPoint = "vkResetFences")]
     private static partial Result vkResetFences(Device device, uint fenceCount, Fence* fences);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkWaitForFences")]
+    [LibraryImport(LibraryName, EntryPoint = "vkWaitForFences")]
     private static partial Result vkWaitForFences(Device device, uint fenceCount, Fence* fences, uint waitAll, ulong timeout);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCreateSemaphore")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCreateSemaphore")]
     private static partial Result vkCreateSemaphore(Device device, SemaphoreCreateInfo* createInfo, AllocationCallbacks* allocator, Semaphore* semaphore);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkDestroySemaphore")]
+    [LibraryImport(LibraryName, EntryPoint = "vkDestroySemaphore")]
     private static partial void vkDestroySemaphore(Device device, Semaphore semaphore, AllocationCallbacks* allocator);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkQueueSubmit")]
+    [LibraryImport(LibraryName, EntryPoint = "vkQueueSubmit")]
     private static partial Result vkQueueSubmit(Queue queue, uint submitCount, SubmitInfo* submits, Fence fence);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkMapMemory")]
+    [LibraryImport(LibraryName, EntryPoint = "vkMapMemory")]
     private static partial Result vkMapMemory(Device device, DeviceMemory memory, ulong offset, nuint size, uint flags, void** data);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkUnmapMemory")]
+    [LibraryImport(LibraryName, EntryPoint = "vkUnmapMemory")]
     private static partial void vkUnmapMemory(Device device, DeviceMemory memory);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdBindPipeline")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdBindPipeline")]
     private static partial void vkCmdBindPipeline(CommandBuffer commandBuffer, PipelineBindPoint pipelineBindPoint, Pipeline pipeline);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdSetViewport")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdSetViewport")]
     private static partial void vkCmdSetViewport(CommandBuffer commandBuffer, uint firstViewport, uint viewportCount, Viewport* viewports);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdSetScissor")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdSetScissor")]
     private static partial void vkCmdSetScissor(CommandBuffer commandBuffer, uint firstScissor, uint scissorCount, Rect2D* scissors);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdSetBlendConstants")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdSetBlendConstants")]
     private static partial void vkCmdSetBlendConstants(CommandBuffer commandBuffer, float* blendConstants);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdBindVertexBuffers")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdBindVertexBuffers")]
     private static partial void vkCmdBindVertexBuffers(CommandBuffer commandBuffer, uint firstBinding, uint bindingCount, Buffer* buffers, ulong* offsets);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdBindIndexBuffer")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdBindIndexBuffer")]
     private static partial void vkCmdBindIndexBuffer(CommandBuffer commandBuffer, Buffer buffer, ulong offset, IndexType indexType);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdBindDescriptorSets")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdBindDescriptorSets")]
     private static partial void vkCmdBindDescriptorSets(CommandBuffer commandBuffer, PipelineBindPoint pipelineBindPoint, PipelineLayout layout, uint firstSet, uint descriptorSetCount, DescriptorSet* descriptorSets, uint dynamicOffsetCount, uint* dynamicOffsets);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdPushConstants")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdPushConstants")]
     private static partial void vkCmdPushConstants(CommandBuffer commandBuffer, PipelineLayout layout, ShaderStageFlags stageFlags, uint offset, uint size, void* values);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdDraw")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdDraw")]
     private static partial void vkCmdDraw(CommandBuffer commandBuffer, uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdDrawIndexed")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdDrawIndexed")]
     private static partial void vkCmdDrawIndexed(CommandBuffer commandBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdClearAttachments")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdClearAttachments")]
     private static partial void vkCmdClearAttachments(CommandBuffer commandBuffer, uint attachmentCount, ClearAttachment* attachments, uint rectCount, ClearRect* rects);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdCopyImage")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdCopyImage")]
     private static partial void vkCmdCopyImage(CommandBuffer commandBuffer, Image srcImage, ImageLayout srcImageLayout, Image dstImage, ImageLayout dstImageLayout, uint regionCount, ImageCopy* regions);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdCopyImageToBuffer")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdCopyImageToBuffer")]
     private static partial void vkCmdCopyImageToBuffer(CommandBuffer commandBuffer, Image srcImage, ImageLayout srcImageLayout, Buffer dstBuffer, uint regionCount, BufferImageCopy* regions);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdCopyBufferToImage")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdCopyBufferToImage")]
     private static partial void vkCmdCopyBufferToImage(CommandBuffer commandBuffer, Buffer srcBuffer, Image dstImage, ImageLayout dstImageLayout, uint regionCount, BufferImageCopy* regions);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdCopyBuffer")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdCopyBuffer")]
     private static partial void vkCmdCopyBuffer(CommandBuffer commandBuffer, Buffer srcBuffer, Buffer dstBuffer, uint regionCount, BufferCopy* regions);
-    [LibraryImport("vulkan-1.dll", EntryPoint = "vkCmdPipelineBarrier")]
+    [LibraryImport(LibraryName, EntryPoint = "vkCmdPipelineBarrier")]
     private static partial void vkCmdPipelineBarrier(CommandBuffer commandBuffer, PipelineStageFlags srcStageMask, PipelineStageFlags dstStageMask, DependencyFlags dependencyFlags, uint memoryBarrierCount, void* memoryBarriers, uint bufferMemoryBarrierCount, void* bufferMemoryBarriers, uint imageMemoryBarrierCount, ImageMemoryBarrier* imageMemoryBarriers);
 }

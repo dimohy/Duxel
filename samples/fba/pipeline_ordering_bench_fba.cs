@@ -128,7 +128,7 @@ public sealed class PipelineOrderingBenchScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(18f, 18f));
         ui.SetNextWindowSize(new UiVector2(1240f, 700f));
-        ui.BeginWindow("Pipeline Ordering");
+        ui.BeginPanel("Pipeline Ordering");
 
         ui.TextV("Phase: {0}", _phaseIndex < _phases.Count ? _phases[_phaseIndex].Name : "done");
         ui.TextV("FPS: {0:0.0}", _fps);
@@ -158,7 +158,7 @@ public sealed class PipelineOrderingBenchScreen : UiScreen
             }
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawChannelized(UiDrawListBuilder drawList, UiTextureId white, UiVector2 origin, bool mergeAsDrawLists)

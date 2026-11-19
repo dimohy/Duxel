@@ -1,0 +1,88 @@
+{
+  "scope": "11 exact positive regressions from 19 independent native browser analytic-shape probes; the other 8 failures remain qualification failures, not waived",
+  "rendererIdentity": "svg-browser-renderer-identity.json in the analytic coverage evidence archive",
+  "captureScripts": [
+    "ego-svg-round42.mjs",
+    "ego-svg-round45.mjs"
+  ],
+  "recordedAtUtc": "2026-11-14T07:18:08.9643727Z",
+  "cases": [
+    {
+      "name": "circle-small",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "26EFE8D1E5CBA0655E0036687615B4777B7D9534CB2D2F6D7769CDC7A8E1F3FA",
+      "rgbaSha256": "616A894367EB6330A2657D84CC6D114E3541262A697E19A6396CD47D10B50060"
+    },
+    {
+      "name": "circle-half",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "83EC034795BD4904F18CD60E5CC69CC09329D5A284AFCB982AB881AC73362204",
+      "rgbaSha256": "430FCFCFCE6AE8C7DA66310266AB2B8C07B96A03838DA4642E9373810820BEC4"
+    },
+    {
+      "name": "circle-fractional",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "4AAB99221E589BF3F795DD48A7E95350F8321DF2E2D7FFD50C36ED04C6108B4E",
+      "rgbaSha256": "8DFF3F135252D7956A0FD36251651E3EA94A005459E7D30CEA6CD250CEB33551"
+    },
+    {
+      "name": "circle-8",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "D5F091BCDB80AB3C18372B29B5ECF0BCE361F1909C47B44FB0F5528B0B9791E7",
+      "rgbaSha256": "DB210B7BA28D31A63647B278FFFD8EEC4F5CB88D29D4968C42C36B1CC73AE7D0"
+    },
+    {
+      "name": "ellipse",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "E8A29B2A47FF91C7EE3F0130A4DA9CB745C6FE2D105A9058A5CAB9A46462B12D",
+      "rgbaSha256": "ED605DA60094DA6DAB5AB3AFF3BE91A45461F8E7EE23864946175EBBAF9C7A3D"
+    },
+    {
+      "name": "rrect-elliptical",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "A816D97E597DB153EACED83D9062A9F341FB495861D61C066E6C12E0EA9D3F12",
+      "rgbaSha256": "CFFA4C29FB7A1E137998EFB95E09765FF87551734BE70643CD504FAA2FCB29EE"
+    },
+    {
+      "name": "circle-start",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "4137824A9E5EBFDE794A1646E7982F8D4308F81DCA8D8362086F8AF98E1A2281",
+      "rgbaSha256": "4ED55E492A8F243851E89B989B04E4DD06DA349798A81773B0147772A603C65E"
+    },
+    {
+      "name": "circle-end",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "589802B2B6F12BF425F4F5CBACE4F215696C38CD05B90E74CAFD3CE9E527706D",
+      "rgbaSha256": "42213D9BB2423FAD008E891CA2285DD81F5A76C7DA16F625246DAAF66E618A95"
+    },
+    {
+      "name": "body-cubic-round",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "ACCCF5C4CBAC1EA38CF2EFCBFFDBB52F766B70EDA5A84D4B9A5B19DF518EB29A",
+      "rgbaSha256": "CC24C9829363213C5A997315C65DBB0CDE80B115A457D1261F68C913229CB275"
+    },
+    {
+      "name": "body-horizontal-round",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "98790C0A0E3C2AB56776ABBAF65AC454B356F2847326EE49128F79BC87A7ADD5",
+      "rgbaSha256": "EA034D7568DBFEBBCBD82EF5D05D81D797CA36B19F47D17C3F04FDDE4F043EEE"
+    },
+    {
+      "name": "body-vertical-round",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "9B1DE9420498D28CEC2ED351A426220797C9A56F54E244D9A3F0C81B321904C0",
+      "rgbaSha256": "D6F2833EAA0A2FAC41BE51151BC354227F8AB280C854E9D855AF0F5E72487F2D"
+    }
+  ]
+}

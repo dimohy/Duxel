@@ -26,8 +26,6 @@ public sealed class TextInputOnlyScreen : UiScreen
 
     public override void Render(UiImmediateContext ui)
     {
-        ui.SetNextWindowSize(new UiVector2(900f, 620f));
-        ui.BeginWindow("Text Input Only");
 
         ui.Text("한글/영문 입력 전용 샘플");
         ui.SeparatorText("Single Line");
@@ -48,6 +46,5 @@ public sealed class TextInputOnlyScreen : UiScreen
         ui.Text($"Single: {_single}");
         ui.Text($"Hint: {_withHint}");
 
-        ui.EndWindow();
     }
 }

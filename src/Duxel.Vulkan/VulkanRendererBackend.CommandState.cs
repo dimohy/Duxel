@@ -1,4 +1,4 @@
-﻿using Duxel.Core;
+using Duxel.Core;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System;
@@ -10,6 +10,23 @@ public sealed unsafe partial class VulkanRendererBackend
 {
     private struct CommandPipelineState
     {
+        public int DepthMode;
+        public bool CircleCutoutEnabled;
+        public bool BackdropCompositeEnabled;
+        public bool ProjectedCaptureEnabled;
+        public System.Numerics.Matrix4x4 LayerTransform;
+        public System.Numerics.Matrix4x4 PushedLayerTransform;
+        public UiVector2 LayerModelTranslation;
+        public float LayerModelDepth;
+        public bool HasLayerTransform;
+        public bool Layer3DEnabled;
+        public bool HasLayerLocalClip;
+        public UiRect LayerLocalClip;
+        public UiRect LayerScreenClip;
+        public UiRect ViewportPixels;
+        public bool HasViewport;
+        public bool HasDepthScope;
+        public DepthLayerScope DepthScope;
         public bool HasDrawMode;
         public uint CurrentDrawMode;
         public int BindCount;
@@ -44,7 +61,7 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
-        var pushStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
+        var pushStart = BeginFrameProfileTiming(profileEnabled);
         _vk.CmdPushConstants(
             commandBuffer,
             _pipelineLayout,
@@ -54,7 +71,7 @@ public sealed unsafe partial class VulkanRendererBackend
             &drawMode);
         if (profileEnabled)
         {
-            state.BindTicks += Stopwatch.GetTimestamp() - pushStart;
+            state.BindTicks += EndFrameProfileTiming(true, pushStart);
             state.BindCount++;
             switch (commandKind)
             {
@@ -98,6 +115,15 @@ public sealed unsafe partial class VulkanRendererBackend
     /// subpixel coverage output mode in the unified fragment shader.
     /// </summary>
     private const uint SubpixelCoverageModeBit = 0x80000000u;
+    private const uint PremultipliedImageModeBit = 0x40000000u;
+
+    private static bool IsPixelAlignedPlane(System.Numerics.Matrix4x4 transform)
+        => transform == System.Numerics.Matrix4x4.CreateTranslation(0, 0, transform.M43);
+
+    private static bool IsScreenAlignedScene(UiLayer3D scene)
+        => scene.IsScreenSpacePresentation && !scene.WriteDepth && scene.DepthScopeId == UiLayer3D.PresentationDepthScopeId
+            && scene.Transform.M43 is >= 0 and <= 1
+            && scene.Viewport is null && scene.PlaneModel is null && IsPixelAlignedPlane(scene.Transform);
 
     private struct CommandDescriptorState
     {
@@ -132,17 +158,17 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
-        var pushStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
+        var pushStart = BeginFrameProfileTiming(profileEnabled);
         _vk.CmdPushConstants(
             commandBuffer,
             _pipelineLayout,
-            ShaderStageFlags.FragmentBit,
+            ShaderStageFlags.FragmentBit | ShaderStageFlags.VertexBit,
             40,
             sizeof(uint),
             &textureIndex);
         if (profileEnabled)
         {
-            state.BindTicks += Stopwatch.GetTimestamp() - pushStart;
+            state.BindTicks += EndFrameProfileTiming(true, pushStart);
             state.BindCount++;
         }
 
@@ -158,6 +184,8 @@ public sealed unsafe partial class VulkanRendererBackend
         public VkBuffer BoundIndexBuffer;
         public bool HasPrimitiveAddress;
         public ulong CurrentPrimitiveAddress;
+        public bool HasCircleCutout;
+        public int CircleCutoutOffset;
         public int GeometryBindCount;
         public int PrimitiveBindCount;
         public long BindTicks;
@@ -180,7 +208,7 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
-        var bufferBindStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
+        var bufferBindStart = BeginFrameProfileTiming(profileEnabled);
         if (!vertexMatches)
         {
             _vk.CmdPushConstants(
@@ -203,7 +231,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
         if (profileEnabled)
         {
-            state.BindTicks += Stopwatch.GetTimestamp() - bufferBindStart;
+            state.BindTicks += EndFrameProfileTiming(true, bufferBindStart);
             state.GeometryBindCount++;
         }
     }
@@ -219,7 +247,7 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
-        var bufferBindStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
+        var bufferBindStart = BeginFrameProfileTiming(profileEnabled);
         _vk.CmdPushConstants(
             commandBuffer,
             _pipelineLayout,
@@ -229,7 +257,7 @@ public sealed unsafe partial class VulkanRendererBackend
             &primitiveAddress);
         if (profileEnabled)
         {
-            state.BindTicks += Stopwatch.GetTimestamp() - bufferBindStart;
+            state.BindTicks += EndFrameProfileTiming(true, bufferBindStart);
             state.PrimitiveBindCount++;
         }
 
@@ -283,7 +311,7 @@ public sealed unsafe partial class VulkanRendererBackend
             if (pushOpacityChanged)
             {
                 pushConstants[4] = commandOpacity;
-                var pushConstantStart = context.ProfileEnabled ? Stopwatch.GetTimestamp() : 0;
+                var pushConstantStart = BeginFrameProfileTiming(context.ProfileEnabled);
                 _vk.CmdPushConstants(
                     context.CommandBuffer,
                     _pipelineLayout,
@@ -293,14 +321,14 @@ public sealed unsafe partial class VulkanRendererBackend
                     pushConstants);
                 if (context.ProfileEnabled)
                 {
-                    state.PushTicks += Stopwatch.GetTimestamp() - pushConstantStart;
+                    state.PushTicks += EndFrameProfileTiming(true, pushConstantStart);
                 }
 
                 state.LastOpacity = commandOpacity;
             }
             else
             {
-                var pushConstantStart = context.ProfileEnabled ? Stopwatch.GetTimestamp() : 0;
+                var pushConstantStart = BeginFrameProfileTiming(context.ProfileEnabled);
                 _vk.CmdPushConstants(
                     context.CommandBuffer,
                     _pipelineLayout,
@@ -310,7 +338,7 @@ public sealed unsafe partial class VulkanRendererBackend
                     pushConstants);
                 if (context.ProfileEnabled)
                 {
-                    state.PushTicks += Stopwatch.GetTimestamp() - pushConstantStart;
+                    state.PushTicks += EndFrameProfileTiming(true, pushConstantStart);
                 }
             }
 
@@ -326,7 +354,7 @@ public sealed unsafe partial class VulkanRendererBackend
         else if (pushOpacityChanged)
         {
             var opacityPushConstant = commandOpacity;
-            var pushConstantStart = context.ProfileEnabled ? Stopwatch.GetTimestamp() : 0;
+            var pushConstantStart = BeginFrameProfileTiming(context.ProfileEnabled);
             _vk.CmdPushConstants(
                 context.CommandBuffer,
                 _pipelineLayout,
@@ -336,7 +364,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 &opacityPushConstant);
             if (context.ProfileEnabled)
             {
-                state.PushTicks += Stopwatch.GetTimestamp() - pushConstantStart;
+                state.PushTicks += EndFrameProfileTiming(true, pushConstantStart);
             }
 
             state.LastOpacity = commandOpacity;
@@ -461,7 +489,7 @@ public sealed unsafe partial class VulkanRendererBackend
         in CommandFrameContext context,
         ref CommandScissorState state)
     {
-        var clippingStart = context.ProfileEnabled ? Stopwatch.GetTimestamp() : 0;
+        var clippingStart = BeginFrameProfileTiming(context.ProfileEnabled);
         var commandTranslationX = command.Translation.X;
         var commandTranslationY = command.Translation.Y;
         int scissorX;
@@ -484,7 +512,7 @@ public sealed unsafe partial class VulkanRendererBackend
             {
                 if (context.ProfileEnabled)
                 {
-                    state.ClippingTicks += Stopwatch.GetTimestamp() - clippingStart;
+                    state.ClippingTicks += EndFrameProfileTiming(true, clippingStart);
                 }
 
                 return false;
@@ -522,13 +550,26 @@ public sealed unsafe partial class VulkanRendererBackend
             {
                 if (context.ProfileEnabled)
                 {
-                    state.ClippingTicks += Stopwatch.GetTimestamp() - clippingStart;
+                    state.ClippingTicks += EndFrameProfileTiming(true, clippingStart);
                 }
 
                 return false;
             }
         }
 
+        if (_damagePartial)
+        {
+            var right = Math.Min((long)scissorX + scissorW, (long)_damageArea.Offset.X + _damageArea.Extent.Width);
+            var bottom = Math.Min((long)scissorY + scissorH, (long)_damageArea.Offset.Y + _damageArea.Extent.Height);
+            scissorX = Math.Max(scissorX, _damageArea.Offset.X);
+            scissorY = Math.Max(scissorY, _damageArea.Offset.Y);
+            if (_damageEmpty || right <= scissorX || bottom <= scissorY)
+                return false;
+            scissorW = (uint)(right - scissorX);
+            scissorH = (uint)(bottom - scissorY);
+        }
+
+        ObserveValidationScissor(in command, scissorX, scissorY, scissorW, scissorH);
         if (!state.HasScissor
             || scissorX != state.LastScissorX
             || scissorY != state.LastScissorY
@@ -536,11 +577,11 @@ public sealed unsafe partial class VulkanRendererBackend
             || scissorH != state.LastScissorH)
         {
             var scissor = new Rect2D(new Offset2D(scissorX, scissorY), new Extent2D(scissorW, scissorH));
-            var scissorSetStart = context.ProfileEnabled ? Stopwatch.GetTimestamp() : 0;
+            var scissorSetStart = BeginFrameProfileTiming(context.ProfileEnabled);
             _vk.CmdSetScissor(context.CommandBuffer, 0, 1, &scissor);
             if (context.ProfileEnabled)
             {
-                state.ScissorSetTicks += Stopwatch.GetTimestamp() - scissorSetStart;
+                state.ScissorSetTicks += EndFrameProfileTiming(true, scissorSetStart);
             }
 
             state.LastScissorX = scissorX;
@@ -556,10 +597,30 @@ public sealed unsafe partial class VulkanRendererBackend
 
         if (context.ProfileEnabled)
         {
-            state.ClippingTicks += Stopwatch.GetTimestamp() - clippingStart;
+            state.ClippingTicks += EndFrameProfileTiming(true, clippingStart);
         }
 
         return true;
     }
+    private void PushCircleCutoutIfNeeded(CommandBuffer commandBuffer, int offset, ref CommandBufferBindingState state)
+    {
+        if (state.HasCircleCutout && state.CircleCutoutOffset == offset)
+            return;
+        _vk.CmdPushConstants(commandBuffer, _pipelineLayout, ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit, 44, sizeof(int), &offset);
+        state.HasCircleCutout = true;
+        state.CircleCutoutOffset = offset;
+    }
+
+    private static int CircleCutoutOffset(UiDrawCommand command, uint globalOffset, bool paired)
+    {
+        if (command.CircleCutoutIndexPlusOne == 0)
+            return 0;
+        // One is the nonzero bias; the byte offset can be negative after paired-record address rebasing.
+        var record = (long)command.CircleCutoutIndexPlusOne - 1 + globalOffset;
+        if (paired)
+            record -= command.IndexOffset + (long)globalOffset;
+        return checked((int)(record * sizeof(PrimitiveInstance) + 1));
+    }
+
 }
 

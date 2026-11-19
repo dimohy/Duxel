@@ -1,0 +1,59 @@
+{
+  "scope": "Six authored coverage/visibility fixtures, native SVG Image drawn one-to-one into a 32x32 GPU Canvas2D; no DOM pixel scaling. Does not certify the two complex originals or ellipse coverage.",
+  "conditions": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+    "dpr": 1.4249999523162842,
+    "webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti Laptop GPU (0x00002F58) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  },
+  "captureScript": "L:/Cache/Duxel/linux-accessibility-2026-11-14/ego-svg-round24.mjs",
+  "cases": [
+    {
+      "name": "triangle",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "0115EE2B4AB4356531BE479429246615F82AED3A2522FF995B8AE9C5B157C559",
+      "rgbaSha256": "765FB9232BDC55A62FEE14B6D093D5C9E7AC1F20BA0FE6B034D15DC90DF51F63",
+      "recordedAtUtc": "2026-11-14T04:43:41.1498906Z"
+    },
+    {
+      "name": "concave",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "C3E298C96507EE2FAB120AC766C8E692660BBD44529615060E49E1E857AB32C9",
+      "rgbaSha256": "162ED9BCAB0167BB79D440A8BE6B01DF3D4EE39DFF50A9763C4D03F49EE22081",
+      "recordedAtUtc": "2026-11-14T04:43:41.1572110Z"
+    },
+    {
+      "name": "cubic",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "684187EE04F974908ABA681A18D36920CD70DD1E784FACBAC9F5AD79D53A91F8",
+      "rgbaSha256": "1D33F31B9F0AF63911D366517C04DE763DF2114B30F9B552A4B289BC26A3D886",
+      "recordedAtUtc": "2026-11-14T04:43:41.1843382Z"
+    },
+    {
+      "name": "rect",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "FD6A06122158383A8F4296B6F39CA6D237D4B1269FBE3E8A699F665BE724E2F0",
+      "rgbaSha256": "798D124E0DFD9AC0D7B272CEDAD76FDD74040A76A248648EB739D3A95D000F6F",
+      "recordedAtUtc": "2026-11-14T04:43:41.1915694Z"
+    },
+    {
+      "name": "hidden-child",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "B501276C38FF0798997FB1972E53302F50F30B8594FF97FC4345F71C400FD3B7",
+      "rgbaSha256": "26327D3C610EC874C4C2FF25BD1AD6E9E3B38A89E197539212E5765DDA24B2E8",
+      "recordedAtUtc": "2026-11-14T04:43:41.1990754Z"
+    },
+    {
+      "name": "hidden-clip",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "A01D9E50A7A56DB2C5717162B76F5151085E78FF6B31EC7D540FA287F797BF12",
+      "rgbaSha256": "AD7FACB2586FC6E966C004D7D1D16B024F5805FF7CB47C7A85DABD8B48892CA7",
+      "recordedAtUtc": "2026-11-14T04:43:41.2148264Z"
+    }
+  ]
+}

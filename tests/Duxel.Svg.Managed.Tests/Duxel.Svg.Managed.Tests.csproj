@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Update="Fixtures/Browser/**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Compile the production sources without any project or package references to verify backend isolation. -->
+    <Compile Include="../../src/Duxel.Svg/Managed/*.cs" Link="Rendering/%(Filename)%(Extension)" />
+    <Compile Include="../../src/Duxel.Core/UiRgba8.cs" Link="Rendering/UiRgba8.cs" />
+    <Compile Include="../../src/Duxel.Core/UiCubicBezierMath.cs" Link="Rendering/UiCubicBezierMath.cs" />
+  </ItemGroup>
+</Project>

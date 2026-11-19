@@ -10,7 +10,7 @@ public sealed partial class UiImmediateContext
         var cursor = AdvanceCursor(totalSize);
         var rect = new UiRect(cursor.X, cursor.Y, width, height);
         var color = tint ?? new UiColor(0xFFFFFFFF);
-        AddRectFilled(rect, color, textureId);
+        PaintImage(textureId, rect, color);
     }
 
     public void ImageWithBg(UiTextureId textureId, UiVector2 size, UiColor background, UiColor? tint = null)
@@ -24,7 +24,7 @@ public sealed partial class UiImmediateContext
         AddRectFilled(rect, background, _whiteTexture);
 
         var color = tint ?? new UiColor(0xFFFFFFFF);
-        AddRectFilled(rect, color, textureId);
+        PaintImage(textureId, rect, color);
     }
 
     public bool ImageButton(string id, UiTextureId textureId, UiVector2 size, UiColor? tint = null)
@@ -42,9 +42,13 @@ public sealed partial class UiImmediateContext
         AddRectFilled(rect, background, _whiteTexture);
 
         var color = tint ?? new UiColor(0xFFFFFFFF);
-        AddRectFilled(rect, color, textureId);
+        PaintImage(textureId, rect, color);
 
         return pressed;
     }
+
+    private void PaintImage(UiTextureId textureId, UiRect bounds, UiColor tint) =>
+        _builder.AddImage(textureId, new(bounds.X, bounds.Y), new(bounds.X + bounds.Width, bounds.Y + bounds.Height),
+            new(0, 0), new(1, 1), tint, CurrentClipRect);
 }
 

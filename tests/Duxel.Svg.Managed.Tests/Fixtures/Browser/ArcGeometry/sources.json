@@ -1,0 +1,46 @@
+{
+  "sources": [
+    {
+      "file": "arc-circle.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "fd30a48e0d7e8decf0179bb993f6d1c635fb5a13736bb5c6d48a3ed591b3a7db",
+      "purpose": "two semicircular arcs"
+    },
+    {
+      "file": "arc-ellipse.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "b5a0bbaab1a0e419c6ecc6aea65567669bcf7c48301b51f37b1b80a844e7b115",
+      "purpose": "two elliptical arcs"
+    },
+    {
+      "file": "arc-transformed.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "5e0572204c811049eaea6f8c5167a1f3a4730026c6fe5c56177c93ab28824645",
+      "purpose": "affine elliptical arcs"
+    },
+    {
+      "file": "arc-rotated.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "06dcd2283a326c9fb93406955586a3290ec50551556400e536136f191d8ce755",
+      "purpose": "rotated large arc and closing lines"
+    },
+    {
+      "file": "control-cubic.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "34dad63a934dcc4aac44cec643c5b561e35a37ff804cf781e441d22f79f78464",
+      "purpose": "authored quarter-circle cubics without SVG arc commands"
+    },
+    {
+      "file": "control-rectangle.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "b1a8b6eec5bf1913f391133739da8fd436dd730832a940f6bd20394190edcc62",
+      "purpose": "integer-aligned straight-edge control"
+    }
+  ]
+}

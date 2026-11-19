@@ -52,11 +52,6 @@ public sealed class ListBoxScrollTestScreen : UiScreen
 
     public override void Render(UiImmediateContext ui)
     {
-        var viewport = ui.GetMainViewport();
-        var margin = 16f;
-        ui.SetNextWindowPos(new UiVector2(viewport.Pos.X + margin, viewport.Pos.Y + margin));
-        ui.SetNextWindowSize(new UiVector2(viewport.Size.X - margin * 2f, viewport.Size.Y - margin * 2f));
-        ui.BeginWindow("ListBox Scroll Test");
 
         ui.TextV("Total Items: {0}", _items.Length);
         ui.TextV("Selected: {0}", _selectedIndex);
@@ -85,6 +80,5 @@ public sealed class ListBoxScrollTestScreen : UiScreen
         ui.Text("Huge ListBox");
         ui.ListBox(ref _selectedIndex, _items, _visibleRows, "Huge ListBox");
 
-        ui.EndWindow();
     }
 }

@@ -187,7 +187,7 @@ public sealed class StaticCacheRebuildBenchScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(18f, 18f));
         ui.SetNextWindowSize(new UiVector2(1240f, 700f));
-        ui.BeginWindow("Static Cache Rebuild");
+        ui.BeginPanel("Static Cache Rebuild");
 
         ui.TextV("Phase: {0}", GetPhaseName(phase));
         ui.TextV("FPS: {0:0.0}", _liveFps);
@@ -232,7 +232,7 @@ public sealed class StaticCacheRebuildBenchScreen : UiScreen
 
         ui.SetCursorScreenPos(new UiVector2(origin.X, origin.Y));
         ui.Dummy(new UiVector2(canvas.Width, canvas.Height + 8f));
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawLayer(

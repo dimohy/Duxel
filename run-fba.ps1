@@ -28,6 +28,8 @@
     (호환용) NativeAOT 게시 성공 후 산출 실행 파일(.exe)을 자동 실행합니다.
 .PARAMETER NoLaunch
     NativeAOT 기본 자동 실행을 비활성화합니다.
+.PARAMETER ArtifactRootDirectory
+    검증 출력을 저장할 저장소 artifacts 하위 전용 루트. 기본 샘플 출력과 분리하며 동일한 소유권·보관 한도를 적용합니다.
 .PARAMETER Wait
     NativeAOT 게시 후 산출 실행 파일(.exe)이 종료될 때까지 기다립니다.
 .PARAMETER ExtraArgs
@@ -57,7 +59,12 @@ param(
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
     [string]$Platform,
+    [ValidatePattern('^net[1-9][0-9]\.0-windows7\.0$')]
+    [string]$TargetFramework = 'net10.0-windows7.0',
+    [string]$DotnetPath = 'dotnet',
+    [string]$ArtifactRootDirectory,
     [int]$ManagedTimeoutSeconds = 0,
+    [string]$ManagedLogPrefix,
     [switch]$KillProcessTreeOnTimeout,
     [switch]$Launch,
     [switch]$NoLaunch,
@@ -79,15 +86,37 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'Duxel.slnx'))) {
     }
 }
 
+if ($ArtifactRootDirectory) {
+    if ($Managed -and -not $NativeAot) { throw 'BUILD_ARTIFACT_ROOT_REQUIRES_NATIVEAOT' }
+    . (Join-Path $repoRoot 'scripts/BuildArtifactLifetime.ps1')
+    $validationRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot 'artifacts'))
+    $resolvedArtifactRootDirectory = Resolve-DuxelArtifactDirectory -Root $validationRoot -Directory ([IO.Path]::GetFullPath($ArtifactRootDirectory))
+    if ($resolvedArtifactRootDirectory -eq $validationRoot) { throw 'BUILD_ARTIFACT_DEDICATED_ROOT_REQUIRED' }
+}
+
+# Resolve and probe the same CLI used by publish and managed child processes.
+# Do this before allocating temporary inputs or initializing the native toolchain.
+$dotnetExecutable = (Get-Command $DotnetPath -CommandType Application -ErrorAction Stop).Source
+$sdkProbe = & $dotnetExecutable --version 2>&1
+if ($LASTEXITCODE -ne 0) {
+    throw "DUXEL-FBA-SDK-UNAVAILABLE: $dotnetExecutable in $((Get-Location).ProviderPath). $($sdkProbe -join [Environment]::NewLine)"
+}
+$sdkVersion = ($sdkProbe | Out-String).Trim()
+$frameworkMajor = [int]([regex]::Match($TargetFramework, '^net(\d+)').Groups[1].Value)
+if ($sdkVersion -notmatch '^(\d+)\.' -or [int]$Matches[1] -lt $frameworkMajor) {
+    throw "DUXEL-FBA-SDK-TARGET-MISMATCH: SDK $sdkVersion cannot build $TargetFramework. Select a matching SDK directory and -DotnetPath."
+}
+Write-Host "[run-fba] .NET SDK: $sdkVersion ($dotnetExecutable)"
+
 # 원본 파일 경로 해석
 $sourcePath = Resolve-Path -LiteralPath $Path -ErrorAction Stop
 $sourceContent = Get-Content -LiteralPath $sourcePath -Raw -Encoding UTF8
 $baseName = [System.IO.Path]::GetFileNameWithoutExtension($sourcePath)
 
 function Resolve-PlatformFromExtraArgs {
-    param([string[]]$Args)
+    param([string[]]$InputArguments)
 
-    if (-not $Args -or $Args.Count -eq 0) {
+    if (-not $InputArguments -or $InputArguments.Count -eq 0) {
         return [pscustomobject]@{
             Platform = $null
             RemainingArgs = @()
@@ -96,18 +125,18 @@ function Resolve-PlatformFromExtraArgs {
 
     $remaining = New-Object System.Collections.Generic.List[string]
     $platform = $null
-    for ($i = 0; $i -lt $Args.Count; $i++) {
-        $arg = $Args[$i]
+    for ($i = 0; $i -lt $InputArguments.Count; $i++) {
+        $arg = $InputArguments[$i]
         if ([string]::IsNullOrWhiteSpace($arg)) {
             continue
         }
 
         if ($arg -ieq '--platform') {
-            if ($i + 1 -ge $Args.Count) {
+            if ($i + 1 -ge $InputArguments.Count) {
                 throw "--platform 옵션에는 값이 필요합니다. 예: --platform windows"
             }
 
-            $platform = $Args[$i + 1]
+            $platform = $InputArguments[$i + 1]
             $i++
             continue
         }
@@ -164,7 +193,7 @@ $appCsprojAbs = (Join-Path $repoRoot 'src/Duxel.App/Duxel.App.csproj') -replace 
 $windowsAppCsprojAbs = (Join-Path $repoRoot 'src/Duxel.Windows.App/Duxel.Windows.App.csproj') -replace '\\', '/'
 $coreCsprojAbs = (Join-Path $repoRoot 'src/Duxel.Core/Duxel.Core.csproj') -replace '\\', '/'
 
-$platformArgs = Resolve-PlatformFromExtraArgs -Args $ExtraArgs
+$platformArgs = Resolve-PlatformFromExtraArgs -InputArguments $ExtraArgs
 $selectedPlatform = $platformArgs.Platform
 $ExtraArgs = $platformArgs.RemainingArgs
 if ([string]::IsNullOrWhiteSpace($selectedPlatform)) {
@@ -237,7 +266,7 @@ else {
             [System.Text.RegularExpressions.RegexOptions]::None
         )
 
-        $targetFrameworkLine = '#:property TargetFramework=net10.0-windows7.0'
+        $targetFrameworkLine = "#:property TargetFramework=$TargetFramework"
         if ($replaced -match '(?im)^\s*#:property\s+TargetFramework\s*=\s*([^\r\n]+)\s*$') {
             $replaced = [System.Text.RegularExpressions.Regex]::Replace(
                 $replaced,
@@ -274,6 +303,13 @@ else {
         Write-Host "[run-fba] 프로젝트 참조로 실행: src/Duxel.App + src/Duxel.Core" -ForegroundColor Cyan
     }
 
+    # Local FBA sources live outside the repository; explicitly import its consumer analyzer contract.
+    if ($replaced -notmatch '(?im)^\s*#:property\s+DirectoryBuildTargetsPath\s*=') {
+        $consumerTargets = (Join-Path $repoRoot 'Directory.Build.targets') -replace '\\', '/'
+        if (-not (Test-Path -LiteralPath $consumerTargets)) { throw 'DUXEL-FBA-CONSUMER-TARGETS-MISSING' }
+        $replaced = "#:property DirectoryBuildTargetsPath=$consumerTargets`n$replaced"
+    }
+
     # 임시 파일 생성 (격리된 임시 디렉토리 + 원본과 동일한 파일명)
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("run-fba-{0}" -f ([guid]::NewGuid().ToString('N')))
     New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
@@ -295,14 +331,19 @@ if ($Managed -and $NativeAot) {
 function Invoke-ManagedRunWithTimeout {
     param(
         [string[]]$DotnetArgs,
+        [string]$DotnetExecutable,
         [int]$TimeoutSeconds,
+        [string]$LogPrefix,
         [switch]$KillTree
     )
 
     $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-    $startInfo.FileName = 'dotnet'
+    $startInfo.FileName = $DotnetExecutable
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true
+    $startInfo.WorkingDirectory = (Get-Location).ProviderPath
+    $startInfo.RedirectStandardOutput = -not [string]::IsNullOrWhiteSpace($LogPrefix)
+    $startInfo.RedirectStandardError = $startInfo.RedirectStandardOutput
     foreach ($argument in $DotnetArgs) {
         $startInfo.ArgumentList.Add($argument)
     }
@@ -311,6 +352,9 @@ function Invoke-ManagedRunWithTimeout {
     if ($null -eq $proc) {
         throw 'dotnet managed run process could not be started.'
     }
+
+    $outputTask = if ($startInfo.RedirectStandardOutput) { $proc.StandardOutput.ReadToEndAsync() } else { $null }
+    $errorTask = if ($startInfo.RedirectStandardError) { $proc.StandardError.ReadToEndAsync() } else { $null }
 
     try {
         if ($TimeoutSeconds -le 0) {
@@ -354,14 +398,10 @@ function Invoke-ManagedRunWithTimeout {
                 }
             }
         }
+        if ($outputTask) { [IO.File]::WriteAllText($LogPrefix + '.stdout.log', $outputTask.GetAwaiter().GetResult()) }
+        if ($errorTask) { [IO.File]::WriteAllText($LogPrefix + '.stderr.log', $errorTask.GetAwaiter().GetResult()) }
         $proc.Dispose()
     }
-}
-
-function Test-IsBenignManagedExitCode {
-    param([int]$ExitCode)
-
-    return $ExitCode -eq -532462766
 }
 
 function Wait-DetachedSampleProcessExit {
@@ -421,25 +461,6 @@ function Wait-DetachedSampleProcessExit {
     }
 }
 
-function Stop-RunningProcessForImagePath {
-    param([string]$ImagePath)
-
-    if ([string]::IsNullOrWhiteSpace($ImagePath) -or -not (Test-Path -LiteralPath $ImagePath)) {
-        return
-    }
-
-    $fullImagePath = [System.IO.Path]::GetFullPath($ImagePath)
-    $imageName = [System.IO.Path]::GetFileName($fullImagePath)
-    $targets = Get-CimInstance Win32_Process -Filter "Name='$imageName'" -ErrorAction SilentlyContinue | Where-Object {
-        $exePath = $_.ExecutablePath
-        -not [string]::IsNullOrWhiteSpace($exePath) -and [string]::Equals($exePath, $fullImagePath, [System.StringComparison]::OrdinalIgnoreCase)
-    }
-
-    foreach ($target in $targets) {
-        & taskkill /PID $target.ProcessId /T /F 2>$null | Out-Null
-    }
-}
-
 function Get-RunningProcessForImagePath {
     param([string]$ImagePath)
 
@@ -455,16 +476,78 @@ function Get-RunningProcessForImagePath {
     })
 }
 
+function Initialize-DuxelNativeToolchain {
+    param([string]$Runtime)
+    $architecture = switch ($Runtime) {
+        'win-x64' { 'amd64' }
+        'win-x86' { 'amd64_x86' }
+        'win-arm64' { 'amd64_arm64' }
+        default { throw "Unsupported Windows NativeAOT runtime: $Runtime" }
+    }
+    $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer'
+    $vswhere = Join-Path $installer 'vswhere.exe'
+    if (-not (Test-Path -LiteralPath $vswhere -PathType Leaf)) { throw "NativeAOT tool discovery missing: $vswhere" }
+    $component = if ($Runtime -eq 'win-arm64') { 'Microsoft.VisualStudio.Component.VC.Tools.ARM64' } else { 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64' }
+    $probeArgs = @('-latest', '-prerelease', '-products', '*', '-requires', $component, '-property', 'installationPath')
+    $installation = (& $vswhere @probeArgs | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $installation) { throw 'NativeAOT C++ installation probe failed.' }
+    $vcvars = Join-Path $installation 'VC/Auxiliary/Build/vcvarsall.bat'
+    if (-not (Test-Path -LiteralPath $vcvars -PathType Leaf)) { throw "NativeAOT environment missing: $vcvars" }
+    $start = [System.Diagnostics.ProcessStartInfo]::new($env:ComSpec)
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $start.Environment['PATH'] = $installer + ';' + $env:PATH
+    # cmd.exe uses its own quote rules; ArgumentList's C-runtime escaping would
+    # turn embedded quotes into literal backslashes for this batch invocation.
+    $start.Arguments = '/d /s /c ""{0}" {1} >nul && set PATH && set LIB"' -f $vcvars, $architecture
+    $probe = [System.Diagnostics.Process]::Start($start)
+    $stdout = $probe.StandardOutput.ReadToEndAsync()
+    $stderr = $probe.StandardError.ReadToEndAsync()
+    if (-not $probe.WaitForExit(30000)) { $probe.Kill($true); throw 'NativeAOT toolchain probe timed out.' }
+    $probeOutput = $stdout.GetAwaiter().GetResult()
+    $probeError = $stderr.GetAwaiter().GetResult()
+    if ($probe.ExitCode -ne 0 -or $probeError.Trim()) { throw "NativeAOT toolchain probe failed: $probeError" }
+    $probe.Dispose()
+    $nativePath = $null
+    $nativeLib = $null
+    foreach ($line in ($probeOutput -split '\r?\n')) {
+        if ($line.StartsWith('PATH=', [StringComparison]::OrdinalIgnoreCase)) { $nativePath = $line.Substring(5) }
+        if ($line.StartsWith('LIB=', [StringComparison]::OrdinalIgnoreCase)) { $nativeLib = $line.Substring(4) }
+    }
+    if (-not $nativePath -or -not $nativeLib) { throw 'NativeAOT toolchain probe did not produce PATH and LIB.' }
+    $linker = $nativePath.Split(';') | ForEach-Object { if ($_ -and (Test-Path -LiteralPath (Join-Path $_ 'link.exe') -PathType Leaf)) { Join-Path $_ 'link.exe' } } | Select-Object -First 1
+    if (-not $linker -or -not $linker.StartsWith($installation, [StringComparison]::OrdinalIgnoreCase)) { throw 'NativeAOT resolved an unexpected linker.' }
+    $kernelLib = $nativeLib.Split(';') | Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $_ 'kernel32.lib') -PathType Leaf) }
+    if (-not $kernelLib) { throw 'NativeAOT Windows SDK library probe failed.' }
+    Write-Host "[run-fba] NativeAOT linker: $linker ($((Get-Item -LiteralPath $linker).VersionInfo.FileVersion))"
+    return @{ PATH = $nativePath; LIB = $nativeLib }
+}
+
+$originalNativePath = $env:PATH
+$originalNativeLib = $env:LIB
 try {
     if ($useNativeAot) {
-        $publishDir = Join-Path $sourceDir ("artifacts/{0}/" -f $baseName)
+        $toolchainArgs = @{ Runtime = $RuntimeIdentifier }
+        $nativeEnvironment = Initialize-DuxelNativeToolchain @toolchainArgs
+        $env:PATH = $nativeEnvironment.PATH
+        $env:LIB = $nativeEnvironment.LIB
+        if (-not $ArtifactRootDirectory) { . (Join-Path $repoRoot 'scripts/BuildArtifactLifetime.ps1') }
+        $artifactRoot = Join-Path $sourceDir ("artifacts/{0}/" -f $baseName)
+        if ($ArtifactRootDirectory) {
+            $artifactRoot = $resolvedArtifactRootDirectory
+        }
+        $publishDir = $artifactRoot
+        if ($TargetFramework -ne 'net10.0-windows7.0') {
+            $publishDir = Join-Path $publishDir $TargetFramework
+        }
         $targetExePath = Join-Path $publishDir ("{0}.exe" -f $runBaseName)
 
-        Stop-RunningProcessForImagePath -ImagePath $targetExePath
         $remainingLocks = Get-RunningProcessForImagePath -ImagePath $targetExePath
         if ($remainingLocks.Count -gt 0) {
             $timestamp = (Get-Date).ToString('yyyyMMdd-HHmmssfff')
-            $publishDir = Join-Path $sourceDir ("artifacts/{0}/runs/{1}/" -f $baseName, $timestamp)
+            $publishDir = Join-Path $artifactRoot ("runs/{0}/" -f $timestamp)
             $targetExePath = Join-Path $publishDir ("{0}.exe" -f $runBaseName)
             Write-Host "[run-fba] 출력 파일 잠금 감지로 고유 publish 디렉터리로 우회합니다: $publishDir" -ForegroundColor Yellow
         }
@@ -477,6 +560,7 @@ try {
             '-r', $RuntimeIdentifier,
             '-p:PublishAot=true',
             '-p:SelfContained=true',
+            '-p:IlcUseEnvironmentalTools=true',
             "-p:PublishDir=$publishDir"
         )
 
@@ -486,18 +570,30 @@ try {
 
         Write-Host "[run-fba] NativeAOT 게시: RID=$RuntimeIdentifier" -ForegroundColor Cyan
         Write-Host "[run-fba] 출력 경로: $publishDir" -ForegroundColor Cyan
-        & dotnet @dotnetArgs
-        if ($LASTEXITCODE -ne 0) {
-            throw "NativeAOT 게시가 실패했습니다. 종료 코드: $LASTEXITCODE"
-        }
-
-        $assetsDir = Join-Path $sourceDir 'assets'
-        if (Test-Path -LiteralPath $assetsDir) {
-            $publishAssetsDir = Join-Path $publishDir 'assets'
-            New-Item -ItemType Directory -Path $publishAssetsDir -Force | Out-Null
-            foreach ($asset in Get-ChildItem -LiteralPath $assetsDir -Force) {
-                Copy-Item -LiteralPath $asset.FullName -Destination $publishAssetsDir -Recurse -Force
+        $publishRecord = Start-DuxelPublishArtifact -Root $artifactRoot -Directory $publishDir -ExecutableName "$runBaseName.exe"
+        $publishStatus = 'failed'
+        try {
+            & $dotnetExecutable @dotnetArgs
+            if ($LASTEXITCODE -ne 0) {
+                throw "NativeAOT 게시가 실패했습니다. 종료 코드: $LASTEXITCODE"
             }
+
+            $assetsDir = Join-Path $sourceDir 'assets'
+            if (Test-Path -LiteralPath $assetsDir) {
+                $publishAssetsDir = Join-Path $publishDir 'assets'
+                New-Item -ItemType Directory -Path $publishAssetsDir -Force | Out-Null
+                foreach ($asset in Get-ChildItem -LiteralPath $assetsDir -Force) {
+                    Copy-Item -LiteralPath $asset.FullName -Destination $publishAssetsDir -Recurse -Force
+                }
+            }
+            $publishStatus = 'completed'
+        }
+        catch [System.Management.Automation.PipelineStoppedException] {
+            $publishStatus = 'cancelled'
+            throw
+        }
+        finally {
+            Complete-DuxelPublishArtifact -Record $publishRecord -Status $publishStatus
         }
 
         $shouldLaunch = -not $NoLaunch
@@ -528,51 +624,56 @@ try {
     }
     else {
         # dotnet run 인수 구성
-        $dotnetArgs = @('run', '-c', $Configuration)
-        if ($NoCache) { $dotnetArgs += '--no-cache' }
-        if ($NoBuild) { $dotnetArgs += '--no-build' }
+        # File-based apps default PublishAot=true, which also disables runtime
+        # features under dotnet run. Select an actual managed configuration.
+        $managedCommand = if ($NoLaunch) { 'build' } else { 'run' }
+        $dotnetArgs = @($managedCommand, '-c', $Configuration, '-p:PublishAot=false', '-p:SelfContained=false')
+        if ($NoCache -and -not $NoLaunch) { $dotnetArgs += '--no-cache' }
+        if ($NoBuild -and -not $NoLaunch) { $dotnetArgs += '--no-build' }
         $dotnetArgs += $runPath
-        if ($ExtraArgs) {
+        if ($ExtraArgs -and -not $NoLaunch) {
             $dotnetArgs += '--'
             $dotnetArgs += $ExtraArgs
         }
 
         if ($ManagedTimeoutSeconds -gt 0) {
             $managedRunStart = Get-Date
-            $exitCode = Invoke-ManagedRunWithTimeout -DotnetArgs $dotnetArgs -TimeoutSeconds $ManagedTimeoutSeconds -KillTree:$KillProcessTreeOnTimeout
+            $exitCode = Invoke-ManagedRunWithTimeout -DotnetArgs $dotnetArgs -DotnetExecutable $dotnetExecutable -TimeoutSeconds $ManagedTimeoutSeconds -LogPrefix $ManagedLogPrefix -KillTree:$KillProcessTreeOnTimeout
             if ($exitCode -ne 0) {
-                if (Test-IsBenignManagedExitCode -ExitCode $exitCode) {
-                    $global:LASTEXITCODE = 0
-                }
-                else {
-                    throw "Managed 실행이 실패했습니다. 종료 코드: $exitCode"
-                }
+                $global:LASTEXITCODE = $exitCode
+                throw "Managed 실행이 실패했습니다. 종료 코드: $exitCode"
             }
 
             $elapsedSeconds = [int]([Math]::Floor(((Get-Date) - $managedRunStart).TotalSeconds))
             $remainingTimeout = [Math]::Max(1, $ManagedTimeoutSeconds - $elapsedSeconds)
-            Wait-DetachedSampleProcessExit -ProcessName $runBaseName -StartedAfter $managedRunStart -TimeoutSeconds $remainingTimeout -KillTree:$KillProcessTreeOnTimeout
+            if (-not $NoLaunch) {
+                Wait-DetachedSampleProcessExit -ProcessName $runBaseName -StartedAfter $managedRunStart -TimeoutSeconds $remainingTimeout -KillTree:$KillProcessTreeOnTimeout
+            }
+            $global:LASTEXITCODE = 0
         }
         else {
-            & dotnet @dotnetArgs
+            & $dotnetExecutable @dotnetArgs
             if ($LASTEXITCODE -ne 0) {
-                if (Test-IsBenignManagedExitCode -ExitCode $LASTEXITCODE) {
-                    $global:LASTEXITCODE = 0
-                }
-                else {
-                    throw "Managed 실행이 실패했습니다. 종료 코드: $LASTEXITCODE"
-                }
+                throw "Managed 실행이 실패했습니다. 종료 코드: $LASTEXITCODE"
             }
         }
     }
 }
 finally {
+    $env:PATH = $originalNativePath
+    $env:LIB = $originalNativeLib
     # 임시 파일 정리
     if ($tempPath -and (Test-Path -LiteralPath $tempPath)) {
         Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue
     }
 
     if ($tempRoot -and (Test-Path -LiteralPath $tempRoot)) {
-        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        $resolvedTempRoot = [System.IO.Path]::GetFullPath($tempRoot)
+        $allowedTempParent = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+        if (-not $resolvedTempRoot.StartsWith($allowedTempParent, [StringComparison]::OrdinalIgnoreCase) -or
+            [System.IO.Path]::GetFileName($resolvedTempRoot) -notmatch '^run-fba-[0-9a-f]{32}$') {
+            throw "Refusing temporary cleanup outside the owned run directory: $resolvedTempRoot"
+        }
+        Remove-Item -LiteralPath $resolvedTempRoot -Recurse -Force
     }
 }

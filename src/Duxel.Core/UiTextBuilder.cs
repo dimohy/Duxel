@@ -20,8 +20,12 @@ public static class UiTextBuilder
 {
     private const int MaxMeasureCacheEntries = 512;
     private const int MaxMeasureCacheTextLength = 256;
-    private static readonly Dictionary<TextMeasureKey, UiVector2> MeasureCache = new();
-    private static readonly Queue<TextMeasureKey> MeasureCacheOrder = new();
+    private sealed class FontMeasureCache
+    {
+        internal Dictionary<TextMeasureKey, UiVector2> Entries { get; } = [];
+        internal Queue<TextMeasureKey> Order { get; } = [];
+    }
+    private static readonly ConditionalWeakTable<UiFontAtlas, FontMeasureCache> MeasureCaches = new();
 
     public static UiDrawList BuildText(
         UiFontAtlas font,
@@ -299,23 +303,22 @@ public static class UiTextBuilder
             return new UiVector2(0, 0);
         }
 
-        if (text.Length <= MaxMeasureCacheTextLength)
+        if (text.Length <= MaxMeasureCacheTextLength && settings.MissingGlyphObserver is null)
         {
             var key = new TextMeasureKey(
-                RuntimeHelpers.GetHashCode(font),
                 settings,
-                lineHeightOverride ?? -1f,
+                lineHeightOverride,
                 text
             );
 
-            if (MeasureCache.TryGetValue(key, out var cached))
+            var cache = MeasureCaches.GetOrCreateValue(font);
+            lock (cache)
             {
-                return cached;
+                if (cache.Entries.TryGetValue(key, out var cached)) return cached;
+                var measured = MeasureTextCore(font, text, settings, lineHeightOverride);
+                StoreMeasureCache(cache, key, measured);
+                return measured;
             }
-
-            var measured = MeasureTextCore(font, text, settings, lineHeightOverride);
-            StoreMeasureCache(key, measured);
-            return measured;
         }
 
         return MeasureTextCore(font, text, settings, lineHeightOverride);
@@ -442,34 +445,33 @@ public static class UiTextBuilder
         return new UiVector2(maxWidth, height);
     }
 
-    private static void StoreMeasureCache(TextMeasureKey key, UiVector2 value)
+    private static void StoreMeasureCache(FontMeasureCache cache, TextMeasureKey key, UiVector2 value)
     {
-        if (MeasureCache.TryGetValue(key, out _))
+        if (cache.Entries.TryGetValue(key, out _))
         {
-            MeasureCache[key] = value;
+            cache.Entries[key] = value;
             return;
         }
 
-        if (MeasureCache.Count >= MaxMeasureCacheEntries)
+        if (cache.Entries.Count >= MaxMeasureCacheEntries)
         {
-            while (MeasureCacheOrder.Count > 0)
+            while (cache.Order.Count > 0)
             {
-                var oldest = MeasureCacheOrder.Dequeue();
-                if (MeasureCache.Remove(oldest))
+                var oldest = cache.Order.Dequeue();
+                if (cache.Entries.Remove(oldest))
                 {
                     break;
                 }
             }
         }
 
-        MeasureCache[key] = value;
-        MeasureCacheOrder.Enqueue(key);
+        cache.Entries[key] = value;
+        cache.Order.Enqueue(key);
     }
 
     private readonly record struct TextMeasureKey(
-        int FontHash,
         UiTextSettings Settings,
-        float LineHeightOverride,
+        float? LineHeightOverride,
         string Text
     );
 

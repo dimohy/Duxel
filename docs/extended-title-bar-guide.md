@@ -1,6 +1,6 @@
 # Duxel Extended Title Bar Guide
 
-> Last synced: 2026-07-20
+> Last synced: 2026-11-06
 >
 > Audience: Duxel application developers, framework contributors, and coding AI agents
 >
@@ -9,6 +9,8 @@
 > Korean: [extended-title-bar-guide.ko.md](extended-title-bar-guide.ko.md)
 
 ## Purpose
+
+Windows applications now default to `DuxelTitleBarMode.System`: Windows draws the title text, DPI-dependent caption height and native caption buttons. `UseDuxelTitleBar` defaults to false. Set `TitleBarMode = DuxelTitleBarMode.Duxel` or `ExtendedContent` explicitly for a custom caption. The system-caption app path initializes root viewport content layout, so direct Build/container content has a real available size without an internal Window. This default change does not certify repeated-resize stability; the ongoing regression is recorded under `artifacts/resize-stress-2026-11-06/`.
 
 `DuxelTitleBarMode.ExtendedContent` lets an application render tabs, search boxes, menus, and other UI from the top of the window. Duxel keeps the Minimize, Maximize/Restore, and Close glyphs visible over the Vulkan surface while Windows continues to own their native caption behavior.
 

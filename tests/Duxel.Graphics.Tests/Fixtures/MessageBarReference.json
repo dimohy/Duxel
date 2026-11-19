@@ -1,0 +1,77 @@
+{
+  "SourceCommit": "f9720c35ba893c9630f4c0389d07dc6d6fd6068d",
+  "Colors": [
+    {
+      "Scheme": "Light",
+      "Intent": "Info",
+      "Background": "#f5f5f5",
+      "Border": "#d1d1d1",
+      "Foreground": "#242424",
+      "Icon": "#616161",
+      "Glyph": "\uf4aa"
+    },
+    {
+      "Scheme": "Light",
+      "Intent": "Success",
+      "Background": "#f1faf1",
+      "Border": "#9fd89f",
+      "Foreground": "#242424",
+      "Icon": "#0e700e",
+      "Glyph": "\uf298"
+    },
+    {
+      "Scheme": "Light",
+      "Intent": "Warning",
+      "Background": "#fff9f5",
+      "Border": "#fdcfb4",
+      "Foreground": "#242424",
+      "Icon": "#bc4b09",
+      "Glyph": "\uf881"
+    },
+    {
+      "Scheme": "Light",
+      "Intent": "Error",
+      "Background": "#fdf3f4",
+      "Border": "#eeacb2",
+      "Foreground": "#242424",
+      "Icon": "#b10e1c",
+      "Glyph": "\udb82\udcc3"
+    },
+    {
+      "Scheme": "Dark",
+      "Intent": "Info",
+      "Background": "#141414",
+      "Border": "#666666",
+      "Foreground": "#ffffff",
+      "Icon": "#adadad",
+      "Glyph": "\uf4aa"
+    },
+    {
+      "Scheme": "Dark",
+      "Intent": "Success",
+      "Background": "#052505",
+      "Border": "#107c10",
+      "Foreground": "#ffffff",
+      "Icon": "#54b054",
+      "Glyph": "\uf298"
+    },
+    {
+      "Scheme": "Dark",
+      "Intent": "Warning",
+      "Background": "#4a1e04",
+      "Border": "#f7630c",
+      "Foreground": "#ffffff",
+      "Icon": "#f98845",
+      "Glyph": "\uf881"
+    },
+    {
+      "Scheme": "Dark",
+      "Intent": "Error",
+      "Background": "#3b0509",
+      "Border": "#c50f1f",
+      "Foreground": "#ffffff",
+      "Icon": "#dc626d",
+      "Glyph": "\udb82\udcc3"
+    }
+  ]
+}

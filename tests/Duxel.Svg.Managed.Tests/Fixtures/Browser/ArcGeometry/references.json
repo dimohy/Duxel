@@ -1,0 +1,132 @@
+{
+  "renderer": "Chromium native SVG Image into GPU Canvas2D; independent readback",
+  "contract": "Original source hashes; fixed backing pixel extent; xMidYMid meet; DPR1/sRGB; white and transparent",
+  "references": [
+    {
+      "file": "arc-circle.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "fd30a48e0d7e8decf0179bb993f6d1c635fb5a13736bb5c6d48a3ed591b3a7db",
+      "purpose": "two semicircular arcs",
+      "id": "arc-circle.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "2c7498cbe9de96c87ad336b0343acafb98ad6a9ef1b02b7c1f6693ec694f15a5",
+      "transparentRgbaSha256": "fce6502250cdec7c73519ae0af8b135cb75c0913ecc8dea93433b983fdaff696",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:45:34.667Z"
+    },
+    {
+      "file": "arc-ellipse.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "b5a0bbaab1a0e419c6ecc6aea65567669bcf7c48301b51f37b1b80a844e7b115",
+      "purpose": "two elliptical arcs",
+      "id": "arc-ellipse.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "58d44c4981b46336ec75e2640f81b2981bc06e8b50fcae99ad5557e50f8586af",
+      "transparentRgbaSha256": "de260d9b6acd89c19d3b19485cf5f117fd3961750bdb217839643d906b0f67e5",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:45:34.677Z"
+    },
+    {
+      "file": "arc-transformed.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "5e0572204c811049eaea6f8c5167a1f3a4730026c6fe5c56177c93ab28824645",
+      "purpose": "affine elliptical arcs",
+      "id": "arc-transformed.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "2f78b5d4cd990c902b65cc8af44f2a72178fac283bf16bf31965f6d92fce14d6",
+      "transparentRgbaSha256": "6d572c022850c9b5ec83a67c38bedeeef3129f73f2368665e70c3dd8bcaa52e1",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:45:34.684Z"
+    },
+    {
+      "file": "arc-rotated.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "06dcd2283a326c9fb93406955586a3290ec50551556400e536136f191d8ce755",
+      "purpose": "rotated large arc and closing lines",
+      "id": "arc-rotated.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "58c516348d95dca3ad94886adb99ae9343a1b637d0425ba15a78e788484a57d9",
+      "transparentRgbaSha256": "4d6cc92ed7f0af7459b6b5696396e6c67b19c0d61dd1d448fc32e1dc34d0f000",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:45:34.692Z"
+    },
+    {
+      "file": "control-cubic.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "34dad63a934dcc4aac44cec643c5b561e35a37ff804cf781e441d22f79f78464",
+      "purpose": "authored quarter-circle cubics without SVG arc commands",
+      "id": "control-cubic.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "1dc16647f77ff401ecb48e10ec402761278cf3c65239615f278e0566d537dfe4",
+      "transparentRgbaSha256": "9d615462380e95e9873c435414f307e549604b0ab82d1444d8ba804b8326ecf8",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:45:34.700Z"
+    },
+    {
+      "file": "control-rectangle.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "b1a8b6eec5bf1913f391133739da8fd436dd730832a940f6bd20394190edcc62",
+      "purpose": "integer-aligned straight-edge control",
+      "id": "control-rectangle.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "a429dafb59eb526d9225afe715305d2fc8285f61d4d9ce01085af7ebba3ee479",
+      "transparentRgbaSha256": "7a3bba1220e676a92388fb5fd9b7f7fb7a78c1ea649333e6e78a48caad371eec",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:45:34.707Z"
+    }
+  ]
+}

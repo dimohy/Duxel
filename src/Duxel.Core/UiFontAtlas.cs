@@ -222,7 +222,9 @@ public static class UiFontAtlasBuilder
 	private const int MaxKerningGlyphs = 384;
 	private const int DiskCacheVersion = 5;
 	private static readonly byte[] DiskCacheMagic = System.Text.Encoding.ASCII.GetBytes("DUXFNT");
-	private static readonly string DiskCacheRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Duxel", "FontAtlasCache");
+	private static readonly string DiskCacheRoot = Path.Combine(
+		Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify),
+		"Duxel", "FontAtlasCache");
 	private static Func<IPlatformGlyphBitmapRasterizer?>? PlatformGlyphRasterizerFactory;
 
 	private readonly record struct CachedFont(TtfFont Font, DateTime LastWriteTimeUtc);

@@ -1,0 +1,270 @@
+{
+  "renderer": "Chromium native SVG Image into GPU Canvas2D; independent readback",
+  "contract": "Original source hashes; fixed backing pixel extent; xMidYMid meet; DPR1/sRGB; white and transparent",
+  "references": [
+    {
+      "file": "linear-alpha-bg0.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "55bdc0a3b0000478b9da10168aa2ad82212002583449239002f38bbe4ad5f9c5",
+      "parentSourceSha256": "3dd642637fe7e9de367a6dafa7864180cf2a9caad3c918d0fecd8b5931cb0e07",
+      "authoredBackground": "#0f579b",
+      "id": "linear-alpha-bg0.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "ffdc941b53ac3ac2b0102f9ea3e0cc09a06e2f1bbf54585e1e21f2593d3544f3",
+      "transparentRgbaSha256": "ffdc941b53ac3ac2b0102f9ea3e0cc09a06e2f1bbf54585e1e21f2593d3544f3",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:12:24.014Z"
+    },
+    {
+      "file": "linear-alpha-bg1.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "43d89cff5e78037aab318ea5b18823bf7765a13c89c1175c1c28e9174a1f1e85",
+      "parentSourceSha256": "3dd642637fe7e9de367a6dafa7864180cf2a9caad3c918d0fecd8b5931cb0e07",
+      "authoredBackground": "#caa12d",
+      "id": "linear-alpha-bg1.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "c9b6aa537ca180595330706d1398d7a4d3790724876c8870cf1bc70b706a50cb",
+      "transparentRgbaSha256": "c9b6aa537ca180595330706d1398d7a4d3790724876c8870cf1bc70b706a50cb",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:12:24.026Z"
+    },
+    {
+      "file": "linear-alpha-bg2.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "0ee4a3cf8ac848789bdd04aebfcb0f8f7136241c305b3c8a5187c33731566b8c",
+      "parentSourceSha256": "3dd642637fe7e9de367a6dafa7864180cf2a9caad3c918d0fecd8b5931cb0e07",
+      "authoredBackground": "#252b41",
+      "id": "linear-alpha-bg2.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "774a6a086c00653cc90f17a155188b3b536f693662a292b6ebcc881acf0fcc6b",
+      "transparentRgbaSha256": "774a6a086c00653cc90f17a155188b3b536f693662a292b6ebcc881acf0fcc6b",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:12:24.038Z"
+    },
+    {
+      "file": "radial-alpha-bg0.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "f26e1daf8ebe78696f8e0fb0221e884bf0c0349346c10db51e233943ba31484a",
+      "parentSourceSha256": "a914b88bd9cc26aea93f7a4f14f20fc7ce9500df8e460824226de199400f7231",
+      "authoredBackground": "#0f579b",
+      "id": "radial-alpha-bg0.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "6523306546a1b74d565b19c62985c0c3f465bd4be0d1a0c4596807b8899bde05",
+      "transparentRgbaSha256": "6523306546a1b74d565b19c62985c0c3f465bd4be0d1a0c4596807b8899bde05",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:12:24.048Z"
+    },
+    {
+      "file": "radial-alpha-bg1.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "89223e9cbcbfefaa9b30c2c7375106ccb25a1de1736c3981f49356a1ca28127e",
+      "parentSourceSha256": "a914b88bd9cc26aea93f7a4f14f20fc7ce9500df8e460824226de199400f7231",
+      "authoredBackground": "#caa12d",
+      "id": "radial-alpha-bg1.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "b700badcc299e01300add6edefa246ec78371879ce280fc346d43d74e2ed0589",
+      "transparentRgbaSha256": "b700badcc299e01300add6edefa246ec78371879ce280fc346d43d74e2ed0589",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:12:24.057Z"
+    },
+    {
+      "file": "radial-alpha-bg2.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "ebe68ee4ff40e113af576ea7ca2159bb3537c755eb45e7df0d8da22fe058b098",
+      "parentSourceSha256": "a914b88bd9cc26aea93f7a4f14f20fc7ce9500df8e460824226de199400f7231",
+      "authoredBackground": "#252b41",
+      "id": "radial-alpha-bg2.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "4081b21f7518c119b78f81c29c9addb3378dde1b2c18e940d8fadbcc16c42c69",
+      "transparentRgbaSha256": "4081b21f7518c119b78f81c29c9addb3378dde1b2c18e940d8fadbcc16c42c69",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:12:24.066Z"
+    },
+    {
+      "file": "linear-opaque-bg0.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "8119b55250d6c6623df372bdea7b234fe455092f30f53daaf8f64a7a2229de56",
+      "parentSourceSha256": "c39ebd714e08d6dc21d92c64b9383cfb2342cbf183365721a58e5c6799a07b1d",
+      "authoredBackground": "#0f579b",
+      "id": "linear-opaque-bg0.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "cc4e15f52fb2195415073cddc3792b73cb3474c836b0169c6400ac1c590eca2a",
+      "transparentRgbaSha256": "cc4e15f52fb2195415073cddc3792b73cb3474c836b0169c6400ac1c590eca2a",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:12:24.080Z"
+    },
+    {
+      "file": "linear-opaque-bg1.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "5bb5980f4ffc7c09ad6ca014a00c12fd74bbf535d25911e6fce4ec1d1547605b",
+      "parentSourceSha256": "c39ebd714e08d6dc21d92c64b9383cfb2342cbf183365721a58e5c6799a07b1d",
+      "authoredBackground": "#caa12d",
+      "id": "linear-opaque-bg1.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "cc4e15f52fb2195415073cddc3792b73cb3474c836b0169c6400ac1c590eca2a",
+      "transparentRgbaSha256": "cc4e15f52fb2195415073cddc3792b73cb3474c836b0169c6400ac1c590eca2a",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:12:24.090Z"
+    },
+    {
+      "file": "linear-opaque-bg2.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "523abe5e5bc403e8500d0d742d5e1cfdac957e7220e70b07acefe852ebb615bc",
+      "parentSourceSha256": "c39ebd714e08d6dc21d92c64b9383cfb2342cbf183365721a58e5c6799a07b1d",
+      "authoredBackground": "#252b41",
+      "id": "linear-opaque-bg2.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "cc4e15f52fb2195415073cddc3792b73cb3474c836b0169c6400ac1c590eca2a",
+      "transparentRgbaSha256": "cc4e15f52fb2195415073cddc3792b73cb3474c836b0169c6400ac1c590eca2a",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:12:24.098Z"
+    },
+    {
+      "file": "linear-transformed-bg0.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "130fc142d191c06681f548765080f44964999c9ce97a0e5b6d6565a823a371aa",
+      "parentSourceSha256": "c7c875de61cb9acf4b63b233b748cee9d341ad6c9078bc6360ae2e45e48dc49d",
+      "authoredBackground": "#0f579b",
+      "id": "linear-transformed-bg0.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "da4571d9e08c06c9d21d577d30386d07b39d5934838fa0cb84cd0dc47e169097",
+      "transparentRgbaSha256": "da4571d9e08c06c9d21d577d30386d07b39d5934838fa0cb84cd0dc47e169097",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:12:24.107Z"
+    },
+    {
+      "file": "linear-transformed-bg1.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "c6027403c422df80307dd2dd21c35e903836cadae5a5b42b60bbc63b9c3af942",
+      "parentSourceSha256": "c7c875de61cb9acf4b63b233b748cee9d341ad6c9078bc6360ae2e45e48dc49d",
+      "authoredBackground": "#caa12d",
+      "id": "linear-transformed-bg1.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "da4571d9e08c06c9d21d577d30386d07b39d5934838fa0cb84cd0dc47e169097",
+      "transparentRgbaSha256": "da4571d9e08c06c9d21d577d30386d07b39d5934838fa0cb84cd0dc47e169097",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:12:24.115Z"
+    },
+    {
+      "file": "linear-transformed-bg2.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "d99313b784dddbd60f83d5698d587dc4c8d8a76c0d7da084a49f8fa1ed2551c0",
+      "parentSourceSha256": "c7c875de61cb9acf4b63b233b748cee9d341ad6c9078bc6360ae2e45e48dc49d",
+      "authoredBackground": "#252b41",
+      "id": "linear-transformed-bg2.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "da4571d9e08c06c9d21d577d30386d07b39d5934838fa0cb84cd0dc47e169097",
+      "transparentRgbaSha256": "da4571d9e08c06c9d21d577d30386d07b39d5934838fa0cb84cd0dc47e169097",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-16T17:12:24.124Z"
+    }
+  ]
+}

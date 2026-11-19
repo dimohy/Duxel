@@ -1,7 +1,18 @@
 namespace Duxel.Core;
 
+/// <summary>Controls keyboard isolation independently of popup paint order and pointer occlusion.</summary>
+public enum UiPopupInputMode
+{
+    Exclusive, NonModal
+}
+
 public sealed partial class UiImmediateContext
 {
+    private UiVector2? _nextPopupPosition;
+
+    /// <summary>Places the next BeginPopup in display coordinates, independently of its parent camera.</summary>
+    public void SetNextPopupPosition(UiVector2 position) => _nextPopupPosition = position;
+
     public void OpenPopupOnItemClick(string id)
     {
         id ??= "Popup";
@@ -48,23 +59,29 @@ public sealed partial class UiImmediateContext
     {
         id ??= "Popup";
         var resolvedId = ResolveId(id);
-        var key = $"{resolvedId}##popup";
+        var key = PopupStateKey(resolvedId);
         _state.SetBool(key, true);
-        _state.SetPopupOpenMousePos(key, _mousePosition);
+        _state.SetPopupOpenMousePos(key, WidgetScreenPoint(_mousePosition));
     }
 
     public bool IsPopupOpen(string id)
     {
         id ??= "Popup";
         var resolvedId = ResolveId(id);
-        return _state.GetBool($"{resolvedId}##popup", false);
+        return _state.GetBool(PopupStateKey(resolvedId), false);
     }
 
-    public bool BeginPopup(string id)
+    public bool BeginPopup(string id) => BeginPopup(id, UiPopupInputMode.Exclusive);
+
+    public bool BeginPopup(string id, UiPopupInputMode inputMode)
     {
+        if ((uint)inputMode > 1)
+            throw new ArgumentOutOfRangeException(nameof(inputMode));
+        var nextPosition = _nextPopupPosition;
+        _nextPopupPosition = null;
         id ??= "Popup";
         var resolvedId = ResolveId(id);
-        var key = $"{resolvedId}##popup";
+        var key = PopupStateKey(resolvedId);
         if (!_state.GetBool(key, false))
         {
             return false;
@@ -73,22 +90,23 @@ public sealed partial class UiImmediateContext
         var frameHeight = GetFrameHeight();
         var popupWidth = MathF.Max(180f, InputWidth);
         var popupHeight = frameHeight * 6f;
-    var openMousePos = _state.GetPopupOpenMousePos(key, _mousePosition);
-    var popupRect = ClampRectToDisplay(new UiRect(openMousePos.X + 8f, openMousePos.Y + 8f, popupWidth, popupHeight));
+        var openMousePos = _state.GetPopupOpenMousePos(key, WidgetScreenPoint(_mousePosition));
+        var position = nextPosition ?? new UiVector2(openMousePos.X + 8f, openMousePos.Y + 8f);
+        var popupRect = ClampRectToDisplay(new UiRect(position.X, position.Y, popupWidth, popupHeight));
 
-        if (_leftMousePressed && !IsHovering(popupRect))
+        if (_leftMousePressed && !IsScreenHovering(popupRect))
         {
             _state.SetBool(key, false);
             return false;
         }
 
         PushPopup();
-        _state.AddPopupBlockingRect(popupRect, _popupTierDepth);
+        _state.AddPopupBlockingRect(popupRect, _popupTierDepth, inputMode, resolvedId);
         PushClipRect(IntersectRect(_clipRect, popupRect), false);
         AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
         var start = new UiVector2(popupRect.X + 6f, popupRect.Y + 4f);
         _layouts.Push(new UiLayoutState(start, false, 0f, start.X));
-        _popupStack.Push(new UiPopupState(resolvedId, popupRect));
+        _popupStack.Push(new UiPopupState(resolvedId, popupRect, _popupTierDepth));
         return true;
     }
 
@@ -109,7 +127,7 @@ public sealed partial class UiImmediateContext
     {
         id ??= "Modal";
         var resolvedId = ResolveId(id);
-        var key = $"{resolvedId}##popup";
+        var key = PopupStateKey(resolvedId);
         if (open)
         {
             _state.SetBool(key, true);
@@ -136,12 +154,12 @@ public sealed partial class UiImmediateContext
         }
 
         PushPopup();
-        _state.AddPopupBlockingRect(popupRect, _popupTierDepth);
+        _state.AddPopupBlockingRect(popupRect, _popupTierDepth, UiPopupInputMode.Exclusive, resolvedId);
         PushClipRect(IntersectRect(_clipRect, popupRect), false);
         AddRectFilled(popupRect, _theme.PopupBg, _whiteTexture);
         var start = new UiVector2(popupRect.X + 6f, popupRect.Y + 4f);
         _layouts.Push(new UiLayoutState(start, false, 0f, start.X));
-        _popupStack.Push(new UiPopupState(resolvedId, popupRect));
+        _popupStack.Push(new UiPopupState(resolvedId, popupRect, _popupTierDepth));
         return true;
     }
 
@@ -161,7 +179,7 @@ public sealed partial class UiImmediateContext
 
         if (!open)
         {
-            _state.SetBool($"{id}##popup", false);
+            _state.SetBool(PopupStateKey(id), false);
         }
     }
 
@@ -172,8 +190,15 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        var id = _popupStack.Peek().Id;
-        _state.SetBool($"{id}##popup", false);
+        var popup = _popupStack.Peek();
+        var key = PopupStateKey(popup.Id);
+        if (!_state.GetBool(key, false))
+            return;
+        _state.SetBool(key, false);
+        _state.RemoveCurrentPopupBlockingRect(popup.Rect, popup.Tier);
+        _state.ReleasePreviousPopupKeyboard(popup.Id);
+        _blockingKeyboardTier = Math.Max(_state.PreviousPopupKeyboardTier, _state.CurrentPopupKeyboardTier);
+        _requestFrame?.Invoke();
     }
 }
 

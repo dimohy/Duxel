@@ -1,6 +1,7 @@
-﻿using Duxel.Core;
+using Duxel.Core;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System;
 using VkBuffer = Duxel.Vulkan.Buffer;
 
@@ -80,14 +81,14 @@ public sealed unsafe partial class VulkanRendererBackend
             shape.HasExpandedPrimitiveGeometry,
             shape.PrimitiveTriangleLayout.RectExpandedIndexBase,
             shape.PrimitiveTriangleLayout.CircleExpandedIndexOffsets
-        );
+        ) { IndexTopologyHash = HashIndexTopology(indices) };
 
-        UploadStaticGeometryBufferContent(in created, vertices, indices, rects, circles, in shape);
+        UploadStaticGeometryBufferContent(created, vertices, indices, rects, circles, in shape);
         return created;
     }
 
     private StaticGeometryBuffer ReuploadStaticGeometryBufferContent(
-        in StaticGeometryBuffer target,
+        StaticGeometryBuffer target,
         ulong contentHash,
         ReadOnlySpan<UiDrawVertex> vertices,
         ReadOnlySpan<uint> indices,
@@ -95,17 +96,25 @@ public sealed unsafe partial class VulkanRendererBackend
         ReadOnlySpan<UiCircleFilledPrimitive> circles,
         in StaticGeometryShape shape)
     {
-        UploadStaticGeometryBufferContent(in target, vertices, indices, rects, circles, in shape);
+        UploadStaticGeometryBufferContent(target, vertices, indices, rects, circles, in shape);
         return target with
         {
             ContentHash = contentHash,
+            IndexTopologyHash = HashIndexTopology(indices),
             RectExpandedIndexBase = shape.PrimitiveTriangleLayout.RectExpandedIndexBase,
             CircleExpandedIndexOffsets = shape.PrimitiveTriangleLayout.CircleExpandedIndexOffsets,
         };
     }
 
+    private static ulong HashIndexTopology(ReadOnlySpan<uint> indices)
+    {
+        var hash = 14695981039346656037UL;
+        foreach (var index in indices) hash = (hash ^ index) * 1099511628211UL;
+        return (hash ^ (uint)indices.Length) * 1099511628211UL;
+    }
+
     private void UploadStaticGeometryBufferContent(
-        in StaticGeometryBuffer target,
+        StaticGeometryBuffer target,
         ReadOnlySpan<UiDrawVertex> vertices,
         ReadOnlySpan<uint> indices,
         ReadOnlySpan<UiRectFilledPrimitive> rects,
@@ -170,20 +179,8 @@ public sealed unsafe partial class VulkanRendererBackend
         var sourceSize = (nuint)(vertexCount * sizeof(UiVertex));
         var commandBuffer = BeginStagingUpload(sourceSize, out var stagingOffset);
         var vertexDst = (UiVertex*)((byte*)_stagingMappedPtr + stagingOffset);
-        var vertexOffset = 0;
-
-        for (var i = 0; i < vertices.Length; i++)
-        {
-            ref readonly var src = ref vertices[i];
-            vertexDst[vertexOffset++] = new UiVertex
-            {
-                PositionX = src.Position.X,
-                PositionY = src.Position.Y,
-                UVx = src.UV.X,
-                UVy = src.UV.Y,
-                Color = src.Color.Rgba,
-            };
-        }
+        var vertexOffset = vertices.Length;
+        MemoryMarshal.AsBytes(vertices).CopyTo(new Span<byte>(vertexDst, vertices.Length * sizeof(UiVertex)));
 
         if (includeExpandedPrimitives)
         {
@@ -199,7 +196,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 Size = sourceSize,
             };
 
-            RecordUploadBufferCopyProfile();
+            RecordUploadBufferCopy();
             _vk.CmdCopyBuffer(commandBuffer, _stagingBuffer, destinationBuffer, 1, &region);
         }
         finally
@@ -254,7 +251,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 Size = sourceSize,
             };
 
-            RecordUploadBufferCopyProfile();
+            RecordUploadBufferCopy();
             _vk.CmdCopyBuffer(commandBuffer, _stagingBuffer, destinationBuffer, 1, &region);
         }
         finally
@@ -431,7 +428,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 Size = sourceSize,
             };
 
-            RecordUploadBufferCopyProfile();
+            RecordUploadBufferCopy();
             _vk.CmdCopyBuffer(commandBuffer, _stagingBuffer, destinationBuffer, 1, &region);
         }
         finally
@@ -455,7 +452,7 @@ public sealed unsafe partial class VulkanRendererBackend
         in StaticGeometryShape shape,
         out StaticGeometryBuffer reusable)
     {
-        reusable = default;
+        reusable = StaticGeometryBuffer.Empty;
         if (!_retiredStaticGeometryBuffers.TryGetValue(staticTag, out var retiredBuffers)
             || retiredBuffers.Count is 0)
         {
@@ -472,7 +469,7 @@ public sealed unsafe partial class VulkanRendererBackend
             }
 
             if (!CanUpdateStaticGeometryBufferInPlace(
-                    in retiredBuffer,
+                    retiredBuffer,
                     in shape))
             {
                 QueueStaticGeometryBufferDestroy(retiredBuffer);

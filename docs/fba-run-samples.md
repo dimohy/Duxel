@@ -1,6 +1,69 @@
 # Duxel FBA Samples — Run Instantly
 
-> Last synced: 2026-07-28
+## Allocated Field sample — 2026-11-10
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_field_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+Change Width : 180 / Height : 180 and Validation : On around two real editors. The horizontal Field uses the UiWidgetStyle generation path. This API/sample is local and unpublished; the helper requires PowerShell7. This PS5 host qualified an identical-body local-reference FBA with explicit generator Analyzer metadata in sample-validation.targets. First presentation and 15-second exit0 are separate from manual input, official visuals, external Windows UIA and current Native acceptance. [Contract and evidence](fluent2-field.md#parent-allocation--2026-11-10).
+
+## Allocated Badge sample — 2026-11-10
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_badge_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+Use Width : 100 / Height : 64, Dot and Increment/Zero/Overflow to inspect frames, clips and hidden-counter reservation. This API/sample is local and unpublished. The helper requires PowerShell7; this PS5 host built an identical-body local-project FBA. First presentation 549.78ms and 15-second exit0 pass. Manual input, official visual acceptance and current Native remain unverified. [Contract and evidence](fluent2-badge.md#measurement-and-parent-allocation--2026-11-10).
+
+## Allocated Link sample — 2026-11-10
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_link_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+Use Width : 100 / Height : 120 and Short/Long to change real wrapping and clips. Link click/Enter updates application status. This API/sample is local and unpublished; the helper requires PowerShell7. The current PS5 host used an identical-body local-project FBA, with first presentation 560.27ms and 15-second exit0. Manual input, official visual acceptance and current Native remain unverified. [Contract and evidence](fluent2-link.md#measurement-and-parent-allocation--2026-11-10).
+
+## Allocated Divider sample — 2026-11-10
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_divider_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+Use Width : 100 / Height : 120, Orientation and Short/Empty/Reset to inspect actual lines, captions and clips. This API/sample is local and unpublished. The helper requires PowerShell7; this PowerShell5 host used an identical-body local-project FBA. Managed first presentation and 15-second exit0 pass; manual interaction, official visual acceptance and Native remain unverified. [Contract and evidence](fluent2-divider.md#measurement-and-parent-allocation--2026-11-10).
+
+## Allocated Text (local source, .NET11)
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_text_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+PowerShell7 is required by the helper. The new API/sample is local/unpublished;download lists apply after publication. Use Width/Height and Short/Empty/Reset to inspect wrapping and root reservation. Native needs C++ Build Tools. [Verified managed run](widget-gallery-run.md).
+
+## Allocated Progress (local source, .NET11)
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_progress_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+PowerShell7 is required by the helper. This API/sample is currently local/unpublished; download lists apply after publication. Native needs C++ Build Tools. The pure getter source uses the assigned height; the UI offers a live Slider and Width/Height controls. [Verified run](widget-gallery-run.md).
+
+## Allocated RadioGroup (local source,.NET11)
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_radio_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+PowerShell7 required. This sample is local/unpublished;download lists apply after publication. Native requires C++ Build Tools. See [managed validation](widget-gallery-run.md).
+
+> Last synced: 2026-11-10
 > Korean: [fba-run-samples.ko.md](fba-run-samples.ko.md)
 
 > Run **Duxel** FBA samples with a **single copy-paste command**. These samples use the .NET 10 file-based app feature. Duxel `0.2.12-preview` packages support regular .NET 8, .NET 9, and .NET 10 projects.
@@ -617,7 +680,7 @@ To download all FBA samples at once:
 ```powershell
 $base = "https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 $files = @(
-    "all_features.cs",
+    "layout_field_allocation_fba.cs", "layout_badge_allocation_fba.cs", "layout_link_allocation_fba.cs", "layout_divider_allocation_fba.cs", "layout_text_allocation_fba.cs", "layout_progress_allocation_fba.cs", "layout_radio_allocation_fba.cs", "all_features.cs",
     "declarative_dashboard_fba.cs",
     "hello_duxel_fba.cs",
     "extended_title_bar_fba.cs",
@@ -646,7 +709,7 @@ Write-Host "`nRun: dotnet run fba/all_features.cs"
 **Bash**
 ```bash
 BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
-FILES=(all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs extended_title_bar_fba.cs \
+FILES=(layout_field_allocation_fba.cs layout_badge_allocation_fba.cs layout_link_allocation_fba.cs layout_divider_allocation_fba.cs layout_text_allocation_fba.cs layout_progress_allocation_fba.cs layout_radio_allocation_fba.cs all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs extended_title_bar_fba.cs \
     advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
     input_queries.cs item_status.cs \
     windows_calculator_fba.cs windows_calculator_duxel_showcase_fba.cs \

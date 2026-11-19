@@ -1,4 +1,4 @@
-﻿using Duxel.Core;
+using Duxel.Core;
 using System.Collections.Generic;
 using System;
 
@@ -14,16 +14,16 @@ public sealed unsafe partial class VulkanRendererBackend
             drawList,
             requiresContentHash,
             hasExisting,
-            in existing);
+            existing);
         if (hasExisting
-            && TryApplyStaticGeometryCacheHit(in existing, in source, out var cached))
+            && TryApplyStaticGeometryCacheHit(existing, in source, out var cached))
         {
             return cached;
         }
 
         var content = CreateStaticGeometryContent(in source);
         var shape = content.Shape;
-        var canUpdateSameShape = CanUpdateStaticGeometryBufferInPlace(in existing, in shape);
+        var canUpdateSameShape = CanUpdateStaticGeometryBufferInPlace(existing, in shape);
         if (_staticGeometryRotatingUpdateEnabled
             && canUpdateSameShape
             && TryTakeReusableStaticGeometryBuffer(
@@ -33,8 +33,8 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             return ApplyStaticGeometryReusableBuffer(
                 staticTag,
-                in existing,
-                in reusable,
+                existing,
+                reusable,
                 in content,
                 in shape);
         }
@@ -45,16 +45,16 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             return ApplyStaticGeometryInPlaceUpdate(
                 staticTag,
-                in existing,
+                existing,
                 in content,
                 in shape);
         }
 
-        if (HasStaticGeometryBufferResources(in existing))
+        if (HasStaticGeometryBufferResources(existing))
         {
             return ApplyStaticGeometryReplacement(
                 staticTag,
-                in existing,
+                existing,
                 in content,
                 in shape,
                 canUpdateSameShape);
@@ -79,7 +79,13 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private bool TryGetActiveStaticGeometryBuffer(string staticTag, out StaticGeometryBuffer staticBuffer)
     {
-        return _staticGeometryBuffers.TryGetValue(staticTag, out staticBuffer);
+        if (_staticGeometryBuffers.TryGetValue(staticTag, out var existing))
+        {
+            staticBuffer = existing;
+            return true;
+        }
+        staticBuffer = StaticGeometryBuffer.Empty;
+        return false;
     }
 
     private void SetActiveStaticGeometryBuffer(string staticTag, StaticGeometryBuffer staticBuffer)
@@ -378,7 +384,7 @@ public sealed unsafe partial class VulkanRendererBackend
         UiDrawList drawList,
         bool requiresContentHash,
         bool hasExisting,
-        in StaticGeometryBuffer existing)
+        StaticGeometryBuffer existing)
     {
         var vertices = drawList.Vertices.AsSpan();
         var indices = drawList.Indices.AsSpan();
@@ -394,7 +400,9 @@ public sealed unsafe partial class VulkanRendererBackend
             circles,
             ShouldSuppressStaticPrimitiveTriangleAutoForMutation(
                 staticTag,
-                hasExisting && existing.ContentHash != contentHash));
+                hasExisting && existing.ContentHash != contentHash),
+            drawList.Scene3D is { } scene && IsScreenAlignedScene(scene) ? 1UL : StaticPrimitiveTriangleAutoMaxByteExpansionRatio,
+            HasPairedPrimitiveCommands(drawList));
         RecordStaticPrimitiveTriangleDecision(primitiveTriangleDecision);
 
         return new StaticGeometrySource(
@@ -457,7 +465,7 @@ public sealed unsafe partial class VulkanRendererBackend
         int RectPrimitiveCount,
         int CirclePrimitiveCount);
 
-    private readonly Dictionary<int, StaticGeometryBuffer> _frameStaticBindings = new();
+    private readonly StaticGeometryFrameBindings _frameStaticBindings = new();
     private int _profileStaticGeometryHitCount;
     private int _profileStaticGeometryCreateCount;
     private int _profileStaticGeometryReplaceCount;
@@ -467,14 +475,14 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private FrameGeometryCounts PrepareStaticGeometryForFrame(
         UiDrawData drawData,
-        Dictionary<int, StaticGeometryBuffer> staticBindings)
+        StaticGeometryFrameBindings staticBindings)
     {
         var dynamicVertexCount = 0;
         var dynamicIndexCount = 0;
         var rectPrimitiveCount = 0;
         var circlePrimitiveCount = 0;
 
-        ResetStaticGeometryFrameCounters(staticBindings);
+        ResetStaticGeometryFrameCounters(staticBindings, drawData.DrawLists.Count);
 
         BeginUploadBatch();
         try
@@ -518,9 +526,9 @@ public sealed unsafe partial class VulkanRendererBackend
             circlePrimitiveCount);
     }
 
-    private void ResetStaticGeometryFrameCounters(Dictionary<int, StaticGeometryBuffer> staticBindings)
+    private void ResetStaticGeometryFrameCounters(StaticGeometryFrameBindings staticBindings, int listCount)
     {
-        staticBindings.Clear();
+        staticBindings.Reset(listCount);
         _dynamicDrawListIndices.Clear();
         _profileStaticGeometryHitCount = 0;
         _profileStaticGeometryCreateCount = 0;
@@ -532,7 +540,7 @@ public sealed unsafe partial class VulkanRendererBackend
     }
 
     private bool TryPrepareStaticDrawListBinding(
-        Dictionary<int, StaticGeometryBuffer> staticBindings,
+        StaticGeometryFrameBindings staticBindings,
         int listIndex,
         UiDrawList drawList)
     {
@@ -542,18 +550,28 @@ public sealed unsafe partial class VulkanRendererBackend
         }
 
         MarkStaticGeometrySeen(staticTag, _frameIndex);
-        staticBindings[listIndex] = EnsureStaticGeometryBuffer(staticTag, drawList, requiresContentHash);
+        var binding = EnsureStaticGeometryBuffer(staticTag, drawList, requiresContentHash);
+        if (!ReferenceEquals(binding.TopologyCommands, drawList.Commands))
+        {
+            binding = binding with
+            {
+                CommandTopologyHash = UiDrawList.ComputeCommandTopologyStamp(drawList.Commands.AsSpan()),
+                TopologyCommands = drawList.Commands,
+            };
+            SetActiveStaticGeometryBuffer(staticTag, binding);
+        }
+        staticBindings[listIndex] = binding;
         return true;
     }
 
     private bool TryApplyStaticGeometryCacheHit(
-        in StaticGeometryBuffer existing,
+        StaticGeometryBuffer existing,
         in StaticGeometrySource source,
         out StaticGeometryBuffer staticBuffer)
     {
-        if (!StaticGeometryCacheEntryMatches(in existing, in source))
+        if (!StaticGeometryCacheEntryMatches(existing, in source))
         {
-            staticBuffer = default;
+            staticBuffer = StaticGeometryBuffer.Empty;
             return false;
         }
 
@@ -564,13 +582,13 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private StaticGeometryBuffer ApplyStaticGeometryReusableBuffer(
         string staticTag,
-        in StaticGeometryBuffer existing,
-        in StaticGeometryBuffer reusable,
+        StaticGeometryBuffer existing,
+        StaticGeometryBuffer reusable,
         in StaticGeometryContent content,
         in StaticGeometryShape shape)
     {
         var reused = ReuploadStaticGeometryBufferContent(
-            in reusable,
+            reusable,
             content.ContentHash,
             content.Vertices,
             content.Indices,
@@ -585,14 +603,14 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private StaticGeometryBuffer ApplyStaticGeometryInPlaceUpdate(
         string staticTag,
-        in StaticGeometryBuffer existing,
+        StaticGeometryBuffer existing,
         in StaticGeometryContent content,
         in StaticGeometryShape shape)
     {
         WaitForAllInFlightFrameFences();
 
         var updated = ReuploadStaticGeometryBufferContent(
-            in existing,
+            existing,
             content.ContentHash,
             content.Vertices,
             content.Indices,
@@ -606,7 +624,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private StaticGeometryBuffer ApplyStaticGeometryReplacement(
         string staticTag,
-        in StaticGeometryBuffer existing,
+        StaticGeometryBuffer existing,
         in StaticGeometryContent content,
         in StaticGeometryShape shape,
         bool canUpdateSameShape)
@@ -687,7 +705,7 @@ public sealed unsafe partial class VulkanRendererBackend
     }
 
     private static bool StaticGeometryCacheEntryMatches(
-        in StaticGeometryBuffer existing,
+        StaticGeometryBuffer existing,
         in StaticGeometrySource source)
     {
         return existing.ContentHash == source.ContentHash
@@ -699,7 +717,7 @@ public sealed unsafe partial class VulkanRendererBackend
             && existing.HasExpandedPrimitiveGeometry == source.ExpandPrimitiveGeometry;
     }
 
-    private static bool HasStaticGeometryBufferResources(in StaticGeometryBuffer staticBuffer)
+    private static bool HasStaticGeometryBufferResources(StaticGeometryBuffer staticBuffer)
     {
         return staticBuffer.VertexBuffer.Handle is not 0
             || staticBuffer.IndexBuffer.Handle is not 0
@@ -707,10 +725,10 @@ public sealed unsafe partial class VulkanRendererBackend
     }
 
     private static bool CanUpdateStaticGeometryBufferInPlace(
-        in StaticGeometryBuffer existing,
+        StaticGeometryBuffer existing,
         in StaticGeometryShape shape)
     {
-        if (!HasStaticGeometryBufferResources(in existing))
+        if (!HasStaticGeometryBufferResources(existing))
         {
             return false;
         }

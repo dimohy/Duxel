@@ -90,12 +90,7 @@ public sealed class DataBindingScreen : UiScreen
 
     public override void Render(UiImmediateContext ui)
     {
-        var viewport = ui.GetMainViewport();
-        const float margin = 16f;
 
-        ui.SetNextWindowPos(new UiVector2(viewport.Pos.X + margin, viewport.Pos.Y + margin));
-        ui.SetNextWindowSize(new UiVector2(viewport.Size.X - margin * 2f, viewport.Size.Y - margin * 2f));
-        ui.BeginWindow("Data Binding Demo");
 
         // ── Section 1: ListBox with ItemsSource (Phase B) ──
         ui.PushFontSize(20f);
@@ -235,6 +230,5 @@ public sealed class DataBindingScreen : UiScreen
             ui.EndTabBar();
         }
 
-        ui.EndWindow();
     }
 }

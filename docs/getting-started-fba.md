@@ -1,6 +1,6 @@
 # Duxel FBA Quick Start Guide
 
-> Last synced: 2026-07-28
+> Last synced: 2026-11-10
 > Korean original: [getting-started-fba.ko.md](getting-started-fba.ko.md)
 
 This guide covers the .NET 10 FBA (File-Based App) flow to run Duxel with a single `.cs` file. Duxel `0.2.12-preview` packages support regular `net8.0`, `net9.0`, and `net10.0` project consumers.
@@ -64,6 +64,16 @@ dotnet run samples/fba/all_features.cs
 
 | File | Description |
 |---|---|
+| `layout_field_allocation_fba.cs` | Local .NET11 Field allocation: vertical/user-generated horizontal, real editors, labels/descriptions and Width/Height/Validation; Native pending |
+| `layout_scroll_routing_fba.cs` | Local .NET11 nested scrolling: axis boundary handoff, clip, row count and clicks; owned widget/virtualization/Native pending |
+| `layout_scroll_view_fba.cs` | Local .NET11 owned scroll: vertical/both axes, real editor, Width/Height, Top/End; virtualization/Native pending |
+| `layout_virtual_list_fba.cs` | Local .NET11 billion-row fixed-height virtualization, double offsets, editing/eviction, Top/Middle/End; extensions/Native pending |
+| `layout_badge_allocation_fba.cs` | Local .NET11 Badge allocation: frame/text/icons, hidden counter, Width/Height, Dot and count state; Native pending |
+| `layout_link_allocation_fba.cs` | Local .NET11 Link allocation: wrapping/clips/input root, Width/Height, Short/Long and navigation status; Native pending |
+| `layout_divider_allocation_fba.cs` | Local .NET11 Divider allocation: actual lines/captions/clips, Width/Height/Orientation and dynamic content; Native pending |
+| `layout_text_allocation_fba.cs` | Local .NET11 text allocation: wrapping/clipping, static/getter content, Width/Height and empty content; Native pending |
+| `layout_progress_allocation_fba.cs` | Local .NET11 Progress allocation: pure getter measurement, live Slider, Width/Height; Native pending |
+| `layout_radio_allocation_fba.cs` | Local .NET11 RadioGroup allocation:three layouts,shared selection,Width/Height;Native pending |
 | `all_features.cs` | Full widget showcase demo with dedicated typography, layout, popup/context, input-query, item-status, multi-select, and layer/animation windows |
 | `declarative_dashboard_fba.cs` | Declarative C# dashboard using `UiState<T>`, reusable `UiComponent` classes, compiled Windows 11 design tokens, and product-shell helpers |
 | `hello_duxel_fba.cs` | Ultra-minimal hello sample with a small `Hello` and a large `Duxel!` |

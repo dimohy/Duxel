@@ -1,4 +1,4 @@
-﻿using Duxel.Core;
+using Duxel.Core;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -58,6 +58,13 @@ public sealed unsafe partial class VulkanRendererBackend
             extensionList.Add(requiredExtensions[i]);
         }
 
+        _maintenanceInstanceEnabled=_vk.IsInstanceExtensionPresent("VK_EXT_surface_maintenance1")
+            &&_vk.IsInstanceExtensionPresent("VK_KHR_get_surface_capabilities2");
+        if(_maintenanceInstanceEnabled)
+        {
+            foreach(var extension in new[]{"VK_KHR_get_surface_capabilities2","VK_EXT_surface_maintenance1"})
+                if(!extensionList.Contains(extension))extensionList.Add(extension);
+        }
         var extensions = extensionList.ToArray();
 
         var appInfo = new ApplicationInfo
@@ -82,10 +89,9 @@ public sealed unsafe partial class VulkanRendererBackend
                 PpEnabledExtensionNames = (byte**)extensionPtr,
             };
 
-            fixed (Instance* instance = &_instance)
-            {
-                Check(_vk.CreateInstance(&createInfo, null, instance));
-            }
+            Instance instance;
+            Check(_vk.CreateInstance(&createInfo, null, &instance));
+            _instance = instance;
         }
         finally
         {
@@ -131,6 +137,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 _graphicsQueueFamily = queueFamily;
                 _dedicatedTransferQueueFamily = FindDedicatedTransferQueueFamily(device, queueFamily);
                 _vk.GetPhysicalDeviceProperties(device, out var properties);
+                _maxImageDimension2D=properties.Limits.MaxImageDimension2D;
                 _devicePolicy = CreateDevicePolicy(
                     properties,
                     graphicsQueueTimestampValidBits,
@@ -216,6 +223,8 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private unsafe void CreateDevice()
     {
+        RequireGpuDrivenRendererFeatures();
+
         var queuePriority = 1.0f;
         var queueCreateInfos = stackalloc DeviceQueueCreateInfo[2];
         var queueCreateInfoCount = 0u;
@@ -239,21 +248,27 @@ public sealed unsafe partial class VulkanRendererBackend
             };
         }
 
-        var extensionPtr = VulkanMarshaling.StringArrayToPtr(BaseDeviceExtensions);
+        _swapchainMaintenanceEnabled=ResolveSwapchainMaintenanceSupport();
+        SelectValidationSwapchainMaintenance(ref _swapchainMaintenanceEnabled);
+        var extensions=_swapchainMaintenanceEnabled?BaseDeviceExtensions.Concat(new[]{"VK_EXT_swapchain_maintenance1"}).ToArray():BaseDeviceExtensions;
+        var extensionPtr = VulkanMarshaling.StringArrayToPtr(extensions);
 
         try
         {
-            RequireGpuDrivenRendererFeatures();
-
             var enabledFeatures = new PhysicalDeviceFeatures
             {
                 DualSrcBlend = 1,
                 ShaderSampledImageArrayDynamicIndexing = 1,
             };
 
+            var maintenanceFeatures=new PhysicalDeviceSwapchainMaintenance1FeaturesEXT
+            {
+                SType=StructureType.PhysicalDeviceSwapchainMaintenance1FeaturesEXT,SwapchainMaintenance1=1,
+            };
             var dynamicRenderingFeatures = new PhysicalDeviceDynamicRenderingFeatures
             {
                 SType = StructureType.PhysicalDeviceDynamicRenderingFeatures,
+                PNext=_swapchainMaintenanceEnabled?&maintenanceFeatures:null,
                 DynamicRendering = 1,
             };
 
@@ -280,24 +295,36 @@ public sealed unsafe partial class VulkanRendererBackend
                 PNext = &descriptorIndexingFeatures,
                 QueueCreateInfoCount = queueCreateInfoCount,
                 PQueueCreateInfos = queueCreateInfos,
-                EnabledExtensionCount = (uint)BaseDeviceExtensions.Length,
+                EnabledExtensionCount = (uint)extensions.Length,
                 PpEnabledExtensionNames = (byte**)extensionPtr,
                 PEnabledFeatures = &enabledFeatures,
             };
 
-            fixed (Device* device = &_device)
-            {
-                Check(_vk.CreateDevice(_physicalDevice, &deviceCreateInfo, null, device));
-            }
+            Device device;
+            Check(_vk.CreateDevice(_physicalDevice, &deviceCreateInfo, null, &device));
+            _device = device;
 
             _vk.GetDeviceQueue(_device, _graphicsQueueFamily, 0, out _graphicsQueue);
             _vk.GetDeviceQueue(_device, _transferQueueFamily, 0, out _transferQueue);
+            if(_profilingEnabled)WriteVulkanProfileLine($"[duxel-vk-policy] presentLifetime={(_swapchainMaintenanceEnabled?"presentation-fence-ext":"image-reacquisition-core")}");
         }
         finally
         {
-            VulkanMarshaling.FreeStringArray(extensionPtr, BaseDeviceExtensions.Length);
+            VulkanMarshaling.FreeStringArray(extensionPtr, extensions.Length);
         }
     }
+
+    private bool _maintenanceInstanceEnabled,_swapchainMaintenanceEnabled;
+    public bool UsesPresentationFences=>_swapchainMaintenanceEnabled;
+    private bool ResolveSwapchainMaintenanceSupport()
+    {
+        if(!_maintenanceInstanceEnabled||!_vk.IsDeviceExtensionPresent(_physicalDevice,"VK_EXT_swapchain_maintenance1"))return false;
+        var maintenance=new PhysicalDeviceSwapchainMaintenance1FeaturesEXT {SType=StructureType.PhysicalDeviceSwapchainMaintenance1FeaturesEXT};
+        var features=new PhysicalDeviceFeatures2 {SType=StructureType.PhysicalDeviceFeatures2,PNext=&maintenance};
+        _vk.GetPhysicalDeviceFeatures2(_physicalDevice,&features);
+        return maintenance.SwapchainMaintenance1!=0;
+    }
+    partial void SelectValidationSwapchainMaintenance(ref bool enabled);
 
     private void RequireGpuDrivenRendererFeatures()
     {
@@ -322,19 +349,23 @@ public sealed unsafe partial class VulkanRendererBackend
         };
         _vk.GetPhysicalDeviceFeatures2(_physicalDevice, &features2);
 
-        if (features2.Features.ShaderSampledImageArrayDynamicIndexing is 0
-            || descriptorIndexingFeatures.DescriptorBindingSampledImageUpdateAfterBind is 0
-            || descriptorIndexingFeatures.DescriptorBindingUpdateUnusedWhilePending is 0
-            || descriptorIndexingFeatures.DescriptorBindingPartiallyBound is 0
-            || descriptorIndexingFeatures.RuntimeDescriptorArray is 0
-            || bufferDeviceAddressFeatures.BufferDeviceAddress is 0
-            || dynamicRenderingFeatures.DynamicRendering is 0)
-        {
+        List<string>? missing = null;
+        Require(features2.Features.DualSrcBlend, "dualSrcBlend");
+        Require(features2.Features.ShaderSampledImageArrayDynamicIndexing, "shaderSampledImageArrayDynamicIndexing");
+        Require(descriptorIndexingFeatures.DescriptorBindingSampledImageUpdateAfterBind, "descriptorBindingSampledImageUpdateAfterBind");
+        Require(descriptorIndexingFeatures.DescriptorBindingUpdateUnusedWhilePending, "descriptorBindingUpdateUnusedWhilePending");
+        Require(descriptorIndexingFeatures.DescriptorBindingPartiallyBound, "descriptorBindingPartiallyBound");
+        Require(descriptorIndexingFeatures.RuntimeDescriptorArray, "runtimeDescriptorArray");
+        Require(bufferDeviceAddressFeatures.BufferDeviceAddress, "bufferDeviceAddress");
+        Require(dynamicRenderingFeatures.DynamicRendering, "dynamicRendering");
+        if (missing is not null)
             throw new InvalidOperationException(
-                "Selected GPU does not support the Vulkan features required for the GPU-driven renderer "
-                + "(shaderSampledImageArrayDynamicIndexing, descriptorBindingSampledImageUpdateAfterBind, "
-                + "descriptorBindingUpdateUnusedWhilePending, descriptorBindingPartiallyBound, runtimeDescriptorArray, "
-                + "bufferDeviceAddress, dynamicRendering).");
+                "Selected Vulkan device is missing required features: " + string.Join(", ", missing) + ".");
+
+        void Require(uint supported, string name)
+        {
+            if (supported is 0)
+                (missing ??= []).Add(name);
         }
     }
 

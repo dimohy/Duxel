@@ -1,0 +1,66 @@
+[
+  {
+    "fill": "0f6cbd",
+    "thumbBorder": "d1d1d1",
+    "state": "Rest",
+    "surface": "ffffff",
+    "scheme": "Light",
+    "rail": "616161"
+  },
+  {
+    "fill": "115ea3",
+    "thumbBorder": "d1d1d1",
+    "state": "Hover",
+    "surface": "ffffff",
+    "scheme": "Light",
+    "rail": "616161"
+  },
+  {
+    "fill": "0f548c",
+    "thumbBorder": "d1d1d1",
+    "state": "Pressed",
+    "surface": "ffffff",
+    "scheme": "Light",
+    "rail": "616161"
+  },
+  {
+    "fill": "bdbdbd",
+    "thumbBorder": "bdbdbd",
+    "state": "Disabled",
+    "surface": "ffffff",
+    "scheme": "Light",
+    "rail": "f0f0f0"
+  },
+  {
+    "fill": "479ef5",
+    "thumbBorder": "666666",
+    "state": "Rest",
+    "surface": "292929",
+    "scheme": "Dark",
+    "rail": "adadad"
+  },
+  {
+    "fill": "62abf5",
+    "thumbBorder": "666666",
+    "state": "Hover",
+    "surface": "292929",
+    "scheme": "Dark",
+    "rail": "adadad"
+  },
+  {
+    "fill": "2886de",
+    "thumbBorder": "666666",
+    "state": "Pressed",
+    "surface": "292929",
+    "scheme": "Dark",
+    "rail": "adadad"
+  },
+  {
+    "fill": "5c5c5c",
+    "thumbBorder": "5c5c5c",
+    "state": "Disabled",
+    "surface": "292929",
+    "scheme": "Dark",
+    "rail": "141414"
+  }
+]

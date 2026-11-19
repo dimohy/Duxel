@@ -56,10 +56,6 @@ public sealed class ImageEffectsScreen : UiScreen
         var fx = UiImageEffects.Create(_grayscale, _invert, _brightness, _contrast, _pixelate);
         _player?.Prepare(ui, fx);
 
-        ui.SetNextWindowPos(new UiVector2(16f, 16f));
-        var viewport = ui.GetMainViewport();
-        ui.SetNextWindowSize(new UiVector2(viewport.Size.X - 32f, viewport.Size.Y - 32f));
-        ui.BeginWindow("Image Effects");
 
         ui.SeparatorText("Format");
         for (var i = 0; i < _imageOptions.Length; i++)
@@ -82,8 +78,7 @@ public sealed class ImageEffectsScreen : UiScreen
         if (_player is null)
         {
             ui.TextV("Load failed: {0}", _loadError ?? "Unknown error");
-            ui.EndWindow();
-            return;
+                return;
         }
 
         ui.TextV("Image: {0}x{1}", _player.Width, _player.Height);
@@ -120,7 +115,6 @@ public sealed class ImageEffectsScreen : UiScreen
             ui.EndChild();
         }
 
-        ui.EndWindow();
     }
 
     private void EnsureImageLoaded()

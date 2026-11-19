@@ -1,4 +1,4 @@
-﻿using Duxel.Core;
+using Duxel.Core;
 using System.Collections.Generic;
 using System;
 using VkBuffer = Duxel.Vulkan.Buffer;
@@ -34,10 +34,9 @@ public sealed unsafe partial class VulkanRendererBackend
                 ),
             };
 
-            fixed (ImageView* view = &_swapchainImageViews[i])
-            {
-                Check(_vk.CreateImageView(_device, &createInfo, null, view));
-            }
+            ImageView view;
+            Check(_vk.CreateImageView(_device, &createInfo, null, &view));
+            _swapchainImageViews[i] = view;
         }
     }
 
@@ -73,7 +72,10 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
-    private void FlushPendingBufferDestroys(int frame)
+    // Called only after this slot's fence completed. Retirement is attached to
+    // slot q % N with deadline q + N; that fence covers submission q and all
+    // earlier graphics submissions that could reference the removed resource.
+    private void FlushRetiredBuffersAfterFrameFence(int frame)
     {
         if (_frames.Length == 0)
         {
@@ -100,8 +102,6 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             return;
         }
-
-        WaitForAllInFlightFrameFences();
 
         var write = 0;
         for (var i = 0; i < list.Count; i++)
@@ -130,6 +130,8 @@ public sealed unsafe partial class VulkanRendererBackend
         }
 
         WaitForAllInFlightFrameFences();
+
+        RecycleAllVectorWorkAfterFrameFences();
 
         for (var i = 0; i < _frames.Length; i++)
         {
@@ -186,7 +188,7 @@ public sealed unsafe partial class VulkanRendererBackend
         // the device exposes it, that type is used; otherwise the required set
         // decides. Missing required properties still fail explicitly.
         var memoryTypeIndex = preferredProperties is not 0
-            && TryFindMemoryType(memRequirements.MemoryTypeBits, preferredProperties, out var preferredTypeIndex)
+            && TryFindMemoryType(memRequirements.MemoryTypeBits, properties | preferredProperties, out var preferredTypeIndex)
             ? preferredTypeIndex
             : FindMemoryType(memRequirements.MemoryTypeBits, properties);
 
@@ -220,7 +222,7 @@ public sealed unsafe partial class VulkanRendererBackend
         return _vk.GetBufferDeviceAddress(_device, &info);
     }
 
-    private unsafe void CreateImage(
+    private unsafe ulong CreateImage(
         int width,
         int height,
         Format format,
@@ -228,7 +230,8 @@ public sealed unsafe partial class VulkanRendererBackend
         ImageUsageFlags usage,
         MemoryPropertyFlags properties,
         out Image image,
-        out DeviceMemory memory
+        out DeviceMemory memory,
+        SampleCountFlags samples = SampleCountFlags.Count1Bit
     )
     {
         var queueFamilies = stackalloc uint[2];
@@ -256,7 +259,7 @@ public sealed unsafe partial class VulkanRendererBackend
             Tiling = tiling,
             InitialLayout = ImageLayout.Undefined,
             Usage = usage,
-            Samples = SampleCountFlags.Count1Bit,
+            Samples = samples,
             SharingMode = sharingMode,
             QueueFamilyIndexCount = queueFamilyIndexCount,
             PQueueFamilyIndices = queueFamilyIndices,
@@ -280,6 +283,7 @@ public sealed unsafe partial class VulkanRendererBackend
         Check(_vk.AllocateMemory(_device, allocInfo, null, &localMemory));
         memory = localMemory;
         Check(_vk.BindImageMemory(_device, image, localMemory, 0));
+        return memRequirements.Size;
     }
 
     private ImageView CreateImageView(Image image, Format format)
@@ -346,19 +350,25 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private unsafe void CreateMsaaColorImage()
     {
+        if(_msaaColorImage.Handle!=0)return;
         if (_msaaSampleCount == SampleCountFlags.Count1Bit)
         {
             _msaaColorImage = default;
             _msaaColorMemory = default;
             _msaaColorImageView = default;
+            _msaaColorAllocationBytes=0;_msaaColorExtent=default;
             return;
         }
 
+        var extent=UsesResizableMsaaCapacity()
+            ?new Extent2D(RoundRenderTargetCapacity(_swapchainExtent.Width,_maxImageDimension2D),RoundRenderTargetCapacity(_swapchainExtent.Height,_maxImageDimension2D))
+            :_swapchainExtent;
+        _msaaColorExtent=extent;
         var imageInfo = new ImageCreateInfo
         {
             SType = StructureType.ImageCreateInfo,
             ImageType = ImageType.Type2D,
-            Extent = new Extent3D(_swapchainExtent.Width, _swapchainExtent.Height, 1),
+            Extent = new Extent3D(extent.Width, extent.Height, 1),
             MipLevels = 1,
             ArrayLayers = 1,
             Format = _swapchainFormat,
@@ -375,6 +385,7 @@ public sealed unsafe partial class VulkanRendererBackend
         }
 
         _vk.GetImageMemoryRequirements(_device, _msaaColorImage, out var memRequirements);
+        _msaaColorAllocationBytes=memRequirements.Size;
 
         var allocInfo = new MemoryAllocateInfo
         {
@@ -414,6 +425,8 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void DestroyMsaaColorImage()
     {
+        _msaaColorAllocationBytes=0;
+        _msaaColorExtent=default;
         if (_msaaColorImageView.Handle is not 0)
         {
             _vk.DestroyImageView(_device, _msaaColorImageView, null);

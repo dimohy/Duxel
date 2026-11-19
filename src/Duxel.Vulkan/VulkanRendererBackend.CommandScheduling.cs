@@ -79,12 +79,13 @@ public sealed unsafe partial class VulkanRendererBackend
         UiDrawCommandKind Kind,
         UiRect Bounds,
         bool HasBounds,
-        bool HasCallback);
+        bool HasCallback,
+        uint CircleCutoutIndexPlusOne, UiTextureId? WhiteBackdropTextureId);
 
     private CommandScheduleResult TryGetScheduledCommandOrder(
         UiDrawList drawList,
         bool hasStaticBinding,
-        in StaticGeometryBuffer staticBinding,
+        StaticGeometryBuffer staticBinding,
         out int[]? order)
     {
         order = null;
@@ -104,7 +105,7 @@ public sealed unsafe partial class VulkanRendererBackend
         var hasDrawListScheduleStamp = drawList.CommandScheduleStamp is not 0;
         var hash = hasDrawListScheduleStamp
             ? drawList.CommandScheduleStamp
-            : ComputeCommandScheduleHash(drawList, hasStaticBinding, in staticBinding);
+            : ComputeCommandScheduleHash(drawList, hasStaticBinding, staticBinding);
         if (_commandScheduleCache.TryGetValue(hash, out var cached)
             && cached.CommandCount == commandCount
             && (hasDrawListScheduleStamp || CommandScheduleCacheEntryMatches(cached, drawList)))
@@ -152,7 +153,7 @@ public sealed unsafe partial class VulkanRendererBackend
                         length,
                         hasStaticBinding,
                         isStaticLayerReplay,
-                        in staticBinding,
+                        staticBinding,
                         scheduledOrder);
                 }
 
@@ -288,7 +289,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private static ulong ComputeCommandScheduleHash(
         UiDrawList drawList,
         bool hasStaticBinding,
-        in StaticGeometryBuffer staticBinding)
+        StaticGeometryBuffer staticBinding)
     {
         var hash = 14695981039346656037UL;
         hash = HashScheduleValue(hash, (uint)drawList.Commands.Count);
@@ -298,6 +299,10 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             var key = CreateCommandScheduleCacheKey(in drawList.Commands.ItemRef(i));
             hash = HashScheduleValue(hash, key.ElementCount);
+            hash = HashScheduleValue(hash, key.CircleCutoutIndexPlusOne);
+            hash = HashScheduleValue(hash, key.WhiteBackdropTextureId.HasValue ? 1u : 0u);
+            if (key.WhiteBackdropTextureId is { } white)
+                hash = HashScheduleValue(hash, white.Value);
             hash = HashScheduleValue(hash, key.TextureId.Value);
             hash = HashScheduleValue(hash, (uint)key.Kind);
             hash = HashScheduleValue(hash, key.HasBounds ? 1u : 0u);
@@ -357,7 +362,8 @@ public sealed unsafe partial class VulkanRendererBackend
             cmd.Kind,
             cmd.Bounds,
             cmd.HasBounds,
-            cmd.Callback is not null);
+            cmd.Callback is not null,
+            cmd.CircleCutoutIndexPlusOne, cmd.WhiteBackdropTextureId);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -409,7 +415,7 @@ public sealed unsafe partial class VulkanRendererBackend
         int length,
         bool hasStaticBinding,
         bool useConservativeBounds,
-        in StaticGeometryBuffer staticBinding,
+        StaticGeometryBuffer staticBinding,
         int[] order)
     {
         var indegrees = ArrayPool<int>.Shared.Rent(length);
@@ -424,7 +430,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 ref readonly var cmd = ref drawList.Commands.ItemRef(start + i);
                 indegrees[i] = 0;
                 selected[i] = 0;
-                classes[i] = GetSchedulingClass(in cmd, hasStaticBinding, in staticBinding);
+                classes[i] = GetSchedulingClass(in cmd, hasStaticBinding, staticBinding);
                 bounds[i] = GetEffectiveSchedulingBounds(in cmd, useConservativeBounds);
             }
 
@@ -526,7 +532,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private CommandSchedulingClass GetSchedulingClass(
         in UiDrawCommand cmd,
         bool hasStaticBinding,
-        in StaticGeometryBuffer staticBinding)
+        StaticGeometryBuffer staticBinding)
     {
         var isTriangleCommand = cmd.Kind is UiDrawCommandKind.Triangles;
         if (isTriangleCommand)
@@ -615,8 +621,11 @@ public sealed unsafe partial class VulkanRendererBackend
             && a.Translation == b.Translation
             && a.Kind == b.Kind
             && a.VertexOffset == b.VertexOffset
+            && a.CircleCutoutIndexPlusOne == b.CircleCutoutIndexPlusOne
+            && a.WhiteBackdropTextureId == b.WhiteBackdropTextureId
             && a.IndexOffset + a.ElementCount == b.IndexOffset
             && MathF.Abs(a.Opacity - b.Opacity) <= 0.000001f
+            && a.UserData is not UiGpuParticleFrame && b.UserData is not UiGpuParticleFrame
             && Equals(a.UserData, b.UserData);
     }
 

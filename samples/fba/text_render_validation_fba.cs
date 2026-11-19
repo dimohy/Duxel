@@ -37,7 +37,7 @@ public sealed class TextRenderValidationScreen : UiScreen
 
         ui.SetNextWindowPos(new UiVector2(viewport.Pos.X + margin, viewport.Pos.Y + margin));
         ui.SetNextWindowSize(new UiVector2(350f, viewport.Size.Y - margin * 2f));
-        ui.BeginWindow("Controls");
+        ui.BeginPanel("Controls");
 
         ui.Checkbox("Animate Counter", ref _animateCounter);
         ui.Checkbox("Show Long Paragraph", ref _showLongParagraph);
@@ -48,15 +48,15 @@ public sealed class TextRenderValidationScreen : UiScreen
         ui.Text("2) Wrap/Clip 영역에서 겹침/누락 여부 확인");
         ui.Text("3) 숫자 카운터(동적 문자열) 안정성 확인");
 
-        ui.EndWindow();
+        ui.EndPanel();
 
         ui.SetNextWindowPos(new UiVector2(viewport.Pos.X + 374f, viewport.Pos.Y + margin));
         ui.SetNextWindowSize(new UiVector2(viewport.Size.X - 386f, viewport.Size.Y - margin * 2f));
-        ui.BeginWindow("Text Cases");
+        ui.BeginPanel("Text Cases");
 
         RenderTextCases(ui);
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void RenderTextCases(UiImmediateContext ui)

@@ -1,0 +1,9 @@
+<Project>
+  <Import Project="$(MSBuildThisFileDirectory)../../Directory.Build.targets" />
+  <PropertyGroup>
+    <DuxelSourceTargetFramework Condition="'$(DuxelSourceTargetFramework)' == ''">net11.0-windows</DuxelSourceTargetFramework>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'Duxel.Core.Dsl.Generator'">
+    <TargetFrameworks Condition="'$(TargetFrameworks)' != ''">$(DuxelSourceTargetFramework)</TargetFrameworks>
+  </PropertyGroup>
+</Project>

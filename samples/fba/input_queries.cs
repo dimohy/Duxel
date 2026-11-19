@@ -30,17 +30,35 @@ public sealed class InputQueriesScreen : UiScreen
     {
         _frameCounter++;
 
-        RenderKeyboardWindow(ui);
-        RenderMouseWindow(ui);
-        RenderShortcutWindow(ui);
-        RenderClipboardWindow(ui);
+        if(ui.BeginTabBar("sample-pages"))
+        {
+            if(ui.BeginTabItem("Keyboard",UiTabItemFlags.None))
+            {
+                RenderKeyboardWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("Mouse",UiTabItemFlags.None))
+            {
+                RenderMouseWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("Shortcut",UiTabItemFlags.None))
+            {
+                RenderShortcutWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("Clipboard",UiTabItemFlags.None))
+            {
+                RenderClipboardWindow(ui);
+                ui.EndTabItem();
+            }
+            ui.EndTabBar();
+        }
     }
 
     private void RenderKeyboardWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(460f, 320f));
-        ui.BeginWindow("Keyboard Queries");
+        ui.PushID("Keyboard Queries"); ui.BeginGroup();
 
         ui.SeparatorText("Key State");
 
@@ -86,14 +104,12 @@ public sealed class InputQueriesScreen : UiScreen
         ui.Separator();
         ui.Text($"Last pressed key: {_lastKeyName}");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderMouseWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(420f, 340f));
-        ui.BeginWindow("Mouse Queries");
+        ui.PushID("Mouse Queries"); ui.BeginGroup();
 
         ui.SeparatorText("Mouse Position");
         var pos = ui.GetMousePos();
@@ -133,14 +149,12 @@ public sealed class InputQueriesScreen : UiScreen
         ui.SameLine();
         ui.Text(hovering ? "HOVERING!" : "Not hovering");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderShortcutWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(400f, 200f));
-        ui.BeginWindow("Shortcuts");
+        ui.PushID("Shortcuts"); ui.BeginGroup();
 
         ui.SeparatorText("Shortcut Detection");
         ui.Text("Press Ctrl+S to trigger shortcut");
@@ -156,14 +170,12 @@ public sealed class InputQueriesScreen : UiScreen
         ui.Text($"Ctrl+Z: {ctrlZ}");
         ui.Text($"Ctrl+Shift+Z: {ctrlShiftZ}");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderClipboardWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(380f, 180f));
-        ui.BeginWindow("Clipboard");
+        ui.PushID("Clipboard"); ui.BeginGroup();
 
         ui.SeparatorText("Clipboard API");
         if (ui.Button("Read Clipboard"))
@@ -174,6 +186,6 @@ public sealed class InputQueriesScreen : UiScreen
 
         ui.TextWrapped($"Clipboard: {_clipboardText}");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 }

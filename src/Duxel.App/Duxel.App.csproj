@@ -20,6 +20,11 @@
     <None Include="..\..\README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(DuxelValidationHooks)' == 'true'">
+    <InternalsVisibleTo Include="Duxel.Rendering.Tests" />
+    <InternalsVisibleTo Include="Duxel.Graphics.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Duxel.Core\Duxel.Core.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\Duxel.Vulkan\Duxel.Vulkan.csproj" PrivateAssets="all" />
@@ -40,12 +45,15 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="IncludeDslGeneratorAnalyzerInPackage" DependsOnTargets="Build">
+  <Target Name="IncludeDslGeneratorAnalyzerInPackage" DependsOnTargets="ResolveReferences"
+          Condition="'$(TargetFramework)' == 'net8.0'">
     <ItemGroup>
-      <TfmSpecificPackageFile Include="..\Duxel.Core.Dsl.Generator\bin\$(Configuration)\netstandard2.0\Duxel.Core.Dsl.Generator.dll"
-                              Condition="'$(TargetFramework)' == 'net8.0'"
+      <_DslGeneratorAnalyzer Include="@(Analyzer)"
+                            Condition="'%(Analyzer.Filename)' == 'Duxel.Core.Dsl.Generator'" />
+      <TfmSpecificPackageFile Include="@(_DslGeneratorAnalyzer)"
                               PackagePath="analyzers/dotnet/cs" />
     </ItemGroup>
+    <Error Condition="'@(_DslGeneratorAnalyzer)' == ''" Text="The Duxel DSL generator must be resolved before packing." />
   </Target>
 
   <PropertyGroup>

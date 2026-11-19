@@ -1,5 +1,9 @@
 # Duxel
 
+[Rating](docs/fluent2-rating.md): try `Fluent.Rating` half steps,RTL and wrapping in Gallery **평가**. Run `./run-gallery.ps1 -NoRestore` when restored package assets match current dependencies.
+
+[Widget contract validation](docs/widget-contract-validation.md): one isolated runner for the declared managed CPU suites; GPU, NativeAOT and full product acceptance remain separate.
+
 <p align="center">
   <img src="logo.svg" alt="Duxel logo" width="615" />
 </p>
@@ -59,9 +63,7 @@ public sealed class HelloScreen : UiScreen
 {
     public override void Render(UiImmediateContext ui)
     {
-        ui.BeginWindow("Hello");
         ui.Text("Hello, Duxel!");
-        ui.EndWindow();
     }
 }
 ```
@@ -112,3 +114,4 @@ dotnet build Duxel.slnx -c Release
 ## License
 
 MIT
+

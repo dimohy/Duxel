@@ -81,7 +81,8 @@ public sealed partial class UiImmediateContext
     public UiVector2 GetContentRegionAvail()
     {
         var cursor = _layouts.Peek().Cursor;
-        if (_childStack.Count > 0)
+        if(_inputSlotBounds is {} slot&&_inputSlotBoundsTier==_popupTierDepth)return new(MathF.Max(0,slot.Width-(cursor.X-slot.X)),MathF.Max(0,slot.Height-(cursor.Y-slot.Y)));
+        if (HasCurrentChild && (!HasCurrentFlowRegion || _childStack.Count > _flowRegionChildDepth))
         {
             var child = _childStack.Peek();
             var childRect = child.Rect;
@@ -92,6 +93,8 @@ public sealed partial class UiImmediateContext
             return new UiVector2(MathF.Max(0f, contentEndX - visibleCursorX), MathF.Max(0f, contentEndY - visibleCursorY));
         }
 
+        if (HasCurrentFlowRegion && _flowRegionBounds is { } flow)
+            return new(MathF.Max(0, flow.Width - (cursor.X - flow.X)), MathF.Max(0, flow.Height - (cursor.Y - flow.Y)));
         if (!_hasWindowRect)
         {
             return new UiVector2(0f, 0f);
@@ -106,12 +109,14 @@ public sealed partial class UiImmediateContext
 
     public UiVector2 GetContentRegionMax()
     {
-        if (_childStack.Count > 0)
+        if(_inputSlotBounds is {} slot&&_inputSlotBoundsTier==_popupTierDepth)return new(slot.X+slot.Width,slot.Y+slot.Height);
+        if (HasCurrentChild && (!HasCurrentFlowRegion || _childStack.Count > _flowRegionChildDepth))
         {
             var childRect = _childStack.Peek().Rect;
             return new UiVector2(childRect.X + childRect.Width - 2f, childRect.Y + childRect.Height - 2f);
         }
 
+        if (HasCurrentFlowRegion && _flowRegionBounds is { } flow) return new(flow.X + flow.Width, flow.Y + flow.Height);
         if (!_hasWindowRect)
         {
             return default;
@@ -123,6 +128,7 @@ public sealed partial class UiImmediateContext
         );
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public UiVector2 GetWindowContentRegionMin()
     {
         if (!_hasWindowRect)
@@ -133,6 +139,7 @@ public sealed partial class UiImmediateContext
         return _windowContentStart;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public UiVector2 GetWindowContentRegionMax()
     {
         return GetContentRegionMax();
@@ -234,48 +241,60 @@ public sealed partial class UiImmediateContext
         return _windowContentStart;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public bool IsWindowAppearing() => _windowAppearing;
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public bool IsWindowCollapsed() => _windowCollapsed;
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public bool IsWindowFocused()
     {
         return _currentWindowId is not null && string.Equals(_state.ActiveWindowId, _currentWindowId, StringComparison.Ordinal);
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public bool IsWindowHovered()
     {
         return _hasWindowRect && IsHovering(_windowRect);
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public UiDrawListBuilder GetWindowDrawList() => _builder;
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public UiVector2 GetWindowPos()
     {
         return _hasWindowRect ? new UiVector2(_windowRect.X, _windowRect.Y) : default;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public UiVector2 GetWindowSize()
     {
         return _hasWindowRect ? new UiVector2(_windowRect.Width, _windowRect.Height) : default;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public float GetWindowWidth() => _hasWindowRect ? _windowRect.Width : 0f;
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public float GetWindowHeight() => _hasWindowRect ? _windowRect.Height : 0f;
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetNextWindowPos(UiVector2 position)
     {
         _nextWindowPos = position;
         _hasNextWindowPos = true;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetNextWindowSize(UiVector2 size)
     {
         _nextWindowSize = size;
         _hasNextWindowSize = true;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetNextWindowSizeConstraints(UiVector2 min, UiVector2 max)
     {
         _nextWindowMinSize = min;
@@ -283,35 +302,41 @@ public sealed partial class UiImmediateContext
         _hasNextWindowSizeConstraints = true;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetNextWindowContentSize(UiVector2 size)
     {
         _nextWindowContentSize = size;
         _hasNextWindowContentSize = true;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetNextWindowOpen(bool open)
     {
         _nextWindowOpen = open;
         _hasNextWindowOpen = true;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetNextWindowCollapsed(bool collapsed)
     {
         _nextWindowCollapsed = collapsed;
         _hasNextWindowCollapsed = true;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetNextWindowFocus()
     {
         _hasNextWindowFocus = true;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetNextWindowTopMost(bool topMost = true)
     {
         _nextWindowTopMost = topMost;
         _hasNextWindowTopMost = true;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetNextWindowScroll(float scrollX, float scrollY)
     {
         _nextWindowScrollX = MathF.Max(0f, scrollX);
@@ -320,12 +345,14 @@ public sealed partial class UiImmediateContext
         _hasNextWindowScrollY = true;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetNextWindowBgAlpha(float alpha)
     {
         _nextWindowBgAlpha = alpha;
         _hasNextWindowBgAlpha = true;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetWindowPos(UiVector2 position)
     {
         if (_currentWindowId is null)
@@ -339,6 +366,7 @@ public sealed partial class UiImmediateContext
         _windowRect = rect;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetWindowPos(string title, UiVector2 position)
     {
         title ??= "Window";
@@ -351,6 +379,7 @@ public sealed partial class UiImmediateContext
         }
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetWindowSize(UiVector2 size)
     {
         if (_currentWindowId is null)
@@ -364,6 +393,7 @@ public sealed partial class UiImmediateContext
         _windowRect = rect;
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetWindowSize(string title, UiVector2 size)
     {
         title ??= "Window";
@@ -376,6 +406,7 @@ public sealed partial class UiImmediateContext
         }
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetWindowCollapsed(bool collapsed)
     {
         if (_currentWindowId is null)
@@ -383,32 +414,53 @@ public sealed partial class UiImmediateContext
             return;
         }
 
-        _state.SetWindowCollapsed(_currentWindowId, collapsed);
-        _windowCollapsed = collapsed;
+        SetWindowCollapsed(_currentWindowId,collapsed);
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetWindowCollapsed(string title, bool collapsed)
     {
         title ??= "Window";
-        _state.SetWindowCollapsed(title, collapsed);
+        if(_state.TryGetWindowRect(title,out var rect))
+            _state.SetWindowRect(title,ApplyPanelCollapsed(title,rect,collapsed));
+        else _state.SetWindowCollapsed(title,collapsed);
         if (string.Equals(_currentWindowId, title, StringComparison.Ordinal))
         {
             _windowCollapsed = collapsed;
+            if(_state.TryGetWindowRect(title,out var updated))_windowRect=updated;
         }
     }
 
+    private UiRect ApplyPanelCollapsed(string title,UiRect rect,bool collapsed)
+    {
+        if(_state.GetWindowCollapsed(title)!=collapsed)
+        {
+            if(collapsed)_state.SetWindowExpandedSize(title,new(rect.Width,rect.Height));
+            else
+            {
+                var size=_state.GetWindowExpandedSize(title,new(rect.Width,rect.Height));
+                rect=rect with {Width=size.X,Height=size.Y};
+            }
+        }
+        _state.SetWindowCollapsed(title,collapsed);
+        return rect;
+    }
+
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetWindowOpen(string title, bool open)
     {
         title ??= "Window";
         _state.SetWindowOpen(title, open);
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public bool GetWindowOpen(string title, bool defaultValue = true)
     {
         title ??= "Window";
         return _state.GetWindowOpen(title, defaultValue);
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetWindowFocus()
     {
         if (_currentWindowId is null)
@@ -420,6 +472,7 @@ public sealed partial class UiImmediateContext
         _state.BringWindowToFront(_currentWindowId);
     }
 
+    [UiComponent("Window",UiComponentExposure.Legacy),System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public void SetWindowFocus(string title)
     {
         title ??= "Window";
@@ -630,9 +683,9 @@ public sealed partial class UiImmediateContext
         }
     }
 
-    public void BeginWindow(string title)
+    public void BeginPanel(string title)
     {
-        title ??= "Window";
+        title ??= "Panel";
 
         if (_layouts.Count > 1)
         {
@@ -674,7 +727,7 @@ public sealed partial class UiImmediateContext
                 _tableStartY,
                 _tableRect,
                 _inMenuBar
-            ));
+            ){AutoHeight=_windowAutoHeight});
 
             _columnsActive = false;
             _columnsCount = 0;
@@ -706,6 +759,10 @@ public sealed partial class UiImmediateContext
             _inMenuBar = false;
         }
 
+        // Panels own a viewport clip for both chrome input and painting.
+        PushClipRect(_clipRect, false);
+        _windowAutoHeight=_nextWindowAutoHeight;
+        _nextWindowAutoHeight=false;
         var root = _windowRootLayout;
         var defaultY = MathF.Max(root.Cursor.Y, _mainMenuBarHeight);
         var maxWidth = MathF.Max(WindowMinWidth, _displaySize.X - 40f);
@@ -802,7 +859,7 @@ public sealed partial class UiImmediateContext
 
         if (_hasNextWindowCollapsed)
         {
-            _state.SetWindowCollapsed(title, _nextWindowCollapsed);
+            rect=ApplyPanelCollapsed(title,rect,_nextWindowCollapsed);
             _hasNextWindowCollapsed = false;
         }
 
@@ -908,6 +965,7 @@ public sealed partial class UiImmediateContext
             var offsetX = _state.GetScrollX(dragId);
             var offsetY = _state.GetScrollY(dragId);
             rect = new UiRect(_mousePosition.X - offsetX, _mousePosition.Y - offsetY, rect.Width, rect.Height);
+            rect=rect with {Y=MathF.Max(GetMainViewport().WorkPos.Y,rect.Y)};
         }
         else if (_state.ActiveId == dragId && !_leftMouseDown)
         {
@@ -1036,11 +1094,11 @@ public sealed partial class UiImmediateContext
         _state.SetWindowRect(title, rect);
 
         // Animate window height for collapse/expand transition (visual rendering only)
-        if (_state.ActiveId == resizeId)
+        if (!_windowAutoHeight&&_state.ActiveId == resizeId)
         {
             AnimateFloat($"{title}##window_height", rect.Height, 0.001f);
         }
-        else
+        else if(!_windowAutoHeight)
         {
             var animatedHeight = AnimateFloat($"{title}##window_height", rect.Height, 0.18f, UiAnimationEasing.OutCubic);
             rect = rect with { Height = animatedHeight };
@@ -1070,7 +1128,9 @@ public sealed partial class UiImmediateContext
         var isTopMostWindow = _state.GetWindowTopMost(title);
         if (isActiveWindow || isTopMostWindow)
         {
+            PopClipRect();
             PushOverlay();
+            PushClipRect(_clipRect, false);
             _windowOverlayStack.Push(true);
         }
         else
@@ -1121,14 +1181,7 @@ public sealed partial class UiImmediateContext
             AddRoundedRectFilled(collapseRect, collapseBg, MathF.Min(4f, collapseRect.Width * 0.3f));
         }
 
-        var collapseRotationDegrees = AnimateToggleRotationDegrees(
-            $"{title}##window_collapse",
-            expanded: _windowCollapsed,
-            collapsedDegrees: 0f,
-            expandedDegrees: 180f,
-            durationSeconds: 0.14f,
-            easing: UiAnimationEasing.OutCubic
-        );
+        var collapseRotationDegrees = SampleDisclosure(ResolveId(ResolveCachedIdentifier(title, "##window_collapse", true)), _windowCollapsed, 0, 180);
         DrawChevronIcon(collapseRect, collapseRotationDegrees, scale: 2f / 3f, thickness: 1.2f, color: _theme.WindowTitleText);
 
         if (closeHovered || closeHeld)
@@ -1278,13 +1331,14 @@ public sealed partial class UiImmediateContext
         return true;
     }
 
-    public void EndWindow()
+    public void EndPanel()
     {
         if (_layouts.Count <= 1)
         {
             throw new InvalidOperationException("Layout stack underflow.");
         }
 
+        FitAutomaticWindowHeight();
         // Scrollbar + mouse wheel handling (before popping layout/clip/overlay)
         if (_hasWindowRect && !_windowCollapsed && _currentWindowId is not null)
         {
@@ -1320,14 +1374,15 @@ public sealed partial class UiImmediateContext
             var popupBlocking = IsMouseOverHigherTierPopup(_popupTierDepth);
             if (hovered && !popupBlocking)
             {
+                var step = GetTextLineHeight() * 3f;
                 if (MathF.Abs(_mouseWheel) > 0.001f && maxScrollY > 0f)
                 {
-                    _windowScrollY = Math.Clamp(_windowScrollY - (_mouseWheel * _lineHeight * 3f), 0f, maxScrollY);
+                    _windowScrollY = ApplyScrollWheel(_windowScrollY, maxScrollY, step, ref _mouseWheel);
                 }
 
                 if (MathF.Abs(_mouseWheelHorizontal) > 0.001f && maxScrollX > 0f)
                 {
-                    _windowScrollX = Math.Clamp(_windowScrollX - (_mouseWheelHorizontal * _lineHeight * 3f), 0f, maxScrollX);
+                    _windowScrollX = ApplyScrollWheel(_windowScrollX, maxScrollX, step, ref _mouseWheelHorizontal);
                 }
             }
 
@@ -1406,6 +1461,7 @@ public sealed partial class UiImmediateContext
 
         _layouts.Pop();
         PopClipRect();
+        PopClipRect();
         if (_windowOverlayStack.Count > 0 && _windowOverlayStack.Pop())
         {
             PopOverlay();
@@ -1415,6 +1471,7 @@ public sealed partial class UiImmediateContext
         {
             var state = _windowStateStack.Pop();
             _windowRect = state.WindowRect;
+            _windowAutoHeight=state.AutoHeight;
             _hasWindowRect = state.HasWindowRect;
             _currentWindowId = state.CurrentWindowId;
             _windowContentStart = state.WindowContentStart;
@@ -1461,6 +1518,7 @@ public sealed partial class UiImmediateContext
         {
             _hasWindowRect = false;
             _currentWindowId = null;
+            _windowAutoHeight=false;
         }
     }
 

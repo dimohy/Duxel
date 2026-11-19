@@ -23,6 +23,19 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Duxel.Core\Duxel.Core.csproj" />
+    <Compile Include="../Shared/DirectWriteTextShaper.cs" Link="Interop/DirectWriteTextShaper.cs" />
+    <Compile Include="../Shared/DirectWriteHangulInput.cs" Link="Interop/DirectWriteHangulInput.cs" />
+    <Compile Include="../Shared/DirectWriteLongTextShaper.cs" Link="Interop/DirectWriteLongTextShaper.cs" />
+    <Compile Include="../Shared/DirectWriteLongTextShaper.Callbacks.cs" Link="Interop/DirectWriteLongTextShaper.Callbacks.cs" />
+    <Compile Include="../Shared/DirectWriteLongTextShaper.FontScope.cs" Link="Interop/DirectWriteLongTextShaper.FontScope.cs" />
+    <Compile Include="../Shared/DirectWriteLongTextShaper.Paragraph.cs" Link="Interop/DirectWriteLongTextShaper.Paragraph.cs" />
+    <Compile Include="../Shared/DirectWriteLongTextShaper.InlineObjects.cs" Link="Interop/DirectWriteLongTextShaper.InlineObjects.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(DuxelValidationHooks)' == 'true'">
+    <InternalsVisibleTo Include="Duxel.Rendering.Tests" />
+    <InternalsVisibleTo Include="Duxel.Graphics.Tests" />
+    <Compile Include="../../tests/Duxel.Rendering.Tests/WindowsValidationHooks.cs" Link="WindowsValidationHooks.cs" />
   </ItemGroup>
 
 </Project>

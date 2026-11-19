@@ -1,0 +1,10 @@
+[
+  { "scheme": "Light", "state": "Rest", "icon": [66, 66, 66], "secondary": [97, 97, 97], "secondaryHover": [66, 66, 66] },
+  { "scheme": "Light", "state": "Hover", "icon": [15, 108, 189], "secondary": [97, 97, 97], "secondaryHover": [66, 66, 66] },
+  { "scheme": "Light", "state": "Pressed", "icon": [15, 108, 189], "secondary": [97, 97, 97], "secondaryHover": [66, 66, 66] },
+  { "scheme": "Light", "state": "Disabled", "icon": [189, 189, 189], "secondary": [189, 189, 189], "secondaryHover": [189, 189, 189] },
+  { "scheme": "Dark", "state": "Rest", "icon": [214, 214, 214], "secondary": [173, 173, 173], "secondaryHover": [214, 214, 214] },
+  { "scheme": "Dark", "state": "Hover", "icon": [71, 158, 245], "secondary": [173, 173, 173], "secondaryHover": [214, 214, 214] },
+  { "scheme": "Dark", "state": "Pressed", "icon": [71, 158, 245], "secondary": [173, 173, 173], "secondaryHover": [214, 214, 214] },
+  { "scheme": "Dark", "state": "Disabled", "icon": [92, 92, 92], "secondary": [92, 92, 92], "secondaryHover": [92, 92, 92] }
+]

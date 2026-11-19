@@ -32,13 +32,6 @@ public sealed class HelloDuxelScreen : UiScreen
 {
     public override void Render(UiImmediateContext ui)
     {
-        var viewport = ui.GetMainViewport();
-        const float margin = 24f;
-
-        ui.SetNextWindowPos(new UiVector2(viewport.Pos.X + margin, viewport.Pos.Y + margin));
-        ui.SetNextWindowSize(new UiVector2(viewport.Size.X - margin * 2f, viewport.Size.Y - margin * 2f));
-        ui.BeginWindow("Hello Duxel Sample");
-
         ui.PushFontSize(18f);
         ui.Text("Hello");
         ui.PopFontSize();
@@ -49,6 +42,5 @@ public sealed class HelloDuxelScreen : UiScreen
         ui.Text("Duxel!");
         ui.PopFontSize();
 
-        ui.EndWindow();
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using Duxel.Core;
 using VkBuffer = Duxel.Vulkan.Buffer;
 using VulkanSemaphore = Duxel.Vulkan.Semaphore;
 
@@ -7,7 +8,7 @@ namespace Duxel.Vulkan;
 
 public sealed unsafe partial class VulkanRendererBackend
 {
-    private readonly record struct StaticGeometryBuffer(
+    private sealed record class StaticGeometryBuffer(
         string Tag,
         ulong ContentHash,
         VkBuffer VertexBuffer,
@@ -26,7 +27,15 @@ public sealed unsafe partial class VulkanRendererBackend
         int CirclePrimitiveCount,
         bool HasExpandedPrimitiveGeometry,
         int RectExpandedIndexBase,
-        int[]? CircleExpandedIndexOffsets);
+        int[]? CircleExpandedIndexOffsets)
+    {
+        public static StaticGeometryBuffer Empty { get; } = new(
+            string.Empty, 0, default, default, 0, 0, default, default, 0,
+            default, default, 0, 0, 0, 0, 0, false, 0, null);
+        public ulong IndexTopologyHash { get; init; }
+        public ulong CommandTopologyHash { get; init; }
+        public UiPooledList<UiDrawCommand>? TopologyCommands { get; init; }
+    }
 
     private readonly record struct StaticPrimitiveTriangleLayout(
         int VertexCount,
@@ -47,6 +56,8 @@ public sealed unsafe partial class VulkanRendererBackend
         public readonly int Width;
         public readonly int Height;
         public readonly Format Format;
+        public readonly bool ReusableText;
+        public readonly ulong AllocationBytes;
 
         public TextureResource(
             Image image,
@@ -55,7 +66,9 @@ public sealed unsafe partial class VulkanRendererBackend
             uint slotIndex,
             int width,
             int height,
-            Format format
+            Format format,
+            ulong allocationBytes,
+            bool reusableText = false
         )
         {
             Image = image;
@@ -65,6 +78,8 @@ public sealed unsafe partial class VulkanRendererBackend
             Width = width;
             Height = height;
             Format = format;
+            ReusableText = reusableText;
+            AllocationBytes = allocationBytes;
         }
     }
 
@@ -76,8 +91,16 @@ public sealed unsafe partial class VulkanRendererBackend
         public Fence InFlight;
         public QueryPool TimestampQueryPool;
         public bool TimestampQueryIssued;
+        public VectorProfileCounts ProfiledVectorCounts;
         public readonly List<PendingTextureDestroy> PendingTextureDestroys = new();
         public readonly List<PendingBufferDestroy> PendingBufferDestroys = new();
+        public readonly List<RetiredRenderTargets> PendingRenderTargets=[];
+        public ulong SubmittedSequence;
+    }
+
+    private struct VectorProfileCounts
+    {
+        public uint Blurs, Paths, Copies;
     }
 
     private readonly record struct FrameSemaphores(VulkanSemaphore ImageAvailable, VulkanSemaphore RenderFinished);
