@@ -7,6 +7,7 @@ namespace Duxel.Vulkan;
 public sealed unsafe partial class VulkanRendererBackend
 {
     private readonly Dictionary<UiTextureId, TextureResource> _textures = new();
+    private readonly HashSet<UiTextureId> _colorImageTextures = [];
     private readonly Stack<uint> _freeBindlessTextureSlots = new();
     private uint _nextBindlessTextureSlot;
     private readonly nuint _fontTextureIdValue;
@@ -30,6 +31,26 @@ public sealed unsafe partial class VulkanRendererBackend
             for (var i = 0; i < updates.Length; i++)
             {
                 var update = updates[i];
+                if (update.Kind == UiTextureUpdateKind.RenderVectorScene)
+                {
+                    RegisterVectorScene(update);
+                    hasLast = false;
+                    continue;
+                }
+                if (update.Kind == UiTextureUpdateKind.RenderPaintGroup)
+                {
+                    RegisterPaintGroup(update);
+                    continue;
+                }
+                if (update.Kind != UiTextureUpdateKind.Destroy && _paintGroupOutputs.ContainsKey(update.TextureId))
+                    throw new ArgumentException("Paint-group outputs cannot receive ordinary pixel uploads.");
+                _paintTextureRevisions[update.TextureId] = ++_paintTextureRevision;
+                var wasFont = IsFontTextureId(update.TextureId);
+                if (update.Kind == UiTextureUpdateKind.Create && !update.IsColorImage)
+                    _colorImageTextures.Remove(update.TextureId);
+                if (update.IsColorImage && update.Kind != UiTextureUpdateKind.Destroy)
+                    _colorImageTextures.Add(update.TextureId);
+                var samplingChanged = wasFont != IsFontTextureId(update.TextureId);
                 var sameId = hasLast && update.TextureId.Equals(lastId);
                 var hasExisting = lastHasExisting;
                 var existing = lastExisting;
@@ -52,7 +73,7 @@ public sealed unsafe partial class VulkanRendererBackend
                         {
                             if (existing.Width != update.Width
                                 || existing.Height != update.Height
-                                || existing.Format != expectedFormat)
+                                || existing.Format != expectedFormat || samplingChanged)
                             {
                                 DestroyTexture(update.TextureId);
                                 lastHasExisting = false;
@@ -78,7 +99,7 @@ public sealed unsafe partial class VulkanRendererBackend
                         {
                             if (existing.Width != update.Width
                                 || existing.Height != update.Height
-                                || existing.Format != expectedFormat)
+                                || existing.Format != expectedFormat || samplingChanged)
                             {
                                 DestroyTexture(update.TextureId);
                                 lastHasExisting = false;
@@ -111,6 +132,8 @@ public sealed unsafe partial class VulkanRendererBackend
                         break;
                     case UiTextureUpdateKind.Destroy:
                         DestroyTexture(update.TextureId);
+                        _paintTextureRevisions.Remove(update.TextureId);
+                        _colorImageTextures.Remove(update.TextureId);
                         lastHasExisting = false;
                         break;
                     default:
@@ -182,7 +205,13 @@ public sealed unsafe partial class VulkanRendererBackend
     private TextureResource CreateTextureResource(UiTextureUpdate update, ImageLayout initialLayout)
     {
         var format = ToVkFormat(update.Format);
-        CreateImage(
+        var reusableText = IsFontTextureId(update.TextureId) && update.Width <= 1024 && update.Height <= 128;
+        if (reusableText && update.CoversEntireTexture && TryReuseTextTexture(update.Width, update.Height, format, out var recycled))
+        {
+            UploadTextureData(recycled.Image, update, ImageLayout.ShaderReadOnlyOptimal);
+            return recycled;
+        }
+        var allocationBytes = CreateImage(
             update.Width,
             update.Height,
             format,
@@ -199,14 +228,14 @@ public sealed unsafe partial class VulkanRendererBackend
         var isFontTexture = IsFontTextureId(update.TextureId);
         var slotIndex = AllocateBindlessTextureSlot(view, isFontTexture);
 
-        return new TextureResource(image, memory, view, slotIndex, update.Width, update.Height, format);
+        return new TextureResource(image, memory, view, slotIndex, update.Width, update.Height, format, allocationBytes, reusableText);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsFontTextureId(UiTextureId textureId)
     {
         var value = textureId.Value;
-        return value == _fontTextureIdValue || value >= 1_100_000_000;
+        return !_colorImageTextures.Contains(textureId) && (value == _fontTextureIdValue || value >= 1_100_000_000);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -214,6 +243,8 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void DestroyTextureResources()
     {
+        DestroyIdleTextTextures();
+        _colorImageTextures.Clear();
         if (_textures.Count is 0)
         {
             return;
@@ -228,6 +259,9 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void DestroyTexture(UiTextureId textureId)
     {
+        ForgetVectorScene(textureId);
+        ForgetPaintGroup(textureId);
+        _paintTextureRevisions.Remove(textureId);
         if (!_textures.TryGetValue(textureId, out var resource))
         {
             return;
@@ -249,6 +283,8 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void DestroyTextureImmediate(UiTextureId textureId)
     {
+        ForgetPaintGroup(textureId);
+        _paintTextureRevisions.Remove(textureId);
         if (!_textures.TryGetValue(textureId, out var resource))
         {
             return;
@@ -282,7 +318,10 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
-    private void FlushPendingTextureDestroys(int frame)
+    // The caller waited this slot's fence, and the q + N retirement deadline
+    // covers the resource's last use. Later slots cannot reference a removed
+    // texture; waiting them would unnecessarily serialize unrelated new frames.
+    private void FlushRetiredTexturesAfterFrameFence(int frame)
     {
         if (_frames.Length == 0)
         {
@@ -310,15 +349,13 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
-        WaitForAllInFlightFrameFences();
-
         var write = 0;
         for (var i = 0; i < list.Count; i++)
         {
             var entry = list[i];
             if (_frameIndex >= entry.DestroyFrame)
             {
-                DestroyTextureResource(entry.Resource);
+                RecycleCompletedTextTexture(entry.Resource);
                 continue;
             }
 
@@ -372,6 +409,8 @@ public sealed unsafe partial class VulkanRendererBackend
                 || candidate.CoversEntireTexture
                 || !candidate.TextureId.Equals(first.TextureId)
                 || candidate.Format != first.Format
+                || candidate.IsColorImage != first.IsColorImage
+                || candidate.PreserveColorChannels != first.PreserveColorChannels
                 || candidate.Width != first.Width
                 || candidate.Height != first.Height)
             {
@@ -449,7 +488,7 @@ public sealed unsafe partial class VulkanRendererBackend
             var regionHeight = update.EffectiveRegionHeight;
             var expectedBytes = GetExpectedTextureDataSize(update.Format, regionWidth, regionHeight);
             var destination = new Span<byte>((byte*)_stagingMappedPtr + stagingOffset + (nuint)relativeOffset, (int)expectedBytes);
-            update.RgbaPixels.Span.CopyTo(destination);
+            CopyTexturePixels(update, destination);
 
             regions[i] = new BufferImageCopy
             {
@@ -499,28 +538,15 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void UploadTextureData(Image image, UiTextureUpdate update, ImageLayout initialLayout)
     {
+        ValidateTextureUpdateRegion(update);
         var regionWidth = update.EffectiveRegionWidth;
         var regionHeight = update.EffectiveRegionHeight;
         var expectedBytes = GetExpectedTextureDataSize(update.Format, regionWidth, regionHeight);
-        var source = update.RgbaPixels.Span;
-        byte[]? normalizedPixels = null;
-        ReadOnlySpan<byte> data;
-
-        if ((nuint)source.Length == expectedBytes)
-        {
-            data = source;
-        }
-        else
-        {
-            normalizedPixels = new byte[(int)expectedBytes];
-            source[..Math.Min(source.Length, normalizedPixels.Length)].CopyTo(normalizedPixels);
-            data = normalizedPixels;
-        }
 
         var bufferSize = expectedBytes;
         var commandBuffer = BeginStagingUpload(bufferSize, out var stagingOffset);
 
-        data.CopyTo(new Span<byte>((byte*)_stagingMappedPtr + stagingOffset, data.Length));
+        CopyTexturePixels(update, new Span<byte>((byte*)_stagingMappedPtr + stagingOffset, checked((int)expectedBytes)));
 
         try
         {
@@ -556,6 +582,14 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
+    private void CopyTexturePixels(in UiTextureUpdate update, Span<byte> destination)
+    {
+        if (_colorImageTextures.Contains(update.TextureId) && !update.PreserveColorChannels)
+            UiRgba8.Premultiply(update.RgbaPixels.Span, destination);
+        else
+            update.RgbaPixels.Span.CopyTo(destination);
+    }
+
     private static nuint GetExpectedTextureDataSize(UiTextureFormat format, int width, int height)
     {
         if (width <= 0 || height <= 0)
@@ -575,6 +609,13 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private uint AllocateBindlessTextureSlot(ImageView view, bool isFontTexture)
     {
+        if (_freeBindlessTextureSlots.Count == 0 && _nextBindlessTextureSlot >= BindlessTextureCapacity && _idleTextTextures.Count > 0)
+        {
+            var oldest = _idleTextTextures[0];
+            _idleTextTextures.RemoveAt(0);
+            _idleTextTextureBytes -= oldest.AllocationBytes;
+            DestroyTextureResource(oldest);
+        }
         if (!_freeBindlessTextureSlots.TryPop(out var slot))
         {
             if (_nextBindlessTextureSlot >= BindlessTextureCapacity)

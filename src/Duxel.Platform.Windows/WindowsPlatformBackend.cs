@@ -37,14 +37,21 @@ public readonly record struct WindowsPlatformBackendOptions(
 )
 {
     public DuxelTitleBarMode TitleBarMode { get; init; } = DuxelTitleBarMode.Default;
+    public bool FollowSystemForcedColors { get; init; } = true;
+    public bool EnableOrderedInput
+    {
+        get; init;
+    }
 }
 
 [SupportedOSPlatform("windows")]
 public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32PlatformBackend
     , IWindowChromeController
+    , IWindowThemeController
     , IWindowTitleBarPlatform
     , IWindowIconProvider
     , IPlatformThemeProvider
+    , IPlatformEventWakeBackend
 {
     private const uint VkStructureTypeWin32SurfaceCreateInfoKhr = 1000009000;
     private const int VkSuccess = 0;
@@ -88,6 +95,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint SwShow = 5;
     private const uint PmRemove = 0x0001;
     private const uint QsAllInput = 0x04FF;
+    private const uint QsSendMessage = 0x0040;
+    private const uint QsPaint = 0x0020;
+    private const uint QsPostMessage = 0x0008;
     private const uint MwmoInputAvailable = 0x0004;
     private const uint WaitTimeout = 0x00000102;
     private const uint MonitorDefaultToNearest = 2;
@@ -105,6 +115,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WmQuit = 0x0012;
     private const uint WmGetMinMaxInfo = 0x0024;
     private const uint WmNcCalcSize = 0x0083;
+    private const nint WvrRedraw = 0x0300;
     private const uint WmNcHitTest = 0x0084;
     private const uint WmNcMouseMove = 0x00A0;
     private const uint WmNcLButtonDown = 0x00A1;
@@ -136,6 +147,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WmEraseBkgnd = 0x0014;
     private const uint WmPaint = 0x000F;
     private const uint WmSettingChange = 0x001A;
+    private const uint WmSysColorChange = 0x0015;
+    private const uint WmThemeChanged = 0x031A;
     private const uint WmDpiChanged = 0x02E0;
     private const uint WmDwmCompositionChanged = 0x031E;
     private const uint WmNcMouseLeave = 0x02A2;
@@ -178,6 +191,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const int VkSpace = 0x20;
     private const int VkReturn = 0x0D;
     private const int VkEscape = 0x1B;
+    private const int VkApps = 0x5D;
     private const int VkF1 = 0x70;
     private const int VkF12 = 0x7B;
     private const int VkA = 0x41;
@@ -223,9 +237,11 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private readonly float _duxelTitleBarHeight;
     private int _duxelTitleBarHeightPx;
     private readonly bool _followSystemTheme;
+    private readonly bool _followSystemForcedColors;
     private readonly UiColor _chromeCaptionColor;
     private readonly UiColor _chromeTextColor;
     private readonly UiColor _chromeBorderColor;
+    private (UiColor Caption, UiColor Text, UiColor Border)? _applicationChromeColors;
     private readonly bool _showMinimizeButton;
     private readonly bool _showMaximizeButton;
     private readonly bool _centerOnScreen;
@@ -245,17 +261,24 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private float _dpiScale;
 
     private bool _shouldClose;
+    private bool _closeRequested;
     private bool _disposed;
     private int _sizeMoveActive;
     private int _clientWidth;
     private int _clientHeight;
     private long _interactiveResizeSequence;
     private long _presentedResizeSequence;
+    private readonly int _windowThreadId = Environment.CurrentManagedThreadId;
+    private int _independentPresentationThread;
     private int _interactiveResizeWaitCancelled;
+    private bool _resizePresentationWaitActive;
+    private readonly AutoResetEvent _resizeFramePresented = new(false);
     private int _firstFrameShowPosted;
     private int _windowShown;
-    private readonly AutoResetEvent _interactiveResizeFramePresented = new(false);
+    private long _hostVisibilityBits = 1;
+    private readonly AutoResetEvent _eventWake = new(false);
     private UiSystemColorScheme _colorScheme;
+    private UiForcedColorPalette? _forcedColors;
     private UiMouseCursor _currentCursor = UiMouseCursor.Arrow;
 
     static WindowsPlatformBackend()
@@ -264,15 +287,19 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     }
 
     public WindowsPlatformBackend(WindowsPlatformBackendOptions options)
+        : this(options, clientSizeInPhysicalPixels : false) { }
+
+    private WindowsPlatformBackend(WindowsPlatformBackendOptions options, bool clientSizeInPhysicalPixels)
     {
         ArgumentNullException.ThrowIfNull(options.KeyRepeatSettingsProvider);
         UiFontAtlasBuilder.ConfigurePlatformGlyphRasterizerFactory(static () => WindowsDirectWriteGlyphRasterizer.Instance);
         LogGlyphRasterizerWiring("GlyphRasterizerPolicy=DWrite(default)");
 
-        _inputBackend = new WindowsInputBackend(options.KeyRepeatSettingsProvider.GetSettings());
+        _inputBackend = new WindowsInputBackend(options.KeyRepeatSettingsProvider.GetSettings(), options.EnableOrderedInput, GetInputCoordinateScale);
         _cursorHandles = CreateCursorMap();
         _frameInvalidated = options.FrameInvalidated;
         _colorScheme = WindowsSystemTheme.GetAppColorScheme();
+        _forcedColors = WindowsSystemTheme.GetForcedColors();
 
         if (options.Width <= 0)
         {
@@ -301,6 +328,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         _duxelTitleBarHeight = MathF.Max(32f, options.DuxelTitleBarHeight);
         _duxelTitleBarHeightPx = Math.Max(1, (int)MathF.Round(_duxelTitleBarHeight * _dpiScale));
         _followSystemTheme = options.FollowSystemTheme;
+        _followSystemForcedColors = options.FollowSystemForcedColors;
         _chromeCaptionColor = options.ChromeCaptionColor;
         _chromeTextColor = options.ChromeTextColor;
         _chromeBorderColor = options.ChromeBorderColor;
@@ -357,8 +385,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             }
         }
 
-        var scaledWidth = (int)MathF.Round(options.Width * _dpiScale);
-        var scaledHeight = (int)MathF.Round(options.Height * _dpiScale);
+        var widthScale = clientSizeInPhysicalPixels ? 1f : _dpiScale;
+        var scaledWidth = (int)MathF.Round(options.Width * widthScale);
+        var scaledHeight = (int)MathF.Round(options.Height * widthScale);
 
         var windowTitle = _windowTitle;
 
@@ -401,8 +430,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         }
 
         UpdateCachedClientSize(_windowHandle);
+        UpdateHostVisibility(_windowHandle);
 
-        _imeHandler = new WindowsImeHandler(_windowHandle, options.FrameInvalidated);
+        _accessibilityHost = new WindowsAccessibility(_windowHandle, RequestAccessibilityCleanup);
+
+        _imeHandler = new WindowsImeHandler(_windowHandle, options.FrameInvalidated, _inputBackend.ResetCharacterSequence,
+            options.EnableOrderedInput ? _inputBackend.CaptureIme : null);
 
         if (_integrateSystemChrome || _titleBarMode is not DuxelTitleBarMode.System)
         {
@@ -456,6 +489,11 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
         _vulkanSurface = new WindowsVulkanSurfaceSource(_instanceHandle, _windowHandle);
         _stopwatch = Stopwatch.StartNew();
+        try
+        {
+            _systemTextScale = new(() => _eventWake.Set());
+        }
+        catch { Dispose(); throw; }
     }
 
     private static void LogGlyphRasterizerWiring(string message)
@@ -495,14 +533,26 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     public PlatformSize FramebufferSize => WindowSize;
 
     public float ContentScale => _dpiScale;
+    public float TextScale => _systemTextScale?.Scale ?? 1f;
+    private readonly WindowsSystemTextScale? _systemTextScale;
 
     public bool IsInteractingResize => Volatile.Read(ref _sizeMoveActive) == 1;
 
     public long InteractiveResizeSequence => Volatile.Read(ref _interactiveResizeSequence);
 
+    public UiHostVisibility HostVisibility
+    {
+        get
+        {
+            var bits = Volatile.Read(ref _hostVisibilityBits);
+            return new((bits & 1) != 0, bits >> 1);
+        }
+    }
+
     public bool ShouldClose => _shouldClose;
 
     public UiSystemColorScheme ColorScheme => _colorScheme;
+    public UiForcedColorPalette? ForcedColors => _forcedColors;
 
     public double TimeSeconds => _stopwatch.Elapsed.TotalSeconds;
 
@@ -576,23 +626,38 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         PumpPendingMessages();
     }
 
-    public void WaitEvents(int timeoutMilliseconds)
+    public unsafe void WaitEvents(int timeoutMilliseconds)
     {
         ThrowIfDisposed();
         _inputBackend.BeginFrame();
 
-        if (timeoutMilliseconds <= 0)
+        var safeHandle = _eventWake.SafeWaitHandle;
+        var handleAcquired = false;
+        try
         {
-            _ = WaitMessage();
-            PumpPendingMessages();
-            return;
+            // Keep the kernel handle alive for the entire native wait.
+            safeHandle.DangerousAddRef(ref handleAcquired);
+            var wakeHandle = safeHandle.DangerousGetHandle();
+            var timeout = timeoutMilliseconds > 0 ? (uint)timeoutMilliseconds : uint.MaxValue;
+            var waitResult = MsgWaitForMultipleObjectsEx(1, (nint)(&wakeHandle), timeout, QsAllInput, MwmoInputAvailable);
+            if (waitResult == uint.MaxValue)
+                throw new System.ComponentModel.Win32Exception(Marshal.GetLastPInvokeError(), "Platform event wait failed.");
+            if (waitResult != 0 && waitResult != 1 && waitResult != WaitTimeout)
+                throw new InvalidOperationException($"Unexpected platform wait result: 0x{waitResult:X8}.");
+            if (waitResult != WaitTimeout)
+                PumpPendingMessages();
         }
+        finally
+        {
+            if (handleAcquired)
+                safeHandle.DangerousRelease();
+        }
+    }
 
-        var waitResult = MsgWaitForMultipleObjectsEx(0, nint.Zero, (uint)timeoutMilliseconds, QsAllInput, MwmoInputAvailable);
-        if (waitResult != WaitTimeout)
-        {
-            PumpPendingMessages();
-        }
+    public void WakeEvents()
+    {
+        ThrowIfDisposed();
+        _eventWake.Set();
     }
 
     public void SetMouseCursor(UiMouseCursor cursor)
@@ -623,13 +688,30 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         _imeHandler.Dispose();
         _trayIcon?.Dispose();
 
-        if (_windowHandle != nint.Zero)
+        try
         {
-            _ = DestroyWindow(_windowHandle);
+            try
+            {
+                _systemTextScale?.Dispose();
+            }
+            finally { _accessibilityHost?.Dispose(); }
         }
+        finally
+        {
+            if (_windowHandle != nint.Zero)
+            {
+                // Re-enable the modal owner before destroying its child to preserve activation order.
+                if (_closeRequested && _ownerWindowHandle != nint.Zero)
+                {
+                    _ = EnableWindow(_ownerWindowHandle, true);
+                }
+                _ = DestroyWindow(_windowHandle);
+            }
 
-        CleanupRegistrationOnly();
-        _interactiveResizeFramePresented.Dispose();
+            CleanupRegistrationOnly();
+            _eventWake.Dispose();
+            _resizeFramePresented.Dispose();
+        }
     }
 
     private static Rect UnsafeRectForCreate(int width, int height) => new()
@@ -712,31 +794,84 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     public void NotifyFramePresented(long interactiveResizeSequence)
     {
-        while (true)
+        long current;
+        do
         {
-            var current = Volatile.Read(ref _presentedResizeSequence);
+            current = Volatile.Read(ref _presentedResizeSequence);
             if (current >= interactiveResizeSequence)
-            {
                 return;
-            }
-
-            if (Interlocked.CompareExchange(
-                    ref _presentedResizeSequence,
-                    interactiveResizeSequence,
-                    current) == current)
-            {
-                break;
-            }
-        }
-
-        _interactiveResizeFramePresented.Set();
+        } while (Interlocked.CompareExchange(ref _presentedResizeSequence, interactiveResizeSequence, current) != current);
+        _resizeFramePresented.Set();
     }
 
     public void CancelInteractiveResizeWait()
     {
+        ObserveResizeCancellation();
         Volatile.Write(ref _interactiveResizeWaitCancelled, 1);
-        _interactiveResizeFramePresented.Set();
+        _resizeFramePresented.Set();
     }
+
+    private unsafe void PresentCommittedResize()
+    {
+        if (_frameInvalidated is null || Volatile.Read(ref _independentPresentationThread) == 0
+            || _resizePresentationWaitActive || !IsInteractingResize || Volatile.Read(ref _windowShown) == 0
+            || Volatile.Read(ref _clientWidth) <= 0 || Volatile.Read(ref _clientHeight) <= 0)
+            return;
+        var enabled = true;
+        SelectValidationResizePresentationWait(ref enabled);
+        if (!enabled)
+            return;
+        _resizePresentationWaitActive = true;
+        var safeHandle = _resizeFramePresented.SafeWaitHandle;
+        var acquired = false;
+        try
+        {
+            safeHandle.DangerousAddRef(ref acquired);
+            var handle = safeHandle.DangerousGetHandle();
+            while (Volatile.Read(ref _presentedResizeSequence) < InteractiveResizeSequence
+                && Volatile.Read(ref _interactiveResizeWaitCancelled) == 0 && !_shouldClose)
+            {
+                // Keep WSI sent messages and native System paints dispatchable;
+                // do not consume the next queued mouse/size gesture recursively.
+                var systemChrome = _titleBarMode is DuxelTitleBarMode.System;
+                var queueMask = QsSendMessage | (systemChrome ? QsPaint | QsPostMessage : 0u);
+                var result = MsgWaitForMultipleObjectsEx(1, (nint)(&handle), uint.MaxValue, queueMask, MwmoInputAvailable);
+                if (result == uint.MaxValue)
+                    throw new System.ComponentModel.Win32Exception(Marshal.GetLastPInvokeError(), "Resize presentation wait failed.");
+                if (result == 1)
+                {
+                    if (!systemChrome)
+                        _ = PeekMessageW(out _, nint.Zero, 0, 0, QsSendMessage << 16);
+                    else if (PeekMessageW(out var pending, nint.Zero, 0, 0x009F, (queueMask << 16) | PmRemove)
+                        || PeekMessageW(out pending, nint.Zero, 0x031A, 0x0326, (queueMask << 16) | PmRemove)
+                        || PeekMessageW(out pending, nint.Zero, 0x0400, 0xFFFF, (queueMask << 16) | PmRemove))
+                    {
+                        ObserveResizeSystemMessage(pending.message);
+                        if (pending.message == WmQuit)
+                        {
+                            _shouldClose = true;
+                            CancelInteractiveResizeWait();
+                        }
+                        else
+                            _ = DispatchMessageW(ref pending);
+                    }
+                }
+                else if (result != 0)
+                    throw new InvalidOperationException($"Unexpected resize presentation wait result: 0x{result:X8}.");
+            }
+        }
+        finally
+        {
+            if (acquired)
+                safeHandle.DangerousRelease();
+            _resizePresentationWaitActive = false;
+        }
+    }
+
+    partial void ObserveResizeCommit(long committedSequence, long presentedSequence);
+    partial void ObserveResizeSystemMessage(uint message);
+    partial void ObserveResizeCancellation();
+    partial void SelectValidationResizePresentationWait(ref bool enabled);
 
     private void BeginWindowMoveCore()
     {
@@ -832,6 +967,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     public void NotifyFirstFramePresented()
     {
         ThrowIfDisposed();
+        // A host rendering on the window thread cannot produce another frame
+        // while this thread is inside WM_SIZE. Only independent producers join.
+        Volatile.Write(ref _independentPresentationThread, Environment.CurrentManagedThreadId != _windowThreadId ? 1 : 0);
         if (Interlocked.Exchange(ref _firstFrameShowPosted, 1) is not 0)
         {
             return;
@@ -1024,25 +1162,6 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         Volatile.Write(ref _clientHeight, rect.bottom - rect.top);
     }
 
-    private unsafe void UpdateCachedClientSizeFromSizingRect(nint hwnd, nint lParam)
-    {
-        if (!GetWindowRect(hwnd, out var currentWindowRect))
-        {
-            throw new InvalidOperationException($"GetWindowRect failed: {Marshal.GetLastPInvokeError()}");
-        }
-
-        var sizingRect = *(Rect*)lParam;
-        var currentWindowWidth = currentWindowRect.right - currentWindowRect.left;
-        var currentWindowHeight = currentWindowRect.bottom - currentWindowRect.top;
-        var nonClientWidth = Math.Max(0, currentWindowWidth - Volatile.Read(ref _clientWidth));
-        var nonClientHeight = Math.Max(0, currentWindowHeight - Volatile.Read(ref _clientHeight));
-        var predictedClientWidth = Math.Max(0, sizingRect.right - sizingRect.left - nonClientWidth);
-        var predictedClientHeight = Math.Max(0, sizingRect.bottom - sizingRect.top - nonClientHeight);
-
-        Volatile.Write(ref _clientWidth, predictedClientWidth);
-        Volatile.Write(ref _clientHeight, predictedClientHeight);
-    }
-
     private void PumpPendingMessages()
     {
         while (PeekMessageW(out var message, nint.Zero, 0, 0, PmRemove))
@@ -1053,8 +1172,11 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 break;
             }
 
-            _ = TranslateMessage(ref message);
-            _ = DispatchMessageW(ref message);
+            DispatchQueuedInput(ref message);
+        }
+        if (_systemTextScale?.Refresh() == true)
+        {
+            _frameInvalidated?.Invoke();
         }
     }
 
@@ -1105,8 +1227,39 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         _ = ShowWindow(_windowHandle, 0);
     }
 
+    private void UpdateHostVisibility(nint hwnd)
+    {
+        var previous = HostVisibility;
+        var hidden = !IsWindowVisible(hwnd) || IsIconic(hwnd);
+        if (hidden != previous.IsHidden)
+        {
+            var sequence = previous.HideSequence + (hidden ? 1 : 0);
+            Volatile.Write(ref _hostVisibilityBits, (sequence << 1) | (hidden ? 1L : 0L));
+        }
+    }
+
     private nint WindowProc(nint hwnd, uint message, nuint wParam, nint lParam)
     {
+        if (message is 0x0007 or 0x0008)
+            RequestAccessibilityFocusSync();
+        if (message == WmAccessibilityFocus)
+        {
+            Interlocked.Exchange(ref _accessibilityFocusPosted, 0);
+            _accessibilityHost?.SynchronizeFocus();
+            return 0;
+        }
+        if (message == WmAccessibilityCleanup)
+        {
+            _accessibilityHost?.DrainRetiredProviders();
+            return 0;
+        }
+        // UIA uses a signed 32-bit object ID even on 64-bit Windows.
+        if (message == 0x003D && unchecked((int)lParam) == -25
+            && _accessibilityHost is { Serving: true } accessibility)
+        {
+            return accessibility.Return(wParam, lParam);
+        }
+
         if (message == WmNccreate)
         {
             unsafe
@@ -1177,7 +1330,10 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                     return 0;
                 }
 
-                break;
+                // Keep Windows' native non-client geometry, but do not copy the
+                // old client bitmap over a freshly presented Vulkan surface.
+                var ncResult = DefWindowProcW(hwnd, message, wParam, lParam);
+                return wParam != 0 ? WvrRedraw : ncResult;
             case WmNcHitTest:
                 if (_useDuxelTitleBar && _resizable && TryHitTestResizeBorder(hwnd, lParam, out var hitTest))
                 {
@@ -1226,9 +1382,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             case WmPaint:
                 _ = BeginPaint(hwnd, out var ps);
                 _ = EndPaint(hwnd, ref ps);
+                _frameInvalidated?.Invoke();
                 return 0;
             case WmEnterSizeMove:
-                Volatile.Write(ref _interactiveResizeWaitCancelled, 0);
                 Volatile.Write(ref _sizeMoveActive, 1);
                 _frameInvalidated?.Invoke();
                 break;
@@ -1240,6 +1396,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             case WmSize:
                 Volatile.Write(ref _clientWidth, unchecked((ushort)(nuint)lParam));
                 Volatile.Write(ref _clientHeight, unchecked((ushort)((nuint)lParam >> 16)));
+                Interlocked.Increment(ref _interactiveResizeSequence);
                 if (_trayIcon is not null)
                 {
                     if (wParam == SizeMinimized && _trayIcon.HideWindowOnMinimize)
@@ -1255,23 +1412,26 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 }
 
                 _frameInvalidated?.Invoke();
+                // Preserve the accepted live-resize ordering: do not return the
+                // committed size transaction before its new frame is submitted.
+                // A nested WSI message is covered by the outer sequence wait.
+                var ownsResizeWait = !_resizePresentationWaitActive;
+                PresentCommittedResize();
+                if (ownsResizeWait && IsInteractingResize && Volatile.Read(ref _windowShown) != 0)
+                    ObserveResizeCommit(InteractiveResizeSequence, Volatile.Read(ref _presentedResizeSequence));
                 break;
 
             case WmWindowPosChanging:
                 _frameInvalidated?.Invoke();
                 break;
             case WmWindowPosChanged:
+                UpdateHostVisibility(hwnd);
                 _frameInvalidated?.Invoke();
                 break;
             case WmSizing:
-                UpdateCachedClientSizeFromSizingRect(hwnd, lParam);
-                var resizeSequence = Interlocked.Increment(ref _interactiveResizeSequence);
+                // WM_SIZING proposes an outer rectangle; WM_SIZE commits the
+                // actual client extent used by layout and the Vulkan surface.
                 _frameInvalidated?.Invoke();
-                while (Volatile.Read(ref _presentedResizeSequence) < resizeSequence
-                    && Volatile.Read(ref _interactiveResizeWaitCancelled) == 0)
-                {
-                    _interactiveResizeFramePresented.WaitOne();
-                }
                 return 1;
             case WmNcMouseMove:
                 _frameInvalidated?.Invoke();
@@ -1368,9 +1528,11 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             case WmNcMouseLeave:
                 break;
             case WmSettingChange:
-                if (IsImmersiveColorSetChange(lParam) && RefreshColorSchemeFromSystem())
+            case WmSysColorChange:
+            case WmThemeChanged:
+                if (RefreshColorSchemeFromSystem())
                 {
-                    if (_followSystemTheme)
+                    if (_followSystemTheme || _followSystemForcedColors)
                     {
                         ApplyCurrentSystemChrome();
                     }
@@ -1385,20 +1547,21 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 }
 
                 _shouldClose = true;
-                // Raymond Chen: Re-enable owner BEFORE DestroyWindow.
-                // Otherwise Windows activates an unrelated window (flicker).
-                // https://devblogs.microsoft.com/oldnewthing/20040227-00/?p=40463
-                if (_ownerWindowHandle != nint.Zero)
-                {
-                    _ = EnableWindow(_ownerWindowHandle, true);
-                }
-                _ = DestroyWindow(hwnd);
+                // The owner stops frame production before disposing the HWND and its UIA providers.
+                _closeRequested = true;
+                // Acknowledge accepted close immediately while keeping the HWND alive
+                // until render, Vulkan surface and accessibility teardown complete.
+                _ = ShowWindow(hwnd, 0);
+                CancelInteractiveResizeWait();
                 return 0;
             case WmDestroy:
+                _accessibilityHost?.ReleaseWindowAssociation();
                 _trayIcon?.Dispose();
                 Volatile.Write(ref _sizeMoveActive, 0);
                 _shouldClose = true;
-                PostQuitMessage(0);
+                // The owner already stopped its loop before disposing the window.
+                if (!_disposed)
+                    PostQuitMessage(0);
                 return 0;
         }
 
@@ -1702,11 +1865,32 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         return Math.Max(1, GetSystemMetricsForDpi(smCySizeFrame, dpi) + GetSystemMetricsForDpi(smCyPaddedBorder, dpi));
     }
 
+    public void SetWindowColors(UiColor caption, UiColor text, UiColor border)
+    {
+        ThrowIfDisposed();
+        if (!_integrateSystemChrome && _titleBarMode is DuxelTitleBarMode.System) return;
+        var colors = (Caption : caption, Text : text, Border : border);
+        if (_applicationChromeColors == colors) return;
+        _applicationChromeColors = colors;
+        ApplyCurrentSystemChrome();
+    }
+
     private void ApplyCurrentSystemChrome()
     {
+        if (_followSystemForcedColors && _forcedColors is { } palette)
+        {
+            ApplyIntegratedSystemChrome(_windowHandle, palette.Canvas, palette.CanvasText, palette.CanvasText);
+            return;
+        }
+        if (_applicationChromeColors is { } application)
+        {
+            ApplyIntegratedSystemChrome(_windowHandle, application.Caption, application.Text, application.Border);
+            return;
+        }
         if (_followSystemTheme)
         {
-            var theme = WindowsSystemTheme.GetAppDesign().Theme;
+            var theme = (_colorScheme is UiSystemColorScheme.Dark
+                ? UiCompiledDesign.Windows11Dark : UiCompiledDesign.Windows11).Theme;
             ApplyIntegratedSystemChrome(_windowHandle, theme.TitleBgActive, theme.WindowTitleText, theme.Border);
             return;
         }
@@ -1717,24 +1901,15 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private bool RefreshColorSchemeFromSystem()
     {
         var next = WindowsSystemTheme.GetAppColorScheme();
-        if (next == _colorScheme)
+        var forcedColors = WindowsSystemTheme.GetForcedColors();
+        if (next == _colorScheme && forcedColors == _forcedColors)
         {
             return false;
         }
 
         _colorScheme = next;
+        _forcedColors = forcedColors;
         return true;
-    }
-
-    private static bool IsImmersiveColorSetChange(nint lParam)
-    {
-        if (lParam == nint.Zero)
-        {
-            return true;
-        }
-
-        var area = Marshal.PtrToStringUni(lParam);
-        return string.Equals(area, "ImmersiveColorSet", StringComparison.Ordinal);
     }
 
     private static Dictionary<UiMouseCursor, nint> CreateCursorMap()
@@ -1755,12 +1930,14 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     private static nint LoadSystemCursor(int cursorId) => LoadCursorW(nint.Zero, (nint)cursorId);
 
-    private sealed class WindowsInputBackend(UiKeyRepeatSettings keyRepeatSettings) : IInputBackend
+    private sealed partial class WindowsInputBackend(UiKeyRepeatSettings keyRepeatSettings, bool orderedInput, Func<float> coordinateScale) : IInputBackend
     {
         private readonly List<UiKeyEvent> _keyEvents = [];
         private readonly List<UiCharEvent> _charEvents = [];
+        private WindowsCharacterDecoder _characterDecoder;
         private nint _hwnd;
         private UiVector2 _mousePosition;
+        private bool _windowInactive = true;
         private bool _leftDown;
         private bool _rightDown;
         private bool _middleDown;
@@ -1792,10 +1969,15 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             _charEvents,
             keyRepeatSettings,
             GetModifiers()
-        );
+        )
+        {
+            IsWindowInactive = _windowInactive,
+            OrderedInputs = orderedInput ? _orderedInputs : null
+        };
 
         public void BeginFrame()
         {
+            _orderedInputs.Clear();
             _keyEvents.Clear();
             _charEvents.Clear();
             _leftPressedEvent = false;
@@ -1808,8 +1990,15 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             _wheelHorizontal = 0;
         }
 
+        public void ResetCharacterSequence()
+        {
+            _characterDecoder = _imeGlyphDecoder = default;
+            _pendingCharacterDispatch = null;
+        }
+
         public void CancelMouseButtons()
         {
+            var hadButtons = _leftDown || _rightDown || _middleDown;
             _leftDown = false;
             _rightDown = false;
             _middleDown = false;
@@ -1820,10 +2009,17 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             _middlePressedEvent = false;
             _middleReleasedEvent = false;
             ReleaseCapture();
+            if (orderedInput && hadButtons)
+                _orderedInputs.Add(CurrentInput());
         }
 
         public void HandleMessage(uint message, nuint wParam, nint lParam)
         {
+            var previous = orderedInput ? CurrentInput() : default;
+            var keyCount = _keyEvents.Count;
+            var charCount = _charEvents.Count;
+            var wheel = _wheel;
+            var horizontal = _wheelHorizontal;
             switch (message)
             {
                 case WmNcMouseMove:
@@ -1841,21 +2037,27 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                     break;
                 case WmLButtonDown:
                 case WmLButtonDblClk:
+                    _mousePosition = new(GetXFromLParam(lParam), GetYFromLParam(lParam));
                     SetMouseButton(UiMouseButton.Left, true);
                     break;
                 case WmLButtonUp:
+                    _mousePosition = new(GetXFromLParam(lParam), GetYFromLParam(lParam));
                     SetMouseButton(UiMouseButton.Left, false);
                     break;
                 case WmRButtonDown:
+                    _mousePosition = new(GetXFromLParam(lParam), GetYFromLParam(lParam));
                     SetMouseButton(UiMouseButton.Right, true);
                     break;
                 case WmRButtonUp:
+                    _mousePosition = new(GetXFromLParam(lParam), GetYFromLParam(lParam));
                     SetMouseButton(UiMouseButton.Right, false);
                     break;
                 case WmMButtonDown:
+                    _mousePosition = new(GetXFromLParam(lParam), GetYFromLParam(lParam));
                     SetMouseButton(UiMouseButton.Middle, true);
                     break;
                 case WmMButtonUp:
+                    _mousePosition = new(GetXFromLParam(lParam), GetYFromLParam(lParam));
                     SetMouseButton(UiMouseButton.Middle, false);
                     break;
                 case WmMouseWheel:
@@ -1880,7 +2082,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                         var key = MapVirtualKey((int)wParam);
                         if (key != UiKey.None)
                         {
-                            _keyEvents.Add(new UiKeyEvent(key, true, GetModifiers()));
+                            _heldKeys.Add(key);
+                            var modifiers = GetModifiers();
+                            var repeats = WindowsInputRepetition.Count((nuint)lParam);
+                            var held = ((nuint)lParam & 0x40000000u) != 0;
+                            for (var i = 0; i < repeats; i++)
+                                _keyEvents.Add(new UiKeyEvent(key, true, modifiers) { IsRepeat = held || i > 0 });
                         }
                         break;
                     }
@@ -1890,16 +2097,50 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                         var key = MapVirtualKey((int)wParam);
                         if (key != UiKey.None)
                         {
+                            _heldKeys.Remove(key);
                             _keyEvents.Add(new UiKeyEvent(key, false, GetModifiers()));
                         }
                         break;
                     }
                 case WmChar:
-                    // Control characters (< 0x20) are handled via UiKeyEvent, not char events.
-                    // Feeding them into charEvents triggers font atlas rebuild for non-renderable glyphs.
-                    if (wParam >= 32)
-                        _charEvents.Add(new UiCharEvent((uint)wParam));
+                    if (_characterDecoder.TryDecode((uint)wParam, WindowsInputRepetition.Count((nuint)lParam), out var scalar, out var scalarRepeats))
+                        for (var i = 0; i < scalarRepeats; i++)
+                            _charEvents.Add(new UiCharEvent(scalar));
                     break;
+                case 0x0006: // WM_ACTIVATE: low word is WA_INACTIVE, WA_ACTIVE or WA_CLICKACTIVE.
+                    _windowInactive = (wParam & 0xffff) == 0;
+                    break;
+                case 0x0008: // WM_KILLFOCUS
+                    ReleaseHeldKeys();
+                    _characterDecoder = default;
+                    break;
+                case 0x010D: // WM_IME_STARTCOMPOSITION
+                case 0x010E: // WM_IME_ENDCOMPOSITION
+                    _characterDecoder = default;
+                    break;
+            }
+            if (orderedInput)
+            {
+                var next = CurrentInput() with
+                {
+                    LeftMousePressed = !previous.LeftMouseDown && _leftDown,
+                    LeftMouseReleased = previous.LeftMouseDown && !_leftDown,
+                    RightMousePressed = !previous.RightMouseDown && _rightDown,
+                    RightMouseReleased = previous.RightMouseDown && !_rightDown,
+                    MiddleMousePressed = !previous.MiddleMouseDown && _middleDown,
+                    MiddleMouseReleased = previous.MiddleMouseDown && !_middleDown,
+                    MouseWheel = _wheel - wheel,
+                    MouseWheelHorizontal = _wheelHorizontal - horizontal,
+                    KeyEvents = CaptureEvents(_keyEvents, keyCount),
+                    CharEvents = CaptureEvents(_charEvents, charCount),
+                    Dispatch = message == WmChar ? _pendingCharacterDispatch : null
+                };
+                if (next.Dispatch is not null || next.MousePosition != previous.MousePosition
+                    || next.LeftMouseDown != previous.LeftMouseDown || next.RightMouseDown != previous.RightMouseDown || next.MiddleMouseDown != previous.MiddleMouseDown
+                    || next.KeyEvents.Count > 0 || next.CharEvents.Count > 0 || next.MouseWheel != 0 || next.MouseWheelHorizontal != 0)
+                    _orderedInputs.Add(next);
+                if (message == WmChar)
+                    _pendingCharacterDispatch = null;
             }
         }
 
@@ -2024,6 +2265,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 VkSpace => UiKey.Space,
                 VkReturn => UiKey.Enter,
                 VkEscape => UiKey.Escape,
+                VkApps => UiKey.ContextMenu,
                 >= VkA and <= VkZ => (UiKey)(UiKey.A + (virtualKey - VkA)),
                 >= VkF1 and <= VkF12 => (UiKey)(UiKey.F1 + (virtualKey - VkF1)),
                 _ => UiKey.None,
@@ -2313,6 +2555,14 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private static partial bool IsZoomed(nint hWnd);
 
     [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsWindowVisible(nint hWnd);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsIconic(nint hWnd);
+
+    [LibraryImport("user32.dll")]
     private static partial nint SendMessageW(nint hWnd, uint msg, nuint wParam, nint lParam);
 
     [LibraryImport("user32.dll", SetLastError = true)]
@@ -2344,9 +2594,6 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetForegroundWindow(nint hWnd);
 
-    [LibraryImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool WaitMessage();
 
     [LibraryImport("user32.dll")]
     private static partial nint BeginPaint(nint hWnd, out PaintStruct lpPaint);

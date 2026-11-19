@@ -22,11 +22,24 @@ DuxelApp.Run(new DuxelAppOptions
         Height = 740,
         VSync = false
     },
-    Screen = new AllFeaturesScreen()
+    Screen = new AllFeaturesScreen { UsePanels = args.Contains("--panels") }
 });
 
 public sealed class AllFeaturesScreen : UiScreen
 {
+    // Panels are an explicit demonstration/compatibility mode, never the default page shell.
+    public bool UsePanels { get; set; }
+    private string _selectedPage = TextWindowTitle;
+    private void BeginSection(UiImmediateContext ui,string title)
+    {
+        if(UsePanels)ui.BeginPanel(title);
+        else {ui.PushID(title);ui.BeginGroup();}
+    }
+    private void EndSection(UiImmediateContext ui)
+    {
+        if(UsePanels)ui.EndPanel();
+        else {ui.EndGroup();ui.PopID();}
+    }
     private const string LayoutAlphaPreviewTitle = "Layout Alpha Preview";
 
     private const string TextWindowTitle = "Text & Links";
@@ -152,6 +165,8 @@ public sealed class AllFeaturesScreen : UiScreen
 
     private void InitWindowOnce(UiImmediateContext ui, string name, UiVector2 size)
     {
+        if(!UsePanels)return;
+        if(ui.HasPanelPlacement(name))return;
         var viewport = ui.GetMainViewport();
         const float outerPadding = 8f;
         var menuHeight = MathF.Max(ui.GetFrameHeight(), 24f);
@@ -162,11 +177,11 @@ public sealed class AllFeaturesScreen : UiScreen
             MathF.Max(320f, viewport.WorkSize.X - (outerPadding * 2f)),
             MathF.Max(220f, viewport.WorkSize.Y - menuHeight - (outerPadding * 2f)));
 
-        ui.SetNextWindowPos(pos);
-        ui.SetNextWindowSize(targetSize);
+        ui.SetNextPanelPos(pos);
+        ui.SetNextPanelSize(targetSize);
         if (_focusWindowName == name)
         {
-            ui.SetNextWindowFocus();
+            ui.SetNextPanelFocus();
             _focusWindowName = null;
         }
     }
@@ -184,11 +199,11 @@ public sealed class AllFeaturesScreen : UiScreen
             viewport.WorkPos.X + MathF.Max(outerPadding, (viewport.WorkSize.X - targetWidth) * 0.5f),
             regionTop + MathF.Max(0f, (availableHeight - targetHeight) * 0.5f));
 
-        ui.SetNextWindowPos(pos);
-        ui.SetNextWindowSize(new UiVector2(targetWidth, targetHeight));
+        ui.SetNextPanelPos(pos);
+        ui.SetNextPanelSize(new UiVector2(targetWidth, targetHeight));
         if (_focusWindowName == name)
         {
-            ui.SetNextWindowFocus();
+            ui.SetNextPanelFocus();
             _focusWindowName = null;
         }
     }
@@ -316,8 +331,9 @@ public sealed class AllFeaturesScreen : UiScreen
 
     private void ToggleMenuItem(UiImmediateContext ui, string label, ref bool show, string windowName)
     {
-        if (ui.MenuItem(label, show))
+        if (ui.MenuItem(label, UsePanels?show:_selectedPage==windowName))
         {
+            if(!UsePanels){_selectedPage=windowName;return;}
             show = !show;
             if (show) _focusWindowName = windowName;
         }
@@ -748,46 +764,99 @@ var widget = new MarkdownViewerWidget("preview")
 
         RenderMainMenuBar(ui);
 
+        if(!UsePanels)
+        {
+            var viewport = ui.GetMainViewport();
+            ui.SetCursorScreenPos(new(viewport.WorkPos.X+12,viewport.WorkPos.Y+12));
+            if(ui.BeginChild("gallery-page",new(MathF.Max(1,viewport.WorkSize.X-24),MathF.Max(1,viewport.WorkSize.Y-24)),false))
+            {
+                switch(_selectedPage)
+                {
+                case TextWindowTitle: RenderTextWidget(ui); break;
+                case TypographyWindowTitle: RenderTypographyWidget(ui); break;
+                case ButtonWindowTitle: RenderButtonWidget(ui); break;
+                case CheckboxWindowTitle: RenderCheckboxWidget(ui); break;
+                case RadioWindowTitle: RenderRadioButtonWidget(ui); break;
+                case ProgressWindowTitle: RenderProgressBarWidget(ui); break;
+                case SliderWindowTitle: RenderSliderWidget(ui); break;
+                case DragWindowTitle: RenderDragWidget(ui); break;
+                case InputWindowTitle: RenderInputWidget(ui); break;
+                case ColorWindowTitle: RenderColorWidget(ui); break;
+                case ComboWindowTitle: RenderComboWidget(ui); break;
+                case ListBoxWindowTitle: RenderListBoxWidget(ui); break;
+                case SelectableWindowTitle: RenderSelectableWidget(ui); break;
+                case TreeWindowTitle: RenderTreeWidget(ui); break;
+                case TabWindowTitle: RenderTabWidget(ui); break;
+                case TableWindowTitle: RenderTableWidget(ui); break;
+                case PopupWindowTitle: RenderPopupWidget(ui); break;
+                case AdvancedPopupWindowTitle: RenderAdvancedPopupWidget(ui); break;
+                case TooltipWindowTitle: RenderTooltipWidget(ui); break;
+                case ContextMenuWindowTitle: RenderContextMenuWidget(ui); break;
+                case ChildWindowTitle: RenderChildWidget(ui); break;
+                case LayoutWindowTitle: RenderLayoutWidget(ui); break;
+                case ColumnsWindowTitle: RenderColumnsWidget(ui); break;
+                case InputQueriesWindowTitle: RenderInputQueriesWidget(ui); break;
+                case ItemStatusWindowTitle: RenderItemStatusWidget(ui); break;
+                case MultiSelectWindowTitle: RenderMultiSelectWidget(ui); break;
+                case LayersWindowTitle: RenderLayersAnimationWidget(ui); break;
+                case DrawingWindowTitle: RenderDrawingPrimitives(ui); break;
+                case ImageWindowTitle: RenderImageWidgets(ui); break;
+                case DragDropWindowTitle: RenderDragDrop(ui); break;
+                case ListClipperWindowTitle: RenderListClipper(ui); break;
+                case StyleWindowTitle: RenderStyleWidget(ui); break;
+                case SettingsWindowTitle: RenderSettingsPanel(ui); break;
+                case ProfileEditorWindowTitle: RenderProfileEditor(ui); break;
+                case FileBrowserWindowTitle: RenderFileBrowser(ui); break;
+                case LogViewerWindowTitle: RenderLogViewer(ui); break;
+                case MarkdownStudioWindowTitle: RenderMarkdownStudio(ui); break;
+                }
+            }
+            ui.EndChild();
+        }
+        else
+        {
         // Widget windows — sync open state with toggle flags
-        if (_showText) { ui.SetWindowOpen(TextWindowTitle, true); RenderTextWidget(ui); _showText = ui.GetWindowOpen(TextWindowTitle); }
-        if (_showTypography) { ui.SetWindowOpen(TypographyWindowTitle, true); RenderTypographyWidget(ui); _showTypography = ui.GetWindowOpen(TypographyWindowTitle); }
-        if (_showButton) { ui.SetWindowOpen(ButtonWindowTitle, true); RenderButtonWidget(ui); _showButton = ui.GetWindowOpen(ButtonWindowTitle); }
-        if (_showCheckbox) { ui.SetWindowOpen(CheckboxWindowTitle, true); RenderCheckboxWidget(ui); _showCheckbox = ui.GetWindowOpen(CheckboxWindowTitle); }
-        if (_showRadioButton) { ui.SetWindowOpen(RadioWindowTitle, true); RenderRadioButtonWidget(ui); _showRadioButton = ui.GetWindowOpen(RadioWindowTitle); }
-        if (_showProgressBar) { ui.SetWindowOpen(ProgressWindowTitle, true); RenderProgressBarWidget(ui); _showProgressBar = ui.GetWindowOpen(ProgressWindowTitle); }
-        if (_showSlider) { ui.SetWindowOpen(SliderWindowTitle, true); RenderSliderWidget(ui); _showSlider = ui.GetWindowOpen(SliderWindowTitle); }
-        if (_showDrag) { ui.SetWindowOpen(DragWindowTitle, true); RenderDragWidget(ui); _showDrag = ui.GetWindowOpen(DragWindowTitle); }
-        if (_showInput) { ui.SetWindowOpen(InputWindowTitle, true); RenderInputWidget(ui); _showInput = ui.GetWindowOpen(InputWindowTitle); }
-        if (_showColor) { ui.SetWindowOpen(ColorWindowTitle, true); RenderColorWidget(ui); _showColor = ui.GetWindowOpen(ColorWindowTitle); }
-        if (_showCombo) { ui.SetWindowOpen(ComboWindowTitle, true); RenderComboWidget(ui); _showCombo = ui.GetWindowOpen(ComboWindowTitle); }
-        if (_showListBox) { ui.SetWindowOpen(ListBoxWindowTitle, true); RenderListBoxWidget(ui); _showListBox = ui.GetWindowOpen(ListBoxWindowTitle); }
-        if (_showSelectable) { ui.SetWindowOpen(SelectableWindowTitle, true); RenderSelectableWidget(ui); _showSelectable = ui.GetWindowOpen(SelectableWindowTitle); }
-        if (_showTree) { ui.SetWindowOpen(TreeWindowTitle, true); RenderTreeWidget(ui); _showTree = ui.GetWindowOpen(TreeWindowTitle); }
-        if (_showTab) { ui.SetWindowOpen(TabWindowTitle, true); RenderTabWidget(ui); _showTab = ui.GetWindowOpen(TabWindowTitle); }
-        if (_showTable) { ui.SetWindowOpen(TableWindowTitle, true); RenderTableWidget(ui); _showTable = ui.GetWindowOpen(TableWindowTitle); }
-        if (_showPopup) { ui.SetWindowOpen(PopupWindowTitle, true); RenderPopupWidget(ui); _showPopup = ui.GetWindowOpen(PopupWindowTitle); }
-        if (_showAdvancedPopup) { ui.SetWindowOpen(AdvancedPopupWindowTitle, true); RenderAdvancedPopupWidget(ui); _showAdvancedPopup = ui.GetWindowOpen(AdvancedPopupWindowTitle); }
-        if (_showTooltip) { ui.SetWindowOpen(TooltipWindowTitle, true); RenderTooltipWidget(ui); _showTooltip = ui.GetWindowOpen(TooltipWindowTitle); }
-        if (_showContextMenu) { ui.SetWindowOpen(ContextMenuWindowTitle, true); RenderContextMenuWidget(ui); _showContextMenu = ui.GetWindowOpen(ContextMenuWindowTitle); }
-        if (_showChild) { ui.SetWindowOpen(ChildWindowTitle, true); RenderChildWidget(ui); _showChild = ui.GetWindowOpen(ChildWindowTitle); }
-        if (_showLayout) { ui.SetWindowOpen(LayoutWindowTitle, true); RenderLayoutWidget(ui); _showLayout = ui.GetWindowOpen(LayoutWindowTitle); }
-        if (_showColumns) { ui.SetWindowOpen(ColumnsWindowTitle, true); RenderColumnsWidget(ui); _showColumns = ui.GetWindowOpen(ColumnsWindowTitle); }
-        if (_showInputQueries) { ui.SetWindowOpen(InputQueriesWindowTitle, true); RenderInputQueriesWidget(ui); _showInputQueries = ui.GetWindowOpen(InputQueriesWindowTitle); }
-        if (_showItemStatus) { ui.SetWindowOpen(ItemStatusWindowTitle, true); RenderItemStatusWidget(ui); _showItemStatus = ui.GetWindowOpen(ItemStatusWindowTitle); }
-        if (_showMultiSelect) { ui.SetWindowOpen(MultiSelectWindowTitle, true); RenderMultiSelectWidget(ui); _showMultiSelect = ui.GetWindowOpen(MultiSelectWindowTitle); }
-        if (_showLayersAnimation) { ui.SetWindowOpen(LayersWindowTitle, true); RenderLayersAnimationWidget(ui); _showLayersAnimation = ui.GetWindowOpen(LayersWindowTitle); }
-        if (_showDrawing) { ui.SetWindowOpen(DrawingWindowTitle, true); RenderDrawingPrimitives(ui); _showDrawing = ui.GetWindowOpen(DrawingWindowTitle); }
-        if (_showImage) { ui.SetWindowOpen(ImageWindowTitle, true); RenderImageWidgets(ui); _showImage = ui.GetWindowOpen(ImageWindowTitle); }
-        if (_showDragDrop) { ui.SetWindowOpen(DragDropWindowTitle, true); RenderDragDrop(ui); _showDragDrop = ui.GetWindowOpen(DragDropWindowTitle); }
-        if (_showListClipper) { ui.SetWindowOpen(ListClipperWindowTitle, true); RenderListClipper(ui); _showListClipper = ui.GetWindowOpen(ListClipperWindowTitle); }
-        if (_showStyle) { ui.SetWindowOpen(StyleWindowTitle, true); RenderStyleWidget(ui); _showStyle = ui.GetWindowOpen(StyleWindowTitle); }
+        if (_showText) { ui.SetPanelOpen(TextWindowTitle, true); RenderTextWidget(ui); _showText = ui.GetPanelOpen(TextWindowTitle); }
+        if (_showTypography) { ui.SetPanelOpen(TypographyWindowTitle, true); RenderTypographyWidget(ui); _showTypography = ui.GetPanelOpen(TypographyWindowTitle); }
+        if (_showButton) { ui.SetPanelOpen(ButtonWindowTitle, true); RenderButtonWidget(ui); _showButton = ui.GetPanelOpen(ButtonWindowTitle); }
+        if (_showCheckbox) { ui.SetPanelOpen(CheckboxWindowTitle, true); RenderCheckboxWidget(ui); _showCheckbox = ui.GetPanelOpen(CheckboxWindowTitle); }
+        if (_showRadioButton) { ui.SetPanelOpen(RadioWindowTitle, true); RenderRadioButtonWidget(ui); _showRadioButton = ui.GetPanelOpen(RadioWindowTitle); }
+        if (_showProgressBar) { ui.SetPanelOpen(ProgressWindowTitle, true); RenderProgressBarWidget(ui); _showProgressBar = ui.GetPanelOpen(ProgressWindowTitle); }
+        if (_showSlider) { ui.SetPanelOpen(SliderWindowTitle, true); RenderSliderWidget(ui); _showSlider = ui.GetPanelOpen(SliderWindowTitle); }
+        if (_showDrag) { ui.SetPanelOpen(DragWindowTitle, true); RenderDragWidget(ui); _showDrag = ui.GetPanelOpen(DragWindowTitle); }
+        if (_showInput) { ui.SetPanelOpen(InputWindowTitle, true); RenderInputWidget(ui); _showInput = ui.GetPanelOpen(InputWindowTitle); }
+        if (_showColor) { ui.SetPanelOpen(ColorWindowTitle, true); RenderColorWidget(ui); _showColor = ui.GetPanelOpen(ColorWindowTitle); }
+        if (_showCombo) { ui.SetPanelOpen(ComboWindowTitle, true); RenderComboWidget(ui); _showCombo = ui.GetPanelOpen(ComboWindowTitle); }
+        if (_showListBox) { ui.SetPanelOpen(ListBoxWindowTitle, true); RenderListBoxWidget(ui); _showListBox = ui.GetPanelOpen(ListBoxWindowTitle); }
+        if (_showSelectable) { ui.SetPanelOpen(SelectableWindowTitle, true); RenderSelectableWidget(ui); _showSelectable = ui.GetPanelOpen(SelectableWindowTitle); }
+        if (_showTree) { ui.SetPanelOpen(TreeWindowTitle, true); RenderTreeWidget(ui); _showTree = ui.GetPanelOpen(TreeWindowTitle); }
+        if (_showTab) { ui.SetPanelOpen(TabWindowTitle, true); RenderTabWidget(ui); _showTab = ui.GetPanelOpen(TabWindowTitle); }
+        if (_showTable) { ui.SetPanelOpen(TableWindowTitle, true); RenderTableWidget(ui); _showTable = ui.GetPanelOpen(TableWindowTitle); }
+        if (_showPopup) { ui.SetPanelOpen(PopupWindowTitle, true); RenderPopupWidget(ui); _showPopup = ui.GetPanelOpen(PopupWindowTitle); }
+        if (_showAdvancedPopup) { ui.SetPanelOpen(AdvancedPopupWindowTitle, true); RenderAdvancedPopupWidget(ui); _showAdvancedPopup = ui.GetPanelOpen(AdvancedPopupWindowTitle); }
+        if (_showTooltip) { ui.SetPanelOpen(TooltipWindowTitle, true); RenderTooltipWidget(ui); _showTooltip = ui.GetPanelOpen(TooltipWindowTitle); }
+        if (_showContextMenu) { ui.SetPanelOpen(ContextMenuWindowTitle, true); RenderContextMenuWidget(ui); _showContextMenu = ui.GetPanelOpen(ContextMenuWindowTitle); }
+        if (_showChild) { ui.SetPanelOpen(ChildWindowTitle, true); RenderChildWidget(ui); _showChild = ui.GetPanelOpen(ChildWindowTitle); }
+        if (_showLayout) { ui.SetPanelOpen(LayoutWindowTitle, true); RenderLayoutWidget(ui); _showLayout = ui.GetPanelOpen(LayoutWindowTitle); }
+        if (_showColumns) { ui.SetPanelOpen(ColumnsWindowTitle, true); RenderColumnsWidget(ui); _showColumns = ui.GetPanelOpen(ColumnsWindowTitle); }
+        if (_showInputQueries) { ui.SetPanelOpen(InputQueriesWindowTitle, true); RenderInputQueriesWidget(ui); _showInputQueries = ui.GetPanelOpen(InputQueriesWindowTitle); }
+        if (_showItemStatus) { ui.SetPanelOpen(ItemStatusWindowTitle, true); RenderItemStatusWidget(ui); _showItemStatus = ui.GetPanelOpen(ItemStatusWindowTitle); }
+        if (_showMultiSelect) { ui.SetPanelOpen(MultiSelectWindowTitle, true); RenderMultiSelectWidget(ui); _showMultiSelect = ui.GetPanelOpen(MultiSelectWindowTitle); }
+        if (_showLayersAnimation) { ui.SetPanelOpen(LayersWindowTitle, true); RenderLayersAnimationWidget(ui); _showLayersAnimation = ui.GetPanelOpen(LayersWindowTitle); }
+        if (_showDrawing) { ui.SetPanelOpen(DrawingWindowTitle, true); RenderDrawingPrimitives(ui); _showDrawing = ui.GetPanelOpen(DrawingWindowTitle); }
+        if (_showImage) { ui.SetPanelOpen(ImageWindowTitle, true); RenderImageWidgets(ui); _showImage = ui.GetPanelOpen(ImageWindowTitle); }
+        if (_showDragDrop) { ui.SetPanelOpen(DragDropWindowTitle, true); RenderDragDrop(ui); _showDragDrop = ui.GetPanelOpen(DragDropWindowTitle); }
+        if (_showListClipper) { ui.SetPanelOpen(ListClipperWindowTitle, true); RenderListClipper(ui); _showListClipper = ui.GetPanelOpen(ListClipperWindowTitle); }
+        if (_showStyle) { ui.SetPanelOpen(StyleWindowTitle, true); RenderStyleWidget(ui); _showStyle = ui.GetPanelOpen(StyleWindowTitle); }
 
         // Sample windows
-        if (_showSettingsPanel) { ui.SetWindowOpen(SettingsWindowTitle, true); RenderSettingsPanel(ui); _showSettingsPanel = ui.GetWindowOpen(SettingsWindowTitle); }
-        if (_showProfileEditor) { ui.SetWindowOpen(ProfileEditorWindowTitle, true); RenderProfileEditor(ui); _showProfileEditor = ui.GetWindowOpen(ProfileEditorWindowTitle); }
-        if (_showFileBrowser) { ui.SetWindowOpen(FileBrowserWindowTitle, true); RenderFileBrowser(ui); _showFileBrowser = ui.GetWindowOpen(FileBrowserWindowTitle); }
-        if (_showLogViewer) { ui.SetWindowOpen(LogViewerWindowTitle, true); RenderLogViewer(ui); _showLogViewer = ui.GetWindowOpen(LogViewerWindowTitle); }
-        if (_showMarkdownStudio) { ui.SetWindowOpen(MarkdownStudioWindowTitle, true); RenderMarkdownStudio(ui); _showMarkdownStudio = ui.GetWindowOpen(MarkdownStudioWindowTitle); }
+        if (_showSettingsPanel) { ui.SetPanelOpen(SettingsWindowTitle, true); RenderSettingsPanel(ui); _showSettingsPanel = ui.GetPanelOpen(SettingsWindowTitle); }
+        if (_showProfileEditor) { ui.SetPanelOpen(ProfileEditorWindowTitle, true); RenderProfileEditor(ui); _showProfileEditor = ui.GetPanelOpen(ProfileEditorWindowTitle); }
+        if (_showFileBrowser) { ui.SetPanelOpen(FileBrowserWindowTitle, true); RenderFileBrowser(ui); _showFileBrowser = ui.GetPanelOpen(FileBrowserWindowTitle); }
+        if (_showLogViewer) { ui.SetPanelOpen(LogViewerWindowTitle, true); RenderLogViewer(ui); _showLogViewer = ui.GetPanelOpen(LogViewerWindowTitle); }
+        if (_showMarkdownStudio) { ui.SetPanelOpen(MarkdownStudioWindowTitle, true); RenderMarkdownStudio(ui); _showMarkdownStudio = ui.GetPanelOpen(MarkdownStudioWindowTitle); }
+
+        }
 
         RenderFpsOverlay(ui);
     }
@@ -886,7 +955,7 @@ var widget = new MarkdownViewerWidget("preview")
     private void RenderTextWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, TextWindowTitle, default);
-        ui.BeginWindow(TextWindowTitle);
+        BeginSection(ui,TextWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -933,13 +1002,13 @@ var widget = new MarkdownViewerWidget("preview")
         ui.SameLine();
         _ = ui.TextLinkOpenURL("Open Duxel repo folder", "file:///P:/MyWorks/Duxel");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     private void RenderTypographyWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, TypographyWindowTitle, new UiVector2(560f, 640f));
-        ui.BeginWindow(TypographyWindowTitle);
+        BeginSection(ui,TypographyWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1034,14 +1103,14 @@ var widget = new MarkdownViewerWidget("preview")
             _clipboardEcho = "Copied font style validation run-fba command.";
         }
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Button ───────────────────────────
     private void RenderButtonWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, ButtonWindowTitle, default);
-        ui.BeginWindow(ButtonWindowTitle);
+        BeginSection(ui,ButtonWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1093,14 +1162,14 @@ var widget = new MarkdownViewerWidget("preview")
 
         ui.Text($"Click count: {_clickCount}");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Checkbox ───────────────────────────
     private void RenderCheckboxWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, CheckboxWindowTitle, default);
-        ui.BeginWindow(CheckboxWindowTitle);
+        BeginSection(ui,CheckboxWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1129,14 +1198,14 @@ var widget = new MarkdownViewerWidget("preview")
         ui.Value("Secondary Enabled", _checkboxB);
         ui.Text($"Flags bitmask: 0b{Convert.ToString(_flagsBitmask, 2).PadLeft(3, '0')}");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── RadioButton ───────────────────────────
     private void RenderRadioButtonWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, RadioWindowTitle, default);
-        ui.BeginWindow(RadioWindowTitle);
+        BeginSection(ui,RadioWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1153,14 +1222,14 @@ var widget = new MarkdownViewerWidget("preview")
         ui.RadioButton("Radio C", ref _radioValue, 2);
         ui.Text($"Selected: {_radioValue}");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── ProgressBar ───────────────────────────
     private void RenderProgressBarWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, ProgressWindowTitle, default);
-        ui.BeginWindow(ProgressWindowTitle);
+        BeginSection(ui,ProgressWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1173,9 +1242,9 @@ var widget = new MarkdownViewerWidget("preview")
             ("Health", _checkboxA ? "Ready" : "Paused", Info(ui)));
 
         ui.SeparatorText("Animated Status Bars");
-        ui.ProgressBar(_progress, new UiVector2(200f, 16f), $"{_progress * 100f:0}%");
-        ui.ProgressBar(MathF.Min(1f, (_progress * 0.6f) + 0.2f), new UiVector2(260f, 12f), "Buffered stage");
-        ui.ProgressBar(MathF.Abs(MathF.Sin(_frameCounter * 0.05f)), new UiVector2(160f, 8f), null);
+        ui.ProgressBar(_progress, new UiVector2(200f, ui.GetFrameHeight()), $"{_progress * 100f:0}%");
+        ui.ProgressBar(MathF.Min(1f, (_progress * 0.6f) + 0.2f), new UiVector2(260f, ui.GetFrameHeight()), "Buffered stage");
+        ui.ProgressBar(MathF.Abs(MathF.Sin(_frameCounter * 0.05f)), new UiVector2(160f, 8f), string.Empty);
 
         ui.SeparatorText("Status Summary");
         ui.Bullet();
@@ -1199,14 +1268,14 @@ var widget = new MarkdownViewerWidget("preview")
         }
         ui.EndChild();
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Slider ───────────────────────────
     private void RenderSliderWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, SliderWindowTitle, default);
-        ui.BeginWindow(SliderWindowTitle);
+        BeginSection(ui,SliderWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1240,14 +1309,14 @@ var widget = new MarkdownViewerWidget("preview")
         ui.SameLine();
         ui.VSliderInt("VSliderInt", new UiVector2(24f, 100f), ref _vSliderI, 0, 10);
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Drag ───────────────────────────
     private void RenderDragWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, DragWindowTitle, default);
-        ui.BeginWindow(DragWindowTitle);
+        BeginSection(ui,DragWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1279,14 +1348,14 @@ var widget = new MarkdownViewerWidget("preview")
         ui.DragScalarN("DragScalarN(i[])", _scalarInts, 0.2f, 0, 10);
         ui.DragScalarN("DragScalarN(d[])", _scalarDoubles, 0.01f, 0.0, 3.0, "0.00");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Input ───────────────────────────
     private void RenderInputWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, InputWindowTitle, default);
-        ui.BeginWindow(InputWindowTitle);
+        BeginSection(ui,InputWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1324,14 +1393,14 @@ var widget = new MarkdownViewerWidget("preview")
         ui.InputScalarN("InputScalarN(f[])", _scalarFloats, "0.00");
         ui.InputScalarN("InputScalarN(d[])", _scalarDoubles, "0.00");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Color ───────────────────────────
     private void RenderColorWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, ColorWindowTitle, default);
-        ui.BeginWindow(ColorWindowTitle);
+        BeginSection(ui,ColorWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1360,14 +1429,14 @@ var widget = new MarkdownViewerWidget("preview")
         ui.SameLine();
         ui.Text("ColorButton");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Combo ───────────────────────────
     private void RenderComboWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, ComboWindowTitle, default);
-        ui.BeginWindow(ComboWindowTitle);
+        BeginSection(ui,ComboWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1427,14 +1496,14 @@ var widget = new MarkdownViewerWidget("preview")
         ui.EndChild();
         ui.Text($"Last selection event: {_selectionStatus}");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── ListBox ───────────────────────────
     private void RenderListBoxWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, ListBoxWindowTitle, default);
-        ui.BeginWindow(ListBoxWindowTitle);
+        BeginSection(ui,ListBoxWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1485,14 +1554,14 @@ var widget = new MarkdownViewerWidget("preview")
         ui.Text($"BeginListBox: {_items[_beginListBoxIdx]}");
         ui.Text($"Last selection event: {_selectionStatus}");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Selectable ───────────────────────────
     private void RenderSelectableWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, SelectableWindowTitle, default);
-        ui.BeginWindow(SelectableWindowTitle);
+        BeginSection(ui,SelectableWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1508,14 +1577,14 @@ var widget = new MarkdownViewerWidget("preview")
         }
         ui.Selectable("Sized Selectable", false, UiSelectableFlags.None, new UiVector2(180f, 24f));
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Tree ───────────────────────────
     private void RenderTreeWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, TreeWindowTitle, default);
-        ui.BeginWindow(TreeWindowTitle);
+        BeginSection(ui,TreeWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1569,14 +1638,14 @@ var widget = new MarkdownViewerWidget("preview")
         ui.SeparatorText("Navigation Status");
         ui.TextWrapped(_navigationStatus);
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Tab ───────────────────────────
     private void RenderTabWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, TabWindowTitle, default);
-        ui.BeginWindow(TabWindowTitle);
+        BeginSection(ui,TabWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1656,14 +1725,14 @@ var widget = new MarkdownViewerWidget("preview")
             ui.SeparatorText("Tab Status");
             ui.Text(_navigationStatus);
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Table ───────────────────────────
     private void RenderTableWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, TableWindowTitle, default);
-        ui.BeginWindow(TableWindowTitle);
+        BeginSection(ui,TableWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1725,14 +1794,14 @@ var widget = new MarkdownViewerWidget("preview")
         }
         ui.EndChild();
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Popup ───────────────────────────
     private void RenderPopupWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, PopupWindowTitle, default);
-        ui.BeginWindow(PopupWindowTitle);
+        BeginSection(ui,PopupWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1785,13 +1854,13 @@ var widget = new MarkdownViewerWidget("preview")
 
         ui.Text($"Last popup outcome: {_advancedPopupAction}");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     private void RenderAdvancedPopupWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, AdvancedPopupWindowTitle, new UiVector2(460f, 420f));
-        ui.BeginWindow(AdvancedPopupWindowTitle);
+        BeginSection(ui,AdvancedPopupWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1887,14 +1956,14 @@ var widget = new MarkdownViewerWidget("preview")
         ui.Separator();
         ui.Text($"Last popup action: {_advancedPopupAction}");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Tooltip ───────────────────────────
     private void RenderTooltipWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, TooltipWindowTitle, default);
-        ui.BeginWindow(TooltipWindowTitle);
+        BeginSection(ui,TooltipWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -1942,14 +2011,14 @@ var widget = new MarkdownViewerWidget("preview")
         }
         ui.EndChild();
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── ContextMenu ───────────────────────────
     private void RenderContextMenuWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, ContextMenuWindowTitle, default);
-        ui.BeginWindow(ContextMenuWindowTitle);
+        BeginSection(ui,ContextMenuWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -2000,14 +2069,14 @@ var widget = new MarkdownViewerWidget("preview")
             ui.EndPopup();
         }
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Child/Columns/Layout ───────────────────────────
     private void RenderChildWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, ChildWindowTitle, new UiVector2(400f, 200f));
-        ui.BeginWindow(ChildWindowTitle);
+        BeginSection(ui,ChildWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -2036,13 +2105,13 @@ var widget = new MarkdownViewerWidget("preview")
         }
         ui.EndChild();
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     private void RenderLayoutWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, LayoutWindowTitle, new UiVector2(520f, 560f));
-        ui.BeginWindow(LayoutWindowTitle);
+        BeginSection(ui,LayoutWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -2126,7 +2195,7 @@ var widget = new MarkdownViewerWidget("preview")
         ui.SliderFloat("BG Alpha", ref _layoutBgAlpha, 0.1f, 1f, 0f, "0.00");
         ui.SetNextWindowBgAlpha(_layoutBgAlpha);
         InitCenteredWindow(ui, LayoutAlphaPreviewTitle, new UiVector2(280f, 148f));
-        ui.BeginWindow(LayoutAlphaPreviewTitle);
+        ui.BeginPanel(LayoutAlphaPreviewTitle);
         RenderCompactShowcaseHero(
             ui,
             "hero_layout_alpha",
@@ -2136,15 +2205,15 @@ var widget = new MarkdownViewerWidget("preview")
             ("Alpha", _layoutBgAlpha.ToString("0.00"), Success(ui)));
         ui.Text($"Alpha: {_layoutBgAlpha:0.00}");
         ui.Text("Useful for translucent overlays and inspectors.");
-        ui.EndWindow();
+        ui.EndPanel();
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     private void RenderColumnsWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, ColumnsWindowTitle, new UiVector2(620f, 520f));
-        ui.BeginWindow(ColumnsWindowTitle);
+        BeginSection(ui,ColumnsWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -2163,7 +2232,7 @@ var widget = new MarkdownViewerWidget("preview")
         ui.Columns(2, _columnsBorder);
         ui.SetColumnWidth(0, _columnsFirstWidth);
         ui.Text("Left column");
-        ui.Text("Custom width via SetColumnWidth");
+        ui.TextWrapped("Custom width via SetColumnWidth");
         ui.NextColumn();
         ui.Text("Right column");
         ui.Text("Details / preview / inspector");
@@ -2195,19 +2264,19 @@ var widget = new MarkdownViewerWidget("preview")
         ui.NextColumn();
         ui.Text("Status");
         ui.Checkbox("Custom Style Active", ref _customStyle);
-        ui.ProgressBar(_progress, new UiVector2(MathF.Max(120f, ui.GetContentRegionAvail().X - 6f), 12f), $"{_progress * 100f:0}%");
+        ui.ProgressBar(_progress, new UiVector2(MathF.Max(120f, ui.GetContentRegionAvail().X - 6f), ui.GetFrameHeight()), $"{_progress * 100f:0}%");
         ui.Columns(1, false);
 
         ui.SeparatorText("Notes");
         ui.TextWrapped("Use the legacy Columns API for simple inspectors or side-by-side editors. For denser data, prefer the dedicated Table API shown in the `Table` window.");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     private void RenderInputQueriesWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, InputQueriesWindowTitle, new UiVector2(500f, 460f));
-        ui.BeginWindow(InputQueriesWindowTitle);
+        BeginSection(ui,InputQueriesWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -2279,13 +2348,13 @@ var widget = new MarkdownViewerWidget("preview")
         }
         ui.EndChild();
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     private void RenderItemStatusWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, ItemStatusWindowTitle, new UiVector2(560f, 560f));
-        ui.BeginWindow(ItemStatusWindowTitle);
+        BeginSection(ui,ItemStatusWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -2315,7 +2384,7 @@ var widget = new MarkdownViewerWidget("preview")
         ui.InputText("Tracked Input", ref _statusInput, 256);
         RenderItemSnapshot(ui, "Tracked Input");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     private void RenderItemSnapshot(UiImmediateContext ui, string label)
@@ -2371,7 +2440,7 @@ var widget = new MarkdownViewerWidget("preview")
     private void RenderMultiSelectWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, MultiSelectWindowTitle, new UiVector2(480f, 460f));
-        ui.BeginWindow(MultiSelectWindowTitle);
+        BeginSection(ui,MultiSelectWindowTitle);
 
         var selectedCount = 0;
         for (var i = 0; i < _multiSelectItems.Length; i++)
@@ -2437,13 +2506,13 @@ var widget = new MarkdownViewerWidget("preview")
         }
         ui.Columns(1, false);
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     private void RenderLayersAnimationWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, LayersWindowTitle, new UiVector2(620f, 520f));
-        ui.BeginWindow(LayersWindowTitle);
+        BeginSection(ui,LayersWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -2528,7 +2597,7 @@ var widget = new MarkdownViewerWidget("preview")
 
         ui.Text($"Animation blend={blend:0.00} rotation={rotation:0.0}deg");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     private void DrawLayerShowcaseBody(UiImmediateContext ui, UiRect localBody, float blend)
@@ -2553,7 +2622,7 @@ var widget = new MarkdownViewerWidget("preview")
     private void RenderDrawingPrimitives(UiImmediateContext ui)
     {
         InitWindowOnce(ui, DrawingWindowTitle, new UiVector2(420f, 360f));
-        ui.BeginWindow(DrawingWindowTitle);
+        BeginSection(ui,DrawingWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -2695,14 +2764,14 @@ var widget = new MarkdownViewerWidget("preview")
             ui.EndChild();
         }
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Image Widgets ───────────────────────────
     private void RenderImageWidgets(UiImmediateContext ui)
     {
         InitWindowOnce(ui, ImageWindowTitle, new UiVector2(500f, 520f));
-        ui.BeginWindow(ImageWindowTitle);
+        BeginSection(ui,ImageWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -2737,7 +2806,7 @@ var widget = new MarkdownViewerWidget("preview")
                 ResetImageLoadState();
                 EnsureImageLoaded();
             }
-            ui.EndWindow();
+            EndSection(ui);
             return;
         }
 
@@ -2774,7 +2843,7 @@ var widget = new MarkdownViewerWidget("preview")
             ui.EndChild();
         }
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     private void EnsureImageLoaded()
@@ -2820,7 +2889,7 @@ var widget = new MarkdownViewerWidget("preview")
     private void RenderDragDrop(UiImmediateContext ui)
     {
         InitWindowOnce(ui, DragDropWindowTitle, new UiVector2(350f, 200f));
-        ui.BeginWindow(DragDropWindowTitle);
+        BeginSection(ui,DragDropWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -2864,14 +2933,14 @@ var widget = new MarkdownViewerWidget("preview")
         ui.Text($"Dropped: {_dragDropResult}");
         ui.TextWrapped("Try swapping payload presets, then drag the source button into the drop target to verify payload decoding and UI feedback.");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── ListClipper ───────────────────────────
     private void RenderListClipper(UiImmediateContext ui)
     {
         InitWindowOnce(ui, ListClipperWindowTitle, new UiVector2(350f, 320f));
-        ui.BeginWindow(ListClipperWindowTitle);
+        BeginSection(ui,ListClipperWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -2901,14 +2970,14 @@ var widget = new MarkdownViewerWidget("preview")
         }
         ui.EndChild();
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Style / Disabled / Misc ───────────────────────────
     private void RenderStyleWidget(UiImmediateContext ui)
     {
         InitWindowOnce(ui, StyleWindowTitle, new UiVector2(460f, 500f));
-        ui.BeginWindow(StyleWindowTitle);
+        BeginSection(ui,StyleWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -2966,7 +3035,7 @@ var widget = new MarkdownViewerWidget("preview")
         ui.PlotLines("PlotLines", _plotSin, _plotSin.Length, 0, "sin(x)", 0f, 1f, new UiVector2(350f, 40f));
         ui.PlotHistogram("PlotHistogram", _plotHist, _plotHist.Length, 0, null, 0f, 1f, new UiVector2(350f, 40f));
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── FPS ───────────────────────────
@@ -3021,7 +3090,7 @@ var widget = new MarkdownViewerWidget("preview")
     private void RenderSettingsPanel(UiImmediateContext ui)
     {
         InitWindowOnce(ui, SettingsWindowTitle, new UiVector2(460f, 500f));
-        ui.BeginWindow(SettingsWindowTitle);
+        BeginSection(ui,SettingsWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -3099,14 +3168,14 @@ var widget = new MarkdownViewerWidget("preview")
             _settingsQuality = 2;
         }
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Sample: Profile Editor ───────────────────────────
     private void RenderProfileEditor(UiImmediateContext ui)
     {
         InitWindowOnce(ui, ProfileEditorWindowTitle, new UiVector2(440f, 440f));
-        ui.BeginWindow(ProfileEditorWindowTitle);
+        BeginSection(ui,ProfileEditorWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -3144,14 +3213,14 @@ var widget = new MarkdownViewerWidget("preview")
         ui.SameLine();
         if (ui.Button("Cancel")) { _showProfileEditor = false; }
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Sample: File Browser ───────────────────────────
     private void RenderFileBrowser(UiImmediateContext ui)
     {
         InitWindowOnce(ui, FileBrowserWindowTitle, new UiVector2(560f, 460f));
-        ui.BeginWindow(FileBrowserWindowTitle);
+        BeginSection(ui,FileBrowserWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -3223,14 +3292,14 @@ var widget = new MarkdownViewerWidget("preview")
         }
 
         ui.Columns(1, false);
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     // ─────────────────────────── Sample: Log Viewer ───────────────────────────
     private void RenderLogViewer(UiImmediateContext ui)
     {
         InitWindowOnce(ui, LogViewerWindowTitle, new UiVector2(580f, 440f));
-        ui.BeginWindow(LogViewerWindowTitle);
+        BeginSection(ui,LogViewerWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -3298,13 +3367,13 @@ var widget = new MarkdownViewerWidget("preview")
 
         ui.Text($"Total: {_logEntries.Count} entries");
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 
     private void RenderMarkdownStudio(UiImmediateContext ui)
     {
         InitWindowOnce(ui, MarkdownStudioWindowTitle, new UiVector2(1100f, 760f));
-        ui.BeginWindow(MarkdownStudioWindowTitle);
+        BeginSection(ui,MarkdownStudioWindowTitle);
 
         RenderShowcaseHero(
             ui,
@@ -3348,6 +3417,6 @@ var widget = new MarkdownViewerWidget("preview")
 
         ui.Columns(1, false);
 
-        ui.EndWindow();
+        EndSection(ui);
     }
 }

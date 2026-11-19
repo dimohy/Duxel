@@ -161,7 +161,8 @@ public sealed partial class UiImmediateContext
             var iconX = buttonRect.X + buttonRect.Width - ButtonPaddingX - iconSize;
             var iconY = buttonRect.Y + (buttonRect.Height - iconSize) * 0.5f;
             var iconRect = new UiRect(iconX, iconY, iconSize, iconSize);
-            DrawChevronIcon(iconRect, -90f, scale: 0.5f, thickness: 1.2f, color: _theme.MenuItemText);
+            var center = new UiVector2(iconRect.X + iconRect.Width / 2, iconRect.Y + iconRect.Height / 2);
+            new UiControlContext(this) { MotionKey = id }.PaintDisclosure(center, _theme.MenuItemText, isOpen, -90);
         }
 
         if (!isOpen)
@@ -171,13 +172,14 @@ public sealed partial class UiImmediateContext
         var defaultPopupWidth = MathF.Max(MenuMinWidth, textSize.X + 60f);
         var defaultPopupHeight = (GetFrameHeight() * 6f) + (MenuPaddingY * 2f);
         var cachedPopupSize = _state.GetMenuSize(id, new UiVector2(defaultPopupWidth, defaultPopupHeight));
+        var screenButtonRect = WidgetScreenBounds(buttonRect);
         UiRect popupRect;
         if (_menuStack.Count > 0)
         {
             // Nested submenu: column layout to the right of parent popup, aligned with button Y
             var parentPopup = _menuStack.Peek().PopupRect;
             var rightX = parentPopup.X + parentPopup.Width;
-            var popupY = buttonRect.Y - ButtonPaddingY;
+            var popupY = screenButtonRect.Y - ButtonPaddingY;
             if (rightX + cachedPopupSize.X > _displaySize.X)
             {
                 var leftX = parentPopup.X - cachedPopupSize.X;
@@ -192,12 +194,12 @@ public sealed partial class UiImmediateContext
         {
             // Top-level menu: popup opens downward
             var popupOffsetY = 2f;
-            popupRect = new UiRect(buttonRect.X, buttonRect.Y + buttonRect.Height + popupOffsetY, cachedPopupSize.X, cachedPopupSize.Y);
+            popupRect = new UiRect(screenButtonRect.X, screenButtonRect.Y + screenButtonRect.Height + popupOffsetY, cachedPopupSize.X, cachedPopupSize.Y);
         }
         popupRect = ClampRectToDisplay(popupRect);
 
         _openMenuPopupRects.Add(popupRect);
-        _openMenuButtonRects.Add(buttonRect);
+        _openMenuButtonRects.Add(screenButtonRect);
         _state.AddPopupBlockingRect(popupRect, _popupTierDepth + 1);
 
         if (_leftMousePressed && !IsMouseOverAnyOpenMenuPopup() && !IsMouseOverAnyOpenMenuButton())
@@ -213,7 +215,7 @@ public sealed partial class UiImmediateContext
         _layouts.Push(new UiLayoutState(start, false, 0f, start.X));
         var submenuSetKey = GetSubmenuSetKey(id);
         var minContentWidth = MathF.Max(0f, defaultPopupWidth - (MenuPaddingX * 2f));
-        _menuStack.Push(new UiMenuState(id, menuSetKey, submenuSetKey, buttonRect, popupRect, start, minContentWidth, size.X));
+        _menuStack.Push(new UiMenuState(id, menuSetKey, submenuSetKey, screenButtonRect, popupRect, start, minContentWidth, size.X));
         return true;
     }
 
@@ -243,9 +245,8 @@ public sealed partial class UiImmediateContext
 
         var textSize = MeasureTextInternal(label, _textSettings, _lineHeight);
         var height = GetFrameHeight();
-        var checkText = "✓";
-        var checkSize = MeasureTextInternal(checkText, _textSettings, _lineHeight);
-        var checkSpace = checkSize.X + 4f;
+        const float checkSize = 16f;
+        const float checkSpace = checkSize + 4f;
         var width = MathF.Max(140f, textSize.X + checkSpace + (ButtonPaddingX * 2f));
         if (_menuStack.Count > 0)
         {
@@ -278,16 +279,9 @@ public sealed partial class UiImmediateContext
         var textPos = new UiVector2(rect.X + ButtonPaddingX + checkSpace, rect.Y + (rect.Height - textSize.Y) * 0.5f);
         if (selected)
         {
-            var checkPos = new UiVector2(rect.X + ButtonPaddingX, rect.Y + (rect.Height - checkSize.Y) * 0.5f);
-            AddTextInternal(_builder,
-
-                checkText,
-                checkPos,
-                textColor,
-                CurrentClipRect,
-                _textSettings,
-                _lineHeight
-            );
+            var checkBounds = new UiRect(rect.X + ButtonPaddingX, rect.Y + (rect.Height - checkSize) * 0.5f,
+                checkSize, checkSize);
+            UiFluentCheckboxCheck16.Paint(new UiControlContext(this), checkBounds, textColor, default);
         }
         AddTextInternal(_builder,
 
@@ -360,7 +354,10 @@ public sealed partial class UiImmediateContext
         var menu = _menuStack.Pop();
         if (width > menu.MaxContentWidth)
         {
-            menu = menu with { MaxContentWidth = width };
+            menu = menu with
+            {
+                MaxContentWidth = width
+            };
         }
         _menuStack.Push(menu);
     }

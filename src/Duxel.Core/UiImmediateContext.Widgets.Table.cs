@@ -323,14 +323,7 @@ public sealed partial class UiImmediateContext
             {
                 var active = activeSpecs[specIndex];
 
-                var iconRotationDegrees = AnimateToggleRotationDegrees(
-                    $"{sortKey}##col{i}##sort_chevron",
-                    expanded: active.Ascending,
-                    collapsedDegrees: 0f,
-                    expandedDegrees: 180f,
-                    durationSeconds: 0.12f,
-                    easing: UiAnimationEasing.OutCubic
-                );
+                var iconRotationDegrees = SampleDisclosure(ResolveId(ResolveCachedIdentifier(sortKey, $"##col{i}##sort_chevron", false)), active.Ascending, 0, 180);
                 DrawChevronIcon(iconRect, iconRotationDegrees, scale: 2f / 3f, thickness: 1.2f, color: _theme.TableHeaderText);
 
                 if (hasSortOrder)

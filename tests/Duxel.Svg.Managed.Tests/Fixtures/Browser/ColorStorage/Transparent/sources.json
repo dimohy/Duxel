@@ -1,0 +1,22 @@
+{
+  "sources": [
+    {
+      "file": "half-gray.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "07ff48dd13ae29f65f4dffac4ed019af06a1fb65beda2416e155bdef1d300d48"
+    },
+    {
+      "file": "half-alpha.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "c58da790def12b050c235feef12f44703582d8cfd6d1a4e7fe1f8e5f5d613df6"
+    },
+    {
+      "file": "half-color-alpha.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "a7db847a24832d8920ad397ecbef874ef4b266e234f4a9b3f1413d6a3cfc540d"
+    }
+  ]
+}

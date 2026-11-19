@@ -1,0 +1,226 @@
+{
+  "renderer": "Chromium native SVG Image into GPU Canvas2D; independent readback",
+  "contract": "Original source hashes; fixed backing pixel extent; xMidYMid meet; DPR1/sRGB; white and transparent",
+  "references": [
+    {
+      "file": "single-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "c369144335f7c14c1ac41cb385b69d9c0f06e6bfddd39afcd08690b7318ed663",
+      "id": "single-gradient.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "912a31ef909608779440f630a3da4cac26afe4d98964dc93eb1ed7c22984708b",
+      "transparentRgbaSha256": "792e07de9fefab9e174ed065779079ff24930338af9c3079008c10b59c4b71c8",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:37:27.424Z"
+    },
+    {
+      "file": "half-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "8a1c85f3e996187861e0472a040d24b5c9d634941bc64dc35ee81a09c032f886",
+      "id": "half-gradient.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "82f2551393f4cb862d267b6e748412db888f15f3429619991f76ce8d3a6fbc3e",
+      "transparentRgbaSha256": "396d56956e528ef88b326209e707c6a04d3d058ce4b39c4d8aeda3dd39f5be00",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:37:27.434Z"
+    },
+    {
+      "file": "nested-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "27241b0109084e033ad41bd5d061304515fd1c7ade0aa162f2ffb406d91eb673",
+      "id": "nested-gradient.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "eaeac024716122a7f5a71f95cb559ccef8a708145044793b3228e0108c4e0966",
+      "transparentRgbaSha256": "d70c832ef0d45295f9f2d57ba07f8507e99d1942a0f534f8047c149ec880197d",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:37:27.442Z"
+    },
+    {
+      "file": "nested-solid.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "e9b5d8f990d186ba8ca1240f4a2a1b8159b4b004ebcd16d12c625355d6118a03",
+      "id": "nested-solid.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "296c4efc105758e5f41362c3891c9de07fd6382e804c7d7b399a5370cae598a5",
+      "transparentRgbaSha256": "9b70ae32fa91efcb2045a853ca8a1be822b29b3f55fe403b92b624a180738621",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:37:27.449Z"
+    },
+    {
+      "file": "overlapping-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "344233975ab1a919e3aa8236ce12b2c2d4c65d7dfd57a5bf5ae5864afa6c03af",
+      "id": "overlapping-gradient.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "91c7a86b91d12fb5a9bb62a46ef0fa7ac9d080073d339eb39d43adae36505d34",
+      "transparentRgbaSha256": "efac16950c809bf89886ad13208b1e587f5591f6fb7dd7c415831c7c5c8157b8",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:37:27.455Z"
+    },
+    {
+      "file": "fill-stroke.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "2dcad385f4d4860289815e8f70e9275ac96c3903345c70bf034f00f346f1a27e",
+      "id": "fill-stroke.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "7cbe0afe30b1ba5bf68d2321a891549168bad38e014da1b1a7f3c5770bf4f59f",
+      "transparentRgbaSha256": "b68b9205fc2b073c975b2861ff1179dcc0d4bf093de910151c2ac50827204f2f",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:37:27.463Z"
+    },
+    {
+      "file": "clipped-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "d0d68a0f7e333d88649621e5cd55fef38d1b2e8ceb7439288e2604c64b25fc4a",
+      "id": "clipped-gradient.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "83ed8325d484ed4d1ef435c9ec605caf04178083c434949a13d949546387299e",
+      "transparentRgbaSha256": "c812ac002bfdeb80c7cb22f5584286773f2446d0a7ed1d7af66d50749ecb4fc8",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:37:27.642Z"
+    },
+    {
+      "file": "masked-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "677a3724168f9301c4500c38f37d93e400704695084b1895bbd81e74e2313442",
+      "id": "masked-gradient.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "385129ba18f70251c35e64e5e2ad85b6ee92c556d2d293337a17b48eeef4cfa7",
+      "transparentRgbaSha256": "67a17c67e9c4d19d0e6fa2bb36ff96023cc2bb129180afec7b88ea99de2152a9",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:37:27.666Z"
+    },
+    {
+      "file": "filtered-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "eb2b733226342c3a73843909cf04899f0f9aa6a9ef40eb87f978627695a4d6bb",
+      "id": "filtered-gradient.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "2ea70670fa3c179f4de336ca0a2ad6eabf442107b950d2cb615b1bfef17a7821",
+      "transparentRgbaSha256": "9185366268ae9293617fec6cf2118800a04410d8320ad473af281e78cb2d5bca",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:37:27.685Z"
+    },
+    {
+      "file": "single-solid.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "43607e0ad02e3e88099f586a1c8121a728a2f327b10a37e8f3ec9f97cc87da2c",
+      "id": "single-solid.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "712f36fc1e73914431e8d3aeed145abfaf644a5cc3a66cc41d2ef429056b86fc",
+      "transparentRgbaSha256": "13dce920ce9d70ec498197d9b8cad8d3b0437a4424fffa6f9261cc6b3425cd17",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:37:27.691Z"
+    },
+    {
+      "file": "translucent-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "a35b044ca0b9e12246ddf612b1064e20c292f7a529f31402d1234b9d096da523",
+      "id": "translucent-gradient.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "e4459dd1f9cfbf6d9859a0fcd73e3d5913fdfe37c6d6665e3cf5ed8bd7f0f3d9",
+      "transparentRgbaSha256": "2a7fc9af31093f9c8a50d836d5a5400f88a2471fff3f66785c35ab690cae6a41",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:37:27.698Z"
+    }
+  ]
+}

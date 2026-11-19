@@ -1,4 +1,4 @@
-﻿using Duxel.Core;
+using Duxel.Core;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -361,9 +361,9 @@ public sealed unsafe partial class VulkanRendererBackend
         state.StaticSecondaryCandidateDrawCallCount += recordedDrawCallCount;
     }
 
-    private static long BeginCommandSchedulerProfile(bool profileEnabled)
+    private long BeginCommandSchedulerProfile(bool profileEnabled)
     {
-        return profileEnabled ? Stopwatch.GetTimestamp() : 0;
+        return BeginFrameProfileTiming(profileEnabled);
     }
 
     private static void RecordCommandSchedulerProfile(
@@ -377,7 +377,7 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
-        state.SchedulerTicks += Stopwatch.GetTimestamp() - schedulerStart;
+        state.SchedulerTicks += EndFrameProfileTiming(true, schedulerStart);
         switch (scheduleResult)
         {
             case CommandScheduleResult.CacheHit:
@@ -410,7 +410,6 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private static void RecordCommandProfile(
         in UiDrawCommand command,
-        in CommandClassification classification,
         bool profileEnabled,
         ref CommandRecordProfileState state)
     {
@@ -420,27 +419,32 @@ public sealed unsafe partial class VulkanRendererBackend
         }
 
         state.CommandCount++;
+        RecordCommandKindTransition(command.Kind, ref state);
+        state.LastRecordedKind = command.Kind;
+        state.HasLastRecordedKind = true;
+    }
+
+    private static void RecordCommandKindTransition(UiDrawCommandKind kind, ref CommandRecordProfileState state)
+    {
         if (state.HasLastRecordedKind)
         {
             var lastWasTriangle = state.LastRecordedKind is UiDrawCommandKind.Triangles;
-            if (lastWasTriangle && classification.IsPrimitiveCommand)
+            if (lastWasTriangle && kind != UiDrawCommandKind.Triangles)
             {
                 state.TriangleToPrimitiveTransitionCount++;
             }
-            else if (!lastWasTriangle && classification.IsTriangleCommand)
+            else if (!lastWasTriangle && kind == UiDrawCommandKind.Triangles)
             {
                 state.PrimitiveToTriangleTransitionCount++;
             }
             else if (!lastWasTriangle
-                && classification.IsPrimitiveCommand
-                && state.LastRecordedKind != command.Kind)
+                && kind != UiDrawCommandKind.Triangles
+                && state.LastRecordedKind != kind)
             {
                 state.RectCircleTransitionCount++;
             }
         }
 
-        state.LastRecordedKind = command.Kind;
-        state.HasLastRecordedKind = true;
     }
 }
 

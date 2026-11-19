@@ -30,7 +30,7 @@ internal static partial class Win32KeyboardRepeat
         var delaySeconds = (delay + 1) * 0.25;
         var cps = 2.5 + (speed / 31.0) * 27.5;
         var repeatIntervalSeconds = 1.0 / cps;
-        return new UiKeyRepeatSettings(delaySeconds, repeatIntervalSeconds);
+        return new UiKeyRepeatSettings(delaySeconds, repeatIntervalSeconds) { Source = UiKeyRepeatSource.Platform };
     }
 
     [LibraryImport("user32.dll", SetLastError = true)]

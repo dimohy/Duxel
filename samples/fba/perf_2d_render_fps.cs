@@ -166,7 +166,7 @@ public sealed class Perf2DRenderScreen : UiScreen
     private void RenderMetrics(UiImmediateContext ui)
     {
         ui.SetWindowOpen("FPS Metrics", true);
-        ui.BeginWindow("FPS Metrics");
+        ui.BeginPanel("FPS Metrics");
 
         ui.Text($"Frame: {_frameCount}");
         ui.Text($"Current FPS: {_currentFps:F1}");
@@ -179,13 +179,13 @@ public sealed class Perf2DRenderScreen : UiScreen
             ui.Text($"Frame Time: {ms:F2}ms");
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void RenderTestContent(UiImmediateContext ui)
     {
         ui.SetWindowOpen("Test Content", true);
-        ui.BeginWindow("Test Content");
+        ui.BeginPanel("Test Content");
 
         if (ui.RadioButton("Light##1", _testLevel == 1))
             _testLevel = 1;
@@ -235,6 +235,6 @@ public sealed class Perf2DRenderScreen : UiScreen
             }
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 }

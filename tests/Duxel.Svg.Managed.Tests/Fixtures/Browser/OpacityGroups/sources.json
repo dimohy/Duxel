@@ -1,0 +1,70 @@
+{
+  "sources": [
+    {
+      "file": "single-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "c369144335f7c14c1ac41cb385b69d9c0f06e6bfddd39afcd08690b7318ed663"
+    },
+    {
+      "file": "half-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "8a1c85f3e996187861e0472a040d24b5c9d634941bc64dc35ee81a09c032f886"
+    },
+    {
+      "file": "nested-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "27241b0109084e033ad41bd5d061304515fd1c7ade0aa162f2ffb406d91eb673"
+    },
+    {
+      "file": "nested-solid.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "e9b5d8f990d186ba8ca1240f4a2a1b8159b4b004ebcd16d12c625355d6118a03"
+    },
+    {
+      "file": "overlapping-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "344233975ab1a919e3aa8236ce12b2c2d4c65d7dfd57a5bf5ae5864afa6c03af"
+    },
+    {
+      "file": "fill-stroke.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "2dcad385f4d4860289815e8f70e9275ac96c3903345c70bf034f00f346f1a27e"
+    },
+    {
+      "file": "clipped-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "d0d68a0f7e333d88649621e5cd55fef38d1b2e8ceb7439288e2604c64b25fc4a"
+    },
+    {
+      "file": "masked-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "677a3724168f9301c4500c38f37d93e400704695084b1895bbd81e74e2313442"
+    },
+    {
+      "file": "filtered-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "eb2b733226342c3a73843909cf04899f0f9aa6a9ef40eb87f978627695a4d6bb"
+    },
+    {
+      "file": "single-solid.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "43607e0ad02e3e88099f586a1c8121a728a2f327b10a37e8f3ec9f97cc87da2c"
+    },
+    {
+      "file": "translucent-gradient.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "a35b044ca0b9e12246ddf612b1064e20c292f7a529f31402d1234b9d096da523"
+    }
+  ]
+}

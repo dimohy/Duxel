@@ -8,6 +8,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Diagnostics;
+using System.Text.Json;
+using System.Numerics;
+using Duxel.Core.Simulation;
 using Duxel.App;
 using Duxel.Core;
 using Duxel.Windows.App;
@@ -19,6 +23,8 @@ DuxelWindowsApp.Run(new DuxelAppOptions
     Window = new DuxelWindowOptions
     {
         Title = "Duxel Performance Test (FBA)",
+        Width = BenchOptions.ReadInt("DUXEL_PERF_WINDOW_WIDTH", 1920, minInclusive: 640),
+        Height = BenchOptions.ReadInt("DUXEL_PERF_WINDOW_HEIGHT", 1080, minInclusive: 480),
         VSync = false
     },
     Renderer = new DuxelRendererOptions
@@ -26,6 +32,11 @@ DuxelWindowsApp.Run(new DuxelAppOptions
         Profile = profile
     },
 
+    Frame = new()
+    {
+        EnableRenderPipeline = BenchOptions.ReadBool("DUXEL_PERF_PIPELINE", true),
+        UseEventDrivenPlatformLoop = true,
+    },
     Screen = new PerfTestScreen(profile)
 });
 
@@ -70,23 +81,33 @@ static bool TryParseProfile(string? raw, out DuxelPerformanceProfile profile)
 
 public sealed class PerfTestScreen : UiScreen
 {
-    private const string PerfGlobalStaticTag = "duxel.global.static:perf-test:backdrop:v1";
     private const int RenderProfileMsaaSamples = 1;
     private const int DisplayProfileMsaaSamples = 4;
-    private const float MinCollisionCellSize = 24f;
     private const float CollisionHitDecayPerSecond = 2.4f;
     private const float CollisionHitShrinkMax = 0.22f;
     private const float CollisionHitRedWeight = 0.28f;
-    private const float CollisionAngularImpulseScale = 1.15f;
     private const float CollisionAngularDampingPerSecond = 0.7f;
 
+    private readonly CircleCollisionSolver2D _collisionSolver = new();
     private readonly List<PolygonBody> _polygons = [];
+    private readonly bool _gpuSimulation = ReadGpuSimulation();
+    private readonly bool _cpuJacobiSimulation = BenchOptions.ReadString("DUXEL_PERF_SIMULATION", "gpu") == "cpu-jacobi";
+    private ParticleJacobiSimulation? _jacobiSimulation;
+    private UiGpuParticleSystem? _gpuParticles;
+    private long _gpuResetRevision, _gpuLoadedRevision = -1;
+    private readonly int _gpuCollisionIterations = BenchOptions.ReadInt("DUXEL_PERF_GPU_ITERATIONS", 2, minInclusive: 1);
+    private double _gpuDispatchSum, _gpuInitialUploadSum;
+    private UiRegularPolygon[] _polygonInstances = [];
+    private bool _dynamicCanvas = BenchOptions.ReadBool("DUXEL_PERF_DYNAMIC_CANVAS", true);
+    private UiRect _canvasBounds;
+    private long _canvasRevision;
+    private (UiRect Bounds, float Size, int Sides, int Count, bool Cache) _canvasState;
     private readonly Random _random = new(1337);
     private float _baseSpeed = 160f;
-    private float _baseSize = 22f;
+    private float _baseSize = (float)BenchOptions.ReadDouble("DUXEL_PERF_INITIAL_SIZE", 6d, minExclusive: 0d);
     private int _baseSides = 5;
     private float _rotationSpeed = 1.8f;
-    private bool _paused;
+    private bool _paused = BenchOptions.ReadBool("DUXEL_PERF_PAUSED", false);
     private double _lastTime;
     private readonly UiFpsCounter _fpsCounter = new(0.5d);
     private float _fps;
@@ -96,19 +117,22 @@ public sealed class PerfTestScreen : UiScreen
     private DuxelPerformanceProfile _activeProfile;
     private bool _initialized;
     private double _benchElapsedSeconds;
-    private double _benchFpsSum;
-    private int _benchFpsSamples;
+    private readonly double _benchWarmupSeconds = BenchOptions.ReadDouble("DUXEL_PERF_WARMUP_SECONDS", 1d, minExclusive: 0d);
+    private readonly BenchFrameRecorder _benchFrames = new(262144);
+    private long _physicsTicks;
+    private long _collisionTicks;
+    private long _geometryTicks;
+    private double _physicsMsSum, _collisionMsSum, _geometryMsSum, _gpuUsSum, _drawCallsSum, _uploadBytesSum;
+    private double _stagingUploadSum, _layerStateUploadSum, _compiledIndexUploadSum;
+    private int _gpuTimingSamples, _rendererAllocationSamples;
+    private long _lastUiAllocated;
+    private double _uiAllocatedSum, _rendererAllocatedSum;
     private bool _benchCompleted;
     private bool _enableGlobalStaticCache = ReadGlobalStaticCacheEnabled();
-    private UiPooledList<UiDrawList>? _globalStaticCache;
-    private UiDrawList[] _globalStaticReferences = [];
-    private UiRect _globalStaticCacheBounds;
-    private bool _globalStaticCacheReleasePending;
-    private readonly Dictionary<long, int> _collisionCellHeads = new(4096);
-    private int[] _collisionNext = [];
-    private float[] _collisionRadii = [];
-    private int[] _collisionTouchedStamp = [];
-    private int _collisionStamp = 1;
+    private UiRect _backdropBounds;
+    private UiTextureId _backdropTexture;
+    private long _backdropRevision;
+    private bool _backdropWasCached;
 
     public PerfTestScreen(DuxelPerformanceProfile startupProfile)
     {
@@ -117,11 +141,12 @@ public sealed class PerfTestScreen : UiScreen
 
     public override void Render(UiImmediateContext ui)
     {
-        ReleaseGlobalStaticCacheIfPending();
-
         var now = ui.GetTime();
-        var delta = _lastTime == 0 ? 0.016 : Math.Clamp(now - _lastTime, 0.0, 0.05);
+        var rawDelta = _lastTime == 0 ? 0 : now - _lastTime;
+        var delta = _lastTime == 0 ? 0.016 : Math.Clamp(rawDelta, 0.0, 0.05);
         _lastTime = now;
+        if (TickBenchMode(ui, rawDelta)) return;
+        var allocatedStart = GC.GetAllocatedBytesForCurrentThread();
 
         var viewport = ui.GetMainViewport();
         var bounds = new UiRect(viewport.Pos.X, viewport.Pos.Y, viewport.Size.X, viewport.Size.Y);
@@ -130,6 +155,7 @@ public sealed class PerfTestScreen : UiScreen
         var renderBounds = DrawRenderWindow(ui, bounds, delta);
         DrawControls(ui, bounds, renderBounds);
         DrawRendererStatusOverlay(ui);
+        _lastUiAllocated = GC.GetAllocatedBytesForCurrentThread() - allocatedStart;
 
         DuxelApp.RequestFrame();
     }
@@ -141,8 +167,16 @@ public sealed class PerfTestScreen : UiScreen
 
     private static int ReadInitialPolygonCount()
     {
-        return BenchOptions.ReadInt("DUXEL_PERF_INITIAL_POLYGONS", 0, minInclusive: 1);
+        return BenchOptions.ReadInt("DUXEL_PERF_INITIAL_POLYGONS", 5000, minInclusive: 1);
     }
+
+    private static bool ReadGpuSimulation() => BenchOptions.ReadString("DUXEL_PERF_SIMULATION", "gpu") switch
+    {
+        "cpu" => false,
+        "cpu-jacobi" => false,
+        "gpu" => true,
+        _ => throw new ArgumentException("DUXEL_PERF_SIMULATION must be cpu, cpu-jacobi or gpu."),
+    };
 
     private static bool ReadGlobalStaticCacheEnabled()
     {
@@ -170,48 +204,110 @@ public sealed class PerfTestScreen : UiScreen
         }
     }
 
-    private void TickBenchMode(UiImmediateContext ui, double delta)
+    private bool TickBenchMode(UiImmediateContext ui, double delta)
     {
         if (_benchCompleted || _benchDurationSeconds <= 0d)
         {
-            return;
+            return false;
         }
 
         _benchElapsedSeconds += delta;
-        if (_fps > 0f)
+        if (_benchElapsedSeconds <= _benchWarmupSeconds)
         {
-            _benchFpsSum += _fps;
-            _benchFpsSamples++;
+            return false;
         }
-
-        if (_benchElapsedSeconds < _benchDurationSeconds)
+        _benchFrames.Record(delta);
+        var tickMs = 1000d / Stopwatch.Frequency;
+        _physicsMsSum += _physicsTicks * tickMs;
+        _collisionMsSum += _collisionTicks * tickMs;
+        _geometryMsSum += _geometryTicks * tickMs;
+        var metrics = ui.GetRendererFrameMetrics();
+        if (double.IsFinite(metrics.GpuRenderMicroseconds))
         {
-            return;
+            _gpuUsSum += metrics.GpuRenderMicroseconds;
+            _gpuTimingSamples++;
+        }
+        _drawCallsSum += metrics.DrawCalls;
+        _uploadBytesSum += metrics.DynamicUploadBytes;
+        _stagingUploadSum += metrics.StagingUploadBytes;
+        _layerStateUploadSum += metrics.LayerStateUploadBytes;
+        _compiledIndexUploadSum += metrics.CompiledIndexUploadBytes;
+        _uiAllocatedSum += _lastUiAllocated;
+        if (metrics.RendererAllocatedBytes is { } rendererAllocated)
+        {
+            _rendererAllocatedSum += rendererAllocated;
+            _rendererAllocationSamples++;
+        }
+        _gpuDispatchSum += metrics.GpuParticleDispatches;
+        _gpuInitialUploadSum += metrics.GpuParticleInitialUploadBytes;
+        if (_benchFrames.MeasuredSeconds < _benchDurationSeconds)
+        {
+            return false;
         }
 
         _benchCompleted = true;
-        var avgFps = _benchFpsSamples > 0 ? _benchFpsSum / _benchFpsSamples : 0d;
+        var stats = _benchFrames.Calculate();
         var vsync = ui.GetVSync();
         var msaaSamples = ui.GetMsaaSamples();
 
         if (!string.IsNullOrWhiteSpace(_benchOutputPath))
         {
-            var json = string.Format(
-                CultureInfo.InvariantCulture,
-                "{{\"avgFps\":{0:0.###},\"samples\":{1},\"elapsedSeconds\":{2:0.###},\"vsync\":{3},\"msaa\":{4},\"count\":{5},\"globalStaticCache\":{6},\"profile\":\"{7}\"}}",
-                avgFps,
-                _benchFpsSamples,
-                _benchElapsedSeconds,
-                vsync.ToString().ToLowerInvariant(),
-                msaaSamples,
-                _polygons.Count,
-                _enableGlobalStaticCache.ToString().ToLowerInvariant(),
-                GetProfileName(_activeProfile)
-            );
-            File.WriteAllText(_benchOutputPath!, json);
+            using var stream = File.Create(_benchOutputPath);
+            using var json = new Utf8JsonWriter(stream, new() { Indented = true });
+            json.WriteStartObject();
+            json.WriteString("clock", "ui-frame-start-monotonic-unclamped");
+            json.WriteString("runtime", RuntimeInformation.FrameworkDescription);
+            json.WriteString("architecture", RuntimeInformation.ProcessArchitecture.ToString());
+            json.WriteBoolean("renderPipeline", BenchOptions.ReadBool("DUXEL_PERF_PIPELINE", true));
+            json.WriteNumber("avgFps", stats.AverageFps);
+            json.WriteNumber("samples", stats.Samples);
+            json.WriteNumber("elapsedSeconds", stats.MeasuredSeconds);
+            json.WriteNumber("warmupSeconds", _benchWarmupSeconds);
+            json.WriteNumber("medianFrameMs", stats.MedianFrameMs);
+            json.WriteNumber("p95FrameMs", stats.P95FrameMs);
+            json.WriteNumber("p99FrameMs", stats.P99FrameMs);
+            json.WriteNumber("low1PctFps", stats.Low1PctFps);
+            json.WriteNumber("physicsMs", _physicsMsSum / stats.Samples);
+            json.WriteNumber("collisionMs", _collisionMsSum / stats.Samples);
+            json.WriteNumber("geometryMs", _geometryMsSum / stats.Samples);
+            if (_gpuTimingSamples > 0) json.WriteNumber("gpuUs", _gpuUsSum / _gpuTimingSamples);
+            else json.WriteNull("gpuUs");
+            json.WriteNumber("gpuTimingSamples", _gpuTimingSamples);
+            json.WriteNumber("drawCalls", _drawCallsSum / stats.Samples);
+            json.WriteNumber("dynamicUploadBytes", _uploadBytesSum / stats.Samples);
+            json.WriteNumber("stagingUploadBytes", _stagingUploadSum / stats.Samples);
+            json.WriteNumber("layerStateUploadBytes", _layerStateUploadSum / stats.Samples);
+            json.WriteNumber("compiledIndexUploadBytes", _compiledIndexUploadSum / stats.Samples);
+            json.WriteBoolean("profilingEnabled", metrics.ProfilingEnabled);
+            json.WriteNumber("uiAllocatedBytesPerFrame", _uiAllocatedSum / stats.Samples);
+            if (_rendererAllocationSamples > 0) json.WriteNumber("rendererAllocatedBytesPerFrame", _rendererAllocatedSum / _rendererAllocationSamples);
+            else json.WriteNull("rendererAllocatedBytesPerFrame");
+            json.WriteNumber("rendererAllocationSamples", _rendererAllocationSamples);
+            json.WriteNumber("framebufferWidth", metrics.FramebufferSize.Width);
+            json.WriteNumber("framebufferHeight", metrics.FramebufferSize.Height);
+            json.WriteString("simulation", _gpuSimulation ? "gpu-jacobi" : _cpuJacobiSimulation ? "cpu-jacobi" : "cpu-ordered");
+            json.WriteNumber("collisionIterations", _gpuSimulation || _cpuJacobiSimulation ? _gpuCollisionIterations : 1);
+            json.WriteBoolean("collisionTimingIncludesIntegration", _cpuJacobiSimulation);
+            json.WriteNumber("gpuParticleDispatches", _gpuDispatchSum / stats.Samples);
+            json.WriteNumber("gpuParticleInitialUploadBytes", _gpuInitialUploadSum / stats.Samples);
+            json.WriteBoolean("vsync", vsync);
+            json.WriteNumber("msaa", msaaSamples);
+            json.WriteNumber("count", _polygons.Count);
+            json.WriteNumber("size", _baseSize);
+            json.WriteNumber("viewportWidth", ui.GetMainViewport().Size.X);
+            json.WriteNumber("viewportHeight", ui.GetMainViewport().Size.Y);
+            json.WriteNumber("canvasWidth", _canvasBounds.Width);
+            json.WriteNumber("canvasHeight", _canvasBounds.Height);
+            json.WriteBoolean("dynamicCanvas", _dynamicCanvas);
+            json.WriteBoolean("globalStaticCache", _enableGlobalStaticCache);
+            json.WriteString("profile", GetProfileName(_activeProfile));
+            json.WriteEndObject();
+            using var frames = new StreamWriter(_benchOutputPath + ".frames.csv");
+            frames.WriteLine("frameSeconds");
+            foreach (var seconds in _benchFrames.FrameSeconds) frames.WriteLine(seconds.ToString("R", CultureInfo.InvariantCulture));
         }
-
-        Environment.Exit(0);
+        DuxelApp.Exit();
+        return true;
     }
 
     private UiRect DrawRenderWindow(UiImmediateContext ui, UiRect viewportBounds, double delta)
@@ -225,7 +321,7 @@ public sealed class PerfTestScreen : UiScreen
 
         ui.SetNextWindowPos(new UiVector2(renderX, renderY));
         ui.SetNextWindowSize(new UiVector2(renderWidth, renderHeight));
-        ui.BeginWindow("Render");
+        ui.BeginPanel("Render");
 
         var contentPos = ui.GetCursorScreenPos();
         var contentAvail = ui.GetContentRegionAvail();
@@ -237,16 +333,28 @@ public sealed class PerfTestScreen : UiScreen
         );
 
         EnsureInitialized(bounds);
+        _canvasBounds = bounds;
+        var start = Stopwatch.GetTimestamp();
         UpdatePolygons(delta, bounds);
-        TickBenchMode(ui, delta);
-        DrawScene(ui, bounds);
+        _physicsTicks = Stopwatch.GetTimestamp() - start;
+        start = Stopwatch.GetTimestamp();
+        DrawScene(ui, bounds, delta);
+        _geometryTicks = Stopwatch.GetTimestamp() - start;
 
-        ui.EndWindow();
+        ui.EndPanel();
         return bounds;
     }
 
-    private void DrawScene(UiImmediateContext ui, UiRect bounds)
+    private void DrawScene(UiImmediateContext ui, UiRect bounds, double delta)
     {
+        var state = (bounds, _baseSize, _baseSides, _polygons.Count, _enableGlobalStaticCache);
+        if (_canvasState != state) { _canvasState = state; _canvasRevision++; }
+        if (_dynamicCanvas && !ui.BeginLayer("perf.canvas", new UiLayerOptions(false, 1, default)
+            { Scene3D = new UiLayer3D(Matrix4x4.Identity, WriteDepth: false) { Viewport = bounds }, ContentVersion = _paused ? _canvasRevision : null }))
+        {
+            ui.EndLayer();
+            return;
+        }
         var drawList = ui.GetWindowDrawList();
         var clip = bounds;
         var whiteTexture = ui.WhiteTextureId;
@@ -256,31 +364,74 @@ public sealed class PerfTestScreen : UiScreen
 
         if (_enableGlobalStaticCache)
         {
-            EnsureGlobalStaticCache(clip, whiteTexture);
-            for (var i = 0; i < _globalStaticReferences.Length; i++)
+            if (_backdropBounds != clip || _backdropTexture != whiteTexture)
             {
-                drawList.AppendRetainedStaticReference(_globalStaticReferences[i]);
+                _backdropBounds = clip; _backdropTexture = whiteTexture; _backdropRevision++;
             }
+            if (ui.BeginLayer("perf.backdrop", new UiLayerOptions(true,1,default) { ContentVersion = _backdropRevision }))
+                DrawStaticBackdrop(ui.GetWindowDrawList(), clip, whiteTexture);
+            ui.EndLayer();
+            _backdropWasCached = true;
         }
         else
         {
+            if (_backdropWasCached) { ui.RemoveLayer("perf.backdrop"); _backdropWasCached = false; }
             DrawStaticBackdrop(drawList, clip, whiteTexture);
         }
 
         var polygons = CollectionsMarshal.AsSpan(_polygons);
+        if (_gpuSimulation)
+        {
+            EnsureGpuParticles(polygons);
+            if (_gpuParticles is not null)
+                drawList.AddGpuParticles(new(_gpuParticles,
+                    new(bounds.X + 8, bounds.Y + 8, bounds.Width - 16, bounds.Height - 16),
+                    _paused ? 0 : (float)delta, _baseSize, _baseSpeed, _baseSides,
+                    MathF.Max(.35f, _rotationSpeed * 2.5f), _gpuCollisionIterations));
+        }
+        else
+        {
+        if (_polygonInstances.Length < polygons.Length) _polygonInstances = new UiRegularPolygon[polygons.Length];
         for (var i = 0; i < polygons.Length; i++)
         {
-            var body = polygons[i];
+            ref var body = ref polygons[i];
             var hit = body.HitResponse;
             var radiusScale = 1f - hit * CollisionHitShrinkMax;
             var radius = _baseSize * body.SizeScale * radiusScale;
             var center = body.Position;
             var sides = Math.Max(3, _baseSides + body.SideOffset);
-            DrawPolygon(drawList, center, radius, sides, body.Rotation, BlendHitColor(body.BaseColor, hit));
+            _polygonInstances[i] = new(center, radius, sides, body.Rotation, BlendHitColor(body.BaseColor, hit));
+        }
+        drawList.AddRegularPolygons(_polygonInstances.AsSpan(0, polygons.Length));
         }
 
         drawList.PopClipRect();
         drawList.PopTexture();
+        if (_dynamicCanvas) ui.EndLayer();
+    }
+
+    private void EnsureGpuParticles(ReadOnlySpan<PolygonBody> bodies)
+    {
+        if (_gpuLoadedRevision != _gpuResetRevision || bodies.IsEmpty)
+        {
+            _gpuParticles?.Dispose(); _gpuParticles = null; _jacobiSimulation = null;
+            _gpuLoadedRevision = _gpuResetRevision;
+        }
+        if (bodies.IsEmpty) return;
+        if (_gpuParticles is not null && _gpuParticles.Count > bodies.Length)
+            _gpuParticles.Truncate(bodies.Length);
+        var preserved = _gpuParticles?.Count ?? 0;
+        if (preserved == bodies.Length) return;
+        var initial = new UiGpuParticle[bodies.Length - preserved];
+        for (var i = preserved; i < bodies.Length; i++)
+        {
+            ref readonly var body = ref bodies[i];
+            initial[i - preserved] = new() { Position = body.Position, Direction = body.Direction, Rotation = body.Rotation,
+                AngularSpeed = (float)body.AngularSpeed, HitResponse = body.HitResponse,
+                SpeedScale = body.SpeedScale, SizeScale = body.SizeScale, SideOffset = body.SideOffset, Color = body.BaseColor.Rgba };
+        }
+        if (_gpuParticles is null) _gpuParticles = new(initial, 12);
+        else _gpuParticles.Append(initial);
     }
 
     private void DrawControls(UiImmediateContext ui, UiRect viewportBounds, UiRect renderBounds)
@@ -288,7 +439,7 @@ public sealed class PerfTestScreen : UiScreen
         const float margin = 16f;
         ui.SetNextWindowPos(new UiVector2(viewportBounds.X + margin, viewportBounds.Y + margin));
         ui.SetNextWindowSize(new UiVector2(320f, MathF.Max(320f, viewportBounds.Height - margin * 2f)));
-        ui.BeginWindow("Controls");
+        ui.BeginPanel("Controls");
         if (ui.IsWindowAppearing())
         {
             ui.SetScrollY(0f);
@@ -296,6 +447,9 @@ public sealed class PerfTestScreen : UiScreen
 
         ui.TextV("FPS: {0:0.0}", _fps);
         ui.TextV("Count: {0}", _polygons.Count);
+        ui.Text(_gpuSimulation ? "Simulation: GPU (parallel)" : _cpuJacobiSimulation ? "Simulation: CPU (parallel model)" : "Simulation: CPU (ordered)");
+        if (_gpuSimulation) ui.Text("Add/Remove preserves existing motion.");
+        ui.Checkbox("Dynamic Canvas Layer", ref _dynamicCanvas);
         var vsync = ui.GetVSync();
         if (ui.Checkbox("VSync", ref vsync))
         {
@@ -316,7 +470,7 @@ public sealed class PerfTestScreen : UiScreen
         if (ui.Checkbox("Global Static Cache", ref globalStaticCache))
         {
             _enableGlobalStaticCache = globalStaticCache;
-            ScheduleGlobalStaticCacheRelease();
+
         }
 
         ui.SeparatorText("Profile");
@@ -359,7 +513,7 @@ public sealed class PerfTestScreen : UiScreen
         ui.SameLine();
         if (ui.Button("Clear"))
         {
-            _polygons.Clear();
+            _polygons.Clear(); _gpuResetRevision++; _canvasRevision++;
         }
 
         if (ui.Button("Reset"))
@@ -367,7 +521,7 @@ public sealed class PerfTestScreen : UiScreen
             ResetSimulation(renderBounds);
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawRendererStatusOverlay(UiImmediateContext ui)
@@ -400,85 +554,6 @@ public sealed class PerfTestScreen : UiScreen
 
     private static string GetProfileName(DuxelPerformanceProfile profile) =>
         profile == DuxelPerformanceProfile.Render ? "render" : "display";
-
-    private void EnsureGlobalStaticCache(UiRect bounds, UiTextureId whiteTexture)
-    {
-        if (_globalStaticCache is not null
-            && MathF.Abs(_globalStaticCacheBounds.Width - bounds.Width) < 0.5f
-            && MathF.Abs(_globalStaticCacheBounds.Height - bounds.Height) < 0.5f)
-        {
-            return;
-        }
-
-        InvalidateGlobalStaticCache();
-
-        var builder = new UiDrawListBuilder(bounds);
-        builder.PushTexture(whiteTexture);
-        builder.PushClipRect(bounds);
-        builder.PushCommandUserData(PerfGlobalStaticTag);
-        DrawStaticBackdrop(builder, bounds, whiteTexture);
-        builder.PopCommandUserData();
-        builder.PopClipRect();
-        builder.PopTexture();
-
-        _globalStaticCache = builder.Build();
-        _globalStaticReferences = new UiDrawList[_globalStaticCache.Count];
-        for (var i = 0; i < _globalStaticCache.Count; i++)
-        {
-            var list = _globalStaticCache[i];
-            var staticKey = _globalStaticCache.Count == 1
-                ? PerfGlobalStaticTag
-                : PerfGlobalStaticTag + ":list:" + i.ToString(CultureInfo.InvariantCulture);
-
-            _globalStaticReferences[i] = list with
-            {
-                OwnsBuffers = false,
-                StaticGeometryKey = staticKey,
-                StaticGeometryStamp = list.GetStaticGeometryStamp()
-            };
-        }
-
-        _globalStaticCacheBounds = bounds;
-    }
-
-    private void InvalidateGlobalStaticCache()
-    {
-        _globalStaticCacheReleasePending = false;
-        ReleaseGlobalStaticCacheNow();
-    }
-
-    private void ScheduleGlobalStaticCacheRelease()
-    {
-        _globalStaticCacheReleasePending = _globalStaticCache is not null;
-    }
-
-    private void ReleaseGlobalStaticCacheIfPending()
-    {
-        if (!_globalStaticCacheReleasePending)
-        {
-            return;
-        }
-
-        _globalStaticCacheReleasePending = false;
-        ReleaseGlobalStaticCacheNow();
-    }
-
-    private void ReleaseGlobalStaticCacheNow()
-    {
-        if (_globalStaticCache is null)
-        {
-            return;
-        }
-
-        for (var i = 0; i < _globalStaticCache.Count; i++)
-        {
-            _globalStaticCache[i].ReleasePooled();
-        }
-
-        _globalStaticCache.Return();
-        _globalStaticCache = null;
-        _globalStaticReferences = [];
-    }
 
     private static void DrawStaticBackdrop(UiDrawListBuilder drawList, UiRect bounds, UiTextureId whiteTexture)
     {
@@ -531,6 +606,25 @@ public sealed class PerfTestScreen : UiScreen
         }
 
         var dt = (float)delta;
+        _canvasRevision++;
+        if (_gpuSimulation) { _collisionTicks = 0; return; }
+        if (_cpuJacobiSimulation)
+        {
+            var bodies = CollectionsMarshal.AsSpan(_polygons);
+            EnsureGpuParticles(bodies);
+            _jacobiSimulation ??= new(_gpuParticles!);
+            var start = Stopwatch.GetTimestamp();
+            _jacobiSimulation.Step(new(_gpuParticles!, new(bounds.X+8,bounds.Y+8,bounds.Width-16,bounds.Height-16),
+                dt,_baseSize,_baseSpeed,_baseSides,MathF.Max(.35f,_rotationSpeed*2.5f),_gpuCollisionIterations));
+            _collisionTicks = Stopwatch.GetTimestamp() - start;
+            for (var i = 0; i < bodies.Length; i++)
+            {
+                ref var body = ref bodies[i]; ref readonly var state = ref _jacobiSimulation.Particles[i];
+                body.Position = state.Position; body.Direction = state.Direction; body.Rotation = state.Rotation;
+                body.AngularSpeed = state.AngularSpeed; body.HitResponse = state.HitResponse;
+            }
+            return;
+        }
         var speed = _baseSpeed;
         var minX = bounds.X + 8f;
         var minY = bounds.Y + 8f;
@@ -540,7 +634,7 @@ public sealed class PerfTestScreen : UiScreen
         var polygons = CollectionsMarshal.AsSpan(_polygons);
         for (var i = 0; i < polygons.Length; i++)
         {
-            var body = polygons[i];
+            ref var body = ref polygons[i];
             var hit = MathF.Max(0f, body.HitResponse - dt * CollisionHitDecayPerSecond);
             body.HitResponse = hit;
             var radius = _baseSize * body.SizeScale * (1f - hit * CollisionHitShrinkMax);
@@ -580,11 +674,16 @@ public sealed class PerfTestScreen : UiScreen
             body.Rotation += (float)(body.AngularSpeed * dt);
         }
 
-        ResolvePolygonCollisions(polygons);
+        var collisionStart = Stopwatch.GetTimestamp();
+        _collisionSolver.Resolve(polygons, _baseSize, MathF.Max(0.35f, _rotationSpeed * 2.5f), _random,
+            new UiRect(minX, minY, maxX - minX, maxY - minY));
+        _collisionTicks = Stopwatch.GetTimestamp() - collisionStart;
     }
 
     private void ResetSimulation(UiRect bounds)
     {
+        _canvasRevision++;
+        _gpuResetRevision++;
         var count = _polygons.Count;
         _polygons.Clear();
         EnsurePolygonCapacity(count);
@@ -592,181 +691,6 @@ public sealed class PerfTestScreen : UiScreen
         {
             AddPolygon(bounds);
         }
-    }
-
-    private void ResolvePolygonCollisions(Span<PolygonBody> polygons)
-    {
-        var count = polygons.Length;
-        if (count <= 1)
-        {
-            return;
-        }
-
-        if (_collisionNext.Length < count)
-        {
-            _collisionNext = new int[count];
-        }
-
-        if (_collisionRadii.Length < count)
-        {
-            _collisionRadii = new float[count];
-        }
-
-        if (_collisionTouchedStamp.Length < count)
-        {
-            _collisionTouchedStamp = new int[count];
-        }
-
-        _collisionStamp++;
-        if (_collisionStamp == int.MaxValue)
-        {
-            Array.Clear(_collisionTouchedStamp, 0, _collisionTouchedStamp.Length);
-            _collisionStamp = 1;
-        }
-
-        _collisionCellHeads.Clear();
-
-        var cellSize = MathF.Max(MinCollisionCellSize, _baseSize * 2.5f);
-        var invCellSize = 1f / cellSize;
-
-        for (var i = 0; i < count; i++)
-        {
-            var body = polygons[i];
-            var radius = _baseSize * body.SizeScale;
-            _collisionRadii[i] = radius;
-
-            var cellX = (int)MathF.Floor(body.Position.X * invCellSize);
-            var cellY = (int)MathF.Floor(body.Position.Y * invCellSize);
-            var key = PackGridKey(cellX, cellY);
-            if (_collisionCellHeads.TryGetValue(key, out var head))
-            {
-                _collisionNext[i] = head;
-                _collisionCellHeads[key] = i;
-            }
-            else
-            {
-                _collisionNext[i] = -1;
-                _collisionCellHeads.Add(key, i);
-            }
-        }
-
-        for (var i = 0; i < polygons.Length; i++)
-        {
-            var bodyA = polygons[i];
-            var radiusA = _collisionRadii[i];
-            var centerA = bodyA.Position;
-            var cellAX = (int)MathF.Floor(centerA.X * invCellSize);
-            var cellAY = (int)MathF.Floor(centerA.Y * invCellSize);
-
-            for (var ny = cellAY - 1; ny <= cellAY + 1; ny++)
-            {
-                for (var nx = cellAX - 1; nx <= cellAX + 1; nx++)
-                {
-                    if (!_collisionCellHeads.TryGetValue(PackGridKey(nx, ny), out var head))
-                    {
-                        continue;
-                    }
-
-                    for (var j = head; j >= 0; j = _collisionNext[j])
-                    {
-                        if (j <= i)
-                        {
-                            continue;
-                        }
-
-                        var bodyB = polygons[j];
-                        var radiusB = _collisionRadii[j];
-                        var minDistance = radiusA + radiusB;
-
-                        var dx = bodyB.Position.X - bodyA.Position.X;
-                        var dy = bodyB.Position.Y - bodyA.Position.Y;
-                        var distanceSquared = dx * dx + dy * dy;
-                        var minDistanceSquared = minDistance * minDistance;
-                        if (distanceSquared >= minDistanceSquared)
-                        {
-                            continue;
-                        }
-
-                        float normalX;
-                        float normalY;
-                        float distance;
-
-                        if (distanceSquared <= float.Epsilon)
-                        {
-                            var angle = (float)(_random.NextDouble() * MathF.Tau);
-                            normalX = MathF.Cos(angle);
-                            normalY = MathF.Sin(angle);
-                            distance = 0f;
-                        }
-                        else
-                        {
-                            distance = MathF.Sqrt(distanceSquared);
-                            normalX = dx / distance;
-                            normalY = dy / distance;
-                        }
-
-                        var overlap = minDistance - distance;
-                        if (overlap > 0f)
-                        {
-                            var correctionX = normalX * (overlap * 0.5f);
-                            var correctionY = normalY * (overlap * 0.5f);
-                            bodyA.Position = new UiVector2(bodyA.Position.X - correctionX, bodyA.Position.Y - correctionY);
-                            bodyB.Position = new UiVector2(bodyB.Position.X + correctionX, bodyB.Position.Y + correctionY);
-                        }
-
-                        var aAlong = bodyA.Direction.X * normalX + bodyA.Direction.Y * normalY;
-                        var bAlong = bodyB.Direction.X * normalX + bodyB.Direction.Y * normalY;
-                        var exchange = bAlong - aAlong;
-
-                        var nextDirA = new UiVector2(bodyA.Direction.X + normalX * exchange, bodyA.Direction.Y + normalY * exchange);
-                        var nextDirB = new UiVector2(bodyB.Direction.X - normalX * exchange, bodyB.Direction.Y - normalY * exchange);
-
-                        var tangentX = -normalY;
-                        var tangentY = normalX;
-                        var relativeTangentVelocity =
-                            (bodyB.Direction.X - bodyA.Direction.X) * tangentX
-                            + (bodyB.Direction.Y - bodyA.Direction.Y) * tangentY;
-                        var angularImpulse = relativeTangentVelocity * CollisionAngularImpulseScale;
-                        var maxAngularSpeed = MathF.Max(0.35f, _rotationSpeed * 2.5f);
-
-                        bodyA.Direction = nextDirA;
-                        bodyB.Direction = nextDirB;
-                        bodyA.AngularSpeed = Math.Clamp(bodyA.AngularSpeed - angularImpulse, -maxAngularSpeed, maxAngularSpeed);
-                        bodyB.AngularSpeed = Math.Clamp(bodyB.AngularSpeed + angularImpulse, -maxAngularSpeed, maxAngularSpeed);
-                        bodyA.HitResponse = 1f;
-                        bodyB.HitResponse = 1f;
-                        _collisionTouchedStamp[i] = _collisionStamp;
-                        _collisionTouchedStamp[j] = _collisionStamp;
-                    }
-                }
-            }
-        }
-
-        for (var i = 0; i < count; i++)
-        {
-            if (_collisionTouchedStamp[i] != _collisionStamp)
-            {
-                continue;
-            }
-
-            var body = polygons[i];
-            body.Direction = NormalizeDirection(body.Direction);
-        }
-    }
-
-    private static long PackGridKey(int cellX, int cellY)
-        => ((long)cellX << 32) | (uint)cellY;
-
-    private static UiVector2 NormalizeDirection(UiVector2 direction)
-    {
-        var lengthSquared = direction.X * direction.X + direction.Y * direction.Y;
-        if (lengthSquared <= 1e-6f)
-        {
-            return new UiVector2(1f, 0f);
-        }
-
-        var invLength = 1f / MathF.Sqrt(lengthSquared);
-        return new UiVector2(direction.X * invLength, direction.Y * invLength);
     }
 
     private static UiColor BlendHitColor(UiColor baseColor, float hit)
@@ -831,6 +755,7 @@ public sealed class PerfTestScreen : UiScreen
         }
 
         _polygons.RemoveAt(_polygons.Count - 1);
+        if (_polygons.Count == 0) _gpuResetRevision++;
     }
 
     private UiColor RandomColor()
@@ -841,42 +766,17 @@ public sealed class PerfTestScreen : UiScreen
         return new UiColor(0xFF000000u | (r << 16) | (g << 8) | b);
     }
 
-    private static void DrawPolygon(UiDrawListBuilder drawList, UiVector2 center, float radius, int sides, float rotation, UiColor color)
+    private struct PolygonBody : ICircleCollisionBody2D
     {
-        var step = MathF.Tau / sides;
-        var cosStep = MathF.Cos(step);
-        var sinStep = MathF.Sin(step);
-
-        var cosAngle = MathF.Cos(rotation);
-        var sinAngle = MathF.Sin(rotation);
-
-        Span<UiVector2> points = stackalloc UiVector2[sides];
-        points[0] = new UiVector2(center.X + cosAngle * radius, center.Y + sinAngle * radius);
-
-        for (var i = 1; i < sides; i++)
-        {
-            var nextCos = cosAngle * cosStep - sinAngle * sinStep;
-            var nextSin = sinAngle * cosStep + cosAngle * sinStep;
-            cosAngle = nextCos;
-            sinAngle = nextSin;
-
-            points[i] = new UiVector2(center.X + cosAngle * radius, center.Y + sinAngle * radius);
-        }
-
-        drawList.AddConvexPolyFilled(points, color);
-    }
-
-    private sealed class PolygonBody
-    {
-        public UiVector2 Position;
-        public UiVector2 Direction;
+        public UiVector2 Position { get; set; }
+        public UiVector2 Direction { get; set; }
         public float SpeedScale;
-        public float SizeScale;
+        public float SizeScale { get; set; }
         public int SideOffset;
         public float Rotation;
-        public double AngularSpeed;
+        public double AngularSpeed { get; set; }
         public UiColor BaseColor;
-        public float HitResponse;
+        public float HitResponse { get; set; }
     }
 }
 

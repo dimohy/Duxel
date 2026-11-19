@@ -1,0 +1,73 @@
+{
+  "scope": "Independent native SVG GPU Canvas2D full RGBA8 for miter join interior and translated stroke winding; does not certify general curve strokes",
+  "captureScripts": [
+    "L:/Cache/Duxel/linux-accessibility-2026-11-14/ego-svg-round35.mjs",
+    "L:/Cache/Duxel/linux-accessibility-2026-11-14/ego-svg-round36.mjs"
+  ],
+  "cases": [
+    {
+      "name": "miter-large-origin",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "0A9E6CBB3544CDF9E5830EDC12408D27D2BA6AD04FE5B4D6624A0089CD8672BE",
+      "rgbaSha256": "F03CCD7D151AA0E9F29B4713D8D941D81AFB8B63967DD936AFA521A887901432",
+      "recordedAtUtc": "2026-11-14T06:10:53.7391930Z"
+    },
+    {
+      "name": "miter-left",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "AB92D1A8D7A84D6F8429B727BEB2A78625FBF1128E6CA01A18DDD070E666E0B6",
+      "rgbaSha256": "F03CCD7D151AA0E9F29B4713D8D941D81AFB8B63967DD936AFA521A887901432",
+      "recordedAtUtc": "2026-11-14T06:10:53.7479024Z"
+    },
+    {
+      "name": "miter-oblique",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "33D6E9EACC2AE569A5B773B70DE67E133CB6D6CAF5495E7F0D790FFAE1D440DF",
+      "rgbaSha256": "F7E77EDF11D96D68EB9B7AC1FB4FD5D920D73805D0026BA3803667CA1E898861",
+      "recordedAtUtc": "2026-11-14T06:10:53.7612403Z"
+    },
+    {
+      "name": "miter-right",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "F1DD619AB5B4EA7CF78AC7B7E8D666CD7A7ACD4B7B05B12BE55824EEB21F4646",
+      "rgbaSha256": "CBC988CCE7E7867FE5F32D7861C3FBFD6DE1C4A867C8973444D7A0C66A2DFEE2",
+      "recordedAtUtc": "2026-11-14T06:10:53.7643849Z"
+    },
+    {
+      "name": "left-large",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "6FB00ECEAA813E79A4A7331AF7BF08B34ABCFCA59D40A567E202AAFC847E5614",
+      "rgbaSha256": "F03CCD7D151AA0E9F29B4713D8D941D81AFB8B63967DD936AFA521A887901432",
+      "recordedAtUtc": "2026-11-14T06:10:53.7692800Z"
+    },
+    {
+      "name": "oblique-large",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "60B3DA66CDB4E64A5C42FF055864D3723EEB8B1381E3B8CA2EB392B0376C1EC7",
+      "rgbaSha256": "19F8AEF9558C9EF99A1BB7C32C2DF581FC65361B12667FD648D59C9EE831F591",
+      "recordedAtUtc": "2026-11-14T06:10:53.7728496Z"
+    },
+    {
+      "name": "reverse-large",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "501998963B943148B43775CF6EF1F3C5B760F9D33DDD8691A50EB085C8A9D557",
+      "rgbaSha256": "19F8AEF9558C9EF99A1BB7C32C2DF581FC65361B12667FD648D59C9EE831F591",
+      "recordedAtUtc": "2026-11-14T06:10:53.7765996Z"
+    },
+    {
+      "name": "right-large",
+      "width": 32,
+      "height": 32,
+      "sourceSha256": "B1089F1CDEFF2327023461EDD0B2F559DD71A48263AA99E2C39E40F28E34D7EA",
+      "rgbaSha256": "CBC988CCE7E7867FE5F32D7861C3FBFD6DE1C4A867C8973444D7A0C66A2DFEE2",
+      "recordedAtUtc": "2026-11-14T06:10:53.7803005Z"
+    }
+  ]
+}

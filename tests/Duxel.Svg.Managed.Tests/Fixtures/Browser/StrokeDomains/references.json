@@ -1,0 +1,106 @@
+{
+  "renderer": "Chromium native SVG Image into GPU Canvas2D; independent readback",
+  "contract": "Original source hashes; fixed backing pixel extent; xMidYMid meet; DPR1/sRGB; white and transparent",
+  "references": [
+    {
+      "file": "thin.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "d87ff61c278b54491afb0415d51fd297cf22e516bddcbbf5e7137f037c614db4",
+      "id": "thin.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "cff36384044c8bd3670147f90bacc0601757926394e628d883cbb727bef66802",
+      "transparentRgbaSha256": "3cdcf28b1e39577aaed84bcee7c4750015e010338f502afa81469974435ef883",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T21:26:10.962Z"
+    },
+    {
+      "file": "thick.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "6cc8f6b9bf0cd4900120fb8b2adaa215a59b851fe0fe351d4d87b5232ea7b42b",
+      "id": "thick.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "5b9dbb1c9c2cf57f52ca6848568eeea86a94bfcc92e448c56c2307e8a7f9e335",
+      "transparentRgbaSha256": "9cc010f915b8e79337a99eb128261ec7e3d0d887473b00f5991c988a98b3551f",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T21:26:10.981Z"
+    },
+    {
+      "file": "reflected.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "bdff3a5d7cf8811c7696abc98c5b858299f83dcd098a2664161b403b14e3b81e",
+      "id": "reflected.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "feb2591e850e87b08bc2f032a0ee13498e4b7553d2a2f273130d9ef9fa4144b6",
+      "transparentRgbaSha256": "4d31f50067e5270379433a9792a538f72d64a5debb9bbf76775e2890f445c1a3",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T21:26:10.990Z"
+    },
+    {
+      "file": "scaled.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "2b4d2bab7ed412de2f74f6174611eb86caa15da56b62bf84ee738457aa1028da",
+      "id": "scaled.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "89dcf8d351eb01868b805bc3c6dd64328f21e107de9304a1a7de229b64e2ae8a",
+      "transparentRgbaSha256": "ad6987899120ed4c05857b5ff0bcb508edada15da5c428df6da0d6855438b093",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T21:26:10.998Z"
+    },
+    {
+      "file": "opaque.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "1fcb9aaa038b74e48836ab42a2fbb8357159e2ca8d91e325ac5c42932ec60e26",
+      "id": "opaque.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "4d8ef3f973b8723a7ddece395b17e1e67fd213e4478a39103663c638565ec262",
+      "transparentRgbaSha256": "64c8a9918df2b104d6b2b930144c5ba810a986b6a2b4aa2db4833ac32d3b6e15",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T21:26:11.006Z"
+    }
+  ]
+}

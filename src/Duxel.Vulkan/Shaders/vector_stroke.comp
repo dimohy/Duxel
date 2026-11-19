@@ -1,0 +1,220 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_buffer_reference_uvec2 : require
+layout(local_size_x = 64) in;
+layout(constant_id = 1) const uint VectorSceneProtocolVersion = 4u;
+#include "vector_conic.glsl"
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer Scene { vec4 data[]; };
+layout(buffer_reference, std430, buffer_reference_align = 16) buffer Output { vec4 data[]; };
+struct Target { Output edges; uint capacity; uint count; uint offset; uint reserved0; uint reserved1; uint reserved2; };
+layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer Targets { Target data[]; };
+layout(push_constant, std430) uniform Parameters {
+    Scene scene; Targets targets; vec2 scale; vec2 origin; uint programCount; uint first;
+} pc;
+Output destination;
+uint capacity, primitiveCount, sourceOffset;
+uint cursor, base;
+uint bandBase;
+vec4 bounds;
+bool overflow;
+mat2 mapping;
+vec2 translation;
+float radius;
+mat2 device;
+float angle, deviceScale;
+vec2 unitVector(vec2 v) {
+    float m = max(abs(v.x), abs(v.y));
+    if (m == 0.0) return vec2(0.0);
+    v /= m;
+    return v / length(v);
+}
+vec2 normalVector(vec2 tangent) { return vec2(-tangent.y, tangent.x) * radius; }
+void edge(vec2 a, vec2 b) {
+    a = mapping * a + translation;
+    b = mapping * b + translation;
+    a = (roundEven((a * pc.scale + pc.origin) * 256.0) / 256.0 - pc.origin) / pc.scale;
+    b = (roundEven((b * pc.scale + pc.origin) * 256.0) / 256.0 - pc.origin) / pc.scale;
+    if (all(equal(a, b))) return;
+    if (a.y == b.y) return;
+    if (cursor >= capacity) { overflow = true; return; }
+    destination.data[base + cursor] = vec4(a, b);
+    float height = bounds.w - bounds.y;
+    uint first = height <= 0.0 ? 0u : uint(clamp(floor((min(a.y, b.y) - bounds.y) / height * 64.0), 0.0, 63.0));
+    uint last = height <= 0.0 ? 0u : uint(clamp(floor((max(a.y, b.y) - bounds.y) / height * 64.0), 0.0, 63.0));
+    for (uint i = first; i <= last; ++i) {
+        vec4 range = destination.data[bandBase + i];
+        range.x = min(range.x, float(cursor));
+        range.y = max(range.y, float(cursor + 1u));
+        destination.data[bandBase + i] = range;
+    }
+    ++cursor;
+}
+void triangle(vec2 a, vec2 b, vec2 c) {
+    vec2 first = b - a, second = c - a;
+    if (first.x * second.y - first.y * second.x < 0.0) {
+        vec2 swap = a; a = c; c = swap;
+    }
+    edge(a, b); edge(b, c); edge(c, a);
+}
+void evaluate(vec4 ab, vec4 cd, float t, vec3 weights, out vec2 point, out vec2 tangent) {
+    if (weights.x > 0.0) {
+        point = conicPoint(ab.xy, ab.zw, cd.zw, weights, t);
+        vec2 quadratic, linear, constant;
+        conicDerivative(ab.xy, ab.zw, cd.zw, weights, quadratic, linear, constant);
+        tangent = unitVector((quadratic * t + linear) * t + constant);
+        return;
+    }
+    precise vec2 a = ab.xy * (1.0 - t) + ab.zw * t;
+    precise vec2 b = ab.zw * (1.0 - t) + cd.xy * t;
+    precise vec2 c = cd.xy * (1.0 - t) + cd.zw * t;
+    precise vec2 d = a * (1.0 - t) + b * t;
+    precise vec2 e = b * (1.0 - t) + c * t;
+    point = d * (1.0 - t) + e * t;
+    tangent = unitVector(e - d);
+}
+float radialRoot(vec4 ab, vec4 cd, vec2 tangent, vec3 weights) {
+    vec2 c = ab.zw - ab.xy;
+    vec2 middle = cd.xy - ab.zw;
+    vec2 b = middle - c;
+    vec2 a = cd.zw - ab.xy - 3.0 * middle;
+    if (weights.x > 0.0) {
+        conicDerivative(ab.xy, ab.zw, cd.zw, weights, a, b, c);
+        b *= .5;
+    }
+    vec2 normal = vec2(-tangent.y, tangent.x);
+    float qa = dot(normal, a), qb = 2.0 * dot(normal, b), qc = dot(normal, c);
+    float roots[2]; uint count = 0u;
+    if (qa == 0.0) {
+        if (qb != 0.0) roots[count++] = -qc / qb;
+    } else {
+        float discriminant = qb * qb - 4.0 * qa * qc;
+        if (discriminant >= 0.0) {
+            float q = -.5 * (qb + (qb < 0.0 ? -1.0 : 1.0) * sqrt(discriminant));
+            if (q == 0.0) roots[count++] = -qb / (2.0 * qa);
+            else { roots[count++] = q / qa; roots[count++] = qc / q; }
+        }
+    }
+    for (uint i = 0u; i < count; ++i) {
+        float t = roots[i];
+        if (t <= 0.0 || t >= 1.0) continue;
+        vec2 p, direction; evaluate(ab, cd, t, weights, p, direction);
+        if (dot(direction, tangent) > 0.0) return t;
+    }
+    return 2.0;
+}
+void emitPrimitive(vec4 ab, vec4 cd, uint kind, float rotation, vec4 tangents) {
+    vec3 weights = kind == 7u ? tangents.xyz : vec3(0.0);
+    if (kind == 7u) tangents = vec4(unitVector(ab.zw - ab.xy), unitVector(cd.zw - ab.zw));
+    if (kind >= 4u && kind != 7u) {
+        edge(ab.xy, ab.zw); edge(ab.zw, cd.xy);
+        if (kind == 5u) { edge(cd.xy, cd.zw); edge(cd.zw, ab.xy); }
+        else edge(cd.xy, ab.xy);
+    } else if (kind == 2u) {
+        uint count = max(1u, uint(ceil(3.141592653589793 * .5 / angle)));
+        vec2 previous = vec2(0.0, radius);
+        for (uint i = 1u; i <= count; ++i) {
+            float theta = 3.141592653589793 * float(i) / float(count);
+            vec2 tangent = i == count ? vec2(-1.0, 0.0) : vec2(cos(theta), sin(theta));
+            vec2 normal = normalVector(tangent);
+            triangle(ab.xy + previous, ab.xy + normal, ab.xy - normal);
+            triangle(ab.xy + previous, ab.xy - normal, ab.xy - previous);
+            previous = normal;
+        }
+    } else if (kind == 3u) {
+
+        uint count = max(1u, uint(ceil(abs(rotation) * .5 / angle)));
+        float start = atan(ab.w, ab.z);
+        vec2 previous = ab.xy + ab.zw * radius;
+        bool reverse = rotation < 0.0;
+        if (reverse) edge(previous, ab.xy); else edge(ab.xy, previous);
+        for (uint i = 1u; i <= count; ++i) {
+            float theta = start + rotation * float(i) / float(count);
+            vec2 normal = i == count ? cd.xy : vec2(cos(theta), sin(theta));
+            vec2 point = ab.xy + normal * radius;
+            if (reverse) edge(point, previous); else edge(previous, point);
+            previous = point;
+        }
+        if (reverse) edge(ab.xy, previous); else edge(previous, ab.xy);
+    } else {
+        vec2 differenceA = device * (ab.xy - 2.0 * ab.zw + cd.xy);
+        vec2 differenceB = device * (ab.zw - 2.0 * cd.xy + cd.zw);
+        uint positional = kind == 1u ? 1u : max(1u, uint(ceil(sqrt(3.0 * max(length(differenceA), length(differenceB))))));
+        if (kind == 7u) positional = max(1u, uint(ceil(sqrt(conicSecondDerivativeBound(
+            device * ab.xy, device * ab.zw, device * cd.zw, weights) * .5))));
+        uint radial = kind == 1u ? 1u : max(1u, uint(ceil(abs(rotation) * .5 / angle)));
+        float start = atan(tangents.y, tangents.x);
+        uint p = 1u, r = 1u;
+        float radialT = 2.0; vec2 radialTangent = vec2(0.0);
+        while (r < radial) {
+            float theta = start + rotation * float(r) / float(radial);
+            radialTangent = vec2(cos(theta), sin(theta));
+            radialT = radialRoot(ab, cd, radialTangent, weights);
+            if (radialT < 1.0) break;
+            ++r;
+        }
+        vec2 previous = ab.xy, previousNormal = normalVector(tangents.xy);
+        while (p <= positional || r < radial) {
+            float positionalT = p <= positional ? float(p) / float(positional) : 2.0;
+            vec2 point, tangent;
+            if (positionalT <= radialT) {
+                if (p == positional) { point = cd.zw; tangent = tangents.zw; }
+                else evaluate(ab, cd, positionalT, weights, point, tangent);
+                ++p;
+            } else {
+                evaluate(ab, cd, radialT, weights, point, tangent);
+                tangent = radialTangent;
+                ++r;
+                radialT = 2.0;
+                while (r < radial) {
+                    float theta = start + rotation * float(r) / float(radial);
+                    radialTangent = vec2(cos(theta), sin(theta));
+                    radialT = radialRoot(ab, cd, radialTangent, weights);
+                    if (radialT < 1.0) break;
+                    ++r;
+                }
+            }
+            // Missing radial roots are skipped, as in the scalar tessellator.
+
+            vec2 normal = normalVector(tangent);
+            triangle(previous + previousNormal, point + normal, point - normal);
+            triangle(previous + previousNormal, point - normal, previous - previousNormal);
+            previous = point; previousNormal = normal;
+        }
+    }
+}
+#extension GL_GOOGLE_include_directive : require
+#include "vector_dash.glsl"
+void main() {
+    if (VectorSceneProtocolVersion != 4u) return;
+    uint program = pc.first + gl_GlobalInvocationID.y;
+    if (program >= pc.programCount) return;
+    Target target = pc.targets.data[program];
+    primitiveCount = target.count;
+    capacity = target.capacity;
+    sourceOffset = target.offset;
+    destination = target.edges;
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= primitiveCount) return;
+    vec4 matrix = pc.scene.data[sourceOffset];
+    vec4 parameters = pc.scene.data[sourceOffset + 1u];
+    mapping = mat2(matrix.xy, matrix.zw);
+    translation = parameters.xy;
+    radius = parameters.z;
+    device = mat2(mapping[0] * pc.scale, mapping[1] * pc.scale);
+    float aa = dot(device[0], device[0]), bb = dot(device[1], device[1]), cc = dot(device[0], device[1]);
+    deviceScale = sqrt((aa + bb + sqrt((aa - bb) * (aa - bb) + 4.0 * cc * cc)) * .5);
+    angle = 2.0 * asin(sqrt(min(.25 / max(radius * deviceScale, 1e-30), 2.0) * .5));
+    uint source = sourceOffset + 3u + index * 5u;
+    vec4 ab = pc.scene.data[source], cd = pc.scene.data[source + 1u];
+    vec4 operation = pc.scene.data[source + 2u];
+    bounds = pc.scene.data[source + 3u];
+    vec4 tangents = pc.scene.data[source + 4u];
+    uint kind = uint(operation.x);
+    base = primitiveCount * 65u + index * capacity;
+    bandBase = primitiveCount + index * 64u;
+    for (uint i = 0u; i < 64u; ++i) destination.data[bandBase + i] = vec4(float(capacity), 0.0, 0.0, 0.0);
+    cursor = 0u; overflow = false;
+    if (kind == 6u) emitDashes(ab); else emitPrimitive(ab, cd, kind, operation.y, tangents);
+    destination.data[index] = vec4(overflow ? -1.0 : float(cursor), 0.0, 0.0, 0.0);
+}

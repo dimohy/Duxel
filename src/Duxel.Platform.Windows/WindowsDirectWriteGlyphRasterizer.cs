@@ -4,7 +4,7 @@ using Duxel.Core;
 
 namespace Duxel.Platform.Windows;
 
-internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRasterizer
+internal sealed partial class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRasterizer
 {
     public static readonly WindowsDirectWriteGlyphRasterizer Instance = new();
 
@@ -26,6 +26,53 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
     private static readonly object Sync = new();
     private static readonly object DiagnosticsSync = new();
     private static readonly Dictionary<string, nint> FontFaceCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, (string Source, uint Simulations)> FontVariants = new(StringComparer.OrdinalIgnoreCase);
+
+    internal static string GetFontVariantResource(string resource, PlatformFontSimulation simulation)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resource);
+        if (simulation == PlatformFontSimulation.None)
+            return resource;
+        if (simulation != PlatformFontSimulation.Oblique)
+            throw new ArgumentOutOfRangeException(nameof(simulation));
+        lock (Sync)
+        {
+            var source = FontVariants.TryGetValue(resource, out var existing) ? existing.Source : resource;
+            var key = source + "|duxel-font:oblique";
+            if (!FontVariants.ContainsKey(key))
+                FontVariants.Add(key, (source, 2u)); // DWRITE_FONT_SIMULATIONS_OBLIQUE
+            if (!TryGetFontFace(key, out _))
+            {
+                FontVariants.Remove(key);
+                throw new InvalidOperationException("The requested oblique font resource could not be created: " + source);
+            }
+            return key;
+        }
+    }
+    private static readonly Dictionary<string, DWriteFontMetrics> FontMetricsCache = new(StringComparer.OrdinalIgnoreCase);
+
+    internal static bool TryGetFontMetrics(string fontPath, float fontSize, out PlatformFontMetrics metrics)
+    {
+        lock (Sync)
+        {
+            metrics = default;
+            if (!float.IsFinite(fontSize) || fontSize <= 0)
+                return false;
+            if (!FontMetricsCache.TryGetValue(fontPath, out var design))
+            {
+                if (!TryGetFontFace(fontPath, out var face) || face == 0)
+                    return false;
+                GetMethod<GetFontMetricsDelegate>(face, 8)(face, out design);
+                if (design.DesignUnitsPerEm == 0)
+                    return false;
+                if (FontMetricsCache.Count < 64 && fontPath.Length <= 2048)
+                    FontMetricsCache.Add(fontPath, design);
+            }
+            var scale = fontSize / design.DesignUnitsPerEm;
+            metrics = new(design.Ascent * scale, design.Descent * scale, design.LineGap * scale);
+            return true;
+        }
+    }
 
     private static nint _factory;
     private static bool _factorySupportsAdvancedGlyphAnalysis;
@@ -68,202 +115,98 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
         return TryRasterize(fontPath, codepoint, glyphIndex, fontSize, oversample, sourceScale, renderScale, out result);
     }
 
+    private static nint _textAnalyzer;
+    private static unsafe nint GetTextAnalyzer()
+    {
+        if (_textAnalyzer == 0)
+        {
+            nint analyzer = 0;
+            var methods = *(void***)_factory;
+            Marshal.ThrowExceptionForHR(((delegate* unmanaged[Stdcall]<nint, nint*, int>)methods[21])(_factory, &analyzer));
+            _textAnalyzer = analyzer;
+        }
+        return _textAnalyzer;
+    }
+
     public unsafe bool TryRasterizeTextRun(
-        string fontPath,
-        string text,
-        int fontSize,
-        int oversample,
-        float sourceScale,
-        float renderScale,
-        out TextRunRasterizationResult result)
+        string fontPath, string text, int fontSize, int oversample, float sourceScale, float renderScale,
+        out TextRunRasterizationResult result, bool rasterizePixels = true,
+        Duxel.Interop.Windows.DirectWriteLongTextShaper.RasterRun? paragraphRun = null)
     {
         lock (Sync)
         {
             result = default;
             if (string.IsNullOrWhiteSpace(fontPath) || string.IsNullOrEmpty(text) || fontSize <= 0)
-            {
                 return false;
-            }
-
             if (!TryGetFontFace(fontPath, out var fontFace) || fontFace == 0)
-            {
                 return false;
-            }
-
             var oversampleFactor = Math.Max(1, oversample);
             var logicalEmSize = MathF.Max(1f, fontSize * sourceScale);
-            var rasterizedEmSize = MathF.Max(1f, logicalEmSize * oversampleFactor);
-            uint[]? rentedCodepoints = null;
-            ushort[]? rentedGlyphIndices = null;
-            float[]? rentedGlyphAdvances = null;
-            DWriteGlyphMetrics[]? rentedGlyphMetrics = null;
-            try
+            var rasterizedEmSize = logicalEmSize * oversampleFactor;
+            var shaped = paragraphRun?.Glyphs ?? Duxel.Interop.Windows.DirectWriteTextShaper.Shape(_factory, GetTextAnalyzer(), fontFace, text, rasterizedEmSize);
+            GetMethod<GetFontMetricsDelegate>(fontFace, 8)(fontFace, out var metrics);
+            var baseline = metrics.Ascent * logicalEmSize / metrics.DesignUnitsPerEm;
+            if (shaped.Length == 0)
             {
-                scoped Span<uint> codepoints;
-                scoped Span<ushort> glyphIndices;
-                scoped Span<float> glyphAdvances;
-                scoped Span<DWriteGlyphMetrics> glyphMetrics;
-                if (text.Length <= MaxStackTextRunGlyphs)
+                result = new(0, 0, [], 0, 0, 0, baseline);
+                return true;
+            }
+            var indices = new ushort[shaped.Length];
+            var advances = new float[shaped.Length];
+            var offsets = new UiVector2[shaped.Length];
+            var advanceSum = 0f;
+            for (var index = 0; index < shaped.Length; index++)
+            {
+                var glyph = shaped[index];
+                indices[index] = glyph.Index;
+                advances[index] = glyph.Advance;
+                offsets[index] = new(glyph.OffsetX, -glyph.OffsetY);
+                advanceSum += glyph.Advance;
+            }
+            advanceSum /= oversampleFactor;
+            nint analysis = 0;
+            fixed (ushort* glyphIndices = indices)
+            fixed (float* glyphAdvances = advances)
+            fixed (UiVector2* glyphOffsets = offsets)
+            {
+                var run = new DWriteGlyphRun
                 {
-                    codepoints = stackalloc uint[text.Length];
-                    glyphIndices = stackalloc ushort[text.Length];
-                    glyphAdvances = stackalloc float[text.Length];
-                    glyphMetrics = stackalloc DWriteGlyphMetrics[text.Length];
-                }
-                else
+                    FontFace = fontFace,
+                    FontEmSize = rasterizedEmSize,
+                    GlyphCount = (uint)shaped.Length,
+                    GlyphIndices = (nint)glyphIndices,
+                    GlyphAdvances = (nint)glyphAdvances,
+                    GlyphOffsets = (nint)glyphOffsets,
+                    IsSideways = false,
+                    BidiLevel = paragraphRun?.BidiLevel ?? 0
+                };
+                try
                 {
-                    rentedCodepoints = ArrayPool<uint>.Shared.Rent(text.Length);
-                    rentedGlyphIndices = ArrayPool<ushort>.Shared.Rent(text.Length);
-                    rentedGlyphAdvances = ArrayPool<float>.Shared.Rent(text.Length);
-                    rentedGlyphMetrics = ArrayPool<DWriteGlyphMetrics>.Shared.Rent(text.Length);
-                    codepoints = rentedCodepoints.AsSpan(0, text.Length);
-                    glyphIndices = rentedGlyphIndices.AsSpan(0, text.Length);
-                    glyphAdvances = rentedGlyphAdvances.AsSpan(0, text.Length);
-                    glyphMetrics = rentedGlyphMetrics.AsSpan(0, text.Length);
-                }
-
-                var glyphCount = 0;
-                foreach (var rune in text.EnumerateRunes())
-                {
-                    if ((uint)rune.Value > 0xFFFFu)
+                    Marshal.ThrowExceptionForHR(CreateGlyphRunAnalysis(ref run, rasterizedEmSize, out analysis,
+                        paragraphRun?.OriginX ?? 0, paragraphRun?.OriginY ?? 0));
+                    if (!TryExtractAlphaTexture(analysis, out var alpha, out var rgb, out var width, out var height,
+                        out var offsetX, out var offsetY, rasterizePixels))
                     {
-                        return false;
-                    }
-
-                    codepoints[glyphCount] = (uint)rune.Value;
-                    glyphCount++;
-                }
-
-                if (glyphCount is 0)
-                {
-                    return false;
-                }
-
-                fixed (uint* codepointsPointer = codepoints)
-                fixed (ushort* glyphIndicesPointer = glyphIndices)
-                fixed (float* glyphAdvancesPointer = glyphAdvances)
-                fixed (DWriteGlyphMetrics* glyphMetricsPointer = glyphMetrics)
-                {
-                    var getGlyphIndices = GetMethod<GetGlyphIndicesDelegate>(fontFace, 11);
-                    var hr = getGlyphIndices(
-                        fontFace,
-                        (nint)codepointsPointer,
-                        (uint)glyphCount,
-                        (nint)glyphIndicesPointer);
-                    if (hr < 0)
-                    {
-                        return false;
-                    }
-
-                    for (var i = 0; i < glyphCount; i++)
-                    {
-                        if (glyphIndicesPointer[i] == 0)
-                        {
-                            return false;
-                        }
-                    }
-
-                    var getFontMetrics = GetMethod<GetFontMetricsDelegate>(fontFace, 8);
-                    getFontMetrics(fontFace, out var fontMetrics);
-                    var getDesignGlyphMetrics = GetMethod<GetDesignGlyphMetricsDelegate>(fontFace, 10);
-                    var metricsHr = getDesignGlyphMetrics(
-                        fontFace,
-                        (nint)glyphIndicesPointer,
-                        (uint)glyphCount,
-                        (nint)glyphMetricsPointer,
-                        false);
-
-                    var advanceSum = 0f;
-                    for (var i = 0; i < glyphCount; i++)
-                    {
-                        var advance = metricsHr >= 0 && fontMetrics.DesignUnitsPerEm > 0
-                            ? (glyphMetricsPointer[i].AdvanceWidth * rasterizedEmSize) / fontMetrics.DesignUnitsPerEm
-                            : rasterizedEmSize * 0.5f;
-                        if (advance <= 0f)
-                        {
-                            advance = rasterizedEmSize * 0.5f;
-                        }
-
-                        glyphAdvancesPointer[i] = advance;
-                        advanceSum += advance;
-                    }
-
-                    advanceSum /= oversampleFactor;
-                    nint glyphRunAnalysis = 0;
-                    try
-                    {
-                        var glyphRun = new DWriteGlyphRun
-                        {
-                            FontFace = fontFace,
-                            FontEmSize = rasterizedEmSize,
-                            GlyphCount = (uint)glyphCount,
-                            GlyphIndices = (nint)glyphIndicesPointer,
-                            GlyphAdvances = (nint)glyphAdvancesPointer,
-                            GlyphOffsets = 0,
-                            IsSideways = false,
-                            BidiLevel = 0,
-                        };
-
-                        hr = CreateGlyphRunAnalysis(ref glyphRun, rasterizedEmSize, out glyphRunAnalysis);
-                        if (hr < 0 || glyphRunAnalysis == 0)
-                        {
-                            return false;
-                        }
-
-                        var baseline = 0f;
-                        if (fontMetrics.DesignUnitsPerEm > 0)
-                        {
-                            baseline = (fontMetrics.Ascent * logicalEmSize) / fontMetrics.DesignUnitsPerEm;
-                        }
-
-                        if (!TryExtractAlphaTexture(glyphRunAnalysis, out var alpha, out var rgb, out var width, out var height, out var offsetX, out var offsetY))
-                        {
-                            // Whitespace or invisible glyph — return advance with empty bitmap
-                            result = new TextRunRasterizationResult(0, 0, Array.Empty<byte>(), 0, 0, advanceSum, baseline);
-                            return true;
-                        }
-
-                        if (oversampleFactor > 1)
-                        {
-                            alpha = Downsample(alpha, width, height, oversampleFactor, out width, out height);
-                            rgb = null; // ClearType RGB not meaningful after downsampling
-                            offsetX = (int)MathF.Floor((float)offsetX / oversampleFactor);
-                            offsetY = (int)MathF.Floor((float)offsetY / oversampleFactor);
-                        }
-
-                        result = new TextRunRasterizationResult(width, height, alpha, offsetX, offsetY, advanceSum, baseline, rgb);
+                        result = new(0, 0, [], 0, 0, advanceSum, baseline);
                         return true;
                     }
-                    finally
+                    if (oversampleFactor > 1)
                     {
-                        if (glyphRunAnalysis != 0)
+                        if (rasterizePixels)
+                            alpha = Downsample(alpha, width, height, oversampleFactor, out width, out height);
+                        else
                         {
-                            Release(glyphRunAnalysis);
+                            width = Math.Max(1, (width + oversampleFactor - 1) / oversampleFactor);
+                            height = Math.Max(1, (height + oversampleFactor - 1) / oversampleFactor);
                         }
+                        rgb = null;
+                        offsetX = (int)MathF.Floor((float)offsetX / oversampleFactor);
+                        offsetY = (int)MathF.Floor((float)offsetY / oversampleFactor);
                     }
+                    result = new(width, height, alpha, offsetX, offsetY, advanceSum, baseline, rgb);
+                    return true;
                 }
-            }
-            finally
-            {
-                if (rentedGlyphMetrics is not null)
-                {
-                    ArrayPool<DWriteGlyphMetrics>.Shared.Return(rentedGlyphMetrics);
-                }
-
-                if (rentedGlyphAdvances is not null)
-                {
-                    ArrayPool<float>.Shared.Return(rentedGlyphAdvances);
-                }
-
-                if (rentedGlyphIndices is not null)
-                {
-                    ArrayPool<ushort>.Shared.Return(rentedGlyphIndices);
-                }
-
-                if (rentedCodepoints is not null)
-                {
-                    ArrayPool<uint>.Shared.Return(rentedCodepoints);
-                }
+                finally { if (analysis != 0) Release(analysis); }
             }
         }
     }
@@ -282,7 +225,7 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
         {
             result = default;
             Log($"TryRasterize begin cp=U+{codepoint:X4} glyphIndex={glyphIndex} size={fontSize} oversample={oversample} scale={sourceScale:0.###}");
-            if ((uint)codepoint > 0xFFFF)
+            if (!System.Text.Rune.IsValid(codepoint))
             {
                 Log($"TryRasterize skip invalid-codepoint cp=U+{codepoint:X4}");
                 return false;
@@ -598,6 +541,13 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
             {
                 return true;
             }
+            var resourceKey = fontPath;
+            var simulations = 0u;
+            if (FontVariants.TryGetValue(resourceKey, out var variant))
+            {
+                fontPath = variant.Source;
+                simulations = variant.Simulations;
+            }
 
             if (_factory == 0 && !TryCreateFactory(out _factory))
             {
@@ -634,7 +584,7 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                         1,
                         filesHandle.AddrOfPinnedObject(),
                         0,
-                        0,
+                        simulations,
                         out fontFace);
                     if (hr < 0 || fontFace == 0)
                     {
@@ -652,7 +602,7 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                 Release(fontFile);
             }
 
-            FontFaceCache[fontPath] = fontFace;
+            FontFaceCache[resourceKey] = fontFace;
             return true;
         }
     }
@@ -660,7 +610,7 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
     private static bool TryResolveGlyphIndex(string fontPath, int codepoint, out int glyphIndex)
     {
         glyphIndex = 0;
-        if ((uint)codepoint > 0xFFFFu)
+        if (!System.Text.Rune.IsValid(codepoint))
         {
             return false;
         }
@@ -682,7 +632,7 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
     private static unsafe bool TryResolveGlyphIndexFromFace(nint fontFace, int codepoint, out ushort glyphIndex)
     {
         glyphIndex = 0;
-        if ((uint)codepoint > 0xFFFFu || fontFace == 0)
+        if (!System.Text.Rune.IsValid(codepoint) || fontFace == 0)
         {
             return false;
         }
@@ -691,15 +641,16 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
         ushort resolvedGlyphIndex = 0;
         var getGlyphIndices = GetMethod<GetGlyphIndicesDelegate>(fontFace, 11);
         var hr = getGlyphIndices(fontFace, (nint)(&codepointValue), 1u, (nint)(&resolvedGlyphIndex));
-        if (hr < 0)
+        if (hr < 0 || resolvedGlyphIndex == 0)
         {
-            Log($"TryResolveGlyphIndex fail cp=U+{codepoint:X4} hr=0x{hr:X8}");
-            return false;
-        }
-
-        if (resolvedGlyphIndex == 0)
-        {
-            Log($"TryResolveGlyphIndex fail cp=U+{codepoint:X4} glyphIndex=0");
+            var diagnosticsLogPath = Environment.GetEnvironmentVariable("DUXEL_DWRITE_DIAG_LOG");
+            if (!string.IsNullOrWhiteSpace(diagnosticsLogPath))
+            {
+                var message = hr < 0
+                    ? $"TryResolveGlyphIndex fail cp=U+{codepoint:X4} hr=0x{hr:X8}"
+                    : $"TryResolveGlyphIndex fail cp=U+{codepoint:X4} glyphIndex=0";
+                WriteDiagnosticsLog(diagnosticsLogPath, message);
+            }
             return false;
         }
 
@@ -710,7 +661,7 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
     private static bool TryExtractAlphaTexture(nint glyphRunAnalysis, out byte[] alpha, out int width, out int height, out int offsetX, out int offsetY)
         => TryExtractAlphaTexture(glyphRunAnalysis, out alpha, out _, out width, out height, out offsetX, out offsetY);
 
-    private static bool TryExtractAlphaTexture(nint glyphRunAnalysis, out byte[] alpha, out byte[]? rgb, out int width, out int height, out int offsetX, out int offsetY)
+    private static bool TryExtractAlphaTexture(nint glyphRunAnalysis, out byte[] alpha, out byte[]? rgb, out int width, out int height, out int offsetX, out int offsetY, bool rasterizePixels = true)
     {
         alpha = Array.Empty<byte>();
         rgb = null;
@@ -750,6 +701,9 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                 Log($"TryExtractAlphaTexture empty texType={textureType} bounds=({bounds.Left},{bounds.Top},{bounds.Right},{bounds.Bottom})");
                 return false;
             }
+
+            if (!rasterizePixels)
+                return true;
 
             if (textureType == DWriteTextureAliased1x1)
             {
@@ -880,7 +834,8 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
             ? DWriteGridFitModeDisabled
             : DWriteGridFitModeEnabled;
 
-    private static int CreateGlyphRunAnalysis(ref DWriteGlyphRun glyphRun, float emSize, out nint glyphRunAnalysis)
+    private static int CreateGlyphRunAnalysis(ref DWriteGlyphRun glyphRun, float emSize, out nint glyphRunAnalysis,
+        float originX = 0, float originY = 0)
     {
         var (renderingMode, measuringMode) = SelectRasterizationModes(emSize);
         if (_factorySupportsAdvancedGlyphAnalysis)
@@ -894,8 +849,8 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
                 measuringMode,
                 SelectGridFitMode(emSize),
                 DWriteTextAntialiasModeClearType,
-                0f,
-                0f,
+                originX,
+                originY,
                 out glyphRunAnalysis);
         }
 
@@ -907,8 +862,8 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
             0,
             renderingMode,
             measuringMode,
-            0f,
-            0f,
+            originX,
+            originY,
             out glyphRunAnalysis);
     }
 
@@ -953,6 +908,11 @@ internal sealed class WindowsDirectWriteGlyphRasterizer : IPlatformGlyphBitmapRa
             return;
         }
 
+        WriteDiagnosticsLog(diagnosticsLogPath, message);
+    }
+
+    private static void WriteDiagnosticsLog(string diagnosticsLogPath, string message)
+    {
         try
         {
             var line = $"{DateTime.UtcNow:O} [DWriteGlyph] {message}";

@@ -212,7 +212,7 @@ public sealed class DirectTextPageUploadBenchScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(16f, 16f));
         ui.SetNextWindowSize(new UiVector2(1248f, 710f));
-        ui.BeginWindow("DirectText Page Upload");
+        ui.BeginPanel("DirectText Page Upload");
 
         var phaseName = _phaseIndex < _phases.Count ? _phases[_phaseIndex].Name : "done";
         ui.TextV("Phase: {0}", phaseName);
@@ -245,7 +245,7 @@ public sealed class DirectTextPageUploadBenchScreen : UiScreen
             drawList.AddText(new UiVector2(x, y + previewSize + 4f), new UiColor(0xFFFFFFFF), $"P{i:00}");
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void TickBenchmark(double delta)

@@ -25,9 +25,6 @@ public sealed class ColumnsScreen : UiScreen
     {
         _frameCounter++;
 
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(860f, 560f));
-        ui.BeginWindow("Legacy Columns API");
 
         // ── 2-Column Basic ──
         ui.SeparatorText("2 Columns (no border)");
@@ -84,6 +81,5 @@ public sealed class ColumnsScreen : UiScreen
         ui.RadioButton("Option 2", ref radio, 1);
         ui.Columns(1);
 
-        ui.EndWindow();
     }
 }

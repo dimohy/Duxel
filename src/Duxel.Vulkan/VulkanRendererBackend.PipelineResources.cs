@@ -9,7 +9,18 @@ namespace Duxel.Vulkan;
 public sealed unsafe partial class VulkanRendererBackend
 {
     private static readonly byte[] VertexShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui.vert.spv");
-    private static readonly byte[] FragmentShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui.frag.spv");
+    private static readonly byte[] FragmentShaderSpirv = LoadFragmentShader();
+
+    private static byte[] LoadFragmentShader(string resourceName = "Duxel.Vulkan.Shaders.imgui.frag.spv")
+    {
+        var shader = LoadEmbeddedShader(resourceName);
+        OverrideValidationFragmentShader(ref shader);
+        return shader;
+    }
+
+    // Implemented only by the validation assembly; removed from production builds.
+    static partial void OverrideValidationFragmentShader(ref byte[] shader);
+    static partial void OverrideValidationOpaqueCoverage(ref bool enabled);
 
     private DescriptorSetLayout _descriptorSetLayout;
     private PipelineLayout _pipelineLayout;
@@ -73,19 +84,19 @@ public sealed unsafe partial class VulkanRendererBackend
 
         var pushConstantRanges = stackalloc PushConstantRange[2];
         // Vertex range: scale(8) + translate(8) + opacity(4) + drawMode(4)
-        // + vertex buffer address(8) + primitive buffer address(8) = 40 bytes.
+        // + addresses(16), texture slot(4), circular-cutout offset(4), matrix(64) =112bytes.
         pushConstantRanges[0] = new PushConstantRange
         {
             StageFlags = ShaderStageFlags.VertexBit,
             Offset = 0,
-            Size = 40,
+            Size = 112,
         };
-        // Fragment range: packed texture index + subpixel mode bit.
+        // Fragment overlaps texture/mask/matrix bytes and includes the local clip at byte112.
         pushConstantRanges[1] = new PushConstantRange
         {
             StageFlags = ShaderStageFlags.FragmentBit,
             Offset = 40,
-            Size = sizeof(uint),
+            Size = 88,
         };
 
         var pipelineLayoutInfo = new PipelineLayoutCreateInfo
@@ -185,29 +196,89 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
-    private unsafe void CreateGraphicsPipeline()
+    private unsafe void CreateGraphicsPipeline(bool createDepthVariants = false, bool compiledLayers = false, bool sharedBasis = false, bool sharedCamera = false, bool circleCutout = false, bool backdropComposite = false, bool projectedCapture = false)
     {
-        _vertexShaderModule = CreateShaderModule(VertexShaderSpirv);
-        _fragmentShaderModule = CreateShaderModule(FragmentShaderSpirv);
+        if (!createDepthVariants && !circleCutout && !backdropComposite && !projectedCapture)
+        {
+            _vertexShaderModule = CreateShaderModule(VertexShaderSpirv);
+            _fragmentShaderModule = CreateShaderModule(FragmentShaderSpirv);
+        }
 
+        if (circleCutout && _circleCutoutVertexShaderModule.Handle == 0)
+        {
+            _circleCutoutVertexShaderModule = CreateShaderModule(LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui_cutout.vert.spv"));
+            _circleCutoutFragmentShaderModule = CreateShaderModule(LoadFragmentShader("Duxel.Vulkan.Shaders.imgui_cutout.frag.spv"));
+        }
+
+        if (backdropComposite && _backdropFragmentShaderModule.Handle == 0)
+        {
+            _backdropFragmentShaderModule = CreateShaderModule(LoadFragmentShader("Duxel.Vulkan.Shaders.imgui_backdrop.frag.spv"));
+            _backdropCutoutFragmentShaderModule = CreateShaderModule(LoadFragmentShader("Duxel.Vulkan.Shaders.imgui_backdrop_cutout.frag.spv"));
+        }
         var entryPoint = VulkanMarshaling.StringToPtr("main");
 
         try
         {
+            var specializationValues = stackalloc uint[5] { createDepthVariants ? 1u : 0u, compiledLayers ? 1u : 0u, sharedBasis ? 1u : 0u, sharedCamera ? 1u : 0u, 0u };
+            var specializationEntries = stackalloc SpecializationMapEntry[5];
+            specializationEntries[0] = new()
+            {
+                ConstantID = 0,
+                Size = sizeof(uint)
+            };
+            specializationEntries[1] = new()
+            {
+                ConstantID = 1,
+                Offset = sizeof(uint),
+                Size = sizeof(uint)
+            };
+            specializationEntries[2] = new()
+            {
+                ConstantID = 2,
+                Offset = 2 * sizeof(uint),
+                Size = sizeof(uint)
+            };
+            specializationEntries[3] = new()
+            {
+                ConstantID = 3,
+                Offset = 3 * sizeof(uint),
+                Size = sizeof(uint)
+            };
+            specializationEntries[4] = new()
+            {
+                ConstantID = 4,
+                Offset = 4 * sizeof(uint),
+                Size = sizeof(uint)
+            };
+            var specialization = new SpecializationInfo
+            {
+                MapEntryCount = 5,
+                PMapEntries = specializationEntries,
+                DataSize = 5 * sizeof(uint),
+                PData = specializationValues,
+            };
+            // A flat capture keeps the ordinary vertex transform while its fragment
+            // stage uses the existing projected-text coverage contract.
+            var captureFragmentValues = stackalloc uint[5] { 1, 0, 0, 0, 0 };
+            var captureFragmentSpecialization = specialization;
+            captureFragmentSpecialization.PData = captureFragmentValues;
             var vertexStage = new PipelineShaderStageCreateInfo
             {
                 SType = StructureType.PipelineShaderStageCreateInfo,
                 Stage = ShaderStageFlags.VertexBit,
-                Module = _vertexShaderModule,
+                Module = circleCutout ? _circleCutoutVertexShaderModule : _vertexShaderModule,
                 PName = entryPoint,
+                PSpecializationInfo = &specialization,
             };
 
             var fragmentStage = new PipelineShaderStageCreateInfo
             {
                 SType = StructureType.PipelineShaderStageCreateInfo,
                 Stage = ShaderStageFlags.FragmentBit,
-                Module = _fragmentShaderModule,
+                Module = backdropComposite ? (circleCutout ? _backdropCutoutFragmentShaderModule : _backdropFragmentShaderModule)
+                    : (circleCutout ? _circleCutoutFragmentShaderModule : _fragmentShaderModule),
                 PName = entryPoint,
+                PSpecializationInfo = projectedCapture ? &captureFragmentSpecialization : &specialization,
             };
 
             var stages = stackalloc PipelineShaderStageCreateInfo[2];
@@ -318,6 +389,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 SType = StructureType.PipelineRenderingCreateInfo,
                 ColorAttachmentCount = 1,
                 PColorAttachmentFormats = &swapchainFormat,
+                DepthAttachmentFormat = Format.D32Sfloat,
             };
 
             var pipelineInfo = new GraphicsPipelineCreateInfo
@@ -339,9 +411,39 @@ public sealed unsafe partial class VulkanRendererBackend
                 Subpass = 0,
             };
 
-            fixed (Pipeline* pipeline = &_graphicsPipeline)
+            if (createDepthVariants)
             {
-                Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &pipelineInfo, null, pipeline));
+                depthStencil.DepthTestEnable = true;
+                depthStencil.DepthCompareOp = CompareOp.LessOrEqual;
+                var maskModeBase = sharedCamera ? 6 : sharedBasis ? 4 : compiledLayers ? 2 : 0;
+                ref var readPipeline = ref (backdropComposite ? ref _backdropPipelines[maskModeBase + 1 + (circleCutout ? 9 : 0)] : ref (circleCutout ? ref _circleCutoutPipelines[maskModeBase + 1] : ref (sharedCamera ? ref _sharedCameraDepthReadPipeline : ref (sharedBasis ? ref _sharedBasisDepthReadPipeline : ref (compiledLayers ? ref _compiledDepthReadPipeline : ref _depthReadPipeline)))));
+                fixed (Pipeline* pipeline = &readPipeline)
+                {
+                    Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &pipelineInfo, null, pipeline));
+                }
+
+                depthStencil.DepthWriteEnable = true;
+                // Analytic edge coverage must mask color AND depth samples. Material
+                // translucency uses the depth-read pipeline and keeps alpha blending.
+                // Even one sample needs a coverage mask, rather than translucent
+                // color with an opaque depth write. Its edge precision is one bit.
+                var opaqueCoverage = true;
+                OverrideValidationOpaqueCoverage(ref opaqueCoverage);
+                multisampling.AlphaToCoverageEnable = opaqueCoverage;
+                specializationValues[4] = opaqueCoverage ? 1u : 0u;
+                ref var writePipeline = ref (backdropComposite ? ref _backdropPipelines[maskModeBase + 2 + (circleCutout ? 9 : 0)] : ref (circleCutout ? ref _circleCutoutPipelines[maskModeBase + 2] : ref (sharedCamera ? ref _sharedCameraDepthWritePipeline : ref (sharedBasis ? ref _sharedBasisDepthWritePipeline : ref (compiledLayers ? ref _compiledDepthWritePipeline : ref _depthWritePipeline)))));
+                fixed (Pipeline* pipeline = &writePipeline)
+                {
+                    Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &pipelineInfo, null, pipeline));
+                }
+            }
+            else
+            {
+                ref var flatPipeline = ref (projectedCapture ? ref _projectedCapturePipelines[circleCutout ? 1 : 0] : ref (backdropComposite ? ref _backdropPipelines[0 + (circleCutout ? 9 : 0)] : ref (circleCutout ? ref _circleCutoutPipelines[0] : ref _graphicsPipeline)));
+                fixed (Pipeline* pipeline = &flatPipeline)
+                {
+                    Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &pipelineInfo, null, pipeline));
+                }
             }
         }
         finally

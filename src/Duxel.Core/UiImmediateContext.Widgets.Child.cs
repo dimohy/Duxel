@@ -3,6 +3,10 @@ namespace Duxel.Core;
 public sealed partial class UiImmediateContext
 {
     public bool BeginChild(string id, UiVector2 size, bool border = false)
+        => BeginChild(id, size, border, coalesceDocumentScrollInputs: false);
+
+    /// <summary>Begins a child viewport, optionally combining wheel input that stays over the same code block and captured thumb moves.</summary>
+    public bool BeginChild(string id, UiVector2 size, bool border, bool coalesceDocumentScrollInputs)
     {
         id ??= "Child";
         var resolvedId = ResolveId(id);
@@ -22,12 +26,34 @@ public sealed partial class UiImmediateContext
 
         var scrollY = _state.GetScrollY(resolvedId);
         var scrollX = _state.GetScrollX(resolvedId);
+        if (coalesceDocumentScrollInputs && _leftMouseDown
+            && _state.PreciseScrollbarDrag is { DocumentTrack: { } track } drag
+            && track.Viewport == rect && _state.ActiveId == drag.Id
+            && drag.Id.Length == resolvedId.Length + "##childscroll".Length
+            && drag.Id.AsSpan(0, resolvedId.Length).SequenceEqual(resolvedId)
+            && drag.Id.AsSpan(resolvedId.Length).SequenceEqual("##childscroll"))
+        {
+            // Draw the current thumb position in this input frame, before traversing the document.
+            scrollY = (float)GetPreciseThumbOffset(drag, _mousePosition.Y, track.Start, track.Travel, track.Maximum, 1);
+        }
+        // Reveal offsets must be applied before drawing descendants. Publishing a new
+        // offset with their old geometry would apply the same reveal delta twice.
+        if (_accessibility is { } accessibility && accessibility.TryGet(resolvedId, out var published)
+            && published.Node.Scroll is { } range && IsControlEnabled && _popupTierDepth >= _blockingKeyboardTier)
+        {
+            var offset = accessibility.ApplyScrollIntoView(resolvedId, new(scrollX, scrollY),
+                new((float)range.HorizontalMaximum, (float)range.VerticalMaximum));
+            scrollX = offset.X;
+            scrollY = offset.Y;
+        }
 
+        var enclosingClip = CurrentClipRect;
         PushClipRect(contentRect, true);
         var start = new UiVector2(contentRect.X - scrollX, contentRect.Y - scrollY);
         _layouts.Push(new UiLayoutState(start, false, 0f, start.X));
         _childStack.Push(new UiChildState(
             resolvedId,
+            _currentWindowId,
             rect,
             start,
             scrollY,
@@ -45,7 +71,12 @@ public sealed partial class UiImmediateContext
             _columnsWidth,
             _columnsMaxY,
             _columnYs,
-            _columnWidths));
+            _columnWidths,
+            _accessibilityParent,
+            GetDisplayLabel(id),
+            enclosingClip,
+            coalesceDocumentScrollInputs));
+        _accessibilityParent = resolvedId;
         _columnsActive = false;
         _columnsCount = 0;
         _columnsIndex = 0;
@@ -69,6 +100,7 @@ public sealed partial class UiImmediateContext
         _layouts.Pop();
 
         var state = _childStack.Pop();
+        _accessibilityParent = state.AccessibilityParent;
 
         // Calculate content height and max scroll
         var contentHeight = cursorY - state.Rect.Y - 2f + state.ScrollY;
@@ -100,22 +132,17 @@ public sealed partial class UiImmediateContext
 
         var scrollX = Math.Clamp(state.ScrollX, 0f, maxScrollX);
         var scrollY = Math.Clamp(state.ScrollY, 0f, maxScrollY);
+        var beforeWheel = scrollY;
+        var wheel = _mouseWheel;
+        var step = GetFrameHeight() * 3f;
 
         // Mouse wheel
-        var hovered = IsHovering(state.Rect);
-        var popupBlocking = _popupTierDepth == 0 && IsMouseOverAnyBlockingPopup();
-        if (hovered && !popupBlocking && MathF.Abs(_mouseWheel) > 0.001f && maxScrollY > 0f)
+        if (IsScrollHoverable(state.Rect, CurrentClipRect))
         {
-            var frameHeight = GetFrameHeight();
-            scrollY = Math.Clamp(scrollY - (_mouseWheel * frameHeight * 3f), 0f, maxScrollY);
-            _mouseWheel = 0f;
+            scrollY = ApplyScrollWheel(scrollY, maxScrollY, step, ref _mouseWheel);
+            scrollX = ApplyScrollWheel(scrollX, maxScrollX, step, ref _mouseWheelHorizontal);
         }
-        if (hovered && !popupBlocking && MathF.Abs(_mouseWheelHorizontal) > 0.001f && maxScrollX > 0f)
-        {
-            var frameWidth = GetFrameHeight();
-            scrollX = Math.Clamp(scrollX - (_mouseWheelHorizontal * frameWidth * 3f), 0f, maxScrollX);
-            _mouseWheelHorizontal = 0f;
-        }
+        var afterWheel = scrollY;
 
         // Render scrollbar before PopClipRect (respects parent clip)
         if (maxScrollY > 0f)
@@ -126,7 +153,8 @@ public sealed partial class UiImmediateContext
                 ScrollbarSize,
                 state.Rect.Height - (hasHScroll ? ScrollbarSize : 0f)
             );
-            scrollY = RenderScrollbarV($"{state.Id}##childscroll", trackRect, scrollY, maxScrollY, contentHeight, CurrentClipRect);
+            scrollY = RenderScrollbarV($"{state.Id}##childscroll", trackRect, scrollY, maxScrollY, contentHeight, CurrentClipRect,
+                documentViewport: state.CoalesceDocumentScrollInputs ? state.Rect : null);
         }
 
         if (maxScrollX > 0f)
@@ -140,6 +168,38 @@ public sealed partial class UiImmediateContext
             scrollX = RenderScrollbarH($"{state.Id}##childscrollx", trackRect, scrollX, maxScrollX, contentWidth, CurrentClipRect);
         }
 
+        if (_accessibility is { } tree)
+        {
+            var viewport = new UiRect(state.Rect.X + 2, state.Rect.Y + 2, visibleWidth, visibleHeight);
+            var offset = new UiVector2(scrollX, scrollY);
+            var enabled = IsControlEnabled && _popupTierDepth >= _blockingKeyboardTier;
+            var range = ApplyAccessibilityScrollRequest(tree, state.Id, new(visibleWidth, visibleHeight),
+                IntersectRect(CurrentClipRect, viewport), new(contentWidth, contentHeight), GetFrameHeight() * 3,
+                enabled, false, ref offset);
+            scrollX = offset.X;
+            scrollY = offset.Y;
+            ExposeLegacyChildViewport(state.Id, state.AccessibilityParent, state.AccessibilityLabel, state.Rect, range);
+            tree.CaptureScrollViewport(state.Id, viewport, state.EnclosingClip,
+                range ?? new(new(visibleWidth, visibleHeight), new(contentWidth, contentHeight), offset));
+        }
+
+        if (afterWheel != beforeWheel)
+        {
+            if (state.CoalesceDocumentScrollInputs && scrollY == afterWheel && state.ScrollY == beforeWheel
+                && !_leftMouseDown && _state.PreviousPopupBlockingRects.Count == 0 && step > 0
+                && _state.DocumentWheelRegion is { } code && (_state.ActiveId is null || _state.ActiveId == code.CodeId))
+            {
+                // A released, focused read-only code view cannot consume this wheel or continue a selection drag.
+                // Leave boundary events to the usual traversal, including handoff to an enclosing viewport.
+                var bounds = code.Bounds;
+                var room = wheel < 0 ? bounds.Y + bounds.Height - _mousePosition.Y : _mousePosition.Y - bounds.Y;
+                room -= MathF.Abs(afterWheel - beforeWheel);
+                var distance = MathF.Min(room, wheel < 0 ? maxScrollY - afterWheel : afterWheel);
+                if (distance > 0)
+                    _state.DocumentWheelCoalescing = (wheel, distance / step);
+            }
+            _state.DocumentWheelRegion = null;
+        }
         PopClipRect();
         _state.SetScrollX(state.Id, scrollX);
         _state.SetScrollY(state.Id, scrollY);
@@ -162,5 +222,16 @@ public sealed partial class UiImmediateContext
             _requestFrame?.Invoke();
         }
     }
+    private void ExposeLegacyChildViewport(string id, string parent, string label, UiRect bounds, UiAccessibilityScrollInfo? scroll)
+    {
+        var widget = SwapAccessibilityWidget(null);
+        try
+        {
+            ExposeAccessibility(id, parent, UiAccessibilityRole.Pane, label, bounds,
+                focusable : false, valuePattern : false, scroll : scroll, literalLabel : true);
+        }
+        finally { SwapAccessibilityWidget(widget); }
+    }
+
 }
 

@@ -41,29 +41,24 @@ public readonly struct DashboardDesign : IUiDesign
 sealed class DashboardScreen(DashboardState state) : UiComponent
 {
     private readonly DashboardState _state = state;
+    private readonly DetailsContent _details = new(state);
 
     protected override IUiView Build()
-        => Dux.Group(
-            Dux.AppShell(
+        => Dux.AppShell(
                 () => _state.ProjectName.Value,
                 _state.SelectedSection,
                 [
-                    Dux.NavItem(DashboardSection.Overview, "Overview", new OverviewTab(_state), "Run controls"),
-                    Dux.NavItem(DashboardSection.Tasks, "Tasks", new TasksTab(_state), () => $"{_state.Tasks.Count} active rows"),
-                    Dux.NavItem(DashboardSection.Notes, "Notes", new NotesTab(_state), "Composition notes")
+                    Dux.NavItem(DashboardSection.Overview, "Overview", Dux.Column(12,new OverviewTab(_state),_details), "Run controls"),
+                    Dux.NavItem(DashboardSection.Tasks, "Tasks", Dux.Column(12,new TasksTab(_state),_details), () => $"{_state.Tasks.Count} active rows"),
+                    Dux.NavItem(DashboardSection.Notes, "Notes", Dux.Column(12,new NotesTab(_state),_details), "Composition notes")
                 ],
                 new UiAppShellOptions(
-                    WindowTitle: "Workspace",
                     SidebarTitle: "Workspace",
-                    Position: new UiVector2(24f, 84f),
-                    Size: new UiVector2(820f, 620f),
                     SidebarWidth: 176f,
-                    Focus: true,
                     Menu: BuildMenu()),
                 Dux.Meta(() => $"Runs {_state.Runs.Value}"),
                 Dux.Meta(() => _state.SelectedChannel),
-                Dux.Meta(() => $"Priority {_state.Priority.Value}", UiTextTone.Warning)),
-            new DetailsWindow(_state));
+                Dux.Meta(() => $"Priority {_state.Priority.Value}", UiTextTone.Warning));
 
     private IUiView BuildMenu()
         => Dux.MainMenuBar(
@@ -228,14 +223,12 @@ sealed class NotesTab(DashboardState state) : UiComponent
                 .FillWidth());
 }
 
-sealed class DetailsWindow(DashboardState state) : UiComponent
+sealed class DetailsContent(DashboardState state) : UiComponent
 {
     private readonly DashboardState _state = state;
 
     protected override IUiView Build()
-        => Dux.Window(
-            "Details",
-            Dux.VStack(
+        => Dux.If(()=>_state.DetailsOpen.Value,Dux.VStack(
                 8f,
                 Dux.Subtitle("Compiled Design"),
                 Dux.Callout(
@@ -255,12 +248,7 @@ sealed class DetailsWindow(DashboardState state) : UiComponent
                     Dux.Case(3, Dux.Badge("Normal", new UiBadgeOptions(Tone: UiBadgeTone.Success))),
                     Dux.Case(4, Dux.Badge("Elevated", new UiBadgeOptions(Tone: UiBadgeTone.Warning))),
                     Dux.Case(5, Dux.Badge("Critical", new UiBadgeOptions(Tone: UiBadgeTone.Danger)))),
-                Dux.Button("Close details", () => _state.DetailsOpen.Value = false)),
-            new UiWindowOptions(
-                Position: new UiVector2(865f, 84f),
-                Size: new UiVector2(310f, 430f),
-                Open: _state.DetailsOpen,
-                TopMost: true));
+                Dux.Button("Close details", () => _state.DetailsOpen.Value = false)));
 }
 
 sealed class DashboardState

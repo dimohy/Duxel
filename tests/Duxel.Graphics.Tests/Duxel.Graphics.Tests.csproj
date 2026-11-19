@@ -1,0 +1,299 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <Compile Include="../../src/Duxel.Platform.Linux/AtSpi/AtSpiTable.cs" Link="AtSpiTable.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/RootTransforms/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/RootTransforms/*.rgba;../Duxel.Svg.Managed.Tests/Fixtures/Browser/RootTransforms/references.json"
+          Link="Fixtures/Browser/RootTransforms/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/*.browser.rgba;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/references.json;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/sources.json"
+          Link="Fixtures/Browser/ArcGeometry/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/BlendBackdrops/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/BlendBackdrops/*.browser.rgba;../Duxel.Svg.Managed.Tests/Fixtures/Browser/BlendBackdrops/references.json;../Duxel.Svg.Managed.Tests/Fixtures/Browser/BlendBackdrops/sources.json"
+          Link="Fixtures/Browser/BlendBackdrops/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="../Duxel.Svg.Managed.Tests/BrowserReferenceValidation.cs" Link="BrowserReferenceValidation.cs" />
+    <None Update="Fixtures/FontVectorBrowser/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Fixtures/SvgFeaturesBrowser/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Fixtures/VectorSceneShader/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../samples/Duxel.Gallery/DrawerPage.cs" Link="Observer/DrawerPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ActivityIndicatorPage.cs" Link="Observer/ActivityIndicatorPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/HeadsUpDisplayPage.cs" Link="Observer/HeadsUpDisplayPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/OpacityMaskSample.cs" Link="Observer/OpacityMaskSample.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/SegmentedControlPage.cs" Link="Observer/SegmentedControlPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/SelectPage.cs" Link="Observer/SelectPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/TreePage.cs" Link="Observer/TreePage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/TextFieldPage.cs" Link="Observer/TextFieldPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/CardNudgePage.cs" Link="Observer/CardNudgePage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/CarouselPage.cs" Link="Observer/CarouselPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/NavigationBarPage.cs" Link="Observer/NavigationBarPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/CalendarPage.cs" Link="Observer/CalendarPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/GalleryCalendarCulture.cs" Link="Observer/GalleryCalendarCulture.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/TemporalPickerPage.cs" Link="Observer/TemporalPickerPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ToastPage.cs" Link="Observer/ToastPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ToastLiveSample.cs" Link="Observer/ToastLiveSample.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ToastCompositionSamples.cs" Link="Observer/ToastCompositionSamples.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/HolidayProviderPage.cs" Link="Observer/HolidayProviderPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ProgressIndicatorPage.cs" Link="Observer/ProgressIndicatorPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ShimmerPage.cs" Link="Observer/ShimmerPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/FluentProviderPage.cs" Link="Observer/FluentProviderPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/NavigationPage.cs" Link="Observer/NavigationPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/MessageBarPage.cs" Link="Observer/MessageBarPage.cs" />
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/ClipStorage/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ClipStorage/*.browser.rgba;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ClipStorage/references.json"
+          Link="Fixtures/Browser/ClipStorage/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/ShadowAlpha/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ShadowAlpha/*.browser.rgba;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ShadowAlpha/references.json"
+          Link="Fixtures/Browser/ShadowAlpha/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/ColorStorage/Transparent/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ColorStorage/Transparent/*.browser.rgba;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ColorStorage/Transparent/references.json"
+          Link="Fixtures/Browser/ColorStorage/Transparent/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/ColorStorage/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ColorStorage/*.browser.rgba;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ColorStorage/references.json"
+          Link="Fixtures/Browser/ColorStorage/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/OpacityGroups/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/OpacityGroups/*.browser.rgba;../Duxel.Svg.Managed.Tests/Fixtures/Browser/OpacityGroups/references.json"
+          Link="Fixtures/Browser/OpacityGroups/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/Gradients/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/Gradients/*.browser.rgba;../Duxel.Svg.Managed.Tests/Fixtures/Browser/Gradients/references.json"
+          Link="Fixtures/Browser/Gradients/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/*.browser.rgba;../Duxel.Svg.Managed.Tests/Fixtures/Browser/references.json"
+          Link="Fixtures/Browser/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Duxel.Svg.Managed.Tests/BrowserPng.cs" Link="BrowserPng.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Popover.cs" Link="AccessibilityClientTests.Popover.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Dialog.cs" Link="AccessibilityClientTests.Dialog.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Announcements.cs" Link="AccessibilityClientTests.Announcements.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Skeleton.cs" Link="AccessibilityClientTests.Skeleton.cs" />
+    <Compile Include="../Shared/DialogAccessibilityScreen.cs" Link="DialogAccessibilityScreen.cs" />
+    <Compile Include="../Shared/AppStartupRetryTests.cs" Link="AppStartupRetryTests.cs" />
+    <Compile Include="../Shared/NativeMessageBarScene.cs" Link="NativeMessageBarScene.cs" />
+    <Compile Include="../Shared/SliderDirectionPixelFixture.cs" Link="SliderDirectionPixelFixture.cs" />
+    <Compile Include="../Shared/CustomRadioAllocationFixture.cs" Link="CustomRadioAllocationFixture.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/PopoverPage.cs" Link="Observer/PopoverPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/GalleryPopoverDecoration.cs" Link="Observer/GalleryPopoverDecoration.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/PopoverGallerySource.cs" Link="Observer/PopoverGallerySource.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/DialogPage.cs" Link="Observer/DialogPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/SkeletonPage.cs" Link="Observer/SkeletonPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/InfoLabelPage.cs" Link="Observer/InfoLabelPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/SpinButtonPage.cs" Link="Observer/SpinButtonPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ListPage.cs" Link="Observer/ListPage.cs" />
+<Compile Include="../../samples/Duxel.Gallery/MarkdownPage.cs" Link="Observer/MarkdownPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/MarkdownImageResources.cs" Link="Observer/MarkdownImageResources.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.PopupInput.cs" Link="AccessibilityClientTests.PopupInput.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Toolbar.cs" Link="AccessibilityClientTests.Toolbar.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.SearchBox.cs" Link="AccessibilityClientTests.SearchBox.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Persona.cs" Link="AccessibilityClientTests.Persona.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/PopupInputPage.cs" Link="PopupInputPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ToolbarPage.cs" Link="ToolbarPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/SearchBoxPage.cs" Link="SearchBoxPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/PersonaPage.cs" Link="Observer/PersonaPage.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Presence.cs" Link="AccessibilityClientTests.Presence.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Avatar.cs" Link="AccessibilityClientTests.Avatar.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Card.cs" Link="AccessibilityClientTests.Card.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Breadcrumb.cs" Link="AccessibilityClientTests.Breadcrumb.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.AvatarGroup.cs" Link="AccessibilityClientTests.AvatarGroup.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Dropdown.cs" Link="AccessibilityClientTests.Dropdown.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Combobox.cs" Link="AccessibilityClientTests.Combobox.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.List.cs" Link="AccessibilityClientTests.List.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Markdown.cs" Link="AccessibilityClientTests.Markdown.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/AvatarPage.cs" Link="Observer/AvatarPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/CardPage.cs" Link="Observer/CardPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/BreadcrumbPage.cs" Link="Observer/BreadcrumbPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/AvatarGroupPage.cs" Link="Observer/AvatarGroupPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/DropdownPage.cs" Link="Observer/DropdownPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/DropdownGallerySource.cs" Link="Observer/DropdownGallerySource.cs" />
+    <None Update="Fixtures/AvatarPalette.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures/SvgFontOutlineReference.svg" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures/CardPalette.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures/CardInteractionPalette.json" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Accordion.cs" Link="AccessibilityClientTests.Accordion.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/AccordionPage.cs" Link="Observer/AccordionPage.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.Labels.cs" Link="AccessibilityClientTests.Labels.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/SvgPage.cs" Link="Observer/SvgPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/WidgetLayoutPage.cs" Link="Observer/WidgetLayoutPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/LegacyPortalPreview.cs" Link="Observer/LegacyPortalPreview.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/RepaintPage.cs" Link="Observer/RepaintPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/RepaintExperiment.cs" Link="Observer/RepaintExperiment.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ObserverServices.cs" Link="Observer/ObserverServices.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ObserverServices.Windows.cs" Link="Observer/ObserverServices.Windows.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/SvgExampleSource.cs" Link="Observer/SvgExampleSource.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/SvgBrowserReference.cs" Link="Observer/SvgBrowserReference.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/SvgBrowserPair.cs" Link="Observer/SvgBrowserPair.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/SvgBrowserGallery.cs" Link="Observer/SvgBrowserGallery.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/SvgTelemetryText.cs" Link="Observer/SvgTelemetryText.cs" />
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/*.browser.png;../Duxel.Svg.Managed.Tests/Fixtures/Browser/*.json;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ATTRIBUTION.md"
+          Link="Assets/Svg/Browser/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../samples/Duxel.Gallery/Assets/Svg/*.svg" Link="Assets/Svg/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <ProjectReference Include="../../src/Duxel.Svg/Duxel.Svg.csproj" />
+    <Compile Include="../../samples/Duxel.Gallery/TabOverflowExamples.cs" Link="Observer/TabOverflowExamples.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/TabOverflowBodies.cs" Link="Observer/TabOverflowBodies.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Fixtures/MenuPalette.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures/MenuContentPalette.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures/SliderPalette.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework Condition="'$(DuxelBenchmarkFramework)' == ''">net10.0-windows</TargetFramework>
+    <TargetFramework Condition="'$(DuxelBenchmarkFramework)' != ''">$(DuxelBenchmarkFramework)</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DisableRuntimeMarshalling>true</DisableRuntimeMarshalling>
+    <IsAotCompatible>true</IsAotCompatible>
+    <DefineConstants>$(DefineConstants);DUXEL_GALLERY_PROFILING</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../samples/Duxel.Sample/SampleScreen.cs" Link="Observer/SampleScreen.cs" />
+    <Compile Include="../../samples/Duxel.Sample/ImGuiExamples.cs" Link="Observer/ImGuiExamples.cs" />
+    <Compile Include="../../samples/Duxel.Sample/ImmediateSampleSection.cs" Link="Observer/ImmediateSampleSection.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ControlsPage.cs" Link="Observer/ControlsPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/TabExampleIcons.cs" Link="Observer/TabExampleIcons.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/FluentPages.cs" Link="Observer/FluentPages.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/TooltipPage.cs" Link="Observer/TooltipPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/EditingPage.cs" Link="Observer/EditingPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ValidatedNameExample.cs" Link="Observer/ValidatedNameExample.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/TabExamples.cs" Link="Observer/TabExamples.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/CatalogPage.cs" Link="Observer/CatalogPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/LayoutPage.cs" Link="Observer/LayoutPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/LayoutIntegrationPage.cs" Link="Observer/LayoutIntegrationPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/MeasurementPage.cs" Link="Observer/MeasurementPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/MeasurementPrimitives.cs" Link="Observer/MeasurementPrimitives.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/MeasurementForm.cs" Link="Observer/MeasurementForm.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/OverflowExamples.cs" Link="Observer/OverflowExamples.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/VirtualPage.cs" Link="Observer/VirtualPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/VirtualGridPage.cs" Link="Observer/VirtualGridPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ObserverRows.cs" Link="Observer/ObserverRows.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/RenderingPage.cs" Link="Observer/RenderingPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ObserverPage.cs" Link="Observer/ObserverPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ObserverScreen.cs" Link="Observer/ObserverScreen.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/GalleryNavigation.cs" Link="Observer/GalleryNavigation.cs" />
+    <None Update="Fixtures/MessageBarReference.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Fixtures/FluentFactoryInventory.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Fixtures/PopupPositioningReference.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Fixtures/TabAppearances.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Fixtures/PopupOffsetCoverReference.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Fixtures/PopupMeasuredReference.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Fixtures/PopupAutoReference.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Fixtures/TooltipSurface/*.rgba" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <ProjectReference Include="../../src/Duxel.App/Duxel.App.csproj" AdditionalProperties="DuxelValidationHooks=true" />
+    <ProjectReference Include="../../src/Duxel.Core/Duxel.Core.csproj" AdditionalProperties="DuxelValidationHooks=true" />
+    <ProjectReference Include="../../src/Duxel.Vulkan/Duxel.Vulkan.csproj" AdditionalProperties="DuxelValidationHooks=true" />
+    <ProjectReference Include="../../src/Duxel.Platform.Windows/Duxel.Platform.Windows.csproj" AdditionalProperties="DuxelValidationHooks=true" />
+    <ProjectReference Include="../../src/Duxel.Windows.App/Duxel.Windows.App.csproj" AdditionalProperties="DuxelValidationHooks=true" />
+    <Compile Include="../Duxel.Rendering.Tests/RoundedGradientTests.cs" Link="RoundedGradientTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/OverlayPresentationTests.cs" Link="OverlayPresentationTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ProgressRenderingTests.cs" Link="ProgressRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ProgressWidgetTests.cs" Link="ProgressWidgetTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ProgressMotionTests.cs" Link="ProgressMotionTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/TextWidgetTests.cs" Link="TextWidgetTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ButtonLifetimeTests.cs" Link="ButtonLifetimeTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ControlOwnershipTests.cs" Link="ControlOwnershipTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ControlFontFixture.cs" Link="ControlFontFixture.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ButtonTypographyTests.cs" Link="ButtonTypographyTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ButtonRenderingTests.cs" Link="ButtonRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ButtonAppearanceTests.cs" Link="ButtonAppearanceTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ButtonShapeTests.cs" Link="ButtonShapeTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ButtonIconTests.cs" Link="ButtonIconTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ButtonIconRenderingTests.cs" Link="ButtonIconRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/FluentIconRenderingTests.cs" Link="FluentIconRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ButtonAppearanceInputTests.cs" Link="ButtonAppearanceInputTests.cs" />
+    <None Include="../Duxel.Rendering.Tests/Fixtures/ButtonAppearances.json" Link="Fixtures/ButtonAppearances.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../Duxel.Rendering.Tests/Fixtures/ButtonPalette.json" Link="Fixtures/ButtonPalette.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Compile Include="../Duxel.Rendering.Tests/DividerWidgetTests.cs" Link="DividerWidgetTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/DividerRenderingTests.cs" Link="DividerRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/BadgeWidgetTests.cs" Link="BadgeWidgetTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/BadgeRenderingTests.cs" Link="BadgeRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/DefaultTextRenderingTests.cs" Link="DefaultTextRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/SliderWidgetTests.cs" Link="SliderWidgetTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/SliderRenderingTests.cs" Link="SliderRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/WindowInteractionTests.cs" Link="WindowInteractionTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/WindowRenderingTests.cs" Link="WindowRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ResizeInteractionTests.cs" Link="ResizeInteractionTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/PanelTests.cs" Link="PanelTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/DirectTextLayoutTests.cs" Link="DirectTextLayoutTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/DirectTextScaleRenderingTests.cs" Link="DirectTextScaleRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/GpuParticleReplayTests.cs" Link="GpuParticleReplayTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/GpuParticleTests.cs" Link="GpuParticleTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/RootResizeRenderingTests.cs" Link="RootResizeRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/SharedDepthAttachmentTests.cs" Link="SharedDepthAttachmentTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/CheckboxWidgetTests.cs" Link="CheckboxWidgetTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/CheckboxRenderingTests.cs" Link="CheckboxRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/RadioGroupWidgetTests.cs" Link="RadioGroupWidgetTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/RadioGroupRenderingTests.cs" Link="RadioGroupRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/FluentInputTests.cs" Link="FluentInputTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/FluentInputRenderingTests.cs" Link="FluentInputRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/InputKernelTests.cs" Link="InputKernelTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/InputKernelRenderingTests.cs" Link="InputKernelRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/LinkWidgetTests.cs" Link="LinkWidgetTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/LinkRenderingTests.cs" Link="LinkRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/SwitchWidgetTests.cs" Link="SwitchWidgetTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/SwitchRenderingTests.cs" Link="SwitchRenderingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/ControlTextBlockRenderingTests.cs" Link="ControlTextBlockRenderingTests.cs" />
+    <None Include="../Duxel.Rendering.Tests/Fixtures/CheckboxPalette.json" Link="Fixtures/CheckboxPalette.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup><Compile Include="../Duxel.Rendering.Tests/InputAdornmentTests.cs" Link="InputAdornmentTests.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Duxel.Rendering.Tests/WidgetTreeThemeTests.cs" Link="WidgetTreeThemeTests.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Duxel.Rendering.Tests/InputAdornmentRenderingTests.cs" Link="InputAdornmentRenderingTests.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Duxel.Rendering.Tests/InputChildrenTests.cs" Link="InputChildrenTests.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Duxel.Rendering.Tests/InputChildrenRenderingTests.cs" Link="InputChildrenRenderingTests.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Duxel.Rendering.Tests/FieldWidgetTests.cs" Link="FieldWidgetTests.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Duxel.Rendering.Tests/FieldRenderingTests.cs" Link="FieldRenderingTests.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Duxel.Rendering.Tests/WidgetMeasurementTests.cs" Link="WidgetMeasurementTests.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Duxel.Rendering.Tests/WidgetMeasurementRenderingTests.cs" Link="WidgetMeasurementRenderingTests.cs" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityTests.cs" Link="AccessibilityTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.cs" Link="AccessibilityClientTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.GalleryTimePicker.cs" Link="AccessibilityClientTests.GalleryTimePicker.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.SliderRange.cs" Link="AccessibilityClientTests.SliderRange.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.SliderRangeProbe.cs" Link="AccessibilityClientTests.SliderRangeProbe.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.TooltipEvents.cs" Link="AccessibilityClientTests.TooltipEvents.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.TabSelection.cs" Link="AccessibilityClientTests.TabSelection.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.LegacyTabs.cs" Link="AccessibilityClientTests.LegacyTabs.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.ToggleControls.cs" Link="AccessibilityClientTests.ToggleControls.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.RadioControls.cs" Link="AccessibilityClientTests.RadioControls.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.RadioMenu.cs" Link="AccessibilityClientTests.RadioMenu.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.TabPanels.cs" Link="AccessibilityClientTests.TabPanels.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.RelationshipEvents.cs" Link="AccessibilityClientTests.RelationshipEvents.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityClientTests.FocusEvents.cs" Link="AccessibilityClientTests.FocusEvents.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/AccessibilityLifetimeHost.cs" Link="AccessibilityLifetimeHost.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/SpinnerTests.cs" Link="SpinnerTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/FrameSchedulingTests.cs" Link="FrameSchedulingTests.cs" />
+    <Compile Include="../Duxel.Rendering.Tests/SpinnerRenderingTests.cs" Link="SpinnerRenderingTests.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/ClipStorage/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ClipStorage/*.browser.png;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ClipStorage/references.json"
+          Link="Assets/Svg/Browser/ClipStorage/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/LayerOrigin/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/LayerOrigin/*.browser.png;../Duxel.Svg.Managed.Tests/Fixtures/Browser/LayerOrigin/references.json"
+          Link="Assets/Svg/Browser/LayerOrigin/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/LayerOrigin/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/LayerOrigin/*.browser.rgba;../Duxel.Svg.Managed.Tests/Fixtures/Browser/LayerOrigin/references.json"
+          Link="Fixtures/Browser/LayerOrigin/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/StrokeDomains/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/StrokeDomains/*.browser.png;../Duxel.Svg.Managed.Tests/Fixtures/Browser/StrokeDomains/references.json"
+          Link="Assets/Svg/Browser/StrokeDomains/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/StrokeDomains/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/StrokeDomains/*.browser.rgba;../Duxel.Svg.Managed.Tests/Fixtures/Browser/StrokeDomains/references.json"
+          Link="Fixtures/Browser/StrokeDomains/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/*.svg;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/*.browser.png;../Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/references.json"
+          Link="Assets/Svg/Browser/ArcGeometry/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../samples/Duxel.Gallery/*.cs" LogicalName="GallerySource.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../samples/Duxel.Gallery/GalleryComponentExamples.cs" Link="Observer/GalleryComponentExamples.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/GallerySample.cs" Link="GallerySample.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/GalleryPageFrame.cs" Link="Observer/GalleryPageFrame.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../samples/Duxel.Gallery/Assets/Brand/*.svg" Link="Assets/Brand/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../samples/Duxel.Gallery/Assets/Fonts/**/*" Link="Assets/Fonts/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
+

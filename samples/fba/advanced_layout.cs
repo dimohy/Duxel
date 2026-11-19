@@ -31,20 +31,50 @@ public sealed class AdvancedLayoutScreen : UiScreen
     {
         _frameCounter++;
 
-        RenderPushIdWindow(ui);
-        RenderItemWidthWindow(ui);
-        RenderCursorWindow(ui);
-        RenderStyleVarWindow(ui);
-        RenderWindowPropsWindow(ui);
-        RenderTextWrapWindow(ui);
-        RenderFontScaleWindow(ui);
+        if(ui.BeginTabBar("sample-pages"))
+        {
+            if(ui.BeginTabItem("PushId",UiTabItemFlags.None))
+            {
+                RenderPushIdWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("ItemWidth",UiTabItemFlags.None))
+            {
+                RenderItemWidthWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("Cursor",UiTabItemFlags.None))
+            {
+                RenderCursorWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("StyleVar",UiTabItemFlags.None))
+            {
+                RenderStyleVarWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("WindowProps",UiTabItemFlags.None))
+            {
+                RenderWindowPropsWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("TextWrap",UiTabItemFlags.None))
+            {
+                RenderTextWrapWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("FontScale",UiTabItemFlags.None))
+            {
+                RenderFontScaleWindow(ui);
+                ui.EndTabItem();
+            }
+            ui.EndTabBar();
+        }
     }
 
     private void RenderPushIdWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(380f, 260f));
-        ui.BeginWindow("PushID / PopID");
+        ui.PushID("PushID / PopID"); ui.BeginGroup();
 
         ui.SeparatorText("ID Scoping");
         ui.Text("Same label, different IDs via PushID:");
@@ -75,14 +105,12 @@ public sealed class AdvancedLayoutScreen : UiScreen
         var idResult = ui.GetID("test_id");
         ui.Text($"GetID(\"test_id\"): {idResult}");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderItemWidthWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(380f, 240f));
-        ui.BeginWindow("PushItemWidth");
+        ui.PushID("PushItemWidth"); ui.BeginGroup();
 
         ui.SeparatorText("Item Width Control");
         ui.SliderFloat("Target Width", ref _itemWidth, 80f, 400f, 0f, "0");
@@ -99,14 +127,12 @@ public sealed class AdvancedLayoutScreen : UiScreen
         var f2 = 0.3f;
         ui.SliderFloat("120px Slider", ref f2, 0f, 1f, 0f, "0.00");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderCursorWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(420f, 320f));
-        ui.BeginWindow("Cursor & Region Queries");
+        ui.PushID("Cursor & Region Queries"); ui.BeginGroup();
 
         ui.SeparatorText("Cursor Position");
         var cursorPos = ui.GetCursorPos();
@@ -140,14 +166,12 @@ public sealed class AdvancedLayoutScreen : UiScreen
         ui.SameLine();
         ui.Button("Next to it");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderStyleVarWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(400f, 280f));
-        ui.BeginWindow("PushStyleVar");
+        ui.PushID("PushStyleVar"); ui.BeginGroup();
 
         ui.SeparatorText("Style Var Modifications");
 
@@ -182,24 +206,22 @@ public sealed class AdvancedLayoutScreen : UiScreen
         ui.EndChild();
         ui.PopStyleVar();
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderWindowPropsWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(400f, 250f));
-        ui.BeginWindow("Window Properties");
+        ui.PushID("Panel Properties"); ui.BeginGroup();
 
-        ui.SeparatorText("SetNextWindowBgAlpha");
+        ui.SeparatorText("SetNextPanelBgAlpha");
         ui.SliderFloat("BG Alpha", ref _bgAlpha, 0.1f, 1.0f, 0f, "0.00");
 
-        ui.SetNextWindowBgAlpha(_bgAlpha);
-        ui.SetNextWindowSize(new UiVector2(250f, 100f));
-        ui.BeginWindow("Alpha Window");
+        ui.SetNextPanelBgAlpha(_bgAlpha);
+        ui.SetNextPanelSize(new UiVector2(250f, 100f));
+        ui.BeginPanel("Alpha Panel");
         ui.Text($"Alpha: {_bgAlpha:0.00}");
-        ui.Text("Translucent window!");
-        ui.EndWindow();
+        ui.Text("Translucent panel!");
+        ui.EndPanel();
 
         ui.SeparatorText("Scroll Control");
         ui.SliderFloat("ScrollY Target", ref _scrollTarget, 0f, 500f, 0f, "0");
@@ -214,14 +236,12 @@ public sealed class AdvancedLayoutScreen : UiScreen
         }
         ui.EndChild();
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderTextWrapWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(400f, 200f));
-        ui.BeginWindow("PushTextWrapPos");
+        ui.PushID("PushTextWrapPos"); ui.BeginGroup();
 
         ui.SliderFloat("Wrap Width", ref _wrapWidth, 100f, 500f, 0f, "0");
 
@@ -234,14 +254,12 @@ public sealed class AdvancedLayoutScreen : UiScreen
         ui.Separator();
         ui.Text("(Text above wraps at specified width)");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderFontScaleWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(350f, 180f));
-        ui.BeginWindow("Font Scale");
+        ui.PushID("Font Scale"); ui.BeginGroup();
 
         ui.SeparatorText("Font Metrics");
         ui.Text($"Current font size: {ui.GetFontSize():0.0}");
@@ -250,6 +268,6 @@ public sealed class AdvancedLayoutScreen : UiScreen
         ui.Text($"Frame height: {ui.GetFrameHeight():0.0}");
         ui.Button("Scaled Button");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 }

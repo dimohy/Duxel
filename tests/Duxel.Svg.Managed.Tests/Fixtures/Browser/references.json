@@ -1,0 +1,152 @@
+{
+  "renderer": "Chromium156 native SVG; direct vector screenshot and independent SVG-image Canvas2D readback",
+  "contract": "Original root unchanged; xMidYMid meet into a fixed viewport; intrinsic viewport clipped; DPR1/sRGB; white and transparent image outputs",
+  "references": [
+    {
+      "file": "Red_Gallardo.svg",
+      "width": 764,
+      "height": 372,
+      "url": "https://commons.wikimedia.org/wiki/File:Red_Gallardo.svg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/6/62/Red_Gallardo.svg",
+      "license": "CC-BY-SA-3.0",
+      "authors": "Tomeq183; Tacosunday; Svgalbertian",
+      "sourceSha256": "50b68f854898c97fe44b49fed9e5adf09e7721a4afebbe726f886c0c7f48f419",
+      "id": "Red_Gallardo.direct-svg",
+      "mode": "direct-svg",
+      "rgbaSha256": "eec0d9a6a0e179291278cec004205dd1f65b43573a0610c2e886fe4adcefc9f3",
+      "conditions": {
+        "intrinsicWidth": 1528.4102783203125,
+        "intrinsicHeight": 744.1569213867188,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "rectangle": {
+          "x": 0,
+          "y": 0,
+          "width": 763.9912109375,
+          "height": 371.99560546875,
+          "top": 0,
+          "right": 763.9912109375,
+          "bottom": 371.99560546875,
+          "left": 0
+        }
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T03:46:31.297Z"
+    },
+    {
+      "file": "Red_Gallardo.svg",
+      "width": 764,
+      "height": 372,
+      "url": "https://commons.wikimedia.org/wiki/File:Red_Gallardo.svg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/6/62/Red_Gallardo.svg",
+      "license": "CC-BY-SA-3.0",
+      "authors": "Tomeq183; Tacosunday; Svgalbertian",
+      "sourceSha256": "50b68f854898c97fe44b49fed9e5adf09e7721a4afebbe726f886c0c7f48f419",
+      "id": "Red_Gallardo.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "9717f4c5ca67d28cace1c16cd7ff3876692ae017953038f9b8f1b47a7bab3a7f",
+      "conditions": {
+        "intrinsicWidth": 1528.4102783203125,
+        "intrinsicHeight": 744.1569213867188,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "rectangle": {
+          "x": 0,
+          "y": 0,
+          "width": 763.9912109375,
+          "height": 371.99560546875,
+          "top": 0,
+          "right": 763.9912109375,
+          "bottom": 371.99560546875,
+          "left": 0
+        }
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T03:46:31.300Z",
+      "transparentRgbaSha256": "4e745f6140517bcc10650bca29096b4ca5156617b9325862c646982cb641babe"
+    },
+    {
+      "file": "TheStructorr_Lamborghini_Gallardo.svg",
+      "width": 768,
+      "height": 300,
+      "url": "https://commons.wikimedia.org/wiki/File:TheStructorr_Lamborghini_Gallardo.svg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/8/8a/TheStructorr_Lamborghini_Gallardo.svg",
+      "license": "CC0-1.0",
+      "authors": "Michał Pecyna (TheStructorr)",
+      "sourceSha256": "12981701321aeb9c7c1001d561f901f7566184ff6eeb980bdb1e070f59007057",
+      "id": "TheStructorr_Lamborghini_Gallardo.direct-svg",
+      "mode": "direct-svg",
+      "rgbaSha256": "d2b32db6e23b3028841e4391a2598c0bcaa382f0a8feb396e96679facfc137ac",
+      "conditions": {
+        "intrinsicWidth": 1024,
+        "intrinsicHeight": 400,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "rectangle": {
+          "x": 0,
+          "y": 0,
+          "width": 767.993408203125,
+          "height": 300,
+          "top": 0,
+          "right": 767.993408203125,
+          "bottom": 300,
+          "left": 0
+        }
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T03:46:31.529Z"
+    },
+    {
+      "file": "TheStructorr_Lamborghini_Gallardo.svg",
+      "width": 768,
+      "height": 300,
+      "url": "https://commons.wikimedia.org/wiki/File:TheStructorr_Lamborghini_Gallardo.svg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/8/8a/TheStructorr_Lamborghini_Gallardo.svg",
+      "license": "CC0-1.0",
+      "authors": "Michał Pecyna (TheStructorr)",
+      "sourceSha256": "12981701321aeb9c7c1001d561f901f7566184ff6eeb980bdb1e070f59007057",
+      "id": "TheStructorr_Lamborghini_Gallardo.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "2d4326939eb87300af7b4aec8f901ff57f4664fb91e57f6192079f24d1295df3",
+      "conditions": {
+        "intrinsicWidth": 1024,
+        "intrinsicHeight": 400,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "rectangle": {
+          "x": 0,
+          "y": 0,
+          "width": 767.993408203125,
+          "height": 300,
+          "top": 0,
+          "right": 767.993408203125,
+          "bottom": 300,
+          "left": 0
+        }
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T03:46:31.531Z",
+      "transparentRgbaSha256": "c0e8e37ae929635bd28ebfdc483cb755e75aba26ae6bce811d4e2a333985c281"
+    }
+  ]
+}

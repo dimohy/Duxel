@@ -9,6 +9,8 @@ internal unsafe sealed class KhrSurface(Vk vk, Instance instance)
         (delegate* unmanaged<Instance, SurfaceKHR, AllocationCallbacks*, void>)vk.GetInstanceProcAddr(instance, "vkDestroySurfaceKHR");
     private readonly delegate* unmanaged<PhysicalDevice, SurfaceKHR, SurfaceCapabilitiesKHR*, Result> _getSurfaceCapabilities =
         (delegate* unmanaged<PhysicalDevice, SurfaceKHR, SurfaceCapabilitiesKHR*, Result>)vk.GetInstanceProcAddr(instance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
+    private readonly delegate* unmanaged<PhysicalDevice, PhysicalDeviceSurfaceInfo2KHR*, SurfaceCapabilities2KHR*, Result> _getSurfaceCapabilities2 =
+        (delegate* unmanaged<PhysicalDevice, PhysicalDeviceSurfaceInfo2KHR*, SurfaceCapabilities2KHR*, Result>)vk.GetInstanceProcAddr(instance,"vkGetPhysicalDeviceSurfaceCapabilities2KHR");
     private readonly delegate* unmanaged<PhysicalDevice, SurfaceKHR, uint*, SurfaceFormatKHR*, Result> _getSurfaceFormats =
         (delegate* unmanaged<PhysicalDevice, SurfaceKHR, uint*, SurfaceFormatKHR*, Result>)vk.GetInstanceProcAddr(instance, "vkGetPhysicalDeviceSurfaceFormatsKHR");
     private readonly delegate* unmanaged<PhysicalDevice, SurfaceKHR, uint*, PresentModeKHR*, Result> _getSurfacePresentModes =
@@ -30,6 +32,11 @@ internal unsafe sealed class KhrSurface(Vk vk, Instance instance)
 
     public void DestroySurface(Instance targetInstance, SurfaceKHR surface, AllocationCallbacks* allocator) => _destroySurface(targetInstance, surface, allocator);
     public Result GetPhysicalDeviceSurfaceCapabilities(PhysicalDevice physicalDevice, SurfaceKHR surface, SurfaceCapabilitiesKHR* capabilities) => _getSurfaceCapabilities(physicalDevice, surface, capabilities);
+    public Result GetPhysicalDeviceSurfaceCapabilities2(PhysicalDevice physicalDevice,PhysicalDeviceSurfaceInfo2KHR* info,SurfaceCapabilities2KHR* capabilities)
+    {
+        if(_getSurfaceCapabilities2==null)throw new InvalidOperationException("Enabled surface capabilities2 entry point is absent.");
+        return _getSurfaceCapabilities2(physicalDevice,info,capabilities);
+    }
     public Result GetPhysicalDeviceSurfaceFormats(PhysicalDevice physicalDevice, SurfaceKHR surface, uint* count, SurfaceFormatKHR* formats) => _getSurfaceFormats(physicalDevice, surface, count, formats);
     public Result GetPhysicalDeviceSurfacePresentModes(PhysicalDevice physicalDevice, SurfaceKHR surface, uint* count, PresentModeKHR* presentModes) => _getSurfacePresentModes(physicalDevice, surface, count, presentModes);
     public Result GetPhysicalDeviceSurfaceSupport(PhysicalDevice physicalDevice, uint queueFamilyIndex, SurfaceKHR surface, Bool32* supported) => _getSurfaceSupport(physicalDevice, queueFamilyIndex, surface, supported);

@@ -19,7 +19,7 @@ public sealed partial class UiImmediateContext
 
     public bool IsItemActive()
     {
-        return _lastItemId is not null && string.Equals(_state.ActiveId, _lastItemId, StringComparison.Ordinal);
+        return _lastItemId is not null && (string.Equals(_state.ActiveId, _lastItemId, StringComparison.Ordinal)||_spacePressOwner==_lastItemId);
     }
 
     public bool IsItemFocused()
@@ -50,14 +50,16 @@ public sealed partial class UiImmediateContext
     {
         return _lastItemId is not null &&
                string.Equals(_state.ActiveId, _lastItemId, StringComparison.Ordinal) &&
-               !string.Equals(_state.PreviousActiveId, _lastItemId, StringComparison.Ordinal);
+               !string.Equals(_state.PreviousActiveId, _lastItemId, StringComparison.Ordinal)
+               || _lastItemId is not null&&_spacePressOwner==_lastItemId&&_previousSpacePressOwner!=_lastItemId;
     }
 
     public bool IsItemDeactivated()
     {
         return _lastItemId is not null &&
                string.Equals(_state.PreviousActiveId, _lastItemId, StringComparison.Ordinal) &&
-               !string.Equals(_state.ActiveId, _lastItemId, StringComparison.Ordinal);
+               !string.Equals(_state.ActiveId, _lastItemId, StringComparison.Ordinal)
+               || _lastItemId is not null&&_previousSpacePressOwner==_lastItemId&&_spacePressOwner!=_lastItemId;
     }
 
     public bool IsItemDeactivatedAfterEdit()
@@ -71,7 +73,7 @@ public sealed partial class UiImmediateContext
 
     public bool IsAnyItemHovered() => _state.HoveredId is not null;
 
-    public bool IsAnyItemActive() => _state.ActiveId is not null;
+    public bool IsAnyItemActive() => _state.ActiveId is not null||_spacePressOwner is not null;
 
     public bool IsAnyItemFocused() => _state.FocusedId is not null;
 
@@ -98,6 +100,8 @@ public sealed partial class UiImmediateContext
         if (_lastItemId is not null)
         {
             _state.FocusedId = _lastItemId;
+            _state.NavCursorVisible = true;
+            if(_state.ActiveId!=_lastItemId)_state.ActiveId=null;
         }
     }
 

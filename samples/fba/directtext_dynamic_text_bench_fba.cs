@@ -121,7 +121,7 @@ public sealed class DirectTextDynamicTextBenchScreen : UiScreen
         var viewport = ui.GetMainViewport();
         ui.SetNextWindowPos(new UiVector2(viewport.Pos.X + 40f, viewport.Pos.Y + 40f));
         ui.SetNextWindowSize(new UiVector2(viewport.Size.X - 80f, viewport.Size.Y - 80f));
-        ui.BeginWindow("DirectText Dynamic Text Workload");
+        ui.BeginPanel("DirectText Dynamic Text Workload");
 
         if (_warmupFramesRemaining > 0)
         {
@@ -141,7 +141,7 @@ public sealed class DirectTextDynamicTextBenchScreen : UiScreen
             _recordPreviousFrame = true;
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
         DuxelApp.RequestFrame();
     }
 

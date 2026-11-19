@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsPackable>false</IsPackable>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Duxel.Svg.Tests" />
+    <ProjectReference Include="../Duxel.Core/Duxel.Core.csproj" />
+    <Compile Include="../Shared/DirectWriteTextShaper.cs" Link="Interop/DirectWriteTextShaper.cs" />
+    <Compile Include="../Shared/DirectWriteHangulInput.cs" Link="Interop/DirectWriteHangulInput.cs" />
+    <Compile Include="../Shared/DirectWriteLongTextShaper.cs" Link="Interop/DirectWriteLongTextShaper.cs" />
+    <Compile Include="../Shared/DirectWriteLongTextShaper.Callbacks.cs" Link="Interop/DirectWriteLongTextShaper.Callbacks.cs" />
+    <Compile Include="../Shared/DirectWriteLongTextShaper.FontScope.cs" Link="Interop/DirectWriteLongTextShaper.FontScope.cs" />
+    <Compile Include="../Shared/DirectWriteLongTextShaper.Paragraph.cs" Link="Interop/DirectWriteLongTextShaper.Paragraph.cs" />
+    <Compile Include="../Shared/DirectWriteLongTextShaper.InlineObjects.cs" Link="Interop/DirectWriteLongTextShaper.InlineObjects.cs" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="14.2.0"
+                      Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-')) or ('$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux')))" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.macOS" Version="14.2.0"
+                      Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-')) or ('$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('OSX')))" />
+  </ItemGroup>
+  <!-- Notices are content on every target; the native package references above remain target-specific. -->
+  <ItemGroup>
+    <None Update="ThirdParty/HarfBuzz/LICENSE.txt;ThirdParty/HarfBuzz/THIRD-PARTY-NOTICES.txt"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

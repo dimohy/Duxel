@@ -1,6 +1,7 @@
-﻿using Duxel.Core;
+using Duxel.Core;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using VkBuffer = Duxel.Vulkan.Buffer;
 
 namespace Duxel.Vulkan;
@@ -265,11 +266,23 @@ public sealed unsafe partial class VulkanRendererBackend
         UiDrawData drawData,
         int frameSlot,
         FrameResources frameData,
+        uint imageIndex,
         bool profileEnabled,
         out long uploadTicks)
     {
         var uploadStart = BeginFrameProfileTiming(profileEnabled);
+        // Include damage planning in this phase before any streamed upload or capacity growth.
+        PrepareFrameDamage(drawData, imageIndex);
+        PrepareRepaintHighlight(drawData, imageIndex);
         var geometryCounts = PrepareStaticGeometryForFrame(drawData, _frameStaticBindings);
+
+        if (_damageEmpty && !_repaintDiagnosticRedraw)
+        {
+            _profileDynamicGeometryUploadBytes = 0;
+            PruneStaticGeometryCachesIfNeeded(_frameIndex);
+            uploadTicks = EndFrameProfileTiming(profileEnabled, uploadStart);
+            return default;
+        }
 
         EnsureDynamicGeometryCapacity(frameSlot, in geometryCounts);
         UploadDynamicGeometry(frameSlot, drawData, _frameStaticBindings);
@@ -301,9 +314,10 @@ public sealed unsafe partial class VulkanRendererBackend
     }
 
     private readonly List<int> _dynamicDrawListIndices = new();
+    private ulong _profileDynamicGeometryUploadBytes;
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    private void UploadDynamicGeometry(int frame, UiDrawData drawData, Dictionary<int, StaticGeometryBuffer> staticBindings)
+    private void UploadDynamicGeometry(int frame, UiDrawData drawData, StaticGeometryFrameBindings staticBindings)
     {
         var frameData = _frames[frame];
         var renderBuffers = frameData.RenderBuffers;
@@ -311,31 +325,22 @@ public sealed unsafe partial class VulkanRendererBackend
         var vertexDst = (byte*)renderBuffers.VertexMappedPtr;
         var indexDst = (byte*)renderBuffers.IndexMappedPtr;
         var primitiveDst = (PrimitiveInstance*)renderBuffers.PrimitiveMappedPtr;
+        ulong copiedBytes = 0;
 
         for (var dynamicListIndex = 0; dynamicListIndex < _dynamicDrawListIndices.Count; dynamicListIndex++)
         {
             var drawList = drawData.DrawLists[_dynamicDrawListIndices[dynamicListIndex]];
             var vertices = drawList.Vertices.AsSpan();
+            copiedBytes += (ulong)vertices.Length * (ulong)sizeof(UiVertex);
             if (!vertices.IsEmpty)
             {
-                var vertexOut = (UiVertex*)vertexDst;
-                for (var i = 0; i < vertices.Length; i++)
-                {
-                    ref readonly var src = ref vertices[i];
-                    vertexOut[i] = new UiVertex
-                    {
-                        PositionX = src.Position.X,
-                        PositionY = src.Position.Y,
-                        UVx = src.UV.X,
-                        UVy = src.UV.Y,
-                        Color = src.Color.Rgba,
-                    };
-                }
+                MemoryMarshal.AsBytes(vertices).CopyTo(new Span<byte>(vertexDst, vertices.Length * sizeof(UiVertex)));
 
                 vertexDst += (uint)(vertices.Length * sizeof(UiVertex));
             }
 
             var indices = drawList.Indices.AsSpan();
+            copiedBytes += (ulong)indices.Length * sizeof(uint);
             if (!indices.IsEmpty)
             {
                 fixed (uint* indexSrc = indices)
@@ -358,6 +363,7 @@ public sealed unsafe partial class VulkanRendererBackend
             if (drawList.RectFilledPrimitives is not null)
             {
                 var primitives = drawList.RectFilledPrimitives.AsSpan();
+                copiedBytes += (ulong)primitives.Length * (ulong)sizeof(PrimitiveInstance);
                 for (var i = 0; i < primitives.Length; i++)
                 {
                     primitiveDst[i] = CreateRectPrimitiveInstance(in primitives[i]);
@@ -369,6 +375,7 @@ public sealed unsafe partial class VulkanRendererBackend
             if (drawList.CircleFilledPrimitives is not null)
             {
                 var primitives = drawList.CircleFilledPrimitives.AsSpan();
+                copiedBytes += (ulong)primitives.Length * (ulong)sizeof(PrimitiveInstance);
                 for (var i = 0; i < primitives.Length; i++)
                 {
                     primitiveDst[i] = CreateCirclePrimitiveInstance(in primitives[i]);
@@ -377,6 +384,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 primitiveDst += primitives.Length;
             }
         }
+        _profileDynamicGeometryUploadBytes = copiedBytes;
     }
 }
 

@@ -1,7 +1,7 @@
 <svg width="820" height="220" viewBox="0 0 820 220" xmlns="http://www.w3.org/2000/svg">
 
   <!-- Background -->
-  <rect width="820" height="220" fill="#F4F6FB"/>
+  <rect width="820" height="220" fill="#F4F6FB" opacity="0.5"/>
 
   <!-- Gradient -->
   <defs>
@@ -18,7 +18,7 @@
 
   <!-- Back Layer -->
   <rect x="60" y="50" width="140" height="140" rx="28"
-        fill="#E6E9F8"/>
+        fill="#E6E9F8" fill-opacity="0.5" stroke="#6E56CF" stroke-opacity="0.55" stroke-width="4"/>
 
   <!-- Middle Layer -->
   <rect x="75" y="65" width="140" height="140" rx="28"
@@ -47,8 +47,12 @@
            L140 95 
            C170 95 185 115 185 135 
            C185 155 170 175 140 175 
-           L115 175 Z"
-        fill="white"
+           L115 175 Z
+           M129 108 L140 108
+           C161 108 172 120 172 135
+           C172 150 161 162 140 162
+           L129 162 Z"
+        fill="white" fill-rule="evenodd"
         opacity="0.95"/>
 
   <!-- Brand Text -->

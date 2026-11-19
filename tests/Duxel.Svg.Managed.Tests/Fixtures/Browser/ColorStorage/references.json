@@ -1,0 +1,66 @@
+{
+  "renderer": "Chromium native SVG Image into GPU Canvas2D; independent readback",
+  "contract": "Original source hashes; fixed backing pixel extent; xMidYMid meet; DPR1/sRGB; white and transparent",
+  "references": [
+    {
+      "file": "half-gray.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "8b5f41057f568eca8bacce02e468daf257dbc432051290c6cddd01cd0974e286",
+      "id": "half-gray.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "abbe0ed0c8cd4b89ec411e0316eb9e11ce6e299e977da5271584bf8727580f5f",
+      "transparentRgbaSha256": "abbe0ed0c8cd4b89ec411e0316eb9e11ce6e299e977da5271584bf8727580f5f",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:50:28.571Z"
+    },
+    {
+      "file": "half-alpha.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "66778843707a68345e0c4b4c6921b329ae0c839a84c578f97af607eeb5ee05aa",
+      "id": "half-alpha.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "097c9558fd8436dffe0bdde9a7aab13cbf6b7681c84e64fd767457236762fa20",
+      "transparentRgbaSha256": "097c9558fd8436dffe0bdde9a7aab13cbf6b7681c84e64fd767457236762fa20",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:50:28.591Z"
+    },
+    {
+      "file": "half-color-alpha.svg",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "67bcbf6f3bf539d61479af63ee58e7ce0c9d34aa2a28233763916c9aede60656",
+      "id": "half-color-alpha.image-canvas",
+      "mode": "image-canvas",
+      "rgbaSha256": "94884b9d126db829b3d1842ef5410dcbb500be9fdf8c2d1ee31e4c01a83059f3",
+      "transparentRgbaSha256": "94884b9d126db829b3d1842ef5410dcbb500be9fdf8c2d1ee31e4c01a83059f3",
+      "conditions": {
+        "intrinsicWidth": 64,
+        "intrinsicHeight": 64,
+        "dpr": 0.9999999739883236,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "surface": "Canvas2D backing pixels"
+      },
+      "background": "#ffffff",
+      "colorSpace": "srgb",
+      "capturedUtc": "2026-11-14T18:50:28.600Z"
+    }
+  ]
+}

@@ -1,5 +1,68 @@
 # Duxel FBA 샘플 — 바로 실행하기
 
+## 부모 할당 Field 샘플 — 2026-11-10
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_field_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+Width : 180 / Height : 180, Validation : On을 바꾸며 두 실제 편집기를 확인합니다. 오른쪽 가로 Field는 UiWidgetStyle 생성 경로를 사용합니다. 로컬 미게시 API/샘플이며 실행기는 PowerShell7을 요구합니다. 현재 PS5에서는 동일본문 로컬 참조와 generator Analyzer 메타데이터를 명시한 sample-validation.targets로 검증했습니다. 첫 표시·15초 exit0은 수동 입력/공식 외형/실제 Windows UIA/현재 Native 승인과 구분합니다. [계약과 근거](fluent2-field.ko.md#부모-할당--2026-11-10).
+
+## 부모 할당 Badge 샘플 — 2026-11-10
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_badge_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+Width : 100 / Height : 64, Dot, Increment/Zero/Overflow로 프레임·클립·숨은 카운터 예약을 확인합니다. 로컬 미게시 API/샘플입니다. 실행기는 PowerShell7을 요구하며 현재 PS5에서는 지시문 외 동일 본문의 로컬 프로젝트 FBA로 빌드했습니다. 첫 표시 549.78ms·15초 exit0 확인. 수동 입력·공식 외형·현재 Native 미검증. [계약과 근거](fluent2-badge.ko.md#측정과-부모-할당--2026-11-10).
+
+## 부모 할당 Link 샘플 — 2026-11-10
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_link_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+Width : 100 / Height : 120과 Short/Long으로 실제 줄바꿈·클립을 바꿉니다. 링크 클릭/Enter는 앱의 상태 문구를 갱신합니다. 로컬 미게시 API/샘플이며 실행기는 PowerShell7을 요구합니다. 현재 PS5에서는 지시문 외 동일 본문의 로컬 프로젝트 FBA 빌드·첫 표시 560.27ms·15초 exit0 확인. 수동 입력·공식 외형·현재 Native는 미검증입니다. [계약과 근거](fluent2-link.ko.md#측정과-부모-할당--2026-11-10).
+
+## 부모 할당 Divider 샘플 — 2026-11-10
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_divider_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+Width : 100 / Height : 120, Orientation, Short/Empty/Reset으로 실제 선·캡션·클립을 확인합니다. 새 API/샘플은 로컬 미게시 상태입니다. 실행기는 PowerShell7을 요구하며 현재 PowerShell5에서는 동일 본문의 로컬 프로젝트 지시문으로 빌드했습니다. 관리 첫 프레임·15초 exit0 확인; 수동 조작·공식 외형·Native 미검증. [계약과 근거](fluent2-divider.ko.md#측정과-부모-할당--2026-11-10).
+
+## 부모 할당 텍스트 (로컬 소스, .NET11)
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_text_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+실행기에는 PowerShell7이 필요합니다. 새 API/샘플은 로컬 미게시 상태이며 다운로드 목록은 게시 후 유효합니다. Width/Height·Short/Empty/Reset으로 줄바꿈과 루트 예약을 확인합니다. Native에는 C++ Build Tools가 필요합니다. [검증한 관리 실행](widget-gallery-run.ko.md).
+
+## 부모 할당 Progress (로컬 소스, .NET11)
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_progress_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+실행기에는 PowerShell7이 필요합니다. 현재 로컬 미게시 API/샘플이며 다운로드 목록은 게시 후 유효합니다. Native에는 C++ Build Tools가 필요합니다. getter 측정은 할당된 높이를 사용하고 실제 Slider·Width/Height를 제공합니다. [검증한 실행](widget-gallery-run.ko.md).
+
+## 부모 할당 RadioGroup (로컬 소스,.NET11)
+
+```powershell
+Set-Location -LiteralPath W:/MyWorks/Duxel/tests/runtime-net11
+../../run-fba.ps1 ../../samples/fba/layout_radio_allocation_fba.cs -Managed -NoCache -TargetFramework net11.0-windows7.0
+```
+
+PowerShell7에서 실행합니다. 현재 로컬 미게시 샘플이며 다운로드 목록은 게시 후 유효합니다. Native에는 C++ Build Tools가 필요합니다. [관리 실행 검증](widget-gallery-run.ko.md).
+
 > 마지막 동기화: 2026-07-28
 
 > .NET 10 파일 기반 앱 기능을 사용하는 **Duxel** FBA 샘플을 **복사-붙여넣기 한 줄**로 바로 실행하세요. Duxel `0.2.12-preview` 패키지는 일반 .NET 8, .NET 9, .NET 10 프로젝트를 지원합니다.
@@ -616,7 +679,7 @@ curl -sL https://raw.githubusercontent.com/dimohy/Duxel/refs/heads/main/samples/
 ```powershell
 $base = "https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
 $files = @(
-    "all_features.cs",
+    "layout_field_allocation_fba.cs", "layout_badge_allocation_fba.cs", "layout_link_allocation_fba.cs", "layout_divider_allocation_fba.cs", "layout_text_allocation_fba.cs", "layout_progress_allocation_fba.cs", "layout_radio_allocation_fba.cs", "all_features.cs",
     "declarative_dashboard_fba.cs",
     "hello_duxel_fba.cs",
     "extended_title_bar_fba.cs",
@@ -645,7 +708,7 @@ Write-Host "`nRun: dotnet run fba/all_features.cs"
 **Bash**
 ```bash
 BASE="https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba"
-FILES=(all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs extended_title_bar_fba.cs \
+FILES=(layout_field_allocation_fba.cs layout_badge_allocation_fba.cs layout_link_allocation_fba.cs layout_divider_allocation_fba.cs layout_text_allocation_fba.cs layout_progress_allocation_fba.cs layout_radio_allocation_fba.cs all_features.cs declarative_dashboard_fba.cs hello_duxel_fba.cs extended_title_bar_fba.cs \
     advanced_layout.cs columns_demo.cs image_and_popups.cs image_widget_effects_fba.cs \
     input_queries.cs item_status.cs \
     windows_calculator_fba.cs windows_calculator_duxel_showcase_fba.cs \

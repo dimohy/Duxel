@@ -101,7 +101,7 @@ public sealed class LayerDirtyStrategyBenchScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 12f, bounds.Y + 12f));
         ui.SetNextWindowSize(new UiVector2(bounds.Width - 24f, bounds.Height - 220f));
-        ui.BeginWindow("Layer Canvas");
+        ui.BeginPanel("Layer Canvas");
 
         var origin = ui.GetCursorScreenPos();
         var avail = ui.GetContentRegionAvail();
@@ -123,7 +123,7 @@ public sealed class LayerDirtyStrategyBenchScreen : UiScreen
 
         ui.SetCursorScreenPos(new UiVector2(origin.X, origin.Y));
         ui.Dummy(new UiVector2(canvas.Width, canvas.Height));
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawLayer(UiImmediateContext ui, UiDrawListBuilder drawList, UiRect canvas, LayerInfo layer)
@@ -182,7 +182,7 @@ public sealed class LayerDirtyStrategyBenchScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 12f, bounds.Y + bounds.Height - 196f));
         ui.SetNextWindowSize(new UiVector2(560f, 184f));
-        ui.BeginWindow("Dirty Bench Stats");
+        ui.BeginPanel("Dirty Bench Stats");
 
         ui.TextV("Phase: {0}", _phaseIndex == 0 ? "all-dirty" : "single-dirty");
         ui.TextV("Layer Count: {0}", _layerCount);
@@ -192,7 +192,7 @@ public sealed class LayerDirtyStrategyBenchScreen : UiScreen
         ui.TextV("CPU: {0:0.0}%", _cpuPercent);
         ui.TextV("Layer Cache Build Count: {0}", _cacheBuildCount);
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void ApplyDirtyStrategy(UiImmediateContext ui)

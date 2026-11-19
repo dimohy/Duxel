@@ -61,8 +61,6 @@ static UiScreen CreateThemeDemoScreen(string themeName)
     var listItems = new[] { "Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot" };
 
     return DuxelView.Screen(
-        DuxelView.Windows.Window(
-            $"Theme: {themeName}",
             DuxelView.Layout.Column(
                 DuxelView.Custom(ui =>
                 {
@@ -110,8 +108,5 @@ static UiScreen CreateThemeDemoScreen(string themeName)
                     {
                         ui.SetTooltip("Tooltip colors come from the compiled design theme.");
                     }
-                })),
-            new UiWindowOptions(
-                Position: new UiVector2(16f, 16f),
-                Size: new UiVector2(768f, 592f))));
+                })));
 }

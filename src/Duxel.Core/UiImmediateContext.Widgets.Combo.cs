@@ -2,6 +2,19 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
+    private void PaintLegacyComboDisclosure(string id, UiRect bounds)
+    {
+        var center = new UiVector2(bounds.X + bounds.Width - MathF.Min(12, bounds.Width / 2), bounds.Y + bounds.Height / 2);
+        new UiControlContext(this) { MotionKey = id }.PaintDisclosure(center, _theme.ComboText, _state.OpenComboId == id, 0, 180);
+    }
+
+    private (UiRect Bounds, UiRect Clip, UiRect Anchor) ArrangeLegacyComboPopup(UiRect trigger, float height)
+    {
+        var anchor = WidgetScreenBounds(trigger);
+        var rect = new UiRect(anchor.X, anchor.Y + anchor.Height + ItemSpacingY, MathF.Max(trigger.Width, anchor.Width), height);
+        rect = HasWidgetCoordinates ? ClampRectToDisplay(rect) : ClampPopupToWindow(rect);
+        return (rect, IntersectRect(HasWidgetCoordinates ? _clipRect : CurrentClipRect, rect), anchor);
+    }
     public bool BeginCombo(string previewValue, int popupMaxHeightInItems = 8, string? id = null)
     {
         previewValue ??= string.Empty;
@@ -37,27 +50,26 @@ public sealed partial class UiImmediateContext
 
         if (_state.OpenComboId != resolvedId)
         {
+            PaintLegacyComboDisclosure(resolvedId, comboRect);
             return false;
         }
 
         var visibleItems = Math.Clamp(popupMaxHeightInItems, 1, 12);
         var popupHeight = visibleItems * frameHeight;
-        var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
-        popupRect = ClampPopupToWindow(popupRect);
-        var popupClipRect = IntersectRect(CurrentClipRect, popupRect);
+        var (popupRect, popupClipRect, screenComboRect) = ArrangeLegacyComboPopup(comboRect, popupHeight);
 
+        if (_leftMousePressed && !IsScreenHovering(popupClipRect) && !IsScreenHovering(screenComboRect))
+        {
+            _state.OpenComboId = null;
+            PaintLegacyComboDisclosure(resolvedId, comboRect);
+            return false;
+        }
+
+        PaintLegacyComboDisclosure(resolvedId, comboRect);
         PushPopup();
         _state.AddPopupBlockingRect(popupClipRect, _popupTierDepth);
         PushClipRect(popupClipRect, false);
         AddRectFilled(popupRect, _theme.ComboPopupBg, _whiteTexture);
-
-        if (_leftMousePressed && !IsHovering(popupClipRect) && !IsHovering(comboRect))
-        {
-            _state.OpenComboId = null;
-            PopClipRect();
-            PopPopup();
-            return false;
-        }
 
         var start = new UiVector2(popupRect.X + 6f, popupRect.Y + 4f);
         _layouts.Push(new UiLayoutState(start, false, 0f, start.X));
@@ -128,9 +140,7 @@ public sealed partial class UiImmediateContext
             var maxVisible = Math.Clamp(popupMaxHeightInItems, 1, 12);
             var displayCount = Math.Min(maxVisible, items.Count);
             var popupHeight = displayCount * frameHeight;
-            var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
-            popupRect = ClampPopupToWindow(popupRect);
-            var popupClipRect = IntersectRect(CurrentClipRect, popupRect);
+            var (popupRect, popupClipRect, screenComboRect) = ArrangeLegacyComboPopup(comboRect, popupHeight);
             var contentHeight = items.Count * frameHeight;
             var viewportHeight = popupClipRect.Height;
             var maxScroll = MathF.Max(0f, contentHeight - viewportHeight);
@@ -147,7 +157,7 @@ public sealed partial class UiImmediateContext
                 AddRectFilled(popupRect, _theme.ComboPopupBg, _whiteTexture);
             }
 
-            var clickedOutside = _leftMousePressed && !IsHovering(popupClipRect) && !IsHovering(comboRect);
+            var clickedOutside = _leftMousePressed && !IsHovering(popupClipRect) && !IsHovering(screenComboRect);
             if (clickedOutside)
             {
                 _state.OpenComboId = null;
@@ -214,6 +224,7 @@ public sealed partial class UiImmediateContext
             PopPopup();
         }
 
+        PaintLegacyComboDisclosure(resolvedId, comboRect);
         return changed;
     }
 
@@ -267,9 +278,7 @@ public sealed partial class UiImmediateContext
             var maxVisible = Math.Clamp(popupMaxHeightInItems, 1, 12);
             var displayCount = Math.Min(maxVisible, itemsCount);
             var popupHeight = displayCount * frameHeight;
-            var popupRect = new UiRect(comboRect.X, comboRect.Y + comboRect.Height + ItemSpacingY, comboRect.Width, popupHeight);
-            popupRect = ClampPopupToWindow(popupRect);
-            var popupClipRect = IntersectRect(CurrentClipRect, popupRect);
+            var (popupRect, popupClipRect, screenComboRect) = ArrangeLegacyComboPopup(comboRect, popupHeight);
             var contentHeight = itemsCount * frameHeight;
             var viewportHeight = popupClipRect.Height;
             var maxScroll = MathF.Max(0f, contentHeight - viewportHeight);
@@ -286,7 +295,7 @@ public sealed partial class UiImmediateContext
                 AddRectFilled(popupRect, _theme.ComboPopupBg, _whiteTexture);
             }
 
-            var clickedOutside = _leftMousePressed && !IsHovering(popupClipRect) && !IsHovering(comboRect);
+            var clickedOutside = _leftMousePressed && !IsHovering(popupClipRect) && !IsHovering(screenComboRect);
             if (clickedOutside)
             {
                 _state.OpenComboId = null;
@@ -353,6 +362,7 @@ public sealed partial class UiImmediateContext
             PopPopup();
         }
 
+        PaintLegacyComboDisclosure(resolvedId, comboRect);
         return changed;
     }
 }

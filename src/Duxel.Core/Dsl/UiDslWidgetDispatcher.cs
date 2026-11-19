@@ -31,7 +31,7 @@ internal static class UiDslWidgetDispatcher
     {
         return name switch
         {
-            "Window" or "BeginWindow" or "Row" or "BeginRow" or "BeginGroup" or "BeginChild" or
+            "Panel" or "BeginPanel" or "Window" or "BeginWindow" or "Row" or "BeginRow" or "BeginGroup" or "BeginChild" or
             "BeginCombo" or "BeginListBox" or "BeginMenu" or "BeginMenuBar" or "BeginMainMenuBar" or
             "BeginPopup" or "BeginPopupModal" or "BeginPopupContextItem" or "BeginPopupContextWindow" or "BeginPopupContextVoid" or
             "BeginTabBar" or "BeginTabItem" or "BeginTable" or "BeginTooltip" or "BeginItemTooltip" or
@@ -56,11 +56,13 @@ internal static class UiDslWidgetDispatcher
 
         switch (name)
         {
+            case "Panel":
+            case "BeginPanel":
             case "Window":
             case "BeginWindow":
             {
-                var title = reader.ReadString("Title", "Window");
-                ui.BeginWindow(title);
+                var title = reader.ReadString("Title", "Panel");
+                ui.BeginPanel(title);
                 return UiDslBeginResult.None;
             }
             case "Row":
@@ -2011,9 +2013,11 @@ internal static class UiDslWidgetDispatcher
     {
         switch (name)
         {
+            case "Panel":
+            case "BeginPanel":
             case "Window":
             case "BeginWindow":
-                ui.EndWindow();
+                ui.EndPanel();
                 return;
             case "Row":
             case "BeginRow":

@@ -33,16 +33,30 @@ public sealed class ItemStatusScreen : UiScreen
     {
         _frameCounter++;
 
-        RenderStatusDemoWindow(ui);
-        RenderRectQueryWindow(ui);
-        RenderFocusWindow(ui);
+        if(ui.BeginTabBar("sample-pages"))
+        {
+            if(ui.BeginTabItem("StatusDemo",UiTabItemFlags.None))
+            {
+                RenderStatusDemoWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("RectQuery",UiTabItemFlags.None))
+            {
+                RenderRectQueryWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("Focus",UiTabItemFlags.None))
+            {
+                RenderFocusWindow(ui);
+                ui.EndTabItem();
+            }
+            ui.EndTabBar();
+        }
     }
 
     private void RenderStatusDemoWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(500f, 500f));
-        ui.BeginWindow("Item Status Queries");
+        ui.PushID("Item Status Queries"); ui.BeginGroup();
 
         ui.SeparatorText("Button Status");
         ui.Button("Test Button");
@@ -90,14 +104,12 @@ public sealed class ItemStatusScreen : UiScreen
         ui.SeparatorText("Event Log");
         ui.TextColored(new UiColor(0xFF44FFAA), _lastStatus);
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderRectQueryWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(400f, 280f));
-        ui.BeginWindow("Item Rect Queries");
+        ui.PushID("Item Rect Queries"); ui.BeginGroup();
 
         ui.SeparatorText("GetItemRect*");
         ui.Button("Measure This Button", new UiVector2(200f, 30f));
@@ -125,14 +137,12 @@ public sealed class ItemStatusScreen : UiScreen
         var rectVisible = ui.IsRectVisible(p1, p2);
         ui.Text($"IsRectVisible(screen): {rectVisible}");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderFocusWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(380f, 200f));
-        ui.BeginWindow("Focus & Overlap");
+        ui.PushID("Focus & Overlap"); ui.BeginGroup();
 
         ui.SeparatorText("SetItemDefaultFocus");
         ui.Text("The second button gets default focus:");
@@ -146,6 +156,6 @@ public sealed class ItemStatusScreen : UiScreen
         ui.Button("Overlappable Button", new UiVector2(200f, 30f));
         ui.Text("(This button allows overlap with neighboring items)");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 }

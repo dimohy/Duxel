@@ -1,0 +1,94 @@
+#version 450
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_buffer_reference_uvec2 : require
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer Words { uint data[]; };
+layout(buffer_reference, std430, buffer_reference_align = 16) buffer Colors { vec4 data[]; };
+layout(push_constant, std430) uniform Parameters {
+    uvec2 source;
+    uvec2 destination;
+    uint width;
+    uint height;
+    uint mode;
+    uint linearRgb;
+    vec2 deviation;
+    uint radius;
+    int left;
+    int top;
+    int right;
+    int bottom;
+} pc;
+shared float weights[2049];
+shared float total;
+float linearChannel(float value) { return value <= .04045 ? value / 12.92 : pow((value + .055) / 1.055, 2.4); }
+float srgbChannel(float value) { return value <= .0031308 ? value * 12.92 : 1.055 * pow(value, 1.0 / 2.4) - .055; }
+vec4 pixel(ivec2 point) {
+    if (any(lessThan(point, ivec2(0))) || any(greaterThanEqual(point, ivec2(pc.width, pc.height)))) return vec4(0.0);
+    return Colors(pc.source).data[uint(point.y) * pc.width + uint(point.x)];
+}
+void main() {
+    uvec2 point = gl_GlobalInvocationID.xy;
+    uint index = point.y * pc.width + point.x;
+    if (pc.mode == 1u) {
+        float sigma = length(pc.deviation);
+        uint count = pc.radius + 1u;
+        for (uint i = gl_LocalInvocationIndex; i < count; i += 64u) {
+            float offset = float(i);
+            weights[i] = sigma == 0.0 ? 1.0 : exp(-.5 * offset * offset / (sigma * sigma));
+        }
+        barrier();
+        if (gl_LocalInvocationIndex == 0u) {
+            total = 0.0;
+            for (uint i = 0u; i < count; ++i) total += weights[i] * (i == 0u ? 1.0 : 2.0);
+            for (uint i = 0u; i < count; ++i) weights[i] /= total;
+        }
+        barrier();
+        if (point.x >= pc.width || point.y >= pc.height) return;
+        vec2 direction = sigma == 0.0 ? vec2(0.0) : pc.deviation / sigma;
+        vec4 result = vec4(0.0);
+        if (direction.x == 0.0 || direction.y == 0.0) {
+            bool horizontal = direction.x != 0.0;
+            int coordinate = int(horizontal ? point.x : point.y);
+            int crossAxis = int(horizontal ? point.y : point.x);
+            int first = horizontal ? pc.left : pc.top;
+            int last = (horizontal ? pc.right : pc.bottom) - 1;
+            if (crossAxis < (horizontal ? pc.top : pc.left) || crossAxis >= (horizontal ? pc.bottom : pc.right)) {
+                Colors(pc.destination).data[index] = result;
+                return;
+            }
+            bool increasing = (horizontal ? direction.x : direction.y) >= 0.0;
+            int stride = int(horizontal ? 1u : pc.width) * (increasing ? 1 : -1);
+            int firstTap = max(-int(pc.radius), increasing ? first - coordinate : coordinate - last);
+            int lastTap = min(int(pc.radius), increasing ? last - coordinate : coordinate - first);
+            for (int k = firstTap; k <= lastTap; ++k)
+                result += Colors(pc.source).data[uint(int(index) + stride * k)] * weights[abs(k)];
+        } else {
+            for (int k = -int(pc.radius); k <= int(pc.radius); ++k) {
+                vec2 location = vec2(point) + direction * float(k);
+                ivec2 first = ivec2(floor(location));
+                vec2 fraction = fract(location);
+                vec4 value = mix(mix(pixel(first), pixel(first + ivec2(1, 0)), fraction.x),
+                    mix(pixel(first + ivec2(0, 1)), pixel(first + ivec2(1, 1)), fraction.x), fraction.y);
+                result += value * weights[abs(k)];
+            }
+        }
+        Colors(pc.destination).data[index] = result;
+        return;
+    }
+    if (point.x >= pc.width || point.y >= pc.height) return;
+    if (pc.mode == 0u) {
+        vec4 value = unpackUnorm4x8(Words(pc.source).data[index]);
+        if (pc.linearRgb != 0u && value.a != 0.0) {
+            vec3 straight = value.rgb / value.a;
+            value.rgb = vec3(linearChannel(straight.r), linearChannel(straight.g), linearChannel(straight.b)) * value.a;
+        }
+        Colors(pc.destination).data[index] = value;
+    } else {
+        vec4 value = Colors(pc.source).data[index];
+        if (pc.linearRgb != 0u && value.a != 0.0) {
+            vec3 straight = value.rgb / value.a;
+            value.rgb = vec3(srgbChannel(straight.r), srgbChannel(straight.g), srgbChannel(straight.b)) * value.a;
+        }
+        Words(pc.destination).data[index] = packUnorm4x8(value);
+    }
+}

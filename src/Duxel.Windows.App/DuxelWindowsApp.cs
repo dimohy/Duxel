@@ -107,7 +107,10 @@ public static class DuxelWindowsApp
                         : ownerWindowHandle,
                 };
 
-                var merged = options with { Window = resolvedWindow };
+                var merged = options with
+                {
+                    Window = resolvedWindow
+                };
                 var resolvedOptions = merged with
                 {
                     KeyRepeatSettingsProvider = merged.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
@@ -117,36 +120,7 @@ public static class DuxelWindowsApp
                         : merged.ClipboardFactory,
                 };
 
-                platform = new WindowsPlatformBackend(new WindowsPlatformBackendOptions(
-                    resolvedOptions.Window.Width,
-                    resolvedOptions.Window.Height,
-                    resolvedOptions.Window.MinWidth,
-                    resolvedOptions.Window.MinHeight,
-                    resolvedOptions.Window.Title,
-                    resolvedOptions.Window.VSync,
-                    resolvedOptions.Window.Resizable,
-                    resolvedOptions.Window.ShowMinimizeButton,
-                    resolvedOptions.Window.ShowMaximizeButton,
-                    resolvedOptions.Window.CenterOnScreen,
-                    resolvedOptions.Window.CenterOnOwner,
-                    resolvedOptions.Window.OwnerWindowHandle,
-                    resolvedOptions.Window.IconPath,
-                    resolvedOptions.Window.IconData,
-                    resolvedOptions.Window.WindowCreated,
-                    resolvedOptions.Window.IntegrateSystemChrome,
-                    resolvedOptions.Window.UseDuxelTitleBar,
-                    resolvedOptions.Window.DuxelTitleBarHeight,
-                    UsesPlatformDefaultTheme(resolvedOptions),
-                    ResolveChromeCaptionColor(resolvedOptions),
-                    ResolveChromeTextColor(resolvedOptions),
-                    ResolveChromeBorderColor(resolvedOptions),
-                    resolvedOptions.Window.Tray,
-                    resolvedOptions.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
-                    session.RequestFrame
-                )
-                {
-                    TitleBarMode = resolvedOptions.Window.TitleBarMode,
-                });
+                platform = CreatePlatformBackend(resolvedOptions, session);
 
                 session.RunCore(resolvedOptions, platform);
             }
@@ -156,7 +130,7 @@ public static class DuxelWindowsApp
             }
             finally
             {
-                // Re-enable owner for Exit() path (WM_CLOSE path already handles this).
+                // Restore the modal owner even when the session exits without WM_CLOSE.
                 if (ownerWindowHandle != nint.Zero)
                 {
                     _ = EnableWindow(ownerWindowHandle, true);
@@ -208,7 +182,10 @@ public static class DuxelWindowsApp
                         : ownerWindowHandle,
                 };
 
-                var merged = options with { Window = resolvedWindow };
+                var merged = options with
+                {
+                    Window = resolvedWindow
+                };
                 var resolvedOptions = merged with
                 {
                     KeyRepeatSettingsProvider = merged.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
@@ -218,36 +195,7 @@ public static class DuxelWindowsApp
                         : merged.ClipboardFactory,
                 };
 
-                platform = new WindowsPlatformBackend(new WindowsPlatformBackendOptions(
-                    resolvedOptions.Window.Width,
-                    resolvedOptions.Window.Height,
-                    resolvedOptions.Window.MinWidth,
-                    resolvedOptions.Window.MinHeight,
-                    resolvedOptions.Window.Title,
-                    resolvedOptions.Window.VSync,
-                    resolvedOptions.Window.Resizable,
-                    resolvedOptions.Window.ShowMinimizeButton,
-                    resolvedOptions.Window.ShowMaximizeButton,
-                    resolvedOptions.Window.CenterOnScreen,
-                    resolvedOptions.Window.CenterOnOwner,
-                    resolvedOptions.Window.OwnerWindowHandle,
-                    resolvedOptions.Window.IconPath,
-                    resolvedOptions.Window.IconData,
-                    resolvedOptions.Window.WindowCreated,
-                    resolvedOptions.Window.IntegrateSystemChrome,
-                    resolvedOptions.Window.UseDuxelTitleBar,
-                    resolvedOptions.Window.DuxelTitleBarHeight,
-                    UsesPlatformDefaultTheme(resolvedOptions),
-                    ResolveChromeCaptionColor(resolvedOptions),
-                    ResolveChromeTextColor(resolvedOptions),
-                    ResolveChromeBorderColor(resolvedOptions),
-                    resolvedOptions.Window.Tray,
-                    resolvedOptions.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
-                    session.RequestFrame
-                )
-                {
-                    TitleBarMode = resolvedOptions.Window.TitleBarMode,
-                });
+                platform = CreatePlatformBackend(resolvedOptions, session);
 
                 session.RunCore(resolvedOptions, platform);
             }
@@ -313,7 +261,10 @@ public static class DuxelWindowsApp
                 };
 
                 started.Set();
-                RunWithSession(options with { Window = resolvedWindow }, session);
+                RunWithSession(options with
+                {
+                    Window = resolvedWindow
+                }, session);
             }
             catch (Exception ex)
             {
@@ -358,41 +309,45 @@ public static class DuxelWindowsApp
                 : options.ClipboardFactory,
         };
 
-        var initialWidth = resolvedOptions.Window.Width;
-        var initialHeight = resolvedOptions.Window.Height;
+        using var platform = CreatePlatformBackend(resolvedOptions, session);
+        session.RunCore(resolvedOptions, platform);
+    }
 
-        using var platform = new WindowsPlatformBackend(new WindowsPlatformBackendOptions(
-            initialWidth,
-            initialHeight,
-            resolvedOptions.Window.MinWidth,
-            resolvedOptions.Window.MinHeight,
-            resolvedOptions.Window.Title,
-            resolvedOptions.Window.VSync,
-            resolvedOptions.Window.Resizable,
-            resolvedOptions.Window.ShowMinimizeButton,
-            resolvedOptions.Window.ShowMaximizeButton,
-            resolvedOptions.Window.CenterOnScreen,
-            resolvedOptions.Window.CenterOnOwner,
-            resolvedOptions.Window.OwnerWindowHandle,
-            resolvedOptions.Window.IconPath,
-            resolvedOptions.Window.IconData,
-            resolvedOptions.Window.WindowCreated,
-            resolvedOptions.Window.IntegrateSystemChrome,
-            resolvedOptions.Window.UseDuxelTitleBar,
-            resolvedOptions.Window.DuxelTitleBarHeight,
-            UsesPlatformDefaultTheme(resolvedOptions),
-            ResolveChromeCaptionColor(resolvedOptions),
-            ResolveChromeTextColor(resolvedOptions),
-            ResolveChromeBorderColor(resolvedOptions),
-            resolvedOptions.Window.Tray,
-            resolvedOptions.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
+    private static WindowsPlatformBackend CreatePlatformBackend(DuxelAppOptions options, DuxelAppSession session)
+    {
+        var window = options.Window;
+        return new WindowsPlatformBackend(new WindowsPlatformBackendOptions(
+            window.Width,
+            window.Height,
+            window.MinWidth,
+            window.MinHeight,
+            window.Title,
+            window.VSync,
+            window.Resizable,
+            window.ShowMinimizeButton,
+            window.ShowMaximizeButton,
+            window.CenterOnScreen,
+            window.CenterOnOwner,
+            window.OwnerWindowHandle,
+            window.IconPath,
+            window.IconData,
+            window.WindowCreated,
+            window.IntegrateSystemChrome,
+            window.UseDuxelTitleBar,
+            window.DuxelTitleBarHeight,
+            UsesPlatformDefaultTheme(options),
+            ResolveChromeCaptionColor(options),
+            ResolveChromeTextColor(options),
+            ResolveChromeBorderColor(options),
+            window.Tray,
+            options.KeyRepeatSettingsProvider ?? new WindowsKeyRepeatSettingsProvider(),
             session.RequestFrame
         )
         {
-            TitleBarMode = resolvedOptions.Window.TitleBarMode,
+            TitleBarMode = window.TitleBarMode,
+            FollowSystemForcedColors = options.RespectSystemForcedColors,
+            EnableOrderedInput = true,
         });
-
-        session.RunCore(resolvedOptions, platform);
     }
 
     private static UiTheme ResolveChromeTheme(DuxelAppOptions options)
@@ -402,9 +357,12 @@ public static class DuxelWindowsApp
             return design.Theme;
         }
 
-        return IsDefaultTheme(options.Theme)
-            ? WindowsSystemTheme.GetAppDesign().Theme
+        var theme = IsDefaultTheme(options.Theme)
+            ? (WindowsSystemTheme.GetAppColorScheme() is UiSystemColorScheme.Dark
+                ? UiCompiledDesign.Windows11Dark.Theme : UiCompiledDesign.Windows11.Theme)
             : options.Theme;
+        return options.RespectSystemForcedColors && WindowsSystemTheme.GetForcedColors() is { } palette
+            ? palette.Apply(theme) : theme;
     }
 
     private static UiColor ResolveChromeCaptionColor(DuxelAppOptions options)
@@ -428,7 +386,7 @@ public static class DuxelWindowsApp
     private static bool IsDefaultTheme(UiTheme theme)
     {
         var defaultTheme = UiCompiledDesign.Default.Theme;
-        return theme.WindowBg == defaultTheme.WindowBg
+        return theme.ForcedColors == defaultTheme.ForcedColors && theme.WindowBg == defaultTheme.WindowBg
             && theme.TitleBgActive == defaultTheme.TitleBgActive
             && theme.Text == defaultTheme.Text
             && theme.Button == defaultTheme.Button

@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Product>Duxel Gallery</Product>
+    <Description>Duxel controls and graphics gallery.</Description>
+    <OutputType>WinExe</OutputType>
+    <ApplicationIcon>Assets/Brand/duxel.ico</ApplicationIcon>
+    <TargetFramework>net11.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <OptimizationPreference>Speed</OptimizationPreference>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Duxel.Windows.App/Duxel.Windows.App.csproj" />
+    <ProjectReference Include="../../src/Duxel.Core/Duxel.Core.csproj" />
+    <ProjectReference Include="../../src/Duxel.Svg/Duxel.Svg.csproj" />
+    <ProjectReference Include="../../src/Duxel.Platform.Windows/Duxel.Platform.Windows.csproj" />
+    <None Update="Assets/Svg/*.svg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/*.svg;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/*.browser.png;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/*.json;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ATTRIBUTION.md"
+          Link="Assets/Svg/Browser/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Compile Include="../Duxel.Sample/SampleScreen.cs" Link="Legacy/SampleScreen.cs" />
+    <Compile Include="../Duxel.Sample/ImGuiExamples.cs" Link="Legacy/ImGuiExamples.cs" />
+    <Compile Include="../Duxel.Sample/ImmediateSampleSection.cs" Link="Legacy/ImmediateSampleSection.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ClipStorage/*.svg;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ClipStorage/*.browser.png;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ClipStorage/references.json"
+          Link="Assets/Svg/Browser/ClipStorage/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/LayerOrigin/*.svg;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/LayerOrigin/*.browser.png;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/LayerOrigin/references.json"
+          Link="Assets/Svg/Browser/LayerOrigin/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/StrokeDomains/*.svg;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/StrokeDomains/*.browser.png;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/StrokeDomains/references.json"
+          Link="Assets/Svg/Browser/StrokeDomains/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/*.svg;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/*.browser.png;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/references.json"
+          Link="Assets/Svg/Browser/ArcGeometry/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="./*.cs" LogicalName="GallerySource.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Assets/Brand/*.svg" Link="Assets/Brand/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Assets/Brand/duxel.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Assets/Fonts/**/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

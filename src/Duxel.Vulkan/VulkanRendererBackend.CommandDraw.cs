@@ -1,4 +1,4 @@
-﻿using Duxel.Core;
+using Duxel.Core;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System;
@@ -12,7 +12,7 @@ public sealed unsafe partial class VulkanRendererBackend
         in CommandClassification classification,
         in TextureResource texture,
         bool hasStaticBinding,
-        in StaticGeometryBuffer staticBinding,
+        StaticGeometryBuffer staticBinding,
         in CommandFrameContext frameContext,
         in CommandDrawListContext drawListContext,
         ref CommandPipelineState pipelineState,
@@ -21,12 +21,14 @@ public sealed unsafe partial class VulkanRendererBackend
         ref CommandPushConstantState pushConstantState,
         ref CommandDrawDispatchState drawDispatchState)
     {
+        var textureIndexAndMode = CommandTextureIndex(command, texture, classification.IsFontCommand);
+        ApplyPaintPipeline(frameContext.CommandBuffer, command.CircleCutoutIndexPlusOne != 0, command.IsBackdropComposite, ref pipelineState);
         // Draw mode 0 = indexed triangle pulling; mode 1 = primitive instance expansion.
         var usesTriangleGeometry = classification.IsTriangleCommand
             || classification.StaticPrimitiveUsesTriangleGeometry;
         PushDrawModeIfNeeded(
             frameContext.CommandBuffer,
-            usesTriangleGeometry ? 0u : 1u,
+            usesTriangleGeometry ? 0u : command.PrimitiveDrawMode,
             command.Kind,
             classification.IsFontCommand,
             frameContext.ProfileEnabled,
@@ -41,16 +43,37 @@ public sealed unsafe partial class VulkanRendererBackend
 
         // Every draw samples from the bindless array; the subpixel coverage mode
         // for ClearType text is packed into the high bit of the texture index.
-        var textureIndexAndMode = texture.SlotIndex
-            | (classification.IsFontCommand ? SubpixelCoverageModeBit : 0u);
+
         PushTextureIndexIfNeeded(
             frameContext.CommandBuffer,
             textureIndexAndMode,
             frameContext.ProfileEnabled,
             ref descriptorState);
 
+        var cutoutOffset = CircleCutoutOffset(command, hasStaticBinding ? 0u : drawListContext.GlobalPrimitiveOffset,
+            !usesTriangleGeometry && command.UsesPairedPrimitiveRecords);
+        PushCircleCutoutIfNeeded(frameContext.CommandBuffer, cutoutOffset, ref bufferBindingState);
+        if (usesTriangleGeometry && cutoutOffset != 0)
+        {
+            var maskAddress = hasStaticBinding ? staticBinding.PrimitiveAddress : frameContext.DynamicPrimitiveAddress;
+            if (maskAddress == 0)
+                throw new InvalidOperationException("A masked triangle command requires primitive storage.");
+            PushPrimitiveAddressIfNeeded(frameContext.CommandBuffer, maskAddress, frameContext.ProfileEnabled, ref bufferBindingState);
+        }
+
         if (usesTriangleGeometry)
         {
+            if (command.UserData is UiGpuParticleFrame particleFrame)
+            {
+                var particles = _particleResources[particleFrame.System];
+                BindTriangleGeometryIfNeeded(frameContext.CommandBuffer, particles.Vertices.Address,
+                    particles.Indices.Buffer, frameContext.ProfileEnabled, ref bufferBindingState);
+                var particleDrawStart = BeginFrameProfileTiming(frameContext.ProfileEnabled);
+                var count = checked((uint)(particles.Count * (particles.MaximumSides - 2) * 3));
+                _vk.CmdDrawIndexed(frameContext.CommandBuffer, count, 1, 0, 0, 0);
+                RecordDrawCallProfile(frameContext.ProfileEnabled, particleDrawStart, ref drawDispatchState);
+                return;
+            }
             var vertexAddress = hasStaticBinding ? staticBinding.VertexAddress : frameContext.DynamicVertexAddress;
             var indexBuffer = hasStaticBinding ? staticBinding.IndexBuffer : frameContext.DynamicIndexBuffer;
             BindTriangleGeometryIfNeeded(
@@ -76,7 +99,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 DrawExpandedStaticPrimitiveCommand(
                     frameContext.CommandBuffer,
                     in command,
-                    in staticBinding,
+                    staticBinding,
                     frameContext.ProfileEnabled,
                     ref drawDispatchState);
             }
@@ -89,6 +112,11 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             throw new InvalidOperationException($"Primitive draw command has no instance buffer address: {command.Kind}.");
         }
+        if (command.UsesPairedPrimitiveRecords)
+        {
+            var offset = command.IndexOffset + (hasStaticBinding ? 0u : drawListContext.GlobalPrimitiveOffset);
+            primitiveAddress = checked(primitiveAddress + (ulong)offset * (ulong)sizeof(PrimitiveInstance));
+        }
 
         PushPrimitiveAddressIfNeeded(
             frameContext.CommandBuffer,
@@ -100,7 +128,7 @@ public sealed unsafe partial class VulkanRendererBackend
             frameContext.CommandBuffer,
             in command,
             hasStaticBinding,
-            in staticBinding,
+            staticBinding,
             drawListContext.GlobalPrimitiveOffset,
             drawListContext.DrawListRectPrimitiveCount,
             frameContext.ProfileEnabled,
@@ -128,7 +156,7 @@ public sealed unsafe partial class VulkanRendererBackend
         var vertexOffsetCommand = hasStaticBinding
             ? (int)command.VertexOffset
             : (int)(command.VertexOffset + globalVertexOffset);
-        var drawCallStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
+        var drawCallStart = BeginFrameProfileTiming(profileEnabled);
         _vk.CmdDrawIndexed(commandBuffer, command.ElementCount, 1, firstIndex, vertexOffsetCommand, 0);
         RecordDrawCallProfile(profileEnabled, drawCallStart, ref state);
     }
@@ -136,7 +164,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private void DrawExpandedStaticPrimitiveCommand(
         CommandBuffer commandBuffer,
         in UiDrawCommand command,
-        in StaticGeometryBuffer staticBinding,
+        StaticGeometryBuffer staticBinding,
         bool profileEnabled,
         ref CommandDrawDispatchState state)
     {
@@ -162,7 +190,7 @@ public sealed unsafe partial class VulkanRendererBackend
             indexCount = checked((uint)(circleOffsets[end] - circleOffsets[start]));
         }
 
-        var drawCallStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
+        var drawCallStart = BeginFrameProfileTiming(profileEnabled);
         _vk.CmdDrawIndexed(commandBuffer, indexCount, 1, firstIndex, 0, 0);
         RecordDrawCallProfile(profileEnabled, drawCallStart, ref state);
     }
@@ -171,7 +199,7 @@ public sealed unsafe partial class VulkanRendererBackend
         CommandBuffer commandBuffer,
         in UiDrawCommand command,
         bool hasStaticBinding,
-        in StaticGeometryBuffer staticBinding,
+        StaticGeometryBuffer staticBinding,
         uint globalPrimitiveOffset,
         int drawListRectPrimitiveCount,
         bool profileEnabled,
@@ -184,11 +212,11 @@ public sealed unsafe partial class VulkanRendererBackend
             : (hasStaticBinding
                 ? command.IndexOffset + (uint)staticBinding.RectPrimitiveCount
                 : command.IndexOffset + globalPrimitiveOffset + (uint)drawListRectPrimitiveCount);
-        var vertexCount = command.Kind is UiDrawCommandKind.RectFilledPrimitives && command.VertexOffset == 1u
-            ? 48u
-            : 6u;
-        var drawCallStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
-        _vk.CmdDraw(commandBuffer, vertexCount, command.ElementCount, 0, firstInstance);
+        if (command.UsesPairedPrimitiveRecords)
+            firstInstance = 0;
+        var vertexCount = command.PrimitiveVertexCount;
+        var drawCallStart = BeginFrameProfileTiming(profileEnabled);
+        _vk.CmdDraw(commandBuffer, vertexCount, command.PrimitiveInstanceCount, 0, firstInstance);
         RecordDrawCallProfile(profileEnabled, drawCallStart, ref state);
     }
 
@@ -202,7 +230,7 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
-        state.DrawCallTicks += Stopwatch.GetTimestamp() - drawCallStart;
+        state.DrawCallTicks += EndFrameProfileTiming(true, drawCallStart);
         state.DrawCallCount++;
     }
 
@@ -230,7 +258,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private CommandClassification ClassifyCommand(
         in UiDrawCommand command,
         bool hasStaticBinding,
-        in StaticGeometryBuffer staticBinding)
+        StaticGeometryBuffer staticBinding)
     {
         var isTriangleCommand = command.Kind is UiDrawCommandKind.Triangles;
         var isPrimitiveCommand = !isTriangleCommand;
@@ -266,7 +294,7 @@ public sealed unsafe partial class VulkanRendererBackend
         ref CommandTextureState state,
         out TextureResource texture)
     {
-        var textureLookupStart = profileEnabled ? Stopwatch.GetTimestamp() : 0;
+        var textureLookupStart = BeginFrameProfileTiming(profileEnabled);
         texture = default;
 
         if (!state.HasLastTexture || !command.TextureId.Equals(state.LastTextureId))
@@ -283,6 +311,8 @@ public sealed unsafe partial class VulkanRendererBackend
                     commandIndex,
                     ref fontDiagnosticState);
 
+                if (command.IsBackdropComposite)
+                    throw new InvalidOperationException("Backdrop composition black reference texture is missing.");
                 state.LastTextureValid = false;
                 RecordCommandTextureLookupProfile(profileEnabled, textureLookupStart, ref state);
                 return false;
@@ -293,6 +323,8 @@ public sealed unsafe partial class VulkanRendererBackend
         }
         else if (!state.LastTextureValid)
         {
+            if (command.IsBackdropComposite)
+                throw new InvalidOperationException("Backdrop composition black reference texture is missing.");
             RecordCommandTextureLookupProfile(profileEnabled, textureLookupStart, ref state);
             return false;
         }
@@ -315,7 +347,7 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
-        state.LookupTicks += Stopwatch.GetTimestamp() - textureLookupStart;
+        state.LookupTicks += EndFrameProfileTiming(true, textureLookupStart);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

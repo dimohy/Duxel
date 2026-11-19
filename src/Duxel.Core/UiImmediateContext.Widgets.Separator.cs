@@ -10,12 +10,12 @@ public sealed partial class UiImmediateContext
         var frameHeight = MathF.Max(_lineHeight, textSize.Y);
         var cursor = AdvanceCursor(new UiVector2(0f, frameHeight));
 
-        var startX = _childStack.Count > 0
+        var startX = HasCurrentChild
             ? _childStack.Peek().Rect.X + 2f
             : _columnsActive && _columnsCount > 0
             ? GetColumnsColumnX(_columnsIndex)
             : _hasWindowRect ? _windowRect.X + WindowPadding : cursor.X;
-        var endX = _childStack.Count > 0
+        var endX = HasCurrentChild
             ? _childStack.Peek().Rect.X + _childStack.Peek().Rect.Width - 2f
             : _columnsActive && _columnsCount > 0
             ? GetColumnsColumnX(_columnsIndex) + GetColumnsColumnWidth(_columnsIndex)

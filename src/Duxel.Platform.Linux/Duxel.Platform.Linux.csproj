@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>false</IsPackable>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Duxel.Linux.App.Tests" />
+    <InternalsVisibleTo Include="Duxel.Vulkan.Linux.Tests" />
+    <ProjectReference Include="../Duxel.Core/Duxel.Core.csproj" />
+    <PackageReference Include="LibTessDotNet" Version="1.1.15" />
+  </ItemGroup>
+</Project>

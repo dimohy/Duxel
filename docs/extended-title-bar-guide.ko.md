@@ -1,6 +1,6 @@
 # Duxel 확장 타이틀바 가이드
 
-> 마지막 동기화: 2026-07-20
+> 마지막 동기화: 2026-11-06
 >
 > 대상: Duxel 애플리케이션 개발자, 프레임워크 기여자, 코딩 AI 에이전트
 >
@@ -9,6 +9,8 @@
 > English: [extended-title-bar-guide.md](extended-title-bar-guide.md)
 
 ## 목적
+
+Windows 앱의 기본값은 이제 `DuxelTitleBarMode.System`입니다. Windows가 제목 글꼴, DPI에 따른 타이틀 높이와 네이티브 캡션 버튼을 그립니다. `UseDuxelTitleBar`의 기본값은 false입니다. 사용자 타이틀이 필요한 앱은 `TitleBarMode = DuxelTitleBarMode.Duxel` 또는 `ExtendedContent`를 명시합니다. System 앱 경로도 루트 뷰포트 콘텐츠 배치를 초기화하므로 내부 Window 없이 Build/컨테이너가 실제 가용 크기를 얻습니다. 이 기본값 변경이 반복 리사이즈 안정성의 완료를 뜻하지는 않습니다. 진행 중인 회귀 근거는 `artifacts/resize-stress-2026-11-06/`에 있습니다.
 
 `DuxelTitleBarMode.ExtendedContent`는 애플리케이션이 창의 최상단부터 탭, 검색창, 메뉴 등의 UI를 렌더링하게 한다. Duxel은 Vulkan surface 위에 최소화·최대화/복원·닫기 아이콘이 보이도록 그리고 Windows는 네이티브 캡션 동작을 계속 담당한다.
 

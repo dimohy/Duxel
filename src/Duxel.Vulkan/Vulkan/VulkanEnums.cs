@@ -12,6 +12,13 @@ public enum Result : int
 
 public enum StructureType : int
 {
+    PhysicalDeviceSurfaceInfo2Khr = 1000119000,
+    SurfaceCapabilities2Khr = 1000119001,
+    SurfacePresentModeEXT = 1000274000,
+    SurfacePresentScalingCapabilitiesEXT = 1000274001,
+    SwapchainPresentScalingCreateInfoEXT = 1000275004,
+    PhysicalDeviceSwapchainMaintenance1FeaturesEXT = 1000275000,
+    SwapchainPresentFenceInfoEXT = 1000275001,
     ApplicationInfo = 0,
     InstanceCreateInfo = 1,
     DeviceQueueCreateInfo = 2,
@@ -43,6 +50,8 @@ public enum StructureType : int
     PipelineColorBlendStateCreateInfo = 26,
     PipelineDynamicStateCreateInfo = 27,
     GraphicsPipelineCreateInfo = 28,
+    ComputePipelineCreateInfo = 29,
+    MemoryBarrier = 46,
     PipelineLayoutCreateInfo = 30,
     SamplerCreateInfo = 31,
     DescriptorSetLayoutCreateInfo = 32,
@@ -55,7 +64,7 @@ public enum StructureType : int
     SwapchainCreateInfoKhr = 1000001000,
     PresentInfoKhr = 1000001001,
     DebugUtilsMessengerCreateInfoExt = 1000128004,
-    ImageMemoryBarrier = 44,
+    ImageMemoryBarrier = 45,
     RenderingInfo = 1000044000,
     RenderingAttachmentInfo = 1000044001,
     PipelineRenderingCreateInfo = 1000044002,
@@ -89,8 +98,11 @@ public enum AccessFlags : uint
     ShaderWriteBit = 0x00000040,
     ColorAttachmentReadBit = 0x00000080,
     ColorAttachmentWriteBit = 0x00000100,
+    DepthStencilAttachmentReadBit = 0x00000200,
+    DepthStencilAttachmentWriteBit = 0x00000400,
     TransferReadBit = 0x00000800,
     TransferWriteBit = 0x00001000,
+    HostReadBit = 0x00002000,
     MemoryReadBit = 0x00008000,
 }
 
@@ -183,6 +195,7 @@ public enum FenceCreateFlags : uint
 public enum ImageAspectFlags : uint
 {
     ColorBit = 0x00000001,
+    DepthBit = 0x00000002,
 }
 
 [Flags]
@@ -193,6 +206,7 @@ public enum ImageUsageFlags : uint
     SampledBit = 0x00000004,
     StorageBit = 0x00000008,
     ColorAttachmentBit = 0x00000010,
+    DepthStencilAttachmentBit = 0x00000020,
     TransientAttachmentBit = 0x00000040,
     InputAttachmentBit = 0x00000080,
 }
@@ -208,11 +222,17 @@ public enum MemoryPropertyFlags : uint
 [Flags]
 public enum PipelineStageFlags : uint
 {
+    VertexInputBit = 0x00000004,
+    VertexShaderBit = 0x00000008,
+    ComputeShaderBit = 0x00000800,
     TopOfPipeBit = 0x00000001,
     FragmentShaderBit = 0x00000080,
+    EarlyFragmentTestsBit = 0x00000100,
+    LateFragmentTestsBit = 0x00000200,
     ColorAttachmentOutputBit = 0x00000400,
     TransferBit = 0x00001000,
     BottomOfPipeBit = 0x00002000,
+    HostBit = 0x00004000,
 }
 
 [Flags]
@@ -227,6 +247,7 @@ public enum SampleCountFlags : uint
 [Flags]
 public enum ShaderStageFlags : uint
 {
+    ComputeBit = 0x00000020,
     VertexBit = 0x00000001,
     FragmentBit = 0x00000010,
 }
@@ -297,6 +318,7 @@ public enum CommandBufferUsageFlags : uint
 
 public enum CompareOp : int
 {
+    LessOrEqual = 3,
     Always = 7,
 }
 
@@ -357,6 +379,7 @@ public enum Filter : int
 public enum Format : int
 {
     Undefined = 0,
+    D32Sfloat = 126,
     R32Uint = 98,
     R32Sfloat = 100,
     R32G32Sfloat = 103,
@@ -377,6 +400,7 @@ public enum ImageLayout : int
 {
     Undefined = 0,
     ColorAttachmentOptimal = 2,
+    DepthStencilAttachmentOptimal = 3,
     ShaderReadOnlyOptimal = 5,
     TransferSrcOptimal = 6,
     TransferDstOptimal = 7,
@@ -420,6 +444,7 @@ public enum PhysicalDeviceType : int
 public enum PipelineBindPoint : int
 {
     Graphics = 0,
+    Compute = 1,
 }
 
 public enum PolygonMode : int

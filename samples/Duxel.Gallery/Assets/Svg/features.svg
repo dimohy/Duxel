@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="160" viewBox="0 0 320 160">
+  <style>
+    /* Documentation only: url(https://example.invalid/palette.png) @import 'palette.css'; */
+    .frame { stroke: #b3d9ff; stroke-width: 2; }
+  </style>
+  <defs>
+    <pattern id="stripes" width="16" height="16" patternUnits="userSpaceOnUse">
+      <rect width="8" height="16" fill="#36c5f0"/>
+      <rect x="8" width="8" height="16" fill="#14506b"/>
+    </pattern>
+    <radialGradient id="glow">
+      <stop offset="0" stop-color="#ffdc70"/>
+      <stop offset="1" stop-color="#6554c0"/>
+    </radialGradient>
+    <symbol id="diamond" viewBox="0 0 10 10">
+      <path d="M5 0L10 5L4.3 4.7Z" fill="currentColor"/>
+      <path d="M10 5L5 10L4.3 4.7Z" fill="currentColor"/>
+      <path d="M5 10L0 5L4.3 4.7Z" fill="currentColor"/>
+      <path d="M0 5L5 0L4.3 4.7Z" fill="currentColor"/>
+    </symbol>
+    <mask id="cut" maskUnits="userSpaceOnUse" x="208" y="0" width="104" height="128">
+      <rect x="216" y="8" width="88" height="112" fill="white"/>
+      <circle cx="260" cy="64" r="28" fill="black"/>
+    </mask>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="0" refY="6" orient="auto">
+      <path d="M0 0L12 6L0 12Z" fill="#b3d9ff"/>
+    </marker>
+  </defs>
+  <rect x="8" y="8" width="88" height="112" rx="10" fill="url(#stripes)" class="frame"/>
+  <rect x="112" y="8" width="88" height="112" rx="10" fill="url(#glow)" class="frame"/>
+  <g visibility="hidden">
+    <rect x="132" y="40" width="48" height="48" fill="#ff0000"/>
+    <use href="#diamond" x="132" y="40" width="48" height="48" color="#ffffff" visibility="visible"/>
+  </g>
+  <rect x="216" y="8" width="88" height="112" rx="10" fill="#36c5f0" mask="url(#cut)"/>
+  <path d="M12 144H292" fill="none" stroke="#b3d9ff" stroke-width="3" stroke-dasharray="12 6" stroke-dashoffset="3" marker-end="url(#arrow)"/>
+</svg>

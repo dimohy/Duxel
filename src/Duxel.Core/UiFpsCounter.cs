@@ -7,8 +7,7 @@ public readonly record struct UiFpsSample(float Fps, int Frames, double ElapsedS
 public sealed class UiFpsCounter
 {
     private readonly double _sampleWindowSeconds;
-    private readonly Stopwatch _clock = Stopwatch.StartNew();
-    private long _lastTickMilliseconds;
+    private long _lastTimestamp;
     private int _frameCount;
     private double _accumulatedSeconds;
     private float _currentFps;
@@ -16,17 +15,20 @@ public sealed class UiFpsCounter
     public UiFpsCounter(double sampleWindowSeconds = 0.5d)
     {
         _sampleWindowSeconds = sampleWindowSeconds > 0d ? sampleWindowSeconds : 0.5d;
-        _lastTickMilliseconds = _clock.ElapsedMilliseconds;
+        _lastTimestamp = Stopwatch.GetTimestamp();
     }
 
     public float CurrentFps => _currentFps;
 
-    public UiFpsSample Tick()
+    public UiFpsSample Tick() => TickExcludingIdle(0);
+
+    /// <summary>Samples frame cadence without counting time spent explicitly waiting for new work.</summary>
+    public UiFpsSample TickExcludingIdle(double idleWaitSeconds)
     {
-        var nowMilliseconds = _clock.ElapsedMilliseconds;
-        var deltaMilliseconds = nowMilliseconds - _lastTickMilliseconds;
-        _lastTickMilliseconds = nowMilliseconds;
-        return Tick(deltaMilliseconds * 0.001d);
+        var now = Stopwatch.GetTimestamp();
+        var deltaSeconds = Stopwatch.GetElapsedTime(_lastTimestamp, now).TotalSeconds;
+        _lastTimestamp = now;
+        return idleWaitSeconds == 0 ? RecordFrame(deltaSeconds) : Tick(deltaSeconds - idleWaitSeconds);
     }
 
     public UiFpsSample Tick(double deltaSeconds)
@@ -36,6 +38,11 @@ public sealed class UiFpsCounter
             return new UiFpsSample(_currentFps, 0, 0d, false);
         }
 
+        return RecordFrame(deltaSeconds);
+    }
+
+    private UiFpsSample RecordFrame(double deltaSeconds)
+    {
         _frameCount++;
         _accumulatedSeconds += deltaSeconds;
         if (_accumulatedSeconds < _sampleWindowSeconds)
@@ -55,6 +62,6 @@ public sealed class UiFpsCounter
         _frameCount = 0;
         _accumulatedSeconds = 0d;
         _currentFps = 0f;
-        _lastTickMilliseconds = _clock.ElapsedMilliseconds;
+        _lastTimestamp = Stopwatch.GetTimestamp();
     }
 }

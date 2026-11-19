@@ -5,7 +5,7 @@ using System.Runtime.Versioning;
 namespace Duxel.Platform.Windows;
 
 [SupportedOSPlatform("windows")]
-public static class WindowsSystemTheme
+public static partial class WindowsSystemTheme
 {
     private const string PersonalizeRegistryKey = @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
     private const string AppsUseLightThemeValue = "AppsUseLightTheme";
@@ -19,7 +19,13 @@ public static class WindowsSystemTheme
     }
 
     public static UiCompiledDesign GetAppDesign()
-        => GetAppColorScheme() is UiSystemColorScheme.Dark
+    {
+        var design = GetAppColorScheme() is UiSystemColorScheme.Dark
             ? UiCompiledDesign.Windows11Dark
             : UiCompiledDesign.Windows11;
+        return GetForcedColors() is { } palette ? design with
+        {
+            Theme = palette.Apply(design.Theme)
+        } : design;
+    }
 }

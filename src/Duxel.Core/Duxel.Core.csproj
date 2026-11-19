@@ -18,6 +18,32 @@
 
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="" />
+    <Content Include="Duxel.Core.ThirdPartyNotices.txt" CopyToOutputDirectory="PreserveNewest" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(DuxelValidationHooks)' == 'true'">
+    <Compile Include="../../tests/Duxel.Rendering.Tests/InputLegacyReference.cs" Link="Validation/InputLegacyReference.cs" />
+    <Compile Include="../../tests/Duxel.Rendering.Tests/ParagraphRasterValidation.cs" Link="Validation/ParagraphRasterValidation.cs" />
+    <InternalsVisibleTo Include="Duxel.Rendering.Tests" />
+    <InternalsVisibleTo Include="Duxel.Control.Tests" />
+    <InternalsVisibleTo Include="Duxel.Graphics.Tests" />
+    <InternalsVisibleTo Include="Duxel.Vulkan.Linux.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Duxel.App" />
+    <InternalsVisibleTo Include="Duxel.Svg" />
+    <InternalsVisibleTo Include="Duxel.Vulkan" />
+    <PackageReference Include="Markdig" Version="1.4.0" />
+    <ProjectReference Include="../Duxel.Core.Dsl.Generator/Duxel.Core.Dsl.Generator.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <AdditionalFiles Include="FluentComponents.tsv" />
+    <AdditionalFiles Include="Assets/FluentIcons/FluentSystemIcons-Regular.json" />
+    <AdditionalFiles Include="Assets/FluentIcons/FluentSystemIcons-Filled.json" />
+    <Content Include="Assets/FluentIcons/FluentSystemIcons-Regular.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets/FluentIcons/FluentSystemIcons-Filled.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets/FluentIcons/LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <CompilerVisibleProperty Include="DuxelRequireCompleteFluentCatalog" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(PublishAot)' == 'true'">

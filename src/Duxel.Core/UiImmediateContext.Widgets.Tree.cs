@@ -211,14 +211,7 @@ public sealed partial class UiImmediateContext
 
     private void DrawTreeArrow(UiRect rect, bool isOpen, string animationId, UiColor color)
     {
-        var rotation = AnimateToggleRotationDegrees(
-            $"{animationId}##tree_chevron",
-            expanded: isOpen,
-            collapsedDegrees: -90f,
-            expandedDegrees: 0f,
-            durationSeconds: 0.14f,
-            easing: UiAnimationEasing.OutCubic
-        );
+        var rotation = SampleDisclosure(ResolveCachedIdentifier(animationId, "##tree_chevron", false), isOpen, -90, 0);
         DrawChevronIcon(rect, rotation, scale: 2f / 3f, thickness: 1.2f, color: color, opticalOffsetY: _lineHeight * 0.06f);
     }
 }

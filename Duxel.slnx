@@ -1,5 +1,8 @@
 <Solution>
   <Folder Name="/samples/">
+    <Project Path="samples/Duxel.Gallery/Duxel.Gallery.csproj" />
+    <Project Path="samples/Duxel.Gallery.Linux/Duxel.Gallery.Linux.csproj" />
+    <Project Path="samples/Duxel.Linux.Sample/Duxel.Linux.Sample.csproj" />
     <Project Path="samples/Duxel.Sample/Duxel.Sample.csproj" />
     <Project Path="samples/Duxel.ThemeDemo/Duxel.ThemeDemo.csproj" />
   </Folder>
@@ -7,7 +10,10 @@
     <Project Path="src/Duxel.App/Duxel.App.csproj" />
     <Project Path="src/Duxel.Core/Duxel.Core.csproj" />
     <Project Path="src/Duxel.Core.Dsl.Generator/Duxel.Core.Dsl.Generator.csproj" />
+    <Project Path="src/Duxel.Linux.App/Duxel.Linux.App.csproj" />
+    <Project Path="src/Duxel.Platform.Linux/Duxel.Platform.Linux.csproj" />
     <Project Path="src/Duxel.Platform.Windows/Duxel.Platform.Windows.csproj" />
+    <Project Path="src/Duxel.Svg/Duxel.Svg.csproj" />
     <Project Path="src/Duxel.Vulkan/Duxel.Vulkan.csproj" />
     <Project Path="src/Duxel.Windows.App/Duxel.Windows.App.csproj" />
   </Folder>

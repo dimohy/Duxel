@@ -1,0 +1,10 @@
+[
+  { "scheme": "Light", "state": "Rest", "background": [255, 255, 255], "foreground": [66, 66, 66] },
+  { "scheme": "Light", "state": "Hover", "background": [245, 245, 245], "foreground": [36, 36, 36] },
+  { "scheme": "Light", "state": "Pressed", "background": [224, 224, 224], "foreground": [36, 36, 36] },
+  { "scheme": "Light", "state": "Disabled", "background": [255, 255, 255], "foreground": [189, 189, 189] },
+  { "scheme": "Dark", "state": "Rest", "background": [41, 41, 41], "foreground": [214, 214, 214] },
+  { "scheme": "Dark", "state": "Hover", "background": [61, 61, 61], "foreground": [255, 255, 255] },
+  { "scheme": "Dark", "state": "Pressed", "background": [31, 31, 31], "foreground": [255, 255, 255] },
+  { "scheme": "Dark", "state": "Disabled", "background": [41, 41, 41], "foreground": [92, 92, 92] }
+]

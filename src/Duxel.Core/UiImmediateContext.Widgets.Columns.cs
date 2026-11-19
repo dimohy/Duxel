@@ -28,7 +28,7 @@ public sealed partial class UiImmediateContext
         _columnsStartX = currentState.Cursor.X;
         _columnsStartY = currentState.Cursor.Y;
 
-        var availableWidth = _childStack.Count > 0
+        var availableWidth = HasCurrentChild
             ? MathF.Max(0f, GetContentRegionAvail().X)
             : _hasWindowRect
                 ? MathF.Max(0f, (_windowRect.X + _windowRect.Width - WindowPadding) - currentState.Cursor.X)

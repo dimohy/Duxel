@@ -1,0 +1,171 @@
+{
+  "scope": "Independent native SVG GPU Canvas2D raw RGBA8 for cubic stroke subdivisions, loops, inflections, cusps, dashes, round/bevel joins, square/round cubic caps, transforms and two original stroke geometries. Straight round-cap analytic coverage and combined fill/stroke remain unqualified.",
+  "captureScripts": [
+    "L:/Cache/Duxel/linux-accessibility-2026-11-14/ego-svg-round37.mjs",
+    "L:/Cache/Duxel/linux-accessibility-2026-11-14/ego-svg-round38.mjs",
+    "L:/Cache/Duxel/linux-accessibility-2026-11-14/ego-svg-round39.mjs"
+  ],
+  "originalDerivedSourceSha256": "50b68f854898c97fe44b49fed9e5adf09e7721a4afebbe726f886c0c7f48f419",
+  "cases": [
+    {
+      "name": "arch-4",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "2EE2043B62BA1CF6D0398AD9BC490447275A1195BA6AAB8FDAEB889DDD7AE3B8",
+      "rgbaSha256": "C300854ED66A9143E2CD365B6126737604E9D59E883688BB2DBC69CE11FE744D",
+      "recordedAtUtc": "2026-11-14T06:25:57.8833643Z"
+    },
+    {
+      "name": "arch-8",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "5542D95A3D158EDDB0B04A5C7FB369419005203C93A39CACE26208135679E4D3",
+      "rgbaSha256": "8152E53442BE2341A1E6D74DFDF04ACA0AE25EC0DA6D95BFE9BD13310BC21786",
+      "recordedAtUtc": "2026-11-14T06:25:57.8919029Z"
+    },
+    {
+      "name": "asymmetric-2",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "53206B98D0483726A51BED443A49DBBD2F8FA12AFE0AA7A7960542F4761B63B0",
+      "rgbaSha256": "81E9DD846FED6A6C6466AC8F16F7627A756A82DF89A84B15DE2EFFF1800A9026",
+      "recordedAtUtc": "2026-11-14T06:25:57.895316Z"
+    },
+    {
+      "name": "asymmetric-8",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "B4049A8264D76DCE7F3747286CFA6EF8AB6489BC376B99FF519F3E9B4C35DC1D",
+      "rgbaSha256": "E1906296CDE84F16D2EBB31E0F79130EF627FD31192EC2F1C96846B0C242FFA3",
+      "recordedAtUtc": "2026-11-14T06:25:57.8975859Z"
+    },
+    {
+      "name": "inflection-4",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "E336DFFD761AEA2BCC9CA42C635C0C83632262F7DD500317D7E7093EEB535AF7",
+      "rgbaSha256": "B75C7A767707D59F93E6939A9EB6C0A572902694A589E480506F9893796F43F1",
+      "recordedAtUtc": "2026-11-14T06:25:57.9003219Z"
+    },
+    {
+      "name": "joined-4",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "2B3DD065C6F7C362560C5B854FF8910635E06501F008CC031D940CBD007DA2C6",
+      "rgbaSha256": "13B6DA6839B9EC93B0B3C0E744C2563E7F514B73E898059B73F6EB3BE962B8C7",
+      "recordedAtUtc": "2026-11-14T06:25:57.9034119Z"
+    },
+    {
+      "name": "loop-4",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "E88C5572481E40C3AB79878C4A3CEE3ECFE9354219B38CE4F51B05E3C9A62509",
+      "rgbaSha256": "1137F187C6F1CDDD0F9E82C85BE93327CAA37DDB3D386A5D5FEC54F0781C3F74",
+      "recordedAtUtc": "2026-11-14T06:25:57.9059993Z"
+    },
+    {
+      "name": "zero-tangent-8",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "E869F898429B7728FF7D24266A208B2822C2D9431E104FA0A42B7FBD1CB34D4B",
+      "rgbaSha256": "0A4352BF05E02DA505D1BD5FEC43347236732EB51015BF55DBD2DEEF75B4BA37",
+      "recordedAtUtc": "2026-11-14T06:25:57.9092142Z"
+    },
+    {
+      "name": "cusp-collinear",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "C02FDA2AA1EC7F59C50EB68057A83A2A4451110AF589E689CDBA38141CEB2546",
+      "rgbaSha256": "D0787E8BAC0AB49F70691AAC79441B309DC5592DC5DCF4847CD4C27658EF96AA",
+      "recordedAtUtc": "2026-11-14T06:25:57.9148279Z"
+    },
+    {
+      "name": "dash-long",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "168FFDFFE07C2A6DAB89A8BEE0ECA8809171E915DB0D38F7045AE3DC3591B314",
+      "rgbaSha256": "C300854ED66A9143E2CD365B6126737604E9D59E883688BB2DBC69CE11FE744D",
+      "recordedAtUtc": "2026-11-14T06:25:57.9182744Z"
+    },
+    {
+      "name": "dash-short",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "FEBA1905C3474AD95A28D63372C08C825E265B0B401541E99DDF0B9F99C4A283",
+      "rgbaSha256": "8308947AFA8F20604949E5204C54CF2E2AB829BF0D96AF4028B6A55F2114735F",
+      "recordedAtUtc": "2026-11-14T06:25:57.9203583Z"
+    },
+    {
+      "name": "red-body-stroke",
+      "width": 764,
+      "height": 372,
+      "sourceSha256": "39F85ACEE38D197447B639AF7253AF5AE95F872491554EC7331B89E3B7E2F89B",
+      "rgbaSha256": "C56D68D7ED5DA4C2A366D3D81388F4BF09AA32B3063980B423BE8858E7B69E62",
+      "recordedAtUtc": "2026-11-14T06:25:57.9248269Z"
+    },
+    {
+      "name": "red-window-stroke",
+      "width": 764,
+      "height": 372,
+      "sourceSha256": "8DA025C8289F650C02CC9063BE8A96B62667CEBB20CF6B09F55486FCBC5EB746",
+      "rgbaSha256": "8921C7C12435E43335C85FA766B6022A2E0F0A0AD56A16FBE67A9EF5B0EFA9C4",
+      "recordedAtUtc": "2026-11-14T06:25:57.9287129Z"
+    },
+    {
+      "name": "stationary-collinear",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "00C0EDF79DB5803AFAD1383CEFEF73D9BFEA146E56718ECA0EF74697928B50EF",
+      "rgbaSha256": "151662F0EB8283EBD6BB0D259826791511859DF11C28CF4F2F64D0FAA3965A6A",
+      "recordedAtUtc": "2026-11-14T06:25:57.9315237Z"
+    },
+    {
+      "name": "bevel-join",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "05492C10C94593EF69B3158E80194E087165DD047E1BCFDBC3357D707D3E8AE7",
+      "rgbaSha256": "A9E8C3564FA933DD8504C240786D868070FD0B8EE4FFAF1E2407160B97AED0C2",
+      "recordedAtUtc": "2026-11-14T06:28:45.5058343Z"
+    },
+    {
+      "name": "rotate-cubic",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "F4FBE2C1CC4C91B215D89E85CD8E283628A80AF544A13FE5FFD611348D33A199",
+      "rgbaSha256": "ECBD911BB0283B34744EB1901D1C7EFAC19FBA6BDC0F0BB8A54A97B7F5E96CAF",
+      "recordedAtUtc": "2026-11-14T06:28:45.5169269Z"
+    },
+    {
+      "name": "round-cubic",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "775F503C0779443623976DD22FEF4FD4F2787F67DDB457249D5AAC71518DD13F",
+      "rgbaSha256": "066260F275815E7AB43EBFD22FB937EF9B2A31F0A2AA2C30614582E70ED69616",
+      "recordedAtUtc": "2026-11-14T06:28:45.5192723Z"
+    },
+    {
+      "name": "round-join",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "57F758E07EB7EC68AE43D737D0B16E8F41D2FE262251EB5F2DD08BAC4B98CDF8",
+      "rgbaSha256": "B25CEEFF9B605AED46EB6006163C57EF3E00A2F190D443420542F5FB0FC4704F",
+      "recordedAtUtc": "2026-11-14T06:28:45.5211315Z"
+    },
+    {
+      "name": "skew-cubic",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "473DD13D56588D51275A96BAD3944AFC3F143C3480D65CC5D98A3635539A3CE4",
+      "rgbaSha256": "29F680FCA66D4132597B11E41521AAB16D4C7D342BD618DB4D5C161EAD931C42",
+      "recordedAtUtc": "2026-11-14T06:28:45.5236986Z"
+    },
+    {
+      "name": "square-caps",
+      "width": 64,
+      "height": 64,
+      "sourceSha256": "ABFD1C93BEC46953EBBA76D849E6B8419731A6B0D965AFFCFE3524211FB79C6C",
+      "rgbaSha256": "EDCC5B5794CAC8A0045CC95DD0F45958D729FA191D1FF6353B9DC10AC870D220",
+      "recordedAtUtc": "2026-11-14T06:28:45.5262542Z"
+    }
+  ]
+}

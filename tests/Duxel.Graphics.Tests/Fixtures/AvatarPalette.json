@@ -1,0 +1,362 @@
+[
+  {
+    "name": "dark-red",
+    "light": {
+      "shade30": "#420610",
+      "tint30": "#ac4f5e",
+      "primary": "#750b1c",
+      "tint40": "#d69ca5"
+    },
+    "darkForeground": "#d69ca5",
+    "darkBackground": "#420610",
+    "darkRing": "#ac4f5e"
+  },
+  {
+    "name": "cranberry",
+    "light": {
+      "shade30": "#6e0811",
+      "tint30": "#dc626d",
+      "primary": "#c50f1f",
+      "tint40": "#eeacb2"
+    },
+    "darkForeground": "#eeacb2",
+    "darkBackground": "#6e0811",
+    "darkRing": "#dc626d"
+  },
+  {
+    "name": "red",
+    "light": {
+      "shade30": "#751d1f",
+      "tint30": "#e37d80",
+      "primary": "#d13438",
+      "tint40": "#f1bbbc"
+    },
+    "darkForeground": "#f1bbbc",
+    "darkBackground": "#751d1f",
+    "darkRing": "#e37d80"
+  },
+  {
+    "name": "pumpkin",
+    "light": {
+      "shade30": "#712d09",
+      "tint30": "#df8e64",
+      "primary": "#ca5010",
+      "tint40": "#efc4ad"
+    },
+    "darkForeground": "#efc4ad",
+    "darkBackground": "#712d09",
+    "darkRing": "#df8e64"
+  },
+  {
+    "name": "peach",
+    "light": {
+      "shade30": "#8f4e00",
+      "tint30": "#ffba66",
+      "primary": "#ff8c00",
+      "tint40": "#ffddb3"
+    },
+    "darkForeground": "#ffddb3",
+    "darkBackground": "#8f4e00",
+    "darkRing": "#ffba66"
+  },
+  {
+    "name": "marigold",
+    "light": {
+      "shade30": "#835b00",
+      "tint30": "#f2c661",
+      "primary": "#eaa300",
+      "tint40": "#f9e2ae"
+    },
+    "darkForeground": "#f9e2ae",
+    "darkBackground": "#835b00",
+    "darkRing": "#f2c661"
+  },
+  {
+    "name": "gold",
+    "light": {
+      "shade30": "#6c5700",
+      "tint30": "#dac157",
+      "primary": "#c19c00",
+      "tint40": "#ecdfa5"
+    },
+    "darkForeground": "#ecdfa5",
+    "darkBackground": "#6c5700",
+    "darkRing": "#dac157"
+  },
+  {
+    "name": "brass",
+    "light": {
+      "shade30": "#553e06",
+      "tint30": "#c1a256",
+      "primary": "#986f0b",
+      "tint40": "#e0cea2"
+    },
+    "darkForeground": "#e0cea2",
+    "darkBackground": "#553e06",
+    "darkRing": "#c1a256"
+  },
+  {
+    "name": "brown",
+    "light": {
+      "shade30": "#50301a",
+      "tint30": "#bb8f6f",
+      "primary": "#8e562e",
+      "tint40": "#ddc3b0"
+    },
+    "darkForeground": "#ddc3b0",
+    "darkBackground": "#50301a",
+    "darkRing": "#bb8f6f"
+  },
+  {
+    "name": "forest",
+    "light": {
+      "shade30": "#294903",
+      "tint30": "#85b44c",
+      "primary": "#498205",
+      "tint40": "#bdd99b"
+    },
+    "darkForeground": "#bdd99b",
+    "darkBackground": "#294903",
+    "darkRing": "#85b44c"
+  },
+  {
+    "name": "seafoam",
+    "light": {
+      "shade30": "#00723b",
+      "tint30": "#5ae0a0",
+      "primary": "#00cc6a",
+      "tint40": "#a8f0cd"
+    },
+    "darkForeground": "#a8f0cd",
+    "darkBackground": "#00723b",
+    "darkRing": "#5ae0a0"
+  },
+  {
+    "name": "dark-green",
+    "light": {
+      "shade30": "#063b06",
+      "tint30": "#4da64d",
+      "primary": "#0b6a0b",
+      "tint40": "#9ad29a"
+    },
+    "darkForeground": "#9ad29a",
+    "darkBackground": "#063b06",
+    "darkRing": "#4da64d"
+  },
+  {
+    "name": "light-teal",
+    "light": {
+      "shade30": "#00666d",
+      "tint30": "#58d3db",
+      "primary": "#00b7c3",
+      "tint40": "#a6e9ed"
+    },
+    "darkForeground": "#a6e9ed",
+    "darkBackground": "#00666d",
+    "darkRing": "#58d3db"
+  },
+  {
+    "name": "teal",
+    "light": {
+      "shade30": "#02494c",
+      "tint30": "#4cb4b7",
+      "primary": "#038387",
+      "tint40": "#9bd9db"
+    },
+    "darkForeground": "#9bd9db",
+    "darkBackground": "#02494c",
+    "darkRing": "#4cb4b7"
+  },
+  {
+    "name": "steel",
+    "light": {
+      "shade30": "#00333f",
+      "tint30": "#4496a9",
+      "primary": "#005b70",
+      "tint40": "#94c8d4"
+    },
+    "darkForeground": "#94c8d4",
+    "darkBackground": "#00333f",
+    "darkRing": "#4496a9"
+  },
+  {
+    "name": "blue",
+    "light": {
+      "shade30": "#004377",
+      "tint30": "#5caae5",
+      "primary": "#0078d4",
+      "tint40": "#a9d3f2"
+    },
+    "darkForeground": "#a9d3f2",
+    "darkBackground": "#004377",
+    "darkRing": "#5caae5"
+  },
+  {
+    "name": "royal-blue",
+    "light": {
+      "shade30": "#002c4e",
+      "tint30": "#4a89ba",
+      "primary": "#004e8c",
+      "tint40": "#9abfdc"
+    },
+    "darkForeground": "#9abfdc",
+    "darkBackground": "#002c4e",
+    "darkRing": "#4a89ba"
+  },
+  {
+    "name": "cornflower",
+    "light": {
+      "shade30": "#2c3c85",
+      "tint30": "#93a4f4",
+      "primary": "#4f6bed",
+      "tint40": "#c8d1fa"
+    },
+    "darkForeground": "#c8d1fa",
+    "darkBackground": "#2c3c85",
+    "darkRing": "#93a4f4"
+  },
+  {
+    "name": "navy",
+    "light": {
+      "shade30": "#001665",
+      "tint30": "#546fd2",
+      "primary": "#0027b4",
+      "tint40": "#a3b2e8"
+    },
+    "darkForeground": "#a3b2e8",
+    "darkBackground": "#001665",
+    "darkRing": "#546fd2"
+  },
+  {
+    "name": "lavender",
+    "light": {
+      "shade30": "#3f3682",
+      "tint30": "#a79cf1",
+      "primary": "#7160e8",
+      "tint40": "#d2ccf8"
+    },
+    "darkForeground": "#d2ccf8",
+    "darkBackground": "#3f3682",
+    "darkRing": "#a79cf1"
+  },
+  {
+    "name": "purple",
+    "light": {
+      "shade30": "#341a51",
+      "tint30": "#9470bd",
+      "primary": "#5c2e91",
+      "tint40": "#c6b1de"
+    },
+    "darkForeground": "#c6b1de",
+    "darkBackground": "#341a51",
+    "darkRing": "#9470bd"
+  },
+  {
+    "name": "grape",
+    "light": {
+      "shade30": "#4c0d55",
+      "tint30": "#b55fc1",
+      "primary": "#881798",
+      "tint40": "#d9a7e0"
+    },
+    "darkForeground": "#d9a7e0",
+    "darkBackground": "#4c0d55",
+    "darkRing": "#b55fc1"
+  },
+  {
+    "name": "lilac",
+    "light": {
+      "shade30": "#63276d",
+      "tint30": "#cf87da",
+      "primary": "#b146c2",
+      "tint40": "#e6bfed"
+    },
+    "darkForeground": "#e6bfed",
+    "darkBackground": "#63276d",
+    "darkRing": "#cf87da"
+  },
+  {
+    "name": "pink",
+    "light": {
+      "shade30": "#80215d",
+      "tint30": "#ef85c8",
+      "primary": "#e43ba6",
+      "tint40": "#f7c0e3"
+    },
+    "darkForeground": "#f7c0e3",
+    "darkBackground": "#80215d",
+    "darkRing": "#ef85c8"
+  },
+  {
+    "name": "magenta",
+    "light": {
+      "shade30": "#6b0043",
+      "tint30": "#d957a8",
+      "primary": "#bf0077",
+      "tint40": "#eca5d1"
+    },
+    "darkForeground": "#eca5d1",
+    "darkBackground": "#6b0043",
+    "darkRing": "#d957a8"
+  },
+  {
+    "name": "plum",
+    "light": {
+      "shade30": "#43002b",
+      "tint30": "#ad4589",
+      "primary": "#77004d",
+      "tint40": "#d696c0"
+    },
+    "darkForeground": "#d696c0",
+    "darkBackground": "#43002b",
+    "darkRing": "#ad4589"
+  },
+  {
+    "name": "beige",
+    "light": {
+      "shade30": "#444241",
+      "tint30": "#afabaa",
+      "primary": "#7a7574",
+      "tint40": "#d7d4d4"
+    },
+    "darkForeground": "#d7d4d4",
+    "darkBackground": "#444241",
+    "darkRing": "#afabaa"
+  },
+  {
+    "name": "mink",
+    "light": {
+      "shade30": "#343231",
+      "tint30": "#9e9b99",
+      "primary": "#5d5a58",
+      "tint40": "#cecccb"
+    },
+    "darkForeground": "#cecccb",
+    "darkBackground": "#343231",
+    "darkRing": "#9e9b99"
+  },
+  {
+    "name": "platinum",
+    "light": {
+      "shade30": "#3b4447",
+      "tint30": "#a0adb2",
+      "primary": "#69797e",
+      "tint40": "#cdd6d8"
+    },
+    "darkForeground": "#cdd6d8",
+    "darkBackground": "#3b4447",
+    "darkRing": "#a0adb2"
+  },
+  {
+    "name": "anchor",
+    "light": {
+      "shade30": "#202427",
+      "tint30": "#808a90",
+      "primary": "#394146",
+      "tint40": "#bcc3c7"
+    },
+    "darkForeground": "#bcc3c7",
+    "darkBackground": "#202427",
+    "darkRing": "#808a90"
+  }
+]

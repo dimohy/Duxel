@@ -218,7 +218,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 14f, bounds.Y + 14f));
         ui.SetNextWindowSize(new UiVector2(330f, 220f));
-        ui.BeginWindow("Bench Control");
+        ui.BeginPanel("Bench Control");
 
         ui.TextV("FPS: {0:0.0}", _fps);
         ui.TextV("Phase: {0}/{1}", Math.Min(_phaseIndex + 1, Math.Max(1, _phases.Count)), Math.Max(1, _phases.Count));
@@ -232,14 +232,14 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
             ui.MarkAllLayersDirty();
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawSceneWindow(UiImmediateContext ui, UiRect bounds, double now)
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 360f, bounds.Y + 14f));
         ui.SetNextWindowSize(new UiVector2(MathF.Max(640f, bounds.Width - 374f), MathF.Max(480f, bounds.Height - 300f)));
-        ui.BeginWindow("Layer Scene");
+        ui.BeginPanel("Layer Scene");
 
         var canvasPos = ui.GetCursorScreenPos();
         var canvasSize = ui.GetContentRegionAvail();
@@ -254,14 +254,14 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
         }
 
         ui.Dummy(new UiVector2(canvas.Width, canvas.Height));
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawWidgetWindow(UiImmediateContext ui, UiRect bounds)
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 14f, bounds.Y + 250f));
         ui.SetNextWindowSize(new UiVector2(330f, MathF.Max(280f, bounds.Height - 264f)));
-        ui.BeginWindow("Dynamic Widgets");
+        ui.BeginPanel("Dynamic Widgets");
 
         ui.InputText("Search", ref _searchText, 128);
         ui.InputText("Filter", ref _filterText, 128);
@@ -274,7 +274,7 @@ public sealed class LayerWidgetMixBenchScreen : UiScreen
             ui.TextV("Row {0:00} :: {1} / {2}", i, _searchText, _sliderValue + i);
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawLayerCard(UiImmediateContext ui, UiRect canvas, LayerCard layer, double now)

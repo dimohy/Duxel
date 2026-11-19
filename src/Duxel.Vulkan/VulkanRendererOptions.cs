@@ -9,5 +9,6 @@ public readonly record struct VulkanRendererOptions(
     bool FontLinearSampling = false,
     UiTextureId FontTextureId = default,
     UiTextureId WhiteTextureId = default,
-    Action<string>? DiagnosticsLog = null
+    Action<string>? DiagnosticsLog = null,
+    int MaxFramesInFlight = 2
 );

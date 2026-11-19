@@ -1,0 +1,1282 @@
+[
+  {
+    "Scheme": "Light",
+    "Appearance": "Transparent",
+    "State": "Rest",
+    "Selected": false,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2",
+      "Icon": "colorNeutralForeground2",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#424242",
+      "Icon": "#424242",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Transparent",
+    "State": "Rest",
+    "Selected": true,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground1",
+      "Icon": "colorCompoundBrandForeground1",
+      "Indicator": "colorCompoundBrandStroke"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#242424",
+      "Icon": "#0f6cbd",
+      "Indicator": "#0f6cbd"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Transparent",
+    "State": "Hover",
+    "Selected": false,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2Hover",
+      "Icon": "colorNeutralForeground2Hover",
+      "Indicator": "colorNeutralStroke1Hover"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#242424",
+      "Icon": "#242424",
+      "Indicator": "#c7c7c7"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Transparent",
+    "State": "Hover",
+    "Selected": true,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground1Hover",
+      "Icon": "colorCompoundBrandForeground1Hover",
+      "Indicator": "colorCompoundBrandStrokeHover"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#242424",
+      "Icon": "#115ea3",
+      "Indicator": "#115ea3"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Transparent",
+    "State": "Pressed",
+    "Selected": false,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2Pressed",
+      "Icon": "colorNeutralForeground2Pressed",
+      "Indicator": "colorNeutralStroke1Pressed"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#242424",
+      "Icon": "#242424",
+      "Indicator": "#b3b3b3"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Transparent",
+    "State": "Pressed",
+    "Selected": true,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground1Pressed",
+      "Icon": "colorCompoundBrandForeground1Pressed",
+      "Indicator": "colorCompoundBrandStrokePressed"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#242424",
+      "Icon": "#0f548c",
+      "Indicator": "#0f548c"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Transparent",
+    "State": "Disabled",
+    "Selected": false,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#bdbdbd",
+      "Icon": "#bdbdbd",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Transparent",
+    "State": "Disabled",
+    "Selected": true,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "colorNeutralForegroundDisabled"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#bdbdbd",
+      "Icon": "#bdbdbd",
+      "Indicator": "#bdbdbd"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Subtle",
+    "State": "Rest",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorSubtleBackground",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2",
+      "Icon": "colorNeutralForeground2",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#424242",
+      "Icon": "#424242",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Subtle",
+    "State": "Rest",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorSubtleBackground",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground1",
+      "Icon": "colorCompoundBrandForeground1",
+      "Indicator": "colorCompoundBrandStroke"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#242424",
+      "Icon": "#0f6cbd",
+      "Indicator": "#0f6cbd"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Subtle",
+    "State": "Hover",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorSubtleBackgroundHover",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2Hover",
+      "Icon": "colorNeutralForeground2Hover",
+      "Indicator": "colorNeutralStroke1Hover"
+    },
+    "Colors": {
+      "Background": "#f5f5f5",
+      "Border": "#00000000",
+      "Text": "#242424",
+      "Icon": "#242424",
+      "Indicator": "#c7c7c7"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Subtle",
+    "State": "Hover",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorSubtleBackgroundHover",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground1Hover",
+      "Icon": "colorCompoundBrandForeground1Hover",
+      "Indicator": "colorCompoundBrandStrokeHover"
+    },
+    "Colors": {
+      "Background": "#f5f5f5",
+      "Border": "#00000000",
+      "Text": "#242424",
+      "Icon": "#115ea3",
+      "Indicator": "#115ea3"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Subtle",
+    "State": "Pressed",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorSubtleBackgroundPressed",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2Pressed",
+      "Icon": "colorNeutralForeground2Pressed",
+      "Indicator": "colorNeutralStroke1Pressed"
+    },
+    "Colors": {
+      "Background": "#e0e0e0",
+      "Border": "#00000000",
+      "Text": "#242424",
+      "Icon": "#242424",
+      "Indicator": "#b3b3b3"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Subtle",
+    "State": "Pressed",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorSubtleBackgroundPressed",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground1Pressed",
+      "Icon": "colorCompoundBrandForeground1Pressed",
+      "Indicator": "colorCompoundBrandStrokePressed"
+    },
+    "Colors": {
+      "Background": "#e0e0e0",
+      "Border": "#00000000",
+      "Text": "#242424",
+      "Icon": "#0f548c",
+      "Indicator": "#0f548c"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Subtle",
+    "State": "Disabled",
+    "Selected": false,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#bdbdbd",
+      "Icon": "#bdbdbd",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "Subtle",
+    "State": "Disabled",
+    "Selected": true,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "colorNeutralForegroundDisabled"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#bdbdbd",
+      "Icon": "#bdbdbd",
+      "Indicator": "#bdbdbd"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "SubtleCircular",
+    "State": "Rest",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorSubtleBackground",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2",
+      "Icon": "colorNeutralForeground2",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#424242",
+      "Icon": "#424242",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "SubtleCircular",
+    "State": "Rest",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorBrandBackground2",
+      "Border": "colorCompoundBrandStroke",
+      "Text": "colorBrandForeground2",
+      "Icon": "colorBrandForeground2",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#ebf3fc",
+      "Border": "#0f6cbd",
+      "Text": "#115ea3",
+      "Icon": "#115ea3",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "SubtleCircular",
+    "State": "Hover",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorSubtleBackgroundHover",
+      "Border": "colorNeutralStroke1Hover",
+      "Text": "colorNeutralForeground2Hover",
+      "Icon": "colorNeutralForeground2Hover",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#f5f5f5",
+      "Border": "#c7c7c7",
+      "Text": "#242424",
+      "Icon": "#242424",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "SubtleCircular",
+    "State": "Hover",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorBrandBackground2Hover",
+      "Border": "colorCompoundBrandStrokeHover",
+      "Text": "colorBrandForeground2Hover",
+      "Icon": "colorBrandForeground2Hover",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#cfe4fa",
+      "Border": "#115ea3",
+      "Text": "#0f548c",
+      "Icon": "#0f548c",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "SubtleCircular",
+    "State": "Pressed",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorSubtleBackgroundPressed",
+      "Border": "colorNeutralStroke1Pressed",
+      "Text": "colorNeutralForeground2Pressed",
+      "Icon": "colorNeutralForeground2Pressed",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#e0e0e0",
+      "Border": "#b3b3b3",
+      "Text": "#242424",
+      "Icon": "#242424",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "SubtleCircular",
+    "State": "Pressed",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorBrandBackground2Pressed",
+      "Border": "colorCompoundBrandStrokePressed",
+      "Text": "colorBrandForeground2Pressed",
+      "Icon": "colorBrandForeground2Pressed",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#96c6fa",
+      "Border": "#0f548c",
+      "Text": "#0a2e4a",
+      "Icon": "#0a2e4a",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "SubtleCircular",
+    "State": "Disabled",
+    "Selected": false,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#bdbdbd",
+      "Icon": "#bdbdbd",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "SubtleCircular",
+    "State": "Disabled",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorNeutralBackgroundDisabled",
+      "Border": "colorNeutralStrokeDisabled",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#f0f0f0",
+      "Border": "#e0e0e0",
+      "Text": "#bdbdbd",
+      "Icon": "#bdbdbd",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "FilledCircular",
+    "State": "Rest",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorNeutralBackground3",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2",
+      "Icon": "colorNeutralForeground2",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#f5f5f5",
+      "Border": "#00000000",
+      "Text": "#424242",
+      "Icon": "#424242",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "FilledCircular",
+    "State": "Rest",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorBrandBackground",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundOnBrand",
+      "Icon": "colorNeutralForegroundOnBrand",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#0f6cbd",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "FilledCircular",
+    "State": "Hover",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorNeutralBackground3Hover",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2Hover",
+      "Icon": "colorNeutralForeground2Hover",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#ebebeb",
+      "Border": "#00000000",
+      "Text": "#242424",
+      "Icon": "#242424",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "FilledCircular",
+    "State": "Hover",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorBrandBackgroundHover",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundOnBrand",
+      "Icon": "colorNeutralForegroundOnBrand",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#115ea3",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "FilledCircular",
+    "State": "Pressed",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorNeutralBackground3Pressed",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2Pressed",
+      "Icon": "colorNeutralForeground2Pressed",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#d6d6d6",
+      "Border": "#00000000",
+      "Text": "#242424",
+      "Icon": "#242424",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "FilledCircular",
+    "State": "Pressed",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorBrandBackgroundPressed",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundOnBrand",
+      "Icon": "colorNeutralForegroundOnBrand",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#0c3b5e",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "FilledCircular",
+    "State": "Disabled",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorNeutralBackgroundDisabled",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#f0f0f0",
+      "Border": "#00000000",
+      "Text": "#bdbdbd",
+      "Icon": "#bdbdbd",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Light",
+    "Appearance": "FilledCircular",
+    "State": "Disabled",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorNeutralBackgroundDisabled",
+      "Border": "colorNeutralStrokeDisabled",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#f0f0f0",
+      "Border": "#e0e0e0",
+      "Text": "#bdbdbd",
+      "Icon": "#bdbdbd",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Transparent",
+    "State": "Rest",
+    "Selected": false,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2",
+      "Icon": "colorNeutralForeground2",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#d6d6d6",
+      "Icon": "#d6d6d6",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Transparent",
+    "State": "Rest",
+    "Selected": true,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground1",
+      "Icon": "colorCompoundBrandForeground1",
+      "Indicator": "colorCompoundBrandStroke"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#479ef5",
+      "Indicator": "#479ef5"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Transparent",
+    "State": "Hover",
+    "Selected": false,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2Hover",
+      "Icon": "colorNeutralForeground2Hover",
+      "Indicator": "colorNeutralStroke1Hover"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#757575"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Transparent",
+    "State": "Hover",
+    "Selected": true,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground1Hover",
+      "Icon": "colorCompoundBrandForeground1Hover",
+      "Indicator": "colorCompoundBrandStrokeHover"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#62abf5",
+      "Indicator": "#62abf5"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Transparent",
+    "State": "Pressed",
+    "Selected": false,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2Pressed",
+      "Icon": "colorNeutralForeground2Pressed",
+      "Indicator": "colorNeutralStroke1Pressed"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#6b6b6b"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Transparent",
+    "State": "Pressed",
+    "Selected": true,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground1Pressed",
+      "Icon": "colorCompoundBrandForeground1Pressed",
+      "Indicator": "colorCompoundBrandStrokePressed"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#2886de",
+      "Indicator": "#2886de"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Transparent",
+    "State": "Disabled",
+    "Selected": false,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#5c5c5c",
+      "Icon": "#5c5c5c",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Transparent",
+    "State": "Disabled",
+    "Selected": true,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "colorNeutralForegroundDisabled"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#5c5c5c",
+      "Icon": "#5c5c5c",
+      "Indicator": "#5c5c5c"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Subtle",
+    "State": "Rest",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorSubtleBackground",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2",
+      "Icon": "colorNeutralForeground2",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#d6d6d6",
+      "Icon": "#d6d6d6",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Subtle",
+    "State": "Rest",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorSubtleBackground",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground1",
+      "Icon": "colorCompoundBrandForeground1",
+      "Indicator": "colorCompoundBrandStroke"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#479ef5",
+      "Indicator": "#479ef5"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Subtle",
+    "State": "Hover",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorSubtleBackgroundHover",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2Hover",
+      "Icon": "colorNeutralForeground2Hover",
+      "Indicator": "colorNeutralStroke1Hover"
+    },
+    "Colors": {
+      "Background": "#383838",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#757575"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Subtle",
+    "State": "Hover",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorSubtleBackgroundHover",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground1Hover",
+      "Icon": "colorCompoundBrandForeground1Hover",
+      "Indicator": "colorCompoundBrandStrokeHover"
+    },
+    "Colors": {
+      "Background": "#383838",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#62abf5",
+      "Indicator": "#62abf5"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Subtle",
+    "State": "Pressed",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorSubtleBackgroundPressed",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2Pressed",
+      "Icon": "colorNeutralForeground2Pressed",
+      "Indicator": "colorNeutralStroke1Pressed"
+    },
+    "Colors": {
+      "Background": "#2e2e2e",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#6b6b6b"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Subtle",
+    "State": "Pressed",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorSubtleBackgroundPressed",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground1Pressed",
+      "Icon": "colorCompoundBrandForeground1Pressed",
+      "Indicator": "colorCompoundBrandStrokePressed"
+    },
+    "Colors": {
+      "Background": "#2e2e2e",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#2886de",
+      "Indicator": "#2886de"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Subtle",
+    "State": "Disabled",
+    "Selected": false,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#5c5c5c",
+      "Icon": "#5c5c5c",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "Subtle",
+    "State": "Disabled",
+    "Selected": true,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "colorNeutralForegroundDisabled"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#5c5c5c",
+      "Icon": "#5c5c5c",
+      "Indicator": "#5c5c5c"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "SubtleCircular",
+    "State": "Rest",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorSubtleBackground",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2",
+      "Icon": "colorNeutralForeground2",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#d6d6d6",
+      "Icon": "#d6d6d6",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "SubtleCircular",
+    "State": "Rest",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorBrandBackground2",
+      "Border": "colorCompoundBrandStroke",
+      "Text": "colorBrandForeground2",
+      "Icon": "colorBrandForeground2",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#082338",
+      "Border": "#479ef5",
+      "Text": "#62abf5",
+      "Icon": "#62abf5",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "SubtleCircular",
+    "State": "Hover",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorSubtleBackgroundHover",
+      "Border": "colorNeutralStroke1Hover",
+      "Text": "colorNeutralForeground2Hover",
+      "Icon": "colorNeutralForeground2Hover",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#383838",
+      "Border": "#757575",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "SubtleCircular",
+    "State": "Hover",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorBrandBackground2Hover",
+      "Border": "colorCompoundBrandStrokeHover",
+      "Text": "colorBrandForeground2Hover",
+      "Icon": "colorBrandForeground2Hover",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#0c3b5e",
+      "Border": "#62abf5",
+      "Text": "#96c6fa",
+      "Icon": "#96c6fa",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "SubtleCircular",
+    "State": "Pressed",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorSubtleBackgroundPressed",
+      "Border": "colorNeutralStroke1Pressed",
+      "Text": "colorNeutralForeground2Pressed",
+      "Icon": "colorNeutralForeground2Pressed",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#2e2e2e",
+      "Border": "#6b6b6b",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "SubtleCircular",
+    "State": "Pressed",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorBrandBackground2Pressed",
+      "Border": "colorCompoundBrandStrokePressed",
+      "Text": "colorBrandForeground2Pressed",
+      "Icon": "colorBrandForeground2Pressed",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#061724",
+      "Border": "#2886de",
+      "Text": "#ebf3fc",
+      "Icon": "#ebf3fc",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "SubtleCircular",
+    "State": "Disabled",
+    "Selected": false,
+    "Tokens": {
+      "Background": "transparent",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#00000000",
+      "Border": "#00000000",
+      "Text": "#5c5c5c",
+      "Icon": "#5c5c5c",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "SubtleCircular",
+    "State": "Disabled",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorNeutralBackgroundDisabled",
+      "Border": "colorNeutralStrokeDisabled",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#141414",
+      "Border": "#424242",
+      "Text": "#5c5c5c",
+      "Icon": "#5c5c5c",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "FilledCircular",
+    "State": "Rest",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorNeutralBackground3",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2",
+      "Icon": "colorNeutralForeground2",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#141414",
+      "Border": "#00000000",
+      "Text": "#d6d6d6",
+      "Icon": "#d6d6d6",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "FilledCircular",
+    "State": "Rest",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorBrandBackground",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundOnBrand",
+      "Icon": "colorNeutralForegroundOnBrand",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#115ea3",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "FilledCircular",
+    "State": "Hover",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorNeutralBackground3Hover",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2Hover",
+      "Icon": "colorNeutralForeground2Hover",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#292929",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "FilledCircular",
+    "State": "Hover",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorBrandBackgroundHover",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundOnBrand",
+      "Icon": "colorNeutralForegroundOnBrand",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#0f6cbd",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "FilledCircular",
+    "State": "Pressed",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorNeutralBackground3Pressed",
+      "Border": "transparent",
+      "Text": "colorNeutralForeground2Pressed",
+      "Icon": "colorNeutralForeground2Pressed",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#0a0a0a",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "FilledCircular",
+    "State": "Pressed",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorBrandBackgroundPressed",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundOnBrand",
+      "Icon": "colorNeutralForegroundOnBrand",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#0c3b5e",
+      "Border": "#00000000",
+      "Text": "#ffffff",
+      "Icon": "#ffffff",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "FilledCircular",
+    "State": "Disabled",
+    "Selected": false,
+    "Tokens": {
+      "Background": "colorNeutralBackgroundDisabled",
+      "Border": "transparent",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#141414",
+      "Border": "#00000000",
+      "Text": "#5c5c5c",
+      "Icon": "#5c5c5c",
+      "Indicator": "#00000000"
+    }
+  },
+  {
+    "Scheme": "Dark",
+    "Appearance": "FilledCircular",
+    "State": "Disabled",
+    "Selected": true,
+    "Tokens": {
+      "Background": "colorNeutralBackgroundDisabled",
+      "Border": "colorNeutralStrokeDisabled",
+      "Text": "colorNeutralForegroundDisabled",
+      "Icon": "colorNeutralForegroundDisabled",
+      "Indicator": "transparent"
+    },
+    "Colors": {
+      "Background": "#141414",
+      "Border": "#424242",
+      "Text": "#5c5c5c",
+      "Icon": "#5c5c5c",
+      "Indicator": "#00000000"
+    }
+  }
+]

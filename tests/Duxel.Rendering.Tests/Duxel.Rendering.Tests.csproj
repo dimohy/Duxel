@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework Condition="'$(DuxelBenchmarkFramework)' == ''">net10.0-windows</TargetFramework>
+    <TargetFramework Condition="'$(DuxelBenchmarkFramework)' != ''">$(DuxelBenchmarkFramework)</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DisableRuntimeMarshalling>true</DisableRuntimeMarshalling>
+    <DuxelValidationHooks>true</DuxelValidationHooks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/NativeMessageBarScene.cs" Link="NativeMessageBarScene.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/NativeAnnouncementScene.cs" Link="NativeAnnouncementScene.cs" />
+    <None Update="Fixtures/ButtonPalette.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Fixtures/ButtonAppearances.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Compile Remove="VulkanValidationHooks.cs" />
+    <Compile Remove="VulkanVectorDiagnostics.cs" />
+    <Compile Remove="VulkanVectorReadback.cs" />
+    <Compile Remove="InputLegacyReference.cs" />
+    <Compile Remove="ParagraphRasterValidation.cs" />
+    <Compile Remove="WindowsValidationHooks.cs" />
+    <ProjectReference Include="../../src/Duxel.App/Duxel.App.csproj" AdditionalProperties="DuxelValidationHooks=true" />
+    <ProjectReference Include="../../src/Duxel.Core/Duxel.Core.csproj" AdditionalProperties="DuxelValidationHooks=true" />
+    <ProjectReference Include="../../src/Duxel.Vulkan/Duxel.Vulkan.csproj" AdditionalProperties="DuxelValidationHooks=true" />
+    <ProjectReference Include="../../src/Duxel.Platform.Windows/Duxel.Platform.Windows.csproj" AdditionalProperties="DuxelValidationHooks=true" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Fixtures/CheckboxPalette.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

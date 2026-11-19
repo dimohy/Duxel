@@ -154,7 +154,7 @@ public sealed class MixedUiStressScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 16f, bounds.Y + 16f));
         ui.SetNextWindowSize(new UiVector2(360f, 420f));
-        ui.BeginWindow("Controls");
+        ui.BeginPanel("Controls");
 
         ui.TextV("FPS: {0:0.0}", _fps);
         ui.TextV("Windows: {0}", _windowCount);
@@ -189,14 +189,14 @@ public sealed class MixedUiStressScreen : UiScreen
             _canvasShapes = 1200;
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawSummaryWindow(UiImmediateContext ui, UiRect bounds)
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 390f, bounds.Y + 16f));
         ui.SetNextWindowSize(new UiVector2(380f, 260f));
-        ui.BeginWindow("Summary");
+        ui.BeginPanel("Summary");
 
         ui.Text("Mixed stress scenario:");
         ui.BulletText("many windows");
@@ -223,14 +223,14 @@ public sealed class MixedUiStressScreen : UiScreen
             ui.OpenPopup("stress_popup");
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawFormWindow(UiImmediateContext ui, UiRect bounds)
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 390f, bounds.Y + 286f));
         ui.SetNextWindowSize(new UiVector2(380f, 350f));
-        ui.BeginWindow("Forms");
+        ui.BeginPanel("Forms");
 
         for (var i = 0; i < 48; i++)
         {
@@ -256,14 +256,14 @@ public sealed class MixedUiStressScreen : UiScreen
             }
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawListWindow(UiImmediateContext ui, UiRect bounds)
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 780f, bounds.Y + 16f));
         ui.SetNextWindowSize(new UiVector2(350f, 620f));
-        ui.BeginWindow("Lists");
+        ui.BeginPanel("Lists");
 
         ui.Text("Rows");
         if (ui.BeginListBox(new UiVector2(0f, 560f), id: "Rows"))
@@ -279,14 +279,14 @@ public sealed class MixedUiStressScreen : UiScreen
             ui.EndListBox();
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawTableWindow(UiImmediateContext ui, UiRect bounds)
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 1140f, bounds.Y + 16f));
         ui.SetNextWindowSize(new UiVector2(430f, 450f));
-        ui.BeginWindow("Tables");
+        ui.BeginPanel("Tables");
 
         if (ui.BeginTable("stress_table", _tableCols, UiTableFlags.Borders | UiTableFlags.RowBg))
         {
@@ -309,28 +309,28 @@ public sealed class MixedUiStressScreen : UiScreen
             ui.EndTable();
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawTextWindow(UiImmediateContext ui, UiRect bounds)
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 1140f, bounds.Y + 476f));
         ui.SetNextWindowSize(new UiVector2(430f, 320f));
-        ui.BeginWindow("Renderers");
+        ui.BeginPanel("Renderers");
 
         for (var i = 0; i < _textLines; i++)
         {
             ui.TextV("Line {0:0000} :: alpha beta gamma delta epsilon zeta eta theta", i);
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawCanvasWindow(UiImmediateContext ui, UiRect bounds)
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 390f, bounds.Y + 646f));
         ui.SetNextWindowSize(new UiVector2(740f, 300f));
-        ui.BeginWindow("Canvas");
+        ui.BeginPanel("Canvas");
 
         var drawList = ui.GetWindowDrawList();
         var cursor = ui.GetCursorScreenPos();
@@ -351,7 +351,7 @@ public sealed class MixedUiStressScreen : UiScreen
         }
 
         ui.Dummy(new UiVector2(MathF.Max(1f, region.X), MathF.Max(1f, region.Y)));
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawPopupAndContext(UiImmediateContext ui)

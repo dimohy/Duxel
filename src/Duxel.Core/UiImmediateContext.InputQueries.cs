@@ -2,16 +2,42 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
+    public UiRendererFrameMetrics GetRendererFrameMetrics() => _state.RendererFrameMetrics;
+
+    /// <summary>Seconds the host waited for work between the last frame and this frame.</summary>
+    public double HostIdleWaitSeconds { get; internal set; }
+    public int DrainPresentedFrames(Span<UiRendererFrameMetrics> destination) => _state.DrainPresentedFrames(destination);
+    public IUiPresentationReader GetPresentationReader() => _state.PresentationReader;
+    public ulong GetOverwrittenPresentationSampleCount() => _state.OverwrittenPresentationSamples;
+    private ulong _drawDataFrameId;
+    public ulong GetDrawDataFrameId() => _drawDataFrameId;
+    internal void SetDrawDataFrameId(ulong id) => _drawDataFrameId = id;
+    public KeyModifiers GetKeyModifiers() => _state.Modifiers;
+    private bool _middleMouseDown, _middleMousePressed, _middleMouseReleased;
+
+    internal void SetMiddleMouseState(bool down, bool pressed, bool released)
+    {
+        _middleMouseDown = down;
+        _middleMousePressed = pressed;
+        _middleMouseReleased = released;
+    }
     public bool IsKeyDown(UiKey key) => _state.IsKeyDown(key);
 
     public bool IsKeyPressed(UiKey key, bool repeat = true)
     {
-        if (HasKeyDownEventThisFrame(key))
+        if (_tooltipEscapeConsumed && key == UiKey.Escape)
         {
+            return false;
+        }
+        if (HasKeyDownEventThisFrame(key, includeRepeats: repeat))
+        {
+            if (repeat && _state.KeyRepeatSource == UiKeyRepeatSource.Engine && !_state.HasRepeatTime(key))
+                _state.SetRepeatTime(key, _state.InputTimeSeconds + _keyRepeatDelaySeconds);
             return true;
         }
 
-        return repeat && IsRepeatTriggered(key);
+        return repeat && !(key == UiKey.Enter && _focusGroupEnterConsumed || key == UiKey.Escape && _focusGroupEscapeConsumed)
+            && IsRepeatTriggered(key);
     }
 
     public bool IsKeyReleased(UiKey key)
@@ -39,6 +65,10 @@ public sealed partial class UiImmediateContext
 
     public int GetKeyPressedAmount(UiKey key, float repeatDelay, float repeatRate)
     {
+        if (_tooltipEscapeConsumed && key == UiKey.Escape)
+        {
+            return 0;
+        }
         var count = 0;
         foreach (var keyEvent in _keyEvents)
         {
@@ -50,8 +80,14 @@ public sealed partial class UiImmediateContext
 
         if (count > 0)
         {
+            if (_state.KeyRepeatSource == UiKeyRepeatSource.Engine && repeatDelay > 0 && repeatRate > 0 && _state.IsKeyDown(key) && !_state.HasRepeatTime(key))
+                _state.SetRepeatTime(key, _state.InputTimeSeconds + repeatDelay);
             return count;
         }
+        if (key == UiKey.Enter && _focusGroupEnterConsumed || key == UiKey.Escape && _focusGroupEscapeConsumed)
+            return 0;
+        if (_state.KeyRepeatSource == UiKeyRepeatSource.Platform)
+            return 0;
 
         if (repeatDelay <= 0f || repeatRate <= 0f)
         {
@@ -63,7 +99,7 @@ public sealed partial class UiImmediateContext
             return 0;
         }
 
-        var now = _state.TimeSeconds;
+        var now = _state.InputTimeSeconds;
         if (!_state.TryGetRepeatTime(key, out var nextTime))
         {
             _state.SetRepeatTime(key, now + repeatDelay);
@@ -122,6 +158,7 @@ public sealed partial class UiImmediateContext
         {
             (int)UiMouseButton.Left => _leftMouseDown,
             (int)UiMouseButton.Right => _rightMouseDown,
+            (int)UiMouseButton.Middle => _middleMouseDown,
             _ => false,
         };
     }
@@ -133,6 +170,7 @@ public sealed partial class UiImmediateContext
         {
             (int)UiMouseButton.Left => _leftMousePressed,
             (int)UiMouseButton.Right => _rightMousePressed,
+            (int)UiMouseButton.Middle => _middleMousePressed,
             _ => false,
         };
     }
@@ -143,6 +181,7 @@ public sealed partial class UiImmediateContext
         {
             (int)UiMouseButton.Left => _leftMouseReleased,
             (int)UiMouseButton.Right => _rightMouseReleased,
+            (int)UiMouseButton.Middle => _middleMouseReleased,
             _ => false,
         };
     }
@@ -159,7 +198,7 @@ public sealed partial class UiImmediateContext
             return false;
         }
 
-        var heldDuration = _state.TimeSeconds - _state.LastClickTime;
+        var heldDuration = _state.InputTimeSeconds - _state.LastClickTime;
         return heldDuration >= Math.Max(0f, delaySeconds);
     }
 
@@ -190,9 +229,10 @@ public sealed partial class UiImmediateContext
                _mousePosition.X <= _displaySize.X && _mousePosition.Y <= _displaySize.Y;
     }
 
-    public bool IsAnyMouseDown() => _leftMouseDown || _rightMouseDown;
+    public bool IsAnyMouseDown() => _leftMouseDown || _rightMouseDown || _middleMouseDown;
 
     public UiVector2 GetMousePos() => _mousePosition;
+    public float GetMouseWheel() => _mouseWheel;
 
     public UiVector2 GetMousePosOnOpeningCurrentPopup()
     {

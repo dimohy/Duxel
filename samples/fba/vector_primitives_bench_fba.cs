@@ -131,7 +131,7 @@ public sealed class VectorPrimitivesBenchScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 14f, bounds.Y + 14f));
         ui.SetNextWindowSize(new UiVector2(330f, 180f));
-        ui.BeginWindow("Vector Bench");
+        ui.BeginPanel("Vector Bench");
 
         var phaseTotal = Math.Max(1, _phasePrimitiveCounts.Length);
         var phaseDisplay = Math.Min(_phaseIndex + 1, phaseTotal);
@@ -142,14 +142,14 @@ public sealed class VectorPrimitivesBenchScreen : UiScreen
         ui.TextV("Primitives: {0}", currentPrims);
         ui.TextV("Workload: {0}", GetWorkloadName(_workload));
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawVectorWindow(UiImmediateContext ui, UiRect bounds, double now)
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 360f, bounds.Y + 14f));
         ui.SetNextWindowSize(new UiVector2(MathF.Max(700f, bounds.Width - 374f), MathF.Max(540f, bounds.Height - 28f)));
-        ui.BeginWindow("Vector Canvas");
+        ui.BeginPanel("Vector Canvas");
 
         var canvasPos = ui.GetCursorScreenPos();
         var canvasSize = ui.GetContentRegionAvail();
@@ -176,7 +176,7 @@ public sealed class VectorPrimitivesBenchScreen : UiScreen
         }
 
         ui.Dummy(new UiVector2(canvas.Width, canvas.Height));
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private static void DrawMixedWorkload(UiDrawListBuilder drawList, UiRect canvas, int primitiveCount, float tick, UiTextureId white)

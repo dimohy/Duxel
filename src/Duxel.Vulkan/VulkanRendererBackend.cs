@@ -1,4 +1,4 @@
-﻿using Duxel.Core;
+using Duxel.Core;
 
 namespace Duxel.Vulkan;
 
@@ -8,6 +8,7 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
 
     public VulkanRendererBackend(IPlatformBackend platform, VulkanRendererOptions options)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxFramesInFlight);
         _options = options;
         _fontTextureIdValue = options.FontTextureId.Value is 0 ? 1 : options.FontTextureId.Value;
         _whiteTextureIdValue = options.WhiteTextureId.Value is 0 ? 2 : options.WhiteTextureId.Value;
@@ -18,15 +19,35 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
         _minImageCount = Math.Max(2, options.MinImageCount);
         _pipelineCachePath = string.Empty;
 
-        CreateInstance();
-        LoadInstanceExtensions();
-        CreateSurface();
-        PickPhysicalDevice();
-        ResolveDevicePolicySettings();
-        ConfigureMsaaSampleCount();
-        CreateDevice();
-        LoadDeviceExtensions();
-        CreateSwapchainResources();
+        try
+        {
+            options.DiagnosticsLog?.Invoke("VulkanInit[Begin]");
+            CreateInstance();
+            options.DiagnosticsLog?.Invoke("VulkanInit[Instance]");
+            LoadInstanceExtensions();
+            CreateSurface();
+            options.DiagnosticsLog?.Invoke("VulkanInit[Surface]");
+            PickPhysicalDevice();
+            options.DiagnosticsLog?.Invoke("VulkanInit[PhysicalDevice]");
+            ResolveDevicePolicySettings();
+            ConfigureMsaaSampleCount();
+            CreateDevice();
+            options.DiagnosticsLog?.Invoke("VulkanInit[Device]");
+            LoadDeviceExtensions();
+            options.DiagnosticsLog?.Invoke("VulkanInit[DeviceEntryPoints]");
+            CreateSwapchainResources();
+            options.DiagnosticsLog?.Invoke("VulkanInit[Ready]");
+        }
+        catch
+        {
+            if (_swapchain.Handle is not 0)
+            {
+                DestroySwapchainDependentResources(final: true);
+                DestroyDeviceResources();
+            }
+            DestroyNativeDeviceHandles();
+            throw;
+        }
     }
 
     private void ResolveDevicePolicySettings()
@@ -42,23 +63,40 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
 
     public void Dispose()
     {
+        var log = _options.DiagnosticsLog;
+        log?.Invoke("VulkanShutdown[Begin]");
+        _retainedLayerBatcher.Dispose();
         SavePipelineCache();
-        DestroySwapchainDependentResources();
+        log?.Invoke("VulkanShutdown[PipelineCacheSaved]");
+        DestroySwapchainDependentResources(final: true);
+        log?.Invoke("VulkanShutdown[SwapchainReleased]");
         DestroyDeviceResources();
+        log?.Invoke("VulkanShutdown[DeviceResourcesReleased]");
 
+        DestroyNativeDeviceHandles(log);
+    }
+
+    private void DestroyNativeDeviceHandles(Action<string>? log = null)
+    {
         if (_device.Handle is not 0)
         {
             _vk.DestroyDevice(_device, null);
+            _device = default;
+            log?.Invoke("VulkanShutdown[DeviceDestroyed]");
         }
 
         if (_surface.Handle is not 0)
         {
             _khrSurface.DestroySurface(_instance, _surface, null);
+            _surface = default;
+            log?.Invoke("VulkanShutdown[SurfaceDestroyed]");
         }
 
         if (_instance.Handle is not 0)
         {
             _vk.DestroyInstance(_instance, null);
+            _instance = default;
+            log?.Invoke("VulkanShutdown[InstanceDestroyed]");
         }
     }
 
@@ -74,8 +112,12 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
 
         FlushPendingTextureDestroysAll();
         FlushPendingBufferDestroysAll();
+        DestroyGpuParticleResources();
+        DestroyVectorScenes();
 
+        DestroyCompiledLayerGroups();
         DestroyGeometryBuffers();
+        DestroyPaintGroups();
         DestroyTextureResources();
         DestroyStagingBuffer();
         DestroyPipelineCache();
@@ -112,30 +154,61 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
         }
     }
 
+    partial void ObserveValidationTextureUpdates(bool begin);
+
     public void RenderDrawData(UiDrawData drawData)
     {
         _ = TryRenderDrawData(drawData);
     }
 
+    /// <summary>Accepts a presented frame or an unchanged valid native presentation. False requires retry;
+    /// PresentationReused distinguishes accepted CPU work from a new QueuePresent.</summary>
     public bool TryRenderDrawData(UiDrawData drawData)
     {
+        ObserveValidationFrameAttempt(drawData);
+        _frameLayerTransformPushes = _frameCulledLayerLists = 0;
         var profileEnabled = _profilingEnabled;
+        // CPU durations are consumed only by profile logs. Counters and GPU
+        // timestamps remain enabled on every frame independently of this flag.
+        _cpuTimingsThisFrame = profileEnabled && (!_cpuTimingSamplingEnabled
+            || unchecked(_profilingFrameCounter + 1) % _profilingLogInterval == 0);
+        var allocatedBefore = profileEnabled ? GC.GetAllocatedBytesForCurrentThread() : 0;
 
         if (profileEnabled)
         {
             ResetImageTransitionProfileCounters();
             ResetUploadProfileCounters();
+            _profileResizeWaitTicks = _profileResizeCreateTicks = _profileResizeTargetsTicks = _profileResizeSyncTicks = 0;
+            _profileDamageSnapshotTicks = _profileDamageRepairTicks = _profileTextureUpdateTicks = 0;
+            _profileVectorWorkTicks = _profileVectorImageTicks = _profileVectorRegistrationTicks = 0;
+            _profileVectorOutputCount = 0;
         }
 
+        ObserveValidationTextureUpdates(true);
+        var textureUpdateStart = BeginFrameProfileTiming(profileEnabled);
         ApplyTextureUpdates(drawData.TextureUpdates.AsSpan());
-
+        _profileTextureUpdateTicks = EndFrameProfileTiming(profileEnabled, textureUpdateStart);
+        ObserveValidationTextureUpdates(false);
         var targetStart = BeginFrameProfileTiming(profileEnabled);
+        CollectCompletedRenderTargets();
+        CollectPresentationFenceResources();
+
         if (!TryEnsureFrameTarget(drawData))
         {
             return false;
         }
+        PrepareGpuParticleResources(drawData);
 
+        _frameUsesDepthLayers = PrepareDepthLayers(drawData);
+        using var layerBatchFrame = _retainedLayerBatcher.Prepare(drawData);
+        drawData = layerBatchFrame.DrawData;
         var targetTicks = EndFrameProfileTiming(profileEnabled, targetStart);
+        PlanPaintGroupsForFrame(drawData);
+        using var damagePreparation = new DamagePreparationScope(this);
+        var invalidationSequence = ReadPresentationInvalidationSequence();
+        if (TryReusePresentation(drawData, invalidationSequence, allocatedBefore))
+            return true;
+        _presentedDamageValid = false;
         if (!TryBeginRenderFrame(out var frameContext))
         {
             return false;
@@ -149,10 +222,12 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
         frameProfile.FrameFenceTicks = frameContext.FrameFenceTicks;
         frameProfile.AcquireTicks = frameContext.AcquireTicks;
         frameProfile.ImageFenceTicks = frameContext.ImageFenceTicks;
+        PreparePaintGroupsForFrame();
         var geometryBuffers = PrepareFrameGeometryForRecording(
             drawData,
             frame,
             frameData,
+            frameContext.ImageIndex,
             profileEnabled,
             out frameProfile.UploadTicks);
 
@@ -164,14 +239,96 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
             profileEnabled,
             ref frameProfile);
 
-        return CompleteRecordedFrame(frameContext, commandBuffer, profileEnabled, ref frameProfile);
+        var presented = CompleteRecordedFrame(frameContext, commandBuffer, ref frameProfile);
+        CommitPresentationDamage(presented, invalidationSequence);
+        TrimIdleStagingBuffer();
+        var presentationInterval = 0.0;
+        if (presented)
+        {
+            var timestamp = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (_presentationTimestampTicks != 0)
+                presentationInterval = (timestamp - _presentationTimestampTicks) / (double)System.Diagnostics.Stopwatch.Frequency;
+            _presentationTimestampTicks = timestamp;
+            _presentationSequence++;
+        }
+        LastFrameMetrics = new(profileEnabled, _profileDynamicGeometryUploadBytes, _profileUploadStagingBytes,
+            frameProfile.RecordStats.DrawCallCount + _framePaintGroupDrawCalls, _profileStaticGeometryHitCount,
+            _profileStaticGeometryCreateCount + _profileStaticGeometryReplaceCount,
+            _profileStaticGeometryUpdateCount + _profileStaticGeometryReuseCount,
+            _depthLayerAllocatedBytes + _pendingDepthTargetBytes, frameProfile.GpuRenderUs)
+        {
+            PaintGroupPasses = _framePaintGroupPasses,
+            RepaintBounds = _repaintContentBounds,
+            RepaintHighlightActive = _repaintHighlightActive,
+            RepaintHighlightDeadlineTicks = _repaintUntil,
+            RepaintDiagnosticRedraw = _repaintDiagnosticRedraw,
+            PaintGroupDrawCalls = _framePaintGroupDrawCalls,
+            PaintGroupCacheHits = _framePaintGroupCacheHits,
+            FramebufferSize = new((int)_frameRenderExtent.Width, (int)_frameRenderExtent.Height),
+            VSyncEnabled = _options.EnableVSync,
+            MsaaSamples = (int)_msaaSampleCount,
+            PresentationMode = _activePresentMode switch
+            {
+                PresentModeKHR.ImmediateKhr => UiPresentationMode.Immediate,
+                PresentModeKHR.MailboxKhr => UiPresentationMode.Mailbox,
+                PresentModeKHR.FifoKhr => UiPresentationMode.Fifo,
+                PresentModeKHR.FifoRelaxedKhr => UiPresentationMode.FifoRelaxed,
+                _ => UiPresentationMode.Other,
+            },
+            GpuParticleCount = _particleCount,
+            GpuParticleDispatches = _particleDispatches,
+            GpuParticleInitialUploadBytes = _particleStateUploadBytes,
+            PresentationSequence = _presentationSequence,
+            CpuTimingCollected = _cpuTimingsThisFrame,
+            DrawDataFrameId = drawData.DrawDataFrameId,
+            PresentationTimestampTicks = _presentationTimestampTicks,
+            PresentationIntervalSeconds = presentationInterval,
+            BatchedSourceLists = _retainedLayerBatcher.BatchedSourceLists,
+            RebuiltBatchGroups = _retainedLayerBatcher.RebuiltGroups,
+            RendererAllocatedBytes = profileEnabled ? GC.GetAllocatedBytesForCurrentThread() - allocatedBefore : null,
+            LayerTransformPushes = _frameLayerTransformPushes,
+            CulledLayerLists = _frameCulledLayerLists,
+            LayerBoundsCommandVisits = _frameLayerBoundsCommandVisits,
+            AxisAlignedLayerCulling = _axisAlignedLayerCullingEnabled,
+            CompiledLayerDraws = _frameCompiledDraws,
+            SharedBasisLayerDraws = _frameSharedBasisDraws,
+            SharedCameraLayerDraws = _frameSharedCameraDraws,
+            CompiledLayerCommands = _frameCompiledCommands,
+            CompiledDescriptorBuilds = _frameCompiledDescriptorBuilds,
+            CompiledCommandVisits = _frameCompiledCommandVisits,
+            CompiledIndexUploadBytes = _frameCompiledIndexUploadBytes,
+            LayerStateUploadBytes = _frameLayerStateUploadBytes,
+            CompiledIndexCacheBytes = _compiledCacheBytes,
+            CompiledIndexLimit = _compiledIndexLimit,
+            RetiredSwapchains = _retiredPresentations.Count,
+            PendingRenderTargets = _pendingRenderTargetRetirements,
+            PendingRenderTargetBytes = _pendingRenderTargetBytes,
+            MsaaAllocatedBytes = _msaaColorAllocationBytes,
+        };
+        if (profileEnabled)
+            EmitFrameProfile(drawData.DrawDataFrameId, frameContext.ImageIndex, presented, in frameProfile);
+        return presented;
     }
+
+    public UiRendererFrameMetrics LastFrameMetrics
+    {
+        get; private set;
+    }
+    private ulong _presentationSequence;
+    private long _presentationTimestampTicks;
+    private readonly UiRetainedLayerBatcher _retainedLayerBatcher = new();
 
     private VulkanRendererOptions _options;
     private ClearColorValue _clearColorValue = new(0f, 0f, 0f, 1f);
+    private UiColor? _damageClearColor;
 
     public void SetClearColor(UiColor color)
     {
+        if (_damageClearColor != color)
+        {
+            _damageEpoch++;
+            _damageClearColor = color;
+        }
         _clearColorValue = ToClearColorValue(color);
     }
 
@@ -206,7 +363,10 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
             return;
         }
 
-        _options = _options with { EnableVSync = enable };
+        _options = _options with
+        {
+            EnableVSync = enable
+        };
         RecreateSwapchainAfterSettingsChange();
     }
 
@@ -226,7 +386,10 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
         }
 
         var previousMsaaSampleCount = _msaaSampleCount;
-        _options = _options with { MsaaSamples = normalized };
+        _options = _options with
+        {
+            MsaaSamples = normalized
+        };
         ConfigureMsaaSampleCount();
 
         if (_msaaSampleCount == previousMsaaSampleCount)

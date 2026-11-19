@@ -1,0 +1,13 @@
+# Text replacement, length limits and undo
+
+The single-line and multiline editing kernels share these rules. The change is an editing correctness fix, not complete Unicode shaping or Fluent conformance.
+
+`MaxLength` remains a UTF-16 code-unit budget for incoming edits. When pasted or committed text exceeds the available budget, insertion retains the longest prefix ending at a .NET `StringInfo` text-element boundary in the incoming string. It does not split a surrogate pair, combining sequence, joined emoji, flag or keycap inside that incoming element. If its first element cannot fit, the value, selected range and binding remain unchanged. Character events can replace a selection even when the existing value is already at the limit. A full-fitting insertion retains the existing fast path.
+
+Caller-assigned values are not truncated to the edit budget. Accessibility Value requests retain their separate published-length/control-character validation. These limits do not prove complete Unicode editing, cross-boundary grapheme semantics, bidirectional layout or browser parity.
+
+When the caller's value differs from the editor buffer at the next render, after that kernel's existing normalization, it establishes a new undo baseline and invalidates old redo. That synchronization does not notify the binding; existing multiline normalization may still notify when it changes the caller's text. Equal contents preserve history even when the string instance changes. New typing or IME commits can be undone to the replacement baseline. History reset clears old pooled string references and releases excessive array capacity.
+
+Accessibility Value requests remain editor transactions. The kernel first synchronizes an external model replacement, then records the queued Value change, then processes keyboard input. Undo/redo therefore preserves the API edit; Undo in the same frame can undo that transaction, and a simultaneous external replacement remains its preceding baseline. `UiTextEditBuffer.Sync` also replaces dirty builder contents when the requested value equals its previous cached string.
+
+Pinned .NET 11 RC3 reproduces 29 failures before the fix. The expanded CPU suite passes 175 checks, including 49 new integrity checks for single-line/multiline paths, keyboard, clipboard, queued IME handlers and accessibility transactions. Native OS IME and external Windows UIA are not established by these in-process tests. Detailed build, regression, image and sample evidence lives in `artifacts/text-edit-integrity-2026-11-11/verification.json`. Current Native/runtime comparison and integrated performance remain open.

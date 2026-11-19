@@ -1,0 +1,29 @@
+# Backdrop composition and runtime paint groups
+
+`UiBackdropImage` composites two prepared reference images. `UiPaintGroup` additionally captures a pure paint callback into real GPU targets, then composites the result once. These APIs share the affine equation: for content over transparent black B and opaque white W, coverage is `C = 1 - W + B`; final output is `B * opacity + destination * (1 - C * opacity)`. RGB and alpha coverage remain independent, including LCD masks with nonzero RGB and zero alpha.
+
+Keep one `UiPaintGroup` owner outside the frame callback. Call `ui.PaintGroup(group, bounds, contentVersion, paint, opacity)` or the corresponding `UiControlContext` method. `paint` receives a control paint context. It must perform painting only: no layout, input processing or application side effects. It runs once per content version, logical size and DPI. Changing final opacity or placement reuses the capture. Changing theme, text or image identity requires a new content version. Updating the pixels of an existing dependency texture invalidates the GPU capture automatically; unrelated texture uploads do not.
+
+Source coordinates are captured once; subsequent placement uses the cached source viewport. The final destination is clipped by the current parent. Nested paint groups are resolved child-first. Dependency cycles, missing source textures, external draw callbacks and mutable GPU particle frames fail explicitly. A source snapshot must be2D; outer placement may use the existing presentation system. Keep borrowed source images and nested group owners alive while a future capture can reference them.
+
+`UiPaintGroupContent` copies vertices, indices, analytic primitives and command state. `Acquire()` returns an independently disposable `UiPaintGroupLease`. Render updates transfer leases to queued frames; scaled frame copies acquire separate leases. The renderer retains its own lease. Replacing or disposing a producer cannot mutate an earlier queued snapshot. Dispose group owners on the UI thread; GPU textures retire through existing frame fences rather than forcing device idle. Context teardown detaches owners; device teardown releases uncaptured definitions too.
+
+The renderer executes ordinary drawing twice before the main render pass, with explicit color-attachment write and shader-read transitions. Both targets use the current pipeline color format and sample configuration; one optional MSAA target is reused between the two passes. Native texture slots remain unchanged while referenced by older GPU submissions. Dependency validation runs before acquiring a presentation image; device extent, descriptor slots and logical target budget are checked before offscreen allocation. Frames without paint groups skip group command scans.
+
+A copied geometry snapshot is limited to64MiB, and its two resolved color targets together to64MiB. All live group logical color/MSAA targets together are limited to256MiB. These budgets exclude native allocation alignment, staging, geometry caches and pending retired resources; they are not a process-memory measurement. Original command metadata and render-update metadata grow to carry these contracts. Initial capture performs additional CPU copies and GPU work. No whole-frame speedup or memory reduction is implied.
+
+Metrics distinguish `PaintGroupPasses`, `PaintGroupDrawCalls` and `PaintGroupCacheHits`. Total `DrawCalls` includes capture draws. A clear-only capture can still perform passes with zero draws. Unchanged captures use no offscreen passes; existing acquired-image damage repair remains separate. Input and event-wait scheduling are unchanged.
+
+Run `./run-gallery.ps1` from the repository root, then open **렌더링**. The first three blocks show prepared references at opacity0/0.5/1. The block to their right captures overlapping red/green drawing at runtime and applies opacity0.8 once. It creates no animation timer.
+
+Final-resolution text for uniform0.875 scaling is qualified below. Arbitrary rotation/projective text quality, inactive Avatar integration, general interactive widget-subtree capture, forced colors, exact RC3 NativeAOT, original load/memory and other original acceptance gates remain open. Do not implement inactive Avatar by applying opacity separately to its commands. No shader binaries were modified for the runtime capture work.
+
+Each owner has one content definition per context per frame. Reusing that definition at several placements/opacities is supported; changing its version, size or DPI halfway through the same frame is rejected before overwriting an earlier draw. Use separate owners for distinct definitions. Disposing an owner after painting but before frame sealing remains valid: output-destroy requests enter the next frame, while current snapshots keep their own leases.
+
+## Final-resolution transformed text
+
+`rasterScale` multiplies the capture DPI and is part of its cache key. For a0.875 destination, capture at0.875 as well; glyph rasterization and bitmap size match the final pixel extent. The context DPI is restored afterward. Nested captures inherit the current capture DPI and text mode unless a mode is supplied explicitly.
+
+`UiPaintGroupTextMode.PhysicalLcd` remains the default. Select `Projected` for transformed text. It uses the existing fragment-stage projected coverage averaging, while the vertex stage stays flat. A dedicated pipeline specialization reuses the exact existing SPIR-V modules; ordinary rendering and colored image/primitive paths remain unchanged. Local clip constants must be initialized per command because the projected fragment specialization also enables local clipping. This mode changes glyph coverage, not source colors globally.
+
+The Rendering tab includes actual Korean/Latin text captured at0.875 resolution. Inactive Avatar now uses this capture path; see [its qualified scope](fluent2-avatar.md). Full motion/forced-color conformance remains open.

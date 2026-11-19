@@ -1,0 +1,24 @@
+{
+  "sources": [
+    {
+      "file": "Red_Gallardo.svg",
+      "width": 764,
+      "height": 372,
+      "url": "https://commons.wikimedia.org/wiki/File:Red_Gallardo.svg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/6/62/Red_Gallardo.svg",
+      "license": "CC-BY-SA-3.0",
+      "authors": "Tomeq183; Tacosunday; Svgalbertian",
+      "sourceSha256": "50b68f854898c97fe44b49fed9e5adf09e7721a4afebbe726f886c0c7f48f419"
+    },
+    {
+      "file": "TheStructorr_Lamborghini_Gallardo.svg",
+      "width": 768,
+      "height": 300,
+      "url": "https://commons.wikimedia.org/wiki/File:TheStructorr_Lamborghini_Gallardo.svg",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/8/8a/TheStructorr_Lamborghini_Gallardo.svg",
+      "license": "CC0-1.0",
+      "authors": "Michał Pecyna (TheStructorr)",
+      "sourceSha256": "12981701321aeb9c7c1001d561f901f7566184ff6eeb980bdb1e070f59007057"
+    }
+  ]
+}

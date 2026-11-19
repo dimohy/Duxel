@@ -222,13 +222,7 @@ public sealed class ExtendedTitleBarScreen : UiScreen
 
     private void DrawContent(UiImmediateContext ui, UiViewport viewport, bool hasCaptionBounds, UiRect captionBounds)
     {
-        const float margin = 24f;
-        ui.SetNextWindowPos(new UiVector2(margin, TitleBarHeight + margin));
-        ui.SetNextWindowSize(new UiVector2(
-            MathF.Max(1f, viewport.Size.X - margin * 2f),
-            MathF.Max(1f, viewport.Size.Y - TitleBarHeight - margin * 2f)));
-        ui.BeginWindow("Extended title-bar validation");
-
+        ui.EnableRootViewportContentLayout();
         ui.PushFontSize(24f);
         ui.Text(_activeTab == 0 ? "Home" : "Documents");
         ui.PopFontSize();
@@ -248,7 +242,6 @@ public sealed class ExtendedTitleBarScreen : UiScreen
             ui.Text("Duxel caption bounds are temporarily unavailable while the window is not visible.");
         }
 
-        ui.EndWindow();
     }
 }
 

@@ -137,7 +137,9 @@ public struct PhysicalDeviceSparseProperties
 [StructLayout(LayoutKind.Explicit, Size = 504)]
 public struct PhysicalDeviceLimits
 {
+    [FieldOffset(4)] public uint MaxImageDimension2D;
     [FieldOffset(376)] public SampleCountFlags FramebufferColorSampleCounts;
+    [FieldOffset(380)] public SampleCountFlags FramebufferDepthSampleCounts;
     [FieldOffset(420)] public Bool32 TimestampComputeAndGraphics;
     [FieldOffset(424)] public float TimestampPeriod;
 }
@@ -363,6 +365,23 @@ public unsafe struct PipelineShaderStageCreateInfo
     public ShaderModule Module;
     public byte* PName;
     public void* PSpecializationInfo;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct SpecializationMapEntry
+{
+    public uint ConstantID;
+    public uint Offset;
+    public nuint Size;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct SpecializationInfo
+{
+    public uint MapEntryCount;
+    public SpecializationMapEntry* PMapEntries;
+    public nuint DataSize;
+    public void* PData;
 }
 
 [StructLayout(LayoutKind.Sequential)]

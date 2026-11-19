@@ -35,7 +35,6 @@ public sealed class UiImageTexture
 
     private readonly UiTextureId _textureId;
     private readonly byte[] _sourceRgba;
-    private readonly byte[] _workingRgba;
     private bool _textureCreated;
     private UiImageEffects _lastEffects;
 
@@ -55,9 +54,7 @@ public sealed class UiImageTexture
         Width = width;
         Height = height;
         _sourceRgba = new byte[rgbaPixels.Length];
-        _workingRgba = new byte[rgbaPixels.Length];
         Array.Copy(rgbaPixels, _sourceRgba, rgbaPixels.Length);
-        Array.Copy(rgbaPixels, _workingRgba, rgbaPixels.Length);
         _lastEffects = UiImageEffects.Default;
     }
 
@@ -67,7 +64,7 @@ public sealed class UiImageTexture
 
     public static UiImageTexture LoadFromFile(string path, UiTextureId textureId)
     {
-        var (width, height, rgba) = LoadRgba(path);
+        var (width, height, rgba) = DecodeFile(path);
         return new UiImageTexture(textureId, width, height, rgba);
     }
 
@@ -75,7 +72,13 @@ public sealed class UiImageTexture
     {
         if (!_textureCreated || !_lastEffects.Equals(effects))
         {
-            ApplyEffects(_sourceRgba, _workingRgba, Width, Height, effects);
+            ReadOnlyMemory<byte> pixels = _sourceRgba;
+            if (effects != UiImageEffects.Default)
+            {
+                var processed = new byte[_sourceRgba.Length];
+                ApplyEffects(_sourceRgba, processed, Width, Height, effects);
+                pixels = processed;
+            }
             var kind = _textureCreated ? UiTextureUpdateKind.Update : UiTextureUpdateKind.Create;
             ui.QueueTextureUpdate(new UiTextureUpdate(
                 kind,
@@ -83,7 +86,7 @@ public sealed class UiImageTexture
                 UiTextureFormat.Rgba8Unorm,
                 Width,
                 Height,
-                _workingRgba));
+                pixels) { IsColorImage = true });
             _textureCreated = true;
             _lastEffects = effects;
         }
@@ -136,7 +139,7 @@ public sealed class UiImageTexture
         drawList.PopTexture();
     }
 
-    private static (int Width, int Height, byte[] Rgba) LoadRgba(string path)
+    internal static (int Width, int Height, byte[] Rgba) DecodeFile(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
@@ -149,7 +152,7 @@ public sealed class UiImageTexture
         return ext switch
         {
             ".ppm" => LoadPpm(path),
-            ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".ico" => LoadWithExternalDecoder(path),
+            ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".ico" or ".svg" => LoadWithExternalDecoder(path),
             _ => throw new NotSupportedException($"Unsupported image extension: {ext}")
         };
     }
@@ -160,7 +163,7 @@ public sealed class UiImageTexture
         if (decoder is null)
         {
             throw new InvalidOperationException(
-                "No platform image decoder is registered. Register IUiImageDecoder before loading PNG/JPG/GIF/BMP.");
+                "No platform image decoder is registered. Register IUiImageDecoder before loading PNG/JPG/GIF/BMP/SVG.");
         }
 
         if (!decoder.CanDecode(path))
@@ -374,7 +377,6 @@ public sealed class UiImageTexture
             dst[i + 0] = (byte)Math.Clamp((int)MathF.Round(rf), 0, 255);
             dst[i + 1] = (byte)Math.Clamp((int)MathF.Round(gf), 0, 255);
             dst[i + 2] = (byte)Math.Clamp((int)MathF.Round(bf), 0, 255);
-            dst[i + 3] = 255;
         }
     }
 

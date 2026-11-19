@@ -30,18 +30,40 @@ public sealed class ImageAndPopupScreen : UiScreen
     {
         _frameCounter++;
 
-        RenderImageWindow(ui);
-        RenderAdvancedPopupWindow(ui);
-        RenderTextLinkWindow(ui);
-        RenderAdvancedTreeWindow(ui);
-        RenderListBoxCustomWindow(ui);
+        if(ui.BeginTabBar("sample-pages"))
+        {
+            if(ui.BeginTabItem("Image",UiTabItemFlags.None))
+            {
+                RenderImageWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("AdvancedPopup",UiTabItemFlags.None))
+            {
+                RenderAdvancedPopupWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("TextLink",UiTabItemFlags.None))
+            {
+                RenderTextLinkWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("AdvancedTree",UiTabItemFlags.None))
+            {
+                RenderAdvancedTreeWindow(ui);
+                ui.EndTabItem();
+            }
+            if(ui.BeginTabItem("ListBoxCustom",UiTabItemFlags.None))
+            {
+                RenderListBoxCustomWindow(ui);
+                ui.EndTabItem();
+            }
+            ui.EndTabBar();
+        }
     }
 
     private void RenderImageWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(420f, 300f));
-        ui.BeginWindow("Image Widgets");
+        ui.PushID("Image Widgets"); ui.BeginGroup();
 
         ui.SeparatorText("Image (using WhiteTexture)");
         // Image uses a texture ID — we use the built-in white texture as a placeholder
@@ -60,14 +82,12 @@ public sealed class ImageAndPopupScreen : UiScreen
         ui.SameLine();
         ui.Text($"ImageButton clicked: {_imageButtonClicks}x");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderAdvancedPopupWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(420f, 300f));
-        ui.BeginWindow("Advanced Popups");
+        ui.PushID("Advanced Popups"); ui.BeginGroup();
 
         ui.SeparatorText("OpenPopupOnItemClick");
         ui.Button("Right-click for popup##opoc");
@@ -109,14 +129,12 @@ public sealed class ImageAndPopupScreen : UiScreen
             ui.EndTooltip();
         }
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderTextLinkWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(380f, 180f));
-        ui.BeginWindow("TextLink / TextLinkOpenURL");
+        ui.PushID("TextLink / TextLinkOpenURL"); ui.BeginGroup();
 
         ui.SeparatorText("TextLink (clickable text)");
         if (ui.TextLink("Click this link"))
@@ -128,14 +146,12 @@ public sealed class ImageAndPopupScreen : UiScreen
         ui.TextLinkOpenURL("Open Duxel GitHub", "https://github.com/dimohy/Duxel");
         ui.Text("(Opens URL in system browser)");
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderAdvancedTreeWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(380f, 220f));
-        ui.BeginWindow("Advanced Tree");
+        ui.PushID("Advanced Tree"); ui.BeginGroup();
 
         ui.SeparatorText("TreeNodeV (format string)");
         if (ui.TreeNodeV("Node {0}", "Alpha"))
@@ -158,14 +174,12 @@ public sealed class ImageAndPopupScreen : UiScreen
             ui.TreePop();
         }
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 
     private void RenderListBoxCustomWindow(UiImmediateContext ui)
     {
-        if (_frameCounter == 1)
-            ui.SetNextWindowSize(new UiVector2(380f, 200f));
-        ui.BeginWindow("ListBox Custom");
+        ui.PushID("ListBox Custom"); ui.BeginGroup();
 
         ui.SeparatorText("ListBoxHeader / ListBoxFooter");
         ui.Text("Custom List");
@@ -178,6 +192,6 @@ public sealed class ImageAndPopupScreen : UiScreen
             ui.ListBoxFooter();
         }
 
-        ui.EndWindow();
+        ui.EndGroup(); ui.PopID();
     }
 }

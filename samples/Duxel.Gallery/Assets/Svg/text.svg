@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="70" viewBox="0 0 400 70">
+  <style>.caption { font-family: 'Observer UI', 'Observer Korean'; font-size: 24px; fill: #ffffff; }</style>
+  <text class="caption" x="4" y="27">SVG <tspan font-weight="700">Text</tspan><tspan font-family="Observer Korean" dx="10">한글</tspan></text>
+  <defs><path id="curve" d="M4 63 Q175 35 390 63"/><text id="cached-caption">One parse / cached text</text></defs>
+  <text font-family="Observer UI" font-size="16" fill="#62abf5"><textPath href="#curve"><tref href="#cached-caption"/></textPath></text>
+</svg>

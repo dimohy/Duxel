@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework Condition="'$(DuxelBenchmarkFramework)' == ''">net10.0</TargetFramework>
+    <TargetFramework Condition="'$(DuxelBenchmarkFramework)' != ''">$(DuxelBenchmarkFramework)</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Duxel.Core/Duxel.Core.csproj" />
+    <ProjectReference Include="../../src/Duxel.Core.Dsl.Generator/Duxel.Core.Dsl.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/Duxel.Platform.Linux/Duxel.Platform.Linux.csproj" />
+    <ProjectReference Include="../../src/Duxel.Vulkan/Duxel.Vulkan.csproj" />
+    <Compile Include="../Duxel.Graphics.Tests/PresentationReuseTests.cs" Link="PresentationReuseTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/GlyphTextureReplayTests.cs" Link="GlyphTextureReplayTests.cs" />
+    <Compile Include="../Duxel.Svg.Managed.Tests/BrowserPng.cs" Link="BrowserPng.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/PaintGroupRenderingTests.cs" Link="PaintGroupRenderingTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/SkeletonRenderingTests.cs" Link="SkeletonRenderingTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/TreeRenderingTests.cs" Link="TreeRenderingTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/ContainerPixelTests.cs" Link="ContainerPixelTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/ContainerContractRenderingTests.cs" Link="ContainerContractRenderingTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/ScrollViewRenderingTests.cs" Link="ScrollViewRenderingTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/VirtualListRenderingTests.cs" Link="VirtualListRenderingTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/VirtualGridRenderingTests.cs" Link="VirtualGridRenderingTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/ImageShaderBenchmark.cs" Link="ImageShaderBenchmark.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/GpuVectorTestScenes.cs" Link="GpuVectorTestScenes.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/SvgReplacementPressureTests.cs" Link="SvgReplacementPressureTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/RadioAllocationRenderingTests.cs" Link="RadioAllocationRenderingTests.cs" />
+    <Compile Include="../Shared/CustomRadioAllocationFixture.cs" Link="CustomRadioAllocationFixture.cs" />
+  </ItemGroup>
+  <Target Name="RequireGraphicsValidationHooks" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(DuxelValidationHooks)' != 'true'" Text="Linux GPU contracts require -p:DuxelValidationHooks=true for this project and its referenced renderer." />
+  </Target>
+</Project>

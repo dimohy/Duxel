@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Product>Duxel Gallery</Product>
+    <Description>Duxel controls and graphics gallery.</Description>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Duxel.Linux.App/Duxel.Linux.App.csproj" />
+    <ProjectReference Include="../../src/Duxel.Svg/Duxel.Svg.csproj" />
+    <Compile Include="../Duxel.Gallery/*.cs"
+             Exclude="../Duxel.Gallery/Program.cs;../Duxel.Gallery/ObserverServices.Windows.cs"
+             Link="Observer/%(Filename)%(Extension)" />
+    <Compile Include="../Duxel.Sample/SampleScreen.cs" Link="Legacy/SampleScreen.cs" />
+    <Compile Include="../Duxel.Sample/ImGuiExamples.cs" Link="Legacy/ImGuiExamples.cs" />
+    <Compile Include="../Duxel.Sample/ImmediateSampleSection.cs" Link="Legacy/ImmediateSampleSection.cs" />
+    <None Include="../Duxel.Gallery/Assets/Svg/*.svg" Link="Assets/Svg/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/*.svg;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/*.browser.png;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/*.json;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ATTRIBUTION.md"
+          Link="Assets/Svg/Browser/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ClipStorage/*.svg;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ClipStorage/*.browser.png;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ClipStorage/references.json"
+          Link="Assets/Svg/Browser/ClipStorage/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/LayerOrigin/*.svg;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/LayerOrigin/*.browser.png;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/LayerOrigin/references.json"
+          Link="Assets/Svg/Browser/LayerOrigin/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/StrokeDomains/*.svg;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/StrokeDomains/*.browser.png;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/StrokeDomains/references.json"
+          Link="Assets/Svg/Browser/StrokeDomains/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/*.svg;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/*.browser.png;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ArcGeometry/references.json"
+          Link="Assets/Svg/Browser/ArcGeometry/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../Duxel.Gallery/*.cs" LogicalName="GallerySource.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../Duxel.Gallery/Assets/Brand/*.svg" Link="Assets/Brand/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../Duxel.Gallery/Assets/Fonts/**/*" Link="Assets/Fonts/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 
 namespace Duxel.Core;
@@ -12,38 +11,15 @@ public sealed partial class UiImmediateContext
 
     public bool Button(string label, UiVector2 size)
     {
-        label ??= "Button";
+        return Button<UiConfiguredButtonBehavior, UiDefaultButtonPresentation>(label, size);
+    }
 
-        var displayLabel = GetDisplayLabel(label);
-        var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
-        var width = size.X > 0f ? size.X : textSize.X + ButtonPaddingX * 2f;
-        var height = size.Y > 0f ? size.Y : textSize.Y + ButtonPaddingY * 2f;
-        var cursor = AdvanceCursor(new UiVector2(width, height));
-        var rect = new UiRect(cursor.X, cursor.Y, width, height);
-
-        var pressed = ButtonBehavior(label, rect, out var hovered, out var held);
-        var color = held ? _theme.ButtonActive : hovered ? _theme.ButtonHovered : _theme.Button;
-        var borderColor = held ? _theme.ButtonBorderActive : hovered ? _theme.ButtonBorderHovered : _theme.ButtonBorder;
-        AddDesignedFrame(rect, color, borderColor, _designTokens.ControlCornerRadius, _designTokens.ControlBorderWidth);
-
-        var textPos = new UiVector2(
-            rect.X + (rect.Width - textSize.X) * 0.5f,
-            rect.Y + (rect.Height - textSize.Y) * 0.5f + (held ? _designTokens.ControlPressedOffsetY : 0f)
-        );
-        if (!string.IsNullOrEmpty(displayLabel))
-        {
-            AddTextInternal(_builder,
-
-                displayLabel,
-                textPos,
-                _theme.ButtonText,
-                CurrentClipRect,
-                _textSettings,
-                _lineHeight
-            );
-        }
-
-        return pressed;
+    /// <summary>Uses a stable explicit identifier while the displayed and accessible label can change.</summary>
+    public bool Button(string id, string label, UiVector2 size)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentNullException.ThrowIfNull(label);
+        return Button<UiConfiguredButtonBehavior, UiDefaultButtonPresentation>(id, label, size);
     }
 
     public bool SmallButton(string label)
@@ -54,18 +30,18 @@ public sealed partial class UiImmediateContext
         const float smallPadY = 2f;
         var displayLabel = GetDisplayLabel(label);
         var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
-        var size = new UiVector2(textSize.X + smallPadX * 2f, textSize.Y + smallPadY * 2f);
+        var skin = CurrentButtonSkin;
+        var size = new UiVector2(MathF.Max(skin.MinimumWidth, textSize.X + (skin.PaddingX ?? smallPadX) * 2f),
+            MathF.Max(skin.MinimumHeight, textSize.Y + (skin.PaddingY ?? smallPadY) * 2f));
         var cursor = AdvanceCursor(size);
         var rect = new UiRect(cursor.X, cursor.Y, size.X, size.Y);
 
-        var pressed = ButtonBehavior(label, rect, out var hovered, out var held);
-        var color = held ? _theme.ButtonActive : hovered ? _theme.ButtonHovered : _theme.Button;
-        var borderColor = held ? _theme.ButtonBorderActive : hovered ? _theme.ButtonBorderHovered : _theme.ButtonBorder;
-        AddDesignedFrame(rect, color, borderColor, _designTokens.ControlCornerRadius, _designTokens.ControlBorderWidth);
+        var pressed = ButtonBehavior(label, rect, out var hovered, out var held, skin.Activation);
+        AddButtonFrame(rect, hovered, held, skin);
 
         var textPos = new UiVector2(
             rect.X + (rect.Width - textSize.X) * 0.5f,
-            rect.Y + (rect.Height - textSize.Y) * 0.5f + (held ? _designTokens.ControlPressedOffsetY : 0f)
+            rect.Y + (rect.Height - textSize.Y) * 0.5f + (held ? skin.PressedOffsetY ?? _designTokens.ControlPressedOffsetY : 0f)
         );
         if (!string.IsNullOrEmpty(displayLabel))
         {
@@ -98,14 +74,13 @@ public sealed partial class UiImmediateContext
     {
         id ??= "Arrow";
 
-        var size = GetFrameHeight();
+        var skin = CurrentButtonSkin;
+        var size = MathF.Max(GetFrameHeight(), skin.MinimumHeight);
         var cursor = AdvanceCursor(new UiVector2(size, size));
         var rect = new UiRect(cursor.X, cursor.Y, size, size);
 
-        var pressed = ButtonBehavior(id, rect, out var hovered, out var held);
-        var color = held ? _theme.ButtonActive : hovered ? _theme.ButtonHovered : _theme.Button;
-        var borderColor = held ? _theme.ButtonBorderActive : hovered ? _theme.ButtonBorderHovered : _theme.ButtonBorder;
-        AddDesignedFrame(rect, color, borderColor, _designTokens.ControlCornerRadius, _designTokens.ControlBorderWidth);
+        var pressed = ButtonBehavior(id, rect, out var hovered, out var held, skin.Activation);
+        AddButtonFrame(rect, hovered, held, skin);
 
         var arrow = dir switch
         {
@@ -118,7 +93,7 @@ public sealed partial class UiImmediateContext
         var textSize = MeasureTextInternal(arrow, _textSettings, _lineHeight);
         var textPos = new UiVector2(
             rect.X + (rect.Width - textSize.X) * 0.5f,
-            rect.Y + (rect.Height - textSize.Y) * 0.5f + (held ? _designTokens.ControlPressedOffsetY : 0f)
+            rect.Y + (rect.Height - textSize.Y) * 0.5f + (held ? skin.PressedOffsetY ?? _designTokens.ControlPressedOffsetY : 0f)
         );
         AddTextInternal(_builder,
 
@@ -195,17 +170,7 @@ public sealed partial class UiImmediateContext
 
     public void TextWrapped(string text)
     {
-        text ??= string.Empty;
-
-        var current = _layouts.Peek();
-        var availableWidth = GetWrapWidth(current.Cursor);
-        if (availableWidth <= 0f && _hasWindowRect)
-        {
-            availableWidth = MathF.Max(0f, (_windowRect.X + _windowRect.Width - WindowPadding) - current.Cursor.X);
-        }
-
-        var wrapped = availableWidth > 0f ? WrapText(text, availableWidth) : text;
-        RenderText(wrapped, _theme.Text);
+        Text<UiContextWrappedTextPresentation>(text);
     }
 
     public void TextWrappedV(string format, params object[] args)
@@ -706,14 +671,7 @@ public sealed partial class UiImmediateContext
         var pressed = TextLink(label);
         if (pressed && !string.IsNullOrWhiteSpace(url))
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-            }
-            catch
-            {
-                // Ignore failures to open URLs.
-            }
+            UiLinkNavigation.OpenExternal(new Uri(url, UriKind.Absolute));
         }
 
         return pressed;
@@ -881,8 +839,7 @@ public sealed partial class UiImmediateContext
             : _directTextBaseFontSize > 0f
                 ? MathF.Max(1f, _directTextBaseFontSize * _textSettings.Scale)
                 : MathF.Max(1f, _lineHeight * _textSettings.Scale);
-        var sizeQuarter = (int)MathF.Round(fontSize * 4f);
-        if (!TryGetOrCreateDirectText(glyph.ToString(), sizeQuarter, fontSize, out var entry) || entry.Height <= 0)
+        if (!TryGetOrCreateDirectText(glyph.ToString(), fontSize, out var entry) || entry.Height <= 0)
         {
             return false;
         }
@@ -900,37 +857,7 @@ public sealed partial class UiImmediateContext
 
     private void RenderText(string? text, UiColor color)
     {
-        text ??= string.Empty;
-
-        var textSize = MeasureTextInternal(text, _textSettings, _lineHeight);
-        var cursor = AdvanceCursor(new UiVector2(textSize.X, textSize.Y));
-        if (_tableActive && _tableColumns > 0)
-        {
-            var columnWidth = GetTableColumnWidth(_tableColumn);
-            var align = _tableColumnAlign.Length > _tableColumn ? _tableColumnAlign[_tableColumn] : 0f;
-            var padding = ButtonPaddingX;
-            var available = MathF.Max(0f, columnWidth - padding * 2f);
-            var alignedX = cursor.X + padding + MathF.Max(0f, available - textSize.X) * align;
-            cursor = new UiVector2(alignedX, cursor.Y);
-        }
-
-        var clipRect = ResolveItemClipRect();
-        var clipped = IntersectRect(clipRect, new UiRect(cursor.X, cursor.Y, textSize.X, textSize.Y));
-        if (clipped.Width <= 0f || clipped.Height <= 0f)
-        {
-            return;
-        }
-
-        AddTextInternal(
-            _builder,
-
-            text,
-            cursor,
-            color,
-            clipRect,
-            _textSettings,
-            _lineHeight
-        );
+        Text<UiContextTextPresentation>(text, color);
     }
 
     private static string FormatInvariant(string? format, object[] args)
@@ -970,6 +897,11 @@ public sealed partial class UiImmediateContext
         }
 
         var textSpan = text.AsSpan();
+        // The common single-line case needs neither word strings nor an output builder.
+        if (textSpan.IndexOfAny('\r', '\n', '\t') < 0 && textSpan[0] != ' ' && textSpan[^1] != ' '
+            && !text.Contains("  ", StringComparison.Ordinal)
+            && MeasureTextInternal(text, _textSettings, _lineHeight).X <= maxWidth)
+            return text;
         var spaceWidth = MeasureTextWidth(" ", 1);
         var builder = new System.Text.StringBuilder(text.Length + 16);
         var lineWidth = 0f;
@@ -988,8 +920,17 @@ public sealed partial class UiImmediateContext
                 break;
             }
 
+            if (textSpan[index] == '\n')
+            {
+                builder.Append('\n');
+                lineWidth = 0;
+                first = true;
+                index++;
+                continue;
+            }
+
             var wordStart = index;
-            while (index < textSpan.Length && textSpan[index] != ' ')
+            while (index < textSpan.Length && textSpan[index] != ' ' && textSpan[index] != '\n')
             {
                 index++;
             }
@@ -1028,76 +969,7 @@ public sealed partial class UiImmediateContext
     }
 
     public bool Checkbox(string label, ref bool value)
-    {
-        label ??= "Checkbox";
-
-        var displayLabel = GetDisplayLabel(label);
-        var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
-        var frameHeight = GetFrameHeight();
-        var compactToggleSize = MathF.Max(12f, (GetTextLineHeight() * 0.78f) + 2f);
-        var checkboxSize = MathF.Min(MathF.Max(12f, frameHeight - 2f), compactToggleSize);
-        if (_textSettings.PixelSnap)
-        {
-            checkboxSize = MathF.Round(checkboxSize);
-        }
-
-        var height = MathF.Max(checkboxSize, textSize.Y);
-        var totalSize = new UiVector2(checkboxSize + (string.IsNullOrEmpty(displayLabel) ? 0f : CheckboxSpacing + textSize.X), height);
-        var cursor = AdvanceCursor(totalSize);
-
-        var totalRect = new UiRect(cursor.X, cursor.Y, totalSize.X, totalSize.Y);
-        var boxX = cursor.X;
-        var boxY = totalRect.Y + (totalRect.Height - checkboxSize) * 0.5f;
-        if (_textSettings.PixelSnap)
-        {
-            boxX = MathF.Round(boxX);
-            boxY = MathF.Round(boxY);
-        }
-        var boxRect = new UiRect(boxX, boxY, checkboxSize, checkboxSize);
-        var pressed = ButtonBehavior(label, totalRect, out var hovered, out var held);
-        if (pressed)
-        {
-            value = !value;
-        }
-
-        var boxColor = held ? _theme.CheckboxBgActive : hovered ? _theme.CheckboxBgHovered : _theme.CheckboxBg;
-        var borderColor = held ? _theme.CheckboxBorderActive : hovered ? _theme.CheckboxBorderHovered : _theme.CheckboxBorder;
-        var innerBoxRect = AddDesignedFrame(boxRect, boxColor, borderColor, _designTokens.ToggleCornerRadius, _designTokens.ControlBorderWidth);
-
-        if (value)
-        {
-            var inset = MathF.Max(2f, MathF.Round(checkboxSize / 5.75f));
-            var checkSize = MathF.Max(0f, MathF.Min(innerBoxRect.Width, innerBoxRect.Height) - (inset * 2f));
-            var checkX = innerBoxRect.X + ((innerBoxRect.Width - checkSize) * 0.5f);
-            var checkY = innerBoxRect.Y + ((innerBoxRect.Height - checkSize) * 0.5f);
-            if (_textSettings.PixelSnap)
-            {
-                checkX = MathF.Round(checkX);
-                checkY = MathF.Round(checkY);
-                checkSize = MathF.Round(checkSize);
-            }
-
-            var checkRect = new UiRect(checkX, checkY, checkSize, checkSize);
-            AddRectFilledRounded(checkRect, _theme.CheckMark, _whiteTexture, MathF.Max(0f, _designTokens.ToggleCornerRadius - 1f));
-        }
-
-        if (!string.IsNullOrEmpty(displayLabel))
-        {
-            var textRect = new UiRect(cursor.X + checkboxSize + CheckboxSpacing, totalRect.Y, textSize.X, totalRect.Height);
-            var textPos = AlignRect(textRect, textSize, UiItemHorizontalAlign.Left, UiItemVerticalAlign.Center);
-            AddTextInternal(_builder,
-
-                displayLabel,
-                textPos,
-                _theme.CheckboxText,
-                CurrentClipRect,
-                _textSettings,
-                _lineHeight
-            );
-        }
-
-        return pressed;
-    }
+        => Toggle<bool, UiBooleanToggleValue, UiConfiguredToggleBehavior, UiLegacyCheckboxPresentation>(label, ref value);
 
     public bool CheckboxFlags(string label, ref int flags, int flagsValue)
     {
@@ -1195,8 +1067,7 @@ public sealed partial class UiImmediateContext
         var height = size.Y > 0f ? size.Y : frameHeight;
 
         var totalSize = new UiVector2(width, height);
-        var cursor = AdvanceCursor(totalSize);
-        var rect = new UiRect(cursor.X, cursor.Y, width, height);
+        var rect = PlaceProgress(totalSize);
 
         var borderColor = _theme.ProgressBarBorder;
         var innerRect = AddDesignedFrame(rect, _theme.ProgressBarBg, borderColor, _designTokens.ProgressCornerRadius, _designTokens.ControlBorderWidth);

@@ -368,7 +368,7 @@ public sealed class IdleLayerValidationScreen : UiScreen
 
         ui.SetNextWindowPos(new UiVector2(bounds.X + margin, bounds.Y + margin));
         ui.SetNextWindowSize(new UiVector2(leftWidth, halfHeight));
-        ui.BeginWindow("Metrics");
+        ui.BeginPanel("Metrics");
 
         ui.TextV("FPS (1s): {0:0.0}", _displayFps);
         ui.TextV("CPU Usage (1s): {0:0.0}%", _displayCpuPercent);
@@ -391,7 +391,7 @@ public sealed class IdleLayerValidationScreen : UiScreen
             ui.SetVSync(vsync);
         }
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawControlWindow(UiImmediateContext ui, UiRect bounds)
@@ -404,7 +404,7 @@ public sealed class IdleLayerValidationScreen : UiScreen
 
         ui.SetNextWindowPos(new UiVector2(bounds.X + margin, bounds.Y + margin + halfHeight + gap));
         ui.SetNextWindowSize(new UiVector2(leftWidth, halfHeight));
-        ui.BeginWindow("Control");
+        ui.BeginPanel("Control");
 
         ui.Text("Fast Render Window");
         ui.Checkbox("Animate", ref _animateRender);
@@ -476,14 +476,14 @@ public sealed class IdleLayerValidationScreen : UiScreen
         ui.BulletText("Fast Render 창은 고속 갱신 유지");
         ui.BulletText("Layer Lab에서 카드 드래그 시 즉시 반응");
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawFastRenderWindow(UiImmediateContext ui, UiRect bounds, double now)
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 388f, bounds.Y + 12f));
         ui.SetNextWindowSize(new UiVector2(bounds.Width - 400f, 320f));
-        ui.BeginWindow("Fast Render");
+        ui.BeginPanel("Fast Render");
 
         var origin = ui.GetCursorScreenPos();
         var avail = ui.GetContentRegionAvail();
@@ -531,7 +531,7 @@ public sealed class IdleLayerValidationScreen : UiScreen
 
         ui.SetCursorScreenPos(new UiVector2(origin.X, origin.Y));
         ui.Dummy(new UiVector2(width, height));
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void EnsureFastRenderStaticCache(UiRect canvas, UiTextureId white)
@@ -604,7 +604,7 @@ public sealed class IdleLayerValidationScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 388f, bounds.Y + 346f));
         ui.SetNextWindowSize(new UiVector2(bounds.Width - 400f, bounds.Height - 358f));
-        ui.BeginWindow("Layer Lab");
+        ui.BeginPanel("Layer Lab");
 
         var origin = ui.GetCursorScreenPos();
         var avail = ui.GetContentRegionAvail();
@@ -635,7 +635,7 @@ public sealed class IdleLayerValidationScreen : UiScreen
 
         ui.SetCursorScreenPos(new UiVector2(origin.X, origin.Y));
         ui.Dummy(new UiVector2(width, height));
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawGrid(UiDrawListBuilder drawList, UiRect canvas)

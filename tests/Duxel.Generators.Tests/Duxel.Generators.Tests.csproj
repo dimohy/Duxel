@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework Condition="'$(DuxelBenchmarkFramework)' == ''">net10.0</TargetFramework>
+    <TargetFramework Condition="'$(DuxelBenchmarkFramework)' != ''">$(DuxelBenchmarkFramework)</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <DuxelUseSdkRoslyn Condition="'$(DuxelUseSdkRoslyn)' == ''">false</DuxelUseSdkRoslyn>
+    <DuxelSdkRoslynDirectory Condition="'$(DuxelSdkRoslynDirectory)' == ''">$(MSBuildToolsPath)/Roslyn/bincore</DuxelSdkRoslynDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0" />
+    <ProjectReference Include="../../src/Duxel.Core/Duxel.Core.csproj" />
+    <ProjectReference Include="../../src/Duxel.Core.Dsl.Generator/Duxel.Core.Dsl.Generator.csproj" ReferenceOutputAssembly="true" OutputItemType="Reference" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(DuxelUseSdkRoslyn)' == 'true'">
+    <None Include="$(DuxelSdkRoslynDirectory)/Microsoft.CodeAnalysis.dll" Link="SdkRoslyn/Microsoft.CodeAnalysis.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(DuxelSdkRoslynDirectory)/Microsoft.CodeAnalysis.CSharp.dll" Link="SdkRoslyn/Microsoft.CodeAnalysis.CSharp.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <AssemblyMetadata Include="DuxelRoslynRuntimeMode" Value="Sdk" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(DuxelUseSdkRoslyn)' == 'false'">
+    <AssemblyMetadata Include="DuxelRoslynRuntimeMode" Value="Package" />
+  </ItemGroup>
+  <Target Name="ValidateRoslynCompilerSelection" BeforeTargets="CollectPackageReferences;ResolveReferences">
+    <Error Code="DUXTEST001" Condition="'$(DuxelUseSdkRoslyn)' != 'true' and '$(DuxelUseSdkRoslyn)' != 'false'" Text="DuxelUseSdkRoslyn must be explicitly true or false." />
+    <Error Code="DUXTEST002" Condition="'$(DuxelUseSdkRoslyn)' == 'true' and !Exists('$(DuxelSdkRoslynDirectory)/Microsoft.CodeAnalysis.dll')" Text="The selected SDK Roslyn assembly is missing: $(DuxelSdkRoslynDirectory)/Microsoft.CodeAnalysis.dll" />
+    <Error Code="DUXTEST003" Condition="'$(DuxelUseSdkRoslyn)' == 'true' and !Exists('$(DuxelSdkRoslynDirectory)/Microsoft.CodeAnalysis.CSharp.dll')" Text="The selected SDK CSharp assembly is missing: $(DuxelSdkRoslynDirectory)/Microsoft.CodeAnalysis.CSharp.dll" />
+  </Target>
+  <ItemGroup>
+    <None Update="Fixtures/FluentSiteComponents.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/Duxel.Core/FluentComponents.tsv" Link="Fixtures/FluentComponents.tsv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

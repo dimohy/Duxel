@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DuxelShaderDirectory Condition="'$(DuxelShaderDirectory)' == ''">$(MSBuildThisFileDirectory)Shaders</DuxelShaderDirectory>
     <IsPackable>false</IsPackable>
     <PackageId>Duxel.Vulkan</PackageId>
     <Version>0.2.0-preview</Version>
@@ -25,11 +26,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Shaders\*.spv" />
+    <EmbeddedResource Include="$(DuxelShaderDirectory)\*.spv" LogicalName="Duxel.Vulkan.Shaders.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Duxel.Core\Duxel.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(DuxelValidationHooks)' == 'true'">
+    <Compile Include="..\..\tests\Duxel.Rendering.Tests\VulkanValidationHooks.cs" Link="Validation\VulkanValidationHooks.cs" />
+    <Compile Include="..\..\tests\Duxel.Rendering.Tests\VulkanVectorReadback.cs" Link="Validation\VulkanVectorReadback.cs" />
+    <Compile Include="..\..\tests\Duxel.Rendering.Tests\VulkanVectorDiagnostics.cs" Link="Validation\VulkanVectorDiagnostics.cs" />
   </ItemGroup>
 
 </Project>

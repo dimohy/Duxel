@@ -63,6 +63,16 @@ dotnet run samples/fba/all_features.cs
 
 | 파일 | 설명 |
 |---|---|
+| `layout_field_allocation_fba.cs` | 로컬 .NET11 Field 할당: 세로/사용자 생성 가로·실제 편집기·라벨/설명·Width/Height/Validation; Native 대기 |
+| `layout_scroll_routing_fba.cs` | 로컬 .NET11 중첩 스크롤: 두 축 경계 전달·클립·행 수·클릭; 소유 스크롤 위젯/가상화/Native 대기 |
+| `layout_scroll_view_fba.cs` | 로컬 .NET11 소유 스크롤: 세로/양축·실제 편집기·Width/Height·Top/End; 가상화/Native 대기 |
+| `layout_virtual_list_fba.cs` | 로컬 .NET11 10억 행 고정 높이 가상화·double·편집/해제·Top/Middle/End; 확장/Native 대기 |
+| `layout_badge_allocation_fba.cs` | 로컬 .NET11 Badge 할당: 프레임·글자·아이콘·숨은 카운터, Width/Height·Dot·숫자 상태; Native 대기 |
+| `layout_link_allocation_fba.cs` | 로컬 .NET11 Link 할당: 줄바꿈·클립·입력 루트, Width/Height·Short/Long·탐색 상태; Native 대기 |
+| `layout_divider_allocation_fba.cs` | 로컬 .NET11 Divider 할당: 실제 선·캡션·클립, Width/Height/Orientation·동적 콘텐츠; Native 대기 |
+| `layout_text_allocation_fba.cs` | 로컬 .NET11 텍스트 할당: 줄바꿈·클립·정적/getter·Width/Height·빈 콘텐츠, Native 대기 |
+| `layout_progress_allocation_fba.cs` | 로컬 .NET11 Progress 할당: getter 없는 순수 측정·실제 Slider·Width/Height, Native 대기 |
+| `layout_radio_allocation_fba.cs` | 로컬 .NET11 RadioGroup 할당:세 배치·공유 선택·Width/Height,Native 대기 |
 | `all_features.cs` | 타이포그래피, 레이아웃, 팝업/컨텍스트, 입력 질의, 아이템 상태, 멀티셀렉트, 레이어/애니메이션 전용 창까지 포함한 전체 위젯 종합 데모 |
 | `declarative_dashboard_fba.cs` | `UiState<T>`, 재사용 `UiComponent`, 컴파일된 Windows 11 디자인 토큰, 제품 셸 헬퍼를 사용하는 선언형 C# 대시보드 |
 | `hello_duxel_fba.cs` | 작은 `Hello`와 큰 `Duxel!`만 보여주는 초간단 인사 샘플 |

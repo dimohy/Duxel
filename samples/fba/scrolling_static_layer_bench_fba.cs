@@ -181,7 +181,7 @@ public sealed class ScrollingStaticLayerBenchScreen : UiScreen
         ui.SetNextWindowSize(new UiVector2(bounds.Width - 420f, windowHeight));
         ui.SetNextWindowContentSize(new UiVector2(1320f, GetVirtualCanvasHeight()));
         ui.SetNextWindowScroll(0f, phase is BenchPhase.DynamicScroll or BenchPhase.StaticScroll ? _scrollY : 0f);
-        ui.BeginWindow("Scrolling Static Layer Canvas");
+        ui.BeginPanel("Scrolling Static Layer Canvas");
 
         var origin = ui.GetCursorScreenPos();
         var avail = ui.GetContentRegionAvail();
@@ -211,14 +211,14 @@ public sealed class ScrollingStaticLayerBenchScreen : UiScreen
 
         ui.SetCursorScreenPos(new UiVector2(origin.X, origin.Y));
         ui.Dummy(new UiVector2(1320f, GetVirtualCanvasHeight()));
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawClipProbeWindow(UiImmediateContext ui, UiRect bounds, BenchPhase phase)
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + bounds.Width - 396f, bounds.Y + 12f));
         ui.SetNextWindowSize(new UiVector2(384f, 470f));
-        ui.BeginWindow("Static Clip Probe");
+        ui.BeginPanel("Static Clip Probe");
 
         ui.Text("Targets command-signature changes.");
         ui.Text("The static body translation is fixed.");
@@ -296,7 +296,7 @@ public sealed class ScrollingStaticLayerBenchScreen : UiScreen
         ui.SetCursorScreenPos(new UiVector2(origin.X, canvas.Y + canvas.Height + 8f));
         ui.TextV("Probe primed: {0}", _clipProbePrimed ? "yes" : "no");
         ui.TextV("Clip Y: {0:0.0}", _clipProbeOffset);
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void DrawLayer(UiImmediateContext ui, UiRect canvas, LayerInfo layer, bool staticCache, BenchPhase phase)
@@ -401,7 +401,7 @@ public sealed class ScrollingStaticLayerBenchScreen : UiScreen
     {
         ui.SetNextWindowPos(new UiVector2(bounds.X + 12f, bounds.Y + bounds.Height - 246f));
         ui.SetNextWindowSize(new UiVector2(740f, 232f));
-        ui.BeginWindow("Scrolling Static Layer Bench Stats");
+        ui.BeginPanel("Scrolling Static Layer Bench Stats");
 
         ui.TextV("Phase: {0}", PhaseName(phase));
         ui.TextV("Layer Count: {0}", _layerCount);
@@ -413,7 +413,7 @@ public sealed class ScrollingStaticLayerBenchScreen : UiScreen
         ui.TextV("Layer Body Draw Count: {0}", _layerBodyDrawCount);
         ui.Text("Visual check: scrolled cards and clip probe body must not show black/blank holes.");
 
-        ui.EndWindow();
+        ui.EndPanel();
     }
 
     private void TickBenchmark(double delta, BenchPhase phase)

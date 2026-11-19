@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Numerics;
 
 namespace Duxel.Core;
 
@@ -27,7 +28,114 @@ public readonly record struct UiLayerOptions(
     bool StaticCache,
     float Opacity,
     UiVector2 Translation
-);
+)
+{
+    public UiLayer3D? Scene3D
+    {
+        get; init;
+    }
+    /// <summary>Reuse resident geometry until this caller-owned revision changes. Null streams new geometry every frame.</summary>
+    public long? ContentVersion
+    {
+        get; init;
+    }
+
+    /// <summary>Retain content across default font atlas replacement when its paint and layout do not use that atlas.</summary>
+    /// <remarks>The caller must account for measured and captured font metrics as well as glyph textures. A dependent nested layer makes its parent dependent.</remarks>
+    public bool FontAtlasIndependent { get; init; }
+}
+
+/// <summary>Source-pixel translation before projection, plus a normalized clip-depth offset after projection.</summary>
+public readonly record struct UiLayerPlaneModel(UiVector2 Translation, float DepthOffset = 0f);
+
+/// <summary>Transforms the normalized display plane into clip space using model * view * projection.</summary>
+public readonly record struct UiLayer3D(Matrix4x4 Transform, bool WriteDepth = true)
+{
+    internal UiWidgetDrawTransform? WidgetTransform
+    {
+        get; init;
+    }
+    /// <summary>Reserved screen-anchored presentation scope used by built-in foreground and popup layers.</summary>
+    public const int PresentationDepthScopeId = int.MinValue;
+    /// <summary>Identifies a built-in screen-anchored overlay; a numeric depth-scope ID alone never enables overlay optimizations.</summary>
+    public bool IsScreenSpacePresentation
+    {
+        get; internal init;
+    }
+    public UiRect? Viewport
+    {
+        get; init;
+    }
+    public int DepthScopeId
+    {
+        get; init;
+    }
+    /// <summary>When set, Transform is the shared camera; the plane model changes independently.</summary>
+    public UiLayerPlaneModel? PlaneModel
+    {
+        get; init;
+    }
+
+    public Matrix4x4 GetEffectiveTransform(UiRect displayBounds)
+    {
+        if (PlaneModel is not { } model)
+            return Transform;
+        var viewport = Viewport ?? displayBounds;
+        return Matrix4x4.CreateTranslation(model.Translation.X * 2f / viewport.Width,
+            model.Translation.Y * 2f / viewport.Height, 0f) * Transform
+            * Matrix4x4.CreateTranslation(0f, 0f, model.DepthOffset);
+    }
+
+    public bool TryMapScreenPoint(UiVector2 screenPoint, UiRect displayBounds, out UiVector2 localPoint)
+    {
+        localPoint = default;
+        var viewport = Viewport ?? displayBounds;
+        if (screenPoint.X < viewport.X || screenPoint.Y < viewport.Y
+            || screenPoint.X >= viewport.X + viewport.Width || screenPoint.Y >= viewport.Y + viewport.Height
+            || !Matrix4x4.Invert(GetEffectiveTransform(displayBounds), out var inverse))
+            return false;
+        var x = (screenPoint.X - viewport.X) * 2f / viewport.Width - 1f;
+        var y = (screenPoint.Y - viewport.Y) * 2f / viewport.Height - 1f;
+        var near = Vector4.Transform(new Vector4(x, y, 0f, 1f), inverse);
+        var far = Vector4.Transform(new Vector4(x, y, 1f, 1f), inverse);
+        if (near.W == 0f || far.W == 0f)
+            return false;
+        near /= near.W;
+        far /= far.W;
+        var directionZ = far.Z - near.Z;
+        if (MathF.Abs(directionZ) < 0.000001f)
+            return false;
+        var distance = -near.Z / directionZ;
+        if (distance < 0f || distance > 1f)
+            return false;
+        var point = near + (far - near) * distance;
+        localPoint = new(viewport.X + (point.X + 1f) * .5f * viewport.Width,
+            viewport.Y + (point.Y + 1f) * .5f * viewport.Height);
+        return float.IsFinite(localPoint.X) && float.IsFinite(localPoint.Y);
+    }
+
+    internal void Validate()
+    {
+        ReadOnlySpan<float> values =
+        [
+            Transform.M11, Transform.M12, Transform.M13, Transform.M14,
+            Transform.M21, Transform.M22, Transform.M23, Transform.M24,
+            Transform.M31, Transform.M32, Transform.M33, Transform.M34,
+            Transform.M41, Transform.M42, Transform.M43, Transform.M44,
+        ];
+        foreach (var value in values)
+            if (!float.IsFinite(value))
+                throw new ArgumentException("The 3D layer transform must be finite.");
+        if (PlaneModel is { } model && (!float.IsFinite(model.Translation.X)
+            || !float.IsFinite(model.Translation.Y) || !float.IsFinite(model.DepthOffset)))
+            throw new ArgumentException("The 3D plane model must be finite.");
+        if (Viewport is { } viewport && (!float.IsFinite(viewport.X) || !float.IsFinite(viewport.Y)
+            || !float.IsFinite(viewport.Width) || !float.IsFinite(viewport.Height)
+            || viewport.Width <= 0 || viewport.Height <= 0
+            || !float.IsFinite(viewport.X + viewport.Width) || !float.IsFinite(viewport.Y + viewport.Height)))
+            throw new ArgumentException("The 3D viewport must be finite and have a positive size.");
+    }
+}
 
 public readonly record struct UiLayerCardInteraction(
     bool Clicked,
@@ -46,9 +154,27 @@ public struct UiThemeColors
     public const int StyleColorCount = 110;
 }
 
+public enum UiFluentColorScheme
+{
+    Light, Dark
+}
+
 public struct UiTheme
 {
     private UiThemeColors _colors;
+    public UiForcedColorPalette? ForcedColors
+    {
+        get; set;
+    }
+    public UiFluentColorScheme FluentColorScheme
+    {
+        get; set;
+    }
+    public UiBadgeColorScheme BadgeColorScheme
+    {
+        readonly get => (UiBadgeColorScheme)FluentColorScheme;
+        set => FluentColorScheme = (UiFluentColorScheme)value;
+    }
 
     public UiColor this[UiStyleColor color]
     {
@@ -57,150 +183,474 @@ public struct UiTheme
     }
 
     // Named property wrappers — backward compatibility with _theme.Button etc.
-    public UiColor Text { readonly get => _colors[(int)UiStyleColor.Text]; set => _colors[(int)UiStyleColor.Text] = value; }
-    public UiColor TextDisabled { readonly get => _colors[(int)UiStyleColor.TextDisabled]; set => _colors[(int)UiStyleColor.TextDisabled] = value; }
-    public UiColor WindowBg { readonly get => _colors[(int)UiStyleColor.WindowBg]; set => _colors[(int)UiStyleColor.WindowBg] = value; }
-    public UiColor TitleBg { readonly get => _colors[(int)UiStyleColor.TitleBg]; set => _colors[(int)UiStyleColor.TitleBg] = value; }
-    public UiColor TitleBgActive { readonly get => _colors[(int)UiStyleColor.TitleBgActive]; set => _colors[(int)UiStyleColor.TitleBgActive] = value; }
-    public UiColor MenuBarBg { readonly get => _colors[(int)UiStyleColor.MenuBarBg]; set => _colors[(int)UiStyleColor.MenuBarBg] = value; }
-    public UiColor PopupBg { readonly get => _colors[(int)UiStyleColor.PopupBg]; set => _colors[(int)UiStyleColor.PopupBg] = value; }
-    public UiColor Border { readonly get => _colors[(int)UiStyleColor.Border]; set => _colors[(int)UiStyleColor.Border] = value; }
-    public UiColor FrameBg { readonly get => _colors[(int)UiStyleColor.FrameBg]; set => _colors[(int)UiStyleColor.FrameBg] = value; }
-    public UiColor FrameBgHovered { readonly get => _colors[(int)UiStyleColor.FrameBgHovered]; set => _colors[(int)UiStyleColor.FrameBgHovered] = value; }
-    public UiColor FrameBgActive { readonly get => _colors[(int)UiStyleColor.FrameBgActive]; set => _colors[(int)UiStyleColor.FrameBgActive] = value; }
-    public UiColor Header { readonly get => _colors[(int)UiStyleColor.Header]; set => _colors[(int)UiStyleColor.Header] = value; }
-    public UiColor HeaderHovered { readonly get => _colors[(int)UiStyleColor.HeaderHovered]; set => _colors[(int)UiStyleColor.HeaderHovered] = value; }
-    public UiColor HeaderActive { readonly get => _colors[(int)UiStyleColor.HeaderActive]; set => _colors[(int)UiStyleColor.HeaderActive] = value; }
-    public UiColor Button { readonly get => _colors[(int)UiStyleColor.Button]; set => _colors[(int)UiStyleColor.Button] = value; }
-    public UiColor ButtonHovered { readonly get => _colors[(int)UiStyleColor.ButtonHovered]; set => _colors[(int)UiStyleColor.ButtonHovered] = value; }
-    public UiColor ButtonActive { readonly get => _colors[(int)UiStyleColor.ButtonActive]; set => _colors[(int)UiStyleColor.ButtonActive] = value; }
-    public UiColor Tab { readonly get => _colors[(int)UiStyleColor.Tab]; set => _colors[(int)UiStyleColor.Tab] = value; }
-    public UiColor TabHovered { readonly get => _colors[(int)UiStyleColor.TabHovered]; set => _colors[(int)UiStyleColor.TabHovered] = value; }
-    public UiColor TabActive { readonly get => _colors[(int)UiStyleColor.TabActive]; set => _colors[(int)UiStyleColor.TabActive] = value; }
-    public UiColor CheckMark { readonly get => _colors[(int)UiStyleColor.CheckMark]; set => _colors[(int)UiStyleColor.CheckMark] = value; }
-    public UiColor SliderGrab { readonly get => _colors[(int)UiStyleColor.SliderGrab]; set => _colors[(int)UiStyleColor.SliderGrab] = value; }
-    public UiColor SliderGrabActive { readonly get => _colors[(int)UiStyleColor.SliderGrabActive]; set => _colors[(int)UiStyleColor.SliderGrabActive] = value; }
-    public UiColor PlotLines { readonly get => _colors[(int)UiStyleColor.PlotLines]; set => _colors[(int)UiStyleColor.PlotLines] = value; }
-    public UiColor PlotHistogram { readonly get => _colors[(int)UiStyleColor.PlotHistogram]; set => _colors[(int)UiStyleColor.PlotHistogram] = value; }
-    public UiColor Separator { readonly get => _colors[(int)UiStyleColor.Separator]; set => _colors[(int)UiStyleColor.Separator] = value; }
-    public UiColor TableHeaderBg { readonly get => _colors[(int)UiStyleColor.TableHeaderBg]; set => _colors[(int)UiStyleColor.TableHeaderBg] = value; }
-    public UiColor TableRowBg0 { readonly get => _colors[(int)UiStyleColor.TableRowBg0]; set => _colors[(int)UiStyleColor.TableRowBg0] = value; }
-    public UiColor TableRowBg1 { readonly get => _colors[(int)UiStyleColor.TableRowBg1]; set => _colors[(int)UiStyleColor.TableRowBg1] = value; }
-    public UiColor TableBorder { readonly get => _colors[(int)UiStyleColor.TableBorder]; set => _colors[(int)UiStyleColor.TableBorder] = value; }
-    public UiColor TextSelectedBg { readonly get => _colors[(int)UiStyleColor.TextSelectedBg]; set => _colors[(int)UiStyleColor.TextSelectedBg] = value; }
-    public UiColor ScrollbarBg { readonly get => _colors[(int)UiStyleColor.ScrollbarBg]; set => _colors[(int)UiStyleColor.ScrollbarBg] = value; }
-    public UiColor ScrollbarGrab { readonly get => _colors[(int)UiStyleColor.ScrollbarGrab]; set => _colors[(int)UiStyleColor.ScrollbarGrab] = value; }
-    public UiColor ScrollbarGrabHovered { readonly get => _colors[(int)UiStyleColor.ScrollbarGrabHovered]; set => _colors[(int)UiStyleColor.ScrollbarGrabHovered] = value; }
-    public UiColor ScrollbarGrabActive { readonly get => _colors[(int)UiStyleColor.ScrollbarGrabActive]; set => _colors[(int)UiStyleColor.ScrollbarGrabActive] = value; }
+    public UiColor Text
+    {
+        readonly get => _colors[(int)UiStyleColor.Text]; set => _colors[(int)UiStyleColor.Text] = value;
+    }
+    public UiColor TextDisabled
+    {
+        readonly get => _colors[(int)UiStyleColor.TextDisabled]; set => _colors[(int)UiStyleColor.TextDisabled] = value;
+    }
+    public UiColor WindowBg
+    {
+        readonly get => _colors[(int)UiStyleColor.WindowBg]; set => _colors[(int)UiStyleColor.WindowBg] = value;
+    }
+    public UiColor TitleBg
+    {
+        readonly get => _colors[(int)UiStyleColor.TitleBg]; set => _colors[(int)UiStyleColor.TitleBg] = value;
+    }
+    public UiColor TitleBgActive
+    {
+        readonly get => _colors[(int)UiStyleColor.TitleBgActive]; set => _colors[(int)UiStyleColor.TitleBgActive] = value;
+    }
+    public UiColor MenuBarBg
+    {
+        readonly get => _colors[(int)UiStyleColor.MenuBarBg]; set => _colors[(int)UiStyleColor.MenuBarBg] = value;
+    }
+    public UiColor PopupBg
+    {
+        readonly get => _colors[(int)UiStyleColor.PopupBg]; set => _colors[(int)UiStyleColor.PopupBg] = value;
+    }
+    public UiColor Border
+    {
+        readonly get => _colors[(int)UiStyleColor.Border]; set => _colors[(int)UiStyleColor.Border] = value;
+    }
+    public UiColor FrameBg
+    {
+        readonly get => _colors[(int)UiStyleColor.FrameBg]; set => _colors[(int)UiStyleColor.FrameBg] = value;
+    }
+    public UiColor FrameBgHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.FrameBgHovered]; set => _colors[(int)UiStyleColor.FrameBgHovered] = value;
+    }
+    public UiColor FrameBgActive
+    {
+        readonly get => _colors[(int)UiStyleColor.FrameBgActive]; set => _colors[(int)UiStyleColor.FrameBgActive] = value;
+    }
+    public UiColor Header
+    {
+        readonly get => _colors[(int)UiStyleColor.Header]; set => _colors[(int)UiStyleColor.Header] = value;
+    }
+    public UiColor HeaderHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.HeaderHovered]; set => _colors[(int)UiStyleColor.HeaderHovered] = value;
+    }
+    public UiColor HeaderActive
+    {
+        readonly get => _colors[(int)UiStyleColor.HeaderActive]; set => _colors[(int)UiStyleColor.HeaderActive] = value;
+    }
+    public UiColor Button
+    {
+        readonly get => _colors[(int)UiStyleColor.Button]; set => _colors[(int)UiStyleColor.Button] = value;
+    }
+    public UiColor ButtonHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.ButtonHovered]; set => _colors[(int)UiStyleColor.ButtonHovered] = value;
+    }
+    public UiColor ButtonActive
+    {
+        readonly get => _colors[(int)UiStyleColor.ButtonActive]; set => _colors[(int)UiStyleColor.ButtonActive] = value;
+    }
+    public UiColor Tab
+    {
+        readonly get => _colors[(int)UiStyleColor.Tab]; set => _colors[(int)UiStyleColor.Tab] = value;
+    }
+    public UiColor TabHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.TabHovered]; set => _colors[(int)UiStyleColor.TabHovered] = value;
+    }
+    public UiColor TabActive
+    {
+        readonly get => _colors[(int)UiStyleColor.TabActive]; set => _colors[(int)UiStyleColor.TabActive] = value;
+    }
+    public UiColor CheckMark
+    {
+        readonly get => _colors[(int)UiStyleColor.CheckMark]; set => _colors[(int)UiStyleColor.CheckMark] = value;
+    }
+    public UiColor SliderGrab
+    {
+        readonly get => _colors[(int)UiStyleColor.SliderGrab]; set => _colors[(int)UiStyleColor.SliderGrab] = value;
+    }
+    public UiColor SliderGrabActive
+    {
+        readonly get => _colors[(int)UiStyleColor.SliderGrabActive]; set => _colors[(int)UiStyleColor.SliderGrabActive] = value;
+    }
+    public UiColor PlotLines
+    {
+        readonly get => _colors[(int)UiStyleColor.PlotLines]; set => _colors[(int)UiStyleColor.PlotLines] = value;
+    }
+    public UiColor PlotHistogram
+    {
+        readonly get => _colors[(int)UiStyleColor.PlotHistogram]; set => _colors[(int)UiStyleColor.PlotHistogram] = value;
+    }
+    public UiColor Separator
+    {
+        readonly get => _colors[(int)UiStyleColor.Separator]; set => _colors[(int)UiStyleColor.Separator] = value;
+    }
+    public UiColor TableHeaderBg
+    {
+        readonly get => _colors[(int)UiStyleColor.TableHeaderBg]; set => _colors[(int)UiStyleColor.TableHeaderBg] = value;
+    }
+    public UiColor TableRowBg0
+    {
+        readonly get => _colors[(int)UiStyleColor.TableRowBg0]; set => _colors[(int)UiStyleColor.TableRowBg0] = value;
+    }
+    public UiColor TableRowBg1
+    {
+        readonly get => _colors[(int)UiStyleColor.TableRowBg1]; set => _colors[(int)UiStyleColor.TableRowBg1] = value;
+    }
+    public UiColor TableBorder
+    {
+        readonly get => _colors[(int)UiStyleColor.TableBorder]; set => _colors[(int)UiStyleColor.TableBorder] = value;
+    }
+    public UiColor TextSelectedBg
+    {
+        readonly get => _colors[(int)UiStyleColor.TextSelectedBg]; set => _colors[(int)UiStyleColor.TextSelectedBg] = value;
+    }
+    public UiColor ScrollbarBg
+    {
+        readonly get => _colors[(int)UiStyleColor.ScrollbarBg]; set => _colors[(int)UiStyleColor.ScrollbarBg] = value;
+    }
+    public UiColor ScrollbarGrab
+    {
+        readonly get => _colors[(int)UiStyleColor.ScrollbarGrab]; set => _colors[(int)UiStyleColor.ScrollbarGrab] = value;
+    }
+    public UiColor ScrollbarGrabHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.ScrollbarGrabHovered]; set => _colors[(int)UiStyleColor.ScrollbarGrabHovered] = value;
+    }
+    public UiColor ScrollbarGrabActive
+    {
+        readonly get => _colors[(int)UiStyleColor.ScrollbarGrabActive]; set => _colors[(int)UiStyleColor.ScrollbarGrabActive] = value;
+    }
 
     // === Widget-Specific Token Properties (Layer 2) ===
 
     // Button
-    public UiColor ButtonText { readonly get => _colors[(int)UiStyleColor.ButtonText]; set => _colors[(int)UiStyleColor.ButtonText] = value; }
-    public UiColor ButtonBorder { readonly get => _colors[(int)UiStyleColor.ButtonBorder]; set => _colors[(int)UiStyleColor.ButtonBorder] = value; }
-    public UiColor ButtonBorderHovered { readonly get => _colors[(int)UiStyleColor.ButtonBorderHovered]; set => _colors[(int)UiStyleColor.ButtonBorderHovered] = value; }
-    public UiColor ButtonBorderActive { readonly get => _colors[(int)UiStyleColor.ButtonBorderActive]; set => _colors[(int)UiStyleColor.ButtonBorderActive] = value; }
+    public UiColor ButtonText
+    {
+        readonly get => _colors[(int)UiStyleColor.ButtonText]; set => _colors[(int)UiStyleColor.ButtonText] = value;
+    }
+    public UiColor ButtonBorder
+    {
+        readonly get => _colors[(int)UiStyleColor.ButtonBorder]; set => _colors[(int)UiStyleColor.ButtonBorder] = value;
+    }
+    public UiColor ButtonBorderHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.ButtonBorderHovered]; set => _colors[(int)UiStyleColor.ButtonBorderHovered] = value;
+    }
+    public UiColor ButtonBorderActive
+    {
+        readonly get => _colors[(int)UiStyleColor.ButtonBorderActive]; set => _colors[(int)UiStyleColor.ButtonBorderActive] = value;
+    }
 
     // Checkbox
-    public UiColor CheckboxText { readonly get => _colors[(int)UiStyleColor.CheckboxText]; set => _colors[(int)UiStyleColor.CheckboxText] = value; }
-    public UiColor CheckboxBg { readonly get => _colors[(int)UiStyleColor.CheckboxBg]; set => _colors[(int)UiStyleColor.CheckboxBg] = value; }
-    public UiColor CheckboxBgHovered { readonly get => _colors[(int)UiStyleColor.CheckboxBgHovered]; set => _colors[(int)UiStyleColor.CheckboxBgHovered] = value; }
-    public UiColor CheckboxBgActive { readonly get => _colors[(int)UiStyleColor.CheckboxBgActive]; set => _colors[(int)UiStyleColor.CheckboxBgActive] = value; }
-    public UiColor CheckboxBorder { readonly get => _colors[(int)UiStyleColor.CheckboxBorder]; set => _colors[(int)UiStyleColor.CheckboxBorder] = value; }
-    public UiColor CheckboxBorderHovered { readonly get => _colors[(int)UiStyleColor.CheckboxBorderHovered]; set => _colors[(int)UiStyleColor.CheckboxBorderHovered] = value; }
-    public UiColor CheckboxBorderActive { readonly get => _colors[(int)UiStyleColor.CheckboxBorderActive]; set => _colors[(int)UiStyleColor.CheckboxBorderActive] = value; }
+    public UiColor CheckboxText
+    {
+        readonly get => _colors[(int)UiStyleColor.CheckboxText]; set => _colors[(int)UiStyleColor.CheckboxText] = value;
+    }
+    public UiColor CheckboxBg
+    {
+        readonly get => _colors[(int)UiStyleColor.CheckboxBg]; set => _colors[(int)UiStyleColor.CheckboxBg] = value;
+    }
+    public UiColor CheckboxBgHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.CheckboxBgHovered]; set => _colors[(int)UiStyleColor.CheckboxBgHovered] = value;
+    }
+    public UiColor CheckboxBgActive
+    {
+        readonly get => _colors[(int)UiStyleColor.CheckboxBgActive]; set => _colors[(int)UiStyleColor.CheckboxBgActive] = value;
+    }
+    public UiColor CheckboxBorder
+    {
+        readonly get => _colors[(int)UiStyleColor.CheckboxBorder]; set => _colors[(int)UiStyleColor.CheckboxBorder] = value;
+    }
+    public UiColor CheckboxBorderHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.CheckboxBorderHovered]; set => _colors[(int)UiStyleColor.CheckboxBorderHovered] = value;
+    }
+    public UiColor CheckboxBorderActive
+    {
+        readonly get => _colors[(int)UiStyleColor.CheckboxBorderActive]; set => _colors[(int)UiStyleColor.CheckboxBorderActive] = value;
+    }
 
     // RadioButton
-    public UiColor RadioButtonText { readonly get => _colors[(int)UiStyleColor.RadioButtonText]; set => _colors[(int)UiStyleColor.RadioButtonText] = value; }
-    public UiColor RadioButtonBg { readonly get => _colors[(int)UiStyleColor.RadioButtonBg]; set => _colors[(int)UiStyleColor.RadioButtonBg] = value; }
-    public UiColor RadioButtonBgHovered { readonly get => _colors[(int)UiStyleColor.RadioButtonBgHovered]; set => _colors[(int)UiStyleColor.RadioButtonBgHovered] = value; }
-    public UiColor RadioButtonBgActive { readonly get => _colors[(int)UiStyleColor.RadioButtonBgActive]; set => _colors[(int)UiStyleColor.RadioButtonBgActive] = value; }
-    public UiColor RadioButtonBorder { readonly get => _colors[(int)UiStyleColor.RadioButtonBorder]; set => _colors[(int)UiStyleColor.RadioButtonBorder] = value; }
-    public UiColor RadioButtonBorderHovered { readonly get => _colors[(int)UiStyleColor.RadioButtonBorderHovered]; set => _colors[(int)UiStyleColor.RadioButtonBorderHovered] = value; }
-    public UiColor RadioButtonBorderActive { readonly get => _colors[(int)UiStyleColor.RadioButtonBorderActive]; set => _colors[(int)UiStyleColor.RadioButtonBorderActive] = value; }
+    public UiColor RadioButtonText
+    {
+        readonly get => _colors[(int)UiStyleColor.RadioButtonText]; set => _colors[(int)UiStyleColor.RadioButtonText] = value;
+    }
+    public UiColor RadioButtonBg
+    {
+        readonly get => _colors[(int)UiStyleColor.RadioButtonBg]; set => _colors[(int)UiStyleColor.RadioButtonBg] = value;
+    }
+    public UiColor RadioButtonBgHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.RadioButtonBgHovered]; set => _colors[(int)UiStyleColor.RadioButtonBgHovered] = value;
+    }
+    public UiColor RadioButtonBgActive
+    {
+        readonly get => _colors[(int)UiStyleColor.RadioButtonBgActive]; set => _colors[(int)UiStyleColor.RadioButtonBgActive] = value;
+    }
+    public UiColor RadioButtonBorder
+    {
+        readonly get => _colors[(int)UiStyleColor.RadioButtonBorder]; set => _colors[(int)UiStyleColor.RadioButtonBorder] = value;
+    }
+    public UiColor RadioButtonBorderHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.RadioButtonBorderHovered]; set => _colors[(int)UiStyleColor.RadioButtonBorderHovered] = value;
+    }
+    public UiColor RadioButtonBorderActive
+    {
+        readonly get => _colors[(int)UiStyleColor.RadioButtonBorderActive]; set => _colors[(int)UiStyleColor.RadioButtonBorderActive] = value;
+    }
 
     // Input
-    public UiColor InputText { readonly get => _colors[(int)UiStyleColor.InputText]; set => _colors[(int)UiStyleColor.InputText] = value; }
-    public UiColor InputBg { readonly get => _colors[(int)UiStyleColor.InputBg]; set => _colors[(int)UiStyleColor.InputBg] = value; }
-    public UiColor InputBgHovered { readonly get => _colors[(int)UiStyleColor.InputBgHovered]; set => _colors[(int)UiStyleColor.InputBgHovered] = value; }
-    public UiColor InputBgActive { readonly get => _colors[(int)UiStyleColor.InputBgActive]; set => _colors[(int)UiStyleColor.InputBgActive] = value; }
-    public UiColor InputSelectionBg { readonly get => _colors[(int)UiStyleColor.InputSelectionBg]; set => _colors[(int)UiStyleColor.InputSelectionBg] = value; }
-    public UiColor InputBorder { readonly get => _colors[(int)UiStyleColor.InputBorder]; set => _colors[(int)UiStyleColor.InputBorder] = value; }
-    public UiColor InputBorderHovered { readonly get => _colors[(int)UiStyleColor.InputBorderHovered]; set => _colors[(int)UiStyleColor.InputBorderHovered] = value; }
-    public UiColor InputBorderActive { readonly get => _colors[(int)UiStyleColor.InputBorderActive]; set => _colors[(int)UiStyleColor.InputBorderActive] = value; }
+    public UiColor InputText
+    {
+        readonly get => _colors[(int)UiStyleColor.InputText]; set => _colors[(int)UiStyleColor.InputText] = value;
+    }
+    public UiColor InputBg
+    {
+        readonly get => _colors[(int)UiStyleColor.InputBg]; set => _colors[(int)UiStyleColor.InputBg] = value;
+    }
+    public UiColor InputBgHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.InputBgHovered]; set => _colors[(int)UiStyleColor.InputBgHovered] = value;
+    }
+    public UiColor InputBgActive
+    {
+        readonly get => _colors[(int)UiStyleColor.InputBgActive]; set => _colors[(int)UiStyleColor.InputBgActive] = value;
+    }
+    public UiColor InputSelectionBg
+    {
+        readonly get => _colors[(int)UiStyleColor.InputSelectionBg]; set => _colors[(int)UiStyleColor.InputSelectionBg] = value;
+    }
+    public UiColor InputBorder
+    {
+        readonly get => _colors[(int)UiStyleColor.InputBorder]; set => _colors[(int)UiStyleColor.InputBorder] = value;
+    }
+    public UiColor InputBorderHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.InputBorderHovered]; set => _colors[(int)UiStyleColor.InputBorderHovered] = value;
+    }
+    public UiColor InputBorderActive
+    {
+        readonly get => _colors[(int)UiStyleColor.InputBorderActive]; set => _colors[(int)UiStyleColor.InputBorderActive] = value;
+    }
 
     // Slider
-    public UiColor SliderText { readonly get => _colors[(int)UiStyleColor.SliderText]; set => _colors[(int)UiStyleColor.SliderText] = value; }
-    public UiColor SliderBg { readonly get => _colors[(int)UiStyleColor.SliderBg]; set => _colors[(int)UiStyleColor.SliderBg] = value; }
-    public UiColor SliderBgHovered { readonly get => _colors[(int)UiStyleColor.SliderBgHovered]; set => _colors[(int)UiStyleColor.SliderBgHovered] = value; }
-    public UiColor SliderBorder { readonly get => _colors[(int)UiStyleColor.SliderBorder]; set => _colors[(int)UiStyleColor.SliderBorder] = value; }
+    public UiColor SliderText
+    {
+        readonly get => _colors[(int)UiStyleColor.SliderText]; set => _colors[(int)UiStyleColor.SliderText] = value;
+    }
+    public UiColor SliderBg
+    {
+        readonly get => _colors[(int)UiStyleColor.SliderBg]; set => _colors[(int)UiStyleColor.SliderBg] = value;
+    }
+    public UiColor SliderBgHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.SliderBgHovered]; set => _colors[(int)UiStyleColor.SliderBgHovered] = value;
+    }
+    public UiColor SliderBorder
+    {
+        readonly get => _colors[(int)UiStyleColor.SliderBorder]; set => _colors[(int)UiStyleColor.SliderBorder] = value;
+    }
 
     // Drag
-    public UiColor DragText { readonly get => _colors[(int)UiStyleColor.DragText]; set => _colors[(int)UiStyleColor.DragText] = value; }
-    public UiColor DragBg { readonly get => _colors[(int)UiStyleColor.DragBg]; set => _colors[(int)UiStyleColor.DragBg] = value; }
-    public UiColor DragBgHovered { readonly get => _colors[(int)UiStyleColor.DragBgHovered]; set => _colors[(int)UiStyleColor.DragBgHovered] = value; }
-    public UiColor DragBgActive { readonly get => _colors[(int)UiStyleColor.DragBgActive]; set => _colors[(int)UiStyleColor.DragBgActive] = value; }
-    public UiColor DragBorder { readonly get => _colors[(int)UiStyleColor.DragBorder]; set => _colors[(int)UiStyleColor.DragBorder] = value; }
-    public UiColor DragBorderHovered { readonly get => _colors[(int)UiStyleColor.DragBorderHovered]; set => _colors[(int)UiStyleColor.DragBorderHovered] = value; }
-    public UiColor DragBorderActive { readonly get => _colors[(int)UiStyleColor.DragBorderActive]; set => _colors[(int)UiStyleColor.DragBorderActive] = value; }
+    public UiColor DragText
+    {
+        readonly get => _colors[(int)UiStyleColor.DragText]; set => _colors[(int)UiStyleColor.DragText] = value;
+    }
+    public UiColor DragBg
+    {
+        readonly get => _colors[(int)UiStyleColor.DragBg]; set => _colors[(int)UiStyleColor.DragBg] = value;
+    }
+    public UiColor DragBgHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.DragBgHovered]; set => _colors[(int)UiStyleColor.DragBgHovered] = value;
+    }
+    public UiColor DragBgActive
+    {
+        readonly get => _colors[(int)UiStyleColor.DragBgActive]; set => _colors[(int)UiStyleColor.DragBgActive] = value;
+    }
+    public UiColor DragBorder
+    {
+        readonly get => _colors[(int)UiStyleColor.DragBorder]; set => _colors[(int)UiStyleColor.DragBorder] = value;
+    }
+    public UiColor DragBorderHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.DragBorderHovered]; set => _colors[(int)UiStyleColor.DragBorderHovered] = value;
+    }
+    public UiColor DragBorderActive
+    {
+        readonly get => _colors[(int)UiStyleColor.DragBorderActive]; set => _colors[(int)UiStyleColor.DragBorderActive] = value;
+    }
 
     // Combo
-    public UiColor ComboText { readonly get => _colors[(int)UiStyleColor.ComboText]; set => _colors[(int)UiStyleColor.ComboText] = value; }
-    public UiColor ComboBg { readonly get => _colors[(int)UiStyleColor.ComboBg]; set => _colors[(int)UiStyleColor.ComboBg] = value; }
-    public UiColor ComboBgHovered { readonly get => _colors[(int)UiStyleColor.ComboBgHovered]; set => _colors[(int)UiStyleColor.ComboBgHovered] = value; }
-    public UiColor ComboBgActive { readonly get => _colors[(int)UiStyleColor.ComboBgActive]; set => _colors[(int)UiStyleColor.ComboBgActive] = value; }
-    public UiColor ComboPopupBg { readonly get => _colors[(int)UiStyleColor.ComboPopupBg]; set => _colors[(int)UiStyleColor.ComboPopupBg] = value; }
-    public UiColor ComboBorder { readonly get => _colors[(int)UiStyleColor.ComboBorder]; set => _colors[(int)UiStyleColor.ComboBorder] = value; }
-    public UiColor ComboBorderHovered { readonly get => _colors[(int)UiStyleColor.ComboBorderHovered]; set => _colors[(int)UiStyleColor.ComboBorderHovered] = value; }
-    public UiColor ComboBorderActive { readonly get => _colors[(int)UiStyleColor.ComboBorderActive]; set => _colors[(int)UiStyleColor.ComboBorderActive] = value; }
+    public UiColor ComboText
+    {
+        readonly get => _colors[(int)UiStyleColor.ComboText]; set => _colors[(int)UiStyleColor.ComboText] = value;
+    }
+    public UiColor ComboBg
+    {
+        readonly get => _colors[(int)UiStyleColor.ComboBg]; set => _colors[(int)UiStyleColor.ComboBg] = value;
+    }
+    public UiColor ComboBgHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.ComboBgHovered]; set => _colors[(int)UiStyleColor.ComboBgHovered] = value;
+    }
+    public UiColor ComboBgActive
+    {
+        readonly get => _colors[(int)UiStyleColor.ComboBgActive]; set => _colors[(int)UiStyleColor.ComboBgActive] = value;
+    }
+    public UiColor ComboPopupBg
+    {
+        readonly get => _colors[(int)UiStyleColor.ComboPopupBg]; set => _colors[(int)UiStyleColor.ComboPopupBg] = value;
+    }
+    public UiColor ComboBorder
+    {
+        readonly get => _colors[(int)UiStyleColor.ComboBorder]; set => _colors[(int)UiStyleColor.ComboBorder] = value;
+    }
+    public UiColor ComboBorderHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.ComboBorderHovered]; set => _colors[(int)UiStyleColor.ComboBorderHovered] = value;
+    }
+    public UiColor ComboBorderActive
+    {
+        readonly get => _colors[(int)UiStyleColor.ComboBorderActive]; set => _colors[(int)UiStyleColor.ComboBorderActive] = value;
+    }
 
     // Selectable
-    public UiColor SelectableText { readonly get => _colors[(int)UiStyleColor.SelectableText]; set => _colors[(int)UiStyleColor.SelectableText] = value; }
-    public UiColor SelectableBgHovered { readonly get => _colors[(int)UiStyleColor.SelectableBgHovered]; set => _colors[(int)UiStyleColor.SelectableBgHovered] = value; }
-    public UiColor SelectableBgActive { readonly get => _colors[(int)UiStyleColor.SelectableBgActive]; set => _colors[(int)UiStyleColor.SelectableBgActive] = value; }
+    public UiColor SelectableText
+    {
+        readonly get => _colors[(int)UiStyleColor.SelectableText]; set => _colors[(int)UiStyleColor.SelectableText] = value;
+    }
+    public UiColor SelectableBgHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.SelectableBgHovered]; set => _colors[(int)UiStyleColor.SelectableBgHovered] = value;
+    }
+    public UiColor SelectableBgActive
+    {
+        readonly get => _colors[(int)UiStyleColor.SelectableBgActive]; set => _colors[(int)UiStyleColor.SelectableBgActive] = value;
+    }
 
     // MenuItem
-    public UiColor MenuItemText { readonly get => _colors[(int)UiStyleColor.MenuItemText]; set => _colors[(int)UiStyleColor.MenuItemText] = value; }
-    public UiColor MenuItemTextDisabled { readonly get => _colors[(int)UiStyleColor.MenuItemTextDisabled]; set => _colors[(int)UiStyleColor.MenuItemTextDisabled] = value; }
-    public UiColor MenuItemBgHovered { readonly get => _colors[(int)UiStyleColor.MenuItemBgHovered]; set => _colors[(int)UiStyleColor.MenuItemBgHovered] = value; }
-    public UiColor MenuItemBgActive { readonly get => _colors[(int)UiStyleColor.MenuItemBgActive]; set => _colors[(int)UiStyleColor.MenuItemBgActive] = value; }
+    public UiColor MenuItemText
+    {
+        readonly get => _colors[(int)UiStyleColor.MenuItemText]; set => _colors[(int)UiStyleColor.MenuItemText] = value;
+    }
+    public UiColor MenuItemTextDisabled
+    {
+        readonly get => _colors[(int)UiStyleColor.MenuItemTextDisabled]; set => _colors[(int)UiStyleColor.MenuItemTextDisabled] = value;
+    }
+    public UiColor MenuItemBgHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.MenuItemBgHovered]; set => _colors[(int)UiStyleColor.MenuItemBgHovered] = value;
+    }
+    public UiColor MenuItemBgActive
+    {
+        readonly get => _colors[(int)UiStyleColor.MenuItemBgActive]; set => _colors[(int)UiStyleColor.MenuItemBgActive] = value;
+    }
 
     // Tab
-    public UiColor TabText { readonly get => _colors[(int)UiStyleColor.TabText]; set => _colors[(int)UiStyleColor.TabText] = value; }
-    public UiColor TabBorder { readonly get => _colors[(int)UiStyleColor.TabBorder]; set => _colors[(int)UiStyleColor.TabBorder] = value; }
+    public UiColor TabText
+    {
+        readonly get => _colors[(int)UiStyleColor.TabText]; set => _colors[(int)UiStyleColor.TabText] = value;
+    }
+    public UiColor TabBorder
+    {
+        readonly get => _colors[(int)UiStyleColor.TabBorder]; set => _colors[(int)UiStyleColor.TabBorder] = value;
+    }
 
     // TreeNode
-    public UiColor TreeNodeText { readonly get => _colors[(int)UiStyleColor.TreeNodeText]; set => _colors[(int)UiStyleColor.TreeNodeText] = value; }
-    public UiColor TreeNodeBg { readonly get => _colors[(int)UiStyleColor.TreeNodeBg]; set => _colors[(int)UiStyleColor.TreeNodeBg] = value; }
-    public UiColor TreeNodeBgHovered { readonly get => _colors[(int)UiStyleColor.TreeNodeBgHovered]; set => _colors[(int)UiStyleColor.TreeNodeBgHovered] = value; }
-    public UiColor TreeNodeBgActive { readonly get => _colors[(int)UiStyleColor.TreeNodeBgActive]; set => _colors[(int)UiStyleColor.TreeNodeBgActive] = value; }
+    public UiColor TreeNodeText
+    {
+        readonly get => _colors[(int)UiStyleColor.TreeNodeText]; set => _colors[(int)UiStyleColor.TreeNodeText] = value;
+    }
+    public UiColor TreeNodeBg
+    {
+        readonly get => _colors[(int)UiStyleColor.TreeNodeBg]; set => _colors[(int)UiStyleColor.TreeNodeBg] = value;
+    }
+    public UiColor TreeNodeBgHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.TreeNodeBgHovered]; set => _colors[(int)UiStyleColor.TreeNodeBgHovered] = value;
+    }
+    public UiColor TreeNodeBgActive
+    {
+        readonly get => _colors[(int)UiStyleColor.TreeNodeBgActive]; set => _colors[(int)UiStyleColor.TreeNodeBgActive] = value;
+    }
 
     // Table
-    public UiColor TableHeaderText { readonly get => _colors[(int)UiStyleColor.TableHeaderText]; set => _colors[(int)UiStyleColor.TableHeaderText] = value; }
-    public UiColor TableCellText { readonly get => _colors[(int)UiStyleColor.TableCellText]; set => _colors[(int)UiStyleColor.TableCellText] = value; }
+    public UiColor TableHeaderText
+    {
+        readonly get => _colors[(int)UiStyleColor.TableHeaderText]; set => _colors[(int)UiStyleColor.TableHeaderText] = value;
+    }
+    public UiColor TableCellText
+    {
+        readonly get => _colors[(int)UiStyleColor.TableCellText]; set => _colors[(int)UiStyleColor.TableCellText] = value;
+    }
 
     // Tooltip
-    public UiColor TooltipText { readonly get => _colors[(int)UiStyleColor.TooltipText]; set => _colors[(int)UiStyleColor.TooltipText] = value; }
-    public UiColor TooltipBg { readonly get => _colors[(int)UiStyleColor.TooltipBg]; set => _colors[(int)UiStyleColor.TooltipBg] = value; }
-    public UiColor TooltipBorder { readonly get => _colors[(int)UiStyleColor.TooltipBorder]; set => _colors[(int)UiStyleColor.TooltipBorder] = value; }
+    public UiColor TooltipText
+    {
+        readonly get => _colors[(int)UiStyleColor.TooltipText]; set => _colors[(int)UiStyleColor.TooltipText] = value;
+    }
+    public UiColor TooltipBg
+    {
+        readonly get => _colors[(int)UiStyleColor.TooltipBg]; set => _colors[(int)UiStyleColor.TooltipBg] = value;
+    }
+    public UiColor TooltipBorder
+    {
+        readonly get => _colors[(int)UiStyleColor.TooltipBorder]; set => _colors[(int)UiStyleColor.TooltipBorder] = value;
+    }
 
     // Window
-    public UiColor WindowTitleText { readonly get => _colors[(int)UiStyleColor.WindowTitleText]; set => _colors[(int)UiStyleColor.WindowTitleText] = value; }
+    public UiColor WindowTitleText
+    {
+        readonly get => _colors[(int)UiStyleColor.WindowTitleText]; set => _colors[(int)UiStyleColor.WindowTitleText] = value;
+    }
 
     // ListBox
-    public UiColor ListBoxBg { readonly get => _colors[(int)UiStyleColor.ListBoxBg]; set => _colors[(int)UiStyleColor.ListBoxBg] = value; }
-    public UiColor ListBoxItemText { readonly get => _colors[(int)UiStyleColor.ListBoxItemText]; set => _colors[(int)UiStyleColor.ListBoxItemText] = value; }
-    public UiColor ListBoxItemBgHovered { readonly get => _colors[(int)UiStyleColor.ListBoxItemBgHovered]; set => _colors[(int)UiStyleColor.ListBoxItemBgHovered] = value; }
-    public UiColor ListBoxItemBgActive { readonly get => _colors[(int)UiStyleColor.ListBoxItemBgActive]; set => _colors[(int)UiStyleColor.ListBoxItemBgActive] = value; }
-    public UiColor ListBoxBorder { readonly get => _colors[(int)UiStyleColor.ListBoxBorder]; set => _colors[(int)UiStyleColor.ListBoxBorder] = value; }
+    public UiColor ListBoxBg
+    {
+        readonly get => _colors[(int)UiStyleColor.ListBoxBg]; set => _colors[(int)UiStyleColor.ListBoxBg] = value;
+    }
+    public UiColor ListBoxItemText
+    {
+        readonly get => _colors[(int)UiStyleColor.ListBoxItemText]; set => _colors[(int)UiStyleColor.ListBoxItemText] = value;
+    }
+    public UiColor ListBoxItemBgHovered
+    {
+        readonly get => _colors[(int)UiStyleColor.ListBoxItemBgHovered]; set => _colors[(int)UiStyleColor.ListBoxItemBgHovered] = value;
+    }
+    public UiColor ListBoxItemBgActive
+    {
+        readonly get => _colors[(int)UiStyleColor.ListBoxItemBgActive]; set => _colors[(int)UiStyleColor.ListBoxItemBgActive] = value;
+    }
+    public UiColor ListBoxBorder
+    {
+        readonly get => _colors[(int)UiStyleColor.ListBoxBorder]; set => _colors[(int)UiStyleColor.ListBoxBorder] = value;
+    }
 
     // ProgressBar
-    public UiColor ProgressBarBg { readonly get => _colors[(int)UiStyleColor.ProgressBarBg]; set => _colors[(int)UiStyleColor.ProgressBarBg] = value; }
-    public UiColor ProgressBarFill { readonly get => _colors[(int)UiStyleColor.ProgressBarFill]; set => _colors[(int)UiStyleColor.ProgressBarFill] = value; }
-    public UiColor ProgressBarBorder { readonly get => _colors[(int)UiStyleColor.ProgressBarBorder]; set => _colors[(int)UiStyleColor.ProgressBarBorder] = value; }
+    public UiColor ProgressBarBg
+    {
+        readonly get => _colors[(int)UiStyleColor.ProgressBarBg]; set => _colors[(int)UiStyleColor.ProgressBarBg] = value;
+    }
+    public UiColor ProgressBarFill
+    {
+        readonly get => _colors[(int)UiStyleColor.ProgressBarFill]; set => _colors[(int)UiStyleColor.ProgressBarFill] = value;
+    }
+    public UiColor ProgressBarBorder
+    {
+        readonly get => _colors[(int)UiStyleColor.ProgressBarBorder]; set => _colors[(int)UiStyleColor.ProgressBarBorder] = value;
+    }
 
     // Separator
-    public UiColor SeparatorLabelText { readonly get => _colors[(int)UiStyleColor.SeparatorLabelText]; set => _colors[(int)UiStyleColor.SeparatorLabelText] = value; }
+    public UiColor SeparatorLabelText
+    {
+        readonly get => _colors[(int)UiStyleColor.SeparatorLabelText]; set => _colors[(int)UiStyleColor.SeparatorLabelText] = value;
+    }
 
     /// <summary>
     /// Copies global token values to widget-specific tokens.
@@ -322,6 +772,7 @@ public struct UiTheme
         {
             var t = new UiTheme
             {
+                BadgeColorScheme = UiBadgeColorScheme.Dark,
                 Text = new UiColor(0xFFE6E8EA),
                 TextDisabled = new UiColor(0xFF8A9099),
                 WindowBg = new UiColor(0xFF1E1F22),
@@ -900,6 +1351,10 @@ public enum UiDesignToken
 
 public readonly record struct UiCompiledDesign(UiTheme Theme, UiStyle Style, UiDesignTokens Tokens)
 {
+    public UiControlSkins ControlSkins
+    {
+        get; init;
+    }
     public static UiCompiledDesign Default => Windows11;
 
     public static UiCompiledDesign Windows11 => new(UiWindows11Design.CreateTheme(), UiWindows11Design.CreateStyle(), UiDesignTokens.Windows11);
@@ -1340,16 +1795,35 @@ public enum UiKey
     F10,
     F11,
     F12,
+    ContextMenu,
 }
 
-public readonly record struct UiKeyEvent(UiKey Key, bool IsDown, KeyModifiers Modifiers);
+public readonly record struct UiKeyEvent(UiKey Key, bool IsDown, KeyModifiers Modifiers)
+{
+    public bool IsRepeat
+    {
+        get; init;
+    }
+}
 
 public readonly record struct UiCharEvent(uint CodePoint);
+
+public enum UiKeyRepeatSource
+{
+    Engine,
+    Platform
+}
 
 public readonly record struct UiKeyRepeatSettings(
     double InitialDelaySeconds,
     double RepeatIntervalSeconds
-);
+)
+{
+    public UiKeyRepeatSource Source
+    {
+        get; init;
+    }
+}
 
 public enum UiTextureFormat
 {
@@ -1362,6 +1836,8 @@ public enum UiTextureUpdateKind
     Create,
     Update,
     Destroy,
+    RenderPaintGroup,
+    RenderVectorScene,
 }
 
 public enum UiDir
@@ -1462,6 +1938,8 @@ public enum UiTabItemFlags
 public enum UiInputTextFlags
 {
     None = 0,
+    ReadOnly = 1,
+    AutoSelectAll = 2,
 }
 
 [Flags]
@@ -1505,6 +1983,42 @@ public readonly record struct UiTextureUpdate(
     int RegionHeight = 0
 )
 {
+    /// <summary>Marks RGBA8 image sampling rather than font coverage. Straight-alpha input is premultiplied unless PreserveColorChannels is set.</summary>
+    public bool IsColorImage
+    {
+        get; init;
+    }
+    /// <summary>Copies RGBA channels verbatim for affine reference data. Keeps color-image sampling without alpha premultiplication.</summary>
+    public bool PreserveColorChannels
+    {
+        get; init;
+    }
+    public UiPaintGroupLease? PaintGroup
+    {
+        get; init;
+    }
+    public UiGpuVectorScene? VectorScene
+    {
+        get; init;
+    }
+    public UiGpuVectorCamera? VectorCamera
+    {
+        get; init;
+    }
+    /// <summary>Initial straight RGBA8 color of a vector output target. Dependencies retain transparent targets.</summary>
+    public UiColor VectorBackground
+    {
+        get; init;
+    }
+    public UiTextureId? WhitePaintTexture
+    {
+        get; init;
+    }
+    /// <summary>Optional exclusive, immutable pixel storage transferred with this update. The consuming frame disposes it.</summary>
+    public IMemoryOwner<byte>? PixelOwner
+    {
+        get; init;
+    }
     public int EffectiveRegionWidth => RegionWidth > 0 ? RegionWidth : Width;
 
     public int EffectiveRegionHeight => RegionHeight > 0 ? RegionHeight : Height;
@@ -1528,8 +2042,21 @@ public readonly record struct UiDrawCommand(
     UiDrawCommandKind Kind = UiDrawCommandKind.Triangles,
     float Opacity = 1f,
     UiRect Bounds = default,
-    bool HasBounds = false
-);
+    bool HasBounds = false,
+    uint CircleCutoutIndexPlusOne = 0,
+    UiTextureId? WhiteBackdropTextureId = null
+)
+{
+    public bool IsBackdropComposite => WhiteBackdropTextureId.HasValue;
+    public bool IsLinearGradientPrimitive => Kind == UiDrawCommandKind.RectFilledPrimitives && VertexOffset == (uint)UiRectGeometryVariant.LinearGradient;
+    public bool IsImagePrimitive => Kind == UiDrawCommandKind.RectFilledPrimitives && VertexOffset == (uint)UiRectGeometryVariant.Image;
+    public bool UsesPairedPrimitiveRecords => IsLinearGradientPrimitive || IsImagePrimitive;
+    public uint PrimitiveDrawMode => Kind == UiDrawCommandKind.Triangles ? 0u : IsLinearGradientPrimitive ? 2u : IsImagePrimitive ? 3u : 1u;
+    public uint PrimitiveInstanceCount => UsesPairedPrimitiveRecords
+        ? ElementCount % 2 == 0 ? ElementCount / 2 : throw new InvalidOperationException("A paired primitive command requires complete two-slot records.")
+        : ElementCount;
+    public uint PrimitiveVertexCount => Kind == UiDrawCommandKind.RectFilledPrimitives && VertexOffset == (uint)UiRectGeometryVariant.Border ? 48u : 6u;
+}
 
 public delegate void UiDrawCallback(UiDrawList drawList, UiDrawCommand command);
 
@@ -1537,10 +2064,18 @@ public delegate void UiDrawCallback(UiDrawList drawList, UiDrawCommand command);
 /// ArrayPool-backed buffer with zero-copy transfer to <see cref="UiPooledList{T}"/>.
 /// Replaces List&lt;T&gt; for vertex/index/command buffers in draw list building.
 /// </summary>
-internal sealed class PooledBuffer<T>(int initialCapacity = 1024)
+internal sealed class PooledBuffer<T>(int initialCapacity = 16, bool pooled = true)
 {
-    private T[] _array = ArrayPool<T>.Shared.Rent(Math.Max(initialCapacity, 16));
+    private T[] _array = Allocate(Math.Max(initialCapacity, 16), pooled);
     private int _count = 0;
+    private static T[] Allocate(int capacity, bool pooled)
+        => pooled ? ArrayPool<T>.Shared.Rent(capacity) : new T[capacity];
+
+    private void Return(T[] array)
+    {
+        if (pooled)
+            ArrayPool<T>.Shared.Return(array, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+    }
 
     public int Count
     {
@@ -1568,9 +2103,9 @@ internal sealed class PooledBuffer<T>(int initialCapacity = 1024)
             nextCapacity = capacity;
         }
 
-        var newArray = ArrayPool<T>.Shared.Rent(nextCapacity);
+        var newArray = Allocate(nextCapacity, pooled);
         _array.AsSpan(0, _count).CopyTo(newArray);
-        ArrayPool<T>.Shared.Return(_array, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+        Return(_array);
         _array = newArray;
     }
 
@@ -1666,22 +2201,22 @@ internal sealed class PooledBuffer<T>(int initialCapacity = 1024)
         // For pooled buffers, return old and rent a minimal one
         if (_count == 0 && _array.Length > 64)
         {
-            ArrayPool<T>.Shared.Return(_array, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
-            _array = ArrayPool<T>.Shared.Rent(16);
+            Return(_array);
+            _array = Allocate(16, pooled);
         }
     }
 
     /// <summary>
     /// Zero-copy transfer: hands off the backing array to a <see cref="UiPooledList{T}"/> and rents a fresh buffer.
     /// </summary>
-    public UiPooledList<T> TransferToPooledList()
+    public UiPooledList<T> TransferToPooledList(bool retainCapacity = true)
     {
         if (_count == 0)
         {
             return new UiPooledList<T>(Array.Empty<T>(), 0, pooled: false);
         }
-        var result = new UiPooledList<T>(_array, _count, pooled: true);
-        _array = ArrayPool<T>.Shared.Rent(1024);
+        var result = new UiPooledList<T>(_array, _count, pooled);
+        _array = Allocate(retainCapacity ? Math.Max(16, _count) : 16, pooled);
         _count = 0;
         return result;
     }
@@ -1788,6 +2323,12 @@ public sealed class UiPooledList<T>(T[] buffer, int count, bool pooled) : IReadO
         AsSpan().CopyTo(destination);
     }
 
+    internal Span<T> AsWritableSpan()
+    {
+        ObjectDisposedException.ThrowIf(_buffer is null, this);
+        return _buffer.AsSpan(0, _count);
+    }
+
     internal bool TryOverwriteSameLength(ReadOnlySpan<T> source)
     {
         if (_buffer is null)
@@ -1830,7 +2371,7 @@ public sealed class UiPooledList<T>(T[] buffer, int count, bool pooled) : IReadO
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
-public sealed record class UiDrawList(
+public sealed partial record class UiDrawList(
     UiPooledList<UiDrawVertex> Vertices,
     UiPooledList<uint> Indices,
     UiPooledList<UiDrawCommand> Commands,
@@ -1842,6 +2383,20 @@ public sealed record class UiDrawList(
     ulong CommandScheduleStamp = 0
 )
 {
+    private UiLayer3D? _scene3D;
+    public UiLayer3D? Scene3D
+    {
+        get => _scene3D; init => _scene3D = value;
+    }
+    /// <summary>Nonzero values identify unchanged command state, including culling bounds; change the stamp whenever that state changes.</summary>
+    public ulong CommandStateStamp
+    {
+        get; init;
+    }
+
+    // Called only for a borrowed frame wrapper after its preceding lease ended.
+    internal void SetLeasedScene3D(UiLayer3D? scene) => _scene3D = scene;
+
     public static bool CommandScheduleStampEnabled { get; } = ParseCommandScheduleStampEnabled();
 
     internal static bool CommandScheduleShapeStampEnabled { get; } = ParseCommandScheduleShapeStampEnabled();
@@ -1883,7 +2438,10 @@ public sealed record class UiDrawList(
         for (var i = 0; i < commandCount; i++)
         {
             ref readonly var cmd = ref Commands.ItemRef(i);
-            commandBuffer[i] = cmd with { IndexOffset = offset };
+            commandBuffer[i] = cmd with
+            {
+                IndexOffset = offset
+            };
             offset += cmd.ElementCount;
         }
 
@@ -1900,16 +2458,14 @@ public sealed record class UiDrawList(
                 ? null
                 : UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(CircleFilledPrimitives.AsSpan()),
             CommandScheduleStamp: CommandScheduleStampEnabled ? ComputeCommandScheduleStamp(commandBuffer.AsSpan(0, commandCount)) : 0UL
-        );
+        )
+        {
+            Scene3D = Scene3D
+        };
     }
 
     public UiDrawList ScaleClipRects(UiVector2 scale)
     {
-        if (Commands.Count == 0)
-        {
-            return this;
-        }
-
         var commandCount = Commands.Count;
         var commandBuffer = ArrayPool<UiDrawCommand>.Shared.Rent(commandCount);
         for (var i = 0; i < commandCount; i++)
@@ -1917,7 +2473,10 @@ public sealed record class UiDrawList(
             ref readonly var cmd = ref Commands.ItemRef(i);
             var rect = cmd.ClipRect;
             var scaledRect = new UiRect(rect.X * scale.X, rect.Y * scale.Y, rect.Width * scale.X, rect.Height * scale.Y);
-            commandBuffer[i] = cmd with { ClipRect = scaledRect };
+            commandBuffer[i] = cmd with
+            {
+                ClipRect = scaledRect
+            };
         }
 
         return new UiDrawList(
@@ -1931,7 +2490,10 @@ public sealed record class UiDrawList(
                 ? null
                 : UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(CircleFilledPrimitives.AsSpan()),
             CommandScheduleStamp: CommandScheduleStampEnabled ? ComputeCommandScheduleStamp(commandBuffer.AsSpan(0, commandCount)) : 0UL
-        );
+        )
+        {
+            Scene3D = Scene3D
+        };
     }
 
     public ulong GetStaticGeometryStamp()
@@ -1984,6 +2546,9 @@ public sealed record class UiDrawList(
             hash = HashStaticGeometryValue(hash, primitive.Rect.Width);
             hash = HashStaticGeometryValue(hash, primitive.Rect.Height);
             hash = HashStaticGeometryValue(hash, primitive.Color.Rgba);
+            hash = HashStaticGeometryValue(hash, primitive.CornerRadius);
+            hash = HashStaticGeometryValue(hash, primitive.BorderThickness);
+            hash = HashStaticGeometryValue(hash, primitive.BorderColor.Rgba);
         }
 
         for (var i = 0; i < circleFilledPrimitives.Length; i++)
@@ -2010,7 +2575,13 @@ public sealed record class UiDrawList(
             hash = HashStaticGeometryValue(hash, command.ClipRect.Width);
             hash = HashStaticGeometryValue(hash, command.ClipRect.Height);
             hash = HashStaticGeometryValue(hash, command.TextureId.Value);
+            hash = HashStaticGeometryValue(hash, command.WhiteBackdropTextureId.HasValue ? 1u : 0u);
+            hash = HashStaticGeometryValue(hash, command.WhiteBackdropTextureId?.Value ?? 0);
             hash = HashStaticGeometryValue(hash, command.ElementCount);
+            hash = HashStaticGeometryValue(hash, command.IndexOffset);
+            hash = HashStaticGeometryValue(hash, command.VertexOffset);
+            hash = HashStaticGeometryValue(hash, command.Opacity);
+            hash = HashStaticGeometryValue(hash, command.CircleCutoutIndexPlusOne);
             hash = HashStaticGeometryValue(hash, command.Translation.X);
             hash = HashStaticGeometryValue(hash, command.Translation.Y);
             hash = HashStaticGeometryValue(hash, (uint)command.Kind);
@@ -2023,6 +2594,50 @@ public sealed record class UiDrawList(
         }
 
         return hash is 0 ? 1UL : hash;
+    }
+
+    public static ulong ComputeCommandTopologyStamp(ReadOnlySpan<UiDrawCommand> commands)
+    {
+        var hash = 14695981039346656037UL;
+        foreach (ref readonly var command in commands)
+        {
+            hash = (hash ^ command.IndexOffset) * 1099511628211UL;
+            hash = (hash ^ command.ElementCount) * 1099511628211UL;
+            hash = (hash ^ command.VertexOffset) * 1099511628211UL;
+            hash = (hash ^ (uint)command.Kind) * 1099511628211UL;
+            hash = (hash ^ (command.CircleCutoutIndexPlusOne != 0 ? 1u : 0u)) * 1099511628211UL;
+            hash = (hash ^ (ulong)command.TextureId.Value) * 1099511628211UL;
+            hash = (hash ^ (command.WhiteBackdropTextureId.HasValue ? 1u : 0u)) * 1099511628211UL;
+            hash = (hash ^ (ulong)(command.WhiteBackdropTextureId?.Value ?? 0)) * 1099511628211UL;
+            hash = (hash ^ (command.Callback is null ? 0u : 1u)) * 1099511628211UL;
+        }
+        hash = (hash ^ (uint)commands.Length) * 1099511628211UL;
+        return hash == 0 ? 1UL : hash;
+    }
+
+    public static ulong ComputeCommandStateStamp(ReadOnlySpan<UiDrawCommand> commands)
+    {
+        var hash = ComputeCommandTopologyStamp(commands);
+        foreach (ref readonly var command in commands)
+        {
+            hash = HashStaticGeometryValue(hash, command.ClipRect.X);
+            hash = HashStaticGeometryValue(hash, command.ClipRect.Y);
+            hash = HashStaticGeometryValue(hash, command.ClipRect.Width);
+            hash = HashStaticGeometryValue(hash, command.ClipRect.Height);
+            hash = HashStaticGeometryValue(hash, command.Translation.X);
+            hash = HashStaticGeometryValue(hash, command.Translation.Y);
+            hash = HashStaticGeometryValue(hash, command.Opacity);
+            hash = HashStaticGeometryValue(hash, command.CircleCutoutIndexPlusOne);
+            hash = HashStaticGeometryValue(hash, command.HasBounds ? 1u : 0u);
+            if (command.HasBounds)
+            {
+                hash = HashStaticGeometryValue(hash, command.Bounds.X);
+                hash = HashStaticGeometryValue(hash, command.Bounds.Y);
+                hash = HashStaticGeometryValue(hash, command.Bounds.Width);
+                hash = HashStaticGeometryValue(hash, command.Bounds.Height);
+            }
+        }
+        return hash == 0 ? 1UL : hash;
     }
 
     internal static ulong ComputeCommandScheduleShapeStamp(ReadOnlySpan<UiDrawCommand> commands)
@@ -2038,6 +2653,8 @@ public sealed record class UiDrawList(
             hash = HashStaticGeometryValue(hash, command.ClipRect.Width);
             hash = HashStaticGeometryValue(hash, command.ClipRect.Height);
             hash = HashStaticGeometryValue(hash, command.TextureId.Value);
+            hash = HashStaticGeometryValue(hash, command.WhiteBackdropTextureId.HasValue ? 1u : 0u);
+            hash = HashStaticGeometryValue(hash, command.WhiteBackdropTextureId?.Value ?? 0);
             hash = HashStaticGeometryValue(hash, command.ElementCount);
             hash = HashStaticGeometryValue(hash, (uint)command.Kind);
             hash = HashStaticGeometryValue(hash, schedulingBounds.X);
@@ -2121,7 +2738,7 @@ public sealed record class UiDrawList(
     }
 }
 
-public sealed record class UiDrawData(
+public sealed partial record class UiDrawData(
     UiVector2 DisplaySize,
     UiVector2 DisplayPos,
     UiVector2 FramebufferScale,
@@ -2131,8 +2748,59 @@ public sealed record class UiDrawData(
     UiPooledList<UiTextureUpdate> TextureUpdates,
     UiRect DynamicDirtyRect = default,
     bool HasDynamicDirtyRect = false
-)
+) : IDisposable
 {
+    private byte[]? _texturePayload;
+    private bool _texturePayloadCaptured;
+    internal UiPooledList<UiDrawListScenePool.Lease>? FrameSceneLeases
+    {
+        get; init;
+    }
+    internal UiLayerFrameLifetime.Lease? LayerFrameLease
+    {
+        get; init;
+    }
+    public ulong DrawDataFrameId
+    {
+        get; init;
+    }
+
+    public void Dispose() => ReleasePooled();
+
+    /// <summary>Copy borrowed texture payloads before transferring exclusive frame ownership to another thread.
+    /// Call on the producer before it may modify the supplied pixel memory. Geometry and commands
+    /// must also remain unchanged until the consumer disposes this frame. Exclusively owned pixel
+    /// storage stays immutable and alive with the frame, so it needs no additional copy.</summary>
+    public void CaptureTexturePayloads()
+    {
+        if (_texturePayloadCaptured)
+            return;
+        var updates = TextureUpdates.AsWritableSpan();
+        var length = 0;
+        foreach (ref readonly var update in updates)
+            if (update.PixelOwner is null)
+                length = checked(length + update.RgbaPixels.Length);
+        if (length > 0)
+        {
+            var payload = ArrayPool<byte>.Shared.Rent(length);
+            var offset = 0;
+            for (var i = 0; i < updates.Length; i++)
+            {
+                if (updates[i].PixelOwner is not null)
+                    continue;
+                var pixels = updates[i].RgbaPixels;
+                pixels.Span.CopyTo(payload.AsSpan(offset, pixels.Length));
+                updates[i] = updates[i] with
+                {
+                    RgbaPixels = payload.AsMemory(offset, pixels.Length)
+                };
+                offset += pixels.Length;
+            }
+            _texturePayload = payload;
+        }
+        _texturePayloadCaptured = true;
+    }
+
     public void ReleasePooled()
     {
         for (var i = 0; i < DrawLists.Count; i++)
@@ -2141,16 +2809,28 @@ public sealed record class UiDrawData(
         }
 
         DrawLists.Return();
+        for (var i = 0; i < TextureUpdates.Count; i++)
+        {
+            TextureUpdates[i].PixelOwner?.Dispose();
+            TextureUpdates[i].PaintGroup?.Dispose();
+        }
         TextureUpdates.Return();
+        if (_texturePayload is { } payload)
+        {
+            _texturePayload = null;
+            ArrayPool<byte>.Shared.Return(payload);
+        }
+        if (FrameSceneLeases is { Count: > 0 } leases)
+        {
+            foreach (var lease in leases.AsSpan())
+                lease.Return();
+            leases.Return();
+        }
+        LayerFrameLease?.Return();
     }
 
     public UiDrawData ScaleClipRects(UiVector2 scale)
     {
-        if (DrawLists.Count == 0)
-        {
-            return this;
-        }
-
         var drawListCount = DrawLists.Count;
         var scaledBuffer = ArrayPool<UiDrawList>.Shared.Rent(drawListCount);
         for (var i = 0; i < drawListCount; i++)
@@ -2168,11 +2848,25 @@ public sealed record class UiDrawData(
                 DynamicDirtyRect.Height * scale.Y);
         }
 
-        return this with
+        // Geometry, commands and update containers are independent. Source-frame
+        // leases belong only to the original and must not be copied here.
+        var scaled = new UiDrawData(DisplaySize, DisplayPos, FramebufferScale, TotalVertexCount, TotalIndexCount,
+            new UiPooledList<UiDrawList>(scaledBuffer, drawListCount, pooled: true),
+            UiPooledList<UiTextureUpdate>.RentAndCopy(TextureUpdates.AsSpan()), scaledDirtyRect, HasDynamicDirtyRect)
         {
-            DrawLists = new UiPooledList<UiDrawList>(scaledBuffer, drawListCount, pooled: true),
-            DynamicDirtyRect = scaledDirtyRect,
+            DrawDataFrameId = DrawDataFrameId,
+            RepaintHighlights = RepaintHighlights,
+            RepaintDiagnosticCleanup = RepaintDiagnosticCleanup
         };
+        var clonedUpdates = scaled.TextureUpdates.AsWritableSpan();
+        for (var i = 0; i < clonedUpdates.Length; i++)
+            if (clonedUpdates[i].PaintGroup is { } lease)
+                clonedUpdates[i] = clonedUpdates[i] with
+                {
+                    PaintGroup = lease.Content.Acquire()
+                };
+        scaled.CaptureTexturePayloads();
+        return scaled;
     }
 }
 
@@ -2183,7 +2877,7 @@ public readonly record struct UiViewport(
     UiVector2 WorkSize
 );
 
-public sealed class UiDrawListSharedData(UiFontAtlas fontAtlas, UiTextSettings textSettings, float lineHeight, UiTextureId fontTexture = default, UiTextureId whiteTexture = default)
+public sealed partial class UiDrawListSharedData(UiFontAtlas fontAtlas, UiTextSettings textSettings, float lineHeight, UiTextureId fontTexture = default, UiTextureId whiteTexture = default)
 {
     public UiFontAtlas FontAtlas { get; set; } = fontAtlas;
     public UiTextSettings TextSettings { get; set; } = textSettings;
@@ -2195,11 +2889,23 @@ public sealed class UiDrawListSharedData(UiFontAtlas fontAtlas, UiTextSettings t
 public sealed class UiDragDropPayload
 {
     public string DataType { get; internal set; } = string.Empty;
-    public ReadOnlyMemory<byte> Data { get; internal set; }
+    public ReadOnlyMemory<byte> Data
+    {
+        get; internal set;
+    }
     public int DataSize => Data.Length;
-    public bool Preview { get; internal set; }
-    public bool Delivery { get; internal set; }
-    public string? SourceId { get; internal set; }
+    public bool Preview
+    {
+        get; internal set;
+    }
+    public bool Delivery
+    {
+        get; internal set;
+    }
+    public string? SourceId
+    {
+        get; internal set;
+    }
     internal int DataFrameCount { get; set; } = -1;
 
     public bool IsDataType(string type) => string.Equals(DataType, type, StringComparison.Ordinal);
@@ -2400,15 +3106,35 @@ public interface IUiImeHandler
     void SetCaretRect(UiRect caretRect, UiRect inputRect, float fontPixelHeight, float fontPixelWidth);
     string? GetCompositionText();
     void SetCompositionOwner(string? inputId);
+    /// <summary>Retires a removed input's pending commits and ownership without retargeting them to another input.</summary>
+    void ReleaseInput(string inputId);
     string? ConsumeCommittedText(string inputId);
     string? ConsumeRecentCommittedText();
 }
+
+/// <summary>The current host visibility and a counter incremented on each transition to hidden.</summary>
+public readonly record struct UiHostVisibility(bool IsHidden, long HideSequence);
 
 public readonly record struct UiFrameInfo(
     float DeltaTime,
     UiVector2 DisplaySize,
     UiVector2 DisplayFramebufferScale
-);
+)
+{
+    /// <summary>Seconds the host parked the render loop between frames while awaiting work.</summary>
+    public double IdleWaitSeconds { get; init; }
+    /// <summary>The host woke only to erase an expired diagnostic outline, without new application work.</summary>
+    public bool RepaintDiagnosticCleanup
+    {
+        get; init;
+    }
+    /// <summary>Native window activation captured with this frame's input snapshot.</summary>
+    public bool IsWindowInactive { get; init; }
+    public UiHostVisibility HostVisibility
+    {
+        get; init;
+    }
+}
 
 public interface IRendererBackend : IDisposable
 {

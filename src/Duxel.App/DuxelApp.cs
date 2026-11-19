@@ -293,6 +293,17 @@ public static class DuxelApp
 
     internal static UiCompiledDesign ResolveEffectiveDesign(DuxelAppOptions options, IPlatformBackend platform)
     {
+        var design = ResolveBaseDesign(options, platform);
+        return options.RespectSystemForcedColors && platform is IPlatformThemeProvider { ForcedColors: { } palette }
+            ? design with
+            {
+                Theme = palette.Apply(design.Theme)
+            }
+            : design;
+    }
+
+    private static UiCompiledDesign ResolveBaseDesign(DuxelAppOptions options, IPlatformBackend platform)
+    {
         if (options.Design is { } design)
         {
             return design;
@@ -305,7 +316,10 @@ public static class DuxelApp
                 : UiCompiledDesign.Windows11;
         }
 
-        return UiCompiledDesign.Default with { Theme = options.Theme };
+        return UiCompiledDesign.Default with
+        {
+            Theme = options.Theme
+        };
     }
 
     internal static bool UsesPlatformDefaultTheme(DuxelAppOptions options)
@@ -314,7 +328,7 @@ public static class DuxelApp
     private static bool IsDefaultTheme(UiTheme theme)
     {
         var defaultTheme = UiCompiledDesign.Default.Theme;
-        return theme.WindowBg == defaultTheme.WindowBg
+        return theme.ForcedColors == defaultTheme.ForcedColors && theme.WindowBg == defaultTheme.WindowBg
             && theme.TitleBgActive == defaultTheme.TitleBgActive
             && theme.Text == defaultTheme.Text
             && theme.Button == defaultTheme.Button
@@ -336,6 +350,8 @@ public static class DuxelApp
 
     internal static void ValidateOptions(DuxelAppOptions options)
     {
+        ArgumentNullException.ThrowIfNull(options.Font.Typography);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.Renderer.MaxFramesInFlight);
         if (options.Window.Width <= 0 || options.Window.Height <= 0)
         {
             throw new InvalidOperationException("Window size must be greater than zero.");
@@ -357,22 +373,44 @@ public sealed record class DuxelAppOptions
     public DuxelFrameOptions Frame { get; init; } = new();
     public DuxelDebugOptions Debug { get; init; } = new();
     public UiTheme Theme { get; init; } = UiCompiledDesign.Default.Theme;
-    public UiCompiledDesign? Design { get; init; }
+    public bool RespectSystemForcedColors { get; init; } = true;
+    public UiCompiledDesign? Design
+    {
+        get; init;
+    }
 
     public UiTextureId FontTextureId { get; init; } = new(1);
     public UiTextureId WhiteTextureId { get; init; } = new(2);
 
-    public required UiScreen Screen { get; init; }
+    public required UiScreen Screen
+    {
+        get; init;
+    }
 
-    public IUiClipboard? Clipboard { get; init; }
-    public IUiImageDecoder? ImageDecoder { get; init; }
-    public IKeyRepeatSettingsProvider? KeyRepeatSettingsProvider { get; init; }
-    public Func<IPlatformBackend, IUiClipboard?>? ClipboardFactory { get; init; }
+    public IUiClipboard? Clipboard
+    {
+        get; init;
+    }
+    public IUiImageDecoder? ImageDecoder
+    {
+        get; init;
+    }
+    public IKeyRepeatSettingsProvider? KeyRepeatSettingsProvider
+    {
+        get; init;
+    }
+    public Func<IPlatformBackend, IUiClipboard?>? ClipboardFactory
+    {
+        get; init;
+    }
 }
 
 public sealed record class DuxelDebugOptions
 {
-    public Action<string>? Log { get; init; }
+    public Action<string>? Log
+    {
+        get; init;
+    }
     public int LogEveryNFrames { get; init; } = 60;
     public bool LogStartupTimings { get; init; } = false;
 }
@@ -389,14 +427,32 @@ public sealed record class DuxelWindowOptions
     public bool ShowMinimizeButton { get; init; } = true;
     public bool ShowMaximizeButton { get; init; } = true;
     public bool CenterOnScreen { get; init; } = true;
-    public bool CenterOnOwner { get; init; }
-    public nint OwnerWindowHandle { get; init; }
-    public string? IconPath { get; init; }
-    public ReadOnlyMemory<byte> IconData { get; init; }
-    public Action<nint>? WindowCreated { get; init; }
+    public bool CenterOnOwner
+    {
+        get; init;
+    }
+    public nint OwnerWindowHandle
+    {
+        get; init;
+    }
+    public string? IconPath
+    {
+        get; init;
+    }
+    public ReadOnlyMemory<byte> IconData
+    {
+        get; init;
+    }
+    public Action<nint>? WindowCreated
+    {
+        get; init;
+    }
     public bool IntegrateSystemChrome { get; init; } = true;
     public DuxelTitleBarMode TitleBarMode { get; init; } = DuxelTitleBarMode.Default;
-    public bool UseDuxelTitleBar { get; init; } = true;
+    public bool UseDuxelTitleBar
+    {
+        get; init;
+    }
     public float DuxelTitleBarHeight { get; init; } = 48f;
     public DuxelTrayOptions Tray { get; init; } = new();
 }
@@ -404,6 +460,7 @@ public sealed record class DuxelWindowOptions
 public sealed record class DuxelRendererOptions
 {
     public int MinImageCount { get; init; } = 3;
+    public int MaxFramesInFlight { get; init; } = 2;
     public DuxelPerformanceProfile Profile { get; init; } = DuxelPerformanceProfile.Display;
     public int MsaaSamples { get; init; } = 0;
     public bool FontLinearSampling { get; init; } = false;
@@ -425,6 +482,19 @@ public enum DuxelTextRenderingMode
 
 public sealed record class DuxelFontOptions
 {
+    public UiTypographyFonts Typography
+    {
+        get; init;
+    } = new(
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "segoeui.ttf"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "seguisb.ttf"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "segoeuib.ttf"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "malgun.ttf"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "malgunbd.ttf"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "malgunbd.ttf"))
+    {
+        Monospace = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "consola.ttf")
+    };
     public string PrimaryFontPath { get; init; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "segoeui.ttf");
     public string? SecondaryFontPath { get; init; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "malgun.ttf");
     public float SecondaryScale { get; init; } = 1f;
@@ -449,6 +519,16 @@ public sealed record class DuxelFontOptions
 
 public sealed record class DuxelFrameOptions
 {
+    /// <summary>Overlap UI production and rendering with one queued frame. Callback frames remain serialized.</summary>
+    public bool EnableRenderPipeline
+    {
+        get; init;
+    }
+    /// <summary>Wait for platform events while UI/render threads run. Requires IPlatformEventWakeBackend.</summary>
+    public bool UseEventDrivenPlatformLoop
+    {
+        get; init;
+    }
     public float LineHeightScale { get; init; } = 1.2f;
     public bool PixelSnap { get; init; } = true;
     public bool UseBaseline { get; init; } = true;
@@ -459,7 +539,10 @@ public sealed record class DuxelFrameOptions
     public int IdleWakeCheckMilliseconds { get; init; } = 1000;
     public int IdleEventWaitMilliseconds { get; init; } = 0;
     public IReadOnlyDictionary<string, int> WindowTargetFps { get; init; } = new Dictionary<string, int>();
-    public Func<bool>? IsAnimationActiveProvider { get; init; }
+    public Func<bool>? IsAnimationActiveProvider
+    {
+        get; init;
+    }
 }
 
 
