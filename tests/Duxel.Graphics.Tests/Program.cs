@@ -1043,6 +1043,11 @@ if (args.Length == 2 && args[1] == "multiline-only")
         Console.WriteLine((condition ? "PASS " : "FAIL ") + name);
         (condition ? passed : failed).Add(name);
     });
+    TextDragScrollTests.Run((condition, name) =>
+    {
+        Console.WriteLine((condition ? "PASS " : "FAIL ") + name);
+        (condition ? passed : failed).Add(name);
+    });
     MultilineAccessibilityTests.Run((condition, name) =>
     {
         Console.WriteLine((condition ? "PASS " : "FAIL ") + name);
@@ -1161,6 +1166,7 @@ if (args.Length == 2 && args[1] == "virtual-list-only")
     }
     VirtualListTests.Run(CheckVirtual);
     VirtualGridTests.Run(CheckVirtual);
+    DataGridTests.Run(CheckVirtual);
     File.WriteAllLines(Path.Combine(destination, "failures.txt"), failures);
     File.WriteAllText(Path.Combine(destination, "result.json"), JsonSerializer.Serialize(new GraphicsResult(
         RuntimeInformation.FrameworkDescription, "virtual-list-only", virtualChecks.Count, virtualChecks.ToArray(), 0, 0, 0, 0), GraphicsJson.Default.GraphicsResult));
@@ -1176,7 +1182,6 @@ if (args.Length == 2 && args[1] == "scroll-view-only")
     var scrollViewChecks = new List<string>();
     var failures = new List<string>();
     void CheckScrollView(bool condition, string name)
-    DataGridTests.Run(CheckVirtual);
     {
         Console.WriteLine((condition ? "PASS " : "FAIL ") + name);
         if (condition)

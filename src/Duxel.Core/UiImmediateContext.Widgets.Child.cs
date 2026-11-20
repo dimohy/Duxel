@@ -75,7 +75,7 @@ public sealed partial class UiImmediateContext
             _accessibilityParent,
             GetDisplayLabel(id),
             enclosingClip,
-            coalesceDocumentScrollInputs));
+            coalesceDocumentScrollInputs) { TextDragScrollRevision = _textDragScrollRevision });
         _accessibilityParent = resolvedId;
         _columnsActive = false;
         _columnsCount = 0;
@@ -130,8 +130,10 @@ public sealed partial class UiImmediateContext
             visibleHeight = nextVisibleHeight;
         }
 
-        var scrollX = Math.Clamp(state.ScrollX, 0f, maxScrollX);
-        var scrollY = Math.Clamp(state.ScrollY, 0f, maxScrollY);
+        var scrolled = ConsumeTextDragScroll(state.TextDragScrollRevision,
+            new(Math.Clamp(state.ScrollX, 0f, maxScrollX), Math.Clamp(state.ScrollY, 0f, maxScrollY)),
+            new(maxScrollX, maxScrollY));
+        var (scrollX, scrollY) = (scrolled.X, scrolled.Y);
         var beforeWheel = scrollY;
         var wheel = _mouseWheel;
         var step = GetFrameHeight() * 3f;

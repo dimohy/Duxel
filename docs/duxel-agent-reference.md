@@ -3128,3 +3128,5 @@ The Linux Gallery `x11-gallery-provider-radio-direction` fixture uses three hori
 `Dux.VirtualGrid` reuses cells in overlapping ranges and only binds cells that enter the realized range. Call `Refresh()` if the source mutates existing cells in place. Set `UiVirtualGridOptions.OwnsWheelInput` if its cell widgets have no nested scrolling. Gallery's **가상 그리드** uses this option to combine consecutive wheel steps before painting the new range.
 
 `DuxelAppSession.ShowFileDialogAsync` opens a file, save or folder dialog and returns the paths the user selected. Gallery shows the three modes under **통합·개발 도구 → 시스템 연동 → 파일 대화 상자**. [File and folder dialogs](file-dialogs.md)
+
+Dragging a text selection beyond the visible edge continues scrolling while the button stays down. CodeView and multiline editors scroll in both directions where text overflows. Single-line inputs scroll horizontally. Any remaining motion is passed to a containing scroll view so a CodeView that fills a longer document can keep extending its selection.

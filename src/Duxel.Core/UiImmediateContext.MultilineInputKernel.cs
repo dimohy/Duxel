@@ -218,61 +218,17 @@ public sealed partial class UiImmediateContext
                 && _state.ContinueTextDrag(id, out var deltaTime) && _state.WidgetClickCount <= 1)
             {
                 dragSelecting = true;
-                var nextScrollY = scrollY;
-                var nextScrollX = scrollX;
-                var autoScrolled = false;
+                var visibleContent = IntersectRect(visibleText, content);
+                var viewport = visibleContent is { Width: > 0, Height: > 0 } ? visibleContent : visibleText;
+                var offset = ApplyTextDragScroll(viewport, new(scrollX, scrollY), new(maxScrollX, maxScroll), deltaTime, out var pointer);
+                var autoScrolled = offset.X != scrollX || offset.Y != scrollY;
+                (scrollX, scrollY) = (offset.X, offset.Y);
 
-                if (maxScroll > 0f)
-                {
-                    if (_mousePosition.Y < textInteractionRect.Y)
-                    {
-                        var delta = textInteractionRect.Y - _mousePosition.Y;
-                        var overshoot = Math.Clamp(delta / 160f, 0f, 1f);
-                        var scrollSpeed = 6f + ((MathF.Max(48f, textLineHeight * 3.5f) - 6f) * overshoot * overshoot * overshoot);
-                        var scrollStep = scrollSpeed * deltaTime;
-                        nextScrollY = Math.Clamp(scrollY - scrollStep, 0f, maxScroll);
-                    }
-                    else if (_mousePosition.Y > textInteractionRect.Y + textInteractionRect.Height)
-                    {
-                        var delta = _mousePosition.Y - (textInteractionRect.Y + textInteractionRect.Height);
-                        var overshoot = Math.Clamp(delta / 160f, 0f, 1f);
-                        var scrollSpeed = 6f + ((MathF.Max(48f, textLineHeight * 3.5f) - 6f) * overshoot * overshoot * overshoot);
-                        var scrollStep = scrollSpeed * deltaTime;
-                        nextScrollY = Math.Clamp(scrollY + scrollStep, 0f, maxScroll);
-                    }
-                }
-
-                if (maxScrollX > 0f)
-                {
-                    if (_mousePosition.X < textInteractionRect.X)
-                    {
-                        var delta = textInteractionRect.X - _mousePosition.X;
-                        var overshoot = Math.Clamp(delta / 160f, 0f, 1f);
-                        var scrollSpeed = 6f + ((84f - 6f) * overshoot * overshoot * overshoot);
-                        var scrollStep = scrollSpeed * deltaTime;
-                        nextScrollX = Math.Clamp(scrollX - scrollStep, 0f, maxScrollX);
-                    }
-                    else if (_mousePosition.X > textInteractionRect.X + textInteractionRect.Width)
-                    {
-                        var delta = _mousePosition.X - (textInteractionRect.X + textInteractionRect.Width);
-                        var overshoot = Math.Clamp(delta / 160f, 0f, 1f);
-                        var scrollSpeed = 6f + ((84f - 6f) * overshoot * overshoot * overshoot);
-                        var scrollStep = scrollSpeed * deltaTime;
-                        nextScrollX = Math.Clamp(scrollX + scrollStep, 0f, maxScrollX);
-                    }
-                }
-
-                if (MathF.Abs(nextScrollY - scrollY) > 0.001f || MathF.Abs(nextScrollX - scrollX) > 0.001f)
-                {
-                    scrollY = nextScrollY;
-                    scrollX = nextScrollX;
-                    autoScrolled = true;
-                    _requestFrame?.Invoke();
-                }
-
-                var dragCaret = visual is null ? HitMultilineSourceElements(buffer, text, content.X - scrollX, content.Y - scrollY, textLineHeight)
-                    : HitMultilineVisual(visual, caretIndex, preedit, _mousePosition.X - content.X + scrollX,
-                        _mousePosition.Y - content.Y + scrollY, textLineHeight);
+                var dragCaret = visual is null
+                    ? HitMultilineSourceElements(buffer, text, content.X - scrollX + (_mousePosition.X - pointer.X),
+                        content.Y - scrollY + (_mousePosition.Y - pointer.Y), textLineHeight)
+                    : HitMultilineVisual(visual, caretIndex, preedit, pointer.X - content.X + scrollX,
+                        pointer.Y - content.Y + scrollY, textLineHeight);
                 selection = selection with
                 {
                     End = dragCaret

@@ -87,6 +87,7 @@ public sealed partial class UiImmediateContext
             _accessibilityParent = resolvedId;
         }
         var revealVersion = _scrollRevealVersion;
+        var dragScrollRevision = _textDragScrollRevision;
         _scrollRevealDepth++;
         try
         {
@@ -100,6 +101,7 @@ public sealed partial class UiImmediateContext
             _accessibilityParent = previousParent;
         }
         offset = ApplyControlScrollReveal(revealVersion, viewport, enclosingClip, offset, maximum);
+        offset = ConsumeTextDragScroll(dragScrollRevision, offset, maximum);
         if (IsScrollHoverable(root, CurrentClipRect))
         {
             var step = GetFrameHeight() * 3f;

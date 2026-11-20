@@ -82,15 +82,13 @@ public sealed partial class UiImmediateContext
             if (_mouseWheel != 0 && IsHovering(clipBounds) && edit.ContentHeight - area.Height <= .5f
                 && _widgetTransformDepth == _widgetScreenTransformDepth)
                 _state.DocumentWheelRegion = (root, bounds);
-            // Text that fits its field has no internal scroll range to advance during a drag.
-            // Keep ordered moves across the code clip when the text has its own scroll range.
+            // A drag outside this clip can scroll the editor or its enclosing document.
+            // Coalesce motion only inside the visible text area.
             if (_state.OwnsTextDrag(root) && _widgetTransformDepth == _widgetScreenTransformDepth
                 && _state.PreviousPopupBlockingRects.Count == 0
                 && IntersectRect(clipBounds, area) is { Width: > 0, Height: > 0 } selectionClip)
             {
-                var textFits = edit.ContentHeight - area.Height <= .5f && edit.ContentWidth - area.Width <= .5f;
-                var motionBounds = textFits ? new UiRect(0, 0, _displaySize.X, _displaySize.Y) : selectionClip;
-                _state.PointerMoveCoalescing = (root, motionBounds);
+                _state.PointerMoveCoalescing = (root, selectionClip);
             }
             if (IsPresentationPass)
             {
