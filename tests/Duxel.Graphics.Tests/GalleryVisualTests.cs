@@ -163,7 +163,8 @@ internal static class GalleryVisualTests
         var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(9));
         var newMenus = tree.CaptureSnapshot().Elements.Where(element => element.Node.Role == UiAccessibilityRole.Link
                 && element.Node.ItemStatus == "NEW").Select(element => element.Node.Name).ToHashSet(StringComparer.Ordinal);
-        check(newMenus.SetEquals(new[] { "NavigationBar", "DataGrid" }.Where(menu => GalleryNavigation.IsNewMenu(menu, today))),
+        check(newMenus.SetEquals(new[] { "NavigationBar", "DataGrid", "파일 대화 상자" }
+            .Where(menu => GalleryNavigation.IsNewMenu(menu, today))),
             "implemented Gallery destinations display NEW during their registration week");
         check(!GalleryNavigation.IsNewMenu("DataGrid", new(2026, 11, 20))
             && GalleryNavigation.IsNewMenu("DataGrid", new(2026, 11, 21))

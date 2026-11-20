@@ -25,6 +25,16 @@ internal sealed unsafe partial class GVariant : IDisposable
         Utf8.GetByteCount(value);
         return new(g_variant_new_string(value), true);
     }
+    internal static GVariant Bytes(byte[] value)
+    {
+        var byteType = g_variant_type_new("y");
+        try
+        {
+            fixed (byte* data = value)
+                return new(g_variant_new_fixed_array(byteType, data, (nuint)value.Length, 1), true);
+        }
+        finally { g_variant_type_free(byteType); }
+    }
     internal static GVariant Path(string value) => new(g_variant_new_object_path(value), true);
     internal static GVariant Int(int value) => new(g_variant_new_int32(value), true);
     internal static GVariant UInt(uint value) => new(g_variant_new_uint32(value), true);
@@ -67,6 +77,19 @@ internal sealed unsafe partial class GVariant : IDisposable
             return new(g_variant_new_dict_entry(key.Handle, value.Handle), true);
     }
     internal GVariant Child(int index) => Owned(g_variant_get_child_value(Handle, (nuint)index));
+    internal GVariant Unbox() => Owned(g_variant_get_variant(Handle));
+    internal int ChildCount => checked((int)g_variant_n_children(Handle));
+    internal bool HasType(string type) => GioNative.Text(g_variant_get_type_string(Handle)) == type;
+    internal GVariant? Lookup(string key, string type)
+    {
+        var expected = g_variant_type_new(type);
+        try
+        {
+            var value = g_variant_lookup_value(Handle, key, expected);
+            return value == 0 ? null : Owned(value);
+        }
+        finally { g_variant_type_free(expected); }
+    }
     internal int AsInt() => g_variant_get_int32(Handle);
     internal bool AsBool() => g_variant_get_boolean(Handle) != 0;
     internal uint AsUInt() => g_variant_get_uint32(Handle);
@@ -97,12 +120,18 @@ internal sealed unsafe partial class GVariant : IDisposable
     [LibraryImport(Library)] private static partial nint g_variant_new_double(double value);
     [LibraryImport(Library)] private static partial double g_variant_get_double(nint value);
     [LibraryImport(Library)] private static partial nint g_variant_new_variant(nint value);
+    [LibraryImport(Library)] private static partial nint g_variant_get_variant(nint value);
     [LibraryImport(Library)] private static partial nint g_variant_new_tuple(nint* children, nuint count);
     [LibraryImport(Library)] private static partial nint g_variant_new_array(nint type, nint* children, nuint count);
+    [LibraryImport(Library)] private static partial nint g_variant_new_fixed_array(nint type, void* elements, nuint count, nuint elementSize);
     [LibraryImport(Library)] private static partial nint g_variant_new_dict_entry(nint key, nint value);
     [LibraryImport(Library, StringMarshalling = StringMarshalling.Utf8)] private static partial nint g_variant_type_new(string type);
     [LibraryImport(Library)] private static partial void g_variant_type_free(nint type);
     [LibraryImport(Library)] private static partial nint g_variant_get_child_value(nint value, nuint index);
+    [LibraryImport(Library)] private static partial nuint g_variant_n_children(nint value);
+    [LibraryImport(Library)] private static partial nint g_variant_get_type_string(nint value);
+    [LibraryImport(Library, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial nint g_variant_lookup_value(nint value, string key, nint expectedType);
     [LibraryImport(Library)] private static partial int g_variant_get_int32(nint value);
     [LibraryImport(Library)] private static partial int g_variant_get_boolean(nint value);
     [LibraryImport(Library)] private static partial uint g_variant_get_uint32(nint value);

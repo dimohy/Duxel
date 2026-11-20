@@ -152,6 +152,7 @@ internal static class GalleryPageSource
             "대화 상자" => "DialogPage",
             "메시지 표시" => "MessageBarPage",
             "추가 정보" => "InfoLabelPage",
+            "파일 대화 상자" => "FileDialogsPage",
             "숫자 입력" => "SpinButtonPage",
             "목록" => "ListPage",
             "선택 목록" => "DropdownPage",

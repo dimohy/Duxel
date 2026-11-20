@@ -3104,3 +3104,5 @@ Linux 갤러리의 `x11-gallery-provider-radio-direction` 검사는 수평 라�
 `Fluent.DataGrid<T>`는 고정 열 제목, 행 가상화, 값 기준 정렬과 열별 편집을 지원합니다. 갤러리의 **Fluent 컨트롤 → 콘텐츠와 목록 → DataGrid**에서 사용해 볼 수 있습니다. [Fluent DataGrid](fluent2-data-grid.ko.md)
 
 `Dux.VirtualGrid`는 스크롤 전후에 겹치는 셀을 재사용하고 화면 주변으로 새로 들어온 셀만 바인딩합니다. 기존 셀의 모델이 바뀌면 `Refresh()`를 호출하세요. 셀 안에 별도로 스크롤되는 위젯이 없다면 `UiVirtualGridOptions.OwnsWheelInput`을 켤 수 있습니다. 갤러리의 **가상 그리드**는 이 옵션을 사용해 연속 휠 입력을 합친 뒤 새 위치를 그립니다.
+
+`DuxelAppSession.ShowFileDialogAsync`는 파일 열기·저장·폴더 선택 대화 상자를 열고 사용자가 고른 경로를 반환합니다. 갤러리의 **통합·개발 도구 → 시스템 연동 → 파일 대화 상자**에서 세 동작을 확인할 수 있습니다. [파일 및 폴더 대화 상자](file-dialogs.ko.md)
