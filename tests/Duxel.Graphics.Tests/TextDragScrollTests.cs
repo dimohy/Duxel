@@ -61,6 +61,22 @@ internal static class TextDragScrollTests
         Hold(new(clip.X - 54, middleY), 6);
         check(Editor().Scroll!.Value.HorizontalOffset < right && Editor().TextInfo!.CaretUtf16 < rightCaret,
             "unwrapped CodeView selection scrolls back left");
+
+        var beforeDiagonal = (X: Editor().Scroll!.Value.HorizontalOffset, Y: document.Offset.Y);
+        var beforeDiagonalCaret = Editor().TextInfo!.CaretUtf16;
+        Hold(new(clip.X + clip.Width + 78, clip.Y - 60));
+        var diagonal = (X: Editor().Scroll!.Value.HorizontalOffset, Y: document.Offset.Y);
+        var diagonalSelection = Editor().TextInfo!;
+        check(diagonal.X > beforeDiagonal.X && diagonal.Y < beforeDiagonal.Y
+            && diagonalSelection.CaretUtf16 < beforeDiagonalCaret
+            && diagonalSelection.AnchorUtf16 == selection.AnchorUtf16,
+            "CodeView selection can scroll horizontally and across an enclosing viewport on the same diagonal drag");
+        var activeClip = Editor().TextLayout!.ClipBounds;
+        Hold(new(activeClip.X + activeClip.Width / 2, activeClip.Y + activeClip.Height / 2), 4);
+        check(Editor().Scroll!.Value.HorizontalOffset == diagonal.X && document.Offset.Y == diagonal.Y
+            && Editor().TextInfo!.AnchorUtf16 == selection.AnchorUtf16,
+            "CodeView selection stops autoscrolling when the held pointer returns inside the viewport");
+
         Frame(idle with { MousePosition = new(start.X, clip.Y + clip.Height + 60), LeftMouseReleased = true });
         var stop = document.Offset;
         var caret = Editor().TextInfo!.CaretUtf16;
