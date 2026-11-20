@@ -40,9 +40,19 @@ internal static class TextDragScrollTests
         var down = document.Offset.Y;
         check(down > 30 && below.AnchorUtf16 == selection.AnchorUtf16 && below.CaretUtf16 > selection.CaretUtf16
             && wakeups > wakeBefore, "CodeView selection continues downward while stationary and scrolls its enclosing viewport");
+        var outsideBottom = new UiVector2(start.X, clip.Y + clip.Height + 80);
+        Hold(outsideBottom, 180);
+        var bottom = document.Offset.Y;
+        var bottomSelection = Editor().TextInfo!;
+        var settledWakeups = wakeups;
+        Hold(outsideBottom, 4);
+        check(bottom > down && document.Offset.Y == bottom && wakeups == settledWakeups,
+            "CodeView drag stops requesting frames at the enclosing viewport limit");
         Hold(new(start.X, clip.Y - 45), 6);
-        check(document.Offset.Y < down && Editor().TextInfo!.CaretUtf16 < below.CaretUtf16,
-            "CodeView selection reverses upward without replacing its anchor");
+        var reversed = Editor().TextInfo!;
+        check(document.Offset.Y < bottom && reversed.CaretUtf16 < bottomSelection.CaretUtf16
+            && reversed.AnchorUtf16 == selection.AnchorUtf16,
+            "CodeView selection reverses upward from the scroll limit without replacing its anchor");
         var middleY = MathF.Max(clip.Y + 24, start.Y);
         Hold(new(clip.X + clip.Width + 78, middleY));
         var right = Editor().Scroll!.Value.HorizontalOffset;
