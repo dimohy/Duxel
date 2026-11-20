@@ -98,7 +98,8 @@ public static unsafe partial class WindowsFileDialogs
         nint item = 0;
         try
         {
-            SHCreateItemFromParsingName(directory, 0, &iid, &item).ThrowIfFailed("Resolve the initial file dialog folder.");
+            SHCreateItemFromParsingName(Path.GetFullPath(directory), 0, &iid, &item)
+                .ThrowIfFailed("Resolve the initial file dialog folder.");
             table->SetDefaultFolder(dialog, item).ThrowIfFailed("Set the initial file dialog folder.");
         }
         finally { Release(item); }
