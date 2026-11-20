@@ -65,6 +65,7 @@ internal static class ViewportClippingTests
                     $"viewport clipping and isolated depth at MSAA {actualSamples}, fractional {fractional}, reverse {reverse}, first mismatch {mismatch}");
             }
         }
+        CheckOpacityProofOwnership(check);
         CheckRoundedDepthMask(renderer, capture, check, white, width, height, first);
         if (integerOnly && !renderer.ValidationViewportClipPlanes)
         {
@@ -88,6 +89,34 @@ internal static class ViewportClippingTests
             }
         }
         renderer.SetMsaaSamples(1);
+    }
+
+    private static void CheckOpacityProofOwnership(Action<bool, string> check)
+    {
+        var commands = UiPooledList<UiDrawCommand>.FromArray([default]);
+        var rectangles = UiPooledList<UiRectFilledPrimitive>.FromArray([default]);
+        var otherCommands = UiPooledList<UiDrawCommand>.FromArray([default]);
+        var otherRectangles = UiPooledList<UiRectFilledPrimitive>.FromArray([default]);
+        var source = new UiDrawList(UiPooledList<UiDrawVertex>.FromArray([]), UiPooledList<uint>.FromArray([]),
+            commands, RectFilledPrimitives: rectangles).SealOwnedOpacityRanges();
+        var unrelated = (source with { Commands = otherCommands, RectFilledPrimitives = otherRectangles }).SealOwnedOpacityRanges();
+        check(source.HasOwnedOpacityRanges && unrelated.HasOwnedOpacityRanges
+            && (source with { CommandScheduleStamp = 17 }).HasOwnedOpacityRanges,
+            "a sealed proof follows copies that retain the original primitive and command buffers");
+        check(!(source with { Commands = otherCommands }).HasOwnedOpacityRanges
+            && !(source with { RectFilledPrimitives = otherRectangles }).HasOwnedOpacityRanges
+            && !(source with { RectFilledPrimitives = null }).HasOwnedOpacityRanges,
+            "a proof rejects different command and primitive buffers even when their contents agree");
+        var clone = source with { };
+        rectangles.TryOverwriteSameLength([default]);
+        check(!source.HasOwnedOpacityRanges && !clone.HasOwnedOpacityRanges,
+            "changing a primitive buffer invalidates every prior proof");
+        source.SealOwnedOpacityRanges();
+        check(source.HasOwnedOpacityRanges && !clone.HasOwnedOpacityRanges,
+            "publishing the new proof does not revalidate a stale copy");
+        rectangles.AsWritableSpan()[0] = default;
+        check(!source.SealOwnedOpacityRanges().HasOwnedOpacityRanges,
+            "a writable alias prevents a later opacity seal");
     }
 
     private static void CheckRoundedDepthMask(VulkanRendererBackend renderer,

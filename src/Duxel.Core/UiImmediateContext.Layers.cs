@@ -24,8 +24,11 @@ public sealed partial class UiImmediateContext
         public void CaptureLocalOpacity(UiDrawList source)
         {
             _localOwnedOpacityRanges = source.HasOwnedOpacityRanges;
-            _localOpacityRectangleRevision = LocalRectFilledPrimitiveList?.OpacityRevision ?? 0;
-            _localOpacityCircleRevision = LocalCircleFilledPrimitiveList?.OpacityRevision ?? 0;
+            if (_localOwnedOpacityRanges)
+            {
+                _localOpacityRectangleRevision = LocalRectFilledPrimitiveList?.SealOpacityRevision() ?? 0;
+                _localOpacityCircleRevision = LocalCircleFilledPrimitiveList?.SealOpacityRevision() ?? 0;
+            }
         }
         public required UiLayerFrameLifetime Lifetime
         {
