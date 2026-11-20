@@ -21,8 +21,8 @@ var services = new ObserverServices(LinuxUiImageDecoder.Shared, new SvgFontOptio
     new("Observer UI", fontPaths[0]), new("Observer UI", fontPaths[1]),
     new("Observer Korean", fontPaths[2]), new("Observer Korean", fontPaths[3])
 ]), fonts.Typography);
-using var observer = new ObserverScreen(services);
 var session = new DuxelAppSession();
+using var observer = new ObserverScreen(services, session);
 if (verifyMode == "--verify-presentation-reuse")
 {
     using var platform = new LinuxX11PlatformBackend(new(640, 360, "Duxel / owned native presentation probe")

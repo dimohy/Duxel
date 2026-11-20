@@ -26,7 +26,8 @@ internal sealed class GalleryNavigation : IDisposable
     private static readonly Dictionary<string, DateOnly> MenuRegistrationDates = new(StringComparer.Ordinal)
     {
         ["NavigationBar"] = new(2026, 11, 20),
-        ["DataGrid"] = new(2026, 11, 21)
+        ["DataGrid"] = new(2026, 11, 21),
+        ["파일 대화 상자"] = new(2026, 11, 21)
     };
     private sealed record Route(string Key, string Label, string Page);
     private readonly UiSizedBox _root;
@@ -43,7 +44,10 @@ internal sealed class GalleryNavigation : IDisposable
     internal GalleryNavigation(IEnumerable<string> pages, string[] planned, UiBinding<string?> selection)
     {
         _selection = selection;
-        var available = pages.ToHashSet(StringComparer.Ordinal);
+        var registered = pages.ToArray();
+        var available = registered.ToHashSet(StringComparer.Ordinal);
+        if (available.Count != registered.Length)
+            throw new InvalidOperationException("Gallery destinations must have unique page titles.");
         var pending = planned.ToHashSet(StringComparer.Ordinal);
         var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(9));
         var home = UiMenuIcon.Create<HomeTabIcon, HomeTabFilledIcon>();
@@ -112,9 +116,12 @@ internal sealed class GalleryNavigation : IDisposable
              new("팝업 입력", "팝업 입력", "팝업 입력")],
             preferredPage: true, kind: GalleryDestinationKind.Duxel);
         string[] tools = ["갱신 관찰", "측정 재사용", "렌더링", "관찰 범위", "기존 API"];
+        sections.Add(UiNavGroup.SectionHeader("section-development", "통합·개발 도구"));
+        AddSection("시스템 연동", "운영체제의 파일과 폴더 선택", settings,
+            [new("파일 대화 상자", "파일 대화 상자", "파일 대화 상자")],
+            preferredPage: true, kind: GalleryDestinationKind.Integration);
         var combined = available.Except(_pageKeys.Keys, StringComparer.Ordinal).Except(tools, StringComparer.Ordinal)
             .Order(StringComparer.Ordinal).Select(page => new Route(page, page + " · 종합", page)).ToArray();
-        sections.Add(UiNavGroup.SectionHeader("section-development", "통합·개발 도구"));
         if (combined.Length > 0) AddSection("통합 예제", "여러 구성요소를 함께 사용하는 예제", settings, combined,
             preferredPage: true, kind: GalleryDestinationKind.Integration);
         AddSection("개발 도구", "그리기·캐시·갱신 범위", settings,

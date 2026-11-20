@@ -8,7 +8,7 @@ using Duxel.Vulkan;
 
 namespace Duxel.App;
 
-public sealed class DuxelAppSession
+public sealed partial class DuxelAppSession
 {
     private static readonly UiTextureId WindowIconTextureId = new(1_000_000_001);
 
@@ -275,6 +275,9 @@ public sealed class DuxelAppSession
                 => new ExtendedContentWindowChromeScreen(options.Screen, chrome, titleBar),
             _ => new DuxelRootContentScreen(options.Screen),
         };
+        using var fileDialogScreen = platform is IPlatformFileDialogs ? new FileDialogScreen(activeScreen, this) : null;
+        if (fileDialogScreen is not null)
+            activeScreen = fileDialogScreen;
         uiContext.SetScreen(activeScreen);
         DuxelApp.ConfigureContext(uiContext, options, platform);
         uiContext.State.VSync = window.VSync;
@@ -848,6 +851,8 @@ public sealed class DuxelAppSession
                     platform.CancelInteractiveResizeWait();
                     platformEventWake?.WakeEvents();
                 };
+                _fileDialogs = platform as IPlatformFileDialogs;
+                _wakeFileDialogs = platformEventWake;
             }
             renderThread.Start();
             started = true;
@@ -886,6 +891,7 @@ public sealed class DuxelAppSession
                     break;
                 }
 
+                DispatchFileDialog();
                 var hasInputChange = UpdateSnapshot();
                 if (hasInputChange)
                 {
@@ -923,6 +929,10 @@ public sealed class DuxelAppSession
             {
                 lock (_platformWakeGate)
                 {
+                    _fileDialogRequest?.Completion.TrySetException(new InvalidOperationException("The session closed before the file dialog completed."));
+                    _fileDialogRequest = null;
+                    _fileDialogs = null;
+                    _wakeFileDialogs = null;
                     _signalPlatformExit = null;
                     _frameWakeSignal = null;
                 }

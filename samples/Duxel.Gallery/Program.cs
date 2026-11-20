@@ -6,8 +6,8 @@ using Duxel.Gallery;
 Console.OutputEncoding = new System.Text.UTF8Encoding(false);
 if (args.Length != 0 && (args.Length != 2 || args[0] is not ("--verify" or "--verify-live-holidays")))
     throw new ArgumentException("Use no arguments, --verify <fresh output directory> or --verify-live-holidays <fresh output directory>.");
-using var screen = new ObserverScreen(ObserverServices.CreateWindows());
 var session = new DuxelAppSession();
+using var screen = new ObserverScreen(ObserverServices.CreateWindows(), session);
 var verification = args.Length == 2
     ? new ObserverPresentationVerificationScreen(screen, session, args[1], liveHoliday : args[0] == "--verify-live-holidays") : null;
 var options = DuxelApp.Options<ObserverDesign>(verification is null ? screen : verification,

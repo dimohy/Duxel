@@ -117,7 +117,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
     internal bool UpdateOnlyOnChange => _updateOnlyOnChange;
     internal string PerformanceText => _performance;
 
-    internal ObserverScreen(ObserverServices services)
+    internal ObserverScreen(ObserverServices services, Duxel.App.DuxelAppSession? fileDialogSession = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         SvgPage = new(services);
@@ -175,12 +175,13 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             new WidgetPage("접기·펼치기", "Accordion을 하나씩 또는 여러 개 열어 보세요. 본문에 입력한 값이 유지되는지 확인하고 키보드와 접근성 기능으로 조작할 수 있습니다.", new AccordionPage()),
             VirtualPage,
             new VirtualGridPage(),
+            new DataGridPage(),
+            new FileDialogsPage(fileDialogSession),
             RenderingPage,
             SvgPage,
             WidgetLayoutPage,
             AvatarPage,
             AvatarGroupPage,
-            new DataGridPage(),
             PersonaPage,
             SearchBoxPage,
             ToolbarPage,
