@@ -1,0 +1,2 @@
+# Browser reference manifests verify the exact SVG source bytes.
+/tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/**/*.svg -text
