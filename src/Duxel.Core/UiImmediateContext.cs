@@ -3884,7 +3884,10 @@ public sealed partial class UiImmediateContext
         string AccessibilityParent,
         string AccessibilityLabel,
         UiRect EnclosingClip,
-        bool CoalesceDocumentScrollInputs);
+        bool CoalesceDocumentScrollInputs)
+    {
+        internal ulong TextDragScrollRevision { get; init; }
+    }
     private readonly record struct UiMenuState(
         string Id,
         string MenuSetKey,

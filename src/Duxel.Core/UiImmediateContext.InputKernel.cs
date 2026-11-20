@@ -291,27 +291,15 @@ public sealed partial class UiImmediateContext
             {
                 dragging = true;
                 var left = layout.Content.X;
-                var right = left + layout.Content.Width;
                 buffer.SingleLine.Prepare(this, text);
                 var dragLayout = pointerComposition?.Layout.Geometry is not null ? pointerComposition.Layout : buffer.SingleLine;
                 var maxScroll = MathF.Max(0, (dragLayout.Geometry is not null ? dragLayout.Width
                     : MeasureTextWidth(text, text.Length)) - layout.Content.Width);
                 scrollX = Math.Clamp(scrollX, 0, maxScroll);
-                var overshoot = _mousePosition.X < left ? _mousePosition.X - left
-                    : _mousePosition.X > right ? _mousePosition.X - right : 0;
-                if (overshoot != 0)
-                {
-                    var ratio = MathF.Min(1, MathF.Abs(overshoot) / 160);
-                    var speed = 80 + 720 * ratio * ratio;
-                    var nextScroll = Math.Clamp(scrollX + MathF.CopySign(speed * dragDelta, overshoot), 0, maxScroll);
-                    if (nextScroll != scrollX)
-                    {
-                        scrollX = nextScroll;
-                        if (overshoot < 0 ? scrollX > 0 : scrollX < maxScroll)
-                            _requestFrame?.Invoke();
-                    }
-                }
-                var dragCaret = GetSingleLineElementHit(buffer, text, left - scrollX, Math.Clamp(_mousePosition.X, left, right), pointerComposition);
+                var visibleContent = IntersectRect(CurrentClipRect, layout.Content);
+                var viewport = visibleContent is { Width: > 0, Height: > 0 } ? visibleContent : visibleInput;
+                scrollX = ApplyTextDragScroll(viewport, new(scrollX, 0), new(maxScroll, 0), dragDelta, out var pointer).X;
+                var dragCaret = GetSingleLineElementHit(buffer, text, left - scrollX, pointer.X, pointerComposition);
                 selection = selection with
                 {
                     End = dragCaret
