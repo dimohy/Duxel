@@ -148,30 +148,51 @@ public sealed unsafe partial class VulkanRendererBackend
     }
 
     private readonly record struct LayerViewportTransform(UiRect ScreenClip, UiRect PixelViewport, Matrix4x4 Transform,
-        UiLayerPlaneModel? PlaneModel = null);
+        UiLayerPlaneModel? PlaneModel = null, UiRect FractionalPixelViewport = default);
+    private readonly record struct ViewportLimits(uint MaxWidth, uint MaxHeight, float MinCoordinate, float MaxCoordinate)
+    {
+        public bool Contains(UiRect viewport)
+            => viewport.Width > 0f && viewport.Height > 0f && viewport.Width <= MaxWidth && viewport.Height <= MaxHeight
+            && viewport.X >= MinCoordinate && viewport.Y >= MinCoordinate
+            && viewport.X + viewport.Width <= MaxCoordinate && viewport.Y + viewport.Height <= MaxCoordinate;
+    }
+    private ViewportLimits _viewportLimits;
+    private bool _viewportClipPlanesEnabled;
+    private bool _standardSampleLocations;
+    private bool CanUseDepthMask4 => _standardSampleLocations && _msaaSampleCount == SampleCountFlags.Count4Bit;
+
+    private bool CanUseDepthMask4ForViewport(UiRect pixels) =>
+        CanUseDepthMask4 && (_viewportClipPlanesEnabled ||
+            (_viewportLimits.Contains(pixels) && pixels.X == MathF.Floor(pixels.X) &&
+             pixels.Y == MathF.Floor(pixels.Y) && pixels.Width == MathF.Floor(pixels.Width) &&
+             pixels.Height == MathF.Floor(pixels.Height)));
     private bool _hasNormalizedPlaneCamera;
     private Matrix4x4 _planeCamera;
+    private UiRect? _planeCameraViewport;
     private LayerViewportTransform _normalizedPlaneCamera;
 
     private LayerViewportTransform GetLayerViewportTransform(UiLayer3D? scene3D, in CommandFrameContext context)
     {
-        var displayWidth = 2f / context.ScaleX;
-        var displayHeight = 2f / context.ScaleY;
+        var displayWidth = context.DisplaySize.X;
+        var displayHeight = context.DisplaySize.Y;
         var displayBounds = new UiRect(context.ClipOffsetX, context.ClipOffsetY, displayWidth, displayHeight);
         var viewport = scene3D?.Viewport ?? displayBounds;
         var planeModel = scene3D?.PlaneModel;
         var camera = scene3D?.Transform ?? default;
         if (planeModel.HasValue && _hasNormalizedPlaneCamera && _planeCamera == camera
-            && _normalizedPlaneCamera.ScreenClip == viewport)
+            && _planeCameraViewport == scene3D?.Viewport)
             return _normalizedPlaneCamera with
             {
                 PlaneModel = planeModel
             };
-        var pixelViewport = new UiRect(
-            (viewport.X - context.ClipOffsetX) * context.ClipScaleX,
-            (viewport.Y - context.ClipOffsetY) * context.ClipScaleY,
-            viewport.Width * context.ClipScaleX, viewport.Height * context.ClipScaleY);
+        // The full viewport must retain the exact framebuffer extent through layer state changes.
+        var pixelViewport = scene3D?.Viewport is { } explicitViewport
+            ? new UiRect((explicitViewport.X - context.ClipOffsetX) * context.ClipScaleX,
+                (explicitViewport.Y - context.ClipOffsetY) * context.ClipScaleY,
+                explicitViewport.Width * context.ClipScaleX, explicitViewport.Height * context.ClipScaleY)
+            : new UiRect(0, 0, context.FramebufferWidth, context.FramebufferHeight);
         var transform = camera;
+        UiRect fractionalPixelViewport = default;
         if (scene3D?.Viewport is { } localViewport)
         {
             var normalize = Matrix4x4.CreateScale(displayWidth / localViewport.Width, displayHeight / localViewport.Height, 1f)
@@ -179,12 +200,32 @@ public sealed unsafe partial class VulkanRendererBackend
                     (displayWidth + 2f * (context.ClipOffsetX - localViewport.X)) / localViewport.Width - 1f,
                     (displayHeight + 2f * (context.ClipOffsetY - localViewport.Y)) / localViewport.Height - 1f, 0f);
             transform = normalize * transform;
+            if (_viewportClipPlanesEnabled)
+            {
+                var x = MathF.Floor(pixelViewport.X);
+                var y = MathF.Floor(pixelViewport.Y);
+                var width = MathF.Ceiling(pixelViewport.X + pixelViewport.Width) - x;
+                var height = MathF.Ceiling(pixelViewport.Y + pixelViewport.Height) - y;
+                var envelope = new UiRect(x, y, width, height);
+                if (envelope != pixelViewport && _viewportLimits.Contains(envelope))
+                {
+                    fractionalPixelViewport = pixelViewport;
+                    // Move the original projection into the integer viewport without
+                    // changing where it lands in framebuffer coordinates.
+                    transform *= Matrix4x4.CreateScale(pixelViewport.Width / width, pixelViewport.Height / height, 1f)
+                        * Matrix4x4.CreateTranslation(
+                            (2f * (pixelViewport.X - x) + pixelViewport.Width) / width - 1f,
+                            (2f * (pixelViewport.Y - y) + pixelViewport.Height) / height - 1f, 0f);
+                    pixelViewport = envelope;
+                }
+            }
         }
-        var result = new LayerViewportTransform(viewport, pixelViewport, transform, planeModel);
+        var result = new LayerViewportTransform(viewport, pixelViewport, transform, planeModel, fractionalPixelViewport);
         if (planeModel.HasValue)
         {
             _hasNormalizedPlaneCamera = true;
             _planeCamera = camera;
+            _planeCameraViewport = scene3D?.Viewport;
             _normalizedPlaneCamera = result;
         }
         return result;
@@ -225,6 +266,7 @@ public sealed unsafe partial class VulkanRendererBackend
             var pipeline = GetUnmaskedPipeline(mode);
             _vk.CmdBindPipeline(context.CommandBuffer, PipelineBindPoint.Graphics, pipeline);
             state.DepthMode = mode;
+            state.MaterialDepthMask = false;
             state.CircleCutoutEnabled = false;
             state.BackdropCompositeEnabled = false;
             state.ProjectedCaptureEnabled = false;
@@ -241,8 +283,21 @@ public sealed unsafe partial class VulkanRendererBackend
         state.LayerTransform = transform;
         state.LayerModelTranslation = default;
         state.LayerModelDepth = 0;
+        var pushedTransform = transform;
+        var depthMaskAllowed = scene3D.HasValue && CanUseDepthMask4ForViewport(pixelViewport);
+        if (_viewportClipPlanesEnabled || depthMaskAllowed)
+        {
+            // Plane vertices have z = 0. Use the unused matrix row for bounds.
+            var bounds = layerView.FractionalPixelViewport;
+            if (bounds.Width == 0 && depthMaskAllowed)
+                bounds = pixelViewport with { Width = -pixelViewport.Width };
+            pushedTransform.M31 = bounds.X;
+            pushedTransform.M32 = bounds.Y;
+            pushedTransform.M33 = bounds.Width;
+            pushedTransform.M34 = bounds.Height;
+        }
         if (!state.HasLayerTransform || state.Layer3DEnabled != scene3D.HasValue
-            || state.PushedLayerTransform != transform)
+            || state.PushedLayerTransform != pushedTransform)
         {
             if (!state.HasLayerLocalClip)
             {
@@ -252,9 +307,9 @@ public sealed unsafe partial class VulkanRendererBackend
                 state.LayerLocalClip = initialClip;
             }
             var stages = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit;
-            _vk.CmdPushConstants(context.CommandBuffer, _pipelineLayout, stages, 48, 64, &transform);
+            _vk.CmdPushConstants(context.CommandBuffer, _pipelineLayout, stages, 48, 64, &pushedTransform);
             _frameLayerTransformPushes++;
-            state.PushedLayerTransform = transform;
+            state.PushedLayerTransform = pushedTransform;
             state.HasLayerTransform = true;
             state.Layer3DEnabled = scene3D.HasValue;
         }

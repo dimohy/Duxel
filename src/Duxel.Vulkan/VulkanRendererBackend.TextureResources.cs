@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Duxel.Core;
 
 namespace Duxel.Vulkan;
@@ -8,6 +10,7 @@ public sealed unsafe partial class VulkanRendererBackend
 {
     private readonly Dictionary<UiTextureId, TextureResource> _textures = new();
     private readonly HashSet<UiTextureId> _colorImageTextures = [];
+    private readonly HashSet<UiTextureId> _knownOpaqueMaterialTextures = [];
     private readonly Stack<uint> _freeBindlessTextureSlots = new();
     private uint _nextBindlessTextureSlot;
     private readonly nuint _fontTextureIdValue;
@@ -31,6 +34,8 @@ public sealed unsafe partial class VulkanRendererBackend
             for (var i = 0; i < updates.Length; i++)
             {
                 var update = updates[i];
+                // Region uploads and GPU-written textures invalidate a previous full-image proof.
+                _knownOpaqueMaterialTextures.Remove(update.TextureId);
                 if (update.Kind == UiTextureUpdateKind.RenderVectorScene)
                 {
                     RegisterVectorScene(update);
@@ -160,6 +165,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
             var resource = CreateTextureResource(update, ImageLayout.Undefined);
             _textures[update.TextureId] = resource;
+            RecordOpaqueMaterialTexture(in update);
             return;
         }
 
@@ -174,6 +180,42 @@ public sealed unsafe partial class VulkanRendererBackend
         }
 
         UploadTextureData(existing.Image, update, ImageLayout.ShaderReadOnlyOptimal);
+        RecordOpaqueMaterialTexture(in update);
+    }
+
+    private void RecordOpaqueMaterialTexture(in UiTextureUpdate update)
+    {
+        if (!_standardSampleLocations
+            || update.Format != UiTextureFormat.Rgba8Unorm || !update.CoversEntireTexture
+            || IsFontTextureId(update.TextureId))
+        {
+            return;
+        }
+
+        if (HasOpaqueAlpha(update.RgbaPixels.Span))
+            _knownOpaqueMaterialTextures.Add(update.TextureId);
+    }
+
+    private static bool HasOpaqueAlpha(ReadOnlySpan<byte> pixels)
+    {
+        var index = 0;
+        if (Vector.IsHardwareAccelerated)
+        {
+            var rgba = MemoryMarshal.Cast<byte, uint>(pixels);
+            var opaque = new Vector<uint>(BitConverter.IsLittleEndian ? 0xff000000u : 0x000000ffu);
+            var width = Vector<uint>.Count;
+            for (; index <= rgba.Length - width; index += width)
+            {
+                var values = new Vector<uint>(rgba[index..]);
+                if (!Vector.EqualsAll(values & opaque, opaque))
+                    return false;
+            }
+        }
+
+        for (var alpha = index * 4 + 3; alpha < pixels.Length; alpha += 4)
+            if (pixels[alpha] != byte.MaxValue)
+                return false;
+        return true;
     }
 
     private static void ValidateTextureUpdateRegion(UiTextureUpdate update)
@@ -259,6 +301,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void DestroyTexture(UiTextureId textureId)
     {
+        _knownOpaqueMaterialTextures.Remove(textureId);
         ForgetVectorScene(textureId);
         ForgetPaintGroup(textureId);
         _paintTextureRevisions.Remove(textureId);
@@ -283,6 +326,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void DestroyTextureImmediate(UiTextureId textureId)
     {
+        _knownOpaqueMaterialTextures.Remove(textureId);
         ForgetPaintGroup(textureId);
         _paintTextureRevisions.Remove(textureId);
         if (!_textures.TryGetValue(textureId, out var resource))

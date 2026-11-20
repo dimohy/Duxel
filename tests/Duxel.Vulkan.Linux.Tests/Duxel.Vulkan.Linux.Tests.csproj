@@ -15,6 +15,7 @@
     <ProjectReference Include="../../src/Duxel.Platform.Linux/Duxel.Platform.Linux.csproj" />
     <ProjectReference Include="../../src/Duxel.Vulkan/Duxel.Vulkan.csproj" />
     <Compile Include="../Duxel.Graphics.Tests/PresentationReuseTests.cs" Link="PresentationReuseTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/ViewportClippingTests.cs" Link="ViewportClippingTests.cs" />
     <Compile Include="../Duxel.Graphics.Tests/GlyphTextureReplayTests.cs" Link="GlyphTextureReplayTests.cs" />
     <Compile Include="../Duxel.Svg.Managed.Tests/BrowserPng.cs" Link="BrowserPng.cs" />
     <Compile Include="../Duxel.Graphics.Tests/PaintGroupRenderingTests.cs" Link="PaintGroupRenderingTests.cs" />

@@ -99,6 +99,12 @@ GPU 검사는 실제 swapchain에 그린 결과를 present 전에 읽어 픽셀�
 
 독립 위젯 카메라는 `UiLayer3D.Viewport`에 콘텐츠 영역을 지정한다. 원본 픽셀 좌표를 해당 영역 기준으로 정규화하고 GPU viewport와 screen clip으로 출력을 제한한다. `(DepthScopeId, Viewport)`가 깊이 영역을 식별하며 같은 영역의 draw list는 연속 제출해야 한다. 새로운 깊이 영역은 기존 rendering scope 안에서 해당 깊이 영역만 지우고 색상은 보존한다. 따라서 위젯 패널은 앞서 그린 전체 장면의 깊이에 가려지지 않는다. 같은 viewport에 독립 장면이 여럿이면 `DepthScopeId`를 구분한다. 위젯별 color target이나 추가 합성 패스는 없다.
 
+Vulkan 장치가 `shaderClipDistance`를 지원하면 소수점 뷰포트에 정수 하드웨어 뷰포트를 설정하고 투영을 보정한다. 일반 도형과 컷아웃 도형에는 클립 평면 네 개를 적용해 원래 소수점 경계에서 그리기를 제한한다. 장치가 기능을 지원하지 않거나 정수 뷰포트가 장치 한도를 넘으면 기존 뷰포트 경로를 사용한다. 깊이 스코프는 요청한 뷰포트와 스코프 ID로 구분한다.
+
+Vulkan 장치가 표준 샘플 위치를 지원하면, 4× MSAA로 깊이를 기록할 때 불투명하다고 확인된 둥근 채우기·그라데이션·이미지에 샘플 마스크를 적용한다. 프레임버퍼에서 뷰포트에 소수 좌표가 있으면 `shaderClipDistance`가 필요하다. 정수 뷰포트는 장치 한도 안에서 이 기능 없이도 샘플 마스크를 사용할 수 있다. 도형이 덮는 각 샘플에 색과 깊이를 함께 기록한다. 텍스처 일부를 갱신하면 불투명 판정이 무효화되며, 도형 경계와 별도로 UV 경계가 있는 이미지는 기존 방식으로 그린다.
+
+`UiLayerOptions.Translation`으로 레이어를 옮겨도 도형의 불투명 판정은 유지된다. 레이어의 불투명도를 낮추면 기존 방식으로 경계를 처리하고 합성한다.
+
 `scene.TryMapScreenPoint(screenPoint, displayBounds, out localPoint)`는 같은 MVP의 역변환으로 포인터 광선과 로컬 평면의 교점을 구한다. viewport 밖의 점과 역변환 불가능한 행렬은 거부한다. 반환한 원본 픽셀 좌표로 콘텐츠를 판정할 수 있다. 기존 즉시 모드 위젯 전체의 입력 처리가 자동으로 변환되는 것은 아니다.
 
 `./run-fba.ps1 samples/fba/dynamic_layer_camera_fba.cs -Managed -NoCache`는 전체 카메라와 독립 위젯 카메라 둘을 보여 준다. 휠은 확대·축소, 오른쪽 드래그는 이동이다. resident 모드는 레이어 본문 다섯 개를 한 번씩 생성하고, 버튼으로 매 프레임 도형을 바꾸는 모드로 전환한다. resize는 콘텐츠 버전을 갱신한다. `DUXEL_CAMERA_DEMO_SECONDS`를 지정하면 자동 종료한다.

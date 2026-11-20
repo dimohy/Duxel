@@ -885,6 +885,12 @@ GPU 구현·정확성·회귀·로컬 배포 검증을 완료했다. 최신 EXE�
 
 `ContentVersion`은 버전이 바뀔 때까지 지오메트리를 유지하며 카메라 행렬은 독립적으로 갱신한다. `UiLayer3D.Viewport`와 `DepthScopeId`는 같은 렌더러에서 독립 위젯 카메라를 지원하고, `TryMapScreenPoint`는 포인터 광선을 원본 평면의 픽셀 좌표로 변환한다. `samples/fba/dynamic_layer_camera_fba.cs`를 참고한다. 해석적 벡터 경계는 확대 시 최종 해상도로 래스터화한다. `IPlatformVectorTextBackend`는 투영된 네이티브 글자의 윤곽 메시를 제공하며, 일반 2D 네이티브 텍스트와 래스터 이미지는 원본 해상도의 한계를 유지한다. `UiDrawListBuilder.GetClipRect()`는 현재 로컬 clip을 제공한다. `GetRendererFrameMetrics()`는 이전 제출 프레임의 계측값을 반환한다(Vulkan profiling을 켜야 측정된 카운터를 제공). `IsMouseDown/Clicked/Released(2)`는 가운데 버튼이며, `GetKeyModifiers()`로 Ctrl 조합을 확인한다. Vulkan은 경계가 확인된 화면 밖 3D 명령의 그리기를 생략하면서 GPU 데이터를 유지한다. 대형 편집 문서와 필요할 때만 렌더링하는 동작 비교는 [ERD 레이어 실험실](erd-layer-lab.ko.md)과 `scripts/measure-erd-layers.ps1`을 참고한다.
 
+Vulkan 장치가 `shaderClipDistance`를 지원하면 소수점 뷰포트에 정수 하드웨어 뷰포트를 설정하고 투영을 보정한다. 일반 도형과 컷아웃 도형에는 클립 평면 네 개를 적용해 원래 소수점 경계에서 그리기를 제한한다. 장치가 기능을 지원하지 않거나 정수 뷰포트가 장치 한도를 넘으면 기존 뷰포트 경로를 사용한다. 깊이 스코프는 요청한 뷰포트와 스코프 ID로 구분한다.
+
+Vulkan 장치가 표준 샘플 위치를 지원하고, 깊이를 기록하는 둥근 채우기·그라데이션·이미지의 도형과 텍스처가 불투명하다면 색과 깊이에 4× 샘플 마스크를 함께 적용한다. 프레임버퍼 뷰포트의 좌표나 크기가 소수이면 `shaderClipDistance`가 필요하다. 정수 뷰포트는 장치 한도 안에서 이 기능 없이도 마스크를 사용할 수 있다. 텍스처 일부를 갱신하면 불투명 판정이 무효화된다.
+
+`UiLayerOptions.Translation`으로 레이어를 옮겨도 도형의 불투명 판정은 유지된다. 반투명 레이어는 기존 방식으로 경계를 처리하고 합성한다.
+
 ## Duxel이 무엇인가
 
 Duxel은 .NET 8, .NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크다.

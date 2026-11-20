@@ -11,6 +11,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private struct CommandPipelineState
     {
         public int DepthMode;
+        public bool MaterialDepthMask;
         public bool CircleCutoutEnabled;
         public bool BackdropCompositeEnabled;
         public bool ProjectedCaptureEnabled;

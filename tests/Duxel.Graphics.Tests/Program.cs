@@ -1855,7 +1855,7 @@ if (matchedRadio)
         Height = matchedRadioSize.Height
     };
 }
-using var platform = matchedRadio
+using var platform = matchedRadio || args.Length >= 2 && args[1] == "primitive-commands"
     ? WindowsPlatformBackend.CreatePixelSizedValidationWindow(platformOptions)
     : new WindowsPlatformBackend(platformOptions);
 if (matchedRadio && platform.FramebufferSize != matchedRadioSize)
@@ -3833,6 +3833,7 @@ if (args.Length >= 2 && args[1] == "primitive-commands")
     PrimitiveCommandTests.Run(Check);
     RoundedGradientTests.Run(renderer, Capture, Build, Check, white, bounds);
     OverlayPresentationTests.Run(renderer, Build, Capture, Check, white, bounds);
+    ViewportClippingTests.Run(renderer, Capture, Check, white, size.Width, size.Height);
     File.WriteAllText(Path.Combine(output, "result.json"), JsonSerializer.Serialize(new GraphicsResult(
         RuntimeInformation.FrameworkDescription, "primitive-commands", checks.Count, checks.ToArray(), 0, 0, 0, 0, renderer.UsesPresentationFences), GraphicsJson.Default.GraphicsResult));
     return;

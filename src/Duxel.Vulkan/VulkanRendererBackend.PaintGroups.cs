@@ -352,7 +352,8 @@ public sealed unsafe partial class VulkanRendererBackend
                     var ty = -1 - content.Bounds.Y * scaleY;
                     var context = new CommandFrameContext(commandBuffer, 0, default, 0, scaleX, scaleY, tx, ty, tx, ty,
                         content.Bounds.X, content.Bounds.Y, content.PixelWidth / content.Bounds.Width,
-                        content.PixelHeight / content.Bounds.Height, content.PixelWidth, content.PixelHeight, false, _profilingEnabled);
+                        content.PixelHeight / content.Bounds.Height, new(content.Bounds.Width, content.Bounds.Height),
+                        content.PixelWidth, content.PixelHeight, false, _profilingEnabled);
                     var state = CreateCommandRecordingState();
                     RecordCommandDrawLists(entry.View!, imageIndex, entry.Bindings, in context, ref state, allowCompiled: false);
                     _framePaintGroupDrawCalls += state.DrawDispatch.DrawCallCount;

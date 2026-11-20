@@ -657,6 +657,7 @@ public sealed unsafe partial class VulkanRendererBackend
             mergedCommand = mergedCommand with
             {
                 ElementCount = mergedCommand.ElementCount + nextCommand.ElementCount,
+                OpaqueAnalyticRange = mergedCommand.OpaqueAnalyticRange && nextCommand.OpaqueAnalyticRange,
                 Bounds = mergedCommand.HasBounds && nextCommand.HasBounds
                     ? MergeSchedulingBounds(mergedCommand.Bounds, nextCommand.Bounds)
                     : default,

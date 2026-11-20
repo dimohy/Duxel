@@ -6,7 +6,7 @@ if ((!glyphReplay && args.Length is not (7 or 8)) || !int.TryParse(args[1], out 
         or "host-pixels" or "tree-gpu" or "tree-label-gpu" or "container-pixels" or "virtual-list-pixels" or "virtual-list-host-pixels"
         or "virtual-list-rtl-pixels" or "virtual-grid-pixels" or "virtual-grid-host-pixels" or "clip-host-pixels"
         or "projected-clip-bench" or "projected-image-clip-bench" or "early-init-cleanup" or "svg-replacement-pressure"
-        or "radio-parent-pixels"))
+        or "radio-parent-pixels" or "viewport-clipping"))
     throw new ArgumentException("Specify a fresh output directory, frame slots1/3, Latin regular/bold, Korean regular/bold and monospace font paths.");
 if (Directory.Exists(args[0]))
     throw new IOException("Linux GPU validation requires a fresh output directory.");
@@ -42,6 +42,18 @@ try
         PresentationReuseTests.Run(args[0], slots, captureHostPixels: true);
     else if (args.Length == 8 && args[7] == "early-init-cleanup")
         VulkanEarlyInitTests.Run(args[0], slots);
+    else if (args.Length == 8 && args[7] == "viewport-clipping")
+    {
+        Directory.CreateDirectory(args[0]);
+        using var fixture = new PresentationReuseTests.Fixture(slots, false, PresentationTestPlatform.Create(320, 240));
+        ViewportClippingTests.Run(fixture.Renderer, (_, draw) => fixture.Capture(draw),
+            (passed, message) =>
+            {
+                if (!passed)
+                    throw new InvalidOperationException(message);
+                Console.WriteLine("PASS " + message);
+            }, new(2), 320, 240);
+    }
     else if (args.Length == 8 && args[7] is "tree-gpu" or "tree-label-gpu")
         TreeRenderingTests.RunMode(args[0], args[7], slots);
     else if (args.Length == 8 && args[7] is "container-pixels" or "virtual-list-pixels" or "virtual-list-host-pixels" or "virtual-list-rtl-pixels"

@@ -120,6 +120,7 @@ public sealed partial class UiDrawListBuilder
                 CircleFilledPrimitives: _circleFilledPrimitives.TransferToPooledList(_retainScratchCapacity));
         // A changing surface uses the shared dynamic upload stream. Its stable
         // peers stay resident; do not allocate/retire GPU buffers on every move.
+        owner.SealOwnedOpacityRanges();
         var replay = previous is null ? CreateResidentPresentation(owner, slot, scheduleStamp)
             : owner with
             {
