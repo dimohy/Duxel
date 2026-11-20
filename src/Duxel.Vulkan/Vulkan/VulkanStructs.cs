@@ -138,10 +138,15 @@ public struct PhysicalDeviceSparseProperties
 public struct PhysicalDeviceLimits
 {
     [FieldOffset(4)] public uint MaxImageDimension2D;
+    [FieldOffset(280)] public uint MaxViewportWidth;
+    [FieldOffset(284)] public uint MaxViewportHeight;
+    [FieldOffset(288)] public float MinViewportCoordinate;
+    [FieldOffset(292)] public float MaxViewportCoordinate;
     [FieldOffset(376)] public SampleCountFlags FramebufferColorSampleCounts;
     [FieldOffset(380)] public SampleCountFlags FramebufferDepthSampleCounts;
     [FieldOffset(420)] public Bool32 TimestampComputeAndGraphics;
     [FieldOffset(424)] public float TimestampPeriod;
+    [FieldOffset(472)] public uint StandardSampleLocations;
 }
 
 [StructLayout(LayoutKind.Explicit, Size = 824)]
@@ -861,6 +866,7 @@ public struct PhysicalDeviceFeatures
 {
     [FieldOffset(28)] public uint DualSrcBlend;
     [FieldOffset(136)] public uint ShaderSampledImageArrayDynamicIndexing;
+    [FieldOffset(148)] public uint ShaderClipDistance;
 }
 
 [StructLayout(LayoutKind.Sequential)]

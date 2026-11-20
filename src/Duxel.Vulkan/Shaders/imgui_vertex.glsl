@@ -39,6 +39,9 @@ layout(location = 7) flat out vec4 fragLocalClip;
 layout(location = 8) out float fragGradientPosition;
 layout(location = 9) flat out vec4 fragGradientMiddleColor;
 layout(location = 10) flat out float fragGradientMiddleStop;
+#ifdef DUXEL_EXPLICIT_DEPTH_MASK
+layout(location = 11) flat out mat3 depthSampleToShape;
+#endif
 #ifdef DUXEL_CIRCLE_CUTOUT
 layout(location = 11) flat out vec3 fragCircleCutout;
 layout(location = 12) flat out uvec2 fragPaintClipAddress;
@@ -78,6 +81,29 @@ float BorderCut(int cutIndex, float halfExtent, float bandExtent)
     }
     return halfExtent;
 }
+
+#ifdef DUXEL_VIEWPORT_CLIP
+out float gl_ClipDistance[4];
+
+void WriteViewportClipDistances()
+{
+    vec4 distances = vec4(1.0);
+    vec4 bounds = pc.layerTransform[2];
+    if (EnableLayer3D && bounds.z > 0.0)
+    {
+        vec2 origin = floor(bounds.xy);
+        vec2 extent = ceil(bounds.xy + bounds.zw) - origin;
+        vec2 minNdc = 2.0 * (bounds.xy - origin) / extent - 1.0;
+        vec2 maxNdc = 2.0 * (bounds.xy + bounds.zw - origin) / extent - 1.0;
+        distances = vec4(gl_Position.xy - minNdc * gl_Position.w,
+            maxNdc * gl_Position.w - gl_Position.xy);
+    }
+    gl_ClipDistance[0] = distances.x;
+    gl_ClipDistance[1] = distances.y;
+    gl_ClipDistance[2] = distances.z;
+    gl_ClipDistance[3] = distances.w;
+}
+#endif
 
 void main()
 {
@@ -149,6 +175,9 @@ void main()
     }
 #endif
     vec2 pos;
+#ifdef DUXEL_EXPLICIT_DEPTH_MASK
+    mat3 planeToShape = mat3(1.0);
+#endif
     fragPrimitiveData = vec4(0.0);
     fragPrimitiveParams = vec2(0.0);
     fragBorderColor = vec4(0.0);
@@ -207,6 +236,9 @@ void main()
         }
 
         pos = rect.xy + halfSize + localPosition;
+#ifdef DUXEL_EXPLICIT_DEPTH_MASK
+        planeToShape[2].xy = -(rect.xy + halfSize);
+#endif
         fragPrimitiveData = vec4(localPosition, halfSize);
         fragPrimitiveParams = vec2(abs(encodedRadius), borderThickness);
         fragPrimitiveKind = strokeOnly
@@ -235,6 +267,12 @@ void main()
             {
                 fragPrimitiveData = vec4((fragUV - vec2(0.5)) * contentSize, contentSize * 0.5);
                 fragPrimitiveKind = 6u;
+#ifdef DUXEL_EXPLICIT_DEPTH_MASK
+                planeToShape[0].xy = uvAxisX * contentSize / rect.z;
+                planeToShape[1].xy = uvAxisY * contentSize / rect.w;
+                planeToShape[2].xy = (uvOrigin - vec2(0.5)) * contentSize
+                    - planeToShape[0].xy * rect.x - planeToShape[1].xy * rect.y;
+#endif
             }
         }
     }
@@ -248,9 +286,22 @@ void main()
 
     vec2 clip = pos * pc.scale + translation;
     if (EnableSharedCamera) clip += planeModel.xy * pc.scale;
+#ifdef DUXEL_EXPLICIT_DEPTH_MASK
+    vec2 beforeProjection = translation;
+    if (EnableSharedCamera) beforeProjection += planeModel.xy * pc.scale;
+    vec4 origin = transform * vec4(beforeProjection, 0.0, 1.0);
+    vec4 axisX = transform[0] * pc.scale.x;
+    vec4 axisY = transform[1] * pc.scale.y;
+    mat3 planeToClip = mat3(vec3(axisX.xy, axisX.w),
+        vec3(axisY.xy, axisY.w), vec3(origin.xy, origin.w));
+    depthSampleToShape = planeToShape * inverse(planeToClip);
+#endif
     fragLocalPosition = pos;
     gl_Position = EnableLayer3D
         ? transform * vec4(clip, 0.0, 1.0)
         : vec4(clip, 0.0, 1.0);
     if (EnableSharedCamera) gl_Position.z += planeModel.z * gl_Position.w;
+#ifdef DUXEL_VIEWPORT_CLIP
+    WriteViewportClipDistances();
+#endif
 }

@@ -332,6 +332,12 @@ public sealed unsafe partial class VulkanRendererBackend
             _vk.DestroyPipeline(_device, _backdropPipelines[index], null);
             _backdropPipelines[index] = default;
         }
+        for (var index = 0; index < _materialDepthMaskPipelines.Length; index++)
+        {
+            if (_materialDepthMaskPipelines[index].Handle != 0)
+                _vk.DestroyPipeline(_device, _materialDepthMaskPipelines[index], null);
+            _materialDepthMaskPipelines[index] = default;
+        }
         for (var index = 0; index < _circleCutoutPipelines.Length; index++)
         {
             if (_circleCutoutPipelines[index].Handle == 0)
@@ -407,6 +413,16 @@ public sealed unsafe partial class VulkanRendererBackend
             _circleCutoutFragmentShaderModule = default;
         }
 
+        if (_depthMask4VertexShaderModule.Handle != 0)
+        {
+            _vk.DestroyShaderModule(_device, _depthMask4VertexShaderModule, null);
+            _depthMask4VertexShaderModule = default;
+        }
+        if (_depthMask4FragmentShaderModule.Handle != 0)
+        {
+            _vk.DestroyShaderModule(_device, _depthMask4FragmentShaderModule, null);
+            _depthMask4FragmentShaderModule = default;
+        }
         if (_vertexShaderModule.Handle is not 0)
         {
             _vk.DestroyShaderModule(_device, _vertexShaderModule, null);

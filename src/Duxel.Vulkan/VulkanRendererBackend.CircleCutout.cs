@@ -5,6 +5,8 @@ public sealed unsafe partial class VulkanRendererBackend
     private ShaderModule _circleCutoutVertexShaderModule;
     private ShaderModule _circleCutoutFragmentShaderModule;
     private readonly Pipeline[] _circleCutoutPipelines = new Pipeline[9];
+    private readonly Pipeline[] _materialDepthMaskPipelines = new Pipeline[4];
+    partial void ObserveValidationDepthMask4(int mode, bool selected);
     private readonly Pipeline[] _projectedCapturePipelines = new Pipeline[2];
     private bool _projectedPaintCapture;
     private readonly Pipeline[] _backdropPipelines = new Pipeline[18];
@@ -25,7 +27,7 @@ public sealed unsafe partial class VulkanRendererBackend
         _ => throw new ArgumentOutOfRangeException(nameof(mode))
     };
 
-    private void ApplyPaintPipeline(CommandBuffer commandBuffer, bool cutout, bool backdrop, ref CommandPipelineState state)
+    private void ApplyPaintPipeline(CommandBuffer commandBuffer, bool cutout, bool backdrop, ref CommandPipelineState state, bool opaqueMaterial = false)
     {
         var mode = state.DepthMode;
         if (backdrop && mode is 2 or 4 or 6 or 8)
@@ -33,10 +35,14 @@ public sealed unsafe partial class VulkanRendererBackend
         var projected = _projectedPaintCapture && !backdrop;
         if (projected && mode != 0)
             throw new InvalidOperationException("Projected capture requires flat source geometry.");
-        if (state.CircleCutoutEnabled == cutout && state.BackdropCompositeEnabled == backdrop
+        var useMaterialDepthMask = opaqueMaterial && !cutout && !backdrop && !projected
+            && mode is 2 or 4 or 6 or 8 && _materialDepthMaskPipelines[(mode - 2) / 2].Handle != 0;
+        if (state.MaterialDepthMask == useMaterialDepthMask && state.CircleCutoutEnabled == cutout && state.BackdropCompositeEnabled == backdrop
             && state.ProjectedCaptureEnabled == projected)
             return;
-        var pipeline = GetUnmaskedPipeline(mode);
+        var pipeline = useMaterialDepthMask
+            ? _materialDepthMaskPipelines[(mode - 2) / 2]
+            : GetUnmaskedPipeline(mode);
         if (projected)
         {
             var index = cutout ? 1 : 0;
@@ -61,6 +67,8 @@ public sealed unsafe partial class VulkanRendererBackend
             pipeline = _circleCutoutPipelines[mode];
         }
         _vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, pipeline);
+        ObserveValidationDepthMask4(mode, useMaterialDepthMask);
+        state.MaterialDepthMask = useMaterialDepthMask;
         state.CircleCutoutEnabled = cutout;
         state.BackdropCompositeEnabled = backdrop;
         state.ProjectedCaptureEnabled = projected;

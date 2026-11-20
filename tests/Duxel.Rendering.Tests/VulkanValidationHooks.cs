@@ -12,6 +12,29 @@ public sealed unsafe partial class VulkanRendererBackend
 {
     internal long? ValidationNativePresentationSequence;
     internal bool ValidationReuseReadback;
+    internal bool ValidationViewportClipPlanes => _viewportClipPlanesEnabled;
+    internal bool ValidationDepthMask4Supported => CanUseDepthMask4;
+    internal bool ValidationStandardSampleLocations
+    {
+        get
+        {
+            _vk.GetPhysicalDeviceProperties(_physicalDevice, out var properties);
+            return properties.Limits.StandardSampleLocations != 0;
+        }
+    }
+    partial void SelectValidationViewportClipPlanes(ref bool enabled)
+        => enabled &= Environment.GetEnvironmentVariable("DUXEL_TEST_DISABLE_VIEWPORT_CLIP") != "1";
+    partial void SelectValidationStandardSampleLocations(ref bool enabled)
+        => enabled &= Environment.GetEnvironmentVariable("DUXEL_TEST_DISABLE_STANDARD_SAMPLE_LOCATIONS") != "1";
+    internal Action<int, bool>? ValidationDepthMask4;
+    partial void ObserveValidationDepthMask4(int mode, bool selected)
+    {
+        ValidationDepthMask4?.Invoke(mode, selected);
+        if (ValidationTraceDepthMask4 && mode is 2 or 4 or 6 or 8)
+            Console.Error.WriteLine($"[depth-material] mode={mode} explicit={selected}");
+    }
+    private static readonly bool ValidationTraceDepthMask4 =
+        Environment.GetEnvironmentVariable("DUXEL_TRACE_MATERIAL_DEPTH_MASK") == "1";
     internal Action? ValidationBeforePresentation;
     private static readonly bool ValidationBlockingUpload = Environment.GetEnvironmentVariable("DUXEL_TEST_BLOCKING_UPLOAD") == "1";
     partial void RequireValidationUploadFrameWait(ref bool required) => required |= ValidationBlockingUpload;
@@ -277,7 +300,7 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         var context = new CommandFrameContext(default, 0, default, 0,
             2f / viewport.Width, 2f / viewport.Height, -1f, -1f, 0, 0, 0, 0, 1, 1,
-            (int)viewport.Width, (int)viewport.Height, false, false);
+            new(viewport.Width, viewport.Height), (int)viewport.Width, (int)viewport.Height, false, false);
         return (int)ClassifyLayerBounds(bounds, translation, in context, in transform, viewport,
             classifyInside, depthOffset, specialized);
     }

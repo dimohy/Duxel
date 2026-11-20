@@ -383,6 +383,7 @@ public sealed unsafe partial class VulkanRendererBackend
         float clipOffsetY,
         float clipScaleX,
         float clipScaleY,
+        UiVector2 displaySize,
         int framebufferWidth,
         int framebufferHeight,
         bool useTemporalJitter,
@@ -402,6 +403,7 @@ public sealed unsafe partial class VulkanRendererBackend
         public float ClipOffsetY { get; } = clipOffsetY;
         public float ClipScaleX { get; } = clipScaleX;
         public float ClipScaleY { get; } = clipScaleY;
+        public UiVector2 DisplaySize { get; } = displaySize;
         public int FramebufferWidthPixels { get; } = framebufferWidth;
         public int FramebufferHeightPixels { get; } = framebufferHeight;
         public float FramebufferWidth { get; } = framebufferWidth;
@@ -448,6 +450,7 @@ public sealed unsafe partial class VulkanRendererBackend
             clipOffset.Y,
             clipScaleX,
             clipScaleY,
+            displaySize,
             framebufferWidth,
             framebufferHeight,
             useTemporalJitter,
@@ -696,6 +699,7 @@ public sealed unsafe partial class VulkanRendererBackend
         }
 
         RecordCommandDrawPath(
+            drawList,
             in command,
             in classification,
             in texture,

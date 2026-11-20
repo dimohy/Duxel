@@ -7,7 +7,13 @@ namespace Duxel.Vulkan;
 
 public sealed unsafe partial class VulkanRendererBackend
 {
+    private bool HasOpaqueAnalyticMaterial(UiDrawList list, in UiDrawCommand command)
+        => list.HasOwnedOpacityRanges && command.OpaqueAnalyticRange && command.Opacity == 1f
+            && command.CircleCutoutIndexPlusOne == 0 && !command.IsBackdropComposite
+            && _knownOpaqueMaterialTextures.Contains(command.TextureId);
+
     private void RecordCommandDrawPath(
+        UiDrawList drawList,
         in UiDrawCommand command,
         in CommandClassification classification,
         in TextureResource texture,
@@ -22,7 +28,11 @@ public sealed unsafe partial class VulkanRendererBackend
         ref CommandDrawDispatchState drawDispatchState)
     {
         var textureIndexAndMode = CommandTextureIndex(command, texture, classification.IsFontCommand);
-        ApplyPaintPipeline(frameContext.CommandBuffer, command.CircleCutoutIndexPlusOne != 0, command.IsBackdropComposite, ref pipelineState);
+        var opaqueMaterial = pipelineState.DepthMode == 2 && CanUseDepthMask4ForViewport(pipelineState.ViewportPixels)
+            && !classification.IsTriangleCommand && !classification.StaticPrimitiveUsesTriangleGeometry
+            && HasOpaqueAnalyticMaterial(drawList, in command);
+        ApplyPaintPipeline(frameContext.CommandBuffer, command.CircleCutoutIndexPlusOne != 0, command.IsBackdropComposite,
+            ref pipelineState, opaqueMaterial);
         // Draw mode 0 = indexed triangle pulling; mode 1 = primitive instance expansion.
         var usesTriangleGeometry = classification.IsTriangleCommand
             || classification.StaticPrimitiveUsesTriangleGeometry;

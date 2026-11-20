@@ -1730,6 +1730,12 @@ Use custom drawing when the built-in widget set is not enough.
 
 `ContentVersion` retains geometry until its revision changes while camera matrices remain independently dynamic. `UiLayer3D.Viewport` and `DepthScopeId` support independent widget cameras in the same renderer; `TryMapScreenPoint` maps pointer rays to source plane pixels. See `samples/fba/dynamic_layer_camera_fba.cs`. Analytic vector edges rasterize at final resolution on zoom. `IPlatformVectorTextBackend` provides outline meshes for projected native text; ordinary 2D native text and raster images keep their source-resolution limitations. `UiDrawListBuilder.GetClipRect()` exposes the active local clip. `GetRendererFrameMetrics()` returns the previous submitted frame's counters (enable Vulkan profiling for measured counters). `IsMouseDown/Clicked/Released(2)` queries the middle button; `GetKeyModifiers()` supplies Ctrl combinations. Vulkan skips offscreen 3D commands with known bounds while keeping their geometry resident. See [ERD layer lab](erd-layer-lab.md) and `scripts/measure-erd-layers.ps1` for scalable editing and demand-rendering comparisons.
 
+On devices with Vulkan `shaderClipDistance`, a fractional projected viewport uses an integer hardware viewport and a remapped projection. Four clip planes enforce the original fractional bounds for both ordinary and cutout geometry. Devices without the feature, and viewports whose integer envelope would exceed device limits, use the original viewport path. Depth scope identity still uses the requested viewport and scope ID.
+
+Depth-writing rounded fills, gradients, and rounded images can use an explicit 4× sample mask when Vulkan reports standard sample positions and the renderer confirms opaque geometry and texture. Fractional framebuffer viewports also need `shaderClipDistance`. Integer framebuffer viewports within device limits can use the mask with that feature unavailable. The mask applies to both color and depth. Partial texture uploads invalidate the opacity proof.
+
+`UiLayerOptions.Translation` preserves the opacity proof for the geometry. A translucent layer uses ordinary coverage and blending.
+
 - draw-list builder primitives include rectangles, circles, lines, bezier curves, text, images, clip control, texture switching, and callbacks
 - layer and canvas-oriented flows are demonstrated by layer bench samples and mixed rendering samples
 - retained static draw lists use `StaticGeometryKey` as their cache identity; change the key when retained geometry content changes

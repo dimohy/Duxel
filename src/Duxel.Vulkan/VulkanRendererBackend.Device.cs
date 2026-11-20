@@ -137,7 +137,12 @@ public sealed unsafe partial class VulkanRendererBackend
                 _graphicsQueueFamily = queueFamily;
                 _dedicatedTransferQueueFamily = FindDedicatedTransferQueueFamily(device, queueFamily);
                 _vk.GetPhysicalDeviceProperties(device, out var properties);
+                _standardSampleLocations = properties.Limits.StandardSampleLocations != 0;
+                SelectValidationStandardSampleLocations(ref _standardSampleLocations);
                 _maxImageDimension2D=properties.Limits.MaxImageDimension2D;
+                _viewportLimits = new(
+                    properties.Limits.MaxViewportWidth, properties.Limits.MaxViewportHeight,
+                    properties.Limits.MinViewportCoordinate, properties.Limits.MaxViewportCoordinate);
                 _devicePolicy = CreateDevicePolicy(
                     properties,
                     graphicsQueueTimestampValidBits,
@@ -255,10 +260,15 @@ public sealed unsafe partial class VulkanRendererBackend
 
         try
         {
+            var availableFeatures = new PhysicalDeviceFeatures2 { SType = StructureType.PhysicalDeviceFeatures2 };
+            _vk.GetPhysicalDeviceFeatures2(_physicalDevice, &availableFeatures);
+            _viewportClipPlanesEnabled = availableFeatures.Features.ShaderClipDistance != 0;
+            SelectValidationViewportClipPlanes(ref _viewportClipPlanesEnabled);
             var enabledFeatures = new PhysicalDeviceFeatures
             {
                 DualSrcBlend = 1,
                 ShaderSampledImageArrayDynamicIndexing = 1,
+                ShaderClipDistance = _viewportClipPlanesEnabled ? 1u : 0u,
             };
 
             var maintenanceFeatures=new PhysicalDeviceSwapchainMaintenance1FeaturesEXT
@@ -325,6 +335,8 @@ public sealed unsafe partial class VulkanRendererBackend
         return maintenance.SwapchainMaintenance1!=0;
     }
     partial void SelectValidationSwapchainMaintenance(ref bool enabled);
+    partial void SelectValidationViewportClipPlanes(ref bool enabled);
+    partial void SelectValidationStandardSampleLocations(ref bool enabled);
 
     private void RequireGpuDrivenRendererFeatures()
     {

@@ -70,7 +70,8 @@ void main()
         float distance = fragPrimitiveKind == 1u
             ? length(fragPrimitiveData.xy) - fragPrimitiveParams.x
             : RoundedRectDistance(fragPrimitiveData.xy, fragPrimitiveData.zw, fragPrimitiveParams.x);
-        float aaWidth = max(fwidth(distance), 0.0001);
+        // Use local derivatives for consistent analytic edge coverage across drivers.
+        float aaWidth = max(fwidthFine(distance), 0.0001);
         float outerCoverage = clamp(0.5 - distance / aaWidth, 0.0, 1.0);
         if (fragPrimitiveKind == 4u && fragPrimitiveParams.x == 0.0) outerCoverage = 1.0;
         if (fragPrimitiveKind == 5u || fragPrimitiveKind == 6u)

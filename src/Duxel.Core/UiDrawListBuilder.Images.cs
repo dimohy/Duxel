@@ -32,6 +32,13 @@ public readonly record struct UiImageUvTransform(UiVector2 Origin, UiVector2 Axi
             throw new ArgumentOutOfRangeException(nameof(UiImageUvTransform));
         return this;
     }
+
+    internal bool IsInsideTexture
+        => AxisInsideTexture(Origin.X, AxisX.X, AxisY.X) && AxisInsideTexture(Origin.Y, AxisX.Y, AxisY.Y);
+
+    private static bool AxisInsideTexture(float origin, float x, float y)
+        => (double)origin + Math.Min(x, 0f) + Math.Min(y, 0f) >= 0
+            && (double)origin + Math.Max(x, 0f) + Math.Max(y, 0f) <= 1;
 }
 
 public sealed partial class UiDrawListBuilder
@@ -86,7 +93,10 @@ public sealed partial class UiDrawListBuilder
         _rectFilledPrimitives.Add(new(new(uv.Origin.X, uv.Origin.Y, uv.AxisX.X, uv.AxisX.Y),
             contentSize.HasValue ? new(BitConverter.SingleToUInt32Bits(cornerSize.X)) : default, uv.AxisY.X, uv.AxisY.Y,
             contentSize.HasValue ? new(BitConverter.SingleToUInt32Bits(cornerSize.Y)) : default));
+        // When the corners follow source UVs, the source shape already limits UVs
+        // to the texture. A viewport-space shape can also have a separate UV edge.
+        var opaqueRange = radius > 0f && tint.Rgba >> 24 == 255 && (contentSize.HasValue || uv.IsInsideTexture);
         AddRectFilledPrimitiveCommand(Intersect(clip, _currentClipRect), texture, offset, rect,
-            (uint)UiRectGeometryVariant.Image, 2);
+            (uint)UiRectGeometryVariant.Image, 2, opaqueRange);
     }
 }

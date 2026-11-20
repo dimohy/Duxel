@@ -2047,6 +2047,7 @@ public readonly record struct UiDrawCommand(
     UiTextureId? WhiteBackdropTextureId = null
 )
 {
+    internal bool OpaqueAnalyticRange { get; init; }
     public bool IsBackdropComposite => WhiteBackdropTextureId.HasValue;
     public bool IsLinearGradientPrimitive => Kind == UiDrawCommandKind.RectFilledPrimitives && VertexOffset == (uint)UiRectGeometryVariant.LinearGradient;
     public bool IsImagePrimitive => Kind == UiDrawCommandKind.RectFilledPrimitives && VertexOffset == (uint)UiRectGeometryVariant.Image;
@@ -2228,6 +2229,8 @@ public sealed class UiPooledList<T>(T[] buffer, int count, bool pooled) : IReadO
     private int _count = count;
     private readonly bool _pooled = pooled;
 
+    // A writable alias can outlive any later opacity proof.
+    internal long OpacityRevision { get; private set; }
     public int Count => _count;
 
     public T this[int index]
@@ -2296,6 +2299,7 @@ public sealed class UiPooledList<T>(T[] buffer, int count, bool pooled) : IReadO
 
     public void Return()
     {
+        OpacityRevision = -1;
         if (!_pooled || _buffer is null)
         {
             _buffer = null;
@@ -2326,6 +2330,7 @@ public sealed class UiPooledList<T>(T[] buffer, int count, bool pooled) : IReadO
     internal Span<T> AsWritableSpan()
     {
         ObjectDisposedException.ThrowIf(_buffer is null, this);
+        OpacityRevision = -1;
         return _buffer.AsSpan(0, _count);
     }
 
@@ -2341,8 +2346,26 @@ public sealed class UiPooledList<T>(T[] buffer, int count, bool pooled) : IReadO
             return false;
         }
 
+        AdvanceOpacityRevision();
         source.CopyTo(_buffer);
         return true;
+    }
+
+    internal delegate void RewriteElements<TState>(scoped Span<T> elements, TState state);
+
+    internal void Rewrite<TState>(TState state, RewriteElements<TState> rewrite)
+    {
+        ObjectDisposedException.ThrowIf(_buffer is null, this);
+        AdvanceOpacityRevision();
+        rewrite(_buffer.AsSpan(0, _count), state);
+    }
+
+    private void AdvanceOpacityRevision()
+    {
+        if (OpacityRevision >= 0)
+        {
+            OpacityRevision = OpacityRevision == long.MaxValue ? -1 : OpacityRevision + 1;
+        }
     }
 
     public ref readonly T ItemRef(int index)
@@ -2383,6 +2406,30 @@ public sealed partial record class UiDrawList(
     ulong CommandScheduleStamp = 0
 )
 {
+    private UiPooledList<UiDrawCommand>? _opacityCommands;
+    private UiPooledList<UiRectFilledPrimitive>? _opacityRectangles;
+    private UiPooledList<UiCircleFilledPrimitive>? _opacityCircles;
+    private long _opacityCommandRevision;
+    private long _opacityRectangleRevision;
+    private long _opacityCircleRevision;
+
+    internal bool HasOwnedOpacityRanges => ReferenceEquals(_opacityCommands, Commands)
+        && ReferenceEquals(_opacityRectangles, RectFilledPrimitives)
+        && ReferenceEquals(_opacityCircles, CircleFilledPrimitives)
+        && _opacityCommandRevision >= 0 && Commands.OpacityRevision == _opacityCommandRevision
+        && _opacityRectangleRevision >= 0 && (RectFilledPrimitives?.OpacityRevision ?? 0) == _opacityRectangleRevision
+        && _opacityCircleRevision >= 0 && (CircleFilledPrimitives?.OpacityRevision ?? 0) == _opacityCircleRevision;
+    internal UiDrawList SealOwnedOpacityRanges()
+    {
+        _opacityCommands = Commands;
+        _opacityRectangles = RectFilledPrimitives;
+        _opacityCircles = CircleFilledPrimitives;
+        _opacityCommandRevision = Commands.OpacityRevision;
+        _opacityRectangleRevision = RectFilledPrimitives?.OpacityRevision ?? 0;
+        _opacityCircleRevision = CircleFilledPrimitives?.OpacityRevision ?? 0;
+        return this;
+    }
+
     private UiLayer3D? _scene3D;
     public UiLayer3D? Scene3D
     {

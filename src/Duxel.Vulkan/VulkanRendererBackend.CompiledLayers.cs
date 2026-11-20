@@ -481,6 +481,25 @@ public sealed unsafe partial class VulkanRendererBackend
             if (!hasBasis)
                 return;
         }
+        var opaqueGroup = CanUseDepthMask4 && !group.HasCircleCutout && !group.HasBackdropComposite
+            && data.DrawLists[start].Scene3D is { WriteDepth: true };
+        if (opaqueGroup && !_viewportClipPlanesEnabled)
+        {
+            ref var firstView = ref GetCachedLayerVisibility(start, data.DrawLists[start], in context);
+            opaqueGroup = CanUseDepthMask4ForViewport(firstView.View.PixelViewport);
+        }
+        for (var member = 0; opaqueGroup && member < group.MemberCount; member++)
+        {
+            var list = data.DrawLists[start + member];
+            foreach (var command in list.Commands)
+            {
+                if (command.ElementCount != 0 && !HasOpaqueAnalyticMaterial(list, in command))
+                {
+                    opaqueGroup = false;
+                    break;
+                }
+            }
+        }
         var descriptor = 0;
         uint rangeStart = 0, rangeEnd = 0;
         var bound = false;
@@ -514,7 +533,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 };
                 ApplyDepthLayerState(list.Scene3D, in context, in gpuView, ref state.Pipeline,
                     compiled: true, sharedBasis: sharedBasis, sharedCamera: sharedCamera);
-                ApplyPaintPipeline(context.CommandBuffer, group.HasCircleCutout, group.HasBackdropComposite, ref state.Pipeline);
+                ApplyPaintPipeline(context.CommandBuffer, group.HasCircleCutout, group.HasBackdropComposite, ref state.Pipeline, opaqueGroup);
                 var screenCommand = command with
                 {
                     ClipRect = layerView.ScreenClip,

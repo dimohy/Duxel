@@ -35,6 +35,8 @@ public sealed partial class UiDrawListBuilder
         _rectFilledPrimitives.Add(new(new(gradient.Start.X, gradient.Start.Y, direction.X, direction.Y),
             gradient.MiddleColor, gradient.MiddlePosition));
         AddRectFilledPrimitiveCommand(Intersect(clip, _currentClipRect), texture, offset, rect,
-            (uint)UiRectGeometryVariant.LinearGradient, 2);
+            (uint)UiRectGeometryVariant.LinearGradient, 2,
+            radius > 0f && gradient.StartColor.Rgba >> 24 == 255
+            && gradient.MiddleColor.Rgba >> 24 == 255 && gradient.EndColor.Rgba >> 24 == 255);
     }
 }

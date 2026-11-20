@@ -12,6 +12,21 @@ public sealed partial class UiImmediateContext
 
     private sealed class UiLayerCachedList
     {
+        private bool _localOwnedOpacityRanges;
+        private long _localOpacityRectangleRevision;
+        private long _localOpacityCircleRevision;
+
+        public bool LocalOwnedOpacityRanges => _localOwnedOpacityRanges
+            && _localOpacityRectangleRevision >= 0 && (LocalRectFilledPrimitiveList?.OpacityRevision ?? 0) == _localOpacityRectangleRevision
+            && _localOpacityCircleRevision >= 0 && (LocalCircleFilledPrimitiveList?.OpacityRevision ?? 0) == _localOpacityCircleRevision
+            && (OwnedSource?.HasOwnedOpacityRanges ?? true);
+
+        public void CaptureLocalOpacity(UiDrawList source)
+        {
+            _localOwnedOpacityRanges = source.HasOwnedOpacityRanges;
+            _localOpacityRectangleRevision = LocalRectFilledPrimitiveList?.OpacityRevision ?? 0;
+            _localOpacityCircleRevision = LocalCircleFilledPrimitiveList?.OpacityRevision ?? 0;
+        }
         public required UiLayerFrameLifetime Lifetime
         {
             get; init;
@@ -687,6 +702,7 @@ public sealed partial class UiImmediateContext
                 previous.LocalIndexList = list.Indices;
                 previous.LocalRectFilledPrimitiveList = list.RectFilledPrimitives;
                 previous.LocalCircleFilledPrimitiveList = list.CircleFilledPrimitives;
+                previous.CaptureLocalOpacity(list);
                 previous.LocalScene3D = list.Scene3D;
                 previous.CapturedParentScene3D = parentScene;
                 previous.LocalStaticGeometryStamp = localStaticGeometryStamp;
@@ -720,6 +736,7 @@ public sealed partial class UiImmediateContext
                 LocalCircleFilledPrimitiveList = takeOwnership ? list.CircleFilledPrimitives
                     : localCircles.IsEmpty ? null : UiPooledList<UiCircleFilledPrimitive>.FromArray(localCircles.ToArray()),
             };
+            result[i].CaptureLocalOpacity(list);
         }
 
         return result;
@@ -765,6 +782,7 @@ public sealed partial class UiImmediateContext
         }
         cached.LocalCommandTopologyStamp = topologyStamp;
         localCommands.CopyTo(commandSnapshot);
+        cached.CaptureLocalOpacity(list);
         cached.LocalScene3D = list.Scene3D;
         cached.LocalStaticGeometryStamp = UiDrawList.ComputeStaticGeometryStamp(
             localVertices,
@@ -862,6 +880,7 @@ public sealed partial class UiImmediateContext
             cached.ReplayCommandList = UiPooledList<UiDrawCommand>.FromArray(replayCommands);
         }
 
+        var localOwnedOpacityRanges = cached.LocalOwnedOpacityRanges;
         for (var i = 0; i < localCommands.Length; i++)
         {
             var localCommand = localCommands[i];
@@ -900,7 +919,8 @@ public sealed partial class UiImmediateContext
 
             replayCommands[i] = replayCommand with
             {
-                UserData = null
+                UserData = null,
+                OpaqueAnalyticRange = localOwnedOpacityRanges && localCommand.OpaqueAnalyticRange
             };
         }
 
@@ -932,7 +952,7 @@ public sealed partial class UiImmediateContext
             {
                 Scene3D = cached.LocalScene3D,
                 CommandStateStamp = commandStateStamp
-            };
+            }.SealOwnedOpacityRanges();
         }
         cached.ReplayOpacity = clampedOpacity;
         cached.ReplayTranslation = translation;

@@ -36,6 +36,7 @@ public sealed partial class UiDrawListBuilder
     private bool _hasPendingPrimitiveCommand;
     private int _pendingPrimitiveCommandIndex;
     private uint _pendingPrimitiveCount;
+    private bool _pendingPrimitiveOpaque;
     private UiRect _pendingPrimitiveBounds;
 
     private void CommitPrimitiveCommand()
@@ -44,6 +45,7 @@ public sealed partial class UiDrawListBuilder
         command = command with
         {
             ElementCount = _pendingPrimitiveCount,
+            OpaqueAnalyticRange = _pendingPrimitiveOpaque,
             Bounds = _pendingPrimitiveBounds,
             HasBounds = true
         };
@@ -240,7 +242,8 @@ public sealed partial class UiDrawListBuilder
         var primitiveOffset = (uint)_rectFilledPrimitives.Count;
         _rectFilledPrimitives.Add(new UiRectFilledPrimitive(rect, fillColor, radius, thickness, borderColor));
         var geometryVariant = fillColor.Rgba is 0 && thickness > 0f ? 1u : 0u;
-        AddRectFilledPrimitiveCommand(clipRect, textureId, primitiveOffset, rect, geometryVariant);
+        AddRectFilledPrimitiveCommand(clipRect, textureId, primitiveOffset, rect, geometryVariant,
+            opaqueRange: radius > 0f && thickness == 0f && fillColor.Rgba >> 24 == 255);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -250,7 +253,8 @@ public sealed partial class UiDrawListBuilder
         uint primitiveOffset,
         UiRect bounds,
         uint geometryVariant = 0u,
-        uint primitiveSlots = 1u)
+        uint primitiveSlots = 1u,
+        bool opaqueRange = false)
     {
         if (!IsPresentationPass)
             return;
@@ -275,6 +279,7 @@ public sealed partial class UiDrawListBuilder
                 var priorBounds = _hasPendingPrimitiveCommand ? _pendingPrimitiveBounds : last.Bounds;
                 _pendingPrimitiveBounds = _hasPendingPrimitiveCommand || last.HasBounds ? Union(priorBounds, bounds) : bounds;
                 _pendingPrimitiveCount = count + primitiveSlots;
+                _pendingPrimitiveOpaque = opaqueRange && (_hasPendingPrimitiveCommand ? _pendingPrimitiveOpaque : last.OpaqueAnalyticRange);
                 _pendingPrimitiveCommandIndex = _commandStorage.Count - 1;
                 _hasPendingPrimitiveCommand = true;
                 return;
@@ -283,7 +288,8 @@ public sealed partial class UiDrawListBuilder
 
         if (_hasPendingPrimitiveCommand)
             CommitPrimitiveCommand();
-        _commandStorage.Add(new UiDrawCommand(clipRect, textureId, primitiveOffset, primitiveSlots, geometryVariant, UserData: userData, Kind: UiDrawCommandKind.RectFilledPrimitives, Bounds: bounds, HasBounds: true, CircleCutoutIndexPlusOne: cutout));
+        _commandStorage.Add(new UiDrawCommand(clipRect, textureId, primitiveOffset, primitiveSlots, geometryVariant, UserData: userData, Kind: UiDrawCommandKind.RectFilledPrimitives, Bounds: bounds, HasBounds: true, CircleCutoutIndexPlusOne: cutout)
+        { OpaqueAnalyticRange = opaqueRange });
     }
 
     public void AddText(
@@ -1442,7 +1448,7 @@ public sealed partial class UiDrawListBuilder
             RectFilledPrimitives: UiPooledList<UiRectFilledPrimitive>.RentAndCopy(_rectFilledPrimitives.AsSpan()),
             CircleFilledPrimitives: UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(_circleFilledPrimitives.AsSpan()),
             CommandScheduleStamp: UiDrawList.CommandScheduleStampEnabled ? UiDrawList.ComputeCommandScheduleStamp(_commands.AsSpan()) : 0UL
-        );
+        ).SealOwnedOpacityRanges();
     }
 
     public void PrimReserve(int indexCount, int vertexCount)
@@ -1645,6 +1651,7 @@ public sealed partial class UiDrawListBuilder
                 commands[i] = a with
                 {
                     ElementCount = a.ElementCount + b.ElementCount,
+                    OpaqueAnalyticRange = a.OpaqueAnalyticRange && b.OpaqueAnalyticRange,
                     Bounds = a.HasBounds && b.HasBounds ? Union(a.Bounds, b.Bounds) : default,
                     HasBounds = a.HasBounds && b.HasBounds
                 };
@@ -2138,6 +2145,7 @@ public sealed partial class UiDrawListBuilder
             };
             AddCommand(cmd with
             {
+                OpaqueAnalyticRange = list.HasOwnedOpacityRanges && cmd.OpaqueAnalyticRange,
                 IndexOffset = offset,
                 CircleCutoutIndexPlusOne = cmd.CircleCutoutIndexPlusOne == 0 ? 0 : checked(cmd.CircleCutoutIndexPlusOne + rectOffset),
                 VertexOffset = cmd.Kind is UiDrawCommandKind.RectFilledPrimitives or UiDrawCommandKind.CircleFilledPrimitives
@@ -2277,6 +2285,7 @@ public sealed partial class UiDrawListBuilder
                 _commands[^1] = last with
                 {
                     ElementCount = last.ElementCount + cmd.ElementCount,
+                    OpaqueAnalyticRange = last.OpaqueAnalyticRange && cmd.OpaqueAnalyticRange,
                     Bounds = last.HasBounds && cmd.HasBounds ? Union(last.Bounds, cmd.Bounds) : default,
                     HasBounds = last.HasBounds && cmd.HasBounds
                 };
@@ -2387,6 +2396,7 @@ public sealed partial class UiDrawListBuilder
             };
             AddCommand(command with
             {
+                OpaqueAnalyticRange = drawList.HasOwnedOpacityRanges && command.OpaqueAnalyticRange,
                 IndexOffset = offset,
                 CircleCutoutIndexPlusOne = command.CircleCutoutIndexPlusOne == 0 ? 0 : checked(command.CircleCutoutIndexPlusOne + rectOffset),
                 VertexOffset = command.Kind is UiDrawCommandKind.RectFilledPrimitives or UiDrawCommandKind.CircleFilledPrimitives
@@ -2412,30 +2422,27 @@ public sealed partial class UiDrawListBuilder
         {
             // Retained geometry can be shared with a static child layer. Its commands
             // must stay immutable; only frame-owned commands can be changed in place.
-            var commandArray = drawList.OwnsBuffers ? null : drawList.Commands.AsSpan().ToArray();
-            var commands = drawList.OwnsBuffers
-                ? drawList.Commands.AsWritableSpan()
-                : commandArray.AsSpan();
-            for (var i = 0; i < commands.Length; i++)
+            var opacityRangesWereOwned = drawList.HasOwnedOpacityRanges;
+            var adjustment = (applyTranslation, translation, applyOpacity, opacityFactor);
+            if (drawList.OwnsBuffers)
             {
-                var command = commands[i];
-                commands[i] = command with
-                {
-                    Translation = applyTranslation
-                        ? new UiVector2(command.Translation.X + translation.X, command.Translation.Y + translation.Y)
-                        : command.Translation,
-                    Opacity = applyOpacity ? command.Opacity * opacityFactor : command.Opacity,
-                };
+                drawList.Commands.Rewrite(adjustment, AdjustLayerCommands);
             }
-
-            if (!drawList.OwnsBuffers)
+            else
             {
+                var commands = drawList.Commands.AsSpan().ToArray();
+                AdjustLayerCommands(commands, adjustment);
                 drawList = drawList with
                 {
-                    Commands = UiPooledList<UiDrawCommand>.FromArray(commandArray!),
+                    Commands = UiPooledList<UiDrawCommand>.FromArray(commands),
                     CommandStateStamp = 0
                 };
             }
+
+            // Command placement and the scalar opacity do not change the
+            // authored primitive ranges. The renderer still checks draw opacity.
+            if (opacityRangesWereOwned)
+                drawList.SealOwnedOpacityRanges();
         }
 
         if (HasPaintClip)
@@ -2449,6 +2456,22 @@ public sealed partial class UiDrawListBuilder
         {
             Scene3D = scene3D
         } : drawList);
+
+        static void AdjustLayerCommands(scoped Span<UiDrawCommand> commands,
+            (bool Translate, UiVector2 Translation, bool Modulate, float Opacity) adjustment)
+        {
+            for (var i = 0; i < commands.Length; i++)
+            {
+                var command = commands[i];
+                commands[i] = command with
+                {
+                    Translation = adjustment.Translate
+                        ? new(command.Translation.X + adjustment.Translation.X, command.Translation.Y + adjustment.Translation.Y)
+                        : command.Translation,
+                    Opacity = adjustment.Modulate ? command.Opacity * adjustment.Opacity : command.Opacity,
+                };
+            }
+        }
     }
 
     public void AppendStaticReference(UiDrawList drawList)
@@ -2575,6 +2598,7 @@ public sealed partial class UiDrawListBuilder
             var command = commands[i];
             AddCommand(command with
             {
+                OpaqueAnalyticRange = false,
                 IndexOffset = command.IndexOffset + indexOffset
             });
         }
@@ -2630,7 +2654,7 @@ public sealed partial class UiDrawListBuilder
             )
             {
                 Scene3D = _scene3D
-            }
+            }.SealOwnedOpacityRanges()
         );
     }
 
@@ -2656,7 +2680,7 @@ public sealed partial class UiDrawListBuilder
             )
             {
                 Scene3D = _scene3D
-            }
+            }.SealOwnedOpacityRanges()
         );
     }
 
