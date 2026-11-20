@@ -6,7 +6,7 @@ namespace Duxel.Core;
 public sealed partial class UiState
 {
     internal (string Owner, UiRect? Bounds)? PointerMoveCoalescing { get; set; }
-    internal (float Wheel, float Remaining)? DocumentWheelCoalescing { get; set; }
+    internal (float Wheel, double Remaining, bool Horizontal)? WheelCoalescing { get; set; }
     internal (string CodeId, UiRect Bounds)? DocumentWheelRegion { get; set; }
 }
 
@@ -26,14 +26,14 @@ public sealed partial class UiContext
         for (var i = 0; i < inputs.Count; i++)
             ValidateInputMetadata(inputs[i]);
         var initialIndex = 0;
-        if (inputs.Count > 1 && _state.PreciseScrollbarDrag is { DocumentTrack: not null } drag
+        if (inputs.Count > 1 && _state.PreciseScrollbarDrag is { CoalesceMoves: true } drag
             && _state.ActiveId == drag.Id && _state.PreviousPopupBlockingRects.Count == 0
             && _queuedMousePos is null && _queuedMouseDown is null && _queuedRightMouseDown is null
             && _queuedMiddleMouseDown is null && _queuedMouseWheel == 0 && _queuedMouseWheelHorizontal == 0
             && _queuedKeyEvents.Count == 0 && _queuedCharEvents.Count == 0
             && IsCapturedMove(inputs[0], _inputState, null))
         {
-            // A document thumb already owned by the previous frame uses an absolute pointer offset.
+            // A thumb already owned by the previous frame uses an absolute pointer offset.
             // Only skip a whole batch of motion; mixed batches retain their usual ordering.
             var next = 1;
             while (next < inputs.Count && IsCapturedMove(inputs[next], inputs[next - 1], null))
@@ -69,19 +69,19 @@ public sealed partial class UiContext
                         && IsCapturedMove(inputs[i + 1], inputs[i], capture.Bounds))
                         i++;
                 var input = inputs[i];
-                if (_state.DocumentWheelCoalescing is { } wheel && _state.CurrentPopupBlockingRects.Count == 0
-                    && IsDocumentWheel(input, inputs[i - 1], wheel.Wheel))
+                if (_state.WheelCoalescing is { } wheel && _state.CurrentPopupBlockingRects.Count == 0
+                    && IsCoalescibleWheel(input, inputs[i - 1], wheel.Wheel, wheel.Horizontal))
                 {
-                    var sum = input.MouseWheel;
-                    while (i + 1 < inputs.Count && IsDocumentWheel(inputs[i + 1], inputs[i], wheel.Wheel))
+                    var sum = wheel.Horizontal ? input.MouseWheelHorizontal : input.MouseWheel;
+                    while (i + 1 < inputs.Count && IsCoalescibleWheel(inputs[i + 1], inputs[i], wheel.Wheel, wheel.Horizontal))
                     {
-                        var next = sum + inputs[i + 1].MouseWheel;
-                        if (MathF.Abs(next) >= wheel.Remaining)
+                        var next = sum + (wheel.Horizontal ? inputs[i + 1].MouseWheelHorizontal : inputs[i + 1].MouseWheel);
+                        if (!float.IsFinite(next) || Math.Abs((double)next) >= wheel.Remaining)
                             break;
                         sum = next;
                         i++;
                     }
-                    input = inputs[i] with { MouseWheel = sum };
+                    input = wheel.Horizontal ? inputs[i] with { MouseWheelHorizontal = sum } : inputs[i] with { MouseWheel = sum };
                 }
                 SetInput(input);
                 _state.BeginFrame();
@@ -91,16 +91,20 @@ public sealed partial class UiContext
         }
     }
 
-    private static bool IsDocumentWheel(in UiInputState input, in UiInputState previous, float direction) =>
-        float.IsFinite(input.MouseWheel) && MathF.Abs(input.MouseWheel) > .001f
-        && (input.MouseWheel > 0) == (direction > 0)
-        && input.MouseWheelHorizontal == 0 && input.MousePosition == previous.MousePosition
+    private static bool IsCoalescibleWheel(in UiInputState input, in UiInputState previous, float direction, bool horizontal)
+    {
+        var wheel = horizontal ? input.MouseWheelHorizontal : input.MouseWheel;
+        var otherWheel = horizontal ? input.MouseWheel : input.MouseWheelHorizontal;
+        return float.IsFinite(wheel) && MathF.Abs(wheel) > .001f
+        && (wheel > 0) == (direction > 0)
+        && otherWheel == 0 && input.MousePosition == previous.MousePosition
         && !input.LeftMouseDown && !input.RightMouseDown && !input.MiddleMouseDown
         && !input.LeftMousePressed && !input.LeftMouseReleased && !input.RightMousePressed && !input.RightMouseReleased
         && !input.MiddleMousePressed && !input.MiddleMouseReleased && input.Dispatch is null
         && input.KeyEvents is { Count: 0 } && input.CharEvents is { Count: 0 }
         && input.Modifiers == previous.Modifiers && input.KeyRepeatSettings == previous.KeyRepeatSettings
         && input.CoordinateScale == previous.CoordinateScale;
+    }
 
     private static bool IsCapturedMove(in UiInputState input, in UiInputState previous, UiRect? bounds) =>
         input.LeftMouseDown && previous.LeftMouseDown && !input.RightMouseDown && !previous.RightMouseDown

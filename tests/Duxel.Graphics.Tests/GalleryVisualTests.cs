@@ -160,12 +160,16 @@ internal static class GalleryVisualTests
             && status.Bounds.X == contentPanel.Bounds.X && status.Bounds.X > brand.Bounds.X + brand.Bounds.Width,
             "Sidebar branding and content options occupy independent top-aligned headers");
         Capture("NavigationBar", "gallery-latest-new");
-        check(tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == "NavigationBar"
-                && element.Node.Role == UiAccessibilityRole.Link).Node.ItemStatus == "NEW",
-            "latest added Gallery destination exposes its NEW menu badge");
-        check(tree.CaptureSnapshot().Elements.Where(element => element.Node.Role == UiAccessibilityRole.Link
-                && element.Node.ItemStatus == "NEW").Select(element => element.Node.Name).SequenceEqual(["NavigationBar"]),
-            "NEW is restricted to the latest addition batch rather than older or planned destinations");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(9));
+        var newMenus = tree.CaptureSnapshot().Elements.Where(element => element.Node.Role == UiAccessibilityRole.Link
+                && element.Node.ItemStatus == "NEW").Select(element => element.Node.Name).ToHashSet(StringComparer.Ordinal);
+        check(newMenus.SetEquals(new[] { "NavigationBar", "DataGrid" }.Where(menu => GalleryNavigation.IsNewMenu(menu, today))),
+            "implemented Gallery destinations display NEW during their registration week");
+        check(!GalleryNavigation.IsNewMenu("DataGrid", new(2026, 11, 20))
+            && GalleryNavigation.IsNewMenu("DataGrid", new(2026, 11, 21))
+            && GalleryNavigation.IsNewMenu("DataGrid", new(2026, 11, 27))
+            && !GalleryNavigation.IsNewMenu("DataGrid", new(2026, 11, 28)),
+            "DataGrid NEW starts on registration day and expires seven days later");
         Capture("ActivityIndicator", "gallery-activity-sources");
         check(tree.CaptureSnapshot().Elements.Count(element => element.Node.Name == "C# 예제 소스"
             && element.Node.Role == UiAccessibilityRole.Edit) == 5,

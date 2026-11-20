@@ -193,6 +193,7 @@ public sealed partial class UiState
 internal readonly record struct UiPreciseScrollbarDrag(string Id, float Pointer, float GrabOffset, double Scroll)
 {
     internal UiDocumentThumbTrack? DocumentTrack { get; init; }
+    internal bool CoalesceMoves { get; init; }
 }
 
 internal readonly record struct UiDocumentThumbTrack(UiRect Viewport, float Start, double Travel, double Maximum);

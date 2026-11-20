@@ -51,7 +51,7 @@ public sealed partial class UiImmediateContext
 
     internal double RenderPreciseScrollbar(string scrollId, UiRect trackRect, double offset, double maxScroll,
         double contentExtent, UiRect clipRect, bool horizontal, bool interactive = true, bool reverse = false,
-        UiRect? documentViewport = null)
+        UiRect? documentViewport = null, bool coalesceMoves = false)
     {
         var visible = IntersectRect(trackRect, clipRect);
         if (maxScroll <= 0)
@@ -73,14 +73,11 @@ public sealed partial class UiImmediateContext
         var trackExtent = horizontal ? trackRect.Width : trackRect.Height;
         var trackStart = horizontal ? trackRect.X : trackRect.Y;
         var pointerPosition = horizontal ? _mousePosition.X : _mousePosition.Y;
-        var handleExtent = MathF.Min(trackExtent, MathF.Max(horizontal ? 24f : 16f,
-            trackExtent * (float)(trackExtent / contentExtent)));
-        var progress = (float)(offset / maxScroll);
+        var handleExtent = PreciseThumbExtent(trackExtent, contentExtent, horizontal);
         var direction = reverse ? -1 : 1;
-        var handleStart = trackStart + (reverse ? 1 - progress : progress) * (trackExtent - handleExtent);
-        var handleRect = horizontal
-            ? new UiRect(handleStart, trackRect.Y + 2f, handleExtent, trackRect.Height - 4f)
-            : new UiRect(trackRect.X + 2f, handleStart, trackRect.Width - 4f, handleExtent);
+        var initialOffset = offset;
+        var handleRect = HandleRect(initialOffset);
+        var handleStart = horizontal ? handleRect.X : handleRect.Y;
 
         var handleHover = trackHovered && IsHovering(handleRect);
         var trackClickArea = trackHovered && !handleHover;
@@ -90,7 +87,10 @@ public sealed partial class UiImmediateContext
         {
             _state.ActiveId = scrollId;
             scrollActive = true;
-            _state.PreciseScrollbarDrag = new(scrollId, pointerPosition, pointerPosition - handleStart, offset);
+            _state.PreciseScrollbarDrag = new(scrollId, pointerPosition, pointerPosition - handleStart, offset)
+            {
+                CoalesceMoves = coalesceMoves || documentViewport is not null
+            };
         }
 
         if (!_leftMouseDown && scrollActive)
@@ -108,9 +108,9 @@ public sealed partial class UiImmediateContext
             if (documentViewport is { } document)
             {
                 _state.PreciseScrollbarDrag = drag with { DocumentTrack = new(document, trackStart, travel, maxScroll) };
-                if (_state.PreviousPopupBlockingRects.Count == 0)
-                    _state.PointerMoveCoalescing = (scrollId, null);
             }
+            if (drag.CoalesceMoves && _state.PreviousPopupBlockingRects.Count == 0)
+                _state.PointerMoveCoalescing = (scrollId, null);
             offset = GetPreciseThumbOffset(drag, pointerPosition, trackStart, travel, maxScroll, direction);
         }
 
@@ -131,6 +131,12 @@ public sealed partial class UiImmediateContext
 
         if (visible.Width > 0 && visible.Height > 0)
         {
+            // The next pointer event must hit the thumb position this frame presents.
+            if (offset != initialOffset)
+            {
+                handleRect = HandleRect(offset);
+                handleHover = trackHovered && IsHovering(handleRect);
+            }
             var opacity = SampleScrollbarMotion(scrollId, offset, scrollActive, trackHovered);
             PaintScrollbarVisual(trackRect, handleRect, clipRect, opacity, scrollActive, handleHover);
         }
@@ -138,7 +144,19 @@ public sealed partial class UiImmediateContext
             _state.ReleaseScrollbarMotion(scrollId);
 
         return offset;
+
+        UiRect HandleRect(double scrollOffset)
+        {
+            var progress = (float)(scrollOffset / maxScroll);
+            var start = trackStart + (reverse ? 1 - progress : progress) * (trackExtent - handleExtent);
+            return horizontal
+                ? new(start, trackRect.Y + 2f, handleExtent, trackRect.Height - 4f)
+                : new(trackRect.X + 2f, start, trackRect.Width - 4f, handleExtent);
+        }
     }
+
+    private static float PreciseThumbExtent(float length, double content, bool horizontal) =>
+        MathF.Min(length, MathF.Max(horizontal ? 24f : 16f, length * (float)(length / content)));
 
     private static double GetPreciseThumbOffset(UiPreciseScrollbarDrag drag, double pointer, float start,
         double travel, double maximum, int direction)

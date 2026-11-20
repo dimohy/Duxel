@@ -13,7 +13,7 @@ internal sealed class VirtualGridPage : IObserverPage, IObserverNaturalPage
     internal VirtualGridPage()
     {
         var grid = Dux.VirtualGrid(new Cells(), 1_000_000_000, 1_000_000_000,
-            new(RowHeight : 44, ColumnWidth : 200, Width : 960, Height : 320));
+            new(RowHeight : 44, ColumnWidth : 200, Width : 960, Height : 320) { OwnsWheelInput = true });
         grid.AccessibleName = "가상 그리드 예제";
         _root = Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
             Dux.Wrap(new(Spacing : 12, RunSpacing : 12),

@@ -23,8 +23,11 @@ internal enum GalleryDestinationKind { Overview, Fluent, Duxel, Integration, Dia
 /// <summary>Canonical component routes borrow persistent example pages; menu state never owns those pages.</summary>
 internal sealed class GalleryNavigation : IDisposable
 {
-    // Replace this batch when the next menu destinations are introduced.
-    private static readonly HashSet<string> LatestAddedMenus = new(StringComparer.Ordinal) { "NavigationBar" };
+    private static readonly Dictionary<string, DateOnly> MenuRegistrationDates = new(StringComparer.Ordinal)
+    {
+        ["NavigationBar"] = new(2026, 11, 20),
+        ["DataGrid"] = new(2026, 11, 21)
+    };
     private sealed record Route(string Key, string Label, string Page);
     private readonly UiSizedBox _root;
     private readonly SvgStore _logoStore = new();
@@ -34,11 +37,15 @@ internal sealed class GalleryNavigation : IDisposable
     private readonly UiFluentNav _navigation;
     private readonly Dictionary<string, GalleryDestinationKind> _pageKinds = new(StringComparer.Ordinal);
 
+    internal static bool IsNewMenu(string key, DateOnly today) =>
+        MenuRegistrationDates.TryGetValue(key, out var registered) && today.DayNumber - registered.DayNumber is >= 0 and < 7;
+
     internal GalleryNavigation(IEnumerable<string> pages, string[] planned, UiBinding<string?> selection)
     {
         _selection = selection;
         var available = pages.ToHashSet(StringComparer.Ordinal);
         var pending = planned.ToHashSet(StringComparer.Ordinal);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(9));
         var home = UiMenuIcon.Create<HomeTabIcon, HomeTabFilledIcon>();
         var settings = UiMenuIcon.Create<SettingsTabIcon, SettingsTabFilledIcon>();
         var navigation = UiMenuIcon.Create<GalleryNavigationIcon, GalleryNavigationIcon>();
@@ -51,7 +58,7 @@ internal sealed class GalleryNavigation : IDisposable
         [
             ("동작과 탐색", "명령·링크·화면 이동", navigation, ["Breadcrumb", "Button", "Link", "Menu", "Nav", "NavigationBar", "TabList", "Toolbar"]),
             ("입력과 선택", "입력·검증·선택·값 조절", input, ["Checkbox", "Combobox", "Dropdown", "Field", "Input", "Label", "RadioGroup", "Rating", "SearchBox", "SegmentedControl", "Select", "Slider", "SpinButton", "Switch", "TagPicker", "Textarea", "TextField"]),
-            ("콘텐츠와 목록", "콘텐츠 배치·목록·계층", content, ["Accordion", "Card", "CardNudge", "Carousel", "Divider", "List", "Tag", "Tree"]),
+            ("콘텐츠와 목록", "콘텐츠 배치·목록·계층", content, ["Accordion", "Card", "CardNudge", "Carousel", "DataGrid", "Divider", "List", "Tag", "Tree"]),
             ("사용자 정보", "아바타·프로필·배지", people, ["Avatar", "AvatarGroup", "Badge", "Persona"]),
             ("알림과 진행 상태", "공지·팝업·도움말·로딩", feedback, ["ActivityIndicator", "Dialog", "Drawer", "HeadsUpDisplay", "InfoLabel", "MessageBar", "Popover", "ProgressBar", "ProgressIndicator", "Shimmer", "Skeleton", "Spinner", "Toast", "Tooltip"]),
             ("텍스트와 그래픽", "글꼴·아이콘·이미지", media, ["Icon", "Image", "Text"]),
@@ -59,8 +66,8 @@ internal sealed class GalleryNavigation : IDisposable
         ];
         var components = groups.SelectMany(static group => group.Components).ToArray();
         if (components.Distinct(StringComparer.Ordinal).Count() != components.Length
-            || !Fluent.RequiredComponentNames.ToArray().ToHashSet(StringComparer.Ordinal).SetEquals(components))
-            throw new InvalidOperationException("Gallery groups must cover each canonical component exactly once.");
+            || !Fluent.RequiredComponentNames.ToArray().Append("DataGrid").ToHashSet(StringComparer.Ordinal).SetEquals(components))
+            throw new InvalidOperationException("Gallery groups must cover each Fluent destination exactly once.");
         var componentPages = CatalogPage.Groups.SelectMany(static group => group.Components.Select(component => (component, group.Page)))
             .ToDictionary(static entry => entry.component, static entry => entry.Page, StringComparer.Ordinal);
         var sections = new List<UiNavGroup>();
@@ -70,7 +77,7 @@ internal sealed class GalleryNavigation : IDisposable
             var badge = new UiNavBadge("미구현", new(UiBadgeSize.Small, Appearance: UiBadgeAppearance.Tint, Color: UiBadgeColor.Severe));
             var newBadge = new UiNavBadge("NEW", new(UiBadgeSize.Small, Appearance : UiBadgeAppearance.Tint, Color : UiBadgeColor.Success));
             sections.Add(new("group-" + sections.Count, label, entries.Select(route => new UiNavItem(route.Key, route.Label,
-                Badge: pending.Contains(route.Page) ? badge : LatestAddedMenus.Contains(route.Key) ? newBadge : null)).ToArray(), icon, description));
+                Badge: pending.Contains(route.Page) ? badge : IsNewMenu(route.Key, today) ? newBadge : null)).ToArray(), icon, description));
             foreach (var route in entries)
             {
                 if (!available.Contains(route.Page))
@@ -118,8 +125,8 @@ internal sealed class GalleryNavigation : IDisposable
             throw new InvalidOperationException("Each Gallery destination must have its own example page.");
         if (!available.SetEquals(_pageKeys.Keys))
             throw new InvalidOperationException("Every persistent gallery page must have a navigation route.");
-        if (LatestAddedMenus.Any(key => !_routes.ContainsKey(key) || pending.Contains(_routes[key].Page)))
-            throw new InvalidOperationException("NEW menu markers must refer to implemented destinations in the latest addition batch.");
+        if (MenuRegistrationDates.Keys.Any(key => !_routes.ContainsKey(key) || pending.Contains(_routes[key].Page)))
+            throw new InvalidOperationException("Menu registration dates must refer to implemented destinations.");
         _navigation = Fluent.Nav("갤러리 탐색", selection, sections.ToArray());
         var scroll = Dux.ScrollView(_navigation);
         scroll.AccessibleName = "갤러리 탐색";

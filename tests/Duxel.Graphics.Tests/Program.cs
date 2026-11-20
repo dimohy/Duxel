@@ -1176,6 +1176,7 @@ if (args.Length == 2 && args[1] == "scroll-view-only")
     var scrollViewChecks = new List<string>();
     var failures = new List<string>();
     void CheckScrollView(bool condition, string name)
+    DataGridTests.Run(CheckVirtual);
     {
         Console.WriteLine((condition ? "PASS " : "FAIL ") + name);
         if (condition)

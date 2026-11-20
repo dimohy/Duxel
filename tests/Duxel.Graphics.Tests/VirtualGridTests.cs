@@ -37,6 +37,19 @@ internal static class VirtualGridTests
         Frame(grid.Render);
         check(ReferenceEquals(retained, source.Cells[(1, 1)]) && grid.RealizedCount <= 25,
             "overlapping two-axis ranges retain keyed widget identity");
+        check(source.Binds == source.KeyReads && source.KeyReads < 16 + grid.RealizedCount,
+            "range shifts bind only entering cells");
+        var reads = source.KeyReads;
+        grid.Offset = new(32.25, 40.25);
+        Frame(grid.Render);
+        check(source.KeyReads == reads && source.Binds == reads && retained.Bounds.X == 9.75f && retained.Bounds.Y == 9.75f,
+            "a fractional offset repositions retained editors without reading or rebinding their model");
+        source.Suffix = " updated";
+        grid.Refresh();
+        Frame(grid.Render);
+        check(source.KeyReads == reads + grid.RealizedCount && source.Binds == source.KeyReads
+            && retained.ModelSuffix == " updated",
+            "refresh rebinds the realized range after the model changes");
         var gutter = context.GetStyleData().ScrollbarSize;
         var width = 100 - gutter;
         var maxX = 32d * count - width;
@@ -97,6 +110,24 @@ internal static class VirtualGridTests
         check(grid.Offset == new UiVirtualGridOffset(maxX - 1000 + step, maxY - 1000 - step),
             "one input frame scrolls the two axes independently");
 
+        using var owned = Dux.VirtualGrid(new Source(), count, count,
+            new(RowHeight: 40, ColumnWidth: 32, Width: 100, Height: 100) { OwnsWheelInput = true });
+        Frame(owned.Render);
+        context.InputProfilingEnabled = true;
+        var wheel = idle with { MousePosition = new(40, 40), MouseWheelHorizontal = -.25f };
+        context.NewInputBatch(new(1f / 60, new(320, 240), new(1, 1)), Enumerable.Repeat(wheel, 48).ToArray(),
+            new(0, 0, 320, 240), UiTextSettings.Default);
+        context.Render(new Screen(ui =>
+        {
+            ui.EnableRootViewportContentLayout(contentPadding: 0);
+            ui.SetCursorScreenPos(new(10, 10));
+            owned.Render(ui);
+        }));
+        using (var draw = context.GetDrawData()) { }
+        check(context.InputProcessingMetrics is { RequestedSteps: 48, CompletedSteps: 2 }
+            && owned.Offset == new UiVirtualGridOffset(step * 12, 0),
+            "an input-owning virtual grid combines horizontal wheel bursts without dropping motion");
+
         grid.SetDimensions(count, 0);
         Frame(grid.Render);
         check(grid.Offset == default && grid.RealizedCount == 0 && source.Cells.Count == 0,
@@ -132,19 +163,26 @@ internal static class VirtualGridTests
     {
         internal readonly Dictionary<(int Row, int Column), Cell> Cells = [];
         internal int KeyReads;
+        internal int Binds;
+        internal string Suffix = "";
         public string GetKey(int row, int column)
         {
             KeyReads++;
             return FormattableString.Invariant($"{row}:{column}");
         }
         public UiWidget Create(int row, int column) => Cells[(row, column)] = new Cell(this, row, column);
-        public void Bind(UiWidget widget, int row, int column) { }
+        public void Bind(UiWidget widget, int row, int column)
+        {
+            Binds++;
+            ((Cell)widget).ModelSuffix = Suffix;
+        }
     }
 
     private sealed class Cell(Source source, int row, int column) : UiControlWidget
     {
         internal UiRect Bounds;
         internal bool Disposed;
+        internal string ModelSuffix = "";
         protected override UiVector2 MeasureContent(UiControlContext context) => throw new InvalidOperationException("Cells use indexed dimensions.");
         protected override void RenderControl(UiImmediateContext ui)
         {

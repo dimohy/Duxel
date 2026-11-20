@@ -3,7 +3,7 @@ namespace Duxel.Core;
 public sealed partial class UiImmediateContext
 {
     internal UiVirtualGridOffset RenderVirtualGrid<TSource>(UiVector2 size, double contentWidth, double contentHeight,
-        UiVirtualGridOffset requested, bool changed, bool rightToLeft, UiScrollOwner owner,
+        UiVirtualGridOffset requested, bool changed, bool rightToLeft, bool ownsWheelInput, UiScrollOwner owner,
         UiVirtualGrid<TSource> grid) where TSource : class, IUiVirtualGridSource
     {
         EnsureNotMeasuring();
@@ -29,6 +29,17 @@ public sealed partial class UiImmediateContext
         using var clip = BeginControlClip(root);
         var id = ResolveId("VirtualGrid");
         owner.Bind(this, id);
+        var horizontalTrack = new UiRect(viewport.X, origin.Y + height, width, size.Y - height);
+        var verticalTrack = new UiRect(rightToLeft ? origin.X : origin.X + width, origin.Y, gutter, height);
+        x = GetCapturedVirtualOffset(owner, horizontalTrack, x, maximumX, contentWidth, true, rightToLeft);
+        y = GetCapturedVirtualOffset(owner, verticalTrack, y, maximumY, contentHeight, false, false);
+        if (ownsWheelInput && IsScrollHoverable(root, CurrentClipRect))
+        {
+            var step = GetFrameHeight() * 3f;
+            var singleAxis = _mouseWheel == 0 || _mouseWheelHorizontal == 0;
+            x = ApplyOwnedVirtualWheel(x, maximumX, rightToLeft ? -step : step, true, singleAxis);
+            y = ApplyOwnedVirtualWheel(y, maximumY, step, false, singleAxis);
+        }
         var visible = IntersectRect(CurrentClipRect, viewport);
         var parent = _accessibilityParent;
         var horizontal = new UiVirtualViewport(viewport, visible, x, Horizontal : true, RightToLeft : rightToLeft);
@@ -69,14 +80,12 @@ public sealed partial class UiImmediateContext
         }
         finally { _accessibilityParent = parent; }
 
-        if (IsScrollHoverable(root, CurrentClipRect))
+        if (!ownsWheelInput && IsScrollHoverable(root, CurrentClipRect))
         {
             var step = GetFrameHeight() * 3f;
             x = ApplyScrollWheel(x, maximumX, rightToLeft ? -step : step, ref _mouseWheelHorizontal);
             y = ApplyScrollWheel(y, maximumY, step, ref _mouseWheel);
         }
-        var horizontalTrack = new UiRect(viewport.X, origin.Y + height, width, size.Y - height);
-        var verticalTrack = new UiRect(rightToLeft ? origin.X : origin.X + width, origin.Y, gutter, height);
         x = RenderVirtualScrollbar(owner, horizontalTrack, x, maximumX, contentWidth,
             horizontal : true, reverse : rightToLeft, reveal : changed || x != requested.X);
         y = RenderVirtualScrollbar(owner, verticalTrack, y, maximumY, contentHeight,

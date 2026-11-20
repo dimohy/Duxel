@@ -23,7 +23,7 @@ public sealed partial class UiImmediateContext
 {
     internal double RenderVirtualViewport(string id, UiVector2 size, in UiVirtualListGeometry geometry, double requested,
         bool changed, bool horizontal, bool rightToLeft, UiScrollOwner owner, Action<UiImmediateContext, UiVirtualViewport> render,
-        UiVirtualItemContainer? virtualItems, Func<double, double>? restoreAnchor, out bool anchorDeferred)
+        UiVirtualItemContainer? virtualItems, Func<double, double>? restoreAnchor, out bool anchorDeferred, bool ownsWheelInput = false)
     {
         EnsureNotMeasuring();
         var contentExtent = geometry.ContentExtent;
@@ -47,7 +47,13 @@ public sealed partial class UiImmediateContext
         if (restoreAnchor is not null && visible)
             requested = restoreAnchor(virtualViewport.LeadingInset);
         var initialOffset = Math.Clamp(requested, 0, maximum);
-        var offset = initialOffset;
+        var track = horizontal
+            ? new UiRect(origin.X, origin.Y + viewport.Height, size.X, size.Y - viewport.Height)
+            : new UiRect(origin.X + viewport.Width, origin.Y, size.X - viewport.Width, size.Y);
+        var offset = GetCapturedVirtualOffset(owner, track, initialOffset, maximum, contentExtent, horizontal, rightToLeft);
+        if (ownsWheelInput && IsScrollHoverable(root, CurrentClipRect))
+            offset = ApplyOwnedVirtualWheel(offset, maximum, GetFrameHeight() * (rightToLeft ? -3f : 3f), horizontal,
+                horizontal ? _mouseWheel == 0 : _mouseWheelHorizontal == 0);
         var previousParent = _accessibilityParent;
         var tree = _accessibility;
         UiAccessibilityTree.Request? virtualRequest = null;
@@ -88,12 +94,9 @@ public sealed partial class UiImmediateContext
             _accessibilityParent = previousParent;
         }
         var beforeWheel = offset;
-        if (IsScrollHoverable(root, CurrentClipRect))
+        if (!ownsWheelInput && IsScrollHoverable(root, CurrentClipRect))
             offset = ApplyScrollWheel(offset, maximum, GetFrameHeight() * (rightToLeft ? -3f : 3f),
                 ref (horizontal ? ref _mouseWheelHorizontal : ref _mouseWheel));
-        var track = horizontal
-            ? new UiRect(origin.X, origin.Y + viewport.Height, size.X, size.Y - viewport.Height)
-            : new UiRect(origin.X + viewport.Width, origin.Y, size.X - viewport.Width, size.Y);
         offset = RenderVirtualScrollbar(owner, track, offset, maximum, contentExtent, horizontal, rightToLeft,
             changed || offset != beforeWheel || offset != requested);
         FinishLayoutBox(origin, size);
@@ -116,7 +119,37 @@ public sealed partial class UiImmediateContext
         var trackId = horizontal ? owner.HorizontalId : owner.VerticalId;
         if (reveal)
             MarkScrollbarInteraction(trackId);
-        return RenderPreciseScrollbar(trackId, track, offset, maximum, contentExtent, CurrentClipRect, horizontal, reverse : reverse);
+        return RenderPreciseScrollbar(trackId, track, offset, maximum, contentExtent, CurrentClipRect, horizontal,
+            reverse : reverse, coalesceMoves : true);
+    }
+
+    private double GetCapturedVirtualOffset(UiScrollOwner owner, UiRect track, double offset, double maximum,
+        double contentExtent, bool horizontal, bool reverse)
+    {
+        var length = horizontal ? track.Width : track.Height;
+        var thickness = horizontal ? track.Height : track.Width;
+        if (!_leftMouseDown || maximum <= 0 || length <= 0 || thickness <= 4
+            || _state.PreciseScrollbarDrag is not { } drag || _state.ActiveId != drag.Id
+            || drag.Id != (horizontal ? owner.HorizontalId : owner.VerticalId))
+            return offset;
+        var travel = (double)length - PreciseThumbExtent(length, contentExtent, horizontal);
+        return travel <= 0 ? offset : GetPreciseThumbOffset(drag, horizontal ? _mousePosition.X : _mousePosition.Y,
+            horizontal ? track.X : track.Y, travel, maximum, reverse ? -1 : 1);
+    }
+
+    private double ApplyOwnedVirtualWheel(double offset, double maximum, float step, bool horizontal, bool singleAxis)
+    {
+        ref var axis = ref (horizontal ? ref _mouseWheelHorizontal : ref _mouseWheel);
+        var wheel = axis;
+        var next = ApplyScrollWheel(offset, maximum, step, ref axis);
+        if (next != offset && singleAxis && !_leftMouseDown && _state.ActiveId is null
+            && _state.PreviousPopupBlockingRects.Count == 0 && float.IsFinite(wheel))
+        {
+            var room = wheel * step < 0 ? maximum - next : next;
+            if (room > 0)
+                _state.WheelCoalescing = (wheel, room / Math.Abs(step), horizontal);
+        }
+        return next;
     }
 
     internal void RenderVirtualItem(UiWidget widget, int index, string key, string name, UiRect bounds, UiRect viewport)
