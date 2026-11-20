@@ -1,6 +1,7 @@
 namespace Duxel.Core;
 
-/// <summary>A model-backed cell factory. Keys must be unique throughout the grid.</summary>
+/// <summary>A model-backed cell factory. Keys must be unique throughout the grid.
+/// Call <see cref="UiVirtualGrid{TSource}.Refresh"/> after changing the model of an existing coordinate.</summary>
 public interface IUiVirtualGridSource
 {
     string GetKey(int row, int column);
@@ -18,6 +19,8 @@ public readonly record struct UiVirtualGridOptions(float RowHeight = 32, float C
     public IUiVirtualListExtentIndex? RowExtents { get; init; }
     public IUiVirtualListExtentIndex? ColumnExtents { get; init; }
     public UiFlowDirection FlowDirection { get; init; }
+    /// <summary>Routes wheel input directly to this grid. Leave unset when cells contain their own scrollable controls.</summary>
+    public bool OwnsWheelInput { get; init; }
 
     public UiVirtualGridOptions() : this(32, 120, null, null, 1, 4096) { }
 
@@ -39,11 +42,14 @@ public sealed partial class UiVirtualGrid<TSource> : UiWidget where TSource : cl
     private TSource? _source;
     private readonly UiVirtualGridOptions _options;
     private readonly UiScrollOwner _owner = new();
-    private readonly List<(int Row, int Column, string Key, string Name, UiWidget Widget)> _cells = [];
+    private readonly record struct Cell(int Row, int Column, string Key, string Name, UiWidget Widget);
+    private List<Cell> _cells = [], _nextCells = [];
     private readonly Func<UiWidget> _create;
     private readonly IUiView _cellView;
     private (int Row, int Column) _creating;
     private (int First, int End) _rowRange, _columnRange;
+    private (int First, int End) _builtRows, _builtColumns;
+    private bool _refreshCells = true;
     private UiVirtualListGeometry _rows, _columns;
     private UiVirtualViewport _horizontal, _vertical;
     private UiVirtualGridOffset _offset;
@@ -77,10 +83,11 @@ public sealed partial class UiVirtualGrid<TSource> : UiWidget where TSource : cl
                 throw new ArgumentOutOfRangeException(nameof(value));
             if (value == _offset)
                 return;
-            RequestRebuild();
+            ThrowIfBuilding();
             _offset = value;
             _offsetChanged = true;
             unchecked { _offsetRevision++; }
+            RequestFrame();
         }
     }
 
@@ -94,6 +101,7 @@ public sealed partial class UiVirtualGrid<TSource> : UiWidget where TSource : cl
         RequestRebuild();
         RowCount = rowCount;
         ColumnCount = columnCount;
+        _refreshCells = true;
         _reconcilePlaceholder = true;
     }
 
@@ -101,6 +109,7 @@ public sealed partial class UiVirtualGrid<TSource> : UiWidget where TSource : cl
     public void Refresh()
     {
         RequestRebuild();
+        _refreshCells = true;
         _reconcilePlaceholder = true;
     }
 
@@ -115,25 +124,41 @@ public sealed partial class UiVirtualGrid<TSource> : UiWidget where TSource : cl
 
     protected override IUiView Build(UiBuildContext context)
     {
-        _cells.Clear();
+        _nextCells.Clear();
+        var previousWidth = _builtColumns.End - _builtColumns.First;
         try
         {
             for (var row = _rowRange.First; row < _rowRange.End; row++)
             for (var column = _columnRange.First; column < _columnRange.End; column++)
             {
+                _creating = (row, column);
+                if (!_refreshCells && row >= _builtRows.First && row < _builtRows.End
+                    && column >= _builtColumns.First && column < _builtColumns.End)
+                {
+                    var cell = _cells[(row - _builtRows.First) * previousWidth + column - _builtColumns.First];
+                    var retained = context.Child(cell.Key, _create);
+                    if (!ReferenceEquals(retained, cell.Widget))
+                        _source!.Bind(retained, row, column);
+                    _nextCells.Add(cell with { Widget = retained });
+                    continue;
+                }
                 var key = _source!.GetKey(row, column);
                 ArgumentException.ThrowIfNullOrWhiteSpace(key);
-                _creating = (row, column);
                 var widget = context.Child(key, _create);
                 _source.Bind(widget, row, column);
-                _cells.Add((row, column, key, ReadCellName(row, column), widget));
+                _nextCells.Add(new(row, column, key, ReadCellName(row, column), widget));
             }
         }
         catch
         {
-            _cells.Clear();
+            _nextCells.Clear();
             throw;
         }
+        (_cells, _nextCells) = (_nextCells, _cells);
+        _nextCells.Clear();
+        _builtRows = _rowRange;
+        _builtColumns = _columnRange;
+        _refreshCells = false;
         return _cellView;
     }
 
@@ -149,7 +174,7 @@ public sealed partial class UiVirtualGrid<TSource> : UiWidget where TSource : cl
             _owner.Release();
         var revision = _offsetRevision;
         var next = ui.RenderVirtualGrid(size, _columns.ContentExtent, _rows.ContentExtent, _offset, _offsetChanged,
-            rtl, _owner, this);
+            rtl, _options.OwnsWheelInput, _owner, this);
         if (_offsetRevision == revision)
         {
             _offset = next;
@@ -205,6 +230,7 @@ public sealed partial class UiVirtualGrid<TSource> : UiWidget where TSource : cl
         _owner.Release();
         _placeholder = null;
         _cells.Clear();
+        _nextCells.Clear();
         _source = null;
         base.ReleaseOwnedResources();
     }

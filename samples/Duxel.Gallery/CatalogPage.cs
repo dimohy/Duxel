@@ -72,6 +72,8 @@ internal sealed class CatalogPage : UiWidget
         }
         rows.Add(Fluent.Divider("남은 범위"));
         rows.Add(Fluent.Body1("컨테이너 메뉴에서 단일 자식 배치와 Flex·Stack·Wrap·Grid를 비교하세요. 가상 목록에서는 10억 개 행의 높이를 바꾸거나 값을 편집할 수 있으며, 행이 화면 밖으로 나가도 편집한 값은 유지됩니다. 렌더링 메뉴에서는 바뀌지 않는 레이어의 재사용, 기본 도형 그리기, 독립적인 3D 투영을 확인할 수 있습니다."));
+        rows.Add(Fluent.Subtitle1("DataGrid"));
+        rows.Add(Fluent.Body1("Fluent.DataGrid · 고정 열 제목, 정렬, 행 선택, 키보드 탐색"));
         rows.Add(Fluent.Body1("운영체제별 입력과 화면 표시는 계속 확인하고 있습니다. 예제가 있더라도 Fluent 디자인에 맞는지, 각 상태가 올바르게 표시되는지, 접근성에 문제가 없는지는 추가로 검증해야 합니다."));
         rows.Add(Fluent.Caption1("실행 : 저장소 루트에서 ./run-gallery.ps1 / 안내 : samples/Duxel.Gallery/README.ko.md"));
         return new UiColumn(rows.ToArray(), new(Spacing: 16, MainAxisSize: UiMainAxisSize.Min));

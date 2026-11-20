@@ -163,6 +163,7 @@
     <Compile Include="../../samples/Duxel.Gallery/OverflowExamples.cs" Link="Observer/OverflowExamples.cs" />
     <Compile Include="../../samples/Duxel.Gallery/VirtualPage.cs" Link="Observer/VirtualPage.cs" />
     <Compile Include="../../samples/Duxel.Gallery/VirtualGridPage.cs" Link="Observer/VirtualGridPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/DataGridPage.cs" Link="Observer/DataGridPage.cs" />
     <Compile Include="../../samples/Duxel.Gallery/ObserverRows.cs" Link="Observer/ObserverRows.cs" />
     <Compile Include="../../samples/Duxel.Gallery/RenderingPage.cs" Link="Observer/RenderingPage.cs" />
     <Compile Include="../../samples/Duxel.Gallery/ObserverPage.cs" Link="Observer/ObserverPage.cs" />

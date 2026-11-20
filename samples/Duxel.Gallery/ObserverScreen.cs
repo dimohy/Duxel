@@ -180,6 +180,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             WidgetLayoutPage,
             AvatarPage,
             AvatarGroupPage,
+            new DataGridPage(),
             PersonaPage,
             SearchBoxPage,
             ToolbarPage,

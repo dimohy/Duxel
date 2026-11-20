@@ -196,7 +196,7 @@ public sealed partial class UiImmediateContext
                 room -= MathF.Abs(afterWheel - beforeWheel);
                 var distance = MathF.Min(room, wheel < 0 ? maxScrollY - afterWheel : afterWheel);
                 if (distance > 0)
-                    _state.DocumentWheelCoalescing = (wheel, distance / step);
+                    _state.WheelCoalescing = (wheel, distance / step, false);
             }
             _state.DocumentWheelRegion = null;
         }

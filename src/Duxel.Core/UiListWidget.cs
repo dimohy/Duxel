@@ -39,7 +39,9 @@ public readonly struct UiFluentListPresentation : IUiListPresentation
 {
     public static bool CanRetainMeasurement => true;
     public static float CheckmarkExtent(UiControlContext context) => 32;
-    public static void PaintCheckmark(UiControlContext context, UiRect bounds, UiButtonInteraction interaction, bool selected)
+    public static void PaintCheckmark(UiControlContext context, UiRect bounds, UiButtonInteraction interaction, bool selected) =>
+        PaintCheckbox(context, bounds, interaction, selected);
+    internal static void PaintCheckbox(UiControlContext context, UiRect bounds, UiButtonInteraction interaction, bool? selected)
     {
         using var text = UiFluentCheckboxPresentation.BeginText(context, false);
         var local = UiFluentCheckboxPresentation.Measure(context, default, false);

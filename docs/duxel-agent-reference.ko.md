@@ -3100,3 +3100,7 @@ Linux에서 NavigationBar의 갱신 범위를 확인하려면 갤러리에 Vulka
 Linux Vulkan 화면 재사용 검사는 합성 그룹의 텍스처 버전이 바뀔 때 부분 갱신과 전체 다시 그리기의 원시 픽셀을 대조합니다. 고정 .NET 11 관리형과 NativeAOT에서 슬롯 1개·3개의 해시도 비교합니다. [Linux Vulkan 픽셀 검사](../tests/Duxel.Vulkan.Linux.Tests/README.ko.md)
 
 Linux 갤러리의 `x11-gallery-provider-radio-direction` 검사는 수평 라디오 항목 세 개의 좌우 방향키 이동과 포커스, 배치 방향 변경 뒤 선택 유지를 확인합니다. 같은 예제에서 체크박스·스위치·슬라이더 값도 확인합니다. [RadioGroup](fluent2-radio-group.ko.md)
+
+`Fluent.DataGrid<T>`는 고정 열 제목, 행 가상화, 값 기준 정렬과 열별 편집을 지원합니다. 갤러리의 **Fluent 컨트롤 → 콘텐츠와 목록 → DataGrid**에서 사용해 볼 수 있습니다. [Fluent DataGrid](fluent2-data-grid.ko.md)
+
+`Dux.VirtualGrid`는 스크롤 전후에 겹치는 셀을 재사용하고 화면 주변으로 새로 들어온 셀만 바인딩합니다. 기존 셀의 모델이 바뀌면 `Refresh()`를 호출하세요. 셀 안에 별도로 스크롤되는 위젯이 없다면 `UiVirtualGridOptions.OwnsWheelInput`을 켤 수 있습니다. 갤러리의 **가상 그리드**는 이 옵션을 사용해 연속 휠 입력을 합친 뒤 새 위치를 그립니다.

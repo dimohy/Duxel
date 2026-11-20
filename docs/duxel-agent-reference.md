@@ -3122,3 +3122,7 @@ For NavigationBar repaint diagnostics on Linux, run the independent `atspi-galle
 On Linux, the Vulkan presentation-reuse fixture checks paint-group dependency revision changes against forced full repaint. It compares raw pixel hashes between fixed .NET 11 managed and NativeAOT runs at frame slots 1/3. See [Linux Vulkan pixel contracts](../tests/Duxel.Vulkan.Linux.Tests/README.md).
 
 The Linux Gallery `x11-gallery-provider-radio-direction` fixture uses three horizontal RadioGroup choices to verify visual arrow direction, preserved selection and native focus. The same example also checks Checkbox, Switch and Slider values. See [RadioGroup](fluent2-radio-group.md).
+
+`Fluent.DataGrid<T>` provides fixed headers, virtualized rows, typed sorting and column-level editing. In Gallery, look under **Fluent 컨트롤 → 콘텐츠와 목록 → DataGrid**. [Fluent DataGrid](fluent2-data-grid.md)
+
+`Dux.VirtualGrid` reuses cells in overlapping ranges and only binds cells that enter the realized range. Call `Refresh()` if the source mutates existing cells in place. Set `UiVirtualGridOptions.OwnsWheelInput` if its cell widgets have no nested scrolling. Gallery's **가상 그리드** uses this option to combine consecutive wheel steps before painting the new range.

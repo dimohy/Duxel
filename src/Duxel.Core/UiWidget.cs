@@ -67,7 +67,7 @@ public abstract partial class UiWidget : IUiView, IDisposable
         else
             _buildOrFrameRequest = callback;
     }
-    private void RequestFrame()
+    internal void RequestFrame()
     {
         if (_buildOrFrameRequest is UiBuildContext context)
             context.FrameRequest?.Invoke();
