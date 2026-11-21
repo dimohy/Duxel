@@ -202,3 +202,20 @@ SVG로 저장	Save as SVG	SVG で保存	另存为 SVG
 스위치로 기능을 켜거나 끄고, 아래 코드에 바뀐 값을 확인해 보세요.	Turn the feature on or off and watch the value change in the code below.	機能をオンまたはオフにして、下のコードの値が変わることを確認できます。	打开或关闭该功能，观察下方代码中的值如何变化。
 기능 사용	Enable feature	機能を有効にする	启用功能
 Duxel로 UI 만들기	Build UI with Duxel	Duxel で UI を作る	使用 Duxel 构建界面
+왼쪽 탐색 메뉴·Fluent 표현 비교·컨테이너 넘침	Sidebar navigation, Fluent styles, and container overflow	サイドバー、Fluent スタイルの比較、コンテナーのオーバーフロー	侧栏导航、Fluent 样式对比与容器溢出
+대화 상자	Dialogs	ダイアログ	对话框
+메시지 표시	Message bars	メッセージバー	消息栏
+추가 정보	Information labels	情報ラベル	信息标签
+숫자 입력	Numeric input	数値入力	数字输入
+아바타	Avatars	アバター	头像
+아바타 그룹	Avatar groups	アバターグループ	头像组
+도구 모음	Toolbars	ツールバー	工具栏
+검색 입력	Search boxes	検索ボックス	搜索框
+인물 정보	Persona	ユーザー情報	人员信息
+선택 목록	Selection lists	選択リスト	选择列表
+카드	Cards	カード	卡片
+경로	Breadcrumbs	パンくずリスト	面包屑导航
+탐색 메뉴	Navigation menus	ナビゲーションメニュー	导航菜单
+보조 패널	Side panels	サイドパネル	侧边面板
+목록	Lists	リスト	列表
+컨테이너·Menu 공통 동작	Shared container and menu behavior	コンテナーとメニューの共通動作	容器和菜单的共同行为

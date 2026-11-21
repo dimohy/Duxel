@@ -15,6 +15,20 @@ internal static class GalleryLocalizationTests
             "Duxel localization formats arguments in the requested culture");
         check(catalog.GetText("Settings", region) == "Settings", "Duxel localization uses the source when no translation exists");
 
+        foreach (var (language, dialog, messageBar, avatarGroup) in new[]
+        {
+            (GalleryLanguage.English, "Dialogs", "Message bars", "Avatar groups"),
+            (GalleryLanguage.Japanese, "ダイアログ", "メッセージバー", "アバターグループ"),
+            (GalleryLanguage.SimplifiedChinese, "对话框", "消息栏", "头像组")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            var titles = CatalogPage.Groups.Select(group => GalleryText.Get(group.Page)).ToArray();
+            check(titles.All(title => !title.Any(character => character is >= '\uAC00' and <= '\uD7A3'))
+                && titles.Contains(dialog) && titles.Contains(messageBar) && titles.Contains(avatarGroup),
+                "Feature index localizes every factory group heading in " + language);
+        }
+
         var systemLanguage = CultureInfo.CurrentUICulture;
         var path = Path.GetTempFileName();
         try
@@ -45,6 +59,7 @@ internal static class GalleryLocalizationTests
                 ("en-GB", "Overview"),
                 ("ja-JP", "概要"),
                 ("zh-CN", "概览"),
+                ("zh-TW", "Overview"),
                 ("fr-FR", "Overview"),
                 ("", "Overview")
             })
@@ -65,11 +80,12 @@ internal static class GalleryLocalizationTests
                 context.State.AdvanceTime(.25f);
                 Render(screen);
             }
-            void Invoke(string name, UiAccessibilityRole role = UiAccessibilityRole.Button)
+            void Invoke(string name, UiAccessibilityRole role = UiAccessibilityRole.Button,
+                UiAccessibilityAction action = UiAccessibilityAction.Invoke)
             {
                 var node = Find(name, role) ?? throw new InvalidOperationException("Gallery command is missing: " + name);
                 if (!tree.TryGet(node.Id, out var entry)
-                    || tree.RequestAction(node.Id, entry.RuntimeId, UiAccessibilityAction.Invoke, wait: false) != UiAccessibilityResult.Success)
+                    || tree.RequestAction(node.Id, entry.RuntimeId, action, wait: false) != UiAccessibilityResult.Success)
                     throw new InvalidOperationException("Gallery command was not accepted: " + name);
                 Frame();
             }
@@ -84,7 +100,12 @@ internal static class GalleryLocalizationTests
             Invoke("DataGrid");
             check(Find("DataGrid", UiAccessibilityRole.Pane) is not null, "Feature index opens the live DataGrid route");
 
+            Invoke("Settings");
+            Invoke("日本語", UiAccessibilityRole.RadioButton, UiAccessibilityAction.Select);
+            Invoke("Cancel");
+            check(File.ReadAllText(path) == "en", "Cancel leaves the saved Gallery language unchanged");
             Invoke("Button", UiAccessibilityRole.Link);
+            var currentLanguage = "English";
             foreach (var (settings, choice, next, language, description, increment, count, codeView) in new[]
             {
                 ("Settings", "日本語", "設定", "ja", "ボタンを押してクリック数を増やせます。", "カウントを増やす", "クリック数：", "C# サンプルソース"),
@@ -94,7 +115,22 @@ internal static class GalleryLocalizationTests
             })
             {
                 Invoke(settings);
-                Invoke(choice);
+                var radios = tree.CaptureSnapshot().Elements.Select(element => element.Node)
+                    .Where(node => node.Role == UiAccessibilityRole.RadioButton && !node.Offscreen).ToArray();
+                check(radios.Length == 4 && radios.Count(node => node.Selected == true) == 1
+                    && radios.Any(node => node.Name == currentLanguage && node.Selected == true && node.Focused),
+                    "Settings announces and focuses the applied language before switching to " + language);
+                Invoke(choice, UiAccessibilityRole.RadioButton, UiAccessibilityAction.Select);
+                check(Find(choice, UiAccessibilityRole.RadioButton)?.Selected == true && File.ReadAllText(path) != language,
+                    "Language selection is a draft until Apply for " + language);
+                Invoke(settings switch
+                {
+                    "設定" => "適用",
+                    "设置" => "应用",
+                    "설정" => "적용",
+                    _ => "Apply"
+                });
+                currentLanguage = choice;
                 check(Find(next, UiAccessibilityRole.Button) is not null && File.ReadAllText(path) == language,
                     "Gallery settings apply and save " + language);
                 check(Find("Button", UiAccessibilityRole.Pane) is not null,
@@ -112,7 +148,8 @@ internal static class GalleryLocalizationTests
             }
 
             Invoke("Settings");
-            Invoke("日本語");
+            Invoke("日本語", UiAccessibilityRole.RadioButton, UiAccessibilityAction.Select);
+            Invoke("Apply");
             using var restarted = new GalleryLocalizedScreen(services, new DuxelAppSession(), path);
             Render(restarted);
             check(Find("設定", UiAccessibilityRole.Button) is not null && Find("概要", UiAccessibilityRole.Pane) is not null,
@@ -154,5 +191,23 @@ internal static class GalleryLocalizationTests
                 && nodes.Any(node => node.Name == "Explore Markdown" && !node.Offscreen),
                 "Gallery overview presents the feature index and example cards in " + name);
         }
+
+        using var japanese = GalleryText.Use(GalleryLanguage.Japanese);
+        using var japaneseScreen = new ObserverScreen(ObserverServices.CreateWindows(), language : GalleryLanguage.Japanese,
+            requestLanguage : _ => { }) { FreezeDiagnosticText = true };
+        var dark = UiCompiledDesign.Windows11Dark.Theme;
+        fixture.Context.SetTheme(dark);
+        byte[] CaptureJapanese() => fixture.Capture(ui =>
+        {
+            ui.GetWindowDrawList().AddRectFilled(new(0, 0, 1280, 900), dark.WindowBg, ui.WhiteTextureId);
+            japaneseScreen.Render(ui);
+        });
+        CaptureJapanese();
+        var settings = tree.CaptureSnapshot().Elements.Single(element =>
+            element.Node.Name == "設定" && element.Node.Role == UiAccessibilityRole.Button);
+        if (tree.RequestAction(settings.Node.Id, settings.RuntimeId, UiAccessibilityAction.Invoke, wait: false) != UiAccessibilityResult.Success)
+            throw new InvalidOperationException("The Japanese settings action was not accepted.");
+        CaptureJapanese();
+        BrowserPng.Write(Path.Combine(output, "settings-japanese.png"), 1280, 900, CaptureJapanese());
     }
 }
