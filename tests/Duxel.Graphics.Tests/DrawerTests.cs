@@ -8,6 +8,7 @@ internal static class DrawerTests
         ControlFontFixture.Configure(context);
         using var tree = new UiAccessibilityTree();
         context.SetAccessibilityTree(tree);
+        VerifyFractionalSurfaceHeight(context, check);
         var memo = new UiState<string>("Retained text");
         var saved = 0;
         var outside = 0;
@@ -183,6 +184,37 @@ internal static class DrawerTests
             Frame();
             check(!inline.IsOpen && Marker() == 0, "inline motion-disabled close immediately releases its allocation : " + position);
         }
+    }
+    private static void VerifyFractionalSurfaceHeight(UiContext context, Action<bool, string> check)
+    {
+        using var body = new UiSurfaceBody<FractionalSurfacePresentation>("Fractional drawer",
+            new ScrollViewTests.Probe(new(270, 2000)), [new ScrollViewTests.Probe(new(70, 26.415094f))], static () => { });
+        var input = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        context.NewFrame(new(1f / 60, new(1024, 900), new(1, 1)), input, new(0, 0, 1024, 900), UiTextSettings.Default);
+        context.Render(new Screen(ui =>
+        {
+            var constraints = new UiBoxConstraints(270, 270, 0, float.PositiveInfinity);
+            body.Configure(false, false, false, "Close", 850, fillHeight : true);
+            check(body.MeasureConstrained(ui, constraints).Y == 850,
+                "a drawer that fills its viewport reports the exact height even when chrome sizes are fractional");
+            body.Configure(false, false, false, "Close", 40, fillHeight : true);
+            check(body.MeasureConstrained(ui, constraints).Y > 40,
+                "a drawer still reports overflow when its header, footer and gaps exceed the height limit");
+        }));
+        using var draw = context.GetDrawData();
+    }
+
+    private readonly struct FractionalSurfacePresentation : IUiSurfacePresentation
+    {
+        public static UiDialogMetrics Metrics => UiFluentDrawerPresentation.Metrics;
+        public static UiVector2 MeasureTitle(UiControlContext context, string title) => new(20, 24.619719f);
+        public static UiControlTypographyScope BeginBodyText(UiControlContext context) => default;
+        public static void PaintTitle(UiControlContext context, string title, UiColor? color) { }
+        public static UiBoxShadowOptions Shadow(UiControlContext context) => default;
+        public static UiColor Background(UiControlContext context) => default;
+        public static UiColor Foreground(UiControlContext context) => default;
+        public static UiColor Backdrop(UiControlContext context) => default;
+        public static void PaintClose(UiControlContext context, UiRect bounds, UiButtonInteraction interaction) { }
     }
     private sealed class Screen(Action<UiImmediateContext> render) : UiScreen
     {
