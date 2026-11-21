@@ -8,11 +8,14 @@ public sealed unsafe partial class VulkanRendererBackend
     private const ulong StaticMemoryPageBytes = 2 * 1024 * 1024;
     private readonly List<StaticMemoryPage> _staticMemoryPages = new();
 
-    private sealed class StaticMemoryPage(DeviceMemory memory, uint memoryType)
+    private sealed class StaticMemoryPage(DeviceMemory memory, uint memoryType,
+        ulong capacity = StaticMemoryPageBytes, nint mapped = 0)
     {
         public DeviceMemory Memory { get; } = memory;
         public uint MemoryType { get; } = memoryType;
-        public List<StaticMemoryRange> Free { get; } = [new(0, StaticMemoryPageBytes)];
+        public ulong Capacity { get; } = capacity;
+        public nint Mapped { get; } = mapped;
+        public List<StaticMemoryRange> Free { get; } = [new(0, capacity)];
         public int LiveRanges { get; set; }
     }
 
@@ -21,7 +24,18 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private StaticMemorySlice RentStaticMemoryRange(uint memoryType, ulong size, ulong alignment)
     {
-        foreach (var page in _staticMemoryPages)
+        var slice = TryRentMemoryRange(_staticMemoryPages, memoryType, size, alignment);
+        if (slice.Page is not null)
+            return slice;
+        var created = new StaticMemoryPage(AllocateBufferMemory(StaticMemoryPageBytes, memoryType, deviceAddress: true), memoryType);
+        _staticMemoryPages.Add(created);
+        return ClaimStaticMemoryRange(created, 0, 0, size);
+    }
+
+    private static StaticMemorySlice TryRentMemoryRange(List<StaticMemoryPage> pages, uint memoryType,
+        ulong size, ulong alignment)
+    {
+        foreach (var page in pages)
         {
             if (page.MemoryType != memoryType)
                 continue;
@@ -35,9 +49,7 @@ public sealed unsafe partial class VulkanRendererBackend
             }
         }
 
-        var created = new StaticMemoryPage(AllocateBufferMemory(StaticMemoryPageBytes, memoryType, deviceAddress: true), memoryType);
-        _staticMemoryPages.Add(created);
-        return ClaimStaticMemoryRange(created, 0, 0, size);
+        return default;
     }
 
     private static StaticMemorySlice ClaimStaticMemoryRange(StaticMemoryPage page, int index, ulong offset, ulong size)
@@ -67,6 +79,12 @@ public sealed unsafe partial class VulkanRendererBackend
     private void ReleaseStaticMemoryRange(in StaticMemorySlice slice)
     {
         var page = slice.Page!;
+        if (page.Mapped != 0)
+        {
+            ReleaseCompiledMemoryRange(in slice);
+            return;
+        }
+
         if (--page.LiveRanges == 0)
         {
             _staticMemoryPages.Remove(page);
@@ -74,6 +92,12 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
+        ReturnMemoryRange(slice);
+    }
+
+    private static void ReturnMemoryRange(in StaticMemorySlice slice)
+    {
+        var page = slice.Page!;
         var begin = slice.Offset;
         var end = begin + slice.Length;
         var free = page.Free;

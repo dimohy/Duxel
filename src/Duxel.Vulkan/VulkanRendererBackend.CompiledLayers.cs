@@ -72,7 +72,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private sealed class CompiledDescriptorFrame
     {
         public VkBuffer Buffer;
-        public DeviceMemory Memory;
+        public StaticMemorySlice MemorySlice;
         public ulong Address;
         public ulong MatrixAddress;
         public void* Mapped;
@@ -96,7 +96,7 @@ public sealed unsafe partial class VulkanRendererBackend
         public required uint[] IndexStarts;
         public required CompiledDescriptorFrame?[] Frames;
         public VkBuffer IndexBuffer;
-        public DeviceMemory IndexMemory;
+        public StaticMemorySlice IndexMemorySlice;
         public ulong Bytes;
         public int LastUsedFrame;
         public bool HasCircleCutout;
@@ -341,11 +341,8 @@ public sealed unsafe partial class VulkanRendererBackend
             Frames = new CompiledDescriptorFrame?[_frames.Length],
             Bytes = (ulong)indexCount * sizeof(uint),
         };
-        CreateBuffer((nuint)group.Bytes, BufferUsageFlags.IndexBufferBit,
-            MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
-            out group.IndexBuffer, out group.IndexMemory, preferredProperties: MemoryPropertyFlags.DeviceLocalBit);
-        void* mapped = null;
-        Check(_vk.MapMemory(_device, group.IndexMemory, 0, (nuint)group.Bytes, 0, &mapped));
+        CreateCompiledBuffer(group.Bytes, BufferUsageFlags.IndexBufferBit,
+            out group.IndexBuffer, out group.IndexMemorySlice, out var mapped);
         var destination = (uint*)mapped;
         var descriptor = 0;
         var written = 0;
@@ -401,7 +398,11 @@ public sealed unsafe partial class VulkanRendererBackend
             }
             group.IndexStarts[descriptor] = (uint)written;
         }
-        finally { _vk.UnmapMemory(_device, group.IndexMemory); }
+        catch
+        {
+            DestroyBufferResource(new(group.IndexBuffer, default), group.IndexMemorySlice);
+            throw;
+        }
         _frameCompiledIndexUploadBytes += group.Bytes;
         return group;
     }
@@ -414,20 +415,17 @@ public sealed unsafe partial class VulkanRendererBackend
         var frame = new CompiledDescriptorFrame();
         var descriptorBytes = checked((ulong)(group.IndexStarts.Length - 1) * (ulong)sizeof(CompiledLayerDescriptor));
         var bytes = descriptorBytes + (ulong)group.MemberCount * (ulong)sizeof(Matrix4x4);
-        CreateBuffer((nuint)bytes, BufferUsageFlags.StorageBuffer | BufferUsageFlags.ShaderDeviceAddressBit,
-            MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
-            out frame.Buffer, out frame.Memory, preferredProperties: MemoryPropertyFlags.DeviceLocalBit);
-        frame.Address = GetBufferDeviceAddress(frame.Buffer);
-        frame.MatrixAddress = frame.Address + descriptorBytes;
-        void* mapped = null;
-        Check(_vk.MapMemory(_device, frame.Memory, 0, (nuint)bytes, 0, &mapped));
-        frame.Mapped = mapped;
         frame.Values = new CompiledLayerDescriptor[group.IndexStarts.Length - 1];
         frame.Matrices = new Matrix4x4[group.MemberCount];
         frame.MatrixModes = new byte[group.MemberCount];
         frame.PlaneModels = new Vector4[group.MemberCount];
         frame.BindingSources = new StaticGeometryBuffer?[group.MemberCount];
         frame.CommandStates = new ulong[group.MemberCount];
+        CreateCompiledBuffer(bytes, BufferUsageFlags.StorageBuffer | BufferUsageFlags.ShaderDeviceAddressBit,
+            out frame.Buffer, out frame.MemorySlice, out var mapped);
+        frame.Address = GetBufferDeviceAddress(frame.Buffer);
+        frame.MatrixAddress = frame.Address + descriptorBytes;
+        frame.Mapped = mapped;
         new Span<byte>(mapped, checked((int)bytes)).Clear();
         group.Frames[slot] = frame;
         return frame;
@@ -754,16 +752,15 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             if (frame is null)
                 continue;
-            _vk.UnmapMemory(_device, frame.Memory);
             if (deferred)
-                QueueBufferDestroy(frame.Buffer, frame.Memory);
+                QueueBufferDestroy(frame.Buffer, default, frame.MemorySlice);
             else
-                DestroyBufferResource(new(frame.Buffer, frame.Memory));
+                DestroyBufferResource(new(frame.Buffer, default), frame.MemorySlice);
         }
         if (deferred)
-            QueueBufferDestroy(group.IndexBuffer, group.IndexMemory);
+            QueueBufferDestroy(group.IndexBuffer, default, group.IndexMemorySlice);
         else
-            DestroyBufferResource(new(group.IndexBuffer, group.IndexMemory));
+            DestroyBufferResource(new(group.IndexBuffer, default), group.IndexMemorySlice);
     }
 
     private void DestroyCompiledLayerGroups()
@@ -771,6 +768,7 @@ public sealed unsafe partial class VulkanRendererBackend
         foreach (var group in _compiledLayerGroups.Values)
             DestroyCompiledLayerGroup(group, deferred: false);
         _compiledLayerGroups.Clear();
+        DestroyCompiledMemoryPages();
         _compiledFrameGroups.Clear();
         _compiledSourceAnchors.Clear();
         _compiledPlan = [];
