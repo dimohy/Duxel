@@ -1,6 +1,6 @@
 # 컴파일된 레이아웃 컨테이너
 
-Linux x64 .NET 11 NativeAOT에서 외부 레이아웃 샘플의 상태를 유지할 때와 계속 바꿀 때를 비교했습니다. Tooltip을 여는 프레임마다 UI 렌더링에서 1,293,904바이트를 할당했습니다. 할당 원인과 전체 컨테이너 통합 성능은 확인이 남아 있습니다. [측정 조건과 결과](optimization-session-2026-11-19.md#external-custom-container-steady-and-changing-profiles)
+Linux x64 .NET 11 NativeAOT에서 외부 레이아웃 샘플의 상태를 유지할 때와 계속 바꿀 때를 비교했습니다. Tooltip을 여는 프레임마다 UI 렌더링에서 1,293,904바이트를 할당했습니다. 할당 원인과 전체 컨테이너 통합 성능은 확인이 남아 있습니다. [측정 조건과 결과](archive/performance/optimization-session-2026-11-19.md#external-custom-container-steady-and-changing-profiles)
 
 2026-11-11 할당된 배치의 무효화: 부모가 다시 측정하지 않고 같은 크기를 할당해도 Grid·Stack·단일 자식 컨테이너는 다음 프레임에 옵션 변경을 반영합니다. 위젯을 그리는 도중 변경하면 그 프레임은 부모가 준비한 형제 배치를 유지합니다. 명시적 측정 결과를 재사용할 때도 준비 프레임을 갱신하며 중첩 렌더링은 이전의 일시적 문맥으로 복원합니다. 변경 없는 배치는 자식 측정을 계속 재사용합니다. 공통 커널의 기존 유지 기록에 준비 프레임 정수 하나를 추가하며 위젯마다 새 캐시를 만들지 않습니다. 새 CPU7검사·컨테이너 GPU252검사와 기존 readback169개 동일을 확인했습니다. ScrollView75·가상 목록75·수명101·접근성49검사도 통과했습니다. 근거는 `artifacts/assigned-arrangement-invalidation-2026-11-11/verification.json`입니다. 컨테이너3/6을 유지하며 속도 향상·NativeAOT·전체 완료를 주장하지 않습니다.
 

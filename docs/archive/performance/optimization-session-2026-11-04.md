@@ -10,7 +10,7 @@
 
 Before/After: SDK11.0.100-rc.3.26522.148/runtime11.0.0-rc.3.26522.148 NativeAOT Speed,128팔레트×256견본,1600×1000/MSAA1/VSync off/pipeline on/idle skip off, 최소96프레임·1초 워밍업,12초·독립3회 교대. 최종 정지 FPS381.678→403.149(+5.63%), median2.568→2.423ms, p95개선5.03%, 업로드57632→0B. 이동 p95는3.64% 개선했으나 평균FPS·p99·1% low 범위는 겹쳤다. Private 감소는 미확정이며 정지 작업 집합123.023→123.520MiB(+0.40%) 증가도 기록한다. 중간12실행과 최종12실행을 별도 보존했다.
 
-판정·리스크: Windows 공통 경로의 방향과 추가 개선은 확인했지만 임의 UI Render 전체의 CPU 생략과 라즈베리파이 실기기 성능은 증명하지 않았다. 표본 GC 진단은 전체 앱 GC없음의 증거가 아니다. 메모리·CPU·GPU·업로드를 구분하고 기존 단계의 Private 감소율과 합산하지 않는다. [평가·명령·정확한 비교표](optimization-evaluation.ko.md), 원본 `artifacts/optimization-evaluation-2026-11-04/` 참조.
+판정·리스크: Windows 공통 경로의 방향과 추가 개선은 확인했지만 임의 UI Render 전체의 CPU 생략과 라즈베리파이 실기기 성능은 증명하지 않았다. 표본 GC 진단은 전체 앱 GC없음의 증거가 아니다. 메모리·CPU·GPU·업로드를 구분하고 기존 단계의 Private 감소율과 합산하지 않는다. [평가·명령·정확한 비교표](../../optimization-evaluation.ko.md), 원본 `artifacts/optimization-evaluation-2026-11-04/` 참조.
 
 ## 종합 샘플 FPS 깜빡임 교정
 
@@ -18,7 +18,7 @@ Before/After: SDK11.0.100-rc.3.26522.148/runtime11.0.0-rc.3.26522.148 NativeAOT 
 
 변경: `UiRetainedLayerBatcher`의 기하 기반 캐시 키에 명령 상태 지문을 추가했다. 같은 기하라도 텍스처·클립·불투명도·오프셋 변경 시 배치를 재구성한다. 캐시·부분 갱신·부하·벡터 품질을 유지한다. `UiFpsCounter`의 밀리초 프레임 누락을 고해상도 시간으로 교정했다. 별도 정확성 수정으로 swapchain clipping과 이미지별 present semaphore 수명도 보완했으나, 이 둘만으로 사용자 증상은 해결되지 않았다.
 
-검증: SDK10.0.301/.NET10.0.9에서 `dotnet run --project tests/Duxel.Rendering.Tests -c Release -- artifacts/all-features-2026-11-04/regression-complete-fixed` 715개 통과. `--all-features-overlay-only`로 128개 동기·128개 비동기 프레임의 검사386개 통과. 사용자가 최종 NativeAOT 창에서 버튼 유지 시 깜빡임 소멸을 확인했다. 37개 창·6개 상호작용도 통과했다. 명령 인수와 근거는 [종합 샘플 검증](all-features-validation.ko.md), 원본은 `artifacts/all-features-2026-11-04/`에 있다.
+검증: SDK10.0.301/.NET10.0.9에서 `dotnet run --project tests/Duxel.Rendering.Tests -c Release -- artifacts/all-features-2026-11-04/regression-complete-fixed` 715개 통과. `--all-features-overlay-only`로 128개 동기·128개 비동기 프레임의 검사386개 통과. 사용자가 최종 NativeAOT 창에서 버튼 유지 시 깜빡임 소멸을 확인했다. 37개 창·6개 상호작용도 통과했다. 명령 인수와 근거는 [종합 샘플 검증](../../all-features-validation.ko.md), 원본은 `artifacts/all-features-2026-11-04/`에 있다.
 
 Before/After: 동일 검사에서 비동기 프레임1 불일치 → 128프레임 전부 전체 갱신 기준과 일치. FPS 계산은 고속 프레임 누락 → 모든 호출 계산(10000회 집중 검사). 성능 개선율·메모리 개선율·median/p95/p99·1% low는 이번 정확성 교정에서 측정하지 않았으며 추정하지 않는다. 단일 진단 프로필을 3회 중앙값 벤치로 간주하지 않는다. 기존 고정 .NET11 RC3 Speed 성능 근거는 보존하며 이번 .NET10 기능 검증과 합산하지 않는다. 리스크: NativeAOT 게시의 ILCompiler NU1903 경고는 남았다. 보호 출력·기존 미커밋 변경을 보존했다.
 
@@ -36,7 +36,7 @@ Before/After: 동일 검사에서 비동기 프레임1 불일치 → 128프레�
 
 API만 적용한 중간 비교는5494.694→5472.606FPS(-0.40%)로 범위가 겹쳐 격리된 성능 변화로 판정하지 않는다. 최종 회전 응답 수정은 모델 계약 변경이므로 이전 모델과 직접 개선율을 계산하지 않는다. 용량 예약은 확장 당시 수를2의 거듭제곱으로 올리고, 삭제 후에는 고수위 용량을 유지한다. 메모리 여유와 재할당 비용을 교환한 것이며 활성 수만 그린다.
 
-검증·재현: [측정 및 API 문서](polygon-performance.ko.md), `tests/RunPolygonControlsTests.ps1`, `artifacts/particle-controls-2026-11-04/`의 Native 입력·전체 회귀·원시 프레임·이미지 비교 기록. 최신 EXE SHA256은 A75CBAE0CC669A7932A21B4B4619382555EF99E087D561E2149AAA157279B546이다. Release 전체 빌드는 경고0·오류0, runtime entry shader3개의 임시 컴파일 해시도 일치했다.
+검증·재현: [측정 및 API 문서](../../polygon-performance.ko.md), `tests/RunPolygonControlsTests.ps1`, `artifacts/particle-controls-2026-11-04/`의 Native 입력·전체 회귀·원시 프레임·이미지 비교 기록. 최신 EXE SHA256은 A75CBAE0CC669A7932A21B4B4619382555EF99E087D561E2149AAA157279B546이다. Release 전체 빌드는 경고0·오류0, runtime entry shader3개의 임시 컴파일 해시도 일치했다.
 
 별도 요청인 프로젝트 스킬10개는 본문·보조 텍스트·외부 참조 URL을 Slogs에1.0.0으로 등록하고 검증 상태와 콘텐츠 해시를 재조회했다. 등록 경계 검사는 Windows에서40개를 수행했으며 모든 플랫폼에서 스킬 효과를 검증했다는 의미는 아니다. 결과는 `artifacts/slogs-skills-2026-11-04/registration-result.json`을 따른다. 스킬 등록 검증기의 임시 빌드 폴더 정리는 자동 승인 검토에서 거부되어 실행하지 않았으며 우회 재시도하지 않는다.
 
@@ -67,7 +67,7 @@ CPU 전용32단계×8항목의 독립3회 중앙값: UI 생성·draw-data 해제
 
 증거: `artifacts/overlay-layers-2026-11-04/native-release-{default,stress}/`의 원본 프레임·메모리·로그·순서/해시·감사 요약, `cpu-release-net11-{baseline,after}-{1,2,3}.json`, `cpu-release-summary.json`, `full-final-net{10,11}/result.json`, `prior-pixel-parity.json`, `shader-verification/result.json`, `solution-final.log`. 숨겨진 창의 제출 처리량이며 모니터 표시 주사율이 아니다. 한 장치·짧은 반복 측정으로, 장시간 누수 및 다른 GPU 벤더 성능은 별도 확인 대상이다. 이전 Core88개 소스 스냅샷의 해시도 유지했다. 비교용 구버전에는 샘플 컴파일을 위한 위치 API/0값 카운터만 호환 추가했다.
 
-최종 EXE: `samples/fba/artifacts/overlay_layer_lab/net11.0-windows7.0/overlay_layer_lab.exe`, SHA256 `31609C98B5BD4B7111AF91787BD99EA339AA9150376976D8FC23701C29DC6E9E`. 새 시연 창의 표시·응답과 FPS/레이어 카운터는 `demo-window.json`/`demo-window.png`로 확인했다. 실행·API 설명은 [한국어](overlay-layer-lab.ko.md) / [English](overlay-layer-lab.md)를 참고한다.
+최종 EXE: `samples/fba/artifacts/overlay_layer_lab/net11.0-windows7.0/overlay_layer_lab.exe`, SHA256 `31609C98B5BD4B7111AF91787BD99EA339AA9150376976D8FC23701C29DC6E9E`. 새 시연 창의 표시·응답과 FPS/레이어 카운터는 `demo-window.json`/`demo-window.png`로 확인했다. 실행·API 설명은 [한국어](../../overlay-layer-lab.ko.md) / [English](../../overlay-layer-lab.md)를 참고한다.
 
 후속 시연 수정: 항상 표시되던 툴팁이 같은 깊이의 컨텍스트 메뉴를 가려, 시연의 상단 설명 영역에서만 표시하고 컨텍스트가 열려 있으면 숨기도록 했다. 이 변경은 실측 모드에서는 실행하지 않는 UI 부분이다. 마지막 배포 파일도 별도로 반복 측정해 `native-ui-final-{default,stress}`에 보존한다. 앞 표는 엔진 수정 완료 시점(31609C98)의 측정이며 후속 배포 결과와 섞지 않는다.
 
@@ -101,7 +101,7 @@ CPU 전용32단계×8항목의 독립3회 중앙값: UI 생성·draw-data 해제
 
 중간 후보도 보존: comparison-v1은 정지/이동 Private206.09→208.92MB/208.26→219.51MB로 악화했다. comparison-v2는 스냅샷 재사용, v3는 배처 예약·장수명 소유 배열, comparison-final은 초기 표시 스냅샷 정확 크기를 검증했다. 이 네 비교는 각각 다른 실제 소스 변경을 측정하며 현재 결과로 혼합하지 않는다. 마지막 staging 수명 수정과 읽기 접근 barrier 보완 후 comparison-staging-final을 실행했다. 추가12실행의 이유·범위는 work-state.json에 기록했다.
 
-재사용 명령: scripts/measure-overlay-layers.ps1 (Counts128/Swatches256/Scenarios idle,motion/Runs3/Seconds3). 최종 Before/After·정확한 변화율·실행 범위·꼬리 지표는 [최종 표](retained-rendering.ko.md#최종-동조건-비교--2026-11-04)와 원본 summary.json을 따른다. .NET10 SDK10.0.301 소스 검증과 SDK11.0.100-rc.3.26522.148/runtime11.0.0-rc.3.26522.148 NativeAOT Speed는 구분했다. 준비1초·96프레임 후3초, 독립3회 교대,1600×1000/MSAA1/VSync off. 강제GC·성능 측정과 동시 컴파일·동시 테스트는 수행하지 않았다.
+재사용 명령: scripts/measure-overlay-layers.ps1 (Counts128/Swatches256/Scenarios idle,motion/Runs3/Seconds3). 최종 Before/After·정확한 변화율·실행 범위·꼬리 지표는 [최종 표](../../retained-rendering.ko.md#최종-동조건-비교--2026-11-04)와 원본 summary.json을 따른다. .NET10 SDK10.0.301 소스 검증과 SDK11.0.100-rc.3.26522.148/runtime11.0.0-rc.3.26522.148 NativeAOT Speed는 구분했다. 준비1초·96프레임 후3초, 독립3회 교대,1600×1000/MSAA1/VSync off. 강제GC·성능 측정과 동시 컴파일·동시 테스트는 수행하지 않았다.
 
 검증: net10-complete/result.json708, net11-complete/result.json708, solution-final.stdout.log 경고0·오류0, prior-image-parity-final.json155개 일치. 첫 전체 실행의 마지막 CPU 타이밍 검사는 기존의 고정 draw=1 기대 때문에 실패했다. 타이밍 전용 검사에서만 전체 갱신을 명시하고, 변경분 draw=0·픽셀 동치·수명 검사를 별도로 추가해 최종 소스로 재검증했다. 기존 타이밍 검증의 목적과 범위를 보존했다.
 

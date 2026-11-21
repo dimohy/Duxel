@@ -28,7 +28,7 @@ using var view = Dux.MarkdownView("Preview", markdown.Binding, new(Height: 480))
 
 Options control width, height, source limit, wrapping, border and read-only editing. Width zero fills the available allocation. The default height is420 and the default limit is1,048,576 UTF-16 units. Static content can use `Dux.MarkdownView(markdown)`.
 
-Run `./run-gallery.ps1` → **추가 샘플 → Markdown → 문단 조판 예제**, then use **스마트 편집** and Ctrl+A or Shift+arrow to inspect selection across bold, code and links. **표 셀 예제** includes table-header selection. System contrast colors are supplied by the platform; the sample does not change OS settings.
+Run `./run-gallery.ps1` → **Markdown → Paragraph typesetting example**, then use **Smart edit** and Ctrl+A or Shift+arrow to inspect selection across bold, code and links. **Table cell example** includes table-header selection. System contrast colors are supplied by the platform; the sample does not change OS settings.
 
 Viewer links show a hand cursor and open on release through the system's web/mail handler. Inline, reference, angle autolinks and links in table cells share the cached source-to-display layout. Dragging, releasing outside the label, disabling/hiding the view or changing the document cancels activation. Editing links in `MarkdownEditor` continues to edit their source.
 
@@ -52,7 +52,7 @@ Each canonical destination resolves once while referenced, including unavailable
 
 Composition commits once and supports cancellation and undo. IME font size at a heading's end follows that heading's line. Disabled and read-only inputs discard committed text; hiding or transferring the editor releases the previous IME owner. `Dispose()` releases source, editing, scrolling and callback state, and subsequent callback assignment throws. Automated composition checks inject events; operating the actual Windows IME candidate window remains a separate validation scope.
 
-Run `./run-gallery.ps1` → **Markdown**, then switch between **스마트 편집** and **미리보기**. **이미지 예제** opens a cached SVG, an in-memory bitmap and an unavailable image alternative. In the preview, hover and click the example link to open its destination. The same source persists across page switches. This implementation is under qualification: additional table conformance and accessibility, malformed input, actual Windows IME candidate-window operation and large-document rendering remain open. Existing custom Markdown widgets remain available during migration.
+Run `./run-gallery.ps1` → **Markdown**, then switch between **Smart edit** and **Preview**. **Image example** opens a cached SVG, an in-memory bitmap and an unavailable image alternative. In the preview, hover and click the example link to open its destination. The same source persists across page switches. This implementation is under qualification: additional table conformance and accessibility, malformed input, actual Windows IME candidate-window operation and large-document rendering remain open. Existing custom Markdown widgets remain available during migration.
 
 ### Image semantics and keyboard selection
 

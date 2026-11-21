@@ -22,7 +22,7 @@ Accessibility exposes Navigation landmark → OrderedList → ListItem → actua
 
 Default chevron and more icons use the **Fluent icon font**. Generated glyph descriptors draw through the common DirectText cache. Supply a separately owned `UiSvgIcon.MenuIcon` through `UiBreadcrumbOption.Icon` for SVG content. No per-frame SVG XML parsing path is added.
 
-Run `./run-gallery.ps1` → **경로** to change widths520/280/80, keyboard mode, direction and size, and inspect navigation history. State survives page changes. Breadcrumb schedules no periodic frames. The default presentation retains measurement and processed labels while still processing input and drawing on requested frames.
+Run `./run-gallery.ps1` → **Breadcrumb** to change widths520/280/80, keyboard mode, direction and size, and inspect navigation history. State survives page changes. Breadcrumb schedules no periodic frames. The default presentation retains measurement and processed labels while still processing input and drawing on requested frames.
 
 Evidence: `artifacts/breadcrumb-2026-11-12/verification.json`. Managed CPU56 suites/8803 assertion executions, GPU14 profiles/2944 assertions and separate external Windows UIA7 profiles/138 assertions pass; counts include repetition. Complete official conformance, dynamic path replacement, pixel-aware extreme-width ellipsis, forced colors, all devices and the fixed RC3 NativeAOT/original performance validation remain open.
 

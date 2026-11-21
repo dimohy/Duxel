@@ -19,7 +19,7 @@ Navigation is Off, Items or Composite; selection implies Items when Off is speci
 
 Space toggles selection without a row action. Enter and row clicks call `Action` first; `UiListItemAction.PreventSelection` suppresses default selection. Checkmarks and secondary controls do not invoke row actions. `DisabledSelection` blocks selection while an explicit row action can remain available. Native selection requests use the same binding authority.
 
-Run `./run-gallery.ps1` → **목록** for plain, single and multiple selection, a real input, row commands and independent child commands. All three examples consume the generated factory.
+Run `./run-gallery.ps1` → **List** for plain, single and multiple selection, a real input, row commands and independent child commands. All three examples consume the generated factory.
 
 Native structure maps List/ListItem, ListBox/Option and Grid/Row/GridCell roles and selection semantics. Composite lists publish Grid/GridItem patterns, dimensions, logical coordinates, spans and containing-grid relationships. Column zero is the selection cell when present, at the leading edge in either direction; content occupies the remaining column. Rows describe their full extent while GetItem returns the actual child cell. Empty content still has a cell provider. Focused CPU tests qualify hidden/disabled/disposed/context-transfer and editor key propagation. A separate Windows UIA client checks real cells, selection, editing, disabling and omission. Multi-DPI and physical screen-reader qualification remain open.
 

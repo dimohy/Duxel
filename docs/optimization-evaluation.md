@@ -107,7 +107,7 @@ Lower bandwidth alone does not establish Raspberry Pi suitability. The current r
 - FPS held16frames/NF changed every3frames, held button and128 synchronous/128 in-flight comparisons:386 checks. Geometry/command-state regression remains.
 - All317 previous .NET10 images match. All37 showcase windows and six interactions passed after the renderer change; later ref access was covered by full geometry regression and image parity.
 - Clip-only changes resume uploads after empty damage and match full repaint. Readback now resolves resized target dimensions before allocating its buffer.
-- Preserve unrelated runtime/shader/sample edits. Final audit records six runtime and four focused-test changes against the initial snapshot. No retry of protected/denied deletions; earlier22 targets and manual cleanup remain in [cleanup guidance](rejected-build-cleanup.md).
+- Preserve unrelated runtime/shader/sample edits. Final audit records six runtime and four focused-test changes against the initial snapshot. No retry of protected/denied deletions; earlier22 targets and manual cleanup remain in cleanup guidance.
 
 ## Reproduction and identity
 

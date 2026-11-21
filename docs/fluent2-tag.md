@@ -15,7 +15,7 @@ TagGroup reuses Wrap layout with only selected children participating, leaving n
 
 The dismiss × uses the **Fluent icon font**. Custom icons can borrow the existing SVG `MenuIcon` path. SVG XML is processed when loading the asset, rather than on each tag frame. Asset owners must outlive tags; disposing a group does not dispose borrowed SVG assets.
 
-Run `./run-gallery.ps1` → **선택 목록**. Select image/SVG features in **확인할 기능**, then click a lower basic tag to clear the same list selection. Upper interactive tags separate primary inspection and × dismissal. Inspect **태그 크기 전환**, direction changes and page persistence.
+Run `./run-gallery.ps1` → **Selection lists · combined**. Select image/SVG features in **Features to try**, then click a lower basic tag to clear the same list selection. Upper interactive tags separate primary inspection and × dismissal. Inspect **Change tag size**, direction changes and page persistence.
 
 This scope covers basic Tag and selection dismissal groups. selected emphasis, avatar media, overflow patterns, forced colors, extended extra-small touch targets, physical screen-reader acceptance remain open. The group publishes a native Toolbar containing actual Buttons/Labels. This is not fixed RC3 NativeAOT/performance/device acceptance.
 
@@ -49,4 +49,4 @@ Each tag binds and disposes its own inactive composite and shadow resources. Mul
 
 TagGroup accepts an optional `media: item => UiTagMedia.Avatar(owner)` selector. It runs once per source option at group construction, including currently hidden options. Keep icon-bearing options separate from media options. Custom presentations receive bound media in render content and call its `Paint`; raw factory values are bound by the tag and are not standalone painters.
 
-Run `./run-gallery.ps1` → **선택 목록**, scroll to **담당자 미디어**. Compare Korean initials, SVG-decoded image, presence, size/direction/shape, inactive display, selection/dismissal and **담당자 태그 복원**. Evidence: `artifacts/tag-media-2026-11-13/`. Overflow, forced colors, extended touch targets, detailed focus styling and full official conformance remain open.
+Run `./run-gallery.ps1` → **Selection lists · combined**, scroll to **Assignee media**. Compare Korean initials, SVG-decoded image, presence, size/direction/shape, inactive display, selection/dismissal and **Restore assignee tags**. Evidence: `artifacts/tag-media-2026-11-13/`. Overflow, forced colors, extended touch targets, detailed focus styling and full official conformance remain open.

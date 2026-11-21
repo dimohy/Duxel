@@ -27,7 +27,7 @@ With default `Freeform=false`, unmatched Enter restores the selected label. Sing
 
 Windows exposes editable ComboBox, child Edit, ListBox and Option nodes with Value, Selection and ExpandCollapse. Hidden options support selection/add/remove without replacing provider identities. IME composition Enter cannot select an option; committed text is consumed once.
 
-Run `./run-gallery.ps1` → **입력과 선택 → Combobox** → **도시 검색**. Type `New ` and select `New York`, or enter Korean text. State survives page changes. Upper size/appearance/direction/width controls also affect the city field. The reset button clears the two Dropdowns below it.
+Run `./run-gallery.ps1` → **Input and selection → Combobox** → **Search cities**. Type `New ` and select `New York`, or enter Korean text. State survives page changes. Upper size/appearance/direction/width controls also affect the city field. The reset button clears the two Dropdowns below it.
 
 Evidence: `artifacts/combobox-2026-11-13/`, managed .NET11. Physical Windows IME interaction, selected tags, dynamic options, large-list virtualization, complete Fluent states/forced colors and fixed RC3 NativeAOT/performance/device acceptance remain open.
 
@@ -47,7 +47,7 @@ A null `Open` uses internal state. With a binding, its setter receives visibilit
 
 External query updates refresh filtering without manufacturing user open requests. Explicit expander/UIA expansion restores the full collection; an already-open list keeps its filter. Selection-driven binding changes are reread before rendering so a stale snapshot cannot reopen a dismissed popup.
 
-`EmptyText` defaults to `No matches`. An empty result has a properly sized popup with unselectable static text, preserving canonical option providers instead of fabricating a disabled Option. The sample localizes the message to Korean. Use **도시 목록 열림 전환** and its transition counter to inspect external control and callback stability.
+`EmptyText` defaults to `No matches`. An empty result has a properly sized popup with unselectable static text, preserving canonical option providers instead of fabricating a disabled Option. The sample localizes the message to Korean. Use **Toggle city list** and its transition counter to inspect external control and callback stability.
 
 Additional evidence: `artifacts/combobox-behavior-2026-11-13/`. [Pinned Fluent dismissal source](https://raw.githubusercontent.com/microsoft/fluentui/8830c10bfb2f4c1bdd540287b09713b9679cd1ad/packages/react-components/react-combobox/library/src/utils/useComboboxBaseState.ts). This API's `OpenChanged` reports actual transitions; its `Open` binding receives requests.
 
@@ -57,4 +57,4 @@ The editable search field's arrow opens the complete option collection and close
 
 Context transfer releases the previous editor/popup providers and republishes the logical list even at the same frame number. Disposing an expanded widget releases popup/editor ownership and rejects stale native requests. Actual 80×64 and updated 120×24 parent allocations cover size, popup placement and provider identity.
 
-Standalone `Field.Invalid` reaches both the ComboBox and actual child Edit validation properties; clearing it clears both. Run `./run-gallery.ps1` → **입력과 선택 → Dropdown / 검증 상태 전환** to inspect the city editor and both Dropdowns, including page persistence. Evidence: `artifacts/combobox-lifetime-2026-11-13/`.
+Standalone `Field.Invalid` reaches both the ComboBox and actual child Edit validation properties; clearing it clears both. Run `./run-gallery.ps1` → **Input and selection → Dropdown / Toggle validation state** to inspect the city editor and both Dropdowns, including page persistence. Evidence: `artifacts/combobox-lifetime-2026-11-13/`.

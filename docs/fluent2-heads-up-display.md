@@ -1,6 +1,6 @@
 # HeadsUpDisplay
 
-Run `./run-gallery.ps1` and select **알림과 진행 상태 → HeadsUpDisplay**. Examples cover centered presentation, input blocking, automatic dismissal and four visual bodies, each with adjacent source following actual settings. NEW moves to this route. Catalog linkage is 47/55 with 8 missing, not full Fluent conformance.
+Run `./run-gallery.ps1` and select **Alerts and progress → HeadsUpDisplay**. Examples cover centered presentation, input blocking, automatic dismissal and four visual bodies, each with adjacent source following actual settings. NEW moves to this route. Catalog linkage is 47/55 with 8 missing, not full Fluent conformance.
 
 ```csharp
 var hud = Fluent.HeadsUpDisplay(new(Label : "Saving"));

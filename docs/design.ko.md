@@ -1,96 +1,19 @@
-# Duxel GUI 디자인 문서
+# Duxel 설계
 
-> 마지막 동기화: 2026-07-20
+[English](design.md) · [문서](README.ko.md)
 
-이 문서는 Duxel의 설계 기준과 ImGui 호환성 기준/현황/로드맵을 단일 기준으로 통합해 관리한다.
+Duxel은 플랫폼 호스트와 Vulkan 렌더러로 네이티브 데스크톱 애플리케이션을 실행합니다. 애플리케이션에서 위젯을 조합하거나 즉시 모드 화면을 그릴 수 있으며, 두 방식을 함께 쓸 수도 있습니다.
 
-## 목표
-- `net8.0`, `net9.0`, `net10.0`을 지원하는 즉시 모드 GUI 라이브러리. 파일 기반 앱 워크플로는 .NET 10 SDK를 사용.
-- Vulkan 렌더러 기반, 1차 플랫폼은 Windows.
-- 입력/윈도우는 Windows 네이티브 백엔드 사용.
-- NativeAOT 게시/실행을 기본 품질 기준으로 유지.
+## 애플리케이션 UI
 
-## 설계 원칙
-- 코어/플랫폼/렌더러 책임을 명확히 분리한다.
-- 렌더러는 `ImDrawData` 소비에만 집중한다.
-- 최신 텍스처 흐름(`ImDrawData::Textures`)만 사용한다.
-- fallback 경로/대체 구현은 두지 않으며, 미지원은 명시적으로 실패시킨다.
-- AOT/트리밍 친화성(리플렉션/동적 로딩 회피)을 기본값으로 한다.
+레이아웃을 만들 때는 `Dux`, 테마가 적용되는 컨트롤에는 `Fluent`를 사용합니다. 위젯 트리의 루트는 화면이 살아 있는 동안 유지하고, `UiState<T>`, 바인딩 또는 위젯 속성으로 값을 갱신합니다. 위젯 트리 안에서 즉시 모드 콘텐츠를 표시하려면 `UiViewHost`에 `UiView`를 넣습니다. 즉시 모드 화면에서 위젯을 소유하고 렌더링할 수도 있습니다. [사용자 정의 위젯](custom-widgets.ko.md) · [레이아웃 컨테이너](widget-containers.ko.md)
 
-## 아키텍처
-### Core
-- `UiContext` 프레임 라이프사이클 관리
-  - `CreateContext()` → `NewFrame()` → 사용자 UI → `Render()` → `GetDrawData()`
+프레임마다 입력을 처리하고 직접 그려야 한다면 `UiScreen.Render(UiImmediateContext ui)`를 재정의합니다. 선언형 레이아웃은 실행 중에 `.ui` 파일을 읽거나 빌드할 때 C#으로 생성할 수 있습니다. [선언형 UI](ui-dsl.ko.md)
 
-### Renderer (Vulkan)
-- 입력: `ImDrawData`
-- GPU-driven 구조 (2026-07-03 전환)
-  - graphics pipeline 1개: dual-source blend 통합, vertex input state 없음(vertex pulling)
-  - bindless texture: 전역 `sampler2D[]` descriptor set 1개를 프레임당 1회 bind, 커맨드는 push constant로 texture slot index 전달
-  - vertex/primitive 데이터는 buffer device address로 셔이더에서 직접 읽음; dynamic buffer는 BAR 메모리 우선 할당
-  - dynamic rendering: render pass/framebuffer 객체 없이 `vkCmdBeginRenderingKHR` + 명시적 image barrier로 프레임 구성, MSAA는 inline resolve
-  - 필수 device feature/extension(없으면 명시적 실패): descriptor indexing 4종 + `runtimeDescriptorArray` + `bufferDeviceAddress` + `dualSrcBlend` + `VK_KHR_dynamic_rendering`
-- 책임
-  - 파이프라인/디스크립터/샘플러/폰트 텍스처 생명주기
-  - 클립 사각형(`ClipRect`) 기반 scissor 적용
-  - 정점/인덱스 업로드 및 드로우 호출 기록
-  - `TotalVertexCount`/`TotalIndexCount` 기반 버퍼 사이징
-  - 동기화/스왑체인 재생성 경로 분리
+## 디자인과 테마
 
-### Platform
-- `IPlatformBackend` (플랫폼별 백엔드 확장 가능)
-- 1차/현재 목표: Windows 네이티브 백엔드
+`UiCompiledDesign.Windows11`과 `UiCompiledDesign.Windows11Dark`는 Fluent 2 컨트롤에 밝은 테마와 어두운 테마를 제공합니다. 앱 옵션에서 디자인을 선택합니다. `UiTheme`로 색상을, `UiDesignTokens`로 컨트롤 크기와 간격을 바꿀 수 있습니다. 여러 앱에서 디자인을 재사용하려면 `IUiDesign`을 구현합니다. `Fluent.FluentProvider`를 사용하면 위젯 트리의 특정 영역에 테마·서체·지원되는 배치 방향을 적용할 수 있습니다. [Fluent 2 지원 범위](fluent2-coverage.ko.md) · [테마 공급자](fluent2-provider.ko.md)
 
-## ImGui 호환성 통합 문서
+## 플랫폼과 렌더링
 
-### 호환성 목표
-- API 명세/동작/입력 UX를 Dear ImGui와 가능한 범위에서 동등하게 유지.
-- 텍스트/블렌딩/클리핑/스케일링 품질은 ImGui 레퍼런스 기준을 따른다.
-
-### 구현 범주(요약)
-- Context/IO/Style
-- Window/Cursor/Scroll
-- Text/Widget(Input, Slider, Drag, Color)
-- Tree/Selectable/ListBox
-- Menu/Popup/Tooltip
-- Table/Columns/TabBar
-- DragDrop/Clipboard/Key/Mouse
-- Debug/Log/INI/Memory
-
-### 텍스처/렌더링 규약
-- `UiDrawData.TextureUpdates` 기반 Create/Update/Destroy 수명 관리
-- 텍스처 포맷: `Rgba8Unorm`/`Rgba8Srgb`
-- `ClampToEdge` 샘플러 + 알파 블렌딩 기준 유지
-
-### 품질/검증 기준
-- 샘플 기반 검증: 변경 후 최소 1개 샘플 실행
-- UI 동등성 검증: 동작 기준 + 스크린샷 1픽셀 허용 오차
-- 플랫폼/렌더러 책임 분리 위반 시 실패 처리
-
-### NativeAOT 기준
-- `PublishAot=true`, `SelfContained=true` 기본
-- 리플렉션/동적 로딩/플러그인 방지
-- 트리밍 경고는 잔여 원인과 해결 계획을 반드시 기록
-
-### 현재 상태
-- ImGui 스타일 API 400+ 항목 구현
-- DSL 런타임은 즉시 모드 프레임 흐름과 동등 라이프사이클 유지
-- Vulkan 렌더러는 GPU-driven 구조(단일 파이프라인 + bindless + vertex pulling)로 동작하며 내부 Vulkan 바인딩만 사용
-
-### 남은 작업(호환성 관점)
-- Idle Frame Skip 정책 확정(입력/애니메이션/외부 이벤트)
-- 멀티뷰포트/도킹 및 멀티컨텍스트 확장
-
-### 향후 리팩터링 과제
-- `all_features.cs` 샘플의 단일 거대 클래스를 위젯 카테고리별 소형 클래스/파일로 분리
-
-## 참조 우선순위 (ImGui)
-1. `imgui.h` / `imgui.cpp`
-2. `imgui_draw.cpp`
-3. `backends/imgui_impl_vulkan.*`
-4. `docs/BACKENDS.md`
-
-## 운영 규칙
-- 호환성 관련 신규 기록은 이 문서에만 추가한다.
-- 중복 문서(체크리스트/부분 요약)는 만들지 않는다.
-
+플랫폼 호스트는 창, 입력, 클립보드, 네이티브 텍스트와 접근성을 연결합니다. Vulkan 백엔드는 UI가 만든 그리기 데이터를 화면에 표시합니다. 지원 환경과 렌더링 동작은 각 문서에서 확인할 수 있습니다. [Linux](linux-platform.ko.md) · [접근성](widget-accessibility.ko.md) · [렌더링 재사용](retained-rendering.ko.md)

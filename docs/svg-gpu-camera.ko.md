@@ -114,16 +114,16 @@ WSLg lavapipe에서 소프트웨어 작업 스레드 4개를 사용해 Linux x64
 
 곡선의 제어점 범위를 확인해 채우기 결과에 영향을 줄 수 없는 샘플은 곡선 탐색을 건너뜁니다. 해상도를 유지한 채 Linux x64 .NET 11 NativeAOT와 WSLg lavapipe에서 비교한 결과, 최종 QueuePresent 호출은 2배에서 547.0~555.5ms에서 420.4~428.2ms로, 4배에서 536.8~545.0ms에서 417.4~418.7ms로 줄었습니다. Windows GPU의 수정 전후 출력 35쌍은 모두 일치했습니다. 같은 입력에 대한 렌더러 변경 전후 비교이며 Chromium과의 완전 일치와 실제 GPU의 입력 지연은 별도 검증이 필요합니다.
 
-브라우저 비교의 기본 모드는 브라우저 기준 해상도로 그려 둔 GPU 이미지를 재사용합니다. 확대·회전·스크롤을 멈춘 뒤에도 같은 이미지를 씁니다. 최종 배율의 픽셀을 비교하려면 **확대 시 고해상도로 다시 그리기**를 켜세요. 조작이 120ms 동안 없으면 보이는 범위를 최종 해상도로 그립니다. C# 예제는 변환이 끝난 뒤 갱신합니다. [전후 측정](optimization-session-2026-11-19.md)
+브라우저 비교의 기본 모드는 브라우저 기준 해상도로 그려 둔 GPU 이미지를 재사용합니다. 확대·회전·스크롤을 멈춘 뒤에도 같은 이미지를 씁니다. 최종 배율의 픽셀을 비교하려면 **확대 시 고해상도로 다시 그리기**를 켜세요. 조작이 120ms 동안 없으면 보이는 범위를 최종 해상도로 그립니다. C# 예제는 변환이 끝난 뒤 갱신합니다. [전후 측정](archive/performance/optimization-session-2026-11-19.md)
 
-Vulkan 셰이더는 경로의 네 표본을 먼저 검사합니다. 네 표본 모두 경로 밖이면 색 계산과 합성을 건너뜁니다. RTX 5070 Ti Laptop GPU에서는 카메라 조건 10개 중 9개의 GPU 시간이 조금 줄었습니다. 소프트웨어 Vulkan에서는 반복해서 빨라지는 결과를 얻지 못했습니다. [출력 비교와 시간 측정](optimization-session-2026-11-19.md#svg-material-evaluation-after-coverage)
+Vulkan 셰이더는 경로의 네 표본을 먼저 검사합니다. 네 표본 모두 경로 밖이면 색 계산과 합성을 건너뜁니다. RTX 5070 Ti Laptop GPU에서는 카메라 조건 10개 중 9개의 GPU 시간이 조금 줄었습니다. 소프트웨어 Vulkan에서는 반복해서 빨라지는 결과를 얻지 못했습니다. [출력 비교와 시간 측정](archive/performance/optimization-session-2026-11-19.md#svg-material-evaluation-after-coverage)
 
-고해상도 모드의 120ms는 슬라이더에서 손을 뗀 시점부터 셉니다. `gallery-svg-pointer`는 두 모드의 갤러리 슬라이더 입력과 렌더 요청을 각각 `pointer.tsv`에 남깁니다. [슬라이더 검증](optimization-session-2026-11-19.md#svg-slider-release-and-consecutive-gestures)
+고해상도 모드의 120ms는 슬라이더에서 손을 뗀 시점부터 셉니다. `gallery-svg-pointer`는 두 모드의 갤러리 슬라이더 입력과 렌더 요청을 각각 `pointer.tsv`에 남깁니다. [슬라이더 검증](archive/performance/optimization-session-2026-11-19.md#svg-slider-release-and-consecutive-gestures)
 
-가로·세로 방향의 가우시안 블러는 원본을 충분히 덮는 사각형 안에서만 입력 픽셀을 읽습니다. 첫 번째 방향의 계산이 끝나면 그 방향으로 블러 반경만큼 사각형을 넓힙니다. 검사한 화면에서 수정 전후의 픽셀이 같았습니다. [블러 출력과 시간 비교](optimization-session-2026-11-19.md#svg-blur-skips-transparent-input)
+가로·세로 방향의 가우시안 블러는 원본을 충분히 덮는 사각형 안에서만 입력 픽셀을 읽습니다. 첫 번째 방향의 계산이 끝나면 그 방향으로 블러 반경만큼 사각형을 넓힙니다. 검사한 화면에서 수정 전후의 픽셀이 같았습니다. [블러 출력과 시간 비교](archive/performance/optimization-session-2026-11-19.md#svg-blur-skips-transparent-input)
 
-SVG 경로의 표본을 검사할 때 픽셀에 대해 이미 계산한 카메라 값을 재사용합니다. 성능을 비교하기 전에 로그에서 Vulkan 장치 종류를 확인하세요. 이번 Ubuntu WSL에서는 드라이버를 따로 지정하지 않고 글꼴을 자동으로 선택해 실행했을 때도 CPU에서 동작하는 `llvmpipe`가 선택됐습니다. [장치와 시간 측정](optimization-session-2026-11-19.md#svg-path-coverage-reuses-camera-parameters)
+SVG 경로의 표본을 검사할 때 픽셀에 대해 이미 계산한 카메라 값을 재사용합니다. 성능을 비교하기 전에 로그에서 Vulkan 장치 종류를 확인하세요. 이번 Ubuntu WSL에서는 드라이버를 따로 지정하지 않고 글꼴을 자동으로 선택해 실행했을 때도 CPU에서 동작하는 `llvmpipe`가 선택됐습니다. [장치와 시간 측정](archive/performance/optimization-session-2026-11-19.md#svg-path-coverage-reuses-camera-parameters)
 
-`DUXEL_VK_PROFILE=1`, `DUXEL_VK_GPU_PROFILE=1`, `DUXEL_VK_PROFILE_EVERY=1`을 켜면 `gpuSubmission`으로 완료된 프레임의 시간을 찾을 수 있습니다. 첫 블러 시간에 더해 `vectorBlurFilters`에 필터 수, `vectorBlurGpuUs`에 블러 합계, `vectorOutsideBlurGpuUs`에 경로 처리와 복사 등 나머지 벡터 작업 시간을 표시합니다. 한 프레임에 필터가 16개를 넘으면 개수와 첫 블러 시간만 기록하고 두 합계는 미확인으로 표시합니다. [갤러리 필터 시간 측정](optimization-session-2026-11-19.md#svg-filter-timing-by-submission)
+`DUXEL_VK_PROFILE=1`, `DUXEL_VK_GPU_PROFILE=1`, `DUXEL_VK_PROFILE_EVERY=1`을 켜면 `gpuSubmission`으로 완료된 프레임의 시간을 찾을 수 있습니다. 첫 블러 시간에 더해 `vectorBlurFilters`에 필터 수, `vectorBlurGpuUs`에 블러 합계, `vectorOutsideBlurGpuUs`에 경로 처리와 복사 등 나머지 벡터 작업 시간을 표시합니다. 한 프레임에 필터가 16개를 넘으면 개수와 첫 블러 시간만 기록하고 두 합계는 미확인으로 표시합니다. [갤러리 필터 시간 측정](archive/performance/optimization-session-2026-11-19.md#svg-filter-timing-by-submission)
 
-`vectorPathGpuUs`는 벡터 이미지를 그리는 연산 시간입니다. `vectorCopyGpuUs`는 장면 데이터, 의존성 테이블, 최종 텍스처를 복사하는 시간입니다. 테두리 준비나 동기화처럼 이 항목에 들지 않는 작업도 있습니다. 두 항목은 각각 64건을 넘기면 개수만 기록하고 시간 합계는 미확인으로 표시합니다. [갤러리 경로와 복사 시간](optimization-session-2026-11-19.md#svg-path-dispatch-and-transfer-timing)
+`vectorPathGpuUs`는 벡터 이미지를 그리는 연산 시간입니다. `vectorCopyGpuUs`는 장면 데이터, 의존성 테이블, 최종 텍스처를 복사하는 시간입니다. 테두리 준비나 동기화처럼 이 항목에 들지 않는 작업도 있습니다. 두 항목은 각각 64건을 넘기면 개수만 기록하고 시간 합계는 미확인으로 표시합니다. [갤러리 경로와 복사 시간](archive/performance/optimization-session-2026-11-19.md#svg-path-dispatch-and-transfer-timing)

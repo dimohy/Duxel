@@ -142,7 +142,7 @@ This document accumulates version-by-version changes for Duxel.
 ### Major Improvements
 
 - **[Improvement]** Theme design-token pipeline — `.duxel-theme` files now accept `Design.*` numeric tokens, support `Windows11` / `Windows11Dark` base presets, and generate compiled design accessors alongside theme accessors.
-- **[Improvement]** Windows 11 visual polish — rounded control geometry, token-based radii, refined button/input/slider/progress/list/table/menu colors, and dark/light system theme resolution make the default app surface less ImGui-shaped.
+- **[Improvement]** Windows 11 visual polish — rounded control geometry, token-based radii, refined button/input/slider/progress/list/table/menu colors, and system light/dark theme selection.
 - **[Improvement]** Declarative sample surface — added a product-dashboard FBA sample and refreshed ThemeDemo plus FBA docs so reusable components, app shells, command bars, property lists, status rows, badges, and callouts are discoverable.
 - **[Improvement]** GPU renderer documentation — recorded the prior GPU-driven renderer migration so shader/pipeline assumptions remain traceable after the `0.2.3-preview` release.
 
@@ -209,7 +209,7 @@ This document accumulates version-by-version changes for Duxel.
 - **[Improvement]** Text/Bullet vertical centering — direct glyph-metrics based visual center calculation replaces heuristic ascent offset.
 - **[Improvement]** `Combo` widget event notification — fires `EventSink.OnButton(id)` on value change, enabling reactive DSL event handlers.
 - **[Improvement]** `DuxelAppOptions.Screen` — changed from optional nullable to `required`, removed deprecated `DuxelDslOptions` entry, removed `UiDslBindings` class.
-- **[Improvement]** ProgressBar accent color — `ProgressBarFill` now uses `PlotHistogram` (matching Dear ImGui convention) instead of `SliderGrab`.
+- **[Improvement]** ProgressBar accent color — `ProgressBarFill` now uses `PlotHistogram` instead of `SliderGrab`.
 
 ### Major Bug Fixes
 
@@ -370,7 +370,7 @@ This document accumulates version-by-version changes for Duxel.
 
 - **[Improvement]** Simplified the distribution story — package descriptions were refreshed and NuGet delivery stayed focused on `Duxel.App` and `Duxel.Windows.App`.
 - **[Improvement]** Simplified the sample surface around DSL validation — only `samples/Duxel.Sample` remains, older sample projects were removed, and FBA package directives were standardized on `Duxel.Windows.App`.
-- **[Improvement]** Cleaned the surrounding docs to match the reduced sample/package surface — README tables, removed-sample references, ImGui design docs, and `docs/todo.md` were reorganized together.
+- **[Improvement]** Cleaned the surrounding docs to match the reduced sample/package surface — README tables, references to retired samples, design notes, and the task list were reorganized together.
 
 ## 0.1.8-preview (2026-02-15)
 

@@ -14,7 +14,7 @@ A copied geometry snapshot is limited to64MiB, and its two resolved color target
 
 Metrics distinguish `PaintGroupPasses`, `PaintGroupDrawCalls` and `PaintGroupCacheHits`. Total `DrawCalls` includes capture draws. A clear-only capture can still perform passes with zero draws. Unchanged captures use no offscreen passes; existing acquired-image damage repair remains separate. Input and event-wait scheduling are unchanged.
 
-Run `./run-gallery.ps1` from the repository root, then open **렌더링**. The first three blocks show prepared references at opacity0/0.5/1. The block to their right captures overlapping red/green drawing at runtime and applies opacity0.8 once. It creates no animation timer.
+Run `./run-gallery.ps1` from the repository root, then open **Rendering**. The first three blocks show prepared references at opacity0/0.5/1. The block to their right captures overlapping red/green drawing at runtime and applies opacity0.8 once. It creates no animation timer.
 
 Final-resolution text for uniform0.875 scaling is qualified below. Arbitrary rotation/projective text quality, inactive Avatar integration, general interactive widget-subtree capture, forced colors, exact RC3 NativeAOT, original load/memory and other original acceptance gates remain open. Do not implement inactive Avatar by applying opacity separately to its commands. No shader binaries were modified for the runtime capture work.
 

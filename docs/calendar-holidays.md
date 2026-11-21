@@ -51,7 +51,7 @@ Run the live Gallery check from the repository root. Each command requires a fre
 
 The live check passed on .NET 11.0.0 in the Windows managed Gallery and Ubuntu/WSLg Linux x64 NativeAOT Gallery. The same Linux executable passed all 104 standard presentation scenarios. Evidence is in `W:/Cache/Duxel/gallery-source-20261117/linux-keyless-holiday-1950/verification.json`.
 
-On WSLg, a separate `libatspi` client read the offline New Year's Day name from the calendar cell, switched to the outage example, and selected the date through AT-SPI. It then invoked the live lookup and read the published name `1월 1일` on the same selected date. This verifies the name, action and selected state exposed to assistive software. Evidence is in `W:/Cache/Duxel/gallery-source-20261117/atspi-holiday-1951/holiday-retry/result.json`.
+On WSLg, a separate `libatspi` client read the offline New Year's Day name from the calendar cell, switched to the outage example, and selected the date through AT-SPI. It then invoked the live lookup and read the published name `January 1` on the same selected date. This verifies the name, action and selected state exposed to assistive software. Evidence is in `W:/Cache/Duxel/gallery-source-20261117/atspi-holiday-1951/holiday-retry/result.json`.
 
 On Windows, a separate UI Automation client performed the same flow on the managed and x64 NativeAOT Gallery. Both verified the accessible date name and `SelectionItem.IsSelected` after the lookup, then shut down normally. Evidence is in `W:/Cache/Duxel/gallery-source-20261117/uia-holiday-1952/managed/result.json` and `native/result.json` under the same run root. Screen-reader speech requires a separate check.
 

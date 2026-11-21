@@ -37,7 +37,7 @@ Replaced buffers remain alive while queued frames read them. Closing a popup or 
 
 The CPU-only comparison is `tests/Duxel.Performance.Bench --overlays`. It excludes GPU and presentation time. Per-frame allocation, post-GC managed memory and process private bytes are separate measurements; the managed-memory observation occurs outside the timed loop.
 
-Measurements and intermediate regressions are recorded in [the 2026-11-04 optimization log](optimization-session-2026-11-04.md). `OverlayPresentationTests` covers pixels and snapshot lifetimes.
+Measurements and intermediate regressions are recorded in [the 2026-11-04 optimization log](archive/performance/optimization-session-2026-11-04.md). `OverlayPresentationTests` covers pixels and snapshot lifetimes.
 
 Popup hit testing resolves the immutable previous-frame rectangles and current pointer once per UI frame. Widgets share this result, reducing popup-count times widget-count work to popup-count plus widget-count while preserving higher-tier input blocking. Continuously changing popups use the shared dynamic upload stream rather than allocating resident GPU buffers for every move; stable content returns to residency.
 
@@ -83,7 +83,7 @@ After transferring geometry ownership, the common batcher no longer rents a seco
 
 Against distribution 7B1A3575, the same 128-popup/256-swatch workload ran three alternating processes per variant and scenario. Median private bytes decreased from 197.94→196.09MiB idle (-1.84MiB) and 200.95→197.63MiB moving (-3.32MiB), with nonoverlapping ranges. FPS recorded 380.90→394.97 idle and 382.40→393.96 moving, but overlapping ranges make this additional change's throughput effect inconclusive. Large-load private bytes remain higher than the original implementation. Evidence: `scratch-memory-comparison/summary.json` and `scratch-memory-results.json`.
 
-Validation passed 510 checks on each of .NET10 and 11, preserved 155 prior images byte-for-byte, and built Release with zero warnings or errors. Current EXE SHA256: `40C51851C9469653BA40DBCD9B8FE36ABD2D3411538E1A5FC8090AB4DD786B92`. Rejected temporary artifacts have explicit targets and [manual cleanup instructions](rejected-build-cleanup.md); deletion was not performed.
+Validation passed 510 checks on each of .NET10 and 11, preserved 155 prior images byte-for-byte, and built Release with zero warnings or errors. Current EXE SHA256: `40C51851C9469653BA40DBCD9B8FE36ABD2D3411538E1A5FC8090AB4DD786B92`. Rejected temporary artifacts have explicit targets and manual cleanup instructions; deletion was not performed.
 
 A fresh direct comparison between current 40C51851 and the original baseline is retained in `completion-native-original/summary.json`. At 128 popups, idle recorded 366.35→374.07FPS(+2.11%) and motion 363.44→381.36FPS(+4.93%), with nonoverlapping ranges. Working set fell from 135.71→122.69MiB idle and 135.79→123.42MiB moving. Median private bytes were 185.93→196.02MiB idle and 186.67→198.04MiB moving, so not every memory metric is lower than the original. The final raw evidence also retains p95, p99, slowest 1% and all independent-run ranges.
 

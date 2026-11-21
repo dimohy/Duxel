@@ -2,7 +2,7 @@
 
 > Last synced: 2026-11-06
 >
-> Audience: Duxel application developers, framework contributors, and coding AI agents
+> Audience: Duxel application developers and framework contributors
 >
 > Platform: Windows 11 / Windows-native backend
 >
@@ -20,7 +20,7 @@ This guide covers:
 - laying out content without overlapping the caption-button cluster
 - separating draggable space from interactive controls
 - coordinate rules for DPI, multiple monitors, and maximized windows
-- validation required before developers or coding agents report completion
+- validation required before shipping title-bar changes
 - Win32/DWM contracts that framework contributors must preserve
 
 The complete executable example is [`samples/fba/extended_title_bar_fba.cs`](../samples/fba/extended_title_bar_fba.cs).
@@ -432,37 +432,7 @@ When modifying the Windows title-bar paths in `Duxel.App` or `Duxel.Platform.Win
 10. In `ExtendedContent`, draw from the stable public Duxel bounds and non-client hover/pressed state; keep click commands, `HTMAXBUTTON`, and Snap Layout in the Windows path.
 11. Route `WM_NCRBUTTONUP` on registered `HTCAPTION`/`HTSYSMENU` regions to the native system menu so an application-drawn window icon retains standard title-bar behavior.
 12. Do not regress existing `System` or `Duxel` behavior.
-13. Update the public API, sample, this guide, and both `duxel-agent-reference` documents in the same change set.
-
-## Coding AI workflow
-
-A coding agent handling an extended-title-bar request should:
-
-1. read this guide and `samples/fba/extended_title_bar_fba.cs` first
-2. choose `Duxel` for library-owned conventional chrome and `ExtendedContent` only for application UI at `y = 0`
-3. distinguish application layout work from platform-backend work
-4. use only public APIs for app work rather than duplicating Win32 hit testing
-5. query the public Duxel caption bounds every frame instead of reading raw DWM coordinates or hardcoding them
-6. lay out every interactive control first, then register only remaining empty spans
-7. remove stale calculated gaps on unavailable and empty-region paths; independently valid regions such as a fixed left icon area may remain
-8. use `run-fba.ps1` to test local source
-9. visually verify the `ExtendedContent` Minimize/Maximize/Close glyphs, hover feedback, icon right-click system menu, and tab styling; hit-test diagnostics alone are insufficient
-10. verify the `Duxel` and `ExtendedContent` Maximize glyph changes to Restore while maximized and changes back after restore
-11. update paired Korean/English docs and samples when public behavior changes
-12. run the full Release build and NativeAOT real-HWND diagnostics
-12. report evidence for every requirement and remaining environment limits before declaring completion
-
-Copyable task instruction for an AI agent:
-
-```text
-Choose Duxel mode for conventional library-owned chrome, or ExtendedContent when application content must render from y=0.
-Treat docs/extended-title-bar-guide.md and samples/fba/extended_title_bar_fba.cs as authoritative.
-In Duxel mode, do not recreate library-owned caption buttons or cache their Maximize/Restore state in application code.
-Query Duxel caption-button bounds every frame and exclude that rectangle from layout and drag regions.
-Keep tabs, buttons, menus, and input controls as HTCLIENT by registering only empty space as drag regions.
-Do not hardcode caption widths or DPI.
-Before completion, run the Release build and NativeAOT HWND diagnostics and report PASS evidence per requirement.
-```
+13. Update the public API, sample, this guide, and its translated counterpart in the same change set.
 
 ## Completion checklist
 
@@ -484,7 +454,6 @@ Before completion, run the Release build and NativeAOT HWND diagnostics and repo
 
 ## Related documentation
 
-- [Duxel Agent Reference](duxel-agent-reference.md)
 - [FBA Getting Started](getting-started-fba.md)
 - [FBA Reference Guide](fba-reference-guide.md)
 - [FBA Sample Catalog](fba-run-samples.md)

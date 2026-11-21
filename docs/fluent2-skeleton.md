@@ -1,6 +1,6 @@
 # Fluent 2 Skeleton
 
-`Fluent.Skeleton(child, options)` owns loading content and supplies inherited properties to `Fluent.SkeletonItem(options)`. The Observer **스켈레톤** tab exposes loading/completed content, Wave/Pulse, translucent appearance, reduced motion and static output.
+`Fluent.Skeleton(child, options)` owns loading content and supplies inherited properties to `Fluent.SkeletonItem(options)`. The Observer **Skeleton** tab exposes loading/completed content, Wave/Pulse, translucent appearance, reduced motion and static output.
 
 ```csharp
 var loading = Fluent.Skeleton(

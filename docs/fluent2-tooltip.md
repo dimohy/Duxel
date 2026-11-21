@@ -2,7 +2,7 @@
 
 Last synced: 2026-11-11
 
-The shared Tooltip and popup rasterizer reuses four temporary spans across the two shadow passes within each rasterization. Scratch storage is released to the GC after that call and the output texture owns an independent array. A mixed-size NativeAOT control found lower sampled memory peaks and approximately 29% fewer temporary allocations with this approach than with the original rasterizer. [Memory policy comparison](optimization-session-2026-11-19.md#popup-scratch-retention-controls)
+The shared Tooltip and popup rasterizer reuses four temporary spans across the two shadow passes within each rasterization. Scratch storage is released to the GC after that call and the output texture owns an independent array. A mixed-size NativeAOT control found lower sampled memory peaks and approximately 29% fewer temporary allocations with this approach than with the original rasterizer. [Memory policy comparison](archive/performance/optimization-session-2026-11-19.md#popup-scratch-retention-controls)
 
 Current foundation: [compiled tooltip targets](tooltip-targets.md) implement actual target composition, timed ownership, deferred popup paint and Escape consumption with CPU/GPU/sample evidence. [Target accessibility](tooltip-accessibility.md) now qualifies description/label/inaccessible relationships and actual Windows UIA properties. The generated Fluent factory now binds the existing target behavior and Fluent presentation. Text-property and shutdown notifications are qualified through an external client; complete official conformance remains pending. [Surface nodes and open/close](tooltip-events.md) are qualified with an external UIA client. The checklist below records the full Fluent qualification scope.
 

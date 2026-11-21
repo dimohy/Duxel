@@ -8,7 +8,7 @@ NET10전체1004·관리/고정RC3 Native108·이전428이미지 동치·Release 
 
 이동 검사 draw6/업로드1376B(320×240)·1584B(404×281)는 다른 크기의 카운터이며 속도 비교로 세지 않는다. CPU/FPS/Private/작업집합 Before/After·개선율은 아직 미측정이다. 새 Native 갤러리에서 기존 App/Vulkan 계측을 켜 사용자 이동 입력을 확인 중이다. 초기 유휴의 GPU수us·프레임펜스4~8ms를 이동 병목으로 확정하지 않는다. 사용자 체감 지연·정확한 프레임 분포·기존 메모리 목표는 미해결/미검증으로 유지한다.
 
-근거와 명령: [내부 창 배치](window-placement.ko.md), artifacts/gallery-window-fix-2026-11-05/verification.json; `dotnet run --project tests/Duxel.Rendering.Tests -c Release -- <결과> --window-interaction-only`로 집중 재현을 실행한다. 실제화면 실행은 [가이드](widget-gallery-run.ko.md)를 따른다.
+근거와 명령: [내부 창 배치](../../window-placement.ko.md), artifacts/gallery-window-fix-2026-11-05/verification.json; `dotnet run --project tests/Duxel.Rendering.Tests -c Release -- <결과> --window-interaction-only`로 집중 재현을 실행한다. 실제화면 실행은 [가이드](../../widget-gallery-run.ko.md)를 따른다.
 
 ## 기본 Fluent Text와 공통 줄바꿈
 
@@ -18,7 +18,7 @@ NET10전체1004·관리/고정RC3 Native108·이전428이미지 동치·Release 
 
 구성1,024개 재확인: 관리 이전114,688B→생성90,112B(-21.43%), Native 이전98,304B→생성90,112B(-8.33%). 같은 런타임 안의 비교만 유효하며 이번 글꼴 변경의 속도 개선이 아니다. 앱FPS/median/p95/p99/1%low·Private/작업집합·Pi 개선은 미측정이며 워밍업 시간 벤치로 보고하지 않는다. 전체 Text 변형·공식 룩앤필/UIA·기존 즉시 API 기본 이전은 미완료다.
 
-명령: `dotnet run --project tests/Duxel.Rendering.Tests -c Release -- <결과 경로>`, `dotnet run --project tests/Duxel.Graphics.Tests -c Release -- <결과 경로>`, `dotnet build Duxel.slnx -c Release`. 상세 근거: artifacts/fluent-default-text-2026-11-05/verification.json과 [한영 Text 후속](fluent2-text.ko.md).
+명령: `dotnet run --project tests/Duxel.Rendering.Tests -c Release -- <결과 경로>`, `dotnet run --project tests/Duxel.Graphics.Tests -c Release -- <결과 경로>`, `dotnet build Duxel.slnx -c Release`. 상세 근거: artifacts/fluent-default-text-2026-11-05/verification.json과 [한영 Text 후속](../../fluent2-text.ko.md).
 
 ## 공통 둥근 그라데이션의 배치·업로드
 
@@ -37,7 +37,7 @@ NET10전체1004·관리/고정RC3 Native108·이전428이미지 동치·Release 
 
 한계: 시간 벤치가 아닌 실제 draw/upload 카운터 비교다. 워밍업/평균FPS/median/p95/p99/1%low와 Private/작업집합은 이번 단계에서 측정하지 않았다. 전체 앱 속도·메모리·Pi 개선으로 합산하지 않는다. NVIDIA 실제 GPU만 확인했으며 AMD 점유율/시간은 미검증이다. 추가 셰이더 보간 비용·기존 캐시상주 비용·RC3물리 비교 실패·전체Fluent는 미해결/미완료로 유지한다.
 
-근거: [한영 공통 그라데이션 문서](rounded-gradients.ko.md), artifacts/rounded-gradient-2026-11-05/verification.json, image-comparison-final.json, integrated-native-run1~3/result.json, source-hashes.json, preservation-audit.json. 직전247소스 중232동일·의도한15개 변경·누락0이며 기존 실행 파일을 보존했다.
+근거: [한영 공통 그라데이션 문서](../../rounded-gradients.ko.md), artifacts/rounded-gradient-2026-11-05/verification.json, image-comparison-final.json, integrated-native-run1~3/result.json, source-hashes.json, preservation-audit.json. 직전247소스 중232동일·의도한15개 변경·누락0이며 기존 실행 파일을 보존했다.
 
 ## Fluent 기본 팩터리·리프 생성 비용
 
@@ -49,7 +49,7 @@ Before/After: 준비 후 .NET10 구성 전용1,024회에서 보존한 이전 del
 
 검증: SDK10.0.301 및 고정 SDK11.0.100-rc.3.26522.148의 전체 관리 회귀 각775건, 집중63건, 생성기35건. 솔루션 Release net8/9/10 경고0·오류0. 고정RC3 Speed/win-x64 NativeAOT 및 .NET10 관리 FBA는 실제 첫 GPU present·exit0. 명령은 `dotnet build Duxel.slnx -c Release`, `dotnet run --project tests/Duxel.Rendering.Tests -c Release -- <결과경로>`, `dotnet run --project tests/Duxel.Generators.Tests -c Release -- <결과경로>`, `./run-fba.ps1 samples/fba/widget_tree_theme_fba.cs -NoCache`이며 고정RC3·관리 실행 옵션은 각 로그와 검증 기록을 따른다.
 
-리스크·남은 범위: Fluent 전체 공식 분모·하위 구성·상태, 모든 비표준 비노출, 전체 룩앤필·접근성·모션·재질, 동일 조건 Private·CPU/GPU 성능, Linux/ARM64·Pi 실측. 카탈로그 버튼 한 항목과 토큰 존재를 전체 지원·시각 일치로 보고하지 않는다. 근거 `artifacts/fluent-components-2026-11-05/`; 상세 [Fluent 전체 전환](fluent2-coverage.ko.md).
+리스크·남은 범위: Fluent 전체 공식 분모·하위 구성·상태, 모든 비표준 비노출, 전체 룩앤필·접근성·모션·재질, 동일 조건 Private·CPU/GPU 성능, Linux/ARM64·Pi 실측. 카탈로그 버튼 한 항목과 토큰 존재를 전체 지원·시각 일치로 보고하지 않는다. 근거 `artifacts/fluent-components-2026-11-05/`; 상세 [Fluent 전체 전환](../../fluent2-coverage.ko.md).
 
 ## 위젯 구조 교정과 구체 구현 연결
 
@@ -75,7 +75,7 @@ Before/After·개선율: 이번 구현 타입 연결의 CPU·Private·FPS 수치
 
 리스크·남은 범위: 이 결과는 앱 FPS·Private 감소·기본 DirectText 전체 구성 개선·Pi 실측이 아니다. DirectText와 비텍스트 paint/컨테이너 레이아웃의 공통 재사용 확장, 원래 고부하 앱의 RC3 비교와 Private·작업 집합·상주량 검증, GPU 기능 호환 및 Linux/ARM64 경로가 남아 있다. 목표는 활성 상태다.
 
-재현과 근거: [공통 계약·상세 기록](widget-cpu-retention.ko.md), `artifacts/widget-retention-2026-11-04/iteration-audit.json`, `text-cpu-final/summary.json`. 기존 소스240개 동일·기존3개 의도한 수정·새 소스2개를 감사했다. 삭제·커밋·푸시하지 않았다.
+재현과 근거: [공통 계약·상세 기록](../../widget-cpu-retention.ko.md), `artifacts/widget-retention-2026-11-04/iteration-audit.json`, `text-cpu-final/summary.json`. 기존 소스240개 동일·기존3개 의도한 수정·새 소스2개를 감사했다. 삭제·커밋·푸시하지 않았다.
 
 
 ## 버튼1만개 공통 입력 ID 재사용
@@ -86,7 +86,7 @@ Before/After·개선율: 이번 구현 타입 연결의 CPU·Private·FPS 수치
 
 회귀: 위젯당 참조 필드24B, 일시 팩터리1,024개98,304→122,880B(+25%). 이전 delegate보다6.25% 적다는 사실로 이번 회귀를 숨기지 않는다. Native CPU EXE+1,024B. DirectText·layout/paint·실제 앱 GPU/메모리·Pi와 이 일시 객체 비용 해결은 남았다. 반사 JSON 기록의 Native 경고를 타입 DTO+소스 생성 컨텍스트로 해결한 뒤 측정했다. 원본/초기 후보/경고 산출물은 보존했다.
 
-근거·명령: [한영 상세](widget-scale.ko.md), artifacts/widget-scale-2026-11-05/comparison-final.json, final-measurement-runs.jsonl, baseline-src, full-final-net10. 실행은 각 고정 Native CPU EXE에 `<result.json> --widgets`를 전달한다. 앱 FPS·Pi 실측·전체 목표 완료가 아니다.
+근거·명령: [한영 상세](../../widget-scale.ko.md), artifacts/widget-scale-2026-11-05/comparison-final.json, final-measurement-runs.jsonl, baseline-src, full-final-net10. 실행은 각 고정 Native CPU EXE에 `<result.json> --widgets`를 전달한다. 앱 FPS·Pi 실측·전체 목표 완료가 아니다.
 
 ## ID 저장소 지연 생성과 할당 회귀 수정
 
@@ -106,7 +106,7 @@ Before/After·개선율: 이번 구현 타입 연결의 CPU·Private·FPS 수치
 
 할당: .NET10 실제 이전 매개변수 캡처 본문의 구성1,024회114,688→90,112B(-21.43%). 처음 상수 람다를 쓴 잘못된 비교는 실제 본문 fixture로 수정했다. 이 수치는 CPU 프레임·Private·NativeAOT 개선 증거가 아니다. 이전 프로토타입과 최종 바인딩 실행 파일을 별도로 보존했다.
 
-남은 범위·근거: 공식 Text의 전체 글꼴·장식·크기·프리셋·의미 정보·화면 일치, 공통 DirectText/layout/paint 재사용과 전체 성능·메모리·Pi 검증은 미완료다. [한영 Text 기록](fluent2-text.ko.md), artifacts/fluent-text-2026-11-05/verification.json, source-hashes.json, native-final-run.json을 따른다.
+남은 범위·근거: 공식 Text의 전체 글꼴·장식·크기·프리셋·의미 정보·화면 일치, 공통 DirectText/layout/paint 재사용과 전체 성능·메모리·Pi 검증은 미완료다. [한영 Text 기록](../../fluent2-text.ko.md), artifacts/fluent-text-2026-11-05/verification.json, source-hashes.json, native-final-run.json을 따른다.
 
 ## 실제 글꼴·기준선과 명명된 프리셋17종
 
@@ -116,7 +116,7 @@ Before/After·개선율: 이번 구현 타입 연결의 CPU·Private·FPS 수치
 
 Before/After·개선율: 이전 명명된 프리셋0→17종의 실제 기본 표현 연결이며, 전체 속도·Private 개선율은 미측정이다. 이번 단계에서 동일 조건 성능 재측정이 필요할 만큼 엔진 최적화를 주장하지 않는다. 여러 줄 substring·기존 글꼴 face 수명·한국어 Semibold 차이·기본 Text 전환·장식/정렬/절단·UIA·공식 시각 일치가 남았다. 과거 GPU 실패와 ID 캐시 상주 비용도 미해결이다.
 
-명령·근거: [한영 타이포그래피 기록](fluent2-typography.ko.md), artifacts/fluent-typography-2026-11-05/verification.json, native-gallery-run.json, image-comparison.json, source-hashes.json. 고정 게시물은 native-gallery-rc3/net11.0-windows7.0/widget_tree_theme_fba.exe에 --typography를 전달한다. 모든 기존 미커밋 변경과 비교 실행 파일을 보존했다.
+명령·근거: [한영 타이포그래피 기록](../../fluent2-typography.ko.md), artifacts/fluent-typography-2026-11-05/verification.json, native-gallery-run.json, image-comparison.json, source-hashes.json. 고정 게시물은 native-gallery-rc3/net11.0-windows7.0/widget_tree_theme_fba.exe에 --typography를 전달한다. 모든 기존 미커밋 변경과 비교 실행 파일을 보존했다.
 
 ## 공통 키보드 입력·포커스와 불필요한 프레임 요청 수정
 
@@ -128,7 +128,7 @@ Before/After·개선율: 이전 명명된 프리셋0→17종의 실제 기본 �
 
 Before/After·개선율: 입력/수명 기능의 추가 검증이며 동일 조건 성능 비교는 미실행이다. 탭 순서 참조·두 배열의 상주 비용이 추가되고 큰 용량은120프레임 후 축소된다. Private/작업집합·전체 CPU 영향과 기존 회귀는 다음 측정에서 확인해야 한다. 사용자 ERD 창은 이전 게시물로 보존하며 이 실행을 최종 성능 근거로 세지 않는다.
 
-명령·근거: [한영 키보드 기록](widget-keyboard.ko.md)의 관리/Native 소비 검사 명령, artifacts/widget-keyboard-2026-11-05/verification.json, controls-native-rc3.json, idle-before.stderr.log, image-comparison.json, preservation-audit.json. 기존 목표와 미커밋 변경을 유지한다.
+명령·근거: [한영 키보드 기록](../../widget-keyboard.ko.md)의 관리/Native 소비 검사 명령, artifacts/widget-keyboard-2026-11-05/verification.json, controls-native-rc3.json, idle-before.stderr.log, image-comparison.json, preservation-audit.json. 기존 목표와 미커밋 변경을 유지한다.
 
 ## ProgressBar의 소스·표현 컴파일 연결과 가시 애니메이션
 
@@ -138,7 +138,7 @@ Before/After·개선율: 입력/수명 기능의 추가 검증이며 동일 조�
 
 Before/After·개선율: 새 기능/소비 경로 검증이며 동일 조건 속도·할당·Private 개선율은 미측정이다. 별도 영구 애니메이션 캐시/구독은 추가하지 않았으나 전체 앱 비용을0이라고 주장하지 않는다. 직전232소스 동일·의도한9개 변경과 새 소스를 기록했다. 기존 메모리 비용과 RC3 전체 GPU 실패는 미해결이다.
 
-근거·명령: [한영 ProgressBar 기록](fluent2-progress.ko.md), artifacts/fluent-progress-2026-11-05/verification.json, controls-native-rc3.json, image-comparison.json, official-source-hashes.json. 기존 FBA의 --progress 모드를 사용한다. 새 Native 갤러리는 게시만 확인했고 사용자 ERD 실행을 종료하거나 대체하지 않았다.
+근거·명령: [한영 ProgressBar 기록](../../fluent2-progress.ko.md), artifacts/fluent-progress-2026-11-05/verification.json, controls-native-rc3.json, image-comparison.json, official-source-hashes.json. 기존 FBA의 --progress 모드를 사용한다. 새 Native 갤러리는 게시만 확인했고 사용자 ERD 실행을 종료하거나 대체하지 않았다.
 
 ## ProgressBar 전환의 정적 동작 선택·소유 상태
 
@@ -148,7 +148,7 @@ Before/After·개선율: 새 기능/소비 경로 검증이며 동일 조건 속
 
 Before/After·비용: 동일 Parent 정체성1,024개 구성에서106,496→131,072B(+24,576B, +23.08%, 개당24B)를 관리/Native 모두 기록했다. 필요한 전환 상태의 추가 비용이며 전체 Private나 성능 개선으로 세지 않는다. 속도 비교는 미측정이다. CSS 반전 단축·곡선 마스크·공식 전체 적합성과 기존 공통 엔진/메모리 목표는 남아 있다.
 
-근거: artifacts/fluent-progress-motion-2026-11-05/verification.json, controls-verified-native-rc3.json, image-comparison-final.json, source-hashes.json과 [한영 상세](fluent2-progress.ko.md). 현재 갤러리 게시물에 --progress를 전달하면 된다. 실행 중인 사용자 ERD는 교체하지 않았다.
+근거: artifacts/fluent-progress-motion-2026-11-05/verification.json, controls-verified-native-rc3.json, image-comparison-final.json, source-hashes.json과 [한영 상세](../../fluent2-progress.ko.md). 현재 갤러리 게시물에 --progress를 전달하면 된다. 실행 중인 사용자 ERD는 교체하지 않았다.
 
 
 ## 연속 크기 변경의 GPU·표시 자원 수명
@@ -166,14 +166,14 @@ MSAA4 타깃은 크기 변경 중 충분한 용량을 재사용한다. 새 용�
 
 ## DirectText 공통 CPU·메모리 및 입자 정밀도 검증
 
-[DirectText 집중 최적화](directtext-layout.ko.md), [입자 접촉 판정 수정](particle-contact-precision.ko.md). 제품 셰이더 반영 후.NET10 전체1035개와 고정RC3 Native 입자19개 통과. 텍스트 CPU/Private 수치는 전체 앱 완료를 뜻하지 않는다. 전체 목표·크기 변경 실제 체감 검증은 계속 진행한다.
+[DirectText 집중 최적화](../../directtext-layout.ko.md), [입자 접촉 판정 수정](../../particle-contact-precision.ko.md). 제품 셰이더 반영 후.NET10 전체1035개와 고정RC3 Native 입자19개 통과. 텍스트 CPU/Private 수치는 전체 앱 완료를 뜻하지 않는다. 전체 목표·크기 변경 실제 체감 검증은 계속 진행한다.
 
 
 ## 실제 외곽 크기 변경 회귀 수정
 
-[WM_SIZE와 프레임 제출 동기화](windows-resize-coherence.ko.md).371139A9는 사용자 확인 실패, DCA37C18은 ‘검정 영역 없이 빠르고 자연스러움’ 확인. 단순 대기 복구 대신 확정 크기·WSI 동기 메시지 처리·종료 취소를 결합했다. 자동 제출 순서 검사에서 no-wait 대조군 실패. 정량 input-to-photon 또는 WinUI 속도 동등성은 측정하지 않았다. Native 입력 한 차례 시간 초과는 추가 통과와 구분해 미확정으로 남긴다.
+[WM_SIZE와 프레임 제출 동기화](../../windows-resize-coherence.ko.md).371139A9는 사용자 확인 실패, DCA37C18은 ‘검정 영역 없이 빠르고 자연스러움’ 확인. 단순 대기 복구 대신 확정 크기·WSI 동기 메시지 처리·종료 취소를 결합했다. 자동 제출 순서 검사에서 no-wait 대조군 실패. 정량 input-to-photon 또는 WinUI 속도 동등성은 측정하지 않았다. Native 입력 한 차례 시간 초과는 추가 통과와 구분해 미확정으로 남긴다.
 
 
 ## Badge·CounterBadge 공통 구현
 
-[동작·표현·생성 경로와 검증](fluent2-badge.ko.md). 동작별 값 형식 상태로 정적 배지의 불필요한 숫자 캐시를 제거하고99+ 유지 시 재포맷하지 않는다. dot은 폰트 측정 없이 공통 벡터 기하로 그린다. .NET10 전체1095/집중49, 고정RC3 Native243×EXT/core, 기존/현재 GPU 이미지 동치와 실제 --badge 게시물 첫 프레임·exit0 확인. 공식 화면/UIA/RTL 및 전체 컴포넌트 목표 미완료. 새 앱 전체 Private/FPS 개선율을 측정했다고 주장하지 않는다.
+[동작·표현·생성 경로와 검증](../../fluent2-badge.ko.md). 동작별 값 형식 상태로 정적 배지의 불필요한 숫자 캐시를 제거하고99+ 유지 시 재포맷하지 않는다. dot은 폰트 측정 없이 공통 벡터 기하로 그린다. .NET10 전체1095/집중49, 고정RC3 Native243×EXT/core, 기존/현재 GPU 이미지 동치와 실제 --badge 게시물 첫 프레임·exit0 확인. 공식 화면/UIA/RTL 및 전체 컴포넌트 목표 미완료. 새 앱 전체 Private/FPS 개선율을 측정했다고 주장하지 않는다.

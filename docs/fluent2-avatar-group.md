@@ -26,7 +26,7 @@ Accessibility exposes a passive named group and individually named Images. Only 
 
 Measurement, partition results, labels and icon descriptors are retained; requested frames still process input and painting. No periodic frames or XML reparsing are added. A shared owner releases popup context and scroll references; Breadcrumb now uses that owner too. No time or memory improvement percentage was measured.
 
-Run `./run-gallery.ps1` → **아바타 그룹**; use the header overflow menu if the tab is hidden. Change layout, size, inline count and direction, then activate the count button or pie. The sample combines images, Korean initials and SVG icons, retaining settings and the selected name across tabs.
+Run `./run-gallery.ps1` → **AvatarGroup**; use the header overflow menu if the tab is hidden. Change layout, size, inline count and direction, then activate the count button or pie. The sample combines images, Korean initials and SVG icons, retaining settings and the selected name across tabs.
 
 Evidence: `artifacts/avatar-group-implementation-2026-11-12/verification.json`. Complete official states/colors, forced colors, Tooltips, dynamic item replacement, fixed RC3 NativeAOT, original performance and device gates remain open. Factory connectivity does not establish complete Fluent conformance.
 

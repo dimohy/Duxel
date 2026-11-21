@@ -24,7 +24,7 @@ Default icons are Fluent icon-font regular/filled glyphs. Hover and open states 
 
 The button follows the last text line and flows to the next line when necessary. Native parents clip allocated children, so the CSS negative margins become internal text insets of2/2/1px. Relative icon/text alignment is preserved while the full target remains inside its allocation. Explicit ancestor clips and width/height constraints still apply.
 
-Run `./run-gallery.ps1` and select **추가 정보**. Change size/text, focus the input through its label, use the popover command, Tab/Escape and page round trips. Unchanged replay schedules no periodic frames.
+Run `./run-gallery.ps1` and select **InfoLabel**. Change size/text, focus the input through its label, use the popover command, Tab/Escape and page round trips. Unchanged replay schedules no periodic frames.
 
 References: [official usage](https://fluent2.microsoft.design/components/web/react/core/infolabel/usage/), [pinned InfoButton styles](https://github.com/microsoft/fluentui/blob/8830c10bfb2f4c1bdd540287b09713b9679cd1ad/packages/react-components/react-infolabel/library/src/components/InfoButton/useInfoButtonStyles.styles.ts).
 

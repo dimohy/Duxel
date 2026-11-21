@@ -2,7 +2,7 @@
 
 [한국어](fluent2-accordion.ko.md)
 
-Run `./run-gallery.ps1` and select **접기·펼치기** (use the tab overflow menu when necessary). Open the first item, edit its note, collapse it and visit another tab; the same content widget and value remain. Controls switch multiple open items, last-item collapse, chevron position and four header sizes. The third header demonstrates disabled behavior.
+Run `./run-gallery.ps1` and select **Accordion** (use the tab overflow menu when necessary). Open the first item, edit its note, collapse it and visit another tab; the same content widget and value remain. Controls switch multiple open items, last-item collapse, chevron position and four header sizes. The third header demonstrates disabled behavior.
 
 ```csharp
 using System.Collections.Immutable;

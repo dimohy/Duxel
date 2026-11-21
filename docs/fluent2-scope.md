@@ -5,7 +5,7 @@
 2026-11-13 [List](fluent2-list.md): generated Fluent.List connects plain/single/multiple selection to Observer.59 factories,35/55 official top-level names connected,20 missing. Complete conformance remains open.
 
 
-2026-11-13 [Popover triggers](fluent2-popover.md): one Click/Hover/Context mode, 500ms close scheduling/cancellation and rejection quiescence, virtual point placement, Menu/Shift+F10. Observer → Popover → 팝업 열기 방식.
+2026-11-13 [Popover triggers](fluent2-popover.md): one Click/Hover/Context mode, 500ms close scheduling/cancellation and rejection quiescence, virtual point placement, Menu/Shift+F10. Observer → Popover → Change popover trigger.
 
 
 2026-11-13 [Popover arrows and surface cache](fluent2-popover.md): WithArrow, 6/8px geometry, combined shadows, integral-movement/scale caching and pointer occlusion reuse the existing Tooltip raster. Full conformance remains incomplete.
@@ -30,7 +30,7 @@ Additional qualification: fixed stale popup publication stamps causing an access
 
 2026-11-13 Dropdown: qualified single/multiple selection, persistent options, actual Windows Selection/Value, shared popup scrolling and name search. Catalog49 exposed/26of55 connected/29 missing. CPU58/8844, GPU9/1646, native7/109 and two real rendering sessions(each614frames/4checks) passed. [API and open scope](fluent2-dropdown.md), `artifacts/dropdown-2026-11-13/verification.json`. Editable Combobox, complete conformance, fixed RC3 NativeAOT and performance remain open.
 
-2026-11-13 AvatarGroup: Spread/Stack/Pie, exact overflow counts, member menus, RTL and image/Korean/SVG content reuse existing Avatar, clip and Menu machinery. Run `./run-gallery.ps1` → **아바타 그룹**. [API and limits](fluent2-avatar-group.md). Catalog48 exposed/25of55 top-level connected/30 missing; complete conformance remains open.
+2026-11-13 AvatarGroup: Spread/Stack/Pie, exact overflow counts, member menus, RTL and image/Korean/SVG content reuse existing Avatar, clip and Menu machinery. Run `./run-gallery.ps1` → **AvatarGroup**. [API and limits](fluent2-avatar-group.md). Catalog48 exposed/25of55 top-level connected/30 missing; complete conformance remains open.
 
 2026-11-12 Breadcrumb qualification:47 exposed factories,24of55 official top-level groups connected,31 missing. Connectivity does not establish complete behavior, appearance or accessibility conformance. [Breadcrumb API and open scope](fluent2-breadcrumb.md), `artifacts/breadcrumb-2026-11-12/verification.json`. Default icons use the Fluent font; optional SVG icons reuse the existing cache path.
 
@@ -66,6 +66,6 @@ Earlier Tooltip factory checkpoint evidence: `artifacts/fluent-tooltip-factory-2
 
 Current TabList catalog: `artifacts/fluent-tablist-2026-11-11/final-catalog-only/result.json`. See the [TabList foundation](fluent2-tablist.md).
 
-2026-11-13 [Popover entry motion](fluent2-popover.md): default400ms group fade, directional10px slide, immediate exit, same-time caching, live input/IME/accessibility geometry and finite scheduling. Observer → Popover → 팝업 모션. Full conformance remains incomplete.
+2026-11-13 [Popover entry motion](fluent2-popover.md): default400ms group fade, directional10px slide, immediate exit, same-time caching, live input/IME/accessibility geometry and finite scheduling. Observer → Popover → Toggle popover animation. Full conformance remains incomplete.
 
 2026-11-13 [Popover paint extent](fluent2-popover.md): custom PaintBounds, viewport default, bounds/budget checks and wide-decoration sample preserve Fluent pixels. A native Popover failure remains under diagnosis; full conformance is incomplete.

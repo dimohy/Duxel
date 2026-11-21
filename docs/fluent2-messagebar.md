@@ -73,7 +73,7 @@ State commits only after successful accessibility publication. Aborted frames do
 
 ## Running and evidence
 
-Run `./run-gallery.ps1` on Windows or `./artifacts/linux-present-path-2026-11-15/run-observer.ps1` for the qualified Linux executable, then select **메시지 표시**. Controls expose width, multiline, shape, direction, dismissal/reopening, reduced motion and automatic/polite announcements. **키를 가진 동적 메시지** exposes insertion, removal and reordering. The page scrolls and controls wrap at constrained sizes; announcement diagnostics refresh once after a real request.
+Run `./run-gallery.ps1` on Windows or `./artifacts/linux-present-path-2026-11-15/run-observer.ps1` for the qualified Linux executable, then select **MessageBar**. Controls expose width, multiline, shape, direction, dismissal/reopening, reduced motion and automatic/polite announcements. **Dynamic messages with keys** exposes insertion, removal and reordering. The page scrolls and controls wrap at constrained sizes; announcement diagnostics refresh once after a real request.
 
 See the [plan](../artifacts/fluent-messagebar-2026-11-15/plan.json) and [native evidence](../artifacts/fluent-messagebar-2026-11-15/native-messagebar-verification.json). Windows managed .NET 11 UIA passed 8 client/1 host checks; pinned Linux RC3 NativeAOT AT-SPI passed 9 client/3 host checks. Actual title target identity, Korean/emoji payloads, mount/priority/edit/disable/enable/remount/quiet behavior were verified. Existing explicit announcements passed focused regressions on both platforms; Linux registry retirement was verified. Native frame acknowledgements use a finite test clock, not a throughput benchmark.
 

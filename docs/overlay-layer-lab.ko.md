@@ -37,7 +37,7 @@ var counters = ui.GetOverlayLayerMetrics(); // Current UI frame, completed scope
 
 CPU 전용 비교는 `tests/Duxel.Performance.Bench`의 `--overlays` 옵션이다. GPU·표시 시간을 포함하지 않는다. 프레임당 할당, GC 후 관리 메모리, 프로세스 private bytes는 서로 다른 지표다. 관리 메모리 검사는 시간 측정 루프 밖에서 실행한다.
 
-실측과 중간 성능 하락 기록은 [2026-11-04 최적화 기록](optimization-session-2026-11-04.md)을 참고한다. 픽셀·수명 검사는 `OverlayPresentationTests`에서 실행한다.
+실측과 중간 성능 하락 기록은 [2026-11-04 최적화 기록](archive/performance/optimization-session-2026-11-04.md)을 참고한다. 픽셀·수명 검사는 `OverlayPresentationTests`에서 실행한다.
 
 팝업 겹침 검사는 이전 프레임의 고정된 사각형 목록과 현재 마우스 위치를 프레임당 한 번 계산해 모든 위젯이 공유한다. 기존의 팝업 수×위젯 수 반복을 팝업 수+위젯 수로 줄이며, 높은 팝업이 아래 위젯의 입력을 차단하는 규칙을 유지한다. 계속 바뀌는 팝업은 공통 동적 전송 버퍼를 사용해 매번 GPU 상주 버퍼를 할당하지 않고, 다시 안정되면 상주 재사용으로 돌아간다.
 
@@ -83,7 +83,7 @@ $measure = @{
 
 직전 배포 7B1A3575와 128개 팝업·견본256개를 같은 설정으로 각3회 교대 측정했다. Private 중앙값은 정지197.94→196.09MiB(-1.84MiB), 하나 이동200.95→197.63MiB(-3.32MiB)로 실행 범위가 겹치지 않았다. FPS는 정지380.90→394.97, 이동382.40→393.96이지만 범위가 겹쳐 이 추가 수정의 성능 향상을 확정하지 않는다. 큰 부하 Private가 처음 구현보다 높다는 한계는 남아 있다. 이 단계 근거는 `scratch-memory-comparison/summary.json`과 `scratch-memory-results.json`이다.
 
-.NET10·11 각각510개 검사, 직전 이미지155개 동치와 Release 경고·오류0개를 확인했다. 현재 EXE SHA256은 `40C51851C9469653BA40DBCD9B8FE36ABD2D3411538E1A5FC8090AB4DD786B92`다. 삭제가 거부된 임시 산출물은 [직접 정리 안내](rejected-build-cleanup.ko.md)에 대상과 방법을 남겼으며, 실제 삭제는 수행하지 않았다.
+.NET10·11 각각510개 검사, 직전 이미지155개 동치와 Release 경고·오류0개를 확인했다. 현재 EXE SHA256은 `40C51851C9469653BA40DBCD9B8FE36ABD2D3411538E1A5FC8090AB4DD786B92`다. 삭제가 거부된 임시 산출물은 직접 정리 안내에 대상과 방법을 남겼으며, 실제 삭제는 수행하지 않았다.
 
 현재40C51851과 최초 기준 실행 파일을 다시 직접 비교한 최종128개 부하 결과도 보존했다(`completion-native-original/summary.json`). 정지366.35→374.07FPS(+2.11%), 이동363.44→381.36FPS(+4.93%)로 실행 범위가 겹치지 않았다. 작업 집합은 정지135.71→122.69MiB, 이동135.79→123.42MiB로 감소했다. Private 중앙값은 정지185.93→196.02MiB, 이동186.67→198.04MiB여서 모든 메모리 지표가 처음보다 낮은 것은 아니다. 최종 원본에는 p95·p99·느린1%와 각 실행 범위도 함께 보존했다.
 

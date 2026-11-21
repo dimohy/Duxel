@@ -76,7 +76,7 @@ Pop-Location
 
 현재 첫 120개 문서의 1회 Managed 실행에서는 전체 재생성 약 14 FPS와 변경 갱신 약 1,877 FPS가 관측됐다. 변경 갱신의 카메라 이동 중 장면 재생성은 0회였고, 유휴 상태의 워밍업 이후 프레임은 0회였다. 이는 초기 확인값이다. 최신 수정본의 반복 측정 및 1,200개 문서 검증을 완료한 수치로 확대하지 않는다.
 
-일반 2D UI의 기존 네이티브 비트맵 텍스트 경로는 유지한다. `IPlatformVectorTextBackend`가 3D 메시 생성 능력을 제공하고, `UiRendererFrameMetrics`는 마지막 제출 프레임의 계측값을 전달한다. 자세한 범위와 미완료 항목은 [세션 기록](optimization-session-2026-11-03.md)을 참고한다.
+일반 2D UI의 기존 네이티브 비트맵 텍스트 경로는 유지한다. `IPlatformVectorTextBackend`가 3D 메시 생성 능력을 제공하고, `UiRendererFrameMetrics`는 마지막 제출 프레임의 계측값을 전달한다. 자세한 범위와 미완료 항목은 [세션 기록](archive/performance/optimization-session-2026-11-03.md)을 참고한다.
 
 
 

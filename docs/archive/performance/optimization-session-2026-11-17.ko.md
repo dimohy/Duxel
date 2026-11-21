@@ -33,7 +33,7 @@
 - 검증: 공개한 Graphics.Tests의 gallery-samples-only 실행 measurement1074·measurement1078과 observer-only 실행 gallery1075에서 실제 SynchronizeSource 두 개를 1000회 워밍업 후 1000회씩 호출했습니다. 측정 호출은 실행당 2000회입니다.
 - 환경: SDK11.0.100·runtime11.0.0, 관리 Release 실행. 강제 GC 없이 현재 스레드의 관리 할당을 측정했습니다. 서로 다른 프로세스 세 번 모두 0바이트입니다. 이전 페이지에는 예제별 소스 동기화 경로가 없어 Before·개선율은 N/A입니다. 전체 프레임·FPS·CPU 시간·RSS·VRAM·AOT·Linux 속도 개선을 주장하지 않습니다.
 - 한계: 전체 UI 프레임, 값 변경 후 포맷, 다른 스레드와 전체 메모리는 포함하지 않습니다. 기존 측정·입력·메뉴·탭·Tooltip 계약과 실제 GPU 동작을 함께 검사했습니다.
-- 근거: [결과](../artifacts/gallery-measurement-source-2026-11-17/result.json), [할당](../artifacts/gallery-measurement-source-2026-11-17/allocation.json).
+- 근거: [결과](../../../artifacts/gallery-measurement-source-2026-11-17/result.json), [할당](../../../artifacts/gallery-measurement-source-2026-11-17/allocation.json).
 
 | 항목 | Before | After | 개선율 |
 | --- | --- | --- | --- |

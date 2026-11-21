@@ -2,7 +2,7 @@
 
 Last synced: 2026-11-11
 
-Tooltip과 팝업이 공유하는 래스터화 코드는 한 번의 호출에서 두 그림자가 임시 배열의 영역 네 개를 함께 쓰도록 합니다. 호출이 끝나면 배열을 계속 보관하지 않으며, 출력 텍스처는 별도 배열을 소유합니다. Linux .NET 11 NativeAOT 혼합 크기 검사에서 기존 래스터화 코드보다 임시 할당이 약 29% 줄었고, 측정한 프로세스 메모리 최고치도 낮았습니다. [메모리 비교](optimization-session-2026-11-19.md#popup-scratch-retention-controls)
+Tooltip과 팝업이 공유하는 래스터화 코드는 한 번의 호출에서 두 그림자가 임시 배열의 영역 네 개를 함께 쓰도록 합니다. 호출이 끝나면 배열을 계속 보관하지 않으며, 출력 텍스처는 별도 배열을 소유합니다. Linux .NET 11 NativeAOT 혼합 크기 검사에서 기존 래스터화 코드보다 임시 할당이 약 29% 줄었고, 측정한 프로세스 메모리 최고치도 낮았습니다. [메모리 비교](archive/performance/optimization-session-2026-11-19.md#popup-scratch-retention-controls)
 
 현재 기반: [컴파일된 Tooltip 대상](tooltip-targets.ko.md)은 실제 대상 조합, 지연 소유권, 지연 팝업 그리기와 Escape 소비를 구현하고 CPU·GPU·샘플 근거를 갖췄다. [대상 접근성](tooltip-accessibility.ko.md)은 설명·레이블·비노출 관계와 실제 Windows UIA 속성을 검증했다. 생성된 Fluent 팩터리는 기존 대상 동작과 Fluent 표현에 연결된다. 텍스트 속성 변경과 종료 알림도 외부 클라이언트로 검증했으며 공식 전체 준수 검증은 남아 있다. [표면 노드·열림/닫힘](tooltip-events.ko.md)은 실제 외부 UIA로 검증했다. 아래 목록은 전체 Fluent 검증 범위다.
 
