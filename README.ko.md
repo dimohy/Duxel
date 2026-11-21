@@ -4,7 +4,7 @@
   <img src="logo.svg" alt="Duxel 로고" width="440" />
 </p>
 
-Duxel은 네이티브 데스크톱 애플리케이션을 만드는 .NET UI 라이브러리입니다. C# 위젯을 조합해 Fluent 2 인터페이스를 만들거나, 즉시 모드 API로 직접 그리고 입력을 처리할 수 있습니다. 한 Vulkan 창에서 두 방식을 함께 쓸 수도 있습니다.
+Duxel은 **즉시 모드(immediate mode)**와 **리테인드 모드(retained mode)**를 모두 지원하는 .NET 데스크톱 UI 라이브러리입니다. 같은 Vulkan 창에서 직접 그리는 화면과 C# 위젯을 함께 사용할 수 있습니다. 위젯에는 내장 Fluent 2 테마를 적용하거나 직접 디자인을 만들 수 있습니다.
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://licenses.nuget.org/MIT)
@@ -13,7 +13,7 @@ Duxel은 네이티브 데스크톱 애플리케이션을 만드는 .NET UI 라�
 
 ## 인터페이스 만들기
 
-- **위젯 방식**은 `Dux`로 레이아웃을 구성하고 `Fluent`로 컨트롤을 배치합니다. 애플리케이션 상태는 `UiState<T>`와 바인딩으로 연결합니다. C#과 선언형 `.ui` 파일을 사용할 수 있습니다.
+- **리테인드 모드**는 프레임이 바뀌어도 위젯 트리를 유지합니다. `Dux`로 레이아웃을 만들고 `Fluent`로 컨트롤을 배치합니다. 애플리케이션 상태는 `UiState<T>`와 바인딩으로 연결합니다. C#과 선언형 `.ui` 파일을 사용할 수 있습니다.
 - **즉시 모드**는 `UiScreen.Render`와 `UiImmediateContext`로 그리기, 맞춤 입력 처리, 진단 화면을 구현합니다. 같은 애플리케이션에 즉시 모드 콘텐츠와 위젯을 배치할 수 있습니다.
 - **Fluent 2 테마**는 Windows 11의 밝은·어두운 디자인을 제공합니다. `UiTheme`, `UiDesignTokens`, `IUiDesign`으로 색상과 서체, 컨트롤 크기나 간격을 바꿀 수 있습니다. 테마 공급자를 사용하면 특정 영역에만 다른 테마를 적용할 수 있습니다.
 

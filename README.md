@@ -4,7 +4,7 @@
   <img src="logo.svg" alt="Duxel logo" width="440" />
 </p>
 
-Duxel is a .NET UI library for native desktop applications. Build interfaces with composable C# widgets and a Fluent 2 design, draw and handle input directly with the immediate-mode API, or use both in the same Vulkan-rendered window.
+Duxel is a .NET desktop UI library that supports both **immediate-mode** and **retained-mode** UI. Combine direct drawing and composable C# widgets in the same Vulkan-rendered window. Style widgets with built-in Fluent 2 themes or create your own.
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://licenses.nuget.org/MIT)
@@ -13,7 +13,7 @@ Duxel is a .NET UI library for native desktop applications. Build interfaces wit
 
 ## Build an interface
 
-- **Composable widgets** use `Dux` for layout, `Fluent` for controls, and `UiState<T>` and bindings for application state. Use C# or the declarative `.ui` format.
+- **Retained mode** keeps a widget tree across frames. Use `Dux` for layout and `Fluent` for controls. Connect application state through `UiState<T>` and bindings. Use C# or the declarative `.ui` format.
 - **Immediate mode** uses `UiScreen.Render` and `UiImmediateContext` for drawing, custom interaction, and diagnostics. An application can host widgets and immediate content together.
 - **Fluent 2 themes** include light and dark Windows 11 designs. Customize colors, typography, and control geometry through `UiTheme`, `UiDesignTokens`, and `IUiDesign`. Use a provider to theme one region independently.
 

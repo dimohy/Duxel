@@ -8,14 +8,14 @@ Give your assistant the target platform, the screen you want, and the reference 
 
 | Task | Reference |
 | --- | --- |
-| Forms, tools, dashboards, dialogs | [Declarative C# dashboard](../samples/fba/declarative_dashboard_fba.cs), [Gallery](gallery-navigation.md) |
-| Custom drawing and direct input | [Immediate-mode examples](../samples/fba/all_features.cs), [Architecture](design.md) |
+| Retained mode for forms, tools, dashboards and dialogs | [Declarative C# dashboard](../samples/fba/declarative_dashboard_fba.cs), [Gallery](gallery-navigation.md) |
+| Immediate mode for custom drawing and direct input | [Immediate-mode examples](../samples/fba/all_features.cs), [Architecture](design.md) |
 | Layout, theming and custom widgets | [Containers](widget-containers.md), [Theme provider](fluent2-provider.md), [Custom widgets](custom-widgets.md) |
 | Load or generate a declarative UI | [`.ui` syntax and source generation](ui-dsl.md) |
 
 ## Starting prompt
 
-> Build a Windows desktop screen in a single C# file using this Duxel checkout. Use `Dux` for layout, `Fluent` for controls, and `UiState<T>` with bindings for user-editable values. Keep the widget tree alive across frames. Use the built-in light design and show how to switch to dark. Use an immediate-mode view if the screen needs custom drawing. Check the public signatures or copy the matching Gallery sample before writing code. Compile and run the result. Verify the main click or keyboard interaction and tell me which command you ran.
+> Build a Windows desktop screen in a single C# file using this Duxel checkout. Use `Dux` for layout, `Fluent` for controls, and `UiState<T>` with bindings for user-editable values. Use retained mode and keep the widget tree alive across frames. Use the built-in light design and show how to switch to dark. Use an immediate-mode view if the screen needs custom drawing. Check the public signatures or copy the matching Gallery sample before writing code. Compile and run the result. Verify the main click or keyboard interaction and tell me which command you ran.
 
 ## Check the result
 
