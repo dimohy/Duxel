@@ -120,6 +120,7 @@ internal static class GalleryLocalizationTests
 
             VerifyDedicatedExamples(Render, tree, services, check);
             VerifyLoadingExamples(Render, tree, services, check);
+            VerifyNoticeExamples(Render, tree, services, check);
 
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
             File.WriteAllText(path, "en");
@@ -432,6 +433,91 @@ internal static class GalleryLocalizationTests
                     && (element.Node.Role is UiAccessibilityRole.Button or UiAccessibilityRole.Switch));
                 if (tree.RequestAction(target.Node.Id, target.RuntimeId, action, wait : false) != UiAccessibilityResult.Success)
                     throw new InvalidOperationException("Loading example action was rejected: " + name);
+                render(screen);
+                render(screen);
+            }
+
+            bool HasSource(string expectedLabel, string expectedState) => Nodes().Any(node => node.Role == UiAccessibilityRole.Edit
+                && node.Name == GalleryText.Get("C# example source") && node.Value is { } code
+                && code.Contains(expectedLabel, StringComparison.Ordinal) && code.Contains(expectedState, StringComparison.Ordinal)
+                && !code.Contains("GalleryText.", StringComparison.Ordinal)
+                && (language == GalleryLanguage.Korean || !ContainsHangul(code)));
+        }
+    }
+
+    private static void VerifyNoticeExamples(Action<UiScreen> render, UiAccessibilityTree tree, ObserverServices services,
+        Action<bool, string> check)
+    {
+        foreach (var (language, showToast, toastTitle, dismiss, showHud, hudTitle, addMessage, error) in new[]
+        {
+            (GalleryLanguage.English, "Show toast with an action", "Confirmation required", "Dismiss toast",
+                "Show success", "Save complete", "Add message", "Error"),
+            (GalleryLanguage.Korean, "동작 있는 알림 표시", "확인할 알림이 있습니다", "알림 닫기",
+                "성공 표시", "저장 완료", "메시지 추가", "오류"),
+            (GalleryLanguage.Japanese, "操作付きの通知を表示", "確認が必要です", "通知を閉じる",
+                "成功を表示", "保存完了", "メッセージを追加", "エラー"),
+            (GalleryLanguage.SimplifiedChinese, "显示带操作的通知", "需要确认", "关闭通知",
+                "显示成功", "保存完成", "添加消息", "错误")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            using var screen = new ObserverScreen(services, language : language);
+            RenderPage("Toast");
+            Invoke(GalleryText.Get("Toggle reduced motion for toasts"));
+            Invoke(showToast);
+            var notice = Nodes().Single(node => node.Role == UiAccessibilityRole.Group && node.Name == toastTitle);
+            check(HasSource(GallerySample.String(toastTitle), "Fluent.Toaster")
+                && HasSource(GallerySample.String(dismiss), "CloseLabel"),
+                "Toast copies the localized live title and dismiss button in " + language);
+            Invoke(dismiss, notice.Id);
+            check(!Nodes().Any(node => node.Role == UiAccessibilityRole.Group && node.Name == toastTitle),
+                "The localized toast dismiss button closes the actual toast in " + language);
+
+            RenderPage("HeadsUpDisplay");
+            Invoke(showHud);
+            check(Nodes().Any(node => node.Name == hudTitle) && HasSource(GallerySample.String(hudTitle), "UiHeadsUpDisplayKind.Success"),
+                "HeadsUpDisplay shows the localized success status and copies the same label in " + language);
+
+            RenderPage("메시지 표시");
+            Invoke(addMessage);
+            check(HasSource(GallerySample.String(error), "UiMessageBarIntent.Error")
+                && HasSource(GallerySample.String("message-1"), GallerySample.String(addMessage)),
+                "MessageBar copies localized intent titles and the inserted stable key in " + language);
+
+            UiAccessibilityNode[] Nodes() => tree.CaptureSnapshot().Elements.Select(element => element.Node).ToArray();
+            void RenderPage(string page)
+            {
+                screen.SelectedPage = page;
+                render(screen);
+                render(screen);
+            }
+
+            void Invoke(string name, string? parent = null)
+            {
+                UiAccessibilityElement Find() => tree.CaptureSnapshot().Elements.Single(element =>
+                    element.Node.Name == name && element.Node.Role == UiAccessibilityRole.Button
+                    && (parent is null || HasAncestor(element.Node, parent)));
+                bool HasAncestor(UiAccessibilityNode node, string ancestor)
+                {
+                    while (node.ParentId.Length != 0 && tree.TryGet(node.ParentId, out var owner))
+                    {
+                        if (owner.Node.Id == ancestor) return true;
+                        node = owner.Node;
+                    }
+                    return false;
+                }
+
+                var target = Find();
+                if (target.Node.Offscreen)
+                {
+                    if (tree.RequestAction(target.Node.Id, target.RuntimeId, UiAccessibilityAction.ScrollIntoView, wait : false) != UiAccessibilityResult.Success)
+                        throw new InvalidOperationException("Notice example cannot be revealed: " + name);
+                    render(screen);
+                    render(screen);
+                    target = Find();
+                }
+                if (tree.RequestAction(target.Node.Id, target.RuntimeId, UiAccessibilityAction.Invoke, wait : false) != UiAccessibilityResult.Success)
+                    throw new InvalidOperationException("Notice example action was rejected: " + name);
                 render(screen);
                 render(screen);
             }
