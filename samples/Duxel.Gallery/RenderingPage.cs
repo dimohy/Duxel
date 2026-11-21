@@ -24,7 +24,7 @@ internal sealed class RenderingPage : IObserverPage, IObserverNaturalPage, IGall
     internal UiRect BackdropPreviewBounds { get; private set; }
     public IReadOnlyList<IGallerySample> Samples { get; }
     public string Title => "렌더링";
-    public string Description => "바뀌지 않는 도형을 재사용하는 방식과 기본 도형 그리기, 독립적인 3D 투영을 살펴보세요. 원형으로 자르거나 모서리를 둥글게 자른 모습, 투명한 간격도 비교할 수 있습니다. 애니메이션을 켰을 때만 프레임을 요청합니다.";
+    public string Description => "Explore cached geometry, basic shapes and standalone 3D projection. Compare circular and rounded clipping and transparent spacing. Animation requests frames while enabled.";
     UiWidget IObserverNaturalPage.MeasureRoot => _root;
 
     internal RenderingPage()

@@ -38,7 +38,7 @@ internal sealed class LegacyPage : IObserverPage, IGallerySourcePage
     internal IReadOnlyCollection<SourceBlock> CreatedSources => _sources.Values;
     public LegacyPage() => _screen.ShowSource = RenderSource;
     public string Title => "기존 API";
-    public string Description => "기존 종합 샘플의 실제 Hello / Immediate 탭을 같은 창에서 조작합니다.";
+    public string Description => "Use the Hello and Immediate tabs from the original combined sample in one window.";
     public void Render(UiImmediateContext ui)
     {
         _visible.Clear();
@@ -58,7 +58,7 @@ internal sealed class LegacyPage : IObserverPage, IGallerySourcePage
     internal sealed class SourceBlock(ImmediateSampleSection section) : IGallerySample, IDisposable
     {
         internal string Title => section.Title;
-        internal UiCodeView Code { get; } = new(section.Source, new(MaximumVisibleLines : null, ShowToolbar : false));
+        internal UiCodeView Code { get; } = new(section.Source, new(MaximumVisibleLines : null, ShowToolbar : false), GalleryText.CodeViewLabels());
         public string Source => Code.Code;
         public UiCodeViewMetrics Metrics => Code.Metrics;
         public void SynchronizeSource() => Code.Code = section.Source;

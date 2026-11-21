@@ -6,7 +6,7 @@ internal sealed class ShimmerPage : IObserverPage, IObserverNaturalPage, IGaller
 {
     private Content? _content;
     public string Title => "Shimmer";
-    public string Description => "불러오는 동안 자리 표시자를 보여주고, 준비가 끝나면 실제 내용으로 부드럽게 바꿉니다.";
+    public string Description => "Show a placeholder while loading and transition to the actual content when it is ready.";
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new()).Samples;
     UiWidget IObserverNaturalPage.MeasureRoot => (_content ??= new()).Root;
     public void Render(UiImmediateContext ui) => (_content ??= new()).Root.Render(ui);

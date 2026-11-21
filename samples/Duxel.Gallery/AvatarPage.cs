@@ -8,7 +8,7 @@ internal sealed class AvatarPage(ObserverServices services) : IObserverPage, IOb
     private Content? _content;
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new(services)).Samples;
     public string Title => "아바타";
-    public string Description => "사진이나 이니셜, 아이콘으로 아바타를 표시합니다. 원형과 사각형, 14가지 크기를 비교해 보세요.";
+    public string Description => "Display an avatar with a photo, initials, or icon. Compare round and square shapes in 14 sizes.";
     internal UiFluentAvatar? Preview => _content?.Preview;
     internal UiFluentPresenceBadge? Presence => _content?.Presence;
     UiWidget IObserverNaturalPage.MeasureRoot => (_content ??= new(services)).Root;

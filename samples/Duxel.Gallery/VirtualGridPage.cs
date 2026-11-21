@@ -7,7 +7,7 @@ internal sealed class VirtualGridPage : IObserverPage, IObserverNaturalPage
 {
     private readonly UiWidget _root;
     public string Title => "가상 그리드";
-    public string Description => "행과 열이 각각 10억 개인 그리드에서 화면 주변의 셀만 만듭니다. 셀에 입력한 내용은 이동 후에도 남습니다.";
+    public string Description => "The grid creates only cells near the viewport in a billion rows and columns. Cell edits survive scrolling away.";
     UiWidget IObserverNaturalPage.MeasureRoot => _root;
 
     internal VirtualGridPage()

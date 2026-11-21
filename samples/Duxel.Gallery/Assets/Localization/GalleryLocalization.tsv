@@ -1,438 +1,505 @@
-# Korean source	English	Japanese	Simplified Chinese
-설정	Settings	設定	设置
-갤러리 언어	Gallery language	ギャラリーの言語	图库语言
-언어 옵션 열기	Show languages	言語の選択肢を開く	显示语言选项
-적용	Apply	適用	应用
-취소	Cancel	キャンセル	取消
-닫기	Close	閉じる	关闭
-언어 설정을 저장할 수 없습니다.	Could not save the language setting.	言語設定を保存できませんでした。	无法保存语言设置。
-밝은 테마	Light theme	ライトテーマ	浅色主题
-이벤트 대기 모드	Event-driven mode	イベント駆動モード	事件驱动模式
-갱신 영역 강조	Highlight repaints	再描画領域を強調	突出显示重绘区域
-갤러리 상태와 옵션	Gallery status and options	ギャラリーの状態とオプション	图库状态和选项
-FPS 측정 중	Measuring FPS	FPS を測定中	正在测量帧率
-P : 표시 횟수 / D : 그리기 호출 / U : 전송량 / C : 캐시 재사용	P : presentations / D : draw calls / U : uploaded bytes / C : cache hits	P : 表示回数 / D : 描画回数 / U : 転送量 / C : キャッシュヒット	P：呈现次数 / D：绘制调用 / U：上传量 / C：缓存命中
-갤러리 탐색	Gallery navigation	ギャラリーのナビゲーション	图库导航
-탐색 메뉴 닫기	Close navigation	ナビゲーションを閉じる	关闭导航
-탐색 메뉴 열기	Open navigation	ナビゲーションを開く	打开导航
-페이지를 선택하세요	Select a page	ページを選択	选择页面
-갤러리 페이지	Gallery page	ギャラリーページ	图库页面
-Duxel 로고	Duxel logo	Duxel ロゴ	Duxel 标志
-Duxel 갤러리	Duxel Gallery	Duxel ギャラリー	Duxel 图库
-컨트롤 · 그래픽 · 문서	Controls · Graphics · Documents	UI・グラフィック・文書	控件 · 图形 · 文档
-시작	Get started	はじめに	入门
-소개와 컨트롤 모음	Introduction and examples	紹介とコントロールの例	介绍和控件示例
-개요	Overview	概要	概览
-Fluent 컨트롤	Fluent controls	Fluent コントロール	Fluent 控件
-Duxel 위젯	Duxel widgets	Duxel ウィジェット	Duxel 小部件
-통합·개발 도구	Integration and development	統合と開発	集成与开发
-동작과 탐색	Actions and navigation	操作とナビゲーション	操作与导航
-명령·링크·화면 이동	Commands, links, and page navigation	コマンド、リンク、画面遷移	命令、链接和页面导航
-입력과 선택	Input and selection	入力と選択	输入与选择
-입력·검증·선택·값 조절	Input, validation, selection, and value adjustment	入力、検証、選択、値の調整	输入、验证、选择与数值调节
-콘텐츠와 목록	Content and lists	コンテンツと一覧	内容与列表
-콘텐츠 배치·목록·계층	Content layout, lists, and hierarchies	コンテンツ配置、一覧、階層	内容布局、列表和层级
-사용자 정보	People	ユーザー情報	人员信息
-아바타·프로필·배지	Avatars, profiles, and badges	アバター、プロフィール、バッジ	头像、个人资料和徽章
-알림과 진행 상태	Alerts and progress	通知と進行状況	通知与进度
-공지·팝업·도움말·로딩	Notices, pop-ups, help, and loading	お知らせ、ポップアップ、ヘルプ、読み込み	公告、弹出窗口、帮助和加载
-텍스트와 그래픽	Text and graphics	テキストとグラフィック	文本与图形
-글꼴·아이콘·이미지	Fonts, icons, and images	フォント、アイコン、画像	字体、图标和图像
-테마와 설정	Themes and settings	テーマと設定	主题与设置
-디자인과 공통 설정	Design and shared settings	デザインと共通設定	设计和通用设置
-날짜와 시간	Date and time	日付と時刻	日期与时间
-날짜·시각·기간·공휴일	Dates, times, ranges, and holidays	日付、時刻、期間、祝日	日期、时间、范围和节假日
-공휴일 제공자	Holiday provider	祝日データプロバイダー	节假日提供程序
-문서와 그래픽	Documents and graphics	ドキュメントとグラフィック	文档与图形
-Duxel의 문서·벡터 위젯	Duxel document and vector widgets	Duxel のドキュメントとベクターウィジェット	Duxel 的文档和矢量小部件
-레이아웃과 입력	Layout and input	レイアウトと入力	布局与输入
-배치·변환·가상화·입력 조합	Layout, transforms, virtualization, and input	配置、変換、仮想化、入力	布局、变换、虚拟化和输入
-컨테이너	Containers	コンテナー	容器
-레이아웃 예제	Layout examples	レイアウトの例	布局示例
-위젯 배치	Widget layout	ウィジェットの配置	小部件布局
-위젯 변환	Widget transforms	ウィジェットの変換	小部件变换
-가상 목록	Virtual list	仮想リスト	虚拟列表
-가상 그리드	Virtual grid	仮想グリッド	虚拟网格
-팝업 입력	Pop-up input	ポップアップ入力	弹出窗口输入
-시스템 연동	System integration	システム連携	系统集成
-운영체제의 파일과 폴더 선택	Operating system file and folder selection	OS のファイルとフォルダー選択	操作系统文件和文件夹选择
-파일 대화 상자	File dialogs	ファイルダイアログ	文件对话框
-통합 예제	Combined examples	組み合わせの例	组合示例
-여러 구성요소를 함께 사용하는 예제	Examples that combine several components	複数のコンポーネントを組み合わせた例	组合使用多个组件的示例
-{0} · 종합	{0} · combined	{0}・組み合わせ	{0} · 组合
-개발 도구	Development tools	開発ツール	开发工具
-그리기·캐시·갱신 범위	Drawing, caching, and repaint regions	描画、キャッシュ、再描画領域	绘制、缓存和重绘区域
-갱신 관찰	Repaint observer	再描画の観察	重绘监视器
-측정 재사용	Measurement reuse	計測結果の再利用	测量结果复用
-렌더링	Rendering	レンダリング	渲染
-관찰 범위	Implementation scope	実装範囲	实现范围
-구현 범위	Implementation scope	実装範囲	实现范围
-기존 API	Legacy API	従来の API	旧版 API
-미구현	Planned	実装予定	计划实现
+# English source	Korean	Japanese	Simplified Chinese
+Settings	설정	設定	设置
+Gallery language	갤러리 언어	ギャラリーの言語	图库语言
+Show languages	언어 옵션 열기	言語の選択肢を開く	显示语言选项
+Apply	적용	適用	应用
+Cancel	취소	キャンセル	取消
+Close	닫기	閉じる	关闭
+Could not save the language setting.	언어 설정을 저장할 수 없습니다.	言語設定を保存できませんでした。	无法保存语言设置。
+Light theme	밝은 테마	ライトテーマ	浅色主题
+Event-driven mode	이벤트 대기 모드	イベント駆動モード	事件驱动模式
+Highlight repaints	갱신 영역 강조	再描画領域を強調	突出显示重绘区域
+Gallery status and options	갤러리 상태와 옵션	ギャラリーの状態とオプション	图库状态和选项
+Measuring FPS	FPS 측정 중	FPS を測定中	正在测量帧率
+P : presentations / D : draw calls / U : uploaded bytes / C : cache hits	P : 표시 횟수 / D : 그리기 호출 / U : 전송량 / C : 캐시 재사용	P : 表示回数 / D : 描画回数 / U : 転送量 / C : キャッシュヒット	P：呈现次数 / D：绘制调用 / U：上传量 / C：缓存命中
+Gallery navigation	갤러리 탐색	ギャラリーのナビゲーション	图库导航
+Close navigation	탐색 메뉴 닫기	ナビゲーションを閉じる	关闭导航
+Open navigation	탐색 메뉴 열기	ナビゲーションを開く	打开导航
+Select a page	페이지를 선택하세요	ページを選択	选择页面
+Gallery page	갤러리 페이지	ギャラリーページ	图库页面
+Duxel logo	Duxel 로고	Duxel ロゴ	Duxel 标志
+Duxel Gallery	Duxel 갤러리	Duxel ギャラリー	Duxel 图库
+Controls · Graphics · Documents	컨트롤 · 그래픽 · 문서	UI・グラフィック・文書	控件 · 图形 · 文档
+Get started	시작	はじめに	入门
+Introduction and examples	소개와 컨트롤 모음	紹介とコントロールの例	介绍和控件示例
+Overview	개요	概要	概览
+Fluent controls	Fluent 컨트롤	Fluent コントロール	Fluent 控件
+Duxel widgets	Duxel 위젯	Duxel ウィジェット	Duxel 小部件
+Integration and development	통합·개발 도구	統合と開発	集成与开发
+Actions and navigation	동작과 탐색	操作とナビゲーション	操作与导航
+Commands, links, and page navigation	명령·링크·화면 이동	コマンド、リンク、画面遷移	命令、链接和页面导航
+Input and selection	입력과 선택	入力と選択	输入与选择
+Input, validation, selection, and value adjustment	입력·검증·선택·값 조절	入力、検証、選択、値の調整	输入、验证、选择与数值调节
+Content and lists	콘텐츠와 목록	コンテンツと一覧	内容与列表
+Content layout, lists, and hierarchies	콘텐츠 배치·목록·계층	コンテンツ配置、一覧、階層	内容布局、列表和层级
+People	사용자 정보	ユーザー情報	人员信息
+Avatars, profiles, and badges	아바타·프로필·배지	アバター、プロフィール、バッジ	头像、个人资料和徽章
+Alerts and progress	알림과 진행 상태	通知と進行状況	通知与进度
+Notices, pop-ups, help, and loading	공지·팝업·도움말·로딩	お知らせ、ポップアップ、ヘルプ、読み込み	公告、弹出窗口、帮助和加载
+Text and graphics	텍스트와 그래픽	テキストとグラフィック	文本与图形
+Fonts, icons, and images	글꼴·아이콘·이미지	フォント、アイコン、画像	字体、图标和图像
+Themes and settings	테마와 설정	テーマと設定	主题与设置
+Design and shared settings	디자인과 공통 설정	デザインと共通設定	设计和通用设置
+Date and time	날짜와 시간	日付と時刻	日期与时间
+Dates, times, ranges, and holidays	날짜·시각·기간·공휴일	日付、時刻、期間、祝日	日期、时间、范围和节假日
+Holiday provider	공휴일 제공자	祝日データプロバイダー	节假日提供程序
+Documents and graphics	문서와 그래픽	ドキュメントとグラフィック	文档与图形
+Duxel document and vector widgets	Duxel의 문서·벡터 위젯	Duxel のドキュメントとベクターウィジェット	Duxel 的文档和矢量小部件
+Layout and input	레이아웃과 입력	レイアウトと入力	布局与输入
+Layout, transforms, virtualization, and input	배치·변환·가상화·입력 조합	配置、変換、仮想化、入力	布局、变换、虚拟化和输入
+Containers	컨테이너	コンテナー	容器
+Layout examples	레이아웃 예제	レイアウトの例	布局示例
+Widget layout	위젯 배치	ウィジェットの配置	小部件布局
+Widget transforms	위젯 변환	ウィジェットの変換	小部件变换
+Virtual list	가상 목록	仮想リスト	虚拟列表
+Virtual grid	가상 그리드	仮想グリッド	虚拟网格
+Pop-up input	팝업 입력	ポップアップ入力	弹出窗口输入
+System integration	시스템 연동	システム連携	系统集成
+Operating system file and folder selection	운영체제의 파일과 폴더 선택	OS のファイルとフォルダー選択	操作系统文件和文件夹选择
+File dialogs	파일 대화 상자	ファイルダイアログ	文件对话框
+Combined examples	통합 예제	組み合わせの例	组合示例
+Examples that combine several components	여러 구성요소를 함께 사용하는 예제	複数のコンポーネントを組み合わせた例	组合使用多个组件的示例
+{0} · combined	{0} · 종합	{0}・組み合わせ	{0} · 组合
+Development tools	개발 도구	開発ツール	开发工具
+Drawing, caching, and repaint regions	그리기·캐시·갱신 범위	描画、キャッシュ、再描画領域	绘制、缓存和重绘区域
+Repaint observer	갱신 관찰	再描画の観察	重绘监视器
+Measurement reuse	측정 재사용	計測結果の再利用	测量结果复用
+Rendering	렌더링	レンダリング	渲染
+Implementation scope	관찰 범위	実装範囲	实现范围
+Implemented features	구현 범위	実装範囲	实现范围
+Legacy API	기존 API	従来の API	旧版 API
+Planned	미구현	実装予定	计划实现
 NEW	NEW	新着	新增
-{0}개 구성요소	{0} components	コンポーネント {0} 件	{0} 个组件
-미구현 {0}	{0} planned	実装予定 {0} 件	{0} 个计划实现
-구성요소 {0}	{0} components	コンポーネント {0} 件	{0} 个组件
-사용 가능한 예제 {0}	{0} available examples	利用可能な例 {0} 件	{0} 个可用示例
-어디서 시작할까요?	Where to start	どこから始めますか	从哪里开始
-버튼과 링크, 메뉴로 화면의 흐름을 만드세요.	Build navigation with buttons, links, and menus.	ボタン、リンク、メニューで画面遷移を作ります。	使用按钮、链接和菜单构建导航。
-Button 살펴보기	Explore Button	Button を試す	查看 Button
-텍스트 입력과 선택, 값 조절을 직접 확인하세요.	Try entering text, making selections, and adjusting values.	テキスト入力、選択、値の調整を試せます。	试用文本输入、选择和数值调节。
-Input 살펴보기	Explore Input	Input を試す	查看 Input
-카드와 목록으로 내용을 정리하세요.	Organize content with cards and lists.	カードと一覧でコンテンツを整理します。	使用卡片和列表整理内容。
-Card 살펴보기	Explore Card	Card を試す	查看 Card
-알림과 도움말	Alerts and help	通知とヘルプ	通知与帮助
-대화 상자와 보조 패널의 동작을 확인하세요.	Try dialogs and auxiliary panels.	ダイアログと補助パネルを試せます。	试用对话框和辅助面板。
-Dialog 살펴보기	Explore Dialog	Dialog を試す	查看 Dialog
-벡터 그래픽	Vector graphics	ベクターグラフィック	矢量图形
-SVG 확대·회전과 다양한 그래픽 표현을 살펴보세요.	Zoom and rotate SVGs and explore graphics examples.	SVG の拡大、回転とさまざまな描画例を確認できます。	缩放和旋转 SVG，并浏览图形示例。
-SVG 살펴보기	Explore SVG	SVG を試す	查看 SVG
-문서와 편집	Documents and editing	ドキュメントと編集	文档与编辑
-Markdown 문서를 읽고 실시간으로 편집해 보세요.	Read and edit Markdown documents in real time.	Markdown ドキュメントを読み、その場で編集できます。	实时阅读和编辑 Markdown 文档。
-Markdown 살펴보기	Explore Markdown	Markdown を試す	查看 Markdown
-예제에서 코드까지	From example to code	例からコードへ	从示例到代码
-왼쪽 메뉴에서 구성요소를 선택하세요. 예제 바로 아래에서 C# 소스를 읽고 복사할 수 있습니다.	Choose a component from the navigation. Read or copy the C# source just below its example.	ナビゲーションからコンポーネントを選択してください。例のすぐ下で C# ソースを読んだりコピーしたりできます。	在导航中选择组件。可以在示例下方阅读或复制 C# 源代码。
-미구현 배지가 붙은 항목에서는 앞으로 추가될 구성요소를 확인할 수 있습니다.	A Planned badge identifies components scheduled for future implementation.	「実装予定」バッジは今後追加するコンポーネントを示します。	“计划实现”徽章标明将在未来添加的组件。
-Fluent 구성요소 구현 예정	Planned Fluent component	実装予定の Fluent コンポーネント	计划实现的 Fluent 组件
-아직 미구현됨	Planned component	実装予定	计划实现
-이 구성요소의 API와 동작 예제는 아직 제공되지 않습니다.	The API and interactive examples for this component are planned.	このコンポーネントの API と操作例は今後追加する予定です。	此组件的 API 和交互示例计划在以后提供。
-구현 예정 목록은 공식 구성요소 카탈로그를 기준으로 만듭니다. 구현한 예제도 디자인과 접근성이 올바른지는 계속 검증하고 있습니다.	The official component catalog guides this roadmap. Design and accessibility checks continue for the available examples.	公式コンポーネントカタログをもとに計画しています。提供済みの例もデザインとアクセシビリティの検証を続けています。	此计划以官方组件目录为依据。现有示例的设计和无障碍检查仍在继续。
-Duxel의 컨트롤과 그래픽, 문서 기능을 직접 조작하고 C# 예제 코드를 살펴보세요.	Try Duxel controls, graphics, and document features, and inspect the C# examples.	Duxel のコントロール、グラフィック、ドキュメント機能を試し、C# のサンプルコードを確認できます。	试用 Duxel 的控件、图形和文档功能，并查看 C# 示例代码。
-실제 컨트롤을 조작하고 탭 이동 후 값이 유지되는지 확인하세요.	Try the live controls and check that values survive switching tabs.	実際にコントロールを操作し、タブを切り替えても値が保持されることを確認できます。	试用交互控件，检查切换选项卡后是否保留值。
-평가	Rating	評価	评分
-타이포그래피	Typography	タイポグラフィ	排版
-입력·IME	Input and IME	入力と IME	输入与输入法
-배치 통합	Layout integration	レイアウトの組み合わせ	布局集成
-접기·펼치기	Accordion	アコーディオン	手风琴
-스켈레톤	Skeleton	スケルトン	骨架屏
-한글 입력, 선택, 검증, 줄바꿈과 되돌리기를 확인합니다.	Try Korean input, selection, validation, line wrapping, and undo.	韓国語入力、選択、検証、折り返し、元に戻す操作を試せます。	试用韩语输入、选择、验证、换行和撤销。
-Fluent의 글자 크기와 굵기, 문단 방향을 비교해 보세요.	Compare Fluent text sizes, weights, and paragraph directions.	Fluent の文字サイズ、太さ、段落の方向を比較できます。	比较 Fluent 的字号、字重和段落方向。
-운영체제의 대화 상자에서 파일이나 폴더를 선택하고 반환된 경로를 확인합니다.	Choose a file or folder and inspect the returned path.	ファイルやフォルダーを選択し、返されたパスを確認できます。	选择文件或文件夹并查看返回的路径。
-열 제목을 눌러 정렬합니다. 파일 이름을 두 번 누르거나 F2를 눌러 편집하고, Enter로 저장하거나 Esc로 취소합니다.	Select a column header to sort. Double-click a file name or press F2 to edit, then press Enter to save or Esc to cancel.	列見出しを選択して並べ替えます。ファイル名をダブルクリックするか F2 で編集し、Enter で保存、Esc でキャンセルします。	选择列标题进行排序。双击文件名或按 F2 编辑，按 Enter 保存或按 Esc 取消。
-같은 문서를 미리 보거나 직접 편집해 보세요. 편집 중인 블록에만 #이나 ** 같은 마크다운 기호가 나타납니다.	Preview or edit the same document. Markdown markers such as # and ** appear in the block being edited.	同じドキュメントをプレビューまたは編集できます。# や ** などの Markdown 記号は編集中のブロックに表示されます。	预览或编辑同一文档。# 和 ** 等 Markdown 标记仅在正在编辑的块中显示。
-SVG는 처음 한 번 해석한 뒤 Vulkan GPU에서 그립니다. 확대하거나 회전할 때는 이미 준비한 경로를 재사용합니다.	The gallery parses SVG once and renders it with Vulkan. Zooming and rotation reuse the prepared paths.	SVG を一度解析し、Vulkan で描画します。拡大や回転では準備済みのパスを再利用します。	SVG 只解析一次，并由 Vulkan 渲染。缩放或旋转时复用已准备好的路径。
-10억 개 항목 가운데 화면에 필요한 항목만 생성합니다. 세로와 가로를 전환해도 편집한 값은 항목의 키에 연결해 보관합니다.	The list creates only visible items from a billion entries. Edited values stay tied to their item keys when the orientation changes.	10 億件のうち画面に必要な項目だけを作成します。表示方向を変えても編集した値は項目のキーにひも付きます。	十亿条数据中只创建屏幕需要的项。切换方向后，编辑的值仍按项的键保存。
-행과 열이 각각 10억 개인 그리드에서 화면 주변의 셀만 만듭니다. 셀에 입력한 내용은 이동 후에도 남습니다.	The grid creates only cells near the viewport in a billion rows and columns. Cell edits survive scrolling away.	行と列がそれぞれ 10 億あるグリッドで、表示領域付近のセルだけを作成します。移動してもセルへの入力は保持されます。	网格有十亿行和十亿列，只创建视口附近的单元格。滚动到其他位置后仍保留已编辑的内容。
-파일 열기	Open files	ファイルを開く	打开文件
-다른 이름으로 저장	Save as	名前を付けて保存	另存为
-폴더 선택	Select folder	フォルダーを選択	选择文件夹
-모든 파일	All files	すべてのファイル	所有文件
-텍스트 파일	Text files	テキストファイル	文本文件
-열 파일 선택	Choose files to open	開くファイルを選択	选择要打开的文件
-저장할 파일 선택	Choose where to save	保存先を選択	选择保存位置
-메모.txt	Notes.txt	メモ.txt	笔记.txt
-실행 중인 앱에서 운영체제 대화 상자를 열 수 있습니다.	Open the system dialog from the running app.	実行中のアプリからシステムのダイアログを開けます。	从正在运行的应用打开系统对话框。
-선택한 경로가 여기에 표시됩니다.	Selected paths will appear here.	選択したパスがここに表示されます。	选定的路径将在此显示。
-대화 상자가 열려 있습니다.	The dialog is open.	ダイアログが開いています。	对话框已打开。
-대화 상자를 열 수 없습니다.	Could not open the dialog.	ダイアログを開けませんでした。	无法打开对话框。
-선택을 취소했습니다.	Selection canceled.	選択をキャンセルしました。	已取消选择。
-외 {0:N0}개	And {0:N0} more	ほか {0:N0} 件	以及其他 {0:N0} 项
-이전·다음 버튼, 페이지 이름, 미리보기로 슬라이드를 넘겨 보세요.	Browse slides using the previous and next buttons, page names, or thumbnails.	前へ・次へボタン、ページ名、サムネイルでスライドを切り替えられます。	使用上一张和下一张按钮、页面名称或缩略图浏览幻灯片。
-항목을 하나 또는 여러 개 선택해 보세요. 키보드로 선택하거나 목록을 닫은 상태에서 운영체제의 접근성 기능으로 선택할 수 있습니다.	Try selecting one or more items by keyboard or through the operating system's accessibility features while the list is closed.	項目を一つまたは複数選択できます。キーボードや、リストを閉じた状態で OS のアクセシビリティ機能を使って選択できます。	试用单选或多选。可以用键盘选择，也可以在列表关闭时使用操作系统的无障碍功能。
-카드 안에 글자를 입력하거나 버튼을 눌러 보세요. 크기와 모양을 바꾸고 Enter·Tab·Escape로 이동할 수 있습니다.	Type or press a button inside a card. Change its size and appearance, and navigate with Enter, Tab, and Escape.	カード内で文字を入力したりボタンを押したりできます。大きさと外観を変更し、Enter、Tab、Escape で操作できます。	在卡片中输入文字或按下按钮。更改大小和外观，并使用 Enter、Tab 和 Escape 导航。
-안내 카드를 닫거나 좌우로 밀면 아래 내용이 위로 올라옵니다.	Dismiss or swipe the suggestion card to move the content below it upward.	案内カードを閉じるか左右にスワイプすると、下のコンテンツが上に移動します。	关闭或左右滑动提示卡片，下方内容会上移。
-영역마다 테마, 글꼴, 배치 방향을 지정하고 자식 위젯이 어떻게 따르는지 살펴보세요.	Set the theme, font, and layout direction per region and see how child widgets inherit them.	領域ごとにテーマ、フォント、配置方向を設定し、子ウィジェットへの継承を確認できます。	为每个区域设置主题、字体和布局方向，观察子部件如何继承。
-시작일과 종료일을 선택하세요. 문화권을 바꿔도 선택한 날짜의 의미는 유지됩니다.	Choose start and end dates. Changing the locale preserves the dates you selected.	開始日と終了日を選択してください。ロケールを変えても選択した日付は保持されます。	选择开始日期和结束日期。更改区域设置后仍保留所选日期。
-현재 문서까지 이어지는 경로를 표시합니다. 숨겨진 상위 경로를 열거나 키보드로 이동하고, 긴 이름 위에 마우스를 올려 전체 이름을 확인해 보세요.	Show the path to the current document. Open hidden ancestors, navigate with the keyboard, or hover over a truncated name to see it in full.	現在のドキュメントまでのパスを表示します。非表示の親項目を開いたり、キーボードで移動したり、長い名前にポインターを合わせて全文を確認したりできます。	显示通往当前文档的路径。展开隐藏的上级路径、用键盘导航，或将鼠标悬停在截断的名称上查看全名。
-화면 가장자리에서 패널을 열어 보세요. 패널 위치와 모달 여부를 바꾸거나 내용을 스크롤하고, 닫은 뒤 포커스가 돌아오는지 확인할 수 있습니다.	Open a panel at the edge of the screen. Change its position or modal behavior, scroll its content, and check that focus returns on close.	画面の端からパネルを開きます。位置やモーダル設定を変更したり、内容をスクロールしたり、閉じた後にフォーカスが戻ることを確認したりできます。	从屏幕边缘打开面板。更改位置或模态行为、滚动内容，并检查关闭后是否恢复焦点。
-사진이나 이니셜, 아이콘으로 아바타를 표시합니다. 원형과 사각형, 14가지 크기를 비교해 보세요.	Display an avatar with a photo, initials, or icon. Compare round and square shapes in 14 sizes.	写真、イニシャル、アイコンでアバターを表示します。円形と四角形を 14 種類のサイズで比較できます。	使用照片、姓名首字母或图标显示头像。比较圆形和方形的 14 种尺寸。
-모달 창과 비모달 창, 경고 창을 비교해 보세요. 내용을 입력하고 창을 닫으면 원래 버튼으로 포커스가 돌아갑니다.	Compare modal, nonmodal, and alert dialogs. Enter some text and close the dialog to return focus to its opening button.	モーダル、非モーダル、警告ダイアログを比較できます。入力して閉じると、開くときに使ったボタンにフォーカスが戻ります。	比较模态、非模态和警告对话框。输入内容后关闭对话框，焦点将返回打开它的按钮。
-아바타를 나란히 놓거나 겹쳐 보고, 하나의 원으로 묶어 보세요. 숨겨진 구성원 목록도 열어 볼 수 있습니다.	Place avatars side by side, overlap them, or group them in a single circle. Open the list to see hidden members.	アバターを並べたり重ねたり、一つの円にまとめたりできます。リストを開くと非表示のメンバーを確認できます。	并排显示头像、将头像重叠，或归入一个圆形。打开列表可查看隐藏成员。
-Fluent iOS의 활동 표시입니다. 정지 시 표시 여부와 상관없이 배치 공간은 유지됩니다.	Try the Fluent iOS activity indicator. The layout keeps its space when it stops, whether the indicator remains visible or is hidden.	Fluent iOS のアクティビティインジケーターです。停止時の表示にかかわらず、配置領域が保持されます。	试用 Fluent iOS 活动指示器。停止后无论是否显示，都会保留布局空间。
-라벨 옆 정보 버튼을 누르거나 키보드로 열어 보세요. 한글 접근성 이름과 라벨에 연결된 입력창도 확인할 수 있습니다.	Open the info button next to the label with a pointer or keyboard. Inspect a Korean accessibility name and the associated input field.	ラベルの横にある情報ボタンをポインターまたはキーボードで開きます。韓国語のアクセシブル名と、ラベルに関連付けられた入力欄も確認できます。	用指针或键盘打开标签旁的信息按钮。查看韩语无障碍名称及其关联的输入框。
-공휴일 데이터는 달력과 분리해 받아옵니다. 연결이 끊기면 공휴일 표시만 생략하고 날짜 선택은 계속 동작합니다.	Holiday data loads separately from the calendar. You can still select dates when the holiday source is offline.	祝日データはカレンダーとは別に読み込みます。祝日の取得先に接続できなくても日付を選択できます。	节假日数据独立于日历加载。节假日数据源离线时仍可选择日期。
-작업 상태를 화면 중앙에 표시합니다. 진행 표시는 눌러서 닫고, 성공·실패 표시는 1초 후 닫힙니다.	Show task status at the center of the screen. Press to dismiss progress notifications. Success and failure notifications close after one second.	画面中央にタスクの状態を表示します。進行状況は押して閉じられます。成功と失敗の通知は 1 秒後に閉じます。	在屏幕中央显示任务状态。点击可关闭进度提示，成功和失败提示会在一秒后关闭。
-일반 목록·단일 선택·다중 선택과 행 안의 입력·버튼을 확인합니다.	Try a plain list, single and multiple selection, and inputs and buttons inside rows.	通常のリスト、単一選択、複数選択、行内の入力欄やボタンを試せます。	试用普通列表、单选、多选以及行内输入框和按钮。
-별점을 반 개씩 조절하거나 오른쪽부터 표시해 보세요. 부모 너비가 좁아질 때 줄바꿈되는 모습도 확인할 수 있습니다.	Adjust ratings in half-star steps or display them from the right. Narrow the parent to see how the stars wrap.	星を半分刻みで調整したり、右から表示したりできます。親領域を狭めると折り返し方を確認できます。	以半颗星为单位调整评分，或从右侧开始显示。缩小父容器宽度可查看换行效果。
-자동으로 나타나는 설명과 코드에서 표시 여부를 정하는 설명을 비교해 보세요.	Compare tooltips that open automatically with tooltips controlled by code.	自動的に開くツールチップと、コードで表示を制御するツールチップを比較できます。	比较自动打开的工具提示和由代码控制显示的工具提示。
-컨테이너마다 위젯을 어떻게 배치하는지 비교해 보세요. 배치 옵션을 바꾸거나 안쪽 위젯을 직접 조작할 수 있습니다.	Compare widget placement across containers. Change layouts or interact with the widgets inside them.	コンテナーごとのウィジェット配置を比較できます。配置項目を変更したり、中のウィジェットを操作したりできます。	比较各容器中的小部件布局。更改布局选项或直接操作内部小部件。
-탭·메뉴·넘침 배치를 조합하고 화면 이동 후 상태가 유지되는지 확인합니다.	Combine tabs, menus, and overflow layouts, and check that state survives navigation.	タブ、メニュー、オーバーフローを組み合わせ、画面の移動後も状態が保持されることを確認できます。	组合选项卡、菜单和溢出布局，并检查导航后是否保留状态。
-Accordion을 하나씩 또는 여러 개 열어 보세요. 본문에 입력한 값이 유지되는지 확인하고 키보드와 접근성 기능으로 조작할 수 있습니다.	Open one or several accordion sections. Check that input values persist and try operating the sections with a keyboard or accessibility features.	アコーディオンのセクションを一つまたは複数開けます。入力値の保持と、キーボードやアクセシビリティ機能での操作を確認できます。	打开一个或多个手风琴面板。检查输入值是否保留，并用键盘或无障碍功能操作。
-로딩 중에 표시할 윤곽을 구성해 보세요. 물결과 맥박 애니메이션, 일시 정지와 모션 줄이기를 비교할 수 있습니다.	Build loading placeholders. Compare wave and pulse animations, pause them, and try reduced motion.	読み込み時のプレースホルダーを組み立てます。波とパルスのアニメーション、一時停止、モーション軽減を比較できます。	构建加载占位符。比较波浪和脉冲动画、暂停以及减少动态效果。
-사용할 수 있는 팩터리와 예제가 있는 메뉴, 아직 검증할 부분을 살펴보세요.	Review available factories, example destinations, and areas awaiting verification.	利用可能なファクトリー、例の画面、確認が必要な項目を確認できます。	查看可用工厂、示例页面和尚待验证的部分。
-값·입력은 계속 처리하면서 변하지 않은 배치 측정을 재사용합니다.	Reuse layout measurements that did not change while continuing to handle values and input.	値や入力を処理しながら、変化していない配置の計測結果を再利用します。	在继续处理值和输入的同时复用未变化的布局测量结果。
-그룹 접기·펼치기, 현재 페이지, 키보드 이동과 오른쪽에서 왼쪽 배치를 확인합니다.	Try collapsing groups, selecting a page, keyboard navigation, and right-to-left layout.	グループの開閉、ページ選択、キーボード移動、右から左の配置を試せます。	试用折叠和展开组、页面选择、键盘导航和从右向左的布局。
-기존 종합 샘플의 실제 Hello / Immediate 탭을 같은 창에서 조작합니다.	Use the Hello and Immediate tabs from the original combined sample in one window.	従来の統合サンプルにある Hello と Immediate タブを同じウィンドウで操作できます。	在同一窗口中使用原组合示例的 Hello 和 Immediate 选项卡。
-현재 화면의 제목을 표시하고, 이전 화면으로 돌아가거나 화면 안의 작업을 실행합니다.	Show the current page title, go back, or run an action on the page.	現在の画面名を表示し、前の画面に戻ったり、画面内の操作を実行したりできます。	显示当前页面标题、返回上一页或执行页面内操作。
-팝업 안에 원하는 위젯을 넣을 수 있습니다. 내용을 입력하고 포커스를 옮기거나 팝업을 닫았다 다시 열어 보세요.	Place widgets inside a pop-up. Enter text, move focus, and try closing and reopening the pop-up.	ポップアップ内にウィジェットを配置できます。入力、フォーカス移動、閉じて開き直す操作を試せます。	在弹出窗口中放置小部件。输入文本、移动焦点，或关闭后重新打开弹出窗口。
-비모달 팝업과 키보드 입력을 독점하는 팝업의 이동·실행·닫기를 비교합니다.	Compare navigation, activation, and dismissal in nonmodal popovers and popovers that capture keyboard input.	非モーダルのポップオーバーとキーボード入力を保持するポップオーバーで、移動、実行、閉じる操作を比較できます。	比较非模态弹出窗口和捕获键盘输入的弹出窗口中的导航、激活与关闭操作。
-작업 이름과 설명을 진행 막대와 함께 표시합니다. 진행률을 모를 때는 기다리는 상태를 보여줍니다.	Show a task name and description next to the progress bar. Use an indeterminate indicator when the progress is unknown.	タスク名と説明を進行状況バーと一緒に表示します。進捗率が不明な場合は不定の進行状況を表示します。	将任务名称和说明与进度条一起显示。进度未知时显示不确定进度指示器。
-초록 테두리는 Vulkan이 화면에 실제로 다시 그린 범위를 보여 줍니다.	Green borders show the regions actually repainted by Vulkan.	緑の枠は、Vulkan が実際に再描画した領域を示します。	绿色边框显示 Vulkan 实际重绘的区域。
-검색어를 입력하고 지워 보세요. 읽기 전용으로 바꾸거나 값 변경을 거부하도록 설정할 수 있습니다.	Enter and clear a search query. Try read-only mode or reject changes to the value.	検索語を入力したり消去したりできます。読み取り専用に切り替えたり、値の変更を拒否したりできます。	输入并清除搜索词。试用只读模式，或设置为拒绝更改值。
-여러 항목 중 하나를 선택합니다. 네 가지 스타일을 비교할 수 있으며, 드래그와 휠 스크롤을 확인할 수 있습니다. 숨은 항목이 있는 쪽에만 페이드가 표시됩니다.	Choose one of several items. Compare four styles and try dragging and wheel scrolling. A fade marks sides with hidden items.	複数の項目から一つ選択します。四つのスタイルを比較し、ドラッグとホイールでスクロールできます。非表示の項目がある側にフェードが表示されます。	从多个选项中选择一项。比较四种样式，试用拖动和滚轮滚动。有隐藏项的一侧会显示渐隐效果。
-텍스트 항목 하나를 선택합니다. 닫힌 상태에서도 방향키와 이름 입력으로 값을 바꿀 수 있습니다.	Select one text item. Use arrow keys or type its name to change the selection while the list is closed.	テキスト項目を一つ選択します。リストを閉じた状態でも、方向キーや名前入力で選択を変更できます。	选择一个文本项。列表关闭时也可以用方向键或输入名称来更改选择。
-이름과 최대 네 줄의 정보, 아바타를 함께 표시합니다. 아바타 대신 상태만 표시하는 모습도 비교해 보세요.	Display a name, up to four lines of information, and an avatar. Compare a status-only version in place of the avatar.	名前、最大四行の情報、アバターを表示します。アバターの代わりに状態だけを表示する例とも比較できます。	显示姓名、最多四行信息和头像。比较用状态取代头像的效果。
-불러오는 동안 자리 표시자를 보여주고, 준비가 끝나면 실제 내용으로 부드럽게 바꿉니다.	Show a placeholder while loading and transition to the actual content when it is ready.	読み込み中にプレースホルダーを表示し、準備ができたらコンテンツに滑らかに切り替えます。	加载时显示占位符，内容就绪后平滑切换。
-숫자를 직접 입력하거나 버튼과 키보드로 값을 조절해 보세요. 허용 범위를 바꾸고 증감 버튼을 길게 눌러 볼 수 있습니다.	Type a number or adjust it using the buttons or keyboard. Change the range and try holding the increase or decrease button.	数値を入力するか、ボタンやキーボードで調整できます。範囲を変更し、増減ボタンの長押しも試せます。	直接输入数字，或用按钮和键盘调节。更改范围，并试用长按增减按钮。
-짧은 텍스트를 입력하고, 지우기 버튼과 오류 표시를 확인합니다.	Enter a short value and try the clear button and error display.	短いテキストを入力し、クリアボタンやエラー表示を確認できます。	输入简短文本，试用清除按钮并查看错误提示。
-도구 모음의 가로·세로 배치, 방향키 이동과 토글 상태를 확인합니다.	Try horizontal and vertical toolbars, arrow-key navigation, and toggled states.	ツールバーの横・縦配置、方向キーによる移動、切り替え状態を試せます。	试用工具栏的水平和垂直布局、方向键导航和切换状态。
-독립 알림과 진행 상태를 조작하고 자동 닫힘·일시 정지·키보드 이동을 확인합니다.	Try independent toasts and progress updates, automatic dismissal, pausing, and keyboard navigation.	独立したトーストと進行状況、自動終了、一時停止、キーボード移動を試せます。	试用独立的通知和进度提示、自动关闭、暂停以及键盘导航。
-폴더를 펼치고, 하위 항목을 한꺼번에 선택하거나 행 안의 버튼을 실행해 보세요.	Expand a folder, select its children together, or activate a button within a row.	フォルダーを展開し、子項目をまとめて選択したり、行内のボタンを操作したりできます。	展开文件夹、一次选择其子项，或激活行内按钮。
-위젯에 여백을 주거나 회전·확대해 보세요. 변환한 위젯도 입력을 받으며, 팝업은 회전하지 않고 화면 방향에 맞춰 열립니다.	Add spacing, rotate, or scale a widget. Transformed widgets still accept input, and their pop-ups open aligned with the screen.	余白の追加、回転、拡大を試せます。変換後もウィジェットは入力を受け付け、ポップアップは画面に沿って開きます。	为小部件添加间距、旋转或缩放。变换后仍能接收输入，弹出窗口则沿屏幕方向打开。
-C# 소스	C# source	C# ソース	C# 源代码
-{0}줄	{0} lines	{0} 行	{0} 行
-줄바꿈	Wrap lines	行の折り返し	自动换行
-줄 번호	Line numbers	行番号	行号
-전체 표시	Show all	すべて表示	显示全部
-소스 복사	Copy source	ソースをコピー	复制源代码
-복사됨	Copied	コピーしました	已复制
-C# 예제 소스	C# example source	C# サンプルソース	C# 示例代码
-기능 찾아보기	Feature index	機能一覧	功能索引
-파일과 폴더	Files and folders	ファイルとフォルダー	文件和文件夹
-렌더링과 진단	Rendering and diagnostics	レンダリングと診断	渲染与诊断
-다국어 지원	Localization	多言語対応	本地化
-언어를 바꿔 같은 메시지에 번역과 숫자 서식이 적용되는지 확인하세요.	Switch languages to see the same message translated and its number formatted.	言語を切り替えて、同じメッセージの翻訳と数値の書式を確認できます。	切换语言，查看同一消息的翻译和数字格式。
-예제 언어	Example language	例の言語	示例语言
-예제 {0}개 · 구현 예정 {1}개	{0} examples · {1} planned	例 {0} 件・実装予定 {1} 件	{0} 个示例 · {1} 个计划实现
-예제 이름을 선택하면 해당 페이지가 열립니다.	Select an example to open its page.	例を選択すると、そのページが開きます。	选择示例以打开相应页面。
-{0} · 미구현	{0} · planned	{0}・実装予定	{0} · 计划实现
-Fluent 팩터리	Fluent factories	Fluent ファクトリー	Fluent 工厂
-현재 언어: {0}	Current language: {0}	現在の言語: {0}	当前语言：{0}
-버튼을 눌러 클릭 횟수를 늘려 보세요.	Press the button to increase the click count.	ボタンを押してクリック数を増やせます。	按下按钮增加点击次数。
-카운터 증가	Increase count	カウントを増やす	增加计数
-클릭 횟수 : 	Click count: 	クリック数：	点击次数：
-문서 만들기	Create document	ドキュメントを作成	创建文档
-빈 양식에서 새 문서를 시작합니다.	Start a new document from a blank form.	空のフォームから新しいドキュメントを作成します。	从空白表单创建新文档。
-PNG로 저장	Save as PNG	PNG で保存	另存为 PNG
-다른 형식으로 저장	Save in another format	別の形式で保存	另存为其他格式
-PDF로 저장	Save as PDF	PDF で保存	另存为 PDF
-SVG로 저장	Save as SVG	SVG で保存	另存为 SVG
-일부만 선택된 상태에서 시작하는 체크박스를 눌러 보세요.	Select the checkbox that starts in the mixed state.	一部選択状態のチェックボックスを操作できます。	试用初始状态为部分选中的复选框。
-혼합 상태에서 시작	Start in mixed state	一部選択から開始	从部分选中状态开始
-스위치로 기능을 켜거나 끄고, 아래 코드에 바뀐 값을 확인해 보세요.	Turn the feature on or off and watch the value change in the code below.	機能をオンまたはオフにして、下のコードの値が変わることを確認できます。	打开或关闭该功能，观察下方代码中的值如何变化。
-기능 사용	Enable feature	機能を有効にする	启用功能
-Duxel로 UI 만들기	Build UI with Duxel	Duxel で UI を作る	使用 Duxel 构建界面
-왼쪽 탐색 메뉴·Fluent 표현 비교·컨테이너 넘침	Sidebar navigation, Fluent styles, and container overflow	サイドバー、Fluent スタイルの比較、コンテナーのオーバーフロー	侧栏导航、Fluent 样式对比与容器溢出
-대화 상자	Dialogs	ダイアログ	对话框
-메시지 표시	Message bars	メッセージバー	消息栏
-추가 정보	Information labels	情報ラベル	信息标签
-숫자 입력	Numeric input	数値入力	数字输入
-아바타	Avatars	アバター	头像
-아바타 그룹	Avatar groups	アバターグループ	头像组
-도구 모음	Toolbars	ツールバー	工具栏
-검색 입력	Search boxes	検索ボックス	搜索框
-인물 정보	Persona	ユーザー情報	人员信息
-선택 목록	Selection lists	選択リスト	选择列表
-카드	Cards	カード	卡片
-경로	Breadcrumbs	パンくずリスト	面包屑导航
-탐색 메뉴	Navigation menus	ナビゲーションメニュー	导航菜单
-보조 패널	Side panels	サイドパネル	侧边面板
-목록	Lists	リスト	列表
-컨테이너·Menu 공통 동작	Shared container and menu behavior	コンテナーとメニューの共通動作	容器和菜单的共同行为
-처리 방식	Processing mode	処理モード	处理模式
-속도 우선	Prioritize speed	速度優先	速度优先
-균형	Balanced	バランス	均衡
-품질 우선	Prioritize quality	品質優先	质量优先
-처리 우선순위	Processing priority	処理の優先順位	处理优先级
-응답 시간을 줄이는 데 집중합니다.	Focus on reducing response time.	応答時間の短縮を優先します。	优先缩短响应时间。
-속도와 결과의 품질을 고르게 유지합니다.	Balance speed and result quality.	速度と結果の品質のバランスを取ります。	兼顾速度和结果质量。
-시간이 더 걸려도 결과의 품질을 높입니다.	Improve result quality even if it takes longer.	時間がかかっても結果の品質を高めます。	即使耗时更长，也优先提高结果质量。
-부모 폭에 따라 줄바꿈	Wrapping at different container widths	親コンテナーの幅に応じた折り返し	随父容器宽度换行
-부모 폭 전환	Change container width	親コンテナーの幅を切り替える	切换父容器宽度
-부모 최대 폭 {0:F0}px	Maximum container width: {0:F0} px	親コンテナーの最大幅：{0:F0} px	父容器最大宽度：{0:F0} px
-방향키로 선택을 바꾸고, 부모 폭에 따라 긴 라벨이 어떻게 줄바꿈되는지 살펴보세요.	Use the arrow keys to change the selection and see how long labels wrap at different container widths.	矢印キーで選択を変え、親コンテナーの幅によって長いラベルがどう折り返されるかを確認できます。	使用方向键更改选择，观察长标签在不同容器宽度下如何换行。
-이름을 검색해 받는 사람을 추가하고, 선택한 태그를 지워 보세요.	Search for a recipient by name, then try removing a selected tag.	名前を検索して宛先を追加し、選択したタグを削除できます。	搜索姓名以添加收件人，再试着移除已选标签。
-디모이	Dimoi	ディモイ	迪莫伊
-김민수	Min-su Kim	キム・ミンス	金民秀
-박지연	Ji-yeon Park	パク・ジヨン	朴智妍
-손님	Guest	ゲスト	访客
-받는 사람	Recipients	宛先	收件人
-이름을 입력하세요	Enter a name	名前を入力	输入姓名
-일치하는 사람이 없습니다	No matching people	一致する人が見つかりません	找不到匹配的联系人
-제거	Remove	削除	移除
-이름을 입력해 검색하고 Enter로 추가하세요. 커서가 입력창 맨 앞에 있을 때 ←나 Backspace를 누르면 마지막 태그로 이동합니다.	Type a name to search and press Enter to add it. At the start of the input, press Left Arrow or Backspace to focus the last tag.	名前を入力して検索し、Enter キーで追加します。入力欄の先頭で左矢印キーまたは Backspace キーを押すと、最後のタグにフォーカスが移ります。	输入姓名进行搜索，然后按 Enter 添加。光标位于输入框开头时，按向左方向键或退格键可将焦点移到最后一个标签。
-선택 : 	Selected: 	選択：	已选：
-손잡이를 끌거나 방향키를 눌러 0부터 1까지 값을 조절해 보세요.	Drag the thumb or use the arrow keys to adjust the value between 0 and 1.	つまみをドラッグするか矢印キーを押して、0 から 1 の範囲で値を調整できます。	拖动滑块或按方向键，在 0 到 1 之间调整数值。
-값 조절	Adjust value	値の調整	调整数值
-값 : 	Value: 	値：	数值：
-진행률을 막대로 표시합니다. 예제는 작업이 35% 진행된 상태입니다.	The bar shows a task that is 35% complete.	作業の進捗が 35% の状態をバーで表示します。	进度条显示任务已完成 35%。
-상태를 짧은 글자로 표시하는 배지와 개수를 보여 주는 배지를 비교해 보세요.	Compare a short status badge with a badge that shows a count.	短い状態を示すバッジと、件数を示すバッジを比較できます。	比较显示简短状态的徽章与显示数量的徽章。
-준비됨	Ready	準備完了	就绪
-구분선과 가운데 라벨로 위아래 내용을 나눕니다.	Divide the content above and below with a line and a centered label.	区切り線と中央のラベルで上下の内容を分けます。	使用分隔线和居中标签区分上下内容。
-위쪽 내용	Content above	上の内容	上方内容
-구분	Section break	区切り	分隔
-아래쪽 내용	Content below	下の内容	下方内容
-링크를 눌러 선택한 목적지가 아래에 표시되는지 확인해 보세요.	Activate the link to display its destination below.	リンクを押すと、そのリンク先が下に表示されます。	点击链接后，下方会显示链接目标。
-아직 선택하지 않았습니다.	No destination selected yet.	リンク先はまだ選択されていません。	尚未选择链接目标。
-목적지 선택	Choose a destination	リンク先を選ぶ	选择目标
-선택한 목적지 : 	Selected destination: 	選択したリンク先：	所选目标：
-진행률을 알 수 없는 작업을 표시합니다. 버튼으로 회전을 시작하거나 멈춰 보세요.	Show work with no known completion percentage. Use the button to start or stop the spinner.	完了までの進捗が分からない作業を示します。ボタンで回転を開始または停止できます。	用于显示进度未知的任务。点击按钮可启动或停止旋转。
-일시 정지	Paused	一時停止	已暂停
-재생 전환	Toggle playback	再生と停止を切り替える	切换播放状态
-한 줄에 한글과 영문을 입력하고 일부를 선택해 수정해 보세요.	Type on a single line, then select and replace part of the text.	1 行に文字を入力し、一部を選んで書き換えてみてください。	在单行中输入文字，再选中并替换其中一部分。
-한글과 English	Hello, world	日本語と English	中文与 English
-한 줄 입력	Single-line input	1 行入力	单行输入
-여러 줄에 걸쳐 글을 입력하거나 줄 사이를 이동해 수정해 보세요.	Type across multiple lines or move between lines to edit the text.	複数行に入力し、行の間を移動して文章を編集できます。	输入多行文字，或移动到其他行进行编辑。
-첫 줄	First line	1 行目	第一行
-둘째 줄	Second line	2 行目	第二行
-여러 줄 입력	Multiline input	複数行入力	多行输入
-이름 입력란에 필수 표시와 입력 안내를 함께 배치합니다.	A name field with both a required indicator and a hint.	名前の入力欄に必須マークと入力のヒントを表示します。	在姓名字段中同时显示必填标记和输入提示。
-이름	Name	名前	姓名
-두 글자 이상 입력하세요.	Enter at least two characters.	2 文字以上入力してください。	请输入至少两个字符。
-라벨을 누르면 연결된 입력란으로 포커스가 옮겨갑니다.	Activate the label to focus its associated input.	ラベルを押すと、対応する入力欄にフォーカスが移ります。	点击标签可将焦点移到关联的输入框。
-라벨 대상	Labeled input	ラベルに対応する入力欄	关联的输入框
-눌러서 입력창으로 이동	Select to focus the input	押して入力欄に移動	点击以聚焦输入框
-목록을 열고 작업 위치를 하나 선택해 보세요.	Open the list and choose a work location.	リストを開いて作業場所を選びます。	打开列表并选择一个工作地点。
-작업 위치	Work location	作業場所	工作地点
-한국	South Korea	韓国	韩国
-미국	United States	米国	美国
-일본	Japan	日本	日本
-위치를 선택하세요	Choose a location	場所を選択	选择地点
-목록 열기	Open list	リストを開く	打开列表
-도시 이름을 입력해 목록을 좁히거나, 목록에 없는 이름을 직접 입력해 보세요.	Type a city name to filter the list or to enter a city of your own.	都市名を入力して候補を絞り込んだり、一覧にない都市名を直接入力したりできます。	输入城市名称以筛选列表，也可直接输入列表中没有的城市。
-도시 검색	Search cities	都市を検索	搜索城市
-서울	Seoul	ソウル	首尔
-부산	Busan	釜山	釜山
-런던	London	ロンドン	伦敦
-도시 이름을 입력하세요	Enter a city name	都市名を入力	输入城市名称
-도시 목록 열기	Open city list	都市の一覧を開く	打开城市列表
-세 도시 이름을 작은 태그로 나란히 표시합니다.	Show three city names as small tags side by side.	3 つの都市名を小さなタグで横に並べます。	将三个城市名称并排显示为小标签。
-제주	Jeju	済州	济州
-탭을 클릭하거나 키보드로 이동해 선택 표시가 어떻게 바뀌는지 살펴보세요.	Click a tab or use the keyboard to see how the selection indicator changes.	タブをクリックするかキーボードで移動して、選択の表示がどう変わるかを確認できます。	点击选项卡或使用键盘切换，观察选中标记如何变化。
-예제 탭	Example tabs	サンプルのタブ	示例选项卡
-첫 번째	First	1 番目	第一项
-두 번째	Second	2 番目	第二项
-세 번째	Third	3 番目	第三项
-메뉴를 열어 새 문서나 저장 명령을 실행해 보세요.	Open the menu and run the New document or Save command.	メニューを開いて、新規ドキュメントまたは保存コマンドを実行できます。	打开菜单，执行新建文档或保存命令。
-선택 없음	None selected	未選択	未选择
-메뉴 열기	Open menu	メニューを開く	打开菜单
-새 문서	New document	新規ドキュメント	新建文档
-저장	Save	保存	保存
-실행 : 	Command: 	実行したコマンド：	已执行命令：
-홈 아이콘에 크기와 색상을 지정한 예제입니다.	A home icon with a custom size and color.	サイズと色を指定したホームアイコンです。	为主页图标指定大小和颜色的示例。
-네 픽셀의 이미지 데이터를 위젯에 넣고 160 × 160 크기로 표시합니다.	Display a four-pixel image in a 160 × 160 widget.	4 ピクセルの画像を 160 × 160 サイズのウィジェットに表示します。	在 160 × 160 的小组件中显示一张由四个像素组成的图像。
-선택한 경로가 없습니다.	No path selected.	パスが選択されていません。	尚未选择路径。
-숨긴 경로	Hidden path segments	非表示のパス項目	隐藏的路径项
-현재 위치	Current location	現在の位置	当前位置
-홈	Home	ホーム	主页
-작업 공간	Workspace	ワークスペース	工作区
-문서 보관함	Document archive	ドキュメント保管庫	文档归档
-함께 작업하는 팀	Collaborating team	共同作業チーム	协作团队
-디모이의 한글과 English를 포함한 긴 프로젝트 이름	Dimoi’s project with a deliberately long name	ディモイの長い名前が付いたプロジェクト	迪莫伊的项目名称特别长
-현재 문서	Current document	現在のドキュメント	当前文档
-프로젝트 경로	Project path	プロジェクトのパス	项目路径
-경로 폭 변경	Change path width	パスの幅を変更	更改路径宽度
-경로 키보드 방식	Change keyboard navigation	キーボード操作を変更	切换键盘导航
-경로 방향 전환	Reverse path direction	パスの方向を切り替える	切换路径方向
-경로 크기 변경	Change path size	パス項目のサイズを変更	更改路径大小
-이동 : {0} / 실행 : {1}	Destination: {0} / Activations: {1}	移動先：{0} / 実行回数：{1}	目标：{0} / 激活次数：{1}
-키보드 : {0} / 방향 : {1}	Keyboard: {0} / Direction: {1}	キーボード：{0} / 方向：{1}	键盘：{0} / 方向：{1}
-Tab 이동	Tab navigation	Tab キーで移動	使用 Tab 键导航
-방향키 이동	Arrow-key navigation	矢印キーで移動	使用方向键导航
-오른쪽부터	Right to left	右から左	从右到左
-왼쪽부터	Left to right	左から右	从左到右
-너비가 좁아지면 두 번째 경로부터 더 보기 메뉴에 숨깁니다. 매우 좁으면 현재 위치만 표시합니다.	As the width shrinks, segments starting with the second move into the overflow menu. At the narrowest width, only the current location is shown.	幅が狭くなると、2 番目以降の項目がオーバーフローメニューに移ります。最も狭い幅では現在の位置だけが表示されます。	宽度缩小时，从第二项开始的路径会收起到更多菜单中。宽度最小时只显示当前位置。
-문서 보관함으로는 이동할 수 없지만 Tab과 방향키로 포커스를 옮겨 설명을 읽을 수 있습니다. 현재 위치를 눌러도 다른 곳으로 이동하지 않습니다.	The document archive is unavailable, but you can focus it with Tab or the arrow keys to read its description. Activating the current location keeps you on the same page.	ドキュメント保管庫には移動できませんが、Tab キーや矢印キーでフォーカスを移して説明を読めます。現在の位置を押してもページは変わりません。	无法打开文档归档，但可用 Tab 键或方向键聚焦该项并阅读说明。点击当前位置会停留在当前页面。
-긴 이름 위에 마우스를 올리거나 포커스를 두면 Tooltip이 표시됩니다. 탭을 바꿔도 설정과 이동 기록을 유지합니다.	Hover over or focus a long name to show a tooltip. Switching pages preserves the settings and navigation history.	長い名前にポインターを合わせるかフォーカスを移すと、ツールチップが表示されます。ページを切り替えても設定と移動履歴が保持されます。	将鼠标悬停在长名称上或聚焦该项即可显示工具提示。切换页面会保留设置和导航记录。
-경로 예제	Breadcrumb example	パンくずリストの例	面包屑导航示例
-김하나	Hana Kim	キム・ハナ	金荷娜
-이서준	Seo-jun Lee	イ・ソジュン	李瑞俊
-박지우	Ji-woo Park	パク・ジウ	朴智佑
-정민서	Min-seo Jeong	チョン・ミンソ	郑敏书
-초안	Draft	下書き	草稿
-검토 중	In review	レビュー中	审核中
-공유됨	Shared	共有済み	已共享
-디자인 검토 {0:D4}.pdf	Design review {0:D4}.pdf	デザインレビュー {0:D4}.pdf	设计评审 {0:D4}.pdf
-파일 이름	File name	ファイル名	文件名
-담당자	Owner	担当者	负责人
-상태	Status	状態	状态
-크기	Size	サイズ	大小
-디자인 검토 파일	Design review files	デザインレビューのファイル	设计评审文件
-파일 {0:N0}개 · 선택 {1:N0}개	{0:N0} files · {1:N0} selected	ファイル {0:N0} 件 · 選択 {1:N0} 件	{0:N0} 个文件 · 已选 {1:N0} 个
-제목과 화면 동작	Title and screen actions	タイトルと画面の操作	标题和页面操作
-너비 전환	Change width	幅を切り替える	切换宽度
-브랜드 배경과 기간 선택	Brand background and period selection	ブランド背景と期間の選択	品牌背景和时段选择
-배치 방향 전환	Reverse layout direction	配置の方向を切り替える	切换布局方向
-문서 작업	Document actions	ドキュメントの操作	文档操作
-회의록	Meeting notes	議事録	会议纪要
-돌아가기	Go back	戻る	返回
-문서 목록	Document list	ドキュメント一覧	文档列表
-저장 {0}회	Saved {0} times	保存回数：{0}	已保存 {0} 次
-기간	Period	期間	时段
-일간	Daily	日別	按日
-주간	Weekly	週別	按周
-월간	Monthly	月別	按月
-기간 탐색	Browse periods	期間の切り替え	浏览时段
-일정	Schedule	予定	日程
-오늘	Today	今日	今天
-기본 선택·키보드·RTL·아이콘·읽지 않음 표시와 네 가지 스타일을 확인하세요. 가로 스크롤에서는 캐시한 콘텐츠를 재사용하며 숨은 쪽만 옅어집니다.	Try selection, keyboard navigation, right-to-left layout, icons, unread markers, and four styles. Horizontal scrolling reuses cached content and fades only edges with hidden items.	選択、キーボード操作、右から左への配置、アイコン、未読マーク、4 種類のスタイルを試せます。横スクロールではキャッシュを再利用し、項目が隠れている側だけをフェード表示します。	试用选择、键盘导航、从右到左的布局、图标、未读标记和四种样式。横向滚动时复用缓存，只在有隐藏项的一侧显示渐隐效果。
-중립 탐색 모음	Neutral navigation bar	ニュートラルなナビゲーションバー	中性导航栏
-일	Day	日	日
-주	Week	週	周
-월	Month	月	月
-중립 본문	Neutral canvas	ニュートラルなキャンバス	中性画布
-전체	All	すべて	全部
-나에게 할당된 항목	Assigned to me	自分に割り当てられた項目	分配给我的项目
-저장한 항목	Saved items	保存した項目	已保存的项目
-브랜드 탐색 모음	Brand navigation bar	ブランド色のナビゲーションバー	品牌导航栏
-달력	Calendar	カレンダー	日历
-메일	Mail	メール	邮件
-브랜드 본문	Brand canvas	ブランド色のキャンバス	品牌画布
-진행 중	In progress	進行中	进行中
-완료	Done	完了	已完成
-가로 스크롤	Horizontal scroll	横スクロール	横向滚动
-선택 항목 {0}	Option {0}	項目 {0}	选项 {0}
-읽지 않음	Unread	未読	未读
-{0} 너비 전환	Change width for {0}	{0}の幅を切り替える	切换{0}的宽度
-{0} 균등 너비 전환	Toggle equal widths for {0}	{0}の幅を均等にする設定を切り替える	切换{0}的等宽布局
-{0} 방향 전환	Reverse direction for {0}	{0}の向きを切り替える	切换{0}的方向
-{0} 스타일 전환	Change style for {0}	{0}のスタイルを切り替える	切换{0}的样式
-{0} 모션 줄이기 전환	Toggle reduced motion for {0}	{0}の動きを減らす設定を切り替える	切换{0}的减少动效设置
-기본 선택	Basic selection	基本の選択	基本选择
-지역	Region	地域	地区
-크기와 모양	Size and appearance	サイズと外観	大小和外观
-표시 방식	Appearance	外観	外观
-입력 검증과 방향	Validation and direction	検証と表示方向	验证和显示方向
-검증할 지역	Region to validate	検証する地域	要验证的地区
-대한민국	South Korea	韓国	韩国
-독일	Germany	ドイツ	德国
-{0} 크기 전환	Change size for {0}	{0}のサイズを切り替える	切换{0}的大小
-{0} 모양 전환	Change appearance for {0}	{0}の外観を切り替える	切换{0}的外观
-{0} 검증 전환	Toggle validation for {0}	{0}の入力エラー表示を切り替える	切换{0}的验证状态
-선택한 값 : {0}	Selected value: {0}	選択した値：{0}	所选值：{0}
-없음	None	なし	无
-오류 표시는 선택을 막지 않습니다. 필요하면 Field로 설명과 검증 문구를 연결하세요.	The error indicator leaves the options selectable. Use Field to associate help or validation text.	エラー表示中も項目を選択できます。補足や検証メッセージを関連付けるには Field を使います。	显示错误时仍可选择选项。可使用 Field 关联说明文字或验证消息。
-아이콘·설명·다중 선택은 Dropdown, 검색과 직접 입력은 Combobox 예제에서 확인하세요.	See Dropdown for icons, descriptions, and multiple selection, or Combobox for search and free-form input.	アイコン・説明・複数選択は Dropdown、検索や自由入力は Combobox の例で試せます。	图标、说明和多选见 Dropdown 示例，搜索和自由输入见 Combobox 示例。
-앱에 표시할 이름을 입력하세요.	Enter the name to display in the app.	アプリに表示する名前を入力してください。	请输入要在应用中显示的名称。
-이메일	Email	メールアドレス	电子邮箱
-예: name@example.com	Example: name@example.com	例：name@example.com	例如：name@example.com
-{0} 지우기	Clear {0}	{0}を消去	清除{0}
-짧은 텍스트	Short text	短いテキスト	短文本
-입력 후 검증	Validate after typing	入力後に検証	输入后验证
-{0} 읽기 전용 전환	Toggle read-only for {0}	{0}の読み取り専用を切り替える	切换{0}的只读状态
-이메일 확인	Check email	メールアドレスを確認	检查电子邮箱
-@ 앞뒤에 주소를 입력하세요.	Enter text before and after the @ sign.	@ の前後に文字を入力してください。	请在 @ 符号前后输入内容。
-이름 복원	Reset name	名前を元に戻す	恢复名称
-검색어	Search query	検索語	搜索词
-이름이나 검색어를 입력하세요	Enter a name or search term	名前または検索語を入力	输入姓名或搜索词
-검색어 지우기	Clear search query	検索語を消去	清除搜索词
-검색 크기	Change search box size	検索ボックスのサイズを変更	更改搜索框大小
-검색 외관	Change search box appearance	検索ボックスの外観を変更	更改搜索框外观
-검색 읽기 전용	Toggle read-only search	検索ボックスの読み取り専用を切り替える	切换搜索框的只读状态
-검색 변경 거부	Toggle rejection of edits	編集を拒否する設定を切り替える	切换是否拒绝修改
-검색 방향	Reverse search box direction	検索ボックスの表示方向を切り替える	切换搜索框方向
-검색어 복원	Reset search query	検索語を元に戻す	恢复搜索词
-검색어 : {0} / 읽기 전용 : {1} / 변경 거부 : {2}	Query: {0} / Read-only: {1} / Reject edits: {2}	検索語：{0} / 読み取り専用：{1} / 編集の拒否：{2}	搜索词：{0} / 只读：{1} / 拒绝修改：{2}
-켜짐	On	オン	开启
-꺼짐	Off	オフ	关闭
-검색창에 포커스가 있으면 지우기 버튼이 표시됩니다. 지운 뒤 바로 다시 입력할 수 있습니다.	The clear button appears when the search box has focus. You can start typing again immediately after clearing it.	検索ボックスにフォーカスがあると消去ボタンが表示されます。消去した直後に続けて入力できます。	搜索框获得焦点时会显示清除按钮。清除后可以立即继续输入。
-검색 실행과 결과 필터링은 바인딩으로 연결한 코드에서 구현합니다. 다른 페이지로 이동했다 돌아와도 값은 유지됩니다.	The code bound to the search box runs the search and filters the results. The value is preserved when you leave the page and return.	検索の実行と結果の絞り込みは、検索ボックスにバインドしたコードで行います。別のページに移動しても値は保持されます。	绑定到搜索框的代码执行搜索并筛选结果。离开页面后再返回时，输入值仍会保留。
-변경 없음	No changes	変更なし	无更改
-수량 늘리기	Increase quantity	数量を増やす	增加数量
-수량 줄이기	Decrease quantity	数量を減らす	减少数量
-수량	Quantity	数量	数量
-반영됨	Applied	適用済み	已应用
-입력 확인 필요	Check the input	入力内容を確認してください	请检查输入
-무게 늘리기	Increase weight	重量を増やす	增加重量
-무게 줄이기	Decrease weight	重量を減らす	减少重量
-무게	Weight	重量	重量
-무게 (kg)	Weight (kg)	重量 (kg)	重量（kg）
-수량 비우기	Clear quantity	数量を消去	清除数量
-읽기 전용 전환	Toggle read-only	読み取り専用を切り替える	切换只读状态
-크기 전환	Change size	サイズを切り替える	切换大小
-모양 전환	Change appearance	外観を切り替える	切换外观
-수량 : {0} / 무게 : {1}	Quantity: {0} / Weight: {1}	数量：{0} / 重量：{1}	数量：{0} / 重量：{1}
-비어 있음	Empty	空欄	空
-변경 알림 : {0} / {1}	Change notifications: {0} / {1}	変更通知：{0} / {1}	更改通知：{0} / {1}
-↑·↓ : 증감 / Page Up·Down : 큰 단위 / Home·End : 최솟값·최댓값	Up/Down: adjust · Page Up/Down: larger steps · Home/End: minimum/maximum	上下キー：増減 · Page Up/Down：大きく増減 · Home/End：最小値・最大値	上/下方向键：增减 · Page Up/Down：大步调整 · Home/End：最小值/最大值
-Enter를 누르거나 포커스를 옮기면 입력한 값을 적용하고, Esc를 누르면 취소합니다. 증감 버튼을 길게 누르면 값이 계속 바뀝니다.	Press Enter or move focus to apply the value. Press Esc to cancel. Hold an increment or decrement button to keep changing the value.	Enter キーを押すかフォーカスを移すと入力値を適用し、Esc キーでキャンセルします。増減ボタンを長押しすると値が連続して変わります。	按 Enter 或移开焦点以应用输入值，按 Esc 取消。长按增减按钮可连续调整数值。
+{0} components	{0}개 구성요소	コンポーネント {0} 件	{0} 个组件
+{0} planned	미구현 {0}	実装予定 {0} 件	{0} 个计划实现
+Components: {0}	구성요소 {0}	コンポーネント {0} 件	{0} 个组件
+{0} available examples	사용 가능한 예제 {0}	利用可能な例 {0} 件	{0} 个可用示例
+Where to start	어디서 시작할까요?	どこから始めますか	从哪里开始
+Build navigation with buttons, links, and menus.	버튼과 링크, 메뉴로 화면의 흐름을 만드세요.	ボタン、リンク、メニューで画面遷移を作ります。	使用按钮、链接和菜单构建导航。
+Explore Button	Button 살펴보기	Button を試す	查看 Button
+Try entering text, making selections, and adjusting values.	텍스트 입력과 선택, 값 조절을 직접 확인하세요.	テキスト入力、選択、値の調整を試せます。	试用文本输入、选择和数值调节。
+Explore Input	Input 살펴보기	Input を試す	查看 Input
+Organize content with cards and lists.	카드와 목록으로 내용을 정리하세요.	カードと一覧でコンテンツを整理します。	使用卡片和列表整理内容。
+Explore Card	Card 살펴보기	Card を試す	查看 Card
+Alerts and help	알림과 도움말	通知とヘルプ	通知与帮助
+Try dialogs and auxiliary panels.	대화 상자와 보조 패널의 동작을 확인하세요.	ダイアログと補助パネルを試せます。	试用对话框和辅助面板。
+Explore Dialog	Dialog 살펴보기	Dialog を試す	查看 Dialog
+Vector graphics	벡터 그래픽	ベクターグラフィック	矢量图形
+Zoom and rotate SVGs and explore graphics examples.	SVG 확대·회전과 다양한 그래픽 표현을 살펴보세요.	SVG の拡大、回転とさまざまな描画例を確認できます。	缩放和旋转 SVG，并浏览图形示例。
+Explore SVG	SVG 살펴보기	SVG を試す	查看 SVG
+Documents and editing	문서와 편집	ドキュメントと編集	文档与编辑
+Read and edit Markdown documents in real time.	Markdown 문서를 읽고 실시간으로 편집해 보세요.	Markdown ドキュメントを読み、その場で編集できます。	实时阅读和编辑 Markdown 文档。
+Explore Markdown	Markdown 살펴보기	Markdown を試す	查看 Markdown
+From example to code	예제에서 코드까지	例からコードへ	从示例到代码
+Choose a component from the navigation. Read or copy the C# source just below its example.	왼쪽 메뉴에서 구성요소를 선택하세요. 예제 바로 아래에서 C# 소스를 읽고 복사할 수 있습니다.	ナビゲーションからコンポーネントを選択してください。例のすぐ下で C# ソースを読んだりコピーしたりできます。	在导航中选择组件。可以在示例下方阅读或复制 C# 源代码。
+A Planned badge identifies components scheduled for future implementation.	미구현 배지가 붙은 항목에서는 앞으로 추가될 구성요소를 확인할 수 있습니다.	「実装予定」バッジは今後追加するコンポーネントを示します。	“计划实现”徽章标明将在未来添加的组件。
+Planned Fluent component	Fluent 구성요소 구현 예정	実装予定の Fluent コンポーネント	计划实现的 Fluent 组件
+Planned component	아직 미구현됨	実装予定	计划实现
+The API and interactive examples for this component are planned.	이 구성요소의 API와 동작 예제는 아직 제공되지 않습니다.	このコンポーネントの API と操作例は今後追加する予定です。	此组件的 API 和交互示例计划在以后提供。
+The official component catalog guides this roadmap. Design and accessibility checks continue for the available examples.	구현 예정 목록은 공식 구성요소 카탈로그를 기준으로 만듭니다. 구현한 예제도 디자인과 접근성이 올바른지는 계속 검증하고 있습니다.	公式コンポーネントカタログをもとに計画しています。提供済みの例もデザインとアクセシビリティの検証を続けています。	此计划以官方组件目录为依据。现有示例的设计和无障碍检查仍在继续。
+Try Duxel controls, graphics, and document features, and inspect the C# examples.	Duxel의 컨트롤과 그래픽, 문서 기능을 직접 조작하고 C# 예제 코드를 살펴보세요.	Duxel のコントロール、グラフィック、ドキュメント機能を試し、C# のサンプルコードを確認できます。	试用 Duxel 的控件、图形和文档功能，并查看 C# 示例代码。
+Try the live controls and check that values survive switching tabs.	실제 컨트롤을 조작하고 탭 이동 후 값이 유지되는지 확인하세요.	実際にコントロールを操作し、タブを切り替えても値が保持されることを確認できます。	试用交互控件，检查切换选项卡后是否保留值。
+Rating	평가	評価	评分
+Typography	타이포그래피	タイポグラフィ	排版
+Input and IME	입력·IME	入力と IME	输入与输入法
+Layout integration	배치 통합	レイアウトの組み合わせ	布局集成
+Accordion	접기·펼치기	アコーディオン	手风琴
+Skeleton	스켈레톤	スケルトン	骨架屏
+Try Korean input, selection, validation, line wrapping, and undo.	한글 입력, 선택, 검증, 줄바꿈과 되돌리기를 확인합니다.	韓国語入力、選択、検証、折り返し、元に戻す操作を試せます。	试用韩语输入、选择、验证、换行和撤销。
+Compare Fluent text sizes, weights, and paragraph directions.	Fluent의 글자 크기와 굵기, 문단 방향을 비교해 보세요.	Fluent の文字サイズ、太さ、段落の方向を比較できます。	比较 Fluent 的字号、字重和段落方向。
+Choose a file or folder and inspect the returned path.	운영체제의 대화 상자에서 파일이나 폴더를 선택하고 반환된 경로를 확인합니다.	ファイルやフォルダーを選択し、返されたパスを確認できます。	选择文件或文件夹并查看返回的路径。
+Select a column header to sort. Double-click a file name or press F2 to edit, then press Enter to save or Esc to cancel.	열 제목을 눌러 정렬합니다. 파일 이름을 두 번 누르거나 F2를 눌러 편집하고, Enter로 저장하거나 Esc로 취소합니다.	列見出しを選択して並べ替えます。ファイル名をダブルクリックするか F2 で編集し、Enter で保存、Esc でキャンセルします。	选择列标题进行排序。双击文件名或按 F2 编辑，按 Enter 保存或按 Esc 取消。
+Preview or edit the same document. Markdown markers such as # and ** appear in the block being edited.	같은 문서를 미리 보거나 직접 편집해 보세요. 편집 중인 블록에만 #이나 ** 같은 마크다운 기호가 나타납니다.	同じドキュメントをプレビューまたは編集できます。# や ** などの Markdown 記号は編集中のブロックに表示されます。	预览或编辑同一文档。# 和 ** 等 Markdown 标记仅在正在编辑的块中显示。
+The gallery parses SVG once and renders it with Vulkan. Zooming and rotation reuse the prepared paths.	SVG는 처음 한 번 해석한 뒤 Vulkan GPU에서 그립니다. 확대하거나 회전할 때는 이미 준비한 경로를 재사용합니다.	SVG を一度解析し、Vulkan で描画します。拡大や回転では準備済みのパスを再利用します。	SVG 只解析一次，并由 Vulkan 渲染。缩放或旋转时复用已准备好的路径。
+The list creates only visible items from a billion entries. Edited values stay tied to their item keys when the orientation changes.	10억 개 항목 가운데 화면에 필요한 항목만 생성합니다. 세로와 가로를 전환해도 편집한 값은 항목의 키에 연결해 보관합니다.	10 億件のうち画面に必要な項目だけを作成します。表示方向を変えても編集した値は項目のキーにひも付きます。	十亿条数据中只创建屏幕需要的项。切换方向后，编辑的值仍按项的键保存。
+The grid creates only cells near the viewport in a billion rows and columns. Cell edits survive scrolling away.	행과 열이 각각 10억 개인 그리드에서 화면 주변의 셀만 만듭니다. 셀에 입력한 내용은 이동 후에도 남습니다.	行と列がそれぞれ 10 億あるグリッドで、表示領域付近のセルだけを作成します。移動してもセルへの入力は保持されます。	网格有十亿行和十亿列，只创建视口附近的单元格。滚动到其他位置后仍保留已编辑的内容。
+Open files	파일 열기	ファイルを開く	打开文件
+Save as	다른 이름으로 저장	名前を付けて保存	另存为
+Select folder	폴더 선택	フォルダーを選択	选择文件夹
+All files	모든 파일	すべてのファイル	所有文件
+Text files	텍스트 파일	テキストファイル	文本文件
+Choose files to open	열 파일 선택	開くファイルを選択	选择要打开的文件
+Choose where to save	저장할 파일 선택	保存先を選択	选择保存位置
+Notes.txt	메모.txt	メモ.txt	笔记.txt
+Open the system dialog from the running app.	실행 중인 앱에서 운영체제 대화 상자를 열 수 있습니다.	実行中のアプリからシステムのダイアログを開けます。	从正在运行的应用打开系统对话框。
+Selected paths will appear here.	선택한 경로가 여기에 표시됩니다.	選択したパスがここに表示されます。	选定的路径将在此显示。
+The dialog is open.	대화 상자가 열려 있습니다.	ダイアログが開いています。	对话框已打开。
+Could not open the dialog.	대화 상자를 열 수 없습니다.	ダイアログを開けませんでした。	无法打开对话框。
+Selection canceled.	선택을 취소했습니다.	選択をキャンセルしました。	已取消选择。
+And {0:N0} more	외 {0:N0}개	ほか {0:N0} 件	以及其他 {0:N0} 项
+Browse slides using the previous and next buttons, page names, or thumbnails.	이전·다음 버튼, 페이지 이름, 미리보기로 슬라이드를 넘겨 보세요.	前へ・次へボタン、ページ名、サムネイルでスライドを切り替えられます。	使用上一张和下一张按钮、页面名称或缩略图浏览幻灯片。
+Try selecting one or more items by keyboard or through the operating system's accessibility features while the list is closed.	항목을 하나 또는 여러 개 선택해 보세요. 키보드로 선택하거나 목록을 닫은 상태에서 운영체제의 접근성 기능으로 선택할 수 있습니다.	項目を一つまたは複数選択できます。キーボードや、リストを閉じた状態で OS のアクセシビリティ機能を使って選択できます。	试用单选或多选。可以用键盘选择，也可以在列表关闭时使用操作系统的无障碍功能。
+Type or press a button inside a card. Change its size and appearance, and navigate with Enter, Tab, and Escape.	카드 안에 글자를 입력하거나 버튼을 눌러 보세요. 크기와 모양을 바꾸고 Enter·Tab·Escape로 이동할 수 있습니다.	カード内で文字を入力したりボタンを押したりできます。大きさと外観を変更し、Enter、Tab、Escape で操作できます。	在卡片中输入文字或按下按钮。更改大小和外观，并使用 Enter、Tab 和 Escape 导航。
+Dismiss or swipe the suggestion card to move the content below it upward.	안내 카드를 닫거나 좌우로 밀면 아래 내용이 위로 올라옵니다.	案内カードを閉じるか左右にスワイプすると、下のコンテンツが上に移動します。	关闭或左右滑动提示卡片，下方内容会上移。
+Set the theme, font, and layout direction per region and see how child widgets inherit them.	영역마다 테마, 글꼴, 배치 방향을 지정하고 자식 위젯이 어떻게 따르는지 살펴보세요.	領域ごとにテーマ、フォント、配置方向を設定し、子ウィジェットへの継承を確認できます。	为每个区域设置主题、字体和布局方向，观察子部件如何继承。
+Choose start and end dates. Changing the locale preserves the dates you selected.	시작일과 종료일을 선택하세요. 문화권을 바꿔도 선택한 날짜의 의미는 유지됩니다.	開始日と終了日を選択してください。ロケールを変えても選択した日付は保持されます。	选择开始日期和结束日期。更改区域设置后仍保留所选日期。
+Show the path to the current document. Open hidden ancestors, navigate with the keyboard, or hover over a truncated name to see it in full.	현재 문서까지 이어지는 경로를 표시합니다. 숨겨진 상위 경로를 열거나 키보드로 이동하고, 긴 이름 위에 마우스를 올려 전체 이름을 확인해 보세요.	現在のドキュメントまでのパスを表示します。非表示の親項目を開いたり、キーボードで移動したり、長い名前にポインターを合わせて全文を確認したりできます。	显示通往当前文档的路径。展开隐藏的上级路径、用键盘导航，或将鼠标悬停在截断的名称上查看全名。
+Open a panel at the edge of the screen. Change its position or modal behavior, scroll its content, and check that focus returns on close.	화면 가장자리에서 패널을 열어 보세요. 패널 위치와 모달 여부를 바꾸거나 내용을 스크롤하고, 닫은 뒤 포커스가 돌아오는지 확인할 수 있습니다.	画面の端からパネルを開きます。位置やモーダル設定を変更したり、内容をスクロールしたり、閉じた後にフォーカスが戻ることを確認したりできます。	从屏幕边缘打开面板。更改位置或模态行为、滚动内容，并检查关闭后是否恢复焦点。
+Display an avatar with a photo, initials, or icon. Compare round and square shapes in 14 sizes.	사진이나 이니셜, 아이콘으로 아바타를 표시합니다. 원형과 사각형, 14가지 크기를 비교해 보세요.	写真、イニシャル、アイコンでアバターを表示します。円形と四角形を 14 種類のサイズで比較できます。	使用照片、姓名首字母或图标显示头像。比较圆形和方形的 14 种尺寸。
+Compare modal, nonmodal, and alert dialogs. Enter some text and close the dialog to return focus to its opening button.	모달 창과 비모달 창, 경고 창을 비교해 보세요. 내용을 입력하고 창을 닫으면 원래 버튼으로 포커스가 돌아갑니다.	モーダル、非モーダル、警告ダイアログを比較できます。入力して閉じると、開くときに使ったボタンにフォーカスが戻ります。	比较模态、非模态和警告对话框。输入内容后关闭对话框，焦点将返回打开它的按钮。
+Place avatars side by side, overlap them, or group them in a single circle. Open the list to see hidden members.	아바타를 나란히 놓거나 겹쳐 보고, 하나의 원으로 묶어 보세요. 숨겨진 구성원 목록도 열어 볼 수 있습니다.	アバターを並べたり重ねたり、一つの円にまとめたりできます。リストを開くと非表示のメンバーを確認できます。	并排显示头像、将头像重叠，或归入一个圆形。打开列表可查看隐藏成员。
+Try the Fluent iOS activity indicator. The layout keeps its space when it stops, whether the indicator remains visible or is hidden.	Fluent iOS의 활동 표시입니다. 정지 시 표시 여부와 상관없이 배치 공간은 유지됩니다.	Fluent iOS のアクティビティインジケーターです。停止時の表示にかかわらず、配置領域が保持されます。	试用 Fluent iOS 活动指示器。停止后无论是否显示，都会保留布局空间。
+Open the info button next to the label with a pointer or keyboard. Inspect the accessible name and the associated input field.	라벨 옆 정보 버튼을 누르거나 키보드로 열어 보세요. 접근성 이름과 라벨에 연결된 입력창도 확인할 수 있습니다.	ラベルの横にある情報ボタンをポインターまたはキーボードで開き、アクセシブル名と関連付けられた入力欄を確認できます。	用指针或键盘打开标签旁的信息按钮，查看无障碍名称及关联的输入框。
+Holiday data loads separately from the calendar. You can still select dates when the holiday source is offline.	공휴일 데이터는 달력과 분리해 받아옵니다. 연결이 끊기면 공휴일 표시만 생략하고 날짜 선택은 계속 동작합니다.	祝日データはカレンダーとは別に読み込みます。祝日の取得先に接続できなくても日付を選択できます。	节假日数据独立于日历加载。节假日数据源离线时仍可选择日期。
+Show task status at the center of the screen. Press to dismiss progress notifications. Success and failure notifications close after one second.	작업 상태를 화면 중앙에 표시합니다. 진행 표시는 눌러서 닫고, 성공·실패 표시는 1초 후 닫힙니다.	画面中央にタスクの状態を表示します。進行状況は押して閉じられます。成功と失敗の通知は 1 秒後に閉じます。	在屏幕中央显示任务状态。点击可关闭进度提示，成功和失败提示会在一秒后关闭。
+Try a plain list, single and multiple selection, and inputs and buttons inside rows.	일반 목록·단일 선택·다중 선택과 행 안의 입력·버튼을 확인합니다.	通常のリスト、単一選択、複数選択、行内の入力欄やボタンを試せます。	试用普通列表、单选、多选以及行内输入框和按钮。
+Adjust ratings in half-star steps or display them from the right. Narrow the parent to see how the stars wrap.	별점을 반 개씩 조절하거나 오른쪽부터 표시해 보세요. 부모 너비가 좁아질 때 줄바꿈되는 모습도 확인할 수 있습니다.	星を半分刻みで調整したり、右から表示したりできます。親領域を狭めると折り返し方を確認できます。	以半颗星为单位调整评分，或从右侧开始显示。缩小父容器宽度可查看换行效果。
+Compare tooltips that open automatically with tooltips controlled by code.	자동으로 나타나는 설명과 코드에서 표시 여부를 정하는 설명을 비교해 보세요.	自動的に開くツールチップと、コードで表示を制御するツールチップを比較できます。	比较自动打开的工具提示和由代码控制显示的工具提示。
+Compare widget placement across containers. Change layouts or interact with the widgets inside them.	컨테이너마다 위젯을 어떻게 배치하는지 비교해 보세요. 배치 옵션을 바꾸거나 안쪽 위젯을 직접 조작할 수 있습니다.	コンテナーごとのウィジェット配置を比較できます。配置項目を変更したり、中のウィジェットを操作したりできます。	比较各容器中的小部件布局。更改布局选项或直接操作内部小部件。
+Combine tabs, menus, and overflow layouts, and check that state survives navigation.	탭·메뉴·넘침 배치를 조합하고 화면 이동 후 상태가 유지되는지 확인합니다.	タブ、メニュー、オーバーフローを組み合わせ、画面の移動後も状態が保持されることを確認できます。	组合选项卡、菜单和溢出布局，并检查导航后是否保留状态。
+Open one or several accordion sections. Check that input values persist and try operating the sections with a keyboard or accessibility features.	Accordion을 하나씩 또는 여러 개 열어 보세요. 본문에 입력한 값이 유지되는지 확인하고 키보드와 접근성 기능으로 조작할 수 있습니다.	アコーディオンのセクションを一つまたは複数開けます。入力値の保持と、キーボードやアクセシビリティ機能での操作を確認できます。	打开一个或多个手风琴面板。检查输入值是否保留，并用键盘或无障碍功能操作。
+Build loading placeholders. Compare wave and pulse animations, pause them, and try reduced motion.	로딩 중에 표시할 윤곽을 구성해 보세요. 물결과 맥박 애니메이션, 일시 정지와 모션 줄이기를 비교할 수 있습니다.	読み込み時のプレースホルダーを組み立てます。波とパルスのアニメーション、一時停止、モーション軽減を比較できます。	构建加载占位符。比较波浪和脉冲动画、暂停以及减少动态效果。
+Review available factories, example destinations, and areas awaiting verification.	사용할 수 있는 팩터리와 예제가 있는 메뉴, 아직 검증할 부분을 살펴보세요.	利用可能なファクトリー、例の画面、確認が必要な項目を確認できます。	查看可用工厂、示例页面和尚待验证的部分。
+Reuse layout measurements that did not change while continuing to handle values and input.	값·입력은 계속 처리하면서 변하지 않은 배치 측정을 재사용합니다.	値や入力を処理しながら、変化していない配置の計測結果を再利用します。	在继续处理值和输入的同时复用未变化的布局测量结果。
+Try collapsing groups, selecting a page, keyboard navigation, and right-to-left layout.	그룹 접기·펼치기, 현재 페이지, 키보드 이동과 오른쪽에서 왼쪽 배치를 확인합니다.	グループの開閉、ページ選択、キーボード移動、右から左の配置を試せます。	试用折叠和展开组、页面选择、键盘导航和从右向左的布局。
+Use the Hello and Immediate tabs from the original combined sample in one window.	기존 종합 샘플의 실제 Hello / Immediate 탭을 같은 창에서 조작합니다.	従来の統合サンプルにある Hello と Immediate タブを同じウィンドウで操作できます。	在同一窗口中使用原组合示例的 Hello 和 Immediate 选项卡。
+Show the current page title, go back, or run an action on the page.	현재 화면의 제목을 표시하고, 이전 화면으로 돌아가거나 화면 안의 작업을 실행합니다.	現在の画面名を表示し、前の画面に戻ったり、画面内の操作を実行したりできます。	显示当前页面标题、返回上一页或执行页面内操作。
+Place widgets inside a pop-up. Enter text, move focus, and try closing and reopening the pop-up.	팝업 안에 원하는 위젯을 넣을 수 있습니다. 내용을 입력하고 포커스를 옮기거나 팝업을 닫았다 다시 열어 보세요.	ポップアップ内にウィジェットを配置できます。入力、フォーカス移動、閉じて開き直す操作を試せます。	在弹出窗口中放置小部件。输入文本、移动焦点，或关闭后重新打开弹出窗口。
+Compare navigation, activation, and dismissal in nonmodal popovers and popovers that capture keyboard input.	비모달 팝업과 키보드 입력을 독점하는 팝업의 이동·실행·닫기를 비교합니다.	非モーダルのポップオーバーとキーボード入力を保持するポップオーバーで、移動、実行、閉じる操作を比較できます。	比较非模态弹出窗口和捕获键盘输入的弹出窗口中的导航、激活与关闭操作。
+Show a task name and description next to the progress bar. Use an indeterminate indicator when the progress is unknown.	작업 이름과 설명을 진행 막대와 함께 표시합니다. 진행률을 모를 때는 기다리는 상태를 보여줍니다.	タスク名と説明を進行状況バーと一緒に表示します。進捗率が不明な場合は不定の進行状況を表示します。	将任务名称和说明与进度条一起显示。进度未知时显示不确定进度指示器。
+Green borders show the regions actually repainted by Vulkan.	초록 테두리는 Vulkan이 화면에 실제로 다시 그린 범위를 보여 줍니다.	緑の枠は、Vulkan が実際に再描画した領域を示します。	绿色边框显示 Vulkan 实际重绘的区域。
+Enter and clear a search query. Try read-only mode or reject changes to the value.	검색어를 입력하고 지워 보세요. 읽기 전용으로 바꾸거나 값 변경을 거부하도록 설정할 수 있습니다.	検索語を入力したり消去したりできます。読み取り専用に切り替えたり、値の変更を拒否したりできます。	输入并清除搜索词。试用只读模式，或设置为拒绝更改值。
+Choose one of several items. Compare four styles and try dragging and wheel scrolling. A fade marks sides with hidden items.	여러 항목 중 하나를 선택합니다. 네 가지 스타일을 비교할 수 있으며, 드래그와 휠 스크롤을 확인할 수 있습니다. 숨은 항목이 있는 쪽에만 페이드가 표시됩니다.	複数の項目から一つ選択します。四つのスタイルを比較し、ドラッグとホイールでスクロールできます。非表示の項目がある側にフェードが表示されます。	从多个选项中选择一项。比较四种样式，试用拖动和滚轮滚动。有隐藏项的一侧会显示渐隐效果。
+Select one text item. Use arrow keys or type its name to change the selection while the list is closed.	텍스트 항목 하나를 선택합니다. 닫힌 상태에서도 방향키와 이름 입력으로 값을 바꿀 수 있습니다.	テキスト項目を一つ選択します。リストを閉じた状態でも、方向キーや名前入力で選択を変更できます。	选择一个文本项。列表关闭时也可以用方向键或输入名称来更改选择。
+Display a name, up to four lines of information, and an avatar. Compare a status-only version in place of the avatar.	이름과 최대 네 줄의 정보, 아바타를 함께 표시합니다. 아바타 대신 상태만 표시하는 모습도 비교해 보세요.	名前、最大四行の情報、アバターを表示します。アバターの代わりに状態だけを表示する例とも比較できます。	显示姓名、最多四行信息和头像。比较用状态取代头像的效果。
+Show a placeholder while loading and transition to the actual content when it is ready.	불러오는 동안 자리 표시자를 보여주고, 준비가 끝나면 실제 내용으로 부드럽게 바꿉니다.	読み込み中にプレースホルダーを表示し、準備ができたらコンテンツに滑らかに切り替えます。	加载时显示占位符，内容就绪后平滑切换。
+Type a number or adjust it using the buttons or keyboard. Change the range and try holding the increase or decrease button.	숫자를 직접 입력하거나 버튼과 키보드로 값을 조절해 보세요. 허용 범위를 바꾸고 증감 버튼을 길게 눌러 볼 수 있습니다.	数値を入力するか、ボタンやキーボードで調整できます。範囲を変更し、増減ボタンの長押しも試せます。	直接输入数字，或用按钮和键盘调节。更改范围，并试用长按增减按钮。
+Enter a short value and try the clear button and error display.	짧은 텍스트를 입력하고, 지우기 버튼과 오류 표시를 확인합니다.	短いテキストを入力し、クリアボタンやエラー表示を確認できます。	输入简短文本，试用清除按钮并查看错误提示。
+Try horizontal and vertical toolbars, arrow-key navigation, and toggled states.	도구 모음의 가로·세로 배치, 방향키 이동과 토글 상태를 확인합니다.	ツールバーの横・縦配置、方向キーによる移動、切り替え状態を試せます。	试用工具栏的水平和垂直布局、方向键导航和切换状态。
+Try independent toasts and progress updates, automatic dismissal, pausing, and keyboard navigation.	독립 알림과 진행 상태를 조작하고 자동 닫힘·일시 정지·키보드 이동을 확인합니다.	独立したトーストと進行状況、自動終了、一時停止、キーボード移動を試せます。	试用独立的通知和进度提示、自动关闭、暂停以及键盘导航。
+Expand a folder, select its children together, or activate a button within a row.	폴더를 펼치고, 하위 항목을 한꺼번에 선택하거나 행 안의 버튼을 실행해 보세요.	フォルダーを展開し、子項目をまとめて選択したり、行内のボタンを操作したりできます。	展开文件夹、一次选择其子项，或激活行内按钮。
+Add spacing, rotate, or scale a widget. Transformed widgets still accept input, and their pop-ups open aligned with the screen.	위젯에 여백을 주거나 회전·확대해 보세요. 변환한 위젯도 입력을 받으며, 팝업은 회전하지 않고 화면 방향에 맞춰 열립니다.	余白の追加、回転、拡大を試せます。変換後もウィジェットは入力を受け付け、ポップアップは画面に沿って開きます。	为小部件添加间距、旋转或缩放。变换后仍能接收输入，弹出窗口则沿屏幕方向打开。
+C# source	C# 소스	C# ソース	C# 源代码
+{0} lines	{0}줄	{0} 行	{0} 行
+Wrap lines	줄바꿈	行の折り返し	自动换行
+Line numbers	줄 번호	行番号	行号
+Show all	전체 표시	すべて表示	显示全部
+Copy source	소스 복사	ソースをコピー	复制源代码
+Copied	복사됨	コピーしました	已复制
+C# example source	C# 예제 소스	C# サンプルソース	C# 示例代码
+Feature index	기능 찾아보기	機能一覧	功能索引
+Files and folders	파일과 폴더	ファイルとフォルダー	文件和文件夹
+Rendering and diagnostics	렌더링과 진단	レンダリングと診断	渲染与诊断
+Localization	다국어 지원	多言語対応	本地化
+Switch languages to see the same message translated and its number formatted.	언어를 바꿔 같은 메시지에 번역과 숫자 서식이 적용되는지 확인하세요.	言語を切り替えて、同じメッセージの翻訳と数値の書式を確認できます。	切换语言，查看同一消息的翻译和数字格式。
+Example language	예제 언어	例の言語	示例语言
+{0} examples · {1} planned	예제 {0}개 · 구현 예정 {1}개	例 {0} 件・実装予定 {1} 件	{0} 个示例 · {1} 个计划实现
+Select an example to open its page.	예제 이름을 선택하면 해당 페이지가 열립니다.	例を選択すると、そのページが開きます。	选择示例以打开相应页面。
+{0} · planned	{0} · 미구현	{0}・実装予定	{0} · 计划实现
+Fluent factories	Fluent 팩터리	Fluent ファクトリー	Fluent 工厂
+Current language: {0}	현재 언어: {0}	現在の言語: {0}	当前语言：{0}
+Press the button to increase the click count.	버튼을 눌러 클릭 횟수를 늘려 보세요.	ボタンを押してクリック数を増やせます。	按下按钮增加点击次数。
+Increase count	카운터 증가	カウントを増やす	增加计数
+Click count: 	클릭 횟수 : 	クリック数：	点击次数：
+Create document	문서 만들기	ドキュメントを作成	创建文档
+Start a new document from a blank form.	빈 양식에서 새 문서를 시작합니다.	空のフォームから新しいドキュメントを作成します。	从空白表单创建新文档。
+Save as PNG	PNG로 저장	PNG で保存	另存为 PNG
+Save in another format	다른 형식으로 저장	別の形式で保存	另存为其他格式
+Save as PDF	PDF로 저장	PDF で保存	另存为 PDF
+Save as SVG	SVG로 저장	SVG で保存	另存为 SVG
+Select the checkbox that starts in the mixed state.	일부만 선택된 상태에서 시작하는 체크박스를 눌러 보세요.	一部選択状態のチェックボックスを操作できます。	试用初始状态为部分选中的复选框。
+Start in mixed state	혼합 상태에서 시작	一部選択から開始	从部分选中状态开始
+Turn the feature on or off and watch the value change in the code below.	스위치로 기능을 켜거나 끄고, 아래 코드에 바뀐 값을 확인해 보세요.	機能をオンまたはオフにして、下のコードの値が変わることを確認できます。	打开或关闭该功能，观察下方代码中的值如何变化。
+Enable feature	기능 사용	機能を有効にする	启用功能
+Build UI with Duxel	Duxel로 UI 만들기	Duxel で UI を作る	使用 Duxel 构建界面
+Sidebar navigation, Fluent styles, and container overflow	왼쪽 탐색 메뉴·Fluent 표현 비교·컨테이너 넘침	サイドバー、Fluent スタイルの比較、コンテナーのオーバーフロー	侧栏导航、Fluent 样式对比与容器溢出
+Dialogs	대화 상자	ダイアログ	对话框
+Message bars	메시지 표시	メッセージバー	消息栏
+Information labels	추가 정보	情報ラベル	信息标签
+Numeric input	숫자 입력	数値入力	数字输入
+Avatars	아바타	アバター	头像
+Avatar groups	아바타 그룹	アバターグループ	头像组
+Toolbars	도구 모음	ツールバー	工具栏
+Search boxes	검색 입력	検索ボックス	搜索框
+Persona	인물 정보	ユーザー情報	人员信息
+Selection lists	선택 목록	選択リスト	选择列表
+Cards	카드	カード	卡片
+Breadcrumbs	경로	パンくずリスト	面包屑导航
+Navigation menus	탐색 메뉴	ナビゲーションメニュー	导航菜单
+Side panels	보조 패널	サイドパネル	侧边面板
+Lists	목록	リスト	列表
+Shared container and menu behavior	컨테이너·Menu 공통 동작	コンテナーとメニューの共通動作	容器和菜单的共同行为
+Processing mode	처리 방식	処理モード	处理模式
+Prioritize speed	속도 우선	速度優先	速度优先
+Balanced	균형	バランス	均衡
+Prioritize quality	품질 우선	品質優先	质量优先
+Processing priority	처리 우선순위	処理の優先順位	处理优先级
+Focus on reducing response time.	응답 시간을 줄이는 데 집중합니다.	応答時間の短縮を優先します。	优先缩短响应时间。
+Balance speed and result quality.	속도와 결과의 품질을 고르게 유지합니다.	速度と結果の品質のバランスを取ります。	兼顾速度和结果质量。
+Improve result quality even if it takes longer.	시간이 더 걸려도 결과의 품질을 높입니다.	時間がかかっても結果の品質を高めます。	即使耗时更长，也优先提高结果质量。
+Wrapping at different container widths	부모 폭에 따라 줄바꿈	親コンテナーの幅に応じた折り返し	随父容器宽度换行
+Change container width	부모 폭 전환	親コンテナーの幅を切り替える	切换父容器宽度
+Maximum container width: {0:F0} px	부모 최대 폭 {0:F0}px	親コンテナーの最大幅：{0:F0} px	父容器最大宽度：{0:F0} px
+Use the arrow keys to change the selection and see how long labels wrap at different container widths.	방향키로 선택을 바꾸고, 부모 폭에 따라 긴 라벨이 어떻게 줄바꿈되는지 살펴보세요.	矢印キーで選択を変え、親コンテナーの幅によって長いラベルがどう折り返されるかを確認できます。	使用方向键更改选择，观察长标签在不同容器宽度下如何换行。
+Search for a recipient by name, then try removing a selected tag.	이름을 검색해 받는 사람을 추가하고, 선택한 태그를 지워 보세요.	名前を検索して宛先を追加し、選択したタグを削除できます。	搜索姓名以添加收件人，再试着移除已选标签。
+Dimoi	디모이	ディモイ	迪莫伊
+Min-su Kim	김민수	キム・ミンス	金民秀
+Ji-yeon Park	박지연	パク・ジヨン	朴智妍
+Guest	손님	ゲスト	访客
+Recipients	받는 사람	宛先	收件人
+Enter a name	이름을 입력하세요	名前を入力	输入姓名
+No matching people	일치하는 사람이 없습니다	一致する人が見つかりません	找不到匹配的联系人
+Remove	제거	削除	移除
+Type a name to search and press Enter to add it. At the start of the input, press Left Arrow or Backspace to focus the last tag.	이름을 입력해 검색하고 Enter로 추가하세요. 커서가 입력창 맨 앞에 있을 때 ←나 Backspace를 누르면 마지막 태그로 이동합니다.	名前を入力して検索し、Enter キーで追加します。入力欄の先頭で左矢印キーまたは Backspace キーを押すと、最後のタグにフォーカスが移ります。	输入姓名进行搜索，然后按 Enter 添加。光标位于输入框开头时，按向左方向键或退格键可将焦点移到最后一个标签。
+Selected: 	선택 : 	選択：	已选：
+Drag the thumb or use the arrow keys to adjust the value between 0 and 1.	손잡이를 끌거나 방향키를 눌러 0부터 1까지 값을 조절해 보세요.	つまみをドラッグするか矢印キーを押して、0 から 1 の範囲で値を調整できます。	拖动滑块或按方向键，在 0 到 1 之间调整数值。
+Adjust value	값 조절	値の調整	调整数值
+Value: 	값 : 	値：	数值：
+The bar shows a task that is 35% complete.	진행률을 막대로 표시합니다. 예제는 작업이 35% 진행된 상태입니다.	作業の進捗が 35% の状態をバーで表示します。	进度条显示任务已完成 35%。
+Compare a short status badge with a badge that shows a count.	상태를 짧은 글자로 표시하는 배지와 개수를 보여 주는 배지를 비교해 보세요.	短い状態を示すバッジと、件数を示すバッジを比較できます。	比较显示简短状态的徽章与显示数量的徽章。
+Ready	준비됨	準備完了	就绪
+Divide the content above and below with a line and a centered label.	구분선과 가운데 라벨로 위아래 내용을 나눕니다.	区切り線と中央のラベルで上下の内容を分けます。	使用分隔线和居中标签区分上下内容。
+Content above	위쪽 내용	上の内容	上方内容
+Section break	구분	区切り	分隔
+Content below	아래쪽 내용	下の内容	下方内容
+Activate the link to display its destination below.	링크를 눌러 선택한 목적지가 아래에 표시되는지 확인해 보세요.	リンクを押すと、そのリンク先が下に表示されます。	点击链接后，下方会显示链接目标。
+No destination selected yet.	아직 선택하지 않았습니다.	リンク先はまだ選択されていません。	尚未选择链接目标。
+Choose a destination	목적지 선택	リンク先を選ぶ	选择目标
+Selected destination: 	선택한 목적지 : 	選択したリンク先：	所选目标：
+Show work with no known completion percentage. Use the button to start or stop the spinner.	진행률을 알 수 없는 작업을 표시합니다. 버튼으로 회전을 시작하거나 멈춰 보세요.	完了までの進捗が分からない作業を示します。ボタンで回転を開始または停止できます。	用于显示进度未知的任务。点击按钮可启动或停止旋转。
+Paused	일시 정지	一時停止	已暂停
+Toggle playback	재생 전환	再生と停止を切り替える	切换播放状态
+Type on a single line, then select and replace part of the text.	한 줄에 한글과 영문을 입력하고 일부를 선택해 수정해 보세요.	1 行に文字を入力し、一部を選んで書き換えてみてください。	在单行中输入文字，再选中并替换其中一部分。
+Hello, world	한글과 English	日本語と English	中文与 English
+Single-line input	한 줄 입력	1 行入力	单行输入
+Type across multiple lines or move between lines to edit the text.	여러 줄에 걸쳐 글을 입력하거나 줄 사이를 이동해 수정해 보세요.	複数行に入力し、行の間を移動して文章を編集できます。	输入多行文字，或移动到其他行进行编辑。
+First line	첫 줄	1 行目	第一行
+Second line	둘째 줄	2 行目	第二行
+Multiline input	여러 줄 입력	複数行入力	多行输入
+A name field with both a required indicator and a hint.	이름 입력란에 필수 표시와 입력 안내를 함께 배치합니다.	名前の入力欄に必須マークと入力のヒントを表示します。	在姓名字段中同时显示必填标记和输入提示。
+Name	이름	名前	姓名
+Enter at least two characters.	두 글자 이상 입력하세요.	2 文字以上入力してください。	请输入至少两个字符。
+Activate the label to focus its associated input.	라벨을 누르면 연결된 입력란으로 포커스가 옮겨갑니다.	ラベルを押すと、対応する入力欄にフォーカスが移ります。	点击标签可将焦点移到关联的输入框。
+Labeled input	라벨 대상	ラベルに対応する入力欄	关联的输入框
+Select to focus the input	눌러서 입력창으로 이동	押して入力欄に移動	点击以聚焦输入框
+Open the list and choose a work location.	목록을 열고 작업 위치를 하나 선택해 보세요.	リストを開いて作業場所を選びます。	打开列表并选择一个工作地点。
+Work location	작업 위치	作業場所	工作地点
+South Korea	한국	韓国	韩国
+United States	미국	米国	美国
+Japan	일본	日本	日本
+Choose a location	위치를 선택하세요	場所を選択	选择地点
+Open list	목록 열기	リストを開く	打开列表
+Type a city name to filter the list or to enter a city of your own.	도시 이름을 입력해 목록을 좁히거나, 목록에 없는 이름을 직접 입력해 보세요.	都市名を入力して候補を絞り込んだり、一覧にない都市名を直接入力したりできます。	输入城市名称以筛选列表，也可直接输入列表中没有的城市。
+Search cities	도시 검색	都市を検索	搜索城市
+Seoul	서울	ソウル	首尔
+Busan	부산	釜山	釜山
+London	런던	ロンドン	伦敦
+Enter a city name	도시 이름을 입력하세요	都市名を入力	输入城市名称
+Open city list	도시 목록 열기	都市の一覧を開く	打开城市列表
+Show three city names as small tags side by side.	세 도시 이름을 작은 태그로 나란히 표시합니다.	3 つの都市名を小さなタグで横に並べます。	将三个城市名称并排显示为小标签。
+Jeju	제주	済州	济州
+Click a tab or use the keyboard to see how the selection indicator changes.	탭을 클릭하거나 키보드로 이동해 선택 표시가 어떻게 바뀌는지 살펴보세요.	タブをクリックするかキーボードで移動して、選択の表示がどう変わるかを確認できます。	点击选项卡或使用键盘切换，观察选中标记如何变化。
+Example tabs	예제 탭	サンプルのタブ	示例选项卡
+First	첫 번째	1 番目	第一项
+Second	두 번째	2 番目	第二项
+Third	세 번째	3 番目	第三项
+Open the menu and run the New document or Save command.	메뉴를 열어 새 문서나 저장 명령을 실행해 보세요.	メニューを開いて、新規ドキュメントまたは保存コマンドを実行できます。	打开菜单，执行新建文档或保存命令。
+None selected	선택 없음	未選択	未选择
+Open menu	메뉴 열기	メニューを開く	打开菜单
+New document	새 문서	新規ドキュメント	新建文档
+Save	저장	保存	保存
+Command: 	실행 : 	実行したコマンド：	已执行命令：
+A home icon with a custom size and color.	홈 아이콘에 크기와 색상을 지정한 예제입니다.	サイズと色を指定したホームアイコンです。	为主页图标指定大小和颜色的示例。
+Display a four-pixel image in a 160 × 160 widget.	네 픽셀의 이미지 데이터를 위젯에 넣고 160 × 160 크기로 표시합니다.	4 ピクセルの画像を 160 × 160 サイズのウィジェットに表示します。	在 160 × 160 的小组件中显示一张由四个像素组成的图像。
+No path selected.	선택한 경로가 없습니다.	パスが選択されていません。	尚未选择路径。
+Hidden path segments	숨긴 경로	非表示のパス項目	隐藏的路径项
+Current location	현재 위치	現在の位置	当前位置
+Home	홈	ホーム	主页
+Workspace	작업 공간	ワークスペース	工作区
+Document archive	문서 보관함	ドキュメント保管庫	文档归档
+Collaborating team	함께 작업하는 팀	共同作業チーム	协作团队
+Dimoi’s project with a deliberately long name	디모이의 한글과 English를 포함한 긴 프로젝트 이름	ディモイの長い名前が付いたプロジェクト	迪莫伊的项目名称特别长
+Current document	현재 문서	現在のドキュメント	当前文档
+Project path	프로젝트 경로	プロジェクトのパス	项目路径
+Change path width	경로 폭 변경	パスの幅を変更	更改路径宽度
+Change keyboard navigation	경로 키보드 방식	キーボード操作を変更	切换键盘导航
+Reverse path direction	경로 방향 전환	パスの方向を切り替える	切换路径方向
+Change path size	경로 크기 변경	パス項目のサイズを変更	更改路径大小
+Destination: {0} / Activations: {1}	이동 : {0} / 실행 : {1}	移動先：{0} / 実行回数：{1}	目标：{0} / 激活次数：{1}
+Keyboard: {0} / Direction: {1}	키보드 : {0} / 방향 : {1}	キーボード：{0} / 方向：{1}	键盘：{0} / 方向：{1}
+Tab navigation	Tab 이동	Tab キーで移動	使用 Tab 键导航
+Arrow-key navigation	방향키 이동	矢印キーで移動	使用方向键导航
+Right to left	오른쪽부터	右から左	从右到左
+Left to right	왼쪽부터	左から右	从左到右
+As the width shrinks, segments starting with the second move into the overflow menu. At the narrowest width, only the current location is shown.	너비가 좁아지면 두 번째 경로부터 더 보기 메뉴에 숨깁니다. 매우 좁으면 현재 위치만 표시합니다.	幅が狭くなると、2 番目以降の項目がオーバーフローメニューに移ります。最も狭い幅では現在の位置だけが表示されます。	宽度缩小时，从第二项开始的路径会收起到更多菜单中。宽度最小时只显示当前位置。
+The document archive is unavailable, but you can focus it with Tab or the arrow keys to read its description. Activating the current location keeps you on the same page.	문서 보관함으로는 이동할 수 없지만 Tab과 방향키로 포커스를 옮겨 설명을 읽을 수 있습니다. 현재 위치를 눌러도 다른 곳으로 이동하지 않습니다.	ドキュメント保管庫には移動できませんが、Tab キーや矢印キーでフォーカスを移して説明を読めます。現在の位置を押してもページは変わりません。	无法打开文档归档，但可用 Tab 键或方向键聚焦该项并阅读说明。点击当前位置会停留在当前页面。
+Hover over or focus a long name to show a tooltip. Switching pages preserves the settings and navigation history.	긴 이름 위에 마우스를 올리거나 포커스를 두면 Tooltip이 표시됩니다. 탭을 바꿔도 설정과 이동 기록을 유지합니다.	長い名前にポインターを合わせるかフォーカスを移すと、ツールチップが表示されます。ページを切り替えても設定と移動履歴が保持されます。	将鼠标悬停在长名称上或聚焦该项即可显示工具提示。切换页面会保留设置和导航记录。
+Breadcrumb example	경로 예제	パンくずリストの例	面包屑导航示例
+Hana Kim	김하나	キム・ハナ	金荷娜
+Seo-jun Lee	이서준	イ・ソジュン	李瑞俊
+Ji-woo Park	박지우	パク・ジウ	朴智佑
+Min-seo Jeong	정민서	チョン・ミンソ	郑敏书
+Draft	초안	下書き	草稿
+In review	검토 중	レビュー中	审核中
+Shared	공유됨	共有済み	已共享
+Design review {0:D4}.pdf	디자인 검토 {0:D4}.pdf	デザインレビュー {0:D4}.pdf	设计评审 {0:D4}.pdf
+File name	파일 이름	ファイル名	文件名
+Owner	담당자	担当者	负责人
+Status	상태	状態	状态
+Size	크기	サイズ	大小
+Design review files	디자인 검토 파일	デザインレビューのファイル	设计评审文件
+{0:N0} files · {1:N0} selected	파일 {0:N0}개 · 선택 {1:N0}개	ファイル {0:N0} 件 · 選択 {1:N0} 件	{0:N0} 个文件 · 已选 {1:N0} 个
+Title and screen actions	제목과 화면 동작	タイトルと画面の操作	标题和页面操作
+Change width	너비 전환	幅を切り替える	切换宽度
+Brand background and period selection	브랜드 배경과 기간 선택	ブランド背景と期間の選択	品牌背景和时段选择
+Reverse layout direction	배치 방향 전환	配置の方向を切り替える	切换布局方向
+Document actions	문서 작업	ドキュメントの操作	文档操作
+Meeting notes	회의록	議事録	会议纪要
+Go back	돌아가기	戻る	返回
+Document list	문서 목록	ドキュメント一覧	文档列表
+Saved {0} times	저장 {0}회	保存回数：{0}	已保存 {0} 次
+Period	기간	期間	时段
+Daily	일간	日別	按日
+Weekly	주간	週別	按周
+Monthly	월간	月別	按月
+Browse periods	기간 탐색	期間の切り替え	浏览时段
+Schedule	일정	予定	日程
+Today	오늘	今日	今天
+Try selection, keyboard navigation, right-to-left layout, icons, unread markers, and four styles. Horizontal scrolling reuses cached content and fades only edges with hidden items.	기본 선택·키보드·RTL·아이콘·읽지 않음 표시와 네 가지 스타일을 확인하세요. 가로 스크롤에서는 캐시한 콘텐츠를 재사용하며 숨은 쪽만 옅어집니다.	選択、キーボード操作、右から左への配置、アイコン、未読マーク、4 種類のスタイルを試せます。横スクロールではキャッシュを再利用し、項目が隠れている側だけをフェード表示します。	试用选择、键盘导航、从右到左的布局、图标、未读标记和四种样式。横向滚动时复用缓存，只在有隐藏项的一侧显示渐隐效果。
+Neutral navigation bar	중립 탐색 모음	ニュートラルなナビゲーションバー	中性导航栏
+Day	일	日	日
+Week	주	週	周
+Month	월	月	月
+Neutral canvas	중립 본문	ニュートラルなキャンバス	中性画布
+All	전체	すべて	全部
+Assigned to me	나에게 할당된 항목	自分に割り当てられた項目	分配给我的项目
+Saved items	저장한 항목	保存した項目	已保存的项目
+Brand navigation bar	브랜드 탐색 모음	ブランド色のナビゲーションバー	品牌导航栏
+Calendar	달력	カレンダー	日历
+Mail	메일	メール	邮件
+Brand canvas	브랜드 본문	ブランド色のキャンバス	品牌画布
+In progress	진행 중	進行中	进行中
+Done	완료	完了	已完成
+Horizontal scroll	가로 스크롤	横スクロール	横向滚动
+Option {0}	선택 항목 {0}	項目 {0}	选项 {0}
+Unread	읽지 않음	未読	未读
+Change width for {0}	{0} 너비 전환	{0}の幅を切り替える	切换{0}的宽度
+Toggle equal widths for {0}	{0} 균등 너비 전환	{0}の幅を均等にする設定を切り替える	切换{0}的等宽布局
+Reverse direction for {0}	{0} 방향 전환	{0}の向きを切り替える	切换{0}的方向
+Change style for {0}	{0} 스타일 전환	{0}のスタイルを切り替える	切换{0}的样式
+Toggle reduced motion for {0}	{0} 모션 줄이기 전환	{0}の動きを減らす設定を切り替える	切换{0}的减少动效设置
+Basic selection	기본 선택	基本の選択	基本选择
+Region	지역	地域	地区
+Size and appearance	크기와 모양	サイズと外観	大小和外观
+Appearance	표시 방식	外観	外观
+Validation and direction	입력 검증과 방향	検証と表示方向	验证和显示方向
+Region to validate	검증할 지역	検証する地域	要验证的地区
+Republic of Korea	대한민국	韓国	韩国
+Germany	독일	ドイツ	德国
+Change size for {0}	{0} 크기 전환	{0}のサイズを切り替える	切换{0}的大小
+Change appearance for {0}	{0} 모양 전환	{0}の外観を切り替える	切换{0}的外观
+Toggle validation for {0}	{0} 검증 전환	{0}の入力エラー表示を切り替える	切换{0}的验证状态
+Selected value: {0}	선택한 값 : {0}	選択した値：{0}	所选值：{0}
+None	없음	なし	无
+The error indicator leaves the options selectable. Use Field to associate help or validation text.	오류 표시는 선택을 막지 않습니다. 필요하면 Field로 설명과 검증 문구를 연결하세요.	エラー表示中も項目を選択できます。補足や検証メッセージを関連付けるには Field を使います。	显示错误时仍可选择选项。可使用 Field 关联说明文字或验证消息。
+See Dropdown for icons, descriptions, and multiple selection, or Combobox for search and free-form input.	아이콘·설명·다중 선택은 Dropdown, 검색과 직접 입력은 Combobox 예제에서 확인하세요.	アイコン・説明・複数選択は Dropdown、検索や自由入力は Combobox の例で試せます。	图标、说明和多选见 Dropdown 示例，搜索和自由输入见 Combobox 示例。
+Enter the name to display in the app.	앱에 표시할 이름을 입력하세요.	アプリに表示する名前を入力してください。	请输入要在应用中显示的名称。
+Email	이메일	メールアドレス	电子邮箱
+Example: name@example.com	예: name@example.com	例：name@example.com	例如：name@example.com
+Clear {0}	{0} 지우기	{0}を消去	清除{0}
+Short text	짧은 텍스트	短いテキスト	短文本
+Validate after typing	입력 후 검증	入力後に検証	输入后验证
+Toggle read-only for {0}	{0} 읽기 전용 전환	{0}の読み取り専用を切り替える	切换{0}的只读状态
+Check email	이메일 확인	メールアドレスを確認	检查电子邮箱
+Enter text before and after the @ sign.	@ 앞뒤에 주소를 입력하세요.	@ の前後に文字を入力してください。	请在 @ 符号前后输入内容。
+Reset name	이름 복원	名前を元に戻す	恢复名称
+Search query	검색어	検索語	搜索词
+Enter a name or search term	이름이나 검색어를 입력하세요	名前または検索語を入力	输入姓名或搜索词
+Clear search query	검색어 지우기	検索語を消去	清除搜索词
+Change search box size	검색 크기	検索ボックスのサイズを変更	更改搜索框大小
+Change search box appearance	검색 외관	検索ボックスの外観を変更	更改搜索框外观
+Toggle read-only search	검색 읽기 전용	検索ボックスの読み取り専用を切り替える	切换搜索框的只读状态
+Toggle rejection of edits	검색 변경 거부	編集を拒否する設定を切り替える	切换是否拒绝修改
+Reverse search box direction	검색 방향	検索ボックスの表示方向を切り替える	切换搜索框方向
+Reset search query	검색어 복원	検索語を元に戻す	恢复搜索词
+Query: {0} / Read-only: {1} / Reject edits: {2}	검색어 : {0} / 읽기 전용 : {1} / 변경 거부 : {2}	検索語：{0} / 読み取り専用：{1} / 編集の拒否：{2}	搜索词：{0} / 只读：{1} / 拒绝修改：{2}
+On	켜짐	オン	开启
+Off	꺼짐	オフ	关闭
+The clear button appears when the search box has focus. You can start typing again immediately after clearing it.	검색창에 포커스가 있으면 지우기 버튼이 표시됩니다. 지운 뒤 바로 다시 입력할 수 있습니다.	検索ボックスにフォーカスがあると消去ボタンが表示されます。消去した直後に続けて入力できます。	搜索框获得焦点时会显示清除按钮。清除后可以立即继续输入。
+The code bound to the search box runs the search and filters the results. The value is preserved when you leave the page and return.	검색 실행과 결과 필터링은 바인딩으로 연결한 코드에서 구현합니다. 다른 페이지로 이동했다 돌아와도 값은 유지됩니다.	検索の実行と結果の絞り込みは、検索ボックスにバインドしたコードで行います。別のページに移動しても値は保持されます。	绑定到搜索框的代码执行搜索并筛选结果。离开页面后再返回时，输入值仍会保留。
+No changes	변경 없음	変更なし	无更改
+Increase quantity	수량 늘리기	数量を増やす	增加数量
+Decrease quantity	수량 줄이기	数量を減らす	减少数量
+Quantity	수량	数量	数量
+Applied	반영됨	適用済み	已应用
+Check the input	입력 확인 필요	入力内容を確認してください	请检查输入
+Increase weight	무게 늘리기	重量を増やす	增加重量
+Decrease weight	무게 줄이기	重量を減らす	减少重量
+Weight	무게	重量	重量
+Weight (kg)	무게 (kg)	重量 (kg)	重量（kg）
+Clear quantity	수량 비우기	数量を消去	清除数量
+Toggle read-only	읽기 전용 전환	読み取り専用を切り替える	切换只读状态
+Change size	크기 전환	サイズを切り替える	切换大小
+Change appearance	모양 전환	外観を切り替える	切换外观
+Quantity: {0} / Weight: {1}	수량 : {0} / 무게 : {1}	数量：{0} / 重量：{1}	数量：{0} / 重量：{1}
+Empty	비어 있음	空欄	空
+Change notifications: {0} / {1}	변경 알림 : {0} / {1}	変更通知：{0} / {1}	更改通知：{0} / {1}
+Up/Down: adjust · Page Up/Down: larger steps · Home/End: minimum/maximum	↑·↓ : 증감 / Page Up·Down : 큰 단위 / Home·End : 최솟값·최댓값	上下キー：増減 · Page Up/Down：大きく増減 · Home/End：最小値・最大値	上/下方向键：增减 · Page Up/Down：大步调整 · Home/End：最小值/最大值
+Press Enter or move focus to apply the value. Press Esc to cancel. Hold an increment or decrement button to keep changing the value.	Enter를 누르거나 포커스를 옮기면 입력한 값을 적용하고, Esc를 누르면 취소합니다. 증감 버튼을 길게 누르면 값이 계속 바뀝니다.	Enter キーを押すかフォーカスを移すと入力値を適用し、Esc キーでキャンセルします。増減ボタンを長押しすると値が連続して変わります。	按 Enter 或移开焦点以应用输入值，按 Esc 取消。长按增减按钮可连续调整数值。
+Click	클릭	クリック	点击
+Hover	호버	ホバー	悬停
+Right-click	우클릭	右クリック	右键点击
+Name in popover	팝업 이름	ポップオーバー内の名前	弹出层内的姓名
+Open profile editor	프로필 편집 열기	プロフィール編集を開く	打开个人资料编辑
+Edit profile	프로필 편집	プロフィールを編集	编辑个人资料
+Run popover command	팝업 명령 실행	ポップオーバーのコマンドを実行	执行弹出层命令
+Menu in popover	팝업 내부 메뉴	ポップオーバー内のメニュー	弹出层内菜单
+Run menu command	메뉴 명령 실행	メニューのコマンドを実行	执行菜单命令
+Close profile editor	프로필 편집 닫기	プロフィール編集を閉じる	关闭个人资料编辑
+Open wide decorative popover	넓은 장식 팝업 열기	装飾付きの広いポップオーバーを開く	打开宽装饰弹出层
+Close decorative popover	장식 팝업 닫기	装飾付きポップオーバーを閉じる	关闭装饰弹出层
+Toggle focus trap	팝업 포커스 제한	フォーカスの範囲を切り替える	切换焦点限制
+Toggle close on focus loss	포커스 이탈 시 닫기	フォーカスが外れたときに閉じる設定を切り替える	切换失焦时关闭
+Change popover trigger	팝업 열기 방식	ポップオーバーの開き方を切り替える	切换弹出层触发方式
+Toggle popover arrow	팝업 화살표	ポップオーバーの矢印を切り替える	切换弹出层箭头
+Toggle popover animation	팝업 모션	ポップオーバーのアニメーションを切り替える	切换弹出层动画
+Change popover size	팝업 크기	ポップオーバーのサイズを変更	更改弹出层大小
+Change popover appearance	팝업 외관	ポップオーバーの外観を変更	更改弹出层外观
+Toggle rejection of close	팝업 닫기 거부	閉じる操作を拒否する設定を切り替える	切换是否拒绝关闭
+Name: {0} / Commands: {1} / Open: {2} / Trigger: {3} / Animation: {4} / Focus trap: {5} / Close on focus loss: {6} / Reject close: {7}	이름 : {0} / 실행 : {1} / 열림 : {2} / 열기 방식 : {3} / 모션 : {4} / 포커스 제한 : {5} / 포커스 이탈 닫기 : {6} / 닫기 거부 : {7}	名前：{0} / 実行回数：{1} / 表示：{2} / 開き方：{3} / アニメーション：{4} / フォーカス制限：{5} / フォーカスが外れたら閉じる：{6} / 閉じる操作の拒否：{7}	姓名：{0} / 执行次数：{1} / 打开：{2} / 触发方式：{3} / 动画：{4} / 焦点限制：{5} / 失焦时关闭：{6} / 拒绝关闭：{7}
+Try running a command from the nested menu. Escape closes the menu first. In hover mode the popover stays open while the pointer is over the menu. Editing state is preserved when you close it or switch pages.	내부 메뉴에서도 명령을 실행해 보세요. Escape는 메뉴부터 닫습니다. 호버 모드에서는 메뉴 위에 머물러도 팝업이 유지됩니다. 닫거나 탭을 왕복해도 입력 내용은 유지됩니다.	内側のメニューからもコマンドを実行できます。Escape キーでまずメニューが閉じます。ホバーモードでは、ポインターがメニュー上にある間はポップオーバーが開いたままです。閉じたりページを切り替えたりしても入力内容は保持されます。	试用嵌套菜单中的命令。按 Esc 会先关闭菜单。悬停模式下，指针停留在菜单上时弹出层保持打开。关闭弹出层或切换页面后，输入内容仍会保留。
+The default popover is nonmodal, so the background remains interactive. Toggle the arrow and animation and compare sizes and appearances. The trigger cycles through click, hover, and right-click. In right-click mode, use the Menu key or Shift+F10 to open it with the keyboard. The entry transition lasts 400 ms and closing is immediate. Fluent design and behavior alignment is still in progress.	기본 설정은 배경도 조작할 수 있는 비모달 팝업입니다. 화살표와 애니메이션을 켜고 크기와 모양을 비교해 보세요. 열기 방식은 클릭, 마우스 올리기, 우클릭 순으로 바뀝니다. 우클릭 모드에서는 Menu 키나 Shift+F10으로도 열 수 있습니다. 나타날 때는 400ms 동안 전환하고 닫을 때는 즉시 사라집니다. Fluent 디자인과 동작에 완전히 맞추는 작업은 진행 중입니다.	既定では非モーダルで、背景の操作も可能です。矢印とアニメーションを切り替え、サイズと外観を比較できます。開き方はクリック、ホバー、右クリックの順に切り替わります。右クリックモードでは Menu キーや Shift+F10 でも開けます。表示時のアニメーションは 400 ms で、閉じるとすぐに消えます。Fluent のデザインと動作への対応は進行中です。	默认是非模态弹出层，仍可操作背景。切换箭头和动画，比较大小和外观。触发方式按点击、悬停和右键点击依次切换。右键模式也可用 Menu 键或 Shift+F10 打开。入场过渡持续 400 毫秒，关闭时立即隐藏。与 Fluent 设计和行为的适配仍在进行。
+Custom surface	사용자 정의 표면	カスタムサーフェス	自定义表面
+The decoration extends beyond the body and moves and fades with the popover. Click the outer part of the decoration to dismiss it.	본문보다 넓은 장식도 팝업과 함께 움직이며 서서히 나타나거나 사라집니다. 장식의 바깥 부분을 클릭하면 팝업이 닫힙니다.	本文より広い装飾もポップオーバーと一緒に移動し、フェードイン・アウトします。装飾の外側をクリックすると閉じます。	装饰区域比正文更宽，会随弹出层一起移动并渐入或渐出。点击装饰区域的外侧可关闭弹出层。
+Tooltip target	설명 대상	説明の対象	提示目标
+Hover over this target or focus it with the keyboard.	대상에 포인터를 올리거나 키보드로 포커스를 옮겨 보세요.	対象にポインターを合わせるか、キーボードでフォーカスを移します。	将指针悬停在目标上，或使用键盘聚焦目标。
+Arrow example target	화살표 대상	矢印付きの説明の対象	带箭头提示的目标
+This tooltip has an arrow.	화살표가 있는 설명입니다.	矢印付きのツールチップです。	这是一条带箭头的工具提示。
+Details	세부 정보	詳細	详细信息
+Controlled target	제어 대상	表示を制御する対象	受控目标
+Code controls whether this tooltip is shown.	코드에서 표시 여부를 직접 정하는 Tooltip입니다.	コードで表示を制御するツールチップです。	此工具提示由代码控制显示。
+Toggle tooltip visibility	Tooltip 표시 전환	ツールチップの表示を切り替える	切换工具提示显示
+Hover or use Tab to focus a target and wait for the tooltip. Press Escape to dismiss it.	마우스를 올리거나 Tab으로 포커스를 옮겨 잠시 뒤 설명이 나타나는지 확인하세요. Escape를 누르면 닫힙니다.	対象にポインターを合わせるか Tab キーでフォーカスを移すと、少し待ってツールチップが表示されます。Escape キーで閉じます。	悬停或用 Tab 键聚焦目标，稍等即可看到工具提示。按 Esc 关闭。
+Automatic tooltip	자동 설명	自動表示のツールチップ	自动工具提示
+Tooltip with an arrow	화살표가 있는 설명	矢印付きツールチップ	带箭头的工具提示
+Accessible name of the target	대상의 접근성 이름	対象のアクセシブル名	目标的无障碍名称
+Description mode provides HelpText. Label mode provides Name, the accessible name of the target.	설명 모드에서는 대상의 HelpText를, 레이블 모드에서는 접근성 이름인 Name을 제공합니다.	説明モードでは対象の HelpText を提供し、ラベルモードではアクセシブル名である Name を提供します。	说明模式提供目标的 HelpText。标签模式提供目标的无障碍名称 Name。
+Control visibility from code	표시 상태 직접 제어	コードで表示を制御	由代码控制显示
+Name field	이름 입력	名前を入力	输入姓名
+User name	사용자 이름	ユーザー名	用户名
+This name is visible to other users. You can enter it in your own language.	다른 사용자에게 표시할 이름입니다. 한글과 영문을 사용할 수 있습니다.	ほかのユーザーに表示する名前です。任意の言語で入力できます。	此名称会显示给其他用户。你可以使用自己的语言输入。
+Run command in info popover	정보 안에서 실행	情報ポップオーバー内で実行	在信息弹出层中执行
+Change info label size	정보 크기 전환	情報ラベルのサイズを切り替える	切换信息标签大小
+Change info label text	정보 라벨 전환	情報ラベルのテキストを切り替える	切换信息标签文字
+Dimoi display name	디모이 표시 이름	ディモイの表示名	迪莫伊的显示名称
+Input: {0} / Commands in popover: {1}	입력 : {0} / 팝업 안에서 실행 : {1}	入力：{0} / ポップオーバー内の実行回数：{1}	输入：{0} / 弹出层内的执行次数：{1}
+Select the label to focus the input field. Open the explanation with the info button and close it with Esc or by moving focus to another control.	라벨을 누르면 입력창으로 포커스가 이동합니다. 정보 버튼으로 설명을 열고, Esc를 누르거나 다른 컨트롤로 포커스를 옮겨 닫으세요.	ラベルを押すと入力欄にフォーカスが移ります。情報ボタンで説明を開き、Esc キーを押すか別のコントロールにフォーカスを移して閉じます。	点击标签可聚焦输入框。用信息按钮打开说明，再按 Esc 或将焦点移到其他控件即可关闭。
+The default info icon uses the regular and filled glyphs from the Fluent icon font. Icon and Image can also use SVG.	기본 정보 아이콘은 Fluent 아이콘 폰트의 윤곽선(regular)과 채움(filled) 모양을 사용합니다. Icon과 Image에는 SVG도 사용할 수 있습니다.	既定の情報アイコンには、Fluent アイコンフォントのアウトライン（regular）と塗りつぶし（filled）の字形を使用します。Icon と Image では SVG も使用できます。	默认信息图标使用 Fluent 图标字体的常规和填充字形。Icon 和 Image 也可使用 SVG。
+Run command inside pop-up	팝업 안 명령	ポップアップ内のコマンドを実行	执行弹出窗口内的命令
+Next control in pop-up	팝업 안 다음	ポップアップ内の次のコントロール	弹出窗口内的下一个控件
+Close input pop-up	입력 팝업 닫기	入力ポップアップを閉じる	关闭输入弹出窗口
+Tab can move to controls outside a nonmodal pop-up. Exclusive keyboard mode keeps focus inside the pop-up.	비모달 팝업에서는 Tab으로 바깥 위젯까지 이동할 수 있습니다. 키보드 입력을 독점하는 모드에서는 팝업 안에서만 이동합니다.	非モーダルでは Tab キーでポップアップの外にも移動できます。キーボードを占有するモードでは、フォーカスがポップアップ内に留まります。	在非模态弹出窗口中，Tab 可以移到外部控件。键盘独占模式会将焦点保留在弹出窗口内。
+Change pop-up input mode	팝업 입력 모드 전환	ポップアップの入力モードを切り替える	切换弹出窗口输入模式
+Open input pop-up	입력 팝업 열기	入力ポップアップを開く	打开输入弹出窗口
+Run command outside pop-up	팝업 바깥 명령	ポップアップ外のコマンドを実行	执行弹出窗口外的命令
+Commands inside: {0} / Commands outside: {1}	팝업 안 실행 : {0} / 바깥 실행 : {1}	内側で実行：{0} / 外側で実行：{1}	内部执行：{0} / 外部执行：{1}
+Current mode: Nonmodal	현재 모드 : 비모달	現在のモード：非モーダル	当前模式：非模态
+Current mode: Exclusive keyboard	현재 모드 : 키보드 독점	現在のモード：キーボード占有	当前模式：键盘独占
+Click inside the pop-up and try Tab and Shift+Tab. Use the close button or click outside to dismiss it. See Popover for the Fluent widget example.	팝업 안을 클릭한 뒤 Tab·Shift+Tab을 확인하세요. 닫기 버튼 또는 바깥 클릭으로 닫습니다. 위젯을 넣은 Fluent Popover 예제는 Popover 메뉴에서 확인하세요.	ポップアップ内をクリックし、Tab キーと Shift+Tab を試します。閉じるボタンを押すか外側をクリックすると閉じます。Fluent のウィジェット例は Popover で確認できます。	点击弹出窗口内部后，试用 Tab 和 Shift+Tab。可用关闭按钮或点击外部关闭。Fluent 控件示例见 Popover 页面。
+Show more information	추가 정보 보기	詳細情報を表示	显示更多信息
+Export	내보내기	エクスポート	导出
+Export as PDF	PDF로 내보내기	PDF としてエクスポート	导出为 PDF
+Export as PNG	PNG로 내보내기	PNG としてエクスポート	导出为 PNG
+Add or reorder messages and inspect how the title and body are linked for accessibility. A new message requests a screen reader announcement. Verify speech with your screen reader.	메시지를 추가하거나 순서를 바꾸고, 제목과 본문이 접근성 정보로 연결되는지 확인해 보세요. 메시지가 나타나면 화면 읽기 프로그램에 알림을 요청하지만, 실제로 읽기를 마쳤는지는 여기서 확인할 수 없습니다.	メッセージを追加・並べ替え、タイトルと本文のアクセシビリティ上の関連付けを確認できます。新しいメッセージはスクリーンリーダーに通知を要求します。読み上げは実際のスクリーンリーダーで確認してください。	添加或重新排列消息，查看标题和正文的无障碍关联。新消息会请求屏幕阅读器播报，请用实际的屏幕阅读器确认播报效果。
+Explore cached geometry, basic shapes and standalone 3D projection. Compare circular and rounded clipping and transparent spacing. Animation requests frames while enabled.	바뀌지 않는 도형을 재사용하는 방식과 기본 도형 그리기, 독립적인 3D 투영을 살펴보세요. 원형으로 자르거나 모서리를 둥글게 자른 모습, 투명한 간격도 비교할 수 있습니다. 애니메이션을 켰을 때만 프레임을 요청합니다.	変更されていない図形の再利用、基本図形、独立した 3D 投影を確認できます。円形や角丸のクリッピング、透明な間隔も比較できます。アニメーションが有効な間はフレームを要求します。	查看几何缓存、基本图形和独立的 3D 投影。比较圆形裁剪、圆角裁剪以及透明间距。启用动画时会请求帧。
+No runnable example is available yet.	아직 미구현됨: 실행 가능한 예제 소스가 없습니다.	実行可能なサンプルはまだありません。	暂时没有可运行的示例。

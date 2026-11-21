@@ -8,7 +8,7 @@ Run `./run-gallery.ps1` on Windows, or `./run-gallery-linux.ps1` with the existi
 
 Open the **Settings** gear, then select **English**, **Korean**, **Japanese**, or **Simplified Chinese**. Select **Apply** to switch languages, or **Cancel** to keep the current language. The selected radio button marks the current language when Settings opens. The Gallery starts in the matching system language on first launch and uses English for unsupported system languages, including Traditional Chinese. It saves the choice independently of the system language.
 
-The interface redraws with the selected language while staying on the same destination. The current theme and toolbar preferences carry over. Interactive example state is recreated when switching languages. Fluent component names stay recognizable as C# API names. The embedded Gallery catalog contains the localized interface strings and is shared by the Windows and Linux hosts. Standalone component pages, Breadcrumb, DataGrid, NavigationBar, SegmentedControl, Select, SearchBox, SpinButton, and TextField use that catalog for the controls and the display strings copied with their C# examples.
+The interface redraws with the selected language while staying on the same destination. The current theme and toolbar preferences carry over. Interactive example state is recreated when switching languages. Fluent component names stay recognizable as C# API names. English phrases serve as source keys and fallbacks. The embedded Gallery catalog provides Korean, Japanese, and Simplified Chinese translations to both hosts. Standalone component pages, Breadcrumb, DataGrid, NavigationBar, SegmentedControl, Select, SearchBox, SpinButton, TextField, Popover, Tooltip, InfoLabel, and Pop-up input use that catalog for the controls and the display strings copied with their C# examples.
 
 Applications can use the same localization API from `Duxel.Core`. Supply a culture, source string, and translation for each entry. Resolve text or format arguments using the application's selected culture.
 
@@ -141,6 +141,8 @@ Gallery branding and component counts form the fixed header above the left navig
 `UiNavGroup.SectionHeader(value, label)` creates a visual label without a destination. Headers cannot contain items, icons, descriptions or disclosure behavior. They do not accept clicks or keyboard focus and remain passive accessibility labels. Categories retain their icons and disclosure controls. Subitems use 46 UI units of leading inset, mirrored in RTL. Fluent section titles use Caption1Strong with 8 units of top/bottom margin and honor light, dark and forced colors. Sections do not add another destination nesting level.
 
 Sources: [official Nav usage](https://fluent2.microsoft.design/components/web/react/core/nav/usage/), [section header styles](https://raw.githubusercontent.com/microsoft/fluentui/master/packages/react-components/react-nav/library/src/components/NavSectionHeader/useNavSectionHeaderStyles.styles.ts), [subitem styles](https://raw.githubusercontent.com/microsoft/fluentui/master/packages/react-components/react-nav/library/src/components/NavSubItem/useNavSubItemStyles.styles.ts).
+
+The `gallery-localization-audit` graphics test opens each registered Gallery page in all four languages. Its JSON Lines output records the accessible text and C# regions that contain Hangul, along with the number of source regions reached. Use the report to locate mixed-language content and intentional multilingual examples.
 
 ## Current values and example code
 

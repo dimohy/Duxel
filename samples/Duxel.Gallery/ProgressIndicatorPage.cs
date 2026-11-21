@@ -6,7 +6,7 @@ internal sealed class ProgressIndicatorPage : IObserverPage, IObserverNaturalPag
 {
     private Content? _content;
     public string Title => "ProgressIndicator";
-    public string Description => "작업 이름과 설명을 진행 막대와 함께 표시합니다. 진행률을 모를 때는 기다리는 상태를 보여줍니다.";
+    public string Description => "Show a task name and description next to the progress bar. Use an indeterminate indicator when the progress is unknown.";
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new()).Samples;
     UiWidget IObserverNaturalPage.MeasureRoot => (_content ??= new()).Root;
     public void Render(UiImmediateContext ui) => (_content ??= new()).Root.Render(ui);

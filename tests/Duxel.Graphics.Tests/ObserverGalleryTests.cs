@@ -1458,7 +1458,7 @@ internal static class ObserverGalleryTests
         var infoLabel = screen.InfoLabelPage.Preview;
         check(infoLabel is not null && Find("사용자 이름", UiAccessibilityRole.Edit).Required,
             "observer InfoLabel labels its real editable target and required metadata");
-        Click("추가 정보", "사용자 이름 추가 정보");
+        Click("추가 정보", "사용자 이름 추가 정보 보기");
         check(infoLabel!.IsOpen && Find("정보 안에서 실행", UiAccessibilityRole.Button).Enabled,
             "observer InfoLabel actual information button opens supplemental interactive content");
         Frame("추가 정보", Input(new(-100, -100)) with

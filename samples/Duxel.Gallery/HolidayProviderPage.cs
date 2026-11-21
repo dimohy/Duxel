@@ -9,7 +9,7 @@ internal sealed class HolidayProviderPage : IObserverPage, IObserverNaturalPage,
     private Content? _content;
     private Content State => _content ??= new();
     public string Title => "공휴일 제공자";
-    public string Description => "공휴일 데이터는 달력과 분리해 받아옵니다. 연결이 끊기면 공휴일 표시만 생략하고 날짜 선택은 계속 동작합니다.";
+    public string Description => "Holiday data loads separately from the calendar. You can still select dates when the holiday source is offline.";
     public IReadOnlyList<IGallerySample> Samples => State.Samples;
     internal UiCalendarWidget Preview => State.Calendar;
     internal void SimulateOutage() => State.Outage();

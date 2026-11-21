@@ -6,7 +6,7 @@ internal sealed class HeadsUpDisplayPage : IObserverPage, IObserverNaturalPage, 
 {
     private Content? _content;
     public string Title => "HeadsUpDisplay";
-    public string Description => "작업 상태를 화면 중앙에 표시합니다. 진행 표시는 눌러서 닫고, 성공·실패 표시는 1초 후 닫힙니다.";
+    public string Description => "Show task status at the center of the screen. Press to dismiss progress notifications. Success and failure notifications close after one second.";
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new()).Samples;
     UiWidget IObserverNaturalPage.MeasureRoot => (_content ??= new()).Root;
     public void Render(UiImmediateContext ui) => (_content ??= new()).Root.Render(ui);

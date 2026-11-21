@@ -7,7 +7,7 @@ internal sealed class ToolbarPage : IObserverPage, IObserverNaturalPage, IGaller
     private Content? _content;
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new()).Samples;
     public string Title => "도구 모음";
-    public string Description => "도구 모음의 가로·세로 배치, 방향키 이동과 토글 상태를 확인합니다.";
+    public string Description => "Try horizontal and vertical toolbars, arrow-key navigation, and toggled states.";
     internal UiFluentToolbar? Preview => _content?.Toolbar;
     UiWidget IObserverNaturalPage.MeasureRoot => (_content ??= new()).Root;
     public void Render(UiImmediateContext ui) => (_content ??= new()).Root.Render(ui);

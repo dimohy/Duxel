@@ -12,7 +12,7 @@ internal sealed class PopupInputPage : IObserverPage, IObserverNaturalPage, IGal
     internal int InsideCount { get; private set; }
     internal int OutsideCount { get; private set; }
     public string Title => "팝업 입력";
-    public string Description => "비모달 팝업과 키보드 입력을 독점하는 팝업의 이동·실행·닫기를 비교합니다.";
+    public string Description => "Compare navigation, activation, and dismissal in nonmodal popovers and popovers that capture keyboard input.";
     public IReadOnlyList<IGallerySample> Samples { get; }
     UiWidget IObserverNaturalPage.MeasureRoot => _root;
     void IObserverNaturalPage.RenderOverlays(UiImmediateContext ui) => _renderPopup(ui);
@@ -20,9 +20,9 @@ internal sealed class PopupInputPage : IObserverPage, IObserverNaturalPage, IGal
     internal PopupInputPage()
     {
         var popup = GallerySample.Define("_popup", () => Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Button("팝업 안 명령", () => InsideCount++),
-            Fluent.Button("팝업 안 다음"),
-            Fluent.Button("입력 팝업 닫기", () => _requestClose = true)));
+            Fluent.Button(GalleryText.Get("Run command inside pop-up"), () => InsideCount++),
+            Fluent.Button(GalleryText.Get("Next control in pop-up")),
+            Fluent.Button(GalleryText.Get("Close input pop-up"), () => _requestClose = true)));
         _popup = popup.Value;
         var render = GallerySample.Define<Action<UiImmediateContext>>("renderPopup", () => (UiImmediateContext ui) =>
         {
@@ -48,13 +48,13 @@ internal sealed class PopupInputPage : IObserverPage, IObserverNaturalPage, IGal
         });
         _renderPopup = render.Value;
         var sample = GallerySample.Create(() => Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Body1("비모달 팝업에서는 Tab으로 바깥 위젯까지 이동할 수 있습니다. 키보드 입력을 독점하는 모드에서는 팝업 안에서만 이동합니다."),
-            Fluent.Button("팝업 입력 모드 전환", () => Mode = Mode == UiPopupInputMode.NonModal ? UiPopupInputMode.Exclusive : UiPopupInputMode.NonModal),
-            Fluent.Button("입력 팝업 열기", () => _requestOpen = true),
-            Fluent.Button("팝업 바깥 명령", () => OutsideCount++),
-            Fluent.Body1(() => $"팝업 안 실행 : {InsideCount} / 바깥 실행 : {OutsideCount}"),
-            Fluent.Body1(() => Mode == UiPopupInputMode.NonModal ? "현재 모드 : 비모달" : "현재 모드 : 키보드 독점"),
-            Fluent.Body1("팝업 안을 클릭한 뒤 Tab·Shift+Tab을 확인하세요. 닫기 버튼 또는 바깥 클릭으로 닫습니다. 위젯을 넣은 Fluent Popover 예제는 Popover 메뉴에서 확인하세요.")));
+            Fluent.Body1(GalleryText.Get("Tab can move to controls outside a nonmodal pop-up. Exclusive keyboard mode keeps focus inside the pop-up.")),
+            Fluent.Button(GalleryText.Get("Change pop-up input mode"), () => Mode = Mode == UiPopupInputMode.NonModal ? UiPopupInputMode.Exclusive : UiPopupInputMode.NonModal),
+            Fluent.Button(GalleryText.Get("Open input pop-up"), () => _requestOpen = true),
+            Fluent.Button(GalleryText.Get("Run command outside pop-up"), () => OutsideCount++),
+            Fluent.Body1(() => string.Format(GalleryText.Get("Commands inside: {0} / Commands outside: {1}"), InsideCount, OutsideCount)),
+            Fluent.Body1(() => Mode == UiPopupInputMode.NonModal ? GalleryText.Get("Current mode: Nonmodal") : GalleryText.Get("Current mode: Exclusive keyboard")),
+            Fluent.Body1(GalleryText.Get("Click inside the pop-up and try Tab and Shift+Tab. Use the close button or click outside to dismiss it. See Popover for the Fluent widget example."))));
         var factory = sample.Source;
         sample.BindSource(() => (Mode, InsideCount, OutsideCount, Visible), state =>
             $"var Mode = UiPopupInputMode.{state.Mode};\nvar InsideCount = {state.InsideCount};\nvar OutsideCount = {state.OutsideCount};\n"

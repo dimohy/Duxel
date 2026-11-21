@@ -8,7 +8,7 @@ internal sealed class DropdownPage(ObserverServices services) : IObserverPage, I
     private Content? _content;
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new(services)).Samples;
     public string Title => "선택 목록";
-    public string Description => "항목을 하나 또는 여러 개 선택해 보세요. 키보드로 선택하거나 목록을 닫은 상태에서 운영체제의 접근성 기능으로 선택할 수 있습니다.";
+    public string Description => "Try selecting one or more items by keyboard or through the operating system's accessibility features while the list is closed.";
     internal UiFluentDropdown? Single => _content?.Single;
     internal UiFluentDropdown? Multiple => _content?.Multiple;
     internal UiFluentCombobox? Editable => _content?.Editable;

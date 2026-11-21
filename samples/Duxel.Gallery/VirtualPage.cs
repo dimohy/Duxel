@@ -10,7 +10,7 @@ internal sealed class VirtualPage : IObserverPage, IObserverNaturalPage, IGaller
     private readonly UiWidget _root;
     public IReadOnlyList<IGallerySample> Samples { get; }
     public string Title => "가상 목록";
-    public string Description => "10억 개 항목 가운데 화면에 필요한 항목만 생성합니다. 세로와 가로를 전환해도 편집한 값은 항목의 키에 연결해 보관합니다.";
+    public string Description => "The list creates only visible items from a billion entries. Edited values stay tied to their item keys when the orientation changes.";
     internal int RealizedCount => _list.RealizedCount;
     internal double Offset => _list.Offset;
     internal int LiveCount => _source.Created - _source.Disposed;

@@ -7,7 +7,7 @@ internal sealed class PopoverPage : IObserverPage, IObserverNaturalPage, IGaller
     private Content? _content;
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new()).Samples;
     public string Title => "Popover";
-    public string Description => "팝업 안에 원하는 위젯을 넣을 수 있습니다. 내용을 입력하고 포커스를 옮기거나 팝업을 닫았다 다시 열어 보세요.";
+    public string Description => "Place widgets inside a pop-up. Enter text, move focus, and try closing and reopening the pop-up.";
     internal UiFluentPopover? Preview => _content?.Preview;
     internal string? ModelName => _content?.ModelName;
     internal UiPopover<GalleryPopoverDecoration>? DecorationPreview => _content?.DecorationPreview;
@@ -17,7 +17,7 @@ internal sealed class PopoverPage : IObserverPage, IObserverNaturalPage, IGaller
 
     private sealed class Content : IDisposable
     {
-        private string _name = "디모이";
+        private string _name = GalleryText.Get("Dimoi");
         internal string ModelName => _name;
         private int _count;
         private bool _open, _rejectClose;
@@ -36,9 +36,9 @@ internal sealed class PopoverPage : IObserverPage, IObserverNaturalPage, IGaller
         internal IReadOnlyList<IGallerySample> Samples { get; }
         private string TriggerText => Preview.Options.TriggerMode switch
         {
-            UiPopoverTriggerMode.Click => "클릭",
-            UiPopoverTriggerMode.Hover => "호버",
-            UiPopoverTriggerMode.Context => "우클릭",
+            UiPopoverTriggerMode.Click => GalleryText.Get("Click"),
+            UiPopoverTriggerMode.Hover => GalleryText.Get("Hover"),
+            UiPopoverTriggerMode.Context => GalleryText.Get("Right-click"),
             _ => throw new InvalidOperationException("Unknown Popover trigger mode.")
         };
         internal Content()
@@ -47,12 +47,12 @@ internal sealed class PopoverPage : IObserverPage, IObserverNaturalPage, IGaller
             var sample = GallerySample.Create(() =>
             {
                 UiFluentPopover? owner = null;
-                var input = Fluent.Input("팝업 이름", new UiBinding<string>(() => _name, value => _name = value), 64, 280);
-                owner = Fluent.Popover("프로필 편집 열기", Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                    Fluent.Subtitle2("프로필 편집"), Fluent.Label("이름", input), input,
-                    Fluent.Button("팝업 명령 실행", () => _count++),
-                    Fluent.Menu("팝업 내부 메뉴", [new("execute", "메뉴 명령 실행")], _ => _count++),
-                    Fluent.Button("프로필 편집 닫기", () => owner!.Close())), options : options);
+                var input = Fluent.Input(GalleryText.Get("Name in popover"), new UiBinding<string>(() => _name, value => _name = value), 64, 280);
+                owner = Fluent.Popover(GalleryText.Get("Open profile editor"), Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
+                    Fluent.Subtitle2(GalleryText.Get("Edit profile")), Fluent.Label(GalleryText.Get("Name"), input), input,
+                    Fluent.Button(GalleryText.Get("Run popover command"), () => _count++),
+                    Fluent.Menu(GalleryText.Get("Menu in popover"), [new("execute", GalleryText.Get("Run menu command"))], _ => _count++),
+                    Fluent.Button(GalleryText.Get("Close profile editor"), () => owner!.Close())), options : options);
                 owner.Open = new(() => _open, value => { if (value || !_rejectClose) _open = value; });
                 return owner;
             });
@@ -67,7 +67,7 @@ internal sealed class PopoverPage : IObserverPage, IObserverNaturalPage, IGaller
             var decorationSample = GallerySample.Create(() =>
             {
                 UiPopover<GalleryPopoverDecoration>? decoration = null;
-                decoration = new("넓은 장식 팝업 열기", Fluent.Button("장식 팝업 닫기", () => decoration!.Close()), options : decorationOptions);
+                decoration = new(GalleryText.Get("Open wide decorative popover"), Fluent.Button(GalleryText.Get("Close decorative popover"), () => decoration!.Close()), options : decorationOptions);
                 return decoration;
             });
             DecorationPreview = decorationSample.Preview;
@@ -80,9 +80,9 @@ internal sealed class PopoverPage : IObserverPage, IObserverNaturalPage, IGaller
             Samples = [sample, decorationSample];
             Root = Dux.ScrollView(Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
                 Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                    Fluent.Button("팝업 포커스 제한", () => Preview.Options = Preview.Options with { TrapFocus = !Preview.Options.TrapFocus }),
-                    Fluent.Button("포커스 이탈 시 닫기", () => Preview.Options = Preview.Options with { CloseOnFocusLeave = !Preview.Options.CloseOnFocusLeave }),
-                    Fluent.Button("팝업 열기 방식", () =>
+                    Fluent.Button(GalleryText.Get("Toggle focus trap"), () => Preview.Options = Preview.Options with { TrapFocus = !Preview.Options.TrapFocus }),
+                    Fluent.Button(GalleryText.Get("Toggle close on focus loss"), () => Preview.Options = Preview.Options with { CloseOnFocusLeave = !Preview.Options.CloseOnFocusLeave }),
+                    Fluent.Button(GalleryText.Get("Change popover trigger"), () =>
                     {
                         Preview.Close();
                         var mode = (UiPopoverTriggerMode)(((int)Preview.Options.TriggerMode + 1) % 3);
@@ -92,19 +92,22 @@ internal sealed class PopoverPage : IObserverPage, IObserverNaturalPage, IGaller
                             DisableAutoFocus = mode == UiPopoverTriggerMode.Hover
                         };
                     }),
-                    Fluent.Button("팝업 화살표", () => Preview.Options = Preview.Options with { WithArrow = !Preview.Options.WithArrow }),
-                    Fluent.Button("팝업 모션", () => Preview.Options = Preview.Options with { MotionEnabled = !Preview.Options.MotionEnabled }),
-                    Fluent.Button("팝업 크기", () => Preview.Options = Preview.Options with { Size = (UiPopoverSize)(((int)Preview.Options.Size + 1) % 3) }),
-                    Fluent.Button("팝업 외관", () => Preview.Options = Preview.Options with { Appearance = (UiPopoverAppearance)(((int)Preview.Options.Appearance + 1) % 3) }),
-                    Fluent.Button("팝업 닫기 거부", () => _rejectClose = !_rejectClose)),
-                Fluent.Body1(() => $"이름 : {_name} / 실행 : {_count} / 열림 : {_open} / 열기 방식 : {TriggerText} / 모션 : {Preview.Options.MotionEnabled} / 포커스 제한 : {Preview.Options.TrapFocus} / 포커스 이탈 닫기 : {Preview.Options.CloseOnFocusLeave} / 닫기 거부 : {_rejectClose}"),
-                Fluent.Body1("내부 메뉴에서도 명령을 실행해 보세요. Escape는 메뉴부터 닫습니다. 호버 모드에서는 메뉴 위에 머물러도 팝업이 유지됩니다. 닫거나 탭을 왕복해도 입력 내용은 유지됩니다."),
-                Fluent.Caption1("기본 설정은 배경도 조작할 수 있는 비모달 팝업입니다. 화살표와 애니메이션을 켜고 크기와 모양을 비교해 보세요. 열기 방식은 클릭, 마우스 올리기, 우클릭 순으로 바뀝니다. 우클릭 모드에서는 Menu 키나 Shift+F10으로도 열 수 있습니다. 나타날 때는 400ms 동안 전환하고 닫을 때는 즉시 사라집니다. Fluent 디자인과 동작에 완전히 맞추는 작업은 진행 중입니다."),
+                    Fluent.Button(GalleryText.Get("Toggle popover arrow"), () => Preview.Options = Preview.Options with { WithArrow = !Preview.Options.WithArrow }),
+                    Fluent.Button(GalleryText.Get("Toggle popover animation"), () => Preview.Options = Preview.Options with { MotionEnabled = !Preview.Options.MotionEnabled }),
+                    Fluent.Button(GalleryText.Get("Change popover size"), () => Preview.Options = Preview.Options with { Size = (UiPopoverSize)(((int)Preview.Options.Size + 1) % 3) }),
+                    Fluent.Button(GalleryText.Get("Change popover appearance"), () => Preview.Options = Preview.Options with { Appearance = (UiPopoverAppearance)(((int)Preview.Options.Appearance + 1) % 3) }),
+                    Fluent.Button(GalleryText.Get("Toggle rejection of close"), () => _rejectClose = !_rejectClose)),
+                Fluent.Body1(() => GalleryText.Format("Name: {0} / Commands: {1} / Open: {2} / Trigger: {3} / Animation: {4} / Focus trap: {5} / Close on focus loss: {6} / Reject close: {7}",
+                    _name, _count, StateText(_open), TriggerText, StateText(Preview.Options.MotionEnabled),
+                    StateText(Preview.Options.TrapFocus), StateText(Preview.Options.CloseOnFocusLeave), StateText(_rejectClose))),
+                Fluent.Body1(GalleryText.Get("Try running a command from the nested menu. Escape closes the menu first. In hover mode the popover stays open while the pointer is over the menu. Editing state is preserved when you close it or switch pages.")),
+                Fluent.Caption1(GalleryText.Get("The default popover is nonmodal, so the background remains interactive. Toggle the arrow and animation and compare sizes and appearances. The trigger cycles through click, hover, and right-click. In right-click mode, use the Menu key or Shift+F10 to open it with the keyboard. The entry transition lasts 400 ms and closing is immediate. Fluent design and behavior alignment is still in progress.")),
                 sample,
-                Fluent.Subtitle2("사용자 정의 표면"),
-                Fluent.Caption1("본문보다 넓은 장식도 팝업과 함께 움직이며 서서히 나타나거나 사라집니다. 장식의 바깥 부분을 클릭하면 팝업이 닫힙니다."),
+                Fluent.Subtitle2(GalleryText.Get("Custom surface")),
+                Fluent.Caption1(GalleryText.Get("The decoration extends beyond the body and moves and fades with the popover. Click the outer part of the decoration to dismiss it.")),
                 decorationSample));
         }
+        private static string StateText(bool value) => GalleryText.Get(value ? "On" : "Off");
         public void Dispose() => Root.Dispose();
     }
 

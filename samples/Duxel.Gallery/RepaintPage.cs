@@ -11,7 +11,7 @@ internal sealed class RepaintPage : IObserverPage, IObserverNaturalPage, IGaller
     internal long TextBuilds => _experiment.TextBuilds;
     internal string CpuSnapshot => _experiment.CpuSnapshot;
     public string Title => "갱신 관찰";
-    public string Description => "초록 테두리는 Vulkan이 화면에 실제로 다시 그린 범위를 보여 줍니다.";
+    public string Description => "Green borders show the regions actually repainted by Vulkan.";
     public IReadOnlyList<IGallerySample> Samples { get; }
     UiWidget IObserverNaturalPage.MeasureRoot => _root;
 

@@ -7,7 +7,7 @@ internal sealed class TreePage : IObserverPage, IObserverNaturalPage, IGallerySo
     private Content? _content;
     private Content State => _content ??= new();
     public string Title => "Tree";
-    public string Description => "폴더를 펼치고, 하위 항목을 한꺼번에 선택하거나 행 안의 버튼을 실행해 보세요.";
+    public string Description => "Expand a folder, select its children together, or activate a button within a row.";
     public IReadOnlyList<IGallerySample> Samples => State.Samples;
     UiWidget IObserverNaturalPage.MeasureRoot => State.Root;
     public void Render(UiImmediateContext ui) => State.Root.Render(ui);

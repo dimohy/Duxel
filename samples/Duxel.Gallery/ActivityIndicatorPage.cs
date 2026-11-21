@@ -6,7 +6,7 @@ internal sealed class ActivityIndicatorPage : IObserverPage, IObserverNaturalPag
 {
     private Content? _content;
     public string Title => "ActivityIndicator";
-    public string Description => "Fluent iOS의 활동 표시입니다. 정지 시 표시 여부와 상관없이 배치 공간은 유지됩니다.";
+    public string Description => "Try the Fluent iOS activity indicator. The layout keeps its space when it stops, whether the indicator remains visible or is hidden.";
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new()).Samples;
     UiWidget IObserverNaturalPage.MeasureRoot => (_content ??= new()).Root;
     public void Render(UiImmediateContext ui) => (_content ??= new()).Root.Render(ui);

@@ -7,7 +7,7 @@ internal sealed class CardNudgePage : IObserverPage, IObserverNaturalPage, IGall
     private Content? _content;
     private Content State => _content ??= new();
     public string Title => "CardNudge";
-    public string Description => "안내 카드를 닫거나 좌우로 밀면 아래 내용이 위로 올라옵니다.";
+    public string Description => "Dismiss or swipe the suggestion card to move the content below it upward.";
     public IReadOnlyList<IGallerySample> Samples => State.Samples;
     UiWidget IObserverNaturalPage.MeasureRoot => State.Root;
     public void Render(UiImmediateContext ui) => State.Root.Render(ui);

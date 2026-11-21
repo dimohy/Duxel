@@ -35,7 +35,7 @@ internal sealed class GalleryPageFrame : IDisposable
     {
         _page = page;
         _body = new ExampleHost(this);
-        var title = Fluent.Title2(navigationLabel ?? GalleryText.Get(page.Title));
+        var title = Fluent.Title2(navigationLabel ?? GalleryText.PageTitle(page.Title));
         var header = string.IsNullOrWhiteSpace(page.Description)
             ? (UiWidget)title
             : Dux.Column(new(Spacing : 6, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
@@ -52,7 +52,7 @@ internal sealed class GalleryPageFrame : IDisposable
         }
         var scroll = Dux.ScrollView(Dux.Column(new(Spacing : 28, MainAxisSize : UiMainAxisSize.Min,
             CrossAxisAlignment : UiCrossAxisAlignment.Stretch), header, body));
-        scroll.AccessibleName = GalleryText.Get("갤러리 페이지");
+        scroll.AccessibleName = GalleryText.Get("Gallery page");
         _root = scroll;
     }
     internal static bool HasSource(string title) => title is not ("개요" or "관찰 범위") && !Fluent.MissingComponentNames.Contains(title);
@@ -123,7 +123,7 @@ internal static class GalleryPageSource
     internal static string For(IObserverPage page)
     {
         if (page is ComponentExamplePage example) return example.Source;
-        if (Fluent.MissingComponentNames.Contains(page.Title)) return "// 아직 미구현됨: 실행 가능한 예제 소스가 없습니다.";
+        if (Fluent.MissingComponentNames.Contains(page.Title)) return "// " + GalleryText.Get("No runnable example is available yet.");
         var file = page.Title switch
         {
             "개요" => "ObserverScreen",
@@ -181,7 +181,7 @@ internal static class GalleryPageSource
         using var stream = typeof(GalleryPageSource).Assembly.GetManifestResourceStream("GallerySource." + file + ".cs")
             ?? throw new InvalidOperationException("Gallery source resource is missing : " + file);
         using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
-        source = OmitCommonImport(reader.ReadToEnd());
+        source = OmitCommonImport(reader.ReadToEnd().Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n'));
         Cache.Add(file, source);
         return source;
     }
