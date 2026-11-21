@@ -20,9 +20,12 @@ internal sealed class TabExamples : UiWidget, IGallerySourcePage
         var declarations = GalleryPageSource.Declaration("TabExampleIcons");
         var examples = new List<UiWidget>
         {
-            Fluent.Divider("탭 표현과 아이콘"),
-            Fluent.Body1("각 탭 목록은 선택한 값을 공유합니다. 방향키로 포커스를 옮겼을 때와 탭을 선택했을 때를 비교하고, 아이콘이 윤곽선과 채움 모양으로 바뀌는지도 살펴보세요."),
-            Fluent.Body1(() => $"공유 선택 : {_selection.Value ?? "선택 없음"}")
+            Fluent.Divider(GalleryText.Get("Tab styles and icons")),
+            Fluent.Body1(GalleryText.Get("The tab lists share one selection. Use the arrow keys to move focus, then select a tab. Watch its icon switch between outline and filled styles.")),
+            Fluent.Body1(() => GalleryText.Format("Shared selection: {0}", GalleryText.Get(_selection.Value switch
+            {
+                "home" => "Home", "document" => "Documents", "settings" => "Settings", _ => "None selected"
+            })))
         };
         var samples = new List<IGallerySample>();
         foreach (var appearance in Enum.GetValues<UiTabListAppearance>())
@@ -30,11 +33,11 @@ internal sealed class TabExamples : UiWidget, IGallerySourcePage
             var iconOnly = appearance == UiTabListAppearance.SubtleCircular;
             var size = appearance == UiTabListAppearance.Transparent ? UiTabListSize.Small
                 : appearance == UiTabListAppearance.FilledCircular ? UiTabListSize.Large : UiTabListSize.Medium;
-            var sample = GallerySample.Create(() => Fluent.TabList("표현 비교 : " + appearance, _selection.Binding, new UiTabOption[]
+            var sample = GallerySample.Create(() => Fluent.TabList(string.Format(GalleryText.Get("Style comparison: {0}"), appearance), _selection.Binding, new UiTabOption[]
             {
-                new("home", "홈", Icon : home, IconOnly : iconOnly),
-                new("document", "문서", Icon : document, IconOnly : iconOnly),
-                new("settings", "설정", false, settings, iconOnly)
+                new("home", GalleryText.Get("Home"), Icon : home, IconOnly : iconOnly),
+                new("document", GalleryText.Get("Documents"), Icon : document, IconOnly : iconOnly),
+                new("settings", GalleryText.Get("Settings"), false, settings, iconOnly)
             }, new(size, Appearance : appearance)));
             var factory = sample.Source;
             sample.BindSource(() => _selection.Value, value => $"var _selection = new UiState<string?>({GallerySample.String(value)});\n"
@@ -44,7 +47,7 @@ internal sealed class TabExamples : UiWidget, IGallerySourcePage
             examples.Add(Fluent.Subtitle2($"{appearance} / {size}"));
             examples.Add(sample);
         }
-        examples.Add(Fluent.Caption1("아이콘 전용 목록도 접근성 이름과 선택 값을 유지합니다. 설정 탭은 비활성 상태입니다."));
+        examples.Add(Fluent.Caption1(GalleryText.Get("Icon-only tabs still have accessible names and share the selected value. The Settings tab is disabled.")));
         Samples = samples;
         _root = new UiColumn(examples.ToArray(), new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min));
         OwnChild("root", _root);

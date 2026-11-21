@@ -12,7 +12,7 @@ internal sealed class LayoutIntegrationPage : UiWidget, IGallerySourcePage
         var overflow = new OverflowExamples();
         Samples = [.. tabs.Samples, .. overflow.Samples];
         _root = Dux.Column(new(Spacing : 16, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Body1("탭과 메뉴를 함께 배치해 보세요. 공간이 부족할 때 항목을 어떻게 숨기는지, 숨겼다 다시 표시해도 상태가 유지되는지 확인할 수 있습니다."), tabs, overflow);
+            Fluent.Body1(GalleryText.Get("Combine tabs and menus. Check what happens when space runs out and whether items retain their state when shown again.")), tabs, overflow);
         OwnChild("root", _root);
     }
     protected override IUiView Build(UiBuildContext context) => context.Child("root", () => _root);

@@ -6,20 +6,20 @@ internal sealed class TabOverflowBodies : UiWidget
 {
     private readonly UiFluentTabList _tabs;
     private readonly (string Key, UiWidget Body)[] _bodies;
-    internal TabOverflowBodies(UiFluentTabList tabs, UiState<int>[] counts)
+    internal TabOverflowBodies(UiFluentTabList tabs, UiTabOption[] items, UiState<int>[] counts)
     {
-        if (counts.Length != 5)
-            throw new ArgumentException("The tab example requires one counter for each of its five panels.", nameof(counts));
+        if (counts.Length != items.Length)
+            throw new ArgumentException("The tab example requires one counter per panel.", nameof(counts));
         _tabs = tabs;
-        _bodies = new[] { ("home", "홈"), ("document", "문서"), ("analysis", "분석"), ("settings", "설정"), ("help", "도움말") }
-            .Select((item, index) =>
-            {
-                var count = counts[index];
-                var button = Fluent.Button($"넘침 본문 {item.Item2} : {count.Value}");
-                button.Activated = () => button.Label = $"넘침 본문 {item.Item2} : {++count.Value}";
-                OwnChild(item.Item1, button);
-                return (item.Item1, (UiWidget)button);
-            }).ToArray();
+        var counterFormat = GalleryText.Get("Tab panel {0}: {1}");
+        _bodies = items.Select((item, index) =>
+        {
+            var count = counts[index];
+            var button = Fluent.Button(string.Format(counterFormat, item.Label, count.Value));
+            button.Activated = () => button.Label = string.Format(counterFormat, item.Label, ++count.Value);
+            OwnChild(item.Value, button);
+            return (item.Value, (UiWidget)button);
+        }).ToArray();
     }
     protected override UiVector2 MeasureContent(UiControlContext context)
     {

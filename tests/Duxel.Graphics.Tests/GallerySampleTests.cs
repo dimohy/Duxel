@@ -1297,7 +1297,7 @@ internal static class GallerySampleTests
         var sources = tree.CaptureSnapshot().Elements.Where(element => element.Node.Name == "C# 예제 소스").Select(element => element.Node).ToArray();
         check(examples.Samples.Count == 8 && sources.Length == 8,
             "tab overflow, priority overflow and six menu examples each own an adjacent source");
-        var selected = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == "선택 값 : home").Node;
+        var selected = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == "선택한 값 : 홈").Node;
         check(sources[0].Bounds.Y >= selected.Bounds.Y + selected.Bounds.Height
             && sources[0].Bounds.Y - selected.Bounds.Y - selected.Bounds.Height <= 24,
             "tab overflow source follows its actual header, owned panel and selection status");
