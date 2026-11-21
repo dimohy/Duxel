@@ -986,6 +986,7 @@ internal static class GalleryLocalizationTests
         var json = new GraphicsJson(new System.Text.Json.JsonSerializerOptions());
         var services = ObserverServices.CreateWindows();
         var input = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        var failures = new List<string>();
         foreach (var language in Enum.GetValues<GalleryLanguage>())
         {
             using var locale = GalleryText.Use(language);
@@ -1032,9 +1033,28 @@ internal static class GalleryLocalizationTests
                 var result = new GalleryLocalizationAuditPage(GalleryText.Tag(language), page, screen.SelectedNavigationLabel,
                     !string.IsNullOrEmpty(pane.Id), screen.SourceCountForPage(page), snippets.Length, visibleStrings, sourceCandidates, offscreenStrings);
                 report.WriteLine(System.Text.Json.JsonSerializer.Serialize(result, json.GalleryLocalizationAuditPage));
+
+                if (!result.PaneFound || result.ObservedSources != result.ExpectedSources)
+                    failures.Add($"{result.Language} / {page}: expected the selected pane and {result.ExpectedSources} C# blocks, found {result.ObservedSources}.");
+                if (language == GalleryLanguage.Korean) continue;
+
+                if (page == "Localization")
+                {
+                    // The example lists Korean by its native name and includes a Korean translation.
+                    visibleStrings = visibleStrings.Where(text => text != "한국어").ToArray();
+                    offscreenStrings = offscreenStrings.Where(text => text != "한국어").ToArray();
+                    sourceCandidates = sourceCandidates.Where(line =>
+                        line != "(\"ko\", message, \"선택한 파일: {0:N0}개\"),").ToArray();
+                }
+                var unexpected = visibleStrings.Concat(offscreenStrings).Concat(sourceCandidates).ToArray();
+                if (unexpected.Length > 0)
+                    failures.Add($"{result.Language} / {page}: unexpected Hangul: {string.Join(" | ", unexpected)}");
             }
             report.Flush();
         }
+
+        if (failures.Count > 0)
+            throw new InvalidOperationException(string.Join(Environment.NewLine, failures));
     }
 
     internal static void CaptureOverview(string output, Action<bool, string> check)

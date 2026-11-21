@@ -12,6 +12,9 @@ internal static class GalleryVisualTests
         fixture.Context.SetTheme(UiCompiledDesign.Windows11Dark.Theme);
         fixture.Context.State.VSync = false;
         fixture.Context.SetAccessibilityTree(tree);
+        var fonts = GalleryText.ConfigureFonts(new());
+        fixture.Context.SetDirectTextSecondaryFontPath(fonts.SecondaryFontPath);
+        fixture.Context.SetTypographyFonts(fonts.Typography);
         var clipboard = new CodeClipboard();
         fixture.Context.SetClipboard(clipboard);
         var adornmentPreservesCursor = false;
@@ -102,7 +105,7 @@ internal static class GalleryVisualTests
         Capture("RadioGroup", "gallery-page-header-radio");
         var radioHeader = tree.CaptureSnapshot().Elements;
         var pageDescription = radioHeader.Single(element => element.Node.Role == UiAccessibilityRole.Label
-            && element.Node.Name == gallery.DescriptionForPage("RadioGroup")).Node.Bounds;
+            && element.Node.Name == GalleryText.Get(gallery.DescriptionForPage("RadioGroup"))).Node.Bounds;
         var pageTitle = radioHeader.Single(element => element.Node.Role == UiAccessibilityRole.Label
             && element.Node.Name == "RadioGroup").Node.Bounds;
         var radioExample = radioHeader.Single(element => element.Node.Role == UiAccessibilityRole.RadioGroup
@@ -128,7 +131,7 @@ internal static class GalleryVisualTests
         Capture("개요", "gallery-overview-header");
         var headerNodes = tree.CaptureSnapshot().Elements;
         var navigationRoot = headerNodes.Single(element => element.Node.Role == UiAccessibilityRole.Navigation && element.Node.Name == "갤러리 탐색").Node.Id;
-        foreach (var label in new[] { "Fluent 컨트롤", "Duxel 위젯", "통합·개발 도구" })
+        foreach (var label in new[] { "Fluent controls", "Duxel widgets", "System integration", "Development tools" }.Select(GalleryText.Get))
         {
             var section = headerNodes.Single(element => element.Node.ParentId == navigationRoot && element.Node.Name == label).Node;
             check(section.Role == UiAccessibilityRole.Label && !section.Focusable && !section.SupportsInvoke && section.Expansion is null,

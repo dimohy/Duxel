@@ -160,7 +160,7 @@ Gallery branding and component counts form the fixed header above the left navig
 
 Sources: [official Nav usage](https://fluent2.microsoft.design/components/web/react/core/nav/usage/), [section header styles](https://raw.githubusercontent.com/microsoft/fluentui/master/packages/react-components/react-nav/library/src/components/NavSectionHeader/useNavSectionHeaderStyles.styles.ts), [subitem styles](https://raw.githubusercontent.com/microsoft/fluentui/master/packages/react-components/react-nav/library/src/components/NavSubItem/useNavSubItemStyles.styles.ts).
 
-The `gallery-localization-audit` graphics test opens each registered Gallery page in all four languages. Its JSON Lines output records the accessible text and C# regions that contain Hangul, along with the number of source regions reached. Use the report to locate mixed-language content and intentional multilingual examples.
+The `gallery-localization-audit` graphics test opens each registered Gallery page in all four languages. Its JSON Lines output records the accessible text and C# regions that contain Hangul, along with the number of source regions reached. The test fails if a page or its expected source regions are missing, or if a non-Korean locale contains unexpected Hangul. The Localization example's Korean language name and sample translation remain valid. The report identifies the affected pages and strings.
 
 ## Current values and example code
 

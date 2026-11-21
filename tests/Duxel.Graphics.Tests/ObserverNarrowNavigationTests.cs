@@ -55,17 +55,23 @@ internal static class ObserverNarrowNavigationTests
             && initial.Node.LabeledBy is null && initial.Node.Bounds.Width >= 300,
             "gallery compact main content is named and uses the full available width while navigation is closed");
         OpenNavigation();
-        var required = Fluent.RequiredComponentNames.ToArray().ToHashSet(StringComparer.Ordinal);
+        var required = Fluent.RequiredComponentNames.ToArray().ToDictionary(GalleryText.Get, StringComparer.Ordinal);
         var missing = Fluent.MissingComponentNames.ToArray().ToHashSet(StringComparer.Ordinal);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(9));
         var navigation = tree.CaptureSnapshot().Elements;
-        var componentTabs = navigation.Where(element => element.Node.Role == UiAccessibilityRole.Link && required.Contains(element.Node.Name)).ToArray();
+        var componentTabs = navigation.Where(element => element.Node.Role == UiAccessibilityRole.Link && required.ContainsKey(element.Node.Name)).ToArray();
         check(componentTabs.Length == required.Count && componentTabs.Select(static element => element.Node.Name).Distinct(StringComparer.Ordinal).Count() == required.Count,
-            "gallery lists every canonical Fluent component exactly once");
-        check(componentTabs.All(element => element.Node.Hint == (missing.Contains(element.Node.Name) ? "미구현" : element.Node.Name == "NavigationBar" ? "NEW" : null)),
-            "gallery pending and NEW badges expose distinct status without changing component names or disabling navigation");
+            "gallery lists every canonical Fluent component exactly once using its localized label");
+        check(componentTabs.All(element =>
+        {
+            var component = required[element.Node.Name];
+            var badge = missing.Contains(component) ? GalleryText.Get("Planned")
+                : GalleryNavigation.IsNewMenu(component, today) ? GalleryText.Get("NEW") : null;
+            return element.Node.Hint == badge;
+        }), "gallery pending and NEW badges expose distinct status without changing component names or disabling navigation");
         foreach (var group in componentTabs.GroupBy(static element => element.Node.ParentId))
         {
-            var names = group.Select(static element => element.Node.Name).ToArray();
+            var names = group.Select(element => required[element.Node.Name]).ToArray();
             check(names.SequenceEqual(names.Order(StringComparer.Ordinal)), "gallery canonical component names are alphabetic inside their group : " + group.Key);
         }
         UiAccessibilityNode NavigationBrand() => tree.CaptureSnapshot().Elements.Single(element =>
