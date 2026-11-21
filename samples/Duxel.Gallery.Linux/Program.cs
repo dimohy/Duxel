@@ -16,11 +16,12 @@ var fonts = new DuxelFontOptions
     FontSize = 16,
     FastStartup = false
 };
+var galleryFonts = GalleryText.ConfigureFonts(fonts);
 var services = new ObserverServices(LinuxUiImageDecoder.Shared, new SvgFontOptions("Observer UI",
 [
     new("Observer UI", fontPaths[0]), new("Observer UI", fontPaths[1]),
     new("Observer Korean", fontPaths[2]), new("Observer Korean", fontPaths[3])
-]), fonts.Typography);
+]), galleryFonts.Typography);
 var session = new DuxelAppSession();
 using var localized = verifyMode is null ? new GalleryLocalizedScreen(services, session) : null;
 using var observer = verifyMode is not null && verifyMode != "--verify-presentation-reuse" ? new ObserverScreen(services, session) : null;
@@ -108,7 +109,7 @@ try
 {
     DuxelLinuxApp.Run(options with
     {
-        Font = GalleryText.ConfigureFonts(fonts),
+        Font = galleryFonts,
         Frame = options.Frame with
         {
             EnableIdleFrameSkip = sliderVerification is null,

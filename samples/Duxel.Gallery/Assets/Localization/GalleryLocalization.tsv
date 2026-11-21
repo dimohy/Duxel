@@ -980,3 +980,113 @@ Circle	원	円	圆形
 Square	사각형	四角	方形
 In a narrow container, the stars wrap without changing size.	좁은 부모 영역에서는 별 크기를 유지하며 줄을 바꿉니다.	コンテナーが狭い場合は、星のサイズを保ったまま折り返します。	容器较窄时，星星会保持大小并换行。
 Clear drawer note	메모 비우기	メモを消去	清空备注
+Regions share this value.	영역 사이에서 값을 공유합니다.	この値は各領域で共有されます。	各区域共享此值。
+First region	첫 번째 영역	1 番目の領域	第一个区域
+Second region	두 번째 영역	2 番目の領域	第二个区域
+Dark parent region	어두운 부모 영역	親領域のダークテーマ	深色父区域
+Light child region	밝은 자식 영역	子領域のライトテーマ	浅色子区域
+Nested region input	중첩 영역 입력	入れ子の領域の入力	嵌套区域输入
+Outside the child region, the parent theme applies again.	자식 영역을 벗어나면 부모의 테마로 돌아옵니다.	子領域の外では親のテーマが再び適用されます。	子区域之外会重新使用父区域的主题。
+Theme changes apply only to the current region. Choose Inherit to use the surrounding theme. The example inputs share their value.	테마 전환은 현재 영역에만 적용됩니다. 상속을 선택하면 바깥 테마를 따릅니다. 예제의 입력값은 서로 연결되어 있습니다.	テーマの変更は現在の領域にのみ適用されます。外側のテーマを使うには継承を選びます。例の各入力欄は同じ値を共有します。	主题更改仅应用于当前区域。选择继承可使用外层主题。示例中的输入框共享同一个值。
+Nested theme	중첩 테마	入れ子のテーマ	嵌套主题
+When the operating system uses a contrast theme, its colors take precedence.	운영체제에서 대비 테마를 쓰면 시스템 색상이 우선합니다.	OS のコントラストテーマが有効な場合は、システムの色が優先されます。	操作系统启用对比度主题时，优先使用系统颜色。
+Schedule navigation	일정 탐색	予定表のナビゲーション	日程导航
+Back	돌아가기	戻る	返回
+Return to the previous screen.	이전 화면으로 돌아갑니다.	前の画面に戻ります。	返回上一屏。
+View	보기	表示	视图
+Schedule tools	일정 도구	予定表ツール	日程工具
+Search schedule	일정 검색	予定を検索	搜索日程
+Enter an event name	일정 이름을 입력하세요	予定の名前を入力	输入日程名称
+Clear search	검색어 지우기	検索語を消去	清除搜索
+Reminder frequency	알림 빈도	通知の頻度	提醒频率
+Every day	매일	毎日	每天
+Every week	매주	毎週	每周
+Every month	매월	毎月	每月
+Reminders	미리 알림	リマインダー	提醒
+Sound	소리	サウンド	声音
+Reminder volume: {0:0}%	알림 음량 : {0:0}%	通知音量：{0:0}%	提醒音量：{0:0}%
+Reminder volume	알림 음량	通知音量	提醒音量
+Event location	일정 장소	予定の場所	日程地点
+Open location list	장소 목록 열기	場所の一覧を開く	打开地点列表
+Schedule files	일정 파일	予定表のファイル	日程文件
+Plan	계획	計画	计划
+Layout direction per region	영역별 배치 방향	領域ごとの配置方向	区域布局方向
+Change layout direction	배치 방향 바꾸기	配置方向を切り替える	切换布局方向
+Local font and input Agyp	영역별 글꼴과 입력 Agyp	領域のフォントと入力 Agyp	区域字体与输入 Agyp
+Font region input	글꼴 영역 입력	フォント領域の入力	字体区域输入
+Font per region	영역별 글꼴	領域ごとのフォント	区域字体
+Latin text uses a monospace font. The CJK fallback font and system text size are preserved.	영문은 고정폭 글꼴로 표시합니다. 한글 보조 글꼴과 시스템 글자 크기는 유지됩니다.	欧文は等幅フォントで表示します。CJK の代替フォントとシステムの文字サイズはそのままです。	拉丁文字使用等宽字体，保留中日韩备用字体和系统文字大小。
+Toggle the region's font	영역 글꼴 전환	領域のフォントを切り替える	切换区域字体
+{0} input	{0} 입력	{0}の入力	{0}输入
+{0} button	{0} 버튼	{0}のボタン	{0}按钮
+{0} tooltip	{0} 설명	{0}のヒント	{0}提示
+This tooltip also follows the region's theme.	설명도 이 영역의 테마를 따릅니다.	このヒントも領域のテーマに従います。	此提示也遵循该区域的主题。
+Change theme for {0}	{0} 테마 전환	{0}のテーマを切り替える	切换{0}的主题
+Toggle background for {0}	{0} 배경 전환	{0}の背景を切り替える	切换{0}的背景
+Weekly view	주간	週表示	周视图
+Monthly view	월간	月表示	月视图
+Edit this note	편집하세요	編集してください	请编辑
+Task card	작업 카드	タスクカード	任务卡片
+Task	작업	タスク	任务
+Information actions: {0}	안내 : {0}	情報の操作回数：{0}	信息操作次数：{0}
+Card information	카드 정보	カードの情報	卡片信息
+Card note	카드 메모	カードのメモ	卡片备注
+Action inside the card	카드 내부 실행	カード内の操作	执行卡片内操作
+Card actions: {0}	실행 : {0}	実行回数：{0}	执行次数：{0}
+Select the floating card	떠 있는 카드 선택	フローティング操作付きカードを選択	选择带浮动操作的卡片
+Card with a floating action	떠 있는 동작 카드	フローティング操作付きカード	带浮动操作的卡片
+Card selection	카드 선택	カードの選択	卡片选择
+Action inside the floating card	떠 있는 카드 내부 실행	フローティングカード内の操作	执行浮动卡片内操作
+Card with rounded edges	둥근 경계 카드	角が丸いカード	圆角卡片
+Action inside the rounded card	둥근 카드 내부 실행	角が丸いカード内の操作	执行圆角卡片内操作
+Rounded corners: {0}	둥근 모서리 : {0}	角丸：{0}	圆角：{0}
+Preview card	미리보기 카드	プレビューカード	预览卡片
+SVG preview	SVG 미리보기	SVG プレビュー	SVG 预览
+Edge-to-edge image with a fixed logo	부모 여백까지 채운 이미지와 고정 로고	端まで広がる画像と固定ロゴ	铺满卡片的图像和固定徽标
+Preview action	미리보기 실행	プレビューの操作	执行预览操作
+Horizontal preview card	가로 미리보기 카드	横並びのプレビューカード	水平预览卡片
+Horizontal card	가로 카드	横並びのカード	水平卡片
+The header fills the space after the image.	이미지 다음 Header가 남은 폭을 채웁니다.	画像の後ろの空きスペースをヘッダーが埋めます。	标题区域填满图像之后的剩余空间。
+Minimum-size card	최소 크기 카드	最小サイズのカード	最小尺寸卡片
+Parent minimum size	부모 최소 크기	親の最小サイズ	父容器最小尺寸
+Extra width and centered alignment	여유 폭·중앙 정렬	余白と中央揃え	额外宽度和居中对齐
+Comparison: {0}, {1}	비교 {0} {1}	比較：{0}、{1}	对比：{0}，{1}
+Filled	채움	塗りつぶし	实心
+Alternative fill	다른 채움	別の塗りつぶし	替代填充
+Outline	윤곽선	アウトライン	轮廓
+Subtle	은은하게	控えめ	低强调
+Change card appearance	카드 외관 변경	カードの外観を変更	更改卡片外观
+Change card size	카드 크기 변경	カードのサイズを変更	更改卡片大小
+Change card width	카드 폭 변경	カードの幅を変更	更改卡片宽度
+Change card focus mode	카드 포커스 방식	カードのフォーカス方式を変更	更改卡片焦点模式
+Toggle the card surface	카드 루트 사용 전환	カード表面の有効状態を切り替える	切换卡片表面的启用状态
+Toggle the card's own action	카드 루트 동작 전환	カード表面の操作を切り替える	切换卡片自身的操作
+Toggle card selection mode	카드 선택 모드 전환	カードの選択モードを切り替える	切换卡片选择模式
+Card surface actions: {0}	카드 루트 실행 횟수 : {0}	カード表面の操作回数：{0}	卡片表面的操作次数：{0}
+Selection mode: {0} / Changes: {1}	선택 모드 : {0} / 변경 횟수 : {1}	選択モード：{0} / 変更回数：{1}	选择模式：{0} / 更改次数：{1}
+Selected	선택됨	選択済み	已选中
+Not selected	선택 해제	未選択	未选中
+Focus: Enter or Space toggles the selection checkbox. The actions inside the card stay independent.	포커스 : 선택 체크박스 · Enter/Space 전환 · 내부 동작 독립	フォーカス：Enter または Space で選択を切り替えます。カード内の操作は独立しています。	焦点：按 Enter 或空格键切换选择复选框，卡片内的操作保持独立。
+Focus: Enter moves inside. Tab cycles within the card. Escape returns to the card.	포커스 : Enter 진입 · Tab 내부 순환 · Escape 복귀	フォーカス：Enter でカード内に入り、Tab で内部を循環し、Escape でカードに戻ります。	焦点：按 Enter 进入卡片，按 Tab 在卡片内循环，按 Escape 返回卡片。
+Focus: Enter moves inside. Tab from the last control leaves the card. Escape returns to the card.	포커스 : Enter 진입 · 마지막 Tab으로 바깥 이동 · Escape 복귀	フォーカス：Enter でカード内に入ります。最後のコントロールで Tab を押すと外に出ます。Escape でカードに戻ります。	焦点：按 Enter 进入卡片。在最后一个控件按 Tab 离开卡片。按 Escape 返回卡片。
+Focus: Tab moves inside. Escape returns to the card.	포커스 : Tab으로 내부 이동 · Escape 복귀	フォーカス：Tab でカード内を移動し、Escape でカードに戻ります。	焦点：按 Tab 在卡片内移动，按 Escape 返回卡片。
+Focus skips the card surface and moves to its controls.	포커스 : 카드 자체는 건너뛰고 내부 동작으로 이동	フォーカスはカード表面を飛ばして内部のコントロールに移動します。	焦点跳过卡片表面并移至内部控件。
+Card surface disabled. Inputs and buttons inside still work.	카드 루트 : 사용 불가 / 내부 입력·버튼은 사용 가능	カード表面は無効です。内部の入力欄やボタンは操作できます。	卡片表面已禁用。内部的输入框和按钮仍可使用。
+Card surface enabled.	카드 루트 : 사용 가능	カード表面は有効です。	卡片表面已启用。
+Inputs and buttons inside the card work independently and keep their state when you return to the page.	카드 안의 입력과 버튼은 독립적으로 동작하며 탭을 바꿔도 내용을 유지합니다.	カード内の入力欄とボタンは独立して動作し、このページに戻っても状態を保持します。	卡片内的输入框和按钮独立工作，返回此页时会保留状态。
+The card surface handles selection and activation separately from the controls inside. Add a header, footer, or floating action. The preview can fill the card with an image and overlay a logo.	카드 배경을 눌렀을 때의 선택과 실행은 카드 안의 버튼·입력창과 별개로 동작합니다. 헤더와 푸터, 카드 위에 띄운 버튼을 넣을 수 있고, 콘텐츠를 둥근 모서리에 맞춰 자를 수도 있습니다. Preview는 카드 여백까지 채운 이미지와 로고를 표시합니다.	カード表面の選択や操作は内部のコントロールと独立しています。ヘッダー、フッター、フローティング操作を追加できます。プレビューはカード全体に画像を表示し、ロゴを重ねられます。	卡片表面的选择和激活与内部控件独立。可以添加标题、页脚或浮动操作。预览可让图像铺满卡片并叠加徽标。
+Floating selection action	떠 있는 선택 동작	フローティング選択操作	浮动选择操作
+Floating selection: {0} / Changes: {1} / Inner actions: {2}	떠 있는 카드 선택 : {0} / 변경 : {1} / 내부 실행 : {2}	フローティング選択：{0} / 変更回数：{1} / 内部の操作回数：{2}	浮动选择：{0} / 更改次数：{1} / 内部操作次数：{2}
+The checkbox and card background change the selection. The button inside runs independently.	오른쪽 체크박스와 배경은 선택값을 바꿉니다. 내부 버튼은 별도로 실행됩니다.	チェックボックスとカードの背景で選択を切り替えます。内部のボタンは独立して動作します。	复选框和卡片背景可更改选中状态。内部按钮独立执行。
+Rounded clipping and input	둥근 경계와 입력	角丸クリップと入力	圆角裁剪与输入
+Rounded card actions: {0}	둥근 카드 내부 실행 : {0}	角が丸いカードの操作回数：{0}	圆角卡片操作次数：{0}
+The button fills the card without padding. Clipped corners ignore clicks. The center of the button still works.	버튼을 안쪽 여백 없이 채웠습니다. 잘려 나간 모서리를 눌러도 반응하지 않으며, 가운데 버튼은 따로 실행됩니다.	ボタンは余白なしでカードを満たします。切り取られた角はクリックに反応せず、中央は操作できます。	按钮无内边距地填满卡片。裁剪掉的角不响应单击，中央按钮仍可操作。
+Media preview	미디어 미리보기	メディアプレビュー	媒体预览
+Change preview width	미리보기 폭 변경	プレビューの幅を変更	更改预览宽度
+Change preview size	미리보기 크기 변경	プレビューのサイズを変更	更改预览大小
+The SVG is loaded once and reused. The 32 px logo keeps a 12 px inset from the left and bottom.	SVG는 한 번 읽고 재사용합니다. 로고는 32px이며 왼쪽·아래 12px를 유지합니다.	SVG は一度読み込み、再利用します。32 px のロゴは左と下に 12 px の余白を保ちます。	SVG 只加载一次并重复使用。32 像素的徽标与左侧和底部各保持 12 像素的间距。
+Minimum size of the parent	부모의 최소 크기	親の最小サイズ	父容器的最小尺寸
+Change the parent's minimum width	부모 최소 폭 변경	親の最小幅を変更	更改父容器的最小宽度
+Change the minimum-size card's orientation	최소 크기 카드 방향	最小サイズカードの向きを変更	切换最小尺寸卡片的方向
+The header fills the remaining width and keeps its minimum size. The image is centered vertically.	헤더는 최소 크기보다 작아지지 않으면서 가로로 남은 공간을 채웁니다. 이미지는 세로 가운데에 놓입니다.	ヘッダーは最小サイズを維持したまま残りの幅を埋めます。画像は上下中央に配置されます。	标题区域在保持最小尺寸的同时填满剩余宽度。图像垂直居中。
+Card examples	카드 예제	カードの例	卡片示例

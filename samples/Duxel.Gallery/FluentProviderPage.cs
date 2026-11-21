@@ -14,30 +14,30 @@ internal sealed class FluentProviderPage(UiTypographyFonts? fonts = null) : IObs
 
     private sealed class Content : IDisposable
     {
-        private readonly UiState<string> _text = new("영역 사이에서 값을 공유합니다.");
+        private readonly UiState<string> _text = new(GalleryText.Get("Regions share this value."));
         private readonly List<IGallerySample> _samples = [];
         internal IReadOnlyList<IGallerySample> Samples => _samples;
         internal UiWidget Root { get; }
         internal Content(UiTypographyFonts? fonts)
         {
-            var light = Example("첫 번째 영역", UiFluentProviderTheme.Light);
-            var dark = Example("두 번째 영역", UiFluentProviderTheme.Dark);
+            var light = Example(GalleryText.Get("First region"), UiFluentProviderTheme.Light);
+            var dark = Example(GalleryText.Get("Second region"), UiFluentProviderTheme.Dark);
             var nested = GallerySample.Create(() => Fluent.FluentProvider(
                 Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                    Fluent.Title3("어두운 부모 영역"),
+                    Fluent.Title3(GalleryText.Get("Dark parent region")),
                     Fluent.FluentProvider(Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
-                        Fluent.Body1("밝은 자식 영역"), Fluent.Input("중첩 영역 입력", _text.Binding, 1024, 280)),
+                        Fluent.Body1(GalleryText.Get("Light child region")), Fluent.Input(GalleryText.Get("Nested region input"), _text.Binding, 1024, 280)),
                         UiFluentProviderTheme.Light, new(Padding : new(16))),
-                    Fluent.Body1("자식 영역을 벗어나면 부모의 테마로 돌아옵니다.")),
+                    Fluent.Body1(GalleryText.Get("Outside the child region, the parent theme applies again."))),
                 UiFluentProviderTheme.Dark, new(Padding : new(16), Width : 440)));
             var factory = nested.Source;
             nested.BindSource(() => _text.Value, text => TextSetup(text) + "\n\n" + factory);
             _samples.Add(nested);
             var fontExample = fonts is null ? Dux.Column(new UiFlexOptions(MainAxisSize : UiMainAxisSize.Min)) : FontExample(fonts);
             Root = Dux.Column(new(Spacing : 16, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Body1("테마 전환은 현재 영역에만 적용됩니다. 상속을 선택하면 바깥 테마를 따릅니다. 예제의 입력값은 서로 연결되어 있습니다."),
-                light, dark, Fluent.Subtitle1("중첩 테마"), nested, fontExample, DirectionExample(),
-                Fluent.Caption1("운영체제에서 대비 테마를 쓰면 시스템 색상이 우선합니다."));
+                Fluent.Body1(GalleryText.Get("Theme changes apply only to the current region. Choose Inherit to use the surrounding theme. The example inputs share their value.")),
+                light, dark, Fluent.Subtitle1(GalleryText.Get("Nested theme")), nested, fontExample, DirectionExample(),
+                Fluent.Caption1(GalleryText.Get("When the operating system uses a contrast theme, its colors take precedence.")));
         }
         private UiWidget DirectionExample()
         {
@@ -53,26 +53,26 @@ internal sealed class FluentProviderPage(UiTypographyFonts? fonts = null) : IObs
             var placement = new UiTooltipOptions { Positioning = new() { Position = UiPopupPosition.BelowStart } };
             var sample = GallerySample.Create(() => Fluent.FluentProvider(
                 Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                    Fluent.NavigationBar("일정 탐색", "일정",
-                        leading : Fluent.Tooltip(Fluent.Button("돌아가기"), "이전 화면으로 돌아갑니다.", placement),
-                        trailing : Fluent.Button("오늘", () => view.Value = "week"),
-                        secondary : Fluent.SegmentedControl("보기", view.Binding,
-                            new UiSegmentOption[] { new("week", "주간"), new("month", "월간") })),
-                    Fluent.Toolbar("일정 도구",
-                        [Fluent.Button("주간", () => view.Value = "week"), Fluent.Button("월간", () => view.Value = "month")]),
-                    Fluent.SearchBox("일정 검색", search.Binding,
-                        options : new(Placeholder : "일정 이름을 입력하세요", ClearLabel : "검색어 지우기")),
+                    Fluent.NavigationBar(GalleryText.Get("Schedule navigation"), GalleryText.Get("Schedule"),
+                        leading : Fluent.Tooltip(Fluent.Button(GalleryText.Get("Back")), GalleryText.Get("Return to the previous screen."), placement),
+                        trailing : Fluent.Button(GalleryText.Get("Today"), () => view.Value = "week"),
+                        secondary : Fluent.SegmentedControl(GalleryText.Get("View"), view.Binding,
+                            new UiSegmentOption[] { new("week", GalleryText.Get("Weekly view")), new("month", GalleryText.Get("Monthly view")) })),
+                    Fluent.Toolbar(GalleryText.Get("Schedule tools"),
+                        [Fluent.Button(GalleryText.Get("Weekly view"), () => view.Value = "week"), Fluent.Button(GalleryText.Get("Monthly view"), () => view.Value = "month")]),
+                    Fluent.SearchBox(GalleryText.Get("Search schedule"), search.Binding,
+                        options : new(Placeholder : GalleryText.Get("Enter an event name"), ClearLabel : GalleryText.Get("Clear search"))),
                     new UiRadioGroup<UiFluentRadioGroupBehavior, UiFluentRadioGroupPresentation<UiRadioHorizontalLayout>>(
-                        "알림 빈도", frequency.Binding, new UiRadioOption[]
-                        { new("daily", "매일"), new("weekly", "매주"), new("monthly", "매월") }),
-                    Dux.Wrap(new(Spacing : 8), Fluent.Checkbox("미리 알림", notify.Binding), Fluent.Switch("소리", sound.Binding)),
-                    Fluent.Body1(() => $"알림 음량 : {volume.Value:0}%"),
-                    Fluent.Slider("알림 음량", volume.Binding, 0, 100, 5),
-                    Fluent.Combobox("일정 장소", query.Binding, chosen.Binding,
-                        [new("seoul", "서울"), new("busan", "부산")],
-                        new(Field : new(Placeholder : "도시 이름을 입력하세요", ExpandLabel : "장소 목록 열기"))),
-                    Fluent.Tree("일정 파일", expanded.Binding,
-                        [new("workspace", null, "작업 공간"), new("plan", "workspace", "계획")])),
+                        GalleryText.Get("Reminder frequency"), frequency.Binding, new UiRadioOption[]
+                        { new("daily", GalleryText.Get("Every day")), new("weekly", GalleryText.Get("Every week")), new("monthly", GalleryText.Get("Every month")) }),
+                    Dux.Wrap(new(Spacing : 8), Fluent.Checkbox(GalleryText.Get("Reminders"), notify.Binding), Fluent.Switch(GalleryText.Get("Sound"), sound.Binding)),
+                    Fluent.Body1(() => string.Format(GalleryText.Get("Reminder volume: {0:0}%"), volume.Value)),
+                    Fluent.Slider(GalleryText.Get("Reminder volume"), volume.Binding, 0, 100, 5),
+                    Fluent.Combobox(GalleryText.Get("Event location"), query.Binding, chosen.Binding,
+                        [new("seoul", GalleryText.Get("Seoul")), new("busan", GalleryText.Get("Busan"))],
+                        new(Field : new(Placeholder : GalleryText.Get("Enter a city name"), ExpandLabel : GalleryText.Get("Open location list")))),
+                    Fluent.Tree(GalleryText.Get("Schedule files"), expanded.Binding,
+                        [new("workspace", null, GalleryText.Get("Workspace")), new("plan", "workspace", GalleryText.Get("Plan"))])),
                 options : new(Width : 440), paintBackground : false));
             var provider = sample.Preview;
             provider.Direction = UiFlowDirection.RightToLeft;
@@ -93,8 +93,8 @@ internal sealed class FluentProviderPage(UiTypographyFonts? fonts = null) : IObs
                 + $"\nexample.Direction = UiFlowDirection.{state.Direction};\nexample.Render(ui);");
             _samples.Add(sample);
             return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Subtitle1("영역별 배치 방향"),
-                Fluent.Button("배치 방향 바꾸기", () => provider.Direction = provider.Direction == UiFlowDirection.RightToLeft
+                Fluent.Subtitle1(GalleryText.Get("Layout direction per region")),
+                Fluent.Button(GalleryText.Get("Change layout direction"), () => provider.Direction = provider.Direction == UiFlowDirection.RightToLeft
                     ? UiFlowDirection.LeftToRight : UiFlowDirection.RightToLeft),
                 sample);
         }
@@ -106,8 +106,8 @@ internal sealed class FluentProviderPage(UiTypographyFonts? fonts = null) : IObs
             var sample = GallerySample.Create(() => Fluent.FluentProvider(
                 Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
                     Fluent.Subtitle1("Local typography 123"),
-                    Fluent.Body1("영역별 글꼴과 입력 Agyp"),
-                    Fluent.Input("글꼴 영역 입력", _text.Binding, 1024, 280)),
+                    Fluent.Body1(GalleryText.Get("Local font and input Agyp")),
+                    Fluent.Input(GalleryText.Get("Font region input"), _text.Binding, 1024, 280)),
                 localTheme, new(Padding : new(16), Width : 440)));
             var factory = sample.Source;
             sample.BindSource(() => (_text.Value, sample.Preview.Theme), state => TextSetup(state.Value)
@@ -119,18 +119,18 @@ internal sealed class FluentProviderPage(UiTypographyFonts? fonts = null) : IObs
                     : "new(UiCompiledDesign.Windows11Dark.Theme, fonts : localFonts)") + ";\n\n" + factory);
             _samples.Add(sample);
             return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Subtitle1("영역별 글꼴"),
-                Fluent.Body1("영문은 고정폭 글꼴로 표시합니다. 한글 보조 글꼴과 시스템 글자 크기는 유지됩니다."),
-                Fluent.Button("영역 글꼴 전환", () => sample.Preview.Theme = sample.Preview.Theme is null ? localTheme : null), sample);
+                Fluent.Subtitle1(GalleryText.Get("Font per region")),
+                Fluent.Body1(GalleryText.Get("Latin text uses a monospace font. The CJK fallback font and system text size are preserved.")),
+                Fluent.Button(GalleryText.Get("Toggle the region's font"), () => sample.Preview.Theme = sample.Preview.Theme is null ? localTheme : null), sample);
         }
         private UiWidget Example(string name, UiFluentProviderTheme? theme)
         {
             var paintBackground = true;
             var sample = GallerySample.Create(() => Fluent.FluentProvider(
                 Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                    Fluent.Title3(name), Fluent.Input(name + " 입력", _text.Binding, 1024, 280),
-                    Fluent.Button(name + " 버튼"),
-                    Fluent.Tooltip(Fluent.Button(name + " 설명"), "설명도 이 영역의 테마를 따릅니다.")),
+                    Fluent.Title3(name), Fluent.Input(string.Format(GalleryText.Get("{0} input"), name), _text.Binding, 1024, 280),
+                    Fluent.Button(string.Format(GalleryText.Get("{0} button"), name)),
+                    Fluent.Tooltip(Fluent.Button(string.Format(GalleryText.Get("{0} tooltip"), name)), GalleryText.Get("This tooltip also follows the region's theme."))),
                 theme, new(Padding : new(16), Width : 440), paintBackground));
             var preview = sample.Preview;
             var factory = sample.Source;
@@ -142,9 +142,9 @@ internal sealed class FluentProviderPage(UiTypographyFonts? fonts = null) : IObs
             _samples.Add(sample);
             return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
                 Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                    Fluent.Button(name + " 테마 전환", () => preview.Theme = preview.Theme is null ? UiFluentProviderTheme.Light
+                    Fluent.Button(GalleryText.Format("Change theme for {0}", name), () => preview.Theme = preview.Theme is null ? UiFluentProviderTheme.Light
                         : ReferenceEquals(preview.Theme, UiFluentProviderTheme.Light) ? UiFluentProviderTheme.Dark : null),
-                    Fluent.Button(name + " 배경 전환", () => preview.PaintBackground = !preview.PaintBackground)),
+                    Fluent.Button(GalleryText.Format("Toggle background for {0}", name), () => preview.PaintBackground = !preview.PaintBackground)),
                 sample);
         }
         private static string TextSetup(string text) => "var _text = new UiState<string>(" + GallerySample.String(text) + ");";
