@@ -6,6 +6,7 @@ internal static class MenuTests
     {
         Run<UiThemeMenuPresentation>(check);
         Run<UiFluentMenuPresentation>(check);
+        Run<UiFluentMenuButtonPresentation>(check);
         MenuScrollTests.Run(check);
         MenuExpansionTests.Run(check);
         MenuCheckboxTests.Run(check);

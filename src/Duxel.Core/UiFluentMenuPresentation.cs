@@ -96,3 +96,62 @@ public readonly struct UiFluentMenuPresentation : IUiMenuPresentation
 [UiWidgetStyle(typeof(UiMenu<>), typeof(UiFluentMenuPresentation))]
 [UiComponent("Menu", UiComponentExposure.Fluent)]
 public partial class UiFluentMenu;
+
+[UiFluentIcon("chevron_down", UiFluentIconStyle.Regular, 16)]
+internal readonly partial struct UiMenuButtonChevron;
+
+/// <summary>Fluent Button trigger with an end-aligned chevron and the existing Fluent menu surface.</summary>
+public readonly struct UiFluentMenuButtonPresentation : IUiMenuPresentation
+{
+    private const float IconSize = 16;
+    private const float IconGap = 8;
+    private const float EndPadding = 12;
+
+    public static bool CanRetainTriggerMeasurement => true;
+    public static UiMenuOptions DefaultOptions => UiFluentMenuPresentation.DefaultOptions;
+
+    public static UiVector2 MeasureTrigger(UiControlContext context, string label)
+    {
+        using var typography = UiFluentButtonPresentation.BeginText(context, true);
+        var text = context.MeasureText(label);
+        return UiFluentButtonPresentation.Measure(context, text with { X = text.X + IconGap + IconSize }, default);
+    }
+
+    public static void PaintTrigger(UiControlContext context, string label, UiRect bounds, UiButtonInteraction interaction)
+    {
+        var foreground = UiFluentSecondaryButtonAppearance.Paint(context, bounds, interaction);
+        if (interaction.Hovered)
+            context.SetMouseCursor(context.IsEnabled ? UiMouseCursor.Hand : UiMouseCursor.NotAllowed);
+
+        using var clip = context.Clip(bounds);
+        var rtl = context.RightToLeft;
+        var padding = MathF.Min(EndPadding, MathF.Max(0, (bounds.Width - IconSize) * .5f));
+        var iconX = rtl ? bounds.X + padding : bounds.X + bounds.Width - padding - IconSize;
+        var icon = new UiRect(iconX, bounds.Y + (bounds.Height - IconSize) * .5f, IconSize, IconSize);
+        UiMenuButtonChevron.Paint(context, icon, foreground, interaction);
+
+        var start = rtl ? icon.X + IconSize + IconGap : bounds.X + padding;
+        var end = rtl ? bounds.X + bounds.Width - padding : icon.X - IconGap;
+        if (end <= start)
+            return;
+
+        var textBounds = new UiRect(start, bounds.Y, end - start, bounds.Height);
+        using var textClip = context.Clip(textBounds);
+        using var typography = UiFluentButtonPresentation.BeginText(context, true);
+        context.TypographyButtonText(label, textBounds, context.MeasureText(label), foreground);
+    }
+
+    public static float MeasureItem(UiControlContext context, string label) => UiFluentMenuPresentation.MeasureItem(context, label);
+    public static float MeasureItem(UiControlContext context, UiMenuItemContent content) => UiFluentMenuPresentation.MeasureItem(context, content);
+    public static void PaintSurface(UiControlContext context, UiRect bounds) => UiFluentMenuPresentation.PaintSurface(context, bounds);
+    public static void PaintItem(UiControlContext context, string label, UiRect bounds, UiButtonInteraction interaction, UiMenuOptions options) =>
+        UiFluentMenuPresentation.PaintItem(context, label, bounds, interaction, options);
+    public static void PaintItem(UiControlContext context, UiMenuItemContent content, UiRect bounds, UiButtonInteraction interaction, UiMenuOptions options) =>
+        UiFluentMenuPresentation.PaintItem(context, content, bounds, interaction, options);
+    public static void PaintFocus(UiControlContext context, UiRect bounds, UiButtonInteraction interaction, UiMenuOptions options) =>
+        UiFluentMenuPresentation.PaintFocus(context, bounds, interaction, options);
+}
+
+[UiWidgetStyle(typeof(UiMenu<>), typeof(UiFluentMenuButtonPresentation))]
+[UiComponent("MenuButton", UiComponentExposure.Fluent)]
+public partial class UiFluentMenuButton;

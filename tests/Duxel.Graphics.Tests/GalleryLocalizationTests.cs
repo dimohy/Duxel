@@ -59,6 +59,21 @@ internal static class GalleryLocalizationTests
                     "RadioGroup" => container,
                     _ => null
                 };
+                if (page.Title == "Menu")
+                {
+                    string[] labels = language switch
+                    {
+                        GalleryLanguage.English => ["Export", "Export as PDF", "Export as PNG"],
+                        GalleryLanguage.Korean => ["내보내기", "PDF로 내보내기", "PNG로 내보내기"],
+                        GalleryLanguage.Japanese => ["エクスポート", "PDF としてエクスポート", "PNG としてエクスポート"],
+                        GalleryLanguage.SimplifiedChinese => ["导出", "导出为 PDF", "导出为 PNG"],
+                        _ => throw new ArgumentOutOfRangeException(nameof(language))
+                    };
+                    check(samples.Any(source => source.Contains("Fluent.MenuButton(", StringComparison.Ordinal)
+                        && labels.All(label => source.Contains(GallerySample.String(label), StringComparison.Ordinal))),
+                        $"Menu includes its export button and both localized commands in the copied C# in {language}");
+                }
+
                 if (expectedSourceText is not null)
                     check(samples.Any(source => source.Contains(GallerySample.String(expectedSourceText), StringComparison.Ordinal)),
                         $"{page.Title} includes the expected localized label or value in {language}");
@@ -569,16 +584,21 @@ internal static class GalleryLocalizationTests
                 }
 
                 var nodes = snapshot.Where(IsInPage).ToArray();
-                var visibleStrings = nodes.Where(node => !node.Offscreen)
-                    .SelectMany(node => new[] { node.Name, node.GetHelpText(), node.Role == UiAccessibilityRole.Edit ? null : node.Value })
-                    .Where(text => !string.IsNullOrEmpty(text) && ContainsHangul(text))
-                    .Distinct(StringComparer.Ordinal).ToArray();
+                var visibleStrings = FindHangul(nodes.Where(node => !node.Offscreen));
+                var offscreenStrings = FindHangul(nodes.Where(node => node.Offscreen))
+                    .Except(visibleStrings, StringComparer.Ordinal).ToArray();
+
+                static string?[] FindHangul(IEnumerable<UiAccessibilityNode> candidates) =>
+                    candidates.SelectMany(node => new[] { node.Name, node.GetHelpText(),
+                            node.Role == UiAccessibilityRole.Edit ? null : node.Value })
+                        .Where(text => !string.IsNullOrEmpty(text) && ContainsHangul(text))
+                        .Distinct(StringComparer.Ordinal).ToArray();
                 var snippets = nodes.Where(node => node.Role == UiAccessibilityRole.Edit && node.Name == GalleryText.Get("C# example source"))
                     .Select(node => node.Value).Where(text => !string.IsNullOrEmpty(text)).ToArray();
                 var sourceCandidates = snippets.SelectMany(text => text!.Split('\n'))
                     .Where(ContainsHangul).Select(line => line.Trim()).Distinct(StringComparer.Ordinal).ToArray();
                 var result = new GalleryLocalizationAuditPage(GalleryText.Tag(language), page, screen.SelectedNavigationLabel,
-                    !string.IsNullOrEmpty(pane.Id), screen.SourceCountForPage(page), snippets.Length, visibleStrings, sourceCandidates);
+                    !string.IsNullOrEmpty(pane.Id), screen.SourceCountForPage(page), snippets.Length, visibleStrings, sourceCandidates, offscreenStrings);
                 report.WriteLine(System.Text.Json.JsonSerializer.Serialize(result, json.GalleryLocalizationAuditPage));
             }
             report.Flush();
@@ -636,4 +656,4 @@ internal static class GalleryLocalizationTests
 }
 
 internal sealed record GalleryLocalizationAuditPage(string Language, string Page, string Label, bool PaneFound,
-    int ExpectedSources, int ObservedSources, string?[] VisibleHangul, string[] SourceHangul);
+    int ExpectedSources, int ObservedSources, string?[] VisibleHangul, string[] SourceHangul, string?[] OffscreenHangul);

@@ -217,6 +217,7 @@ internal static class GalleryComponentExamples
         {
             return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
                 Fluent.Menu(GalleryText.Get("Open menu"), [new("new", GalleryText.Get("New document")), new("save", GalleryText.Get("Save"))], value => chosen.Value = value),
+                Fluent.MenuButton(GalleryText.Get("Export"), [new("pdf", GalleryText.Get("Export as PDF")), new("png", GalleryText.Get("Export as PNG"))], value => chosen.Value = value),
                 Fluent.Body1(() => GalleryText.Get("Command: ") + chosen.Value));
         }, current => TextState("chosen", current)),
         Example("Icon", "A home icon with a custom size and color.", () =>

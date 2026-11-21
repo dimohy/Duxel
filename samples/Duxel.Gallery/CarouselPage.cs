@@ -21,8 +21,8 @@ internal sealed class CarouselPage : IObserverPage, IObserverNaturalPage, IGalle
         internal Content()
         {
             Root = Dux.Column(new(Spacing: 16, MainAxisSize: UiMainAxisSize.Min),
-                Fluent.Title3("단계 선택"), (UiWidget)Samples[0],
-                Fluent.Title3("이미지 미리보기와 자동 재생"), (UiWidget)Samples[1]);
+                Fluent.Title3(GalleryText.Get("Step selection")), (UiWidget)Samples[0],
+                Fluent.Title3(GalleryText.Get("Image previews and autoplay")), (UiWidget)Samples[1]);
         }
     }
 
@@ -32,24 +32,26 @@ internal sealed class CarouselPage : IObserverPage, IObserverNaturalPage, IGalle
         var opened = new UiState<int>(0);
         (string Key, string Label, byte R, byte G, byte B)[] slides =
         [
-            ("sea", "바다", 16, 110, 190),
-            ("forest", "숲", 16, 124, 65),
-            ("sunset", "노을", 219, 98, 38)
+            ("sea", GalleryText.Get("Sea"), 16, 110, 190),
+            ("forest", GalleryText.Get("Forest"), 16, 124, 65),
+            ("sunset", GalleryText.Get("Sunset"), 219, 98, 38)
         ];
-        var label = previews ? "이미지 모음" : "여행지";
+        var label = previews ? GalleryText.Get("Image collection") : GalleryText.Get("Destinations");
         var options = new UiCarouselOptions
         {
-            PreviousLabel = "이전 슬라이드", NextLabel = "다음 슬라이드", AutoPlayLabel = "자동 재생",
+            PreviousLabel = GalleryText.Get("Previous slide"), NextLabel = GalleryText.Get("Next slide"), AutoPlayLabel = GalleryText.Get("Autoplay"),
             Wrap = previews, AutoPlayInterval = previews ? TimeSpan.FromSeconds(4) : null
         };
+        var chooseLabel = GalleryText.Get("Choose {0}");
+        var selectionCount = GalleryText.Get("Selections: {0}");
         var sample = GallerySample.Create(() => Fluent.Carousel(label, selected.Binding,
             slides.Select(item =>
             {
                 var image = new UiImageSource(new(1, 1, [item.R, item.G, item.B, 255]));
                 var body = Dux.Column(new(Spacing: 8, MainAxisSize: UiMainAxisSize.Min),
                     new UiImage(image) { Size = new(420, 72) },
-                    Fluent.Button(item.Label + " 선택", () => opened.Value++),
-                    Fluent.Body1(() => $"선택 횟수 {opened.Value}회"));
+                    Fluent.Button(string.Format(chooseLabel, item.Label), () => opened.Value++),
+                    Fluent.Body1(() => string.Format(selectionCount, opened.Value)));
                 return new UiCarouselSlide(item.Key, item.Label, body, previews ? image : null);
             }).ToArray(), options));
         sample.BindSource(() => (Key: selected.Value, Opened: opened.Value, sample.Preview.IsPlaying), state =>
@@ -62,11 +64,13 @@ internal sealed class CarouselPage : IObserverPage, IObserverNaturalPage, IGalle
                 + "    var image = new UiImageSource(new(1, 1, [r, g, b, 255]));\n"
                 + "    var body = Dux.Column(new(Spacing: 8, MainAxisSize: UiMainAxisSize.Min),\n"
                 + "        new UiImage(image) { Size = new(420, 72) },\n"
-                + "        Fluent.Button(label + \" 선택\", () => opened.Value++),\n"
-                + "        Fluent.Body1(() => $\"선택 횟수 {opened.Value}회\"));\n"
+                + $"        Fluent.Button(string.Format({GallerySample.String(chooseLabel)}, label), () => opened.Value++),\n"
+                + $"        Fluent.Body1(() => string.Format({GallerySample.String(selectionCount)}, opened.Value)));\n"
                 + $"    return new UiCarouselSlide(key, label, body{(previews ? ", image" : "")});\n}}\n"
                 + $"using var carousel = Fluent.Carousel({GallerySample.String(label)}, selected.Binding, new UiCarouselSlide[]\n{{\n{entries}\n}},\n"
-                + "    new()\n    {\n        PreviousLabel = \"이전 슬라이드\", NextLabel = \"다음 슬라이드\", AutoPlayLabel = \"자동 재생\",\n"
+                + "    new()\n    {\n"
+                + $"        PreviousLabel = {GallerySample.String(options.PreviousLabel)}, NextLabel = {GallerySample.String(options.NextLabel)},\n"
+                + $"        AutoPlayLabel = {GallerySample.String(options.AutoPlayLabel)},\n"
                 + (previews ? "        Wrap = true, AutoPlayInterval = TimeSpan.FromSeconds(4)\n" : "")
                 + "    });\n"
                 + (previews ? $"carousel.IsPlaying = {GallerySample.Boolean(state.IsPlaying)};\n" : "")

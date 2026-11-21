@@ -45,7 +45,8 @@ internal sealed class CatalogPage : UiWidget
         ("보조 패널", ["Drawer"]),
         ("목록", ["List"]),
         ("SVG", ["Icon", "Image"]),
-        ("컨테이너·Menu 공통 동작", ["Menu"])
+        ("컨테이너·Menu 공통 동작", ["Menu"]),
+        ("Menu", ["MenuButton"])
     ];
 
     internal static void Validate()
