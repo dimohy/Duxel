@@ -31,6 +31,7 @@
     <Compile Include="../../samples/Duxel.Gallery/CalendarPage.cs" Link="Observer/CalendarPage.cs" />
     <Compile Include="../../samples/Duxel.Gallery/GalleryCalendarCulture.cs" Link="Observer/GalleryCalendarCulture.cs" />
     <Compile Include="../../samples/Duxel.Gallery/TemporalPickerPage.cs" Link="Observer/TemporalPickerPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ObserverTemporalPickerControlProbe.cs" Link="Observer/ObserverTemporalPickerControlProbe.cs" />
     <Compile Include="../../samples/Duxel.Gallery/ToastPage.cs" Link="Observer/ToastPage.cs" />
     <Compile Include="../../samples/Duxel.Gallery/ToastLiveSample.cs" Link="Observer/ToastLiveSample.cs" />
     <Compile Include="../../samples/Duxel.Gallery/ToastCompositionSamples.cs" Link="Observer/ToastCompositionSamples.cs" />

@@ -12,6 +12,8 @@ The interface redraws with the selected language while staying on the same desti
 
 The Menu example includes the export button, its PDF and PNG commands, and the matching C# source. The localization audit collects text both inside and outside the viewport and checks copied C# for every registered page. Open menus and change example state to verify text that appears after interaction.
 
+Calendar, RangeCalendar, DatePicker, TimePicker, and DateTimePicker initially use the Gallery language for date and time formats. Use the example's locale selector to try the system format or one of the other calendar systems. The holiday provider example translates the built-in New Year's Day sample and displays the names supplied by the Korean holiday service when live data is loaded.
+
 Applications can use the same localization API from `Duxel.Core`. Supply a culture, source string, and translation for each entry. Resolve text or format arguments using the application's selected culture.
 
 ```csharp

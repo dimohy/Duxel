@@ -136,6 +136,7 @@ internal static class GalleryLocalizationTests
             VerifyDedicatedExamples(Render, tree, services, check);
             VerifyLoadingExamples(Render, tree, services, check);
             VerifyNoticeExamples(Render, tree, services, check);
+            VerifyTemporalExamples(Render, tree, services, check);
 
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
             File.WriteAllText(path, "en");
@@ -542,6 +543,86 @@ internal static class GalleryLocalizationTests
                 && code.Contains(expectedLabel, StringComparison.Ordinal) && code.Contains(expectedState, StringComparison.Ordinal)
                 && !code.Contains("GalleryText.", StringComparison.Ordinal)
                 && (language == GalleryLanguage.Korean || !ContainsHangul(code)));
+        }
+    }
+
+    private static void VerifyTemporalExamples(Action<UiScreen> render, UiAccessibilityTree tree, ObserverServices services,
+        Action<bool, string> check)
+    {
+        foreach (var (language, culture, month, date, time, minute, holiday) in new[]
+        {
+            (GalleryLanguage.English, "en-US", "Next month", "Choose date", "Choose time", "Minute", "New Year's Day"),
+            (GalleryLanguage.Korean, "ko-KR", "다음 달", "날짜 선택", "시각 선택", "분", "신정"),
+            (GalleryLanguage.Japanese, "ja-JP", "次の月", "日付を選択", "時刻を選択", "分", "元日"),
+            (GalleryLanguage.SimplifiedChinese, "zh-CN", "下个月", "选择日期", "选择时间", "分", "元旦")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            using var screen = new ObserverScreen(services, language : language) { FreezeDiagnosticText = true };
+            foreach (var page in new[] { "Calendar", "RangeCalendar", "DatePicker", "TimePicker", "DateTimePicker", "공휴일 제공자" })
+            {
+                screen.SelectedPage = page;
+                render(screen);
+                render(screen);
+                var nodes = tree.CaptureSnapshot().Elements.Select(element => element.Node).ToArray();
+                var expected = page switch
+                {
+                    "DatePicker" or "DateTimePicker" => date,
+                    "TimePicker" => time,
+                    "공휴일 제공자" => holiday,
+                    _ => month
+                };
+                check(nodes.Any(node => page == "공휴일 제공자"
+                        ? node.Role == UiAccessibilityRole.GridCell && node.Name.Contains(expected, StringComparison.Ordinal)
+                        : node.Role == UiAccessibilityRole.Button && node.Name == expected),
+                    $"{page} publishes the expected localized controls or holiday in {language}");
+                var source = nodes.Single(node => node.Role == UiAccessibilityRole.Edit && node.Name == GalleryText.Get("C# example source")).Value!;
+                check(source.Contains(GallerySample.String(expected), StringComparison.Ordinal)
+                    && source.Contains(GallerySample.String(culture), StringComparison.Ordinal)
+                    && !source.Contains("GalleryText.", StringComparison.Ordinal)
+                    && (language == GalleryLanguage.Korean || !ContainsHangul(source)),
+                    $"{page} exposes the selected region and labels in standalone C# in {language}");
+            }
+
+            foreach (var page in new[] { "DatePicker", "TimePicker", "DateTimePicker" })
+            {
+                screen.SelectedPage = page;
+                var example = screen.TemporalPickerForPage(page);
+                var picker = example.Preview;
+                var calendar = picker as UiDatePickerWidget ?? (picker as UiDateTimePickerWidget)?.DatePicker;
+                var clock = picker as UiTimePickerWidget ?? (picker as UiDateTimePickerWidget)?.TimePicker;
+                if (calendar is not null)
+                {
+                    calendar.ShowCalendar();
+                    render(screen);
+                    var displayedDate = new DateOnly(2024, 3, 15).ToString("D", CultureInfo.GetCultureInfo(culture));
+                    check(tree.CaptureSnapshot().Elements.Any(element => element.Node.Role == UiAccessibilityRole.GridCell
+                        && element.Node.Name == displayedDate), $"{page} opens with dates formatted for {language}");
+                    calendar.Close();
+                }
+
+                if (clock is not null)
+                {
+                    clock.ShowTime();
+                    render(screen);
+                    check(tree.CaptureSnapshot().Elements.Any(element => element.Node.Role == UiAccessibilityRole.ListBox
+                        && element.Node.Name == minute), $"{page} opens with a localized minute wheel in {language}");
+                    clock.Close();
+                }
+
+                var probe = new ObserverTemporalPickerControlProbe(example);
+                for (var frame = 0; frame < 32 && !probe.Ready; frame++)
+                {
+                    render(screen);
+                    probe.Advance(tree);
+                }
+                render(screen);
+                var changedSource = example.Samples.Single().Source;
+                check(probe.Ready && changedSource.Contains(GallerySample.String("ko-KR"), StringComparison.Ordinal)
+                    && (calendar is null || changedSource.Contains("2024, 4, 16", StringComparison.Ordinal))
+                    && (clock is null || changedSource.Contains("15, 5, 5", StringComparison.Ordinal)),
+                    $"{page} updates the copied region and value after calendar or wheel actions in {language}");
+            }
         }
     }
 

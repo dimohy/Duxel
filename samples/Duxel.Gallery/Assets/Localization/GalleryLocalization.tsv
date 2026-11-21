@@ -676,3 +676,59 @@ Next slide	다음 슬라이드	次のスライド	下一张幻灯片
 Autoplay	자동 재생	自動再生	自动播放
 Choose {0}	{0} 선택	{0}を選ぶ	选择{0}
 Selections: {0}	선택 횟수 {0}회	選択回数：{0}回	选择次数：{0}
+Calendar locale	달력 문화권	カレンダーのロケール	日历区域设置
+System settings	시스템 설정	システム設定	系统设置
+Korea · Gregorian	한국 · 양력	韓国 · グレゴリオ暦	韩国 · 公历
+United States · Gregorian	미국 · 양력	米国 · グレゴリオ暦	美国 · 公历
+United Kingdom · Gregorian	영국 · 양력	英国 · グレゴリオ暦	英国 · 公历
+Saudi Arabia · Umm al-Qura	사우디 · 움알쿠라력	サウジアラビア · ウンム・アルクラー暦	沙特阿拉伯 · 乌姆古拉历
+Iran · Persian calendar	이란 · 페르시아력	イラン · ペルシャ暦	伊朗 · 波斯历
+Israel · Hebrew calendar	이스라엘 · 히브리력	イスラエル · ヘブライ暦	以色列 · 希伯来历
+Thailand · Buddhist calendar	태국 · 불기	タイ · 仏暦	泰国 · 佛历
+Japan · Era calendar	일본 · 연호	日本 · 和暦	日本 · 和历
+Choose locale	문화권 선택	ロケールを選択	选择区域设置
+Toggle first day of week	주 시작 요일 전환	週の開始曜日を切り替え	切换每周起始日
+Toggle text direction	글 방향 전환	文字の方向を切り替え	切换文字方向
+Toggle date digits	날짜 숫자 전환	日付の数字を切り替え	切换日期数字
+Toggle weekend colors	주말 색상 전환	週末の色を切り替え	切换周末颜色
+Toggle unavailable dates	선택 불가 날짜 전환	選択できない日付を切り替え	切换不可选日期
+Clear selection	선택 지우기	選択をクリア	清除选择
+Selected dates: {0}	선택 : {0}	選択した日付：{0}	所选日期：{0}
+Choose two dates to set a range. Use the arrow keys to move, then press Enter to select. Escape cancels the pending start date.	날짜를 두 번 선택해 기간을 정합니다. 방향키로 이동한 뒤 Enter로 선택할 수도 있습니다. Escape는 지정 중인 시작점만 취소합니다.	日付を 2 つ選んで期間を指定します。矢印キーで移動し、Enter で選択できます。Esc を押すと選択途中の開始日が取り消されます。	选择两个日期来设定范围。也可以使用方向键移动，再按 Enter 选择。按 Esc 可取消尚未确定的开始日期。
+Use arrow keys to move focus. Select with Enter, Space, or a click. Change the month with Page Up or Page Down, and the year with Shift and either key. Select the year or month heading to open its wheel.	방향키는 포커스만 옮깁니다. Enter·Space·클릭으로 선택하고 PageUp/PageDown으로 달을, Shift+PageUp/PageDown으로 연도를 이동합니다. 위의 연도·월을 누르면 휠로 고를 수 있습니다.	矢印キーでフォーカスを移動し、Enter、Space、またはクリックで選択します。Page Up または Page Down で月を、Shift を押しながら操作すると年を移動します。年や月の見出しを選ぶとホイールが開きます。	用方向键移动焦点，按 Enter、空格键或单击进行选择。按 Page Up 或 Page Down 切换月份，按住 Shift 可切换年份。选择年份或月份标题可打开滚轮。
+The selected dates are outside this calendar's range. Clear the selection to change calendars.	선택한 날짜가 이 달력의 지원 범위를 벗어납니다. 선택을 지운 뒤 바꿔 주세요.	選択した日付はこのカレンダーの範囲外です。選択を解除してからカレンダーを切り替えてください。	所选日期超出此日历的范围。请清除选择后再切换日历。
+The restriction overlaps the selection. Clear the selection to enable it.	선택한 날짜에 제한이 겹칩니다. 선택을 지운 뒤 제한을 켜 주세요.	選択した日付が制限範囲と重なっています。選択を解除してから制限を有効にしてください。	限制范围与所选日期重叠。请先清除选择，再启用限制。
+{0} through {1} are unavailable.	{0} ~ {1}은 선택할 수 없습니다.	{0}から{1}までは選択できません。	无法选择从{0}到{1}的日期。
+Previous month	이전 달	前の月	上个月
+Next month	다음 달	次の月	下个月
+Choose the end date	종료일을 선택하세요	終了日を選択	选择结束日期
+Choose year	연도 선택	年を選択	选择年份
+Choose month	월 선택	月を選択	选择月份
+Choose date	날짜 선택	日付を選択	选择日期
+Choose time	시각 선택	時刻を選択	选择时间
+Hour	시	時	时
+Minute	분	分	分
+AM/PM	오전·오후	午前・午後	上午/下午
+Enter a valid date.	올바른 날짜를 입력하세요.	有効な日付を入力してください。	请输入有效日期。
+Enter a valid time.	올바른 시각을 입력하세요.	有効な時刻を入力してください。	请输入有效时间。
+The value was not accepted.	값을 적용할 수 없습니다.	値を適用できませんでした。	无法应用该值。
+Display locale	표시 지역	表示する地域	显示区域
+Date	날짜	日付	日期
+Time	시각	時刻	时间
+Appointment	예약	予約	预约
+United Kingdom	영국	英国	英国
+Saudi Arabia	사우디아라비아	サウジアラビア	沙特阿拉伯
+Clear value	값 지우기	値をクリア	清除值
+Toggle 12- or 24-hour time	12·24시간제 전환	12 時間制と 24 時間制を切り替え	切换 12 或 24 小时制
+Toggle seconds	초 표시 전환	秒の表示を切り替え	切换秒数显示
+Stored value: {0}	저장 값 : {0}	保存された値：{0}	保存的值：{0}
+New Year's Day	신정	元日	元旦
+Load holidays for this month	현재 달 공휴일 조회	今月の祝日を取得	查询本月节假日
+The offline example starts with New Year's Day. Choose Load to see the Korean public holiday names from the provider.	처음에는 신정 한 건을 넣은 오프라인 예제입니다. 조회 버튼을 누르면 제공자가 반환한 한국 공휴일 이름을 볼 수 있습니다.	オフラインのサンプルには元日が含まれています。取得ボタンを選ぶと、提供元から取得した韓国の祝日名が表示されます。	离线示例仅包含元旦。选择查询按钮可查看数据提供方返回的韩国节假日名称。
+Offline example	오프라인 예제	オフラインのサンプル	离线示例
+Connection failure example	연결 끊김 예제	通信障害のサンプル	连接故障示例
+Select a date and compare month names, weekdays, digits, and text direction across locales.	날짜를 선택하고 문화권별 월·요일·숫자와 글 방향을 비교해 보세요.	日付を選び、ロケールごとの月名、曜日、数字、文字の方向を比較できます。	选择日期，比较不同区域设置的月份、星期、数字和文字方向。
+Enter a date or select it from the calendar to try regional formats and validation.	날짜를 직접 입력하거나 달력에서 선택하세요. 지역별 표기와 입력 검증을 확인할 수 있습니다.	日付を入力するかカレンダーから選び、地域ごとの表記と入力チェックを試せます。	直接输入日期或从日历中选择，查看区域格式和输入验证。
+Enter a time or use the hour and minute wheels. Switch between 12- and 24-hour time and choose whether to show seconds.	시각을 직접 입력하거나 시·분 휠로 선택하세요. 12·24시간제와 초 표시도 바꿀 수 있습니다.	時刻を入力するか、時と分のホイールで選びます。12 時間制と 24 時間制を切り替え、秒の表示も変更できます。	直接输入时间或用时分滚轮选择。可以切换 12 或 24 小时制，并选择是否显示秒数。
+Enter a date and a time to store them as one value. You can also use the calendar and time wheels.	날짜와 시각을 따로 입력해 하나의 값으로 저장합니다. 달력과 시간 휠도 함께 사용할 수 있습니다.	日付と時刻を入力して、一つの値として保存できます。カレンダーと時刻ホイールも使用できます。	分别输入日期和时间，将两者存为一个值。也可以使用日历和时间滚轮。
+Seconds	초	秒	秒
