@@ -19,13 +19,13 @@ internal sealed class RatingPage : UiWidget, IGallerySourcePage
     {
         _samples.Clear();
         const string state = "var _rating = new UiState<float>(2.5f);\nvar _reviews = new UiState<int>(1234);";
-        var wholeSample = GallerySample.Create(() => Fluent.Rating("한 점 단위 평가", _rating.Binding), setup: state);
-        var halfSample = GallerySample.Create(() => Fluent.Rating("반 점 단위 평가", _rating.Binding,
-            new UiRatingOptions { Step = .5f, ItemLabel = static value => $"5점 만점에 {value:0.#}점" }), setup: state);
+        var wholeSample = GallerySample.Create(() => Fluent.Rating(GalleryText.Get("Whole-star rating"), _rating.Binding), setup: state);
+        var halfSample = GallerySample.Create(() => Fluent.Rating(GalleryText.Get("Half-star rating"), _rating.Binding,
+            new UiRatingOptions { Step = .5f, ItemLabel = static value => string.Format(GalleryText.Get("{0:0.#} out of 5"), value) }), setup: state);
         var wrappedSample = GallerySample.Create(() => Dux.Container(
-            Fluent.Rating("줄바꿈 평가", _rating.Binding, new UiRatingOptions { Step = .5f }), new(Width: 56)), setup: state);
-        var displaySample = GallerySample.Create(() => Fluent.RatingDisplay("등록된 평가", () => new(_rating.Value, _reviews.Value)), setup: state);
-        var compactSample = GallerySample.Create(() => Fluent.RatingDisplay("요약 평가", () => new(_rating.Value, _reviews.Value),
+            Fluent.Rating(GalleryText.Get("Wrapped rating"), _rating.Binding, new UiRatingOptions { Step = .5f }), new(Width: 56)), setup: state);
+        var displaySample = GallerySample.Create(() => Fluent.RatingDisplay(GalleryText.Get("Submitted rating"), () => new(_rating.Value, _reviews.Value)), setup: state);
+        var compactSample = GallerySample.Create(() => Fluent.RatingDisplay(GalleryText.Get("Compact rating"), () => new(_rating.Value, _reviews.Value),
             new UiRatingDisplayOptions { Compact = true }), setup: state);
         var whole = wholeSample.Preview;
         var half = halfSample.Preview;
@@ -33,15 +33,15 @@ internal sealed class RatingPage : UiWidget, IGallerySourcePage
         var display = displaySample.Preview;
         var compact = compactSample.Preview;
         wholeSample.BindSource(() => (_rating.Value, whole.Options),
-            state => RatingSource("한 점 단위 평가", state.Value, state.Options));
+            state => RatingSource(GalleryText.Get("Whole-star rating"), state.Value, state.Options));
         halfSample.BindSource(() => (_rating.Value, half.Options),
-            state => RatingSource("반 점 단위 평가", state.Value, state.Options));
+            state => RatingSource(GalleryText.Get("Half-star rating"), state.Value, state.Options));
         wrappedSample.BindSource(() => (_rating.Value, wrapped.Options),
-            state => RatingSource("줄바꿈 평가", state.Value, state.Options, wrapped: true));
+            state => RatingSource(GalleryText.Get("Wrapped rating"), state.Value, state.Options, wrapped: true));
         displaySample.BindSource(() => (_rating.Value, _reviews.Value, display.Options),
-            state => DisplaySource("등록된 평가", state.Item1, state.Item2, state.Options));
+            state => DisplaySource(GalleryText.Get("Submitted rating"), state.Item1, state.Item2, state.Options));
         compactSample.BindSource(() => (_rating.Value, _reviews.Value, compact.Options),
-            state => DisplaySource("요약 평가", state.Item1, state.Item2, state.Options));
+            state => DisplaySource(GalleryText.Get("Compact rating"), state.Item1, state.Item2, state.Options));
         void ApplyStyle()
         {
             var color = _color.Value switch
@@ -85,15 +85,15 @@ internal sealed class RatingPage : UiWidget, IGallerySourcePage
             };
         }
         return Dux.Column(new(Spacing: 16, MainAxisSize: UiMainAxisSize.Min),
-            Fluent.Body1("별 위에서 미리 보고 클릭해서 선택하세요. 방향키로 이동하며 Tab으로 빠져나옵니다."),
-            Fluent.Caption1("한 점 단위 · 반 점 단위, 같은 값 공유"),
+            Fluent.Body1(GalleryText.Get("Hover over the stars to preview a rating, then click to select. Use the arrow keys to move and Tab to leave.")),
+            Fluent.Caption1(GalleryText.Get("Whole-star and half-star controls share the same value.")),
             Record(wholeSample), Record(halfSample),
-            Fluent.Body1(() => $"평점 : {_rating.Value:0.#} / 5"),
-            Fluent.Button("평점 지우기", () => _rating.Value = 0),
-            Fluent.Divider("등록된 평가 표시"),
+            Fluent.Body1(() => GalleryText.Format("Rating: {0:0.#} / 5", _rating.Value)),
+            Fluent.Button(GalleryText.Get("Clear rating"), () => _rating.Value = 0),
+            Fluent.Divider(GalleryText.Get("Submitted rating display")),
             Record(displaySample), Record(compactSample),
-            Fluent.Button("리뷰 수 늘리기", () => _reviews.Value++),
-            Fluent.Switch("오른쪽에서 왼쪽 순서", new UiBinding<bool>(() => whole.Options.RightToLeft, value =>
+            Fluent.Button(GalleryText.Get("Increase review count"), () => _reviews.Value++),
+            Fluent.Switch(GalleryText.Get("Right-to-left order"), new UiBinding<bool>(() => whole.Options.RightToLeft, value =>
             {
                 whole.Options = whole.Options with
                 {
@@ -117,17 +117,17 @@ internal sealed class RatingPage : UiWidget, IGallerySourcePage
                 };
             })),
             Dux.Wrap(new(Spacing: 24),
-                Fluent.RadioGroup("평가 색상", new UiBinding<string?>(() => _color.Value, value => { _color.Value = value; ApplyStyle(); }),
-                    new UiRadioOption[] { new("neutral", "기본"), new("brand", "브랜드"), new("marigold", "메리골드") }, 200),
-                Fluent.RadioGroup("평가 모양", new UiBinding<string?>(() => _shape.Value, value => { _shape.Value = value; ApplyStyle(); }),
-                    new UiRadioOption[] { new("star", "별"), new("circle", "원"), new("square", "사각형") }, 200)),
-            Fluent.Caption1("좁은 부모 영역에서는 별 크기를 유지하며 줄을 바꿉니다."),
+                Fluent.RadioGroup(GalleryText.Get("Rating color"), new UiBinding<string?>(() => _color.Value, value => { _color.Value = value; ApplyStyle(); }),
+                    new UiRadioOption[] { new("neutral", GalleryText.Get("Neutral")), new("brand", GalleryText.Get("Brand")), new("marigold", GalleryText.Get("Marigold")) }, 200),
+                Fluent.RadioGroup(GalleryText.Get("Rating shape"), new UiBinding<string?>(() => _shape.Value, value => { _shape.Value = value; ApplyStyle(); }),
+                    new UiRadioOption[] { new("star", GalleryText.Get("Star")), new("circle", GalleryText.Get("Circle")), new("square", GalleryText.Get("Square")) }, 200)),
+            Fluent.Caption1(GalleryText.Get("In a narrow container, the stars wrap without changing size.")),
             Record(wrappedSample));
     });
     private static string RatingSource(string label, float value, UiRatingOptions options, bool wrapped = false)
     {
         var control = FormattableString.Invariant($$"""
-            Fluent.Rating("{{label}}", value.Binding, new UiRatingOptions
+            Fluent.Rating({{GallerySample.String(label)}}, value.Binding, new UiRatingOptions
             {
                 Maximum = {{options.Maximum}},
                 Step = {{options.Step}}f,
@@ -137,7 +137,7 @@ internal sealed class RatingPage : UiWidget, IGallerySourcePage
                 RightToLeft = {{Boolean(options.RightToLeft)}}
             """);
         if (options.ItemLabel is not null)
-            control += ",\n    ItemLabel = static value => $\"5점 만점에 {value:0.#}점\"";
+            control += ",\n    ItemLabel = static value => string.Format(" + GallerySample.String(GalleryText.Get("{0:0.#} out of 5")) + ", value)";
         control += "\n})";
         if (wrapped) control = "Dux.Container(" + control + ", new(Width: 56))";
         return FormattableString.Invariant($"var value = new UiState<float>({value}f);\n\nUiWidget example = {control};");
@@ -147,7 +147,7 @@ internal sealed class RatingPage : UiWidget, IGallerySourcePage
             var value = new UiState<float>({{value}}f);
             var count = new UiState<int>({{count}});
 
-            UiWidget example = Fluent.RatingDisplay("{{label}}", () => new(value.Value, count.Value), new UiRatingDisplayOptions
+            UiWidget example = Fluent.RatingDisplay({{GallerySample.String(label)}}, () => new(value.Value, count.Value), new UiRatingDisplayOptions
             {
                 Maximum = {{options.Maximum}},
                 Size = UiRatingSize.{{options.Size}},

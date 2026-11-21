@@ -935,3 +935,48 @@ Leading edge	앞	先頭	起始侧
 Trailing edge	뒤	末尾	末尾侧
 Header size: {0}	헤더 크기 : {0}	見出しのサイズ：{0}	标题大小：{0}
 Panels start collapsed. Select a header to open its content and enter some text. You can also inspect the accessibility relationship between the header and panel.	처음에는 닫혀 있습니다. 헤더를 눌러 본문을 열고 입력해 보세요. 헤더와 본문을 연결한 접근성 정보도 확인할 수 있습니다.	パネルは最初、折りたたまれています。見出しを選んで本文を開き、入力してみてください。見出しと本文のアクセシビリティ上の関連も確認できます。	面板默认折叠。选择标题展开内容并输入一些文字。也可以检查标题与面板之间的辅助功能关联。
+Edits are kept when you close and reopen the drawer.	패널을 닫았다 열어도 편집 내용을 유지합니다.	ドロワーを閉じて開き直しても編集内容は保持されます。	关闭并重新打开抽屉后会保留编辑内容。
+Drawer content {0}	패널 내용 {0}	ドロワーの内容 {0}	抽屉内容 {0}
+Close side drawer	보조 패널 닫기	サイドドロワーを閉じる	关闭侧边抽屉
+A side drawer that keeps your edits	편집 내용을 유지하는 보조 작업 패널	編集内容を保持するサイドドロワー	保留编辑内容的侧边抽屉
+Additional tasks	보조 작업	追加のタスク	辅助任务
+Drawer note	패널 메모	ドロワーのメモ	抽屉备注
+Save drawer changes	패널 저장	ドロワーの変更を保存	保存抽屉中的更改
+Close drawer	패널 닫기	ドロワーを閉じる	关闭抽屉
+Open side drawer	보조 패널 열기	サイドドロワーを開く	打开侧边抽屉
+Close inline drawer	인라인 패널 닫기	インラインドロワーを閉じる	关闭内嵌抽屉
+Inline drawer	인라인 패널	インラインドロワー	内嵌抽屉
+Inline drawer note	인라인 메모	インラインドロワーのメモ	内嵌抽屉备注
+Close inline content	인라인 닫기	インラインの内容を閉じる	关闭内嵌内容
+An overlay opens from the edge of the window. An inline drawer can sit alongside the main content.	오버레이는 화면 가장자리에서 열립니다. 인라인 패널은 본문과 나란히 배치할 수 있습니다.	オーバーレイはウィンドウの端から開きます。インラインドロワーは本文の横に配置できます。	覆盖式抽屉从窗口边缘打开，内嵌抽屉可与主要内容并排显示。
+Overlay drawer	오버레이 패널	オーバーレイドロワー	覆盖式抽屉
+Change drawer position	패널 위치 변경	ドロワーの位置を変更	切换抽屉位置
+Change drawer size	패널 크기 변경	ドロワーのサイズを変更	切换抽屉大小
+Modal drawer	패널 모달	モーダルドロワー	模态抽屉
+Right-to-left drawer	패널 오른쪽에서 왼쪽	右から左に並ぶドロワー	从右到左的抽屉
+Saves: {0}	저장 횟수 : {0}	保存回数：{0}	保存次数：{0}
+When the window is tall enough, the title and bottom buttons stay in place as the body scrolls. In a shorter window, the whole drawer can scroll.	화면 높이가 충분하면 제목과 하단 버튼은 고정되고 본문만 스크롤됩니다. 화면이 낮아지면 제목과 버튼을 포함한 전체 내용을 스크롤할 수 있습니다.	ウィンドウに十分な高さがあれば、タイトルと下部のボタンは固定され、本文だけがスクロールします。高さが足りない場合は、ドロワー全体をスクロールできます。	窗口高度充足时，标题和底部按钮保持固定，只有正文滚动。窗口较矮时，整个抽屉都可以滚动。
+Show inline drawer	인라인 패널 표시	インラインドロワーを表示	显示内嵌抽屉
+Whole-star rating	한 점 단위 평가	1 点刻みの評価	整星评分
+Half-star rating	반 점 단위 평가	0.5 点刻みの評価	半星评分
+{0:0.#} out of 5	5점 만점에 {0:0.#}점	5 点満点中 {0:0.#} 点	{0:0.#} 分，满分 5 分
+Wrapped rating	줄바꿈 평가	折り返す評価	换行评分
+Submitted rating	등록된 평가	投稿済みの評価	已提交的评分
+Compact rating	요약 평가	コンパクトな評価	紧凑评分
+Hover over the stars to preview a rating, then click to select. Use the arrow keys to move and Tab to leave.	별 위에서 미리 보고 클릭해서 선택하세요. 방향키로 이동하며 Tab으로 빠져나옵니다.	星にポインターを重ねて評価をプレビューし、クリックで確定します。矢印キーで移動し、Tab で評価欄から出ます。	将指针悬停在星星上预览评分，再单击选定。使用方向键移动，按 Tab 离开评分控件。
+Whole-star and half-star controls share the same value.	한 점 단위 · 반 점 단위, 같은 값 공유	1 点刻みと 0.5 点刻みのコントロールは同じ評価値を共有します。	整星和半星控件共享同一评分值。
+Rating: {0:0.#} / 5	평점 : {0:0.#} / 5	評価：{0:0.#} / 5	评分：{0:0.#} / 5
+Clear rating	평점 지우기	評価を消去	清除评分
+Submitted rating display	등록된 평가 표시	投稿済みの評価を表示	显示已提交的评分
+Increase review count	리뷰 수 늘리기	レビュー数を増やす	增加评价数量
+Right-to-left order	오른쪽에서 왼쪽 순서	右から左の順序	从右到左排列
+Rating color	평가 색상	評価の色	评分颜色
+Neutral	기본	ニュートラル	中性色
+Brand	브랜드	ブランド	品牌色
+Marigold	메리골드	マリーゴールド	万寿菊色
+Rating shape	평가 모양	評価の形	评分形状
+Star	별	星	星形
+Circle	원	円	圆形
+Square	사각형	四角	方形
+In a narrow container, the stars wrap without changing size.	좁은 부모 영역에서는 별 크기를 유지하며 줄을 바꿉니다.	コンテナーが狭い場合は、星のサイズを保ったまま折り返します。	容器较窄时，星星会保持大小并换行。
+Clear drawer note	메모 비우기	メモを消去	清空备注
