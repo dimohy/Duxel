@@ -18,14 +18,14 @@ internal sealed class TextFieldPage : IObserverPage, IObserverNaturalPage, IGall
         internal List<IGallerySample> Samples { get; } = [];
         internal UiWidget Root { get; }
         internal Content() => Root = Dux.Column(new(Spacing: 16, MainAxisSize: UiMainAxisSize.Min),
-            Example("이름", "디모이", "앱에 표시할 이름을 입력하세요.", false),
-            Example("이메일", "example", "예: name@example.com", true));
+            Example(GalleryText.Get("이름"), GalleryText.Get("디모이"), GalleryText.Get("앱에 표시할 이름을 입력하세요."), false),
+            Example(GalleryText.Get("이메일"), "example", GalleryText.Get("예: name@example.com"), true));
 
         private UiWidget Example(string label, string initial, string hint, bool validate)
         {
             var value = new UiState<string>(initial);
             var sample = GallerySample.Create(() => Fluent.TextField(label, value.Binding,
-                inputOptions: new(Placeholder: label, ClearLabel: $"{label} 지우기"),
+                inputOptions: new(Placeholder: label, ClearLabel: GalleryText.Format("{0} 지우기", label)),
                 field: new() { Hint = hint, Required = validate }));
             var input = sample.Preview;
             sample.BindSource(() => (value.Value, input.InputOptions, input.Options), state =>
@@ -37,18 +37,18 @@ internal sealed class TextFieldPage : IObserverPage, IObserverNaturalPage, IGall
                 + $"        ValidationMessage = {GallerySample.String(state.Options.ValidationMessage)} }});\nfield.Render(ui);");
             Samples.Add(sample);
             return Dux.Column(new(Spacing: 8, MainAxisSize: UiMainAxisSize.Min),
-                Fluent.Subtitle2(label == "이름" ? "짧은 텍스트" : "입력 후 검증"),
+                Fluent.Subtitle2(validate ? GalleryText.Get("입력 후 검증") : GalleryText.Get("짧은 텍스트")),
                 Dux.Wrap(new(Spacing: 8, RunSpacing: 8),
-                    Fluent.Button($"{label} 읽기 전용 전환", () => input.InputOptions = input.InputOptions with { ReadOnly = !input.InputOptions.ReadOnly }),
-                    Fluent.Button($"{label} 방향 전환", () => input.InputOptions = input.InputOptions with { RightToLeft = !input.InputOptions.RightToLeft }),
-                    validate ? Fluent.Button("이메일 확인", () =>
+                    Fluent.Button(GalleryText.Format("{0} 읽기 전용 전환", label), () => input.InputOptions = input.InputOptions with { ReadOnly = !input.InputOptions.ReadOnly }),
+                    Fluent.Button(GalleryText.Format("{0} 방향 전환", label), () => input.InputOptions = input.InputOptions with { RightToLeft = !input.InputOptions.RightToLeft }),
+                    validate ? Fluent.Button(GalleryText.Get("이메일 확인"), () =>
                     {
                         var at = value.Value.IndexOf('@');
                         input.Options = input.Options with
                         {
-                            ValidationMessage = at > 0 && at < value.Value.Length - 1 ? null : "@ 앞뒤에 주소를 입력하세요."
+                            ValidationMessage = at > 0 && at < value.Value.Length - 1 ? null : GalleryText.Get("@ 앞뒤에 주소를 입력하세요.")
                         };
-                    }) : Fluent.Button("이름 복원", () => value.Value = initial)),
+                    }) : Fluent.Button(GalleryText.Get("이름 복원"), () => value.Value = initial)),
                 sample);
         }
     }
