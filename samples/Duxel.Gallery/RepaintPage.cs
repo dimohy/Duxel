@@ -21,9 +21,10 @@ internal sealed class RepaintPage : IObserverPage, IObserverNaturalPage, IGaller
         var experiment = _experiment = definition.Value;
         var sample = GallerySample.Create(() => experiment);
         var factory = sample.Source;
+        var declaration = GallerySample.LocalizeSource(GalleryPageSource.Declaration(nameof(RepaintExperiment)));
         sample.BindSource(() => (experiment.AutoChange, experiment.Profile), state => definition.Source
             + $"\nexperiment.AutoChange = {GallerySample.Boolean(state.AutoChange)};\nexperiment.Profile = {GallerySample.Boolean(state.Profile)};\n\n"
-            + factory + "\n\n" + GalleryPageSource.Declaration(nameof(RepaintExperiment)));
+            + factory + "\n\n" + declaration);
         Samples = [sample];
         _root = Dux.ScrollView(sample);
     }

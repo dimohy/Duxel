@@ -7,10 +7,10 @@ internal sealed class MeasurementPage : UiWidget, IGallerySourcePage
     private readonly UiState<bool?> _checked = new(null);
     private readonly UiState<float> _value = new(.25f);
     private readonly UiState<string?> _choice = new("a");
-    private readonly UiState<string> _formValue = new("편집하세요");
+    private readonly UiState<string> _formValue = new(GalleryText.Get("Edit this note"));
     private readonly UiState<bool> _formChecked = new(false);
     private readonly UiState<string?> _tabValue = new("a");
-    private readonly UiState<string> _memo = new("첫 줄\n둘째 줄");
+    private readonly UiState<string> _memo = new(GalleryText.Get("First line") + "\n" + GalleryText.Get("Second line"));
     private readonly MeasurementPrimitives _primitives;
     private readonly MeasurementForm _form;
     private readonly UiWidget _root;
@@ -36,11 +36,12 @@ internal sealed class MeasurementPage : UiWidget, IGallerySourcePage
         var primitives = _primitives = primitivesDefinition.Value;
         var primitiveSample = GallerySample.Create(() => Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
             Dux.Wrap(new(Spacing : 12, RunSpacing : 12),
-                Fluent.Button("프레임 확인", static () => { }),
-                Fluent.Button("측정 라벨 변경", primitives.ToggleLabel),
-                Fluent.Button("측정 너비 변경", primitives.ToggleWidth),
-                Fluent.Button("측정 본문 변경", primitives.ChangeBody)), primitives));
+                Fluent.Button(GalleryText.Get("Probe a frame"), static () => { }),
+                Fluent.Button(GalleryText.Get("Change measurement label"), primitives.ToggleLabel),
+                Fluent.Button(GalleryText.Get("Change measurement width"), primitives.ToggleWidth),
+                Fluent.Button(GalleryText.Get("Change measured body"), primitives.ChangeBody)), primitives));
         var primitiveFactory = primitiveSample.Source;
+        var primitiveDeclaration = GallerySample.LocalizeSource(GalleryPageSource.Declaration(nameof(MeasurementPrimitives)));
         primitiveSample.BindSource(() => (_checked.Value, Slider : _value.Value, Choice : _choice.Value,
             primitives.CheckboxLabel, primitives.BodyText, primitives.BadgeCount, primitives.SpinnerLabel, primitives.Width, primitives.Navigations), state =>
         {
@@ -50,27 +51,30 @@ internal sealed class MeasurementPage : UiWidget, IGallerySourcePage
                 + $"\nprimitives.CheckboxLabel = {GallerySample.String(state.CheckboxLabel)};\nprimitives.BodyText = {GallerySample.String(state.BodyText)};\n"
                 + $"primitives.BadgeCount = {state.BadgeCount};\nprimitives.SpinnerLabel = {GallerySample.String(state.SpinnerLabel)};\n"
                 + $"primitives.Width = {GallerySample.Number(state.Width)};\nprimitives.Navigations = {state.Navigations};\n\n" + primitiveFactory
-                + "\n\n" + GalleryPageSource.Declaration(nameof(MeasurementPrimitives));
+                + "\n\n" + primitiveDeclaration;
         });
         var formDefinition = GallerySample.Define("form", () => new MeasurementForm(_formValue, _formChecked, _tabValue, _memo));
         var form = _form = formDefinition.Value;
         var formSample = GallerySample.Create(() => Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Button("탭 크기 변경", form.ToggleTabSize), form));
+            Fluent.Button(GalleryText.Get("Change tab size"), form.ToggleTabSize), form));
         var formFactory = formSample.Source;
+        var formDeclaration = GallerySample.LocalizeSource(GalleryPageSource.Declaration(nameof(MeasurementForm)));
         formSample.BindSource(() => (_formValue.Value, Checked : _formChecked.Value, Tab : _tabValue.Value, Memo : _memo.Value, form.TabSize), state =>
             $"var _formValue = new UiState<string>({GallerySample.String(state.Value)});\nvar _formChecked = new UiState<bool>({GallerySample.Boolean(state.Checked)});\n"
             + $"var _tabValue = new UiState<string?>({GallerySample.String(state.Tab)});\nvar _memo = new UiState<string>({GallerySample.String(state.Memo)});\n\n"
             + formDefinition.Source + $"\nform.TabSize = UiTabListSize.{state.TabSize};\n\n" + formFactory
-            + "\n\n" + GalleryPageSource.Declaration(nameof(MeasurementForm)));
+            + "\n\n" + formDeclaration);
         Samples = [primitiveSample, formSample];
         _root = Dux.Column(new(Spacing : 16, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Body1("체크·슬라이더·선택·링크를 조작하세요. 자식 측정 수가 그대로여도 화면과 진행률은 바뀝니다."),
-            Fluent.Body1("라벨이나 부모 너비를 바꾸면 배치를 다시 계산합니다. 이 수치는 FPS나 GPU 작업량이 아닙니다."),
-            Fluent.Body1(() => $"자식 측정 : {Measurements} / 값 : {_value.Value:F2} / 선택 : {_choice.Value} / 링크 : {Navigations}"),
-            Fluent.Body1(() => $"폼 부모 측정 : {FormMeasurements} / 입력 : {_formValue.Value} / 메뉴 체크 : {_formChecked.Value}"),
-            Fluent.Body1(() => $"탭 자연 측정(프로세스) : {TabMeasurements} / 선택 : {_tabValue.Value}"),
-            Fluent.Body1(() => $"위임 부모 측정 : {DelegatedMeasurements} / 메모 길이 : {_memo.Value.Length}"),
-            Fluent.Body1(() => $"소유 자식 크기 측정 : {OwnedSizingMeasurements}"),
+            Fluent.Body1(GalleryText.Get("Try the checkbox, slider, selection, and link. The display and progress can change even when child measurement counts stay the same.")),
+            Fluent.Body1(GalleryText.Get("Changing the label or parent width recalculates layout. These counters do not measure FPS or GPU work.")),
+            Fluent.Body1(() => GalleryText.Format("Child measurements: {0} / Value: {1:F2} / Selection: {2} / Link actions: {3}", Measurements, _value.Value,
+                GalleryText.Get(_choice.Value switch { "a" => "Reuse Alpha", "b" => "Reuse Beta", _ => "None selected" }), Navigations)),
+            Fluent.Body1(() => GalleryText.Format("Form measurements: {0} / Input: {1} / Menu checkbox: {2}", FormMeasurements, _formValue.Value, GalleryText.Get(_formChecked.Value ? "On" : "Off"))),
+            Fluent.Body1(() => GalleryText.Format("Natural tab measurements (process): {0} / Selection: {1}", TabMeasurements, GalleryText.Get(_tabValue.Value switch
+                { "a" => "Measurement tab Alpha", "b" => "Measurement tab Beta", "c" => "Measurement tab Gamma", _ => "None selected" }))),
+            Fluent.Body1(() => GalleryText.Format("Delegated parent measurements: {0} / Note length: {1}", DelegatedMeasurements, _memo.Value.Length)),
+            Fluent.Body1(() => GalleryText.Format("Owned child measurements: {0}", OwnedSizingMeasurements)),
             Dux.Wrap(new(Spacing : 16, RunSpacing : 16),
                 Dux.ConstrainedBox(primitiveSample, new(0, 420, 0, float.PositiveInfinity)),
                 Dux.ConstrainedBox(formSample, new(0, 420, 0, float.PositiveInfinity))));

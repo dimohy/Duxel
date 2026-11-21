@@ -29,9 +29,9 @@ internal sealed class MeasurementForm : UiWidget
         _menu = new(formChecked.Binding);
         _fieldInput = new(formValue.Binding);
         _field = new(_fieldInput);
-        _field.Options = new() { Label = "재사용 필드", Hint = "배치 크기를 재사용하더라도 값 변경과 편집 이력은 계속 처리합니다." };
-        _tabs = new("재사용 측정 탭", tabValue.Binding,
-            new UiTabOption[] { new("a", "측정 탭 Alpha"), new("b", "측정 탭 Beta"), new("c", "측정 탭 Gamma") });
+        _field.Options = new() { Label = GalleryText.Get("Reuse field"), Hint = GalleryText.Get("Reusing layout measurements still preserves value changes and edit history.") };
+        _tabs = new(GalleryText.Get("Measurement reuse tabs"), tabValue.Binding,
+            new UiTabOption[] { new("a", GalleryText.Get("Measurement tab Alpha")), new("b", GalleryText.Get("Measurement tab Beta")), new("c", GalleryText.Get("Measurement tab Gamma")) });
         _textarea = new(memo.Binding);
         _tooltipTarget = new();
         _tooltip = new(_tooltipTarget);
@@ -43,7 +43,7 @@ internal sealed class MeasurementForm : UiWidget
     internal void ToggleTabSize() => TabSize = TabSize == UiTabListSize.Medium ? UiTabListSize.Small : UiTabListSize.Medium;
     protected override bool CanRetainMeasurement => CanRetainOwnedMeasurement(_root);
     protected override IUiView Build(UiBuildContext context) => context.Child("root", () => _root);
-    private sealed class Input(UiBinding<string> value) : UiInput<UiFluentTextInputBehavior, UiFluentInputPresentation<UiFluentMediumInputSize, UiFluentOutlineInput>>("재사용 폼 입력", value, 128, 300)
+    private sealed class Input(UiBinding<string> value) : UiInput<UiFluentTextInputBehavior, UiFluentInputPresentation<UiFluentMediumInputSize, UiFluentOutlineInput>>(GalleryText.Get("Reuse form input"), value, 128, 300)
     {
         internal int Measurements;
         protected override UiVector2 MeasureContent(UiControlContext context)
@@ -52,7 +52,7 @@ internal sealed class MeasurementForm : UiWidget
             return base.MeasureContent(context);
         }
     }
-    private sealed class Divider() : UiDivider<UiFluentDividerPresentation>("재사용 구분선")
+    private sealed class Divider() : UiDivider<UiFluentDividerPresentation>(GalleryText.Get("Reuse divider"))
     {
         internal int Measurements;
         protected override UiVector2 MeasureContent(UiControlContext context)
@@ -61,7 +61,7 @@ internal sealed class MeasurementForm : UiWidget
             return base.MeasureContent(context);
         }
     }
-    private sealed class Menu(UiBinding<bool> value) : UiMenu<UiFluentMenuPresentation>("재사용 폼 메뉴", [UiMenuOption.Checkbox("check", "재사용 폼 체크", value)], static _ => { })
+    private sealed class Menu(UiBinding<bool> value) : UiMenu<UiFluentMenuPresentation>(GalleryText.Get("Reuse form menu"), [UiMenuOption.Checkbox("check", GalleryText.Get("Reuse form checkbox"), value)], static _ => { })
     {
         internal int Measurements;
         protected override UiVector2 MeasureContent(UiControlContext context)
@@ -92,7 +92,7 @@ internal sealed class MeasurementForm : UiWidget
             UiFluentTabListPresentation.PaintTab(context, label, bounds, selected, interaction, options);
     }
     private sealed class Textarea(UiBinding<string> value) : UiMultilineInput<UiFluentMultilineInputBehavior,
-        UiFluentTextareaPresentation<UiFluentMediumTextareaSize, UiFluentOutlineInput>>("재사용 여러 줄", value, width : 360, height : 64)
+        UiFluentTextareaPresentation<UiFluentMediumTextareaSize, UiFluentOutlineInput>>(GalleryText.Get("Reuse multiline input"), value, width : 360, height : 64)
     {
         internal int Measurements;
         protected override UiVector2 MeasureContent(UiControlContext context)
@@ -102,7 +102,7 @@ internal sealed class MeasurementForm : UiWidget
         }
     }
     private sealed class Tooltip(UiWidget target) : UiTooltip<UiHoverFocusTooltipBehavior, UiFluentTooltipPresentation>(target,
-        "대상의 측정 결과를 재사용하더라도, 설정한 지연 시간 뒤에 설명을 표시합니다.", new() { ShowDelaySeconds = .05 })
+        GalleryText.Get("The tooltip still appears after its configured delay when the target reuses its measurement."), new() { ShowDelaySeconds = .05 })
     {
         internal int Measurements;
         protected override UiVector2 MeasureContent(UiControlContext context)
@@ -124,7 +124,7 @@ internal sealed class MeasurementForm : UiWidget
         }
         protected override IUiView Build(UiBuildContext context) => context.Child("root", () => _root);
     }
-    private sealed class FieldInput(UiBinding<string> value) : UiFluentInput("재사용 필드 입력", value, 128)
+    private sealed class FieldInput(UiBinding<string> value) : UiFluentInput(GalleryText.Get("Reuse field input"), value, 128)
     {
         internal int Measurements;
         protected override UiVector2 MeasureContent(UiControlContext context)
@@ -133,7 +133,7 @@ internal sealed class MeasurementForm : UiWidget
             return base.MeasureContent(context);
         }
     }
-    private sealed class TooltipTarget() : UiFluentButton("재사용 도구 설명 대상")
+    private sealed class TooltipTarget() : UiFluentButton(GalleryText.Get("Reuse tooltip target"))
     {
         internal int Measurements;
         protected override UiVector2 MeasureContent(UiControlContext context)
