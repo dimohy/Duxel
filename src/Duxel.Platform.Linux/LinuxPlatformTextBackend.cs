@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text;
 using Duxel.Core;
 using static Duxel.Platform.Linux.LinuxFontNative;
@@ -96,10 +97,8 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBacke
         {
             var run = Layout(new(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize));
             var metrics = run.Metrics;
-            var alpha = Rasterize(run.Runs, metrics.Width, metrics.Height, metrics.OriginX, -metrics.Baseline);
-            var rgba = new byte[checked(alpha.Length * 4)];
-            for (var i = 0; i < alpha.Length; i++)
-                rgba.AsSpan(i * 4, 4).Fill(alpha[i]);
+            var rgba = Rasterize(run.Runs, metrics.Width, metrics.Height, metrics.OriginX, -metrics.Baseline,
+                expandToRgba: true);
             result = new(metrics.Width, metrics.Height, rgba, metrics.Baseline, metrics.FontAscent, metrics.Advance)
             {
                 OriginX = metrics.OriginX
@@ -182,7 +181,7 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBacke
         return new(visible.ToArray(), left, top, right, bottom);
     }
 
-    private static byte[] Rasterize(List<Run> runs, int width, int height, double left, double top)
+    private static byte[] Rasterize(List<Run> runs, int width, int height, double left, double top, bool expandToRgba = false)
         => RasterizeSurface(width, height, left, top, context =>
         {
             foreach (var run in runs)
@@ -191,13 +190,13 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBacke
                 fixed (Glyph* glyphs = run.Glyphs)
                     cairo_show_glyphs(context, glyphs, run.Glyphs.Length);
             }
-        });
+        }, expandToRgba);
 
-    private static byte[] RasterizeSurface(int width, int height, double left, double top, Action<nint> paint)
+    private static byte[] RasterizeSurface(int width, int height, double left, double top, Action<nint> paint, bool expandToRgba)
     {
         if (width == 0 || height == 0)
             return [];
-        var alpha = new byte[checked(width * height)];
+        var pixels = new byte[checked(width * height * (expandToRgba ? 4 : 1))];
         var surface = cairo_image_surface_create(2, width, height); // A8, native stride is not necessarily width.
         nint context = 0;
         try
@@ -212,9 +211,23 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBacke
             CheckCairo(cairo_surface_status(surface), "flush alpha surface");
             var data = cairo_image_surface_get_data(surface);
             var stride = cairo_image_surface_get_stride(surface);
-            for (var row = 0; row < height; row++)
-                new ReadOnlySpan<byte>(data + row * stride, width).CopyTo(alpha.AsSpan(row * width, width));
-            return alpha;
+            if (expandToRgba)
+            {
+                var rgba = MemoryMarshal.Cast<byte, uint>(pixels.AsSpan());
+                for (var row = 0; row < height; row++)
+                {
+                    var coverage = new ReadOnlySpan<byte>(data + row * stride, width);
+                    var target = rgba.Slice(row * width, width);
+                    for (var x = 0; x < width; x++)
+                        target[x] = coverage[x] * 0x01010101u;
+                }
+            }
+            else
+            {
+                for (var row = 0; row < height; row++)
+                    new ReadOnlySpan<byte>(data + row * stride, width).CopyTo(pixels.AsSpan(row * width, width));
+            }
+            return pixels;
         }
         finally
         {
