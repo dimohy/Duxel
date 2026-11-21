@@ -141,6 +141,7 @@ internal static class GalleryLocalizationTests
             VerifyVirtualAndFileExamples(Render, tree, services, check);
             VerifyFileChooserLanguages(Render, tree, check);
             VerifyPeopleExamples(Render, tree, services, check);
+            VerifyMarkdownExamples(Render, tree, services, check);
 
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
             File.WriteAllText(path, "en");
@@ -884,6 +885,40 @@ internal static class GalleryLocalizationTests
                 && element.Node.Value is { } code && code.Contains(GallerySample.String(label), StringComparison.Ordinal)
                 && code.Contains(fragment, StringComparison.Ordinal) && !code.Contains("GalleryText.", StringComparison.Ordinal)
                 && (language == GalleryLanguage.Korean || !ContainsHangul(code)));
+        }
+    }
+
+    private static void VerifyMarkdownExamples(Action<UiScreen> render, UiAccessibilityTree tree, ObserverServices services,
+        Action<bool, string> check)
+    {
+        foreach (var (language, initialHeading, tableAction, tableHeading) in new[]
+        {
+            (GalleryLanguage.English, "# Markdown editing", "Table cell example", "# Native table cells"),
+            (GalleryLanguage.Korean, "# 한글 Markdown", "표 셀 예제", "# 네이티브 표 셀"),
+            (GalleryLanguage.Japanese, "# Markdown 編集", "表セルの例", "# ネイティブの表セル"),
+            (GalleryLanguage.SimplifiedChinese, "# Markdown 编辑", "表格单元格示例", "# 原生表格单元格")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            using var screen = new ObserverScreen(services, language : language) { SelectedPage = "Markdown" };
+            render(screen);
+            render(screen);
+            var page = screen.MarkdownPage;
+            check(page.Editor.Document.Source.StartsWith(initialHeading + "\n", StringComparison.Ordinal)
+                && page.Samples[0].Source.Contains(initialHeading, StringComparison.Ordinal),
+                $"Markdown editor and C# use the same localized initial document in {language}");
+
+            var action = tree.CaptureSnapshot().Elements.Single(element => element.Node.Role == UiAccessibilityRole.Button
+                && element.Node.Name == tableAction);
+            if (tree.RequestAction(action.Node.Id, action.RuntimeId, UiAccessibilityAction.Invoke, wait : false) != UiAccessibilityResult.Success)
+                throw new InvalidOperationException("Gallery table example action was rejected: " + tableAction);
+            render(screen);
+            render(screen);
+            check(page.TableExampleReady
+                && page.View.Document.Source.StartsWith(tableHeading + "\n", StringComparison.Ordinal)
+                && page.View.Document.Source.Contains("| :--- | :---: | ---: |", StringComparison.Ordinal)
+                && page.Samples[0].Source.Contains(tableHeading, StringComparison.Ordinal),
+                $"Markdown preview and C# preserve translated table structure in {language}");
         }
     }
 

@@ -9,13 +9,13 @@ internal sealed class LegacyPortalPreview : UiControlWidget
     private bool _openRequested, _closeRequested;
     internal LegacyPortalPreview(Action executed)
     {
-        var trigger = Fluent.Button("기존 팝업 API", () => _openRequested = true);
+        var trigger = Fluent.Button(GalleryText.Get("Legacy popup API"), () => _openRequested = true);
         trigger.Size = new(140, 32);
         _trigger = trigger;
         _content = Dux.Column(new(Spacing: 8, MainAxisSize: UiMainAxisSize.Min),
-            Fluent.Body1("BeginPopup도 화면 좌표로 열립니다."),
-            Fluent.Button("기존 팝업에서 실행", executed),
-            Fluent.Button("기존 팝업 닫기", () => _closeRequested = true));
+            Fluent.Body1(GalleryText.Get("BeginPopup also opens in screen coordinates.")),
+            Fluent.Button(GalleryText.Get("Run from the legacy popup"), executed),
+            Fluent.Button(GalleryText.Get("Close the legacy popup"), () => _closeRequested = true));
         OwnChild("trigger", _trigger);
         OwnChild("content", _content);
     }

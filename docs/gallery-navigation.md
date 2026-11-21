@@ -22,6 +22,8 @@ Nav, Toolbar, Tree, Dialog, Accordion, and List translate the controls and their
 
 Card and FluentProvider show localized labels and C# alongside the controls. Longer Card captions wrap within horizontal previews. The FluentProvider font example uses a local monospace font for Latin text and retains the Gallery font for CJK text.
 
+Markdown translates the editor controls and the example documents. The copied C# contains the current document, including its tables, links, image references, and formatting markers. Layout examples and Widget transforms show the current grid, scroll, margin, and transform settings in the C# below each control.
+
 Applications can use the same localization API from `Duxel.Core`. Supply a culture, source string, and translation for each entry. Resolve text or format arguments using the application's selected culture.
 
 ```csharp
