@@ -9,12 +9,15 @@ internal sealed partial class WindowsDirectWriteGlyphRasterizer
     internal readonly record struct ContextualParagraph(ContextualFontRun[] Runs, float Advance, float Baseline);
 
     internal static ContextualParagraph ShapeContextualParagraph(string primary, string? secondary, string text, float size,
-        Action<nint>? inspectLayout = null)
+        Action<nint>? inspectLayout = null, List<WindowsPlatformTextBackend.FontRun>? selectedFontRuns = null)
     {
         lock (Sync)
         {
-            text = DirectWriteHangulInput.Prepare(text).Text;
-            var selected = WindowsPlatformTextBackend.BuildFontRuns(primary, secondary, text);
+            var prepared = DirectWriteHangulInput.Prepare(text).Text;
+            var selected = selectedFontRuns is not null && string.Equals(text, prepared, StringComparison.Ordinal)
+                ? selectedFontRuns
+                : WindowsPlatformTextBackend.BuildFontRuns(primary, secondary, prepared);
+            text = prepared;
             if (selected.Count == 0)
                 throw new ArgumentException("A contextual paragraph must contain source text.");
             var spans = new DirectWriteLongTextShaper.FontSpan[selected.Count];

@@ -171,23 +171,43 @@ public sealed partial class WindowsPlatformTextBackend : IPlatformTextBackend, I
             }
         }
 
-        var size = ResolveRasterFontSize(fontSize);
-        var runs = BuildFontRuns(fontPath, secondaryFontPath, text);
-        if (runs.Count == 0)
-        {
-            return false;
-        }
-
-        return TryRasterizeContextualLine(fontPath, secondaryFontPath, runs, size, out line, rasterizePixels);
+        return TryRasterizeContextualLine(fontPath, secondaryFontPath, text, ResolveRasterFontSize(fontSize), out line, rasterizePixels);
     }
 
-    private static bool TryRasterizeContextualLine(string primary, string? secondary, List<FontRun> runs, int size, out RasterizedLine line, bool rasterizePixels)
+    private readonly record struct ContextualLineKey(string Primary, string? Secondary, string Text, int Size);
+    private readonly record struct ContextualLine(
+        ContextualLineKey Key, string Text, string FirstFont, WindowsDirectWriteGlyphRasterizer.ContextualParagraph Paragraph);
+
+    [ThreadStatic]
+    private static ContextualLine? _lastMeasuredLine;
+
+    private static bool TryRasterizeContextualLine(string primary, string? secondary, string text, int size, out RasterizedLine line, bool rasterizePixels)
     {
         line = default;
-        var runResults = new List<(WindowsDirectWriteGlyphRasterizer.TextRunRasterizationResult Result, float PenX)>(runs.Count);
-        var text = string.Concat(runs.Select(run => run.Text));
+        var key = new ContextualLineKey(primary, secondary, text, size);
         var oversample = OversampleForSize(size);
-        var paragraph = WindowsDirectWriteGlyphRasterizer.ShapeContextualParagraph(primary, secondary, text, size * oversample);
+        ContextualLine shaped;
+        if (_lastMeasuredLine is { } measured && measured.Key == key)
+        {
+            shaped = measured;
+        }
+        else
+        {
+            var runs = BuildFontRuns(primary, secondary, text);
+            if (runs.Count == 0)
+                return false;
+            var selectedText = string.Concat(runs.Select(run => run.Text));
+            var layout = WindowsDirectWriteGlyphRasterizer.ShapeContextualParagraph(primary, secondary,
+                selectedText, size * oversample, selectedFontRuns: runs);
+            shaped = new(key, selectedText, runs[0].FontPath, layout);
+        }
+
+        // Measurement and drawing share immutable managed positions. Font faces are
+        // acquired by the rasterizer, so the entry cannot keep a native face alive.
+        _lastMeasuredLine = !rasterizePixels && text.Length <= 256 ? shaped : null;
+        text = shaped.Text;
+        var paragraph = shaped.Paragraph;
+        var runResults = new List<(WindowsDirectWriteGlyphRasterizer.TextRunRasterizationResult Result, float PenX)>(paragraph.Runs.Length);
         var penX = paragraph.Advance / oversample;
 
         foreach (var run in paragraph.Runs)
@@ -210,7 +230,7 @@ public sealed partial class WindowsPlatformTextBackend : IPlatformTextBackend, I
 
         if (runResults.Count == 0)
         {
-            if (!WindowsDirectWriteGlyphRasterizer.TryGetFontMetrics(runs[0].FontPath, size, out var metrics))
+            if (!WindowsDirectWriteGlyphRasterizer.TryGetFontMetrics(shaped.FirstFont, size, out var metrics))
                 return false;
             line = new(0, 0, ReadOnlyMemory<byte>.Empty, 0, metrics.Ascent, penX);
             return true;
