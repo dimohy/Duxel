@@ -112,7 +112,7 @@ public sealed partial class UiImmediateContext
         return focused;
     }
 
-    private void FocusGroupControl(string id, bool keyboard)
+    private void FocusGroupControl(string id, bool keyboard, bool preserveFocusIndicator = false)
     {
         if (keyboard)
         {
@@ -120,7 +120,8 @@ public sealed partial class UiImmediateContext
                 _imeHandler?.SetCompositionOwner(null);
             _state.ActiveId = null;
             _state.PendingTextInputFocusId = null;
-            _state.NavCursorVisible = true;
+            if (!preserveFocusIndicator)
+                _state.NavCursorVisible = true;
         }
         _state.FocusedId = _ownedControlFocus = id;
         CancelControlSpace();

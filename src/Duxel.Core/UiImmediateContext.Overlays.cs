@@ -126,7 +126,7 @@ public sealed partial class UiImmediateContext
         _overlays?.Remove(input);
         if (restoreFocus && input.Trigger is { } trigger)
         {
-            FocusGroupControl(trigger, true);
+            FocusGroupControl(trigger, keyboard : true, preserveFocusIndicator : true);
             _focusedControlSeen = input.TriggerSeenFrame == GetFrameCount();
             _focusedControlTier = input.TriggerTier;
         }
@@ -226,7 +226,7 @@ public sealed partial class UiImmediateContext
         {
             var target = retainFocus && previousFocus is not null && input.Members.Contains(previousFocus) ? previousFocus
                 : input.Members.Count > 0 ? input.Members[0] : surfaceId;
-            FocusGroupControl(target, true);
+            FocusGroupControl(target, keyboard : true, preserveFocusIndicator : true);
             _focusedControlSeen = true;
             _focusedControlTier = input.Tier;
         }
