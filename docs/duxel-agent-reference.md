@@ -859,6 +859,8 @@ executable SHA256 in the linked record. Equal-algorithm CPU849.07→GPU5448.07FP
 (three-run medians),NET10/11each465checks,136/136unchanged images and13artifact-lifetime
 checks pass. See the record for conditions and limits.
 
+ERD matches presentation feedback to recorded display passes by source frame ID. For the measurement contract, see [ERD layer lab](erd-layer-lab.md).
+
 The latest default NativeAOT is **DE068949**,published locally at the [executable](../samples/fba/artifacts/erd_layer_lab/net11.0-windows7.0/erd_layer_lab.exe).1200tables/MSAA4/.NET11 RC3/Speed,three independent run-average medians:camera1093.47FPS,entity motion1044.80FPS,best single-run average1180.66FPS. All3runs per scenario exceed1000;this is not a per-frame1ms guarantee. GPU NET10/11each438,direct414,status panel9each,equivalent-visible-window runtime12/12,and current resource2/2checks pass. See [final results](dynamic-3d-layers.md#final-verification-results--2026-11-03) for design,commands,raw measurements and limits. Later stage-by-stage numbers are historical.
 
 The common launcher's PowerShell automatic-variable collision that dropped extra build options is fixed(`InputArguments`,regression7/7). Explicitly select the native speed profile with `-ExtraArgs @('-p:OptimizationPreference=Speed')`. Single-sample opaque edges also use real depth coverage;default4x provides smooth curves. This architecture does not substitute per-layer bitmap caches.

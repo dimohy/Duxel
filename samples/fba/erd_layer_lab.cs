@@ -98,6 +98,7 @@ public sealed class ErdLayerLab : UiScreen
     private IUiPresentationReader? _presentationReader;
     private readonly UiRendererFrameMetrics[] _presentationScratch = new UiRendererFrameMetrics[8];
     private readonly SourceTelemetry[] _sourceTelemetry = new SourceTelemetry[8];
+    private int _nextSourceTelemetry;
     private readonly record struct SourceTelemetry(ulong FrameId, int Builds, long AllocatedBytes,
         bool WorkloadActive, long WorkloadTimestampTicks);
     private bool _autoCamera;
@@ -319,8 +320,8 @@ public sealed class ErdLayerLab : UiScreen
             Console.WriteLine(FormattableString.Invariant(
                 $"[erd-startup] frame={_renderedFrames} source={sourceFrameId} viewport={viewport.Pos.X},{viewport.Pos.Y},{viewport.Size.X},{viewport.Size.Y} work={viewport.WorkPos.X},{viewport.WorkPos.Y},{viewport.WorkSize.X},{viewport.WorkSize.Y} revision={_layoutRevision} builds={_lastBuilds} sceneAllocated={_lastAllocated}"));
         }
-        _sourceTelemetry[(int)(sourceFrameId % (ulong)_sourceTelemetry.Length)] = new(sourceFrameId, _lastBuilds,
-            _lastAllocated, _workloadClock is null || workloadStep.Running, workloadStep.TimestampTicks);
+        RecordSourceTelemetry(ui, _lastBuilds, _lastAllocated,
+            _workloadClock is null || workloadStep.Running, workloadStep.TimestampTicks);
         var diagramUsesDirectText = ui.GetDirectTextEnabled();
         var panelAllocatedBefore = traceAllocations ? GC.GetAllocatedBytesForCurrentThread() : 0;
         ui.SetDirectTextEnabled(true);
@@ -347,6 +348,31 @@ public sealed class ErdLayerLab : UiScreen
         }
     }
 
+    private void RecordSourceTelemetry(UiImmediateContext ui, int builds, long allocatedBytes, bool workloadActive, long workloadTimestamp)
+    {
+        if (!ui.IsPresentationPass)
+            return;
+
+        // Input-only passes consume source IDs without producing draw data.
+        // Index by recording order so a gap in IDs cannot overwrite a pending presentation.
+        _sourceTelemetry[_nextSourceTelemetry] = new(ui.GetDrawDataFrameId(), builds, allocatedBytes, workloadActive, workloadTimestamp);
+        _nextSourceTelemetry = (_nextSourceTelemetry + 1) % _sourceTelemetry.Length;
+    }
+
+    private SourceTelemetry FindSourceTelemetry(ulong sourceFrameId)
+    {
+        if (sourceFrameId != 0)
+        {
+            foreach (var telemetry in _sourceTelemetry)
+            {
+                if (telemetry.FrameId == sourceFrameId)
+                    return telemetry;
+            }
+        }
+
+        throw new InvalidOperationException($"ERD_SOURCE_TELEMETRY_MISSING: presentation source {sourceFrameId} is not in the retained UI frames.");
+    }
+
     private void CollectPresentedFrames()
     {
         if (_presentationReader is null) return;
@@ -361,9 +387,7 @@ public sealed class ErdLayerLab : UiScreen
                 if (metrics.PresentationSequence != _lastPresentationSequence + 1)
                     throw new InvalidOperationException("ERD_PRESENTATION_SEQUENCE_GAP: another consumer removed timing samples.");
                 _lastPresentationSequence = metrics.PresentationSequence;
-                var telemetry = _sourceTelemetry[(int)(metrics.DrawDataFrameId % (ulong)_sourceTelemetry.Length)];
-                if (metrics.DrawDataFrameId == 0 || telemetry.FrameId != metrics.DrawDataFrameId)
-                    throw new InvalidOperationException("ERD_SOURCE_TELEMETRY_MISSING: presentation does not match a retained UI source frame.");
+                var telemetry = FindSourceTelemetry(metrics.DrawDataFrameId);
                 var presentationDelta = metrics.PresentationIntervalSeconds;
                 if (metrics.PresentationSequence == 1)
                 {
