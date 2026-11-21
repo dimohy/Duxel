@@ -20,6 +20,8 @@ internal static class GalleryText
     private static readonly CultureInfo[] Cultures = Enum.GetValues<GalleryLanguage>()
         .Select(language => CultureInfo.GetCultureInfo(Tag(language))).ToArray();
 
+    private static readonly GalleryLanguage[] TranslationLanguages =
+        [GalleryLanguage.Korean, GalleryLanguage.Japanese, GalleryLanguage.SimplifiedChinese];
     private static readonly UiLocalization Catalog = new(ReadTranslations());
 
     internal static readonly UiSelectOption[] LanguageOptions =
@@ -66,10 +68,52 @@ internal static class GalleryText
         };
     }
 
-    internal static string Get(string text) => Catalog.GetText(text, Cultures[(int)_language]);
+    internal static string Get(string english) => Catalog.GetText(english, Cultures[(int)_language]);
 
-    internal static string Format(string text, params object[] args) =>
-        Catalog.Format(text, Cultures[(int)_language], args);
+    // Page identifiers predate localization and remain stable for navigation and source lookup.
+    internal static string PageTitle(string page) => Get(page switch
+    {
+        "가상 그리드" => "Virtual grid",
+        "가상 목록" => "Virtual list",
+        "개요" => "Overview",
+        "갱신 관찰" => "Repaint observer",
+        "검색 입력" => "Search boxes",
+        "경로" => "Breadcrumbs",
+        "공휴일 제공자" => "Holiday provider",
+        "관찰 범위" => "Implementation scope",
+        "기존 API" => "Legacy API",
+        "대화 상자" => "Dialogs",
+        "도구 모음" => "Toolbars",
+        "렌더링" => "Rendering",
+        "메시지 표시" => "Message bars",
+        "목록" => "Lists",
+        "배치 통합" => "Layout integration",
+        "보조 패널" => "Side panels",
+        "선택 목록" => "Selection lists",
+        "숫자 입력" => "Numeric input",
+        "스켈레톤" => "Skeleton",
+        "아바타" => "Avatars",
+        "아바타 그룹" => "Avatar groups",
+        "왼쪽 탐색 메뉴·Fluent 표현 비교·컨테이너 넘침" => "Sidebar navigation, Fluent styles, and container overflow",
+        "위젯 배치" => "Widget layout",
+        "인물 정보" => "Persona",
+        "입력·IME" => "Input and IME",
+        "접기·펼치기" => "Accordion",
+        "추가 정보" => "Information labels",
+        "측정 재사용" => "Measurement reuse",
+        "카드" => "Cards",
+        "컨테이너" => "Containers",
+        "컨테이너·Menu 공통 동작" => "Shared container and menu behavior",
+        "타이포그래피" => "Typography",
+        "탐색 메뉴" => "Navigation menus",
+        "파일 대화 상자" => "File dialogs",
+        "팝업 입력" => "Pop-up input",
+        "평가" => "Rating",
+        _ => page
+    });
+
+    internal static string Format(string english, params object[] args) =>
+        Catalog.Format(english, Cultures[(int)_language], args);
 
     internal static DuxelFontOptions ConfigureFonts(DuxelFontOptions fonts)
     {
@@ -81,8 +125,8 @@ internal static class GalleryText
         };
     }
 
-    internal static UiCodeViewLabels CodeViewLabels() => new(Get("C# 소스"), Get("{0}줄"), Get("줄바꿈"),
-        Get("줄 번호"), Get("전체 표시"), Get("소스 복사"), Get("복사됨"), Get("C# 예제 소스"));
+    internal static UiCodeViewLabels CodeViewLabels() => new(Get("C# source"), Get("{0} lines"), Get("Wrap lines"),
+        Get("Line numbers"), Get("Show all"), Get("Copy source"), Get("Copied"), Get("C# example source"));
 
     internal static Scope Use(GalleryLanguage language) => new(language);
 
@@ -109,10 +153,10 @@ internal static class GalleryText
             if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
                 continue;
             var row = line.Split('\t');
-            if (row.Length != Cultures.Length || row.Any(string.IsNullOrWhiteSpace))
+            if (row.Length != TranslationLanguages.Length + 1 || row.Any(string.IsNullOrWhiteSpace))
                 throw new FormatException("Invalid Gallery translation: " + line);
-            for (var index = 1; index < Cultures.Length; index++)
-                yield return (Cultures[index].Name, row[0], row[index]);
+            for (var index = 0; index < TranslationLanguages.Length; index++)
+                yield return (Cultures[(int)TranslationLanguages[index]].Name, row[0], row[index + 1]);
         }
     }
 }

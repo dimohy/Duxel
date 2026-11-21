@@ -71,9 +71,9 @@ internal sealed class CatalogPage : UiWidget
     {
         var rows = new List<UiWidget>
         {
-            Fluent.Body1(GalleryText.Format("예제 {0}개 · 구현 예정 {1}개",
+            Fluent.Body1(GalleryText.Format("{0} examples · {1} planned",
                 _destinations.Count(item => !item.Planned), _destinations.Count(item => item.Planned))),
-            Fluent.Body1(GalleryText.Get("예제 이름을 선택하면 해당 페이지가 열립니다."))
+            Fluent.Body1(GalleryText.Get("Select an example to open its page."))
         };
         foreach (var section in _destinations.Where(item => item.Page != "관찰 범위").GroupBy(item => item.Section))
         {
@@ -84,15 +84,15 @@ internal sealed class CatalogPage : UiWidget
                 rows.Add(Fluent.Subtitle1(category.Key));
                 rows.Add(Dux.Wrap(new(Spacing : 8, RunSpacing : 6), category.Select(destination =>
                     (UiWidget)Fluent.Button(destination.Planned
-                            ? GalleryText.Format("{0} · 미구현", destination.Label) : destination.Label,
+                            ? GalleryText.Format("{0} · planned", destination.Label) : destination.Label,
                         () => _navigate!(destination.Key))).ToArray()));
             }
         }
 
-        rows.Add(Fluent.Divider(GalleryText.Get("Fluent 팩터리")));
+        rows.Add(Fluent.Divider(GalleryText.Get("Fluent factories")));
         foreach (var group in Groups)
         {
-            rows.Add(Fluent.Subtitle1(GalleryText.Get(group.Page)));
+            rows.Add(Fluent.Subtitle1(GalleryText.PageTitle(group.Page)));
             rows.Add(Fluent.Body1(string.Join(" / ", group.Components)));
         }
         return new UiColumn(rows.ToArray(), new(Spacing: 16, MainAxisSize: UiMainAxisSize.Min));

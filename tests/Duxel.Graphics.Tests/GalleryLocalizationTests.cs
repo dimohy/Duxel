@@ -23,7 +23,7 @@ internal static class GalleryLocalizationTests
         })
         {
             using var locale = GalleryText.Use(language);
-            var titles = CatalogPage.Groups.Select(group => GalleryText.Get(group.Page)).ToArray();
+            var titles = CatalogPage.Groups.Select(group => GalleryText.PageTitle(group.Page)).ToArray();
             check(titles.All(title => !title.Any(character => character is >= '\uAC00' and <= '\uD7A3'))
                 && titles.Contains(dialog) && titles.Contains(messageBar) && titles.Contains(avatarGroup),
                 "Feature index localizes every factory group heading in " + language);
@@ -43,8 +43,9 @@ internal static class GalleryLocalizationTests
                 using var page = (ComponentExamplePage)example;
                 var description = GalleryText.Get(page.Description);
                 var samples = page.Samples.Select(sample => sample.Source).ToArray();
-                check(!string.IsNullOrWhiteSpace(description) && (language == GalleryLanguage.Korean
-                    || (description != page.Description && !ContainsHangul(description))),
+                check(!string.IsNullOrWhiteSpace(description) && !ContainsHangul(page.Description)
+                    && (language == GalleryLanguage.Korean || !ContainsHangul(description))
+                    && (language != GalleryLanguage.English || description == page.Description),
                     $"{page.Title} has a localized description in {language}");
                 check(samples.All(source => !source.Contains("GalleryText.Get", StringComparison.Ordinal)
                     && (language == GalleryLanguage.Korean || !ContainsHangul(source))),
@@ -64,9 +65,16 @@ internal static class GalleryLocalizationTests
             }
         }
 
+        using (GalleryText.Use(GalleryLanguage.English))
+            check(GalleryText.Get("Example language") == "Example language", "English is the source and fallback language");
+        using (GalleryText.Use(GalleryLanguage.Korean))
+            check(GalleryText.Get("Example language") == "예제 언어", "Gallery translates an English source phrase to Korean");
+
         VerifyNavigationAndSelection(check);
 
         VerifyInputExampleSources(check);
+
+        VerifyOverlayExampleSources(check);
 
         var systemLanguage = CultureInfo.CurrentUICulture;
         var path = Path.GetTempFileName();
@@ -251,7 +259,7 @@ internal static class GalleryLocalizationTests
 
         void VerifySource(UiAccessibilityNode[] nodes, GalleryLanguage language, string expected, string page)
         {
-            var editorName = GalleryText.Get("C# 예제 소스");
+            var editorName = GalleryText.Get("C# example source");
             check(nodes.Any(node => node.Name == editorName && node.Role == UiAccessibilityRole.Edit && node.Value is { } code
                 && code.Contains(GallerySample.String(expected), StringComparison.Ordinal)
                 && !code.Contains("GalleryText.Get", StringComparison.Ordinal)
@@ -330,7 +338,100 @@ internal static class GalleryLocalizationTests
         }
     }
 
+    private static void VerifyOverlayExampleSources(Action<bool, string> check)
+    {
+        foreach (var (language, profile, close, details, tooltip, user, info, popup, command) in new[]
+        {
+            (GalleryLanguage.English, "Open profile editor", "Close decorative popover", "Details", "Tooltip target",
+                "User name", "Show more information", "Open input pop-up", "Run command inside pop-up"),
+            (GalleryLanguage.Korean, "프로필 편집 열기", "장식 팝업 닫기", "세부 정보", "설명 대상",
+                "사용자 이름", "추가 정보 보기", "입력 팝업 열기", "팝업 안 명령"),
+            (GalleryLanguage.Japanese, "プロフィール編集を開く", "装飾付きポップオーバーを閉じる", "詳細", "説明の対象",
+                "ユーザー名", "詳細情報を表示", "入力ポップアップを開く", "ポップアップ内のコマンドを実行"),
+            (GalleryLanguage.SimplifiedChinese, "打开个人资料编辑", "关闭装饰弹出层", "详细信息", "提示目标",
+                "用户名", "显示更多信息", "打开输入弹出窗口", "执行弹出窗口内的命令")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            using var popover = new PopoverPage();
+            using var tooltips = new TooltipPage();
+            using var infoLabel = new InfoLabelPage();
+            using var popupInput = new PopupInputPage();
+            Check(popover.Samples, profile, close, "Popover");
+            Check(tooltips.Samples, details, tooltip, "Tooltip");
+            Check(infoLabel.Samples, user, info, "InfoLabel");
+            Check(popupInput.Samples, popup, command, "Pop-up input");
+
+            var declaration = GalleryPageSource.Declaration(nameof(GalleryPopoverDecoration));
+            check(!declaration.Contains('\r') && popover.Samples[1].Source.EndsWith(declaration, StringComparison.Ordinal),
+                "Popover copies the embedded presentation declaration with consistent line endings in " + language);
+
+            void Check(IEnumerable<IGallerySample> samples, string first, string second, string page)
+            {
+                var source = string.Join("\n", samples.Select(sample => sample.Source));
+                check(source.Contains(GallerySample.String(first), StringComparison.Ordinal)
+                    && source.Contains(GallerySample.String(second), StringComparison.Ordinal)
+                    && !source.Contains("GalleryText.", StringComparison.Ordinal)
+                    && (language == GalleryLanguage.Korean || !ContainsHangul(source)),
+                    page + " copies localized overlay strings in " + language);
+            }
+        }
+    }
+
     private static bool ContainsHangul(string text) => text.Any(character => character is >= '\uAC00' and <= '\uD7A3');
+
+    internal static void AuditPages(string output)
+    {
+        Directory.CreateDirectory(output);
+        using var report = File.CreateText(Path.Combine(output, "pages.jsonl"));
+        var json = new GraphicsJson(new System.Text.Json.JsonSerializerOptions());
+        var services = ObserverServices.CreateWindows();
+        var input = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        foreach (var language in Enum.GetValues<GalleryLanguage>())
+        {
+            using var locale = GalleryText.Use(language);
+            using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+            ControlFontFixture.Configure(context);
+            var fonts = GalleryText.ConfigureFonts(new());
+            context.SetDirectTextSecondaryFontPath(fonts.SecondaryFontPath);
+            context.SetTypographyFonts(fonts.Typography);
+            using var tree = new UiAccessibilityTree();
+            context.SetAccessibilityTree(tree);
+            using var screen = new ObserverScreen(services, language : language) { FreezeDiagnosticText = true };
+            foreach (var page in screen.PageTitles)
+            {
+                screen.SelectedPage = page;
+                context.NewFrame(new(1f / 60, new(1280, 900), new(1, 1)), input, new(0, 0, 1280, 900), UiTextSettings.Default);
+                context.Render(screen);
+                using var draw = context.GetDrawData();
+                var snapshot = tree.CaptureSnapshot().Elements.Select(element => element.Node).ToArray();
+                var pane = snapshot.SingleOrDefault(node => node.Role == UiAccessibilityRole.Pane
+                    && node.Name == screen.SelectedNavigationLabel && !node.Offscreen);
+                var nodesById = snapshot.ToDictionary(node => node.Id, StringComparer.Ordinal);
+                bool IsInPage(UiAccessibilityNode node)
+                {
+                    if (string.IsNullOrEmpty(pane.Id)) return false;
+                    while (!string.IsNullOrEmpty(node.ParentId) && nodesById.TryGetValue(node.ParentId, out node))
+                        if (node.Id == pane.Id) return true;
+                    return false;
+                }
+
+                var nodes = snapshot.Where(IsInPage).ToArray();
+                var visibleStrings = nodes.Where(node => !node.Offscreen)
+                    .SelectMany(node => new[] { node.Name, node.GetHelpText(), node.Role == UiAccessibilityRole.Edit ? null : node.Value })
+                    .Where(text => !string.IsNullOrEmpty(text) && ContainsHangul(text))
+                    .Distinct(StringComparer.Ordinal).ToArray();
+                var snippets = nodes.Where(node => node.Role == UiAccessibilityRole.Edit && node.Name == GalleryText.Get("C# example source"))
+                    .Select(node => node.Value).Where(text => !string.IsNullOrEmpty(text)).ToArray();
+                var sourceCandidates = snippets.SelectMany(text => text!.Split('\n'))
+                    .Where(ContainsHangul).Select(line => line.Trim()).Distinct(StringComparer.Ordinal).ToArray();
+                var result = new GalleryLocalizationAuditPage(GalleryText.Tag(language), page, screen.SelectedNavigationLabel,
+                    !string.IsNullOrEmpty(pane.Id), screen.SourceCountForPage(page), snippets.Length, visibleStrings, sourceCandidates);
+                report.WriteLine(System.Text.Json.JsonSerializer.Serialize(result, json.GalleryLocalizationAuditPage));
+            }
+            report.Flush();
+        }
+    }
 
     internal static void CaptureOverview(string output, Action<bool, string> check)
     {
@@ -381,3 +482,6 @@ internal static class GalleryLocalizationTests
         BrowserPng.Write(Path.Combine(output, "settings-japanese.png"), 1280, 900, CaptureJapanese());
     }
 }
+
+internal sealed record GalleryLocalizationAuditPage(string Language, string Page, string Label, bool PaneFound,
+    int ExpectedSources, int ObservedSources, string?[] VisibleHangul, string[] SourceHangul);

@@ -7,7 +7,7 @@ internal sealed class ToastPage : IObserverPage, IObserverNaturalPage, IGalleryS
 {
     private Content? _content;
     public string Title => "Toast";
-    public string Description => "독립 알림과 진행 상태를 조작하고 자동 닫힘·일시 정지·키보드 이동을 확인합니다.";
+    public string Description => "Try independent toasts and progress updates, automatic dismissal, pausing, and keyboard navigation.";
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new()).Samples;
     internal UiToastController Controller => (_content ??= new()).Controller;
     UiWidget IObserverNaturalPage.MeasureRoot => (_content ??= new()).Root;

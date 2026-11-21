@@ -8,7 +8,7 @@ internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGalle
     internal const string BrowserResolutionLabel = "확대 시 고해상도로 다시 그리기";
     private Content? _content;
     public string Title => "SVG";
-    public string Description => "SVG는 처음 한 번 해석한 뒤 Vulkan GPU에서 그립니다. 확대하거나 회전할 때는 이미 준비한 경로를 재사용합니다.";
+    public string Description => "The gallery parses SVG once and renders it with Vulkan. Zooming and rotation reuse the prepared paths.";
     internal SvgStoreStatistics? Statistics => _content?.Statistics;
     internal UiSvg? Preview => _content?.Preview;
     internal IReadOnlyList<UiSvg> BrowserPreviews => _content?.BrowserPreviews ?? [];

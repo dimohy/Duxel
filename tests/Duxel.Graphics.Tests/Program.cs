@@ -947,6 +947,12 @@ if (args.Length == 2 && args[1] == "slider-range-only")
     return;
 }
 
+if (args is [var localizationAuditOutput, "gallery-localization-audit"])
+{
+    GalleryLocalizationTests.AuditPages(Path.GetFullPath(localizationAuditOutput));
+    return;
+}
+
 if (args.Length == 2 && args[1] is "drawer-only" or "nav-only" or "legacy-gallery-only" or "observer-only" or "gallery-localization-only" or "tablist-only" or "overflow-only" or "menu-only" or "tab-overflow-only")
 {
     var destination = Path.GetFullPath(args[0]);
@@ -4509,6 +4515,7 @@ internal sealed record GraphicsResult(string Framework, string Order, int Passed
     string[]? SkippedTests = null);
 internal sealed record CatalogResult(string Framework, string[] Exposed, string[] Required, string[] Missing, bool ScopeComplete);
 [JsonSerializable(typeof(GraphicsResult))]
+[JsonSerializable(typeof(GalleryLocalizationAuditPage))]
 [JsonSerializable(typeof(CatalogResult))]
 [JsonSerializable(typeof(InputBatchCpuResult))]
 [JsonSerializable(typeof(Dictionary<string, string>), TypeInfoPropertyName = "CheckboxPixelHashes")]

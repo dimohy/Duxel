@@ -8,7 +8,7 @@ internal sealed class PersonaPage(ObserverServices services) : IObserverPage, IO
     private Content? _content;
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new(services)).Samples;
     public string Title => "인물 정보";
-    public string Description => "이름과 최대 네 줄의 정보, 아바타를 함께 표시합니다. 아바타 대신 상태만 표시하는 모습도 비교해 보세요.";
+    public string Description => "Display a name, up to four lines of information, and an avatar. Compare a status-only version in place of the avatar.";
     internal UiFluentPersona? Preview => _content?.Preview;
     UiWidget IObserverNaturalPage.MeasureRoot => (_content ??= new(services)).Root;
     public void Render(UiImmediateContext ui) => (_content ??= new(services)).Root.Render(ui);

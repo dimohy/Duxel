@@ -8,7 +8,7 @@ internal sealed class CardPage : IObserverPage, IObserverNaturalPage, IGallerySo
     private Content? _content;
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new()).Samples;
     public string Title => "카드";
-    public string Description => "카드 안에 글자를 입력하거나 버튼을 눌러 보세요. 크기와 모양을 바꾸고 Enter·Tab·Escape로 이동할 수 있습니다.";
+    public string Description => "Type or press a button inside a card. Change its size and appearance, and navigate with Enter, Tab, and Escape.";
     internal UiFluentCard? Preview => _content?.Preview;
     internal int Executions => _content?.Executions ?? 0;
     internal int HeaderExecutions => _content?.HeaderExecutions ?? 0;

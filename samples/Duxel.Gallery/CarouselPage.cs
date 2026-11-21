@@ -7,7 +7,7 @@ internal sealed class CarouselPage : IObserverPage, IObserverNaturalPage, IGalle
     private Content? _content;
     private Content State => _content ??= new();
     public string Title => "Carousel";
-    public string Description => "이전·다음 버튼, 페이지 이름, 미리보기로 슬라이드를 넘겨 보세요.";
+    public string Description => "Browse slides using the previous and next buttons, page names, or thumbnails.";
     public IReadOnlyList<IGallerySample> Samples => State.Samples;
     UiWidget IObserverNaturalPage.MeasureRoot => State.Root;
     public void Render(UiImmediateContext ui) => State.Root.Render(ui);

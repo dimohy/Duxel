@@ -7,7 +7,7 @@ internal sealed class LocalizationPage : IObserverPage, IObserverNaturalPage
 {
     private readonly UiWidget _root;
     public string Title => "Localization";
-    public string Description => "언어를 바꿔 같은 메시지에 번역과 숫자 서식이 적용되는지 확인하세요.";
+    public string Description => "Switch languages to see the same message translated and its number formatted.";
     UiWidget IObserverNaturalPage.MeasureRoot => _root;
 
     internal LocalizationPage()
@@ -21,8 +21,8 @@ internal sealed class LocalizationPage : IObserverPage, IObserverNaturalPage
         ]);
         var language = new UiState<string?>("en");
         _root = Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Dropdown(GalleryText.Get("예제 언어"), language.Binding, GalleryText.LanguageOptions,
-                new(Width : 240, ExpandLabel : GalleryText.Get("언어 옵션 열기"))),
+            Fluent.Dropdown(GalleryText.Get("Example language"), language.Binding, GalleryText.LanguageOptions,
+                new(Width : 240, ExpandLabel : GalleryText.Get("Show languages"))),
             Fluent.Body1(() => localized.Format(message, CultureInfo.GetCultureInfo(language.Value!), 1234)));
     }
 

@@ -8,7 +8,7 @@ internal sealed class AvatarGroupPage(ObserverServices services) : IObserverPage
     private Content? _content;
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new(services)).Samples;
     public string Title => "아바타 그룹";
-    public string Description => "아바타를 나란히 놓거나 겹쳐 보고, 하나의 원으로 묶어 보세요. 숨겨진 구성원 목록도 열어 볼 수 있습니다.";
+    public string Description => "Place avatars side by side, overlap them, or group them in a single circle. Open the list to see hidden members.";
     internal UiFluentAvatarGroup? Preview => _content?.Group;
     UiWidget IObserverNaturalPage.MeasureRoot => (_content ??= new(services)).Root;
     public void Render(UiImmediateContext ui) => (_content ??= new(services)).Root.Render(ui);

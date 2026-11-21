@@ -17,7 +17,7 @@ internal sealed class NavigationPage : IObserverPage, IObserverNaturalPage, IGal
     internal int PinActions => _pinActions;
     internal UiFluentNav Preview => _preview;
     public string Title => "탐색 메뉴";
-    public string Description => "그룹 접기·펼치기, 현재 페이지, 키보드 이동과 오른쪽에서 왼쪽 배치를 확인합니다.";
+    public string Description => "Try collapsing groups, selecting a page, keyboard navigation, and right-to-left layout.";
     internal NavigationPage()
     {
         var options = new UiNavOptions();

@@ -15,7 +15,7 @@ internal sealed class ListPage : IObserverPage, IObserverNaturalPage, IGallerySo
         }
     }
     public string Title => "목록";
-    public string Description => "일반 목록·단일 선택·다중 선택과 행 안의 입력·버튼을 확인합니다.";
+    public string Description => "Try a plain list, single and multiple selection, and inputs and buttons inside rows.";
     UiWidget IObserverNaturalPage.MeasureRoot => _root ??= Create();
     public void Render(UiImmediateContext ui) => (_root ??= Create()).Render(ui);
     public void Dispose() => _root?.Dispose();

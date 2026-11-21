@@ -7,7 +7,7 @@ internal sealed class NavigationBarPage : IObserverPage, IObserverNaturalPage, I
     private Content? _content;
     private Content State => _content ??= new();
     public string Title => "NavigationBar";
-    public string Description => "현재 화면의 제목을 표시하고, 이전 화면으로 돌아가거나 화면 안의 작업을 실행합니다.";
+    public string Description => "Show the current page title, go back, or run an action on the page.";
     public IReadOnlyList<IGallerySample> Samples => State.Samples;
     internal UiFluentSegmentedControl PeriodSelector => State.PeriodSelector;
     UiWidget IObserverNaturalPage.MeasureRoot => State.Root;
@@ -27,14 +27,14 @@ internal sealed class NavigationBarPage : IObserverPage, IObserverNaturalPage, I
             PeriodSelector = periodSelector;
             Samples = [actions, filters];
             Root = Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Title3(GalleryText.Get("제목과 화면 동작")),
-                Fluent.Button(GalleryText.Get("너비 전환"), () => actions.Preview.Options = actions.Preview.Options with
+                Fluent.Title3(GalleryText.Get("Title and screen actions")),
+                Fluent.Button(GalleryText.Get("Change width"), () => actions.Preview.Options = actions.Preview.Options with
                 {
                     Width = actions.Preview.Options.Width == 440 ? 210 : 440
                 }),
                 actions,
-                Fluent.Title3(GalleryText.Get("브랜드 배경과 기간 선택")),
-                Fluent.Button(GalleryText.Get("배치 방향 전환"), () => filters.Preview.Options = filters.Preview.Options with
+                Fluent.Title3(GalleryText.Get("Brand background and period selection")),
+                Fluent.Button(GalleryText.Get("Reverse layout direction"), () => filters.Preview.Options = filters.Preview.Options with
                 {
                     RightToLeft = !filters.Preview.Options.RightToLeft
                 }),
@@ -45,13 +45,13 @@ internal sealed class NavigationBarPage : IObserverPage, IObserverNaturalPage, I
     private static GallerySample<UiFluentNavigationBar> DocumentSample()
     {
         var saves = new UiState<int>(0);
-        var name = GalleryText.Get("문서 작업");
-        var back = GalleryText.Get("돌아가기");
-        var documentList = GalleryText.Get("문서 목록");
-        var save = GalleryText.Get("저장");
-        var saved = GalleryText.Get("저장 {0}회");
+        var name = GalleryText.Get("Document actions");
+        var back = GalleryText.Get("Go back");
+        var documentList = GalleryText.Get("Document list");
+        var save = GalleryText.Get("Save");
+        var saved = GalleryText.Get("Saved {0} times");
         UiFluentNavigationBar bar = null!;
-        bar = Fluent.NavigationBar(name, GalleryText.Get("회의록"),
+        bar = Fluent.NavigationBar(name, GalleryText.Get("Meeting notes"),
             leading : Fluent.Button(back, () => bar.Title = documentList),
             trailing : Fluent.Button(save, () =>
             {
@@ -79,11 +79,11 @@ internal sealed class NavigationBarPage : IObserverPage, IObserverNaturalPage, I
     private static GallerySample<UiFluentNavigationBar> PeriodSample(out UiFluentSegmentedControl selection)
     {
         var period = new UiState<string?>("day");
-        var periodLabel = GalleryText.Get("기간");
-        var barLabel = GalleryText.Get("기간 탐색");
-        var title = GalleryText.Get("일정");
-        var today = GalleryText.Get("오늘");
-        UiSegmentOption[] periods = [new("day", GalleryText.Get("일간")), new("week", GalleryText.Get("주간")), new("month", GalleryText.Get("월간"))];
+        var periodLabel = GalleryText.Get("Period");
+        var barLabel = GalleryText.Get("Browse periods");
+        var title = GalleryText.Get("Schedule");
+        var today = GalleryText.Get("Today");
+        UiSegmentOption[] periods = [new("day", GalleryText.Get("Daily")), new("week", GalleryText.Get("Weekly")), new("month", GalleryText.Get("Monthly"))];
         var sourceOptions = string.Join(", ", periods.Select(option =>
             $"new({GallerySample.String(option.Value)}, {GallerySample.String(option.Label)})"));
         UiFluentNavigationBar bar = null!;

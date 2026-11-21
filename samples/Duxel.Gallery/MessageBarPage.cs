@@ -27,7 +27,7 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
     private UiMessageBarOptions _resolvedOptions;
     public IReadOnlyList<IGallerySample> Samples { get; }
     public string Title => "메시지 표시";
-    public string Description => "메시지를 추가하거나 순서를 바꾸고, 제목과 본문이 접근성 정보로 연결되는지 확인해 보세요. 메시지가 나타나면 화면 읽기 프로그램에 알림을 요청하지만, 실제로 읽기를 마쳤는지는 여기서 확인할 수 없습니다.";
+    public string Description => "Add or reorder messages and inspect how the title and body are linked for accessibility. A new message requests a screen reader announcement. Verify speech with your screen reader.";
     internal MessageBarPage()
     {
         _resolvedOptions = ResolveOptions(new());

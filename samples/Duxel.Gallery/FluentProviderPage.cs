@@ -6,7 +6,7 @@ internal sealed class FluentProviderPage(UiTypographyFonts? fonts = null) : IObs
 {
     private Content? _content;
     public string Title => "FluentProvider";
-    public string Description => "영역마다 테마, 글꼴, 배치 방향을 지정하고 자식 위젯이 어떻게 따르는지 살펴보세요.";
+    public string Description => "Set the theme, font, and layout direction per region and see how child widgets inherit them.";
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new(fonts)).Samples;
     UiWidget IObserverNaturalPage.MeasureRoot => (_content ??= new(fonts)).Root;
     public void Render(UiImmediateContext ui) => (_content ??= new(fonts)).Root.Render(ui);

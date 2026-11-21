@@ -130,7 +130,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
         AvatarGroupPage = new(services);
         RepaintPage = new();
         CatalogPage.Validate();
-        _themeSwitch = Fluent.Switch(GalleryText.Get("밝은 테마"), new UiBinding<bool>(
+        _themeSwitch = Fluent.Switch(GalleryText.Get("Light theme"), new UiBinding<bool>(
             () => _currentUi!.GetStyle(includeRequested : true).FluentColorScheme == UiFluentColorScheme.Light, light =>
             {
                 var theme = (light ? UiCompiledDesign.Windows11 : UiCompiledDesign.Windows11Dark).Theme;
@@ -138,23 +138,23 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
                 _currentUi.RequestTheme(theme);
             }));
         _toolbar = Dux.SizedBox(Dux.Row(new(Spacing: 16, CrossAxisAlignment: UiCrossAxisAlignment.Center),
-            Dux.Expanded(Fluent.Tooltip(Fluent.Caption1(() => _rendererStatus), GalleryText.Get("P : 표시 횟수 / D : 그리기 호출 / U : 전송량 / C : 캐시 재사용"))),
+            Dux.Expanded(Fluent.Tooltip(Fluent.Caption1(() => _rendererStatus), GalleryText.Get("P : presentations / D : draw calls / U : uploaded bytes / C : cache hits"))),
             Fluent.Switch("V-Sync", new UiBinding<bool>(() => _currentUi!.GetVSync(), value => _currentUi!.SetVSync(value))),
-            Fluent.Switch(GalleryText.Get("이벤트 대기 모드"), new UiBinding<bool>(() => _updateOnlyOnChange, value => _updateOnlyOnChange = value)),
-            Fluent.Switch(GalleryText.Get("갱신 영역 강조"), _repaintHighlights.Binding)));
+            Fluent.Switch(GalleryText.Get("Event-driven mode"), new UiBinding<bool>(() => _updateOnlyOnChange, value => _updateOnlyOnChange = value)),
+            Fluent.Switch(GalleryText.Get("Highlight repaints"), _repaintHighlights.Binding)));
         _toolbarScroll = Dux.ScrollView(_toolbar, new(UiScrollAxis.Horizontal));
-        _toolbarScroll.AccessibleName = GalleryText.Get("갤러리 상태와 옵션");
-        _performance = GalleryText.Get("FPS 측정 중");
+        _toolbarScroll.AccessibleName = GalleryText.Get("Gallery status and options");
+        _performance = GalleryText.Get("Measuring FPS");
         _headerActions = _themeSwitch;
         if (requestLanguage is not null)
         {
             var current = GalleryText.Tag(language);
             var error = new UiState<string>(string.Empty);
             var selected = new UiState<string?>(current);
-            var languageLabel = GalleryText.Get("갤러리 언어");
+            var languageLabel = GalleryText.Get("Gallery language");
             var choices = GalleryText.LanguageOptions
                 .Select(option => new UiRadioOption(option.Value, option.Text)).ToArray();
-            var apply = Fluent.Button(GalleryText.Get("적용"), () =>
+            var apply = Fluent.Button(GalleryText.Get("Apply"), () =>
             {
                 try
                 {
@@ -164,16 +164,16 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                 {
-                    error.Value = GalleryText.Get("언어 설정을 저장할 수 없습니다.");
+                    error.Value = GalleryText.Get("Could not save the language setting.");
                 }
             });
-            _settings = Fluent.Dialog(GalleryText.Get("설정"),
+            _settings = Fluent.Dialog(GalleryText.Get("Settings"),
                 Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
                     Fluent.RadioGroup(languageLabel, selected.Binding, choices),
                     Fluent.Caption1(() => error.Value)),
-                [apply, Fluent.Button(GalleryText.Get("취소"), () => _settings!.Close())],
-                new(Width : 410, CloseLabel : GalleryText.Get("닫기")));
-            var settingsLabel = GalleryText.Get("설정");
+                [apply, Fluent.Button(GalleryText.Get("Cancel"), () => _settings!.Close())],
+                new(Width : 410, CloseLabel : GalleryText.Get("Close")));
+            var settingsLabel = GalleryText.Get("Settings");
             var settingsButton = new UiButton<UiReleaseButtonBehavior,
                 UiFluentIconButtonPresentation<UiFluentMediumButtonIconSize, UiFluentSubtleButtonAppearance,
                     SettingsTabIcon, UiButtonIconBefore>>(string.Empty, () =>
@@ -213,14 +213,14 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             new TemporalPickerPage(TemporalPickerKind.Time, services.TypographyFonts),
             new TemporalPickerPage(TemporalPickerKind.DateTime, services.TypographyFonts),
             HolidayProviderPage,
-            new WidgetPage("Fluent", "실제 컨트롤을 조작하고 탭 이동 후 값이 유지되는지 확인하세요.", _controls),
-            new WidgetPage("평가", "별점을 반 개씩 조절하거나 오른쪽부터 표시해 보세요. 부모 너비가 좁아질 때 줄바꿈되는 모습도 확인할 수 있습니다.", new RatingPage()),
-            new WidgetPage("타이포그래피", "Fluent의 글자 크기와 굵기, 문단 방향을 비교해 보세요.", TypographyPage),
-            new WidgetPage("입력·IME", "한글 입력, 선택, 검증, 줄바꿈과 되돌리기를 확인합니다.", new EditingPage()),
-            new WidgetPage("Tooltip", "자동으로 나타나는 설명과 코드에서 표시 여부를 정하는 설명을 비교해 보세요.", new TooltipPage()),
-            new WidgetPage("컨테이너", "컨테이너마다 위젯을 어떻게 배치하는지 비교해 보세요. 배치 옵션을 바꾸거나 안쪽 위젯을 직접 조작할 수 있습니다.", new LayoutPage()),
-            new WidgetPage("배치 통합", "탭·메뉴·넘침 배치를 조합하고 화면 이동 후 상태가 유지되는지 확인합니다.", new LayoutIntegrationPage()),
-            new WidgetPage("접기·펼치기", "Accordion을 하나씩 또는 여러 개 열어 보세요. 본문에 입력한 값이 유지되는지 확인하고 키보드와 접근성 기능으로 조작할 수 있습니다.", new AccordionPage()),
+            new WidgetPage("Fluent", "Try the live controls and check that values survive switching tabs.", _controls),
+            new WidgetPage("평가", "Adjust ratings in half-star steps or display them from the right. Narrow the parent to see how the stars wrap.", new RatingPage()),
+            new WidgetPage("타이포그래피", "Compare Fluent text sizes, weights, and paragraph directions.", TypographyPage),
+            new WidgetPage("입력·IME", "Try Korean input, selection, validation, line wrapping, and undo.", new EditingPage()),
+            new WidgetPage("Tooltip", "Compare tooltips that open automatically with tooltips controlled by code.", new TooltipPage()),
+            new WidgetPage("컨테이너", "Compare widget placement across containers. Change layouts or interact with the widgets inside them.", new LayoutPage()),
+            new WidgetPage("배치 통합", "Combine tabs, menus, and overflow layouts, and check that state survives navigation.", new LayoutIntegrationPage()),
+            new WidgetPage("접기·펼치기", "Open one or several accordion sections. Check that input values persist and try operating the sections with a keyboard or accessibility features.", new AccordionPage()),
             VirtualPage,
             new VirtualGridPage(),
             new DataGridPage(),
@@ -236,7 +236,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             PopupInputPage,
             PopoverPage,
             DialogPage,
-            new WidgetPage("스켈레톤", "로딩 중에 표시할 윤곽을 구성해 보세요. 물결과 맥박 애니메이션, 일시 정지와 모션 줄이기를 비교할 수 있습니다.", new SkeletonPage()),
+            new WidgetPage("스켈레톤", "Build loading placeholders. Compare wave and pulse animations, pause them, and try reduced motion.", new SkeletonPage()),
             MessageBarPage,
             InfoLabelPage,
             SpinButtonPage,
@@ -247,8 +247,8 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             NavigationPage,
             new NavigationBarPage(),
             DrawerPage,
-            new WidgetPage("관찰 범위", "사용할 수 있는 팩터리와 예제가 있는 메뉴, 아직 검증할 부분을 살펴보세요.", catalog),
-            new WidgetPage("측정 재사용", "값·입력은 계속 처리하면서 변하지 않은 배치 측정을 재사용합니다.", MeasurementPage),
+            new WidgetPage("관찰 범위", "Review available factories, example destinations, and areas awaiting verification.", catalog),
+            new WidgetPage("측정 재사용", "Reuse layout measurements that did not change while continuing to handle values and input.", MeasurementPage),
             RepaintPage,
             MarkdownPage,
             new LocalizationPage(),
@@ -256,17 +256,17 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             .. Fluent.MissingComponentNames.ToArray().Where(static component => component != "Toast").Select(static component => (IObserverPage)new WidgetPage(component,
                 "Fluent 구성요소 구현 예정",
                 Dux.Column(new(Spacing: 16, MainAxisSize: UiMainAxisSize.Min),
-                    Fluent.Subtitle1(GalleryText.Get("아직 미구현됨")),
-                    Fluent.Body1(GalleryText.Get("이 구성요소의 API와 동작 예제는 아직 제공되지 않습니다.")),
-                    Fluent.Body1(GalleryText.Get("구현 예정 목록은 공식 구성요소 카탈로그를 기준으로 만듭니다. 구현한 예제도 디자인과 접근성이 올바른지는 계속 검증하고 있습니다.")))))
+                    Fluent.Subtitle1(GalleryText.Get("Planned component")),
+                    Fluent.Body1(GalleryText.Get("The API and interactive examples for this component are planned.")),
+                    Fluent.Body1(GalleryText.Get("The official component catalog guides this roadmap. Design and accessibility checks continue for the available examples.")))))
         ];
         _navigation = new(PageTitles, Fluent.MissingComponentNames.ToArray(), new UiBinding<string?>(() => _selection.Value, SelectRoute));
         catalog.Connect(_navigation.Destinations, SelectRoute);
-        _navigationDrawer = Fluent.Drawer(GalleryText.Get("갤러리 탐색"), _navigation.Content,
-            options : new(Extent : 320, CloseLabel : GalleryText.Get("탐색 메뉴 닫기"), ScrollBody : false));
+        _navigationDrawer = Fluent.Drawer(GalleryText.Get("Gallery navigation"), _navigation.Content,
+            options : new(Extent : 320, CloseLabel : GalleryText.Get("Close navigation"), ScrollBody : false));
         _compactHeader = Dux.Row(new(Spacing : 12, CrossAxisAlignment : UiCrossAxisAlignment.Center),
-            Fluent.Button(GalleryText.Get("탐색 메뉴 열기"), OpenNavigation),
-            Dux.Expanded(Fluent.Subtitle2(() => SelectedPage is null ? GalleryText.Get("페이지를 선택하세요") : _navigation.SelectedLabel)));
+            Fluent.Button(GalleryText.Get("Open navigation"), OpenNavigation),
+            Dux.Expanded(Fluent.Subtitle2(() => SelectedPage is null ? GalleryText.Get("Select a page") : _navigation.SelectedLabel)));
         _pageFrames = new GalleryPageFrame?[_pages.Length];
     }
 
@@ -284,13 +284,13 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
                 new(Appearance : UiCardAppearance.Outline, Width : 280));
         }
 
-        var intro = GalleryText.Get("Duxel로 UI 만들기");
+        var intro = GalleryText.Get("Build UI with Duxel");
         var browse = new UiButton<UiReleaseButtonBehavior, UiFluentButtonPresentation<UiFluentPrimaryButtonAppearance>>(
-            GalleryText.Get("기능 찾아보기"), () => SelectRoute("관찰 범위"));
+            GalleryText.Get("Feature index"), () => SelectRoute("관찰 범위"));
         var hero = Fluent.Card(intro,
             Dux.Padding(Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
                 Fluent.Title1(intro),
-                new UiInlineText([new(GalleryText.Get("Duxel의 컨트롤과 그래픽, 문서 기능을 직접 조작하고 C# 예제 코드를 살펴보세요."))]),
+                new UiInlineText([new(GalleryText.Get("Try Duxel controls, graphics, and document features, and inspect the C# examples."))]),
                 Dux.Align(browse, UiAlignment.TopLeft)), new(12)),
             new(Appearance : UiCardAppearance.FilledAlternative));
 
@@ -298,15 +298,15 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
             hero,
             Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Title3(GalleryText.Get("어디서 시작할까요?")),
+                Fluent.Title3(GalleryText.Get("Where to start")),
                 Dux.Wrap(new(Spacing : 16, RunSpacing : 16),
-                    Category("동작과 탐색", "버튼과 링크, 메뉴로 화면의 흐름을 만드세요.", "Button", "Button 살펴보기"),
-                    Category("입력과 선택", "텍스트 입력과 선택, 값 조절을 직접 확인하세요.", "Input", "Input 살펴보기"),
-                    Category("콘텐츠와 목록", "카드와 목록으로 내용을 정리하세요.", "Card", "Card 살펴보기"),
-                    Category("알림과 도움말", "대화 상자와 보조 패널의 동작을 확인하세요.", "Dialog", "Dialog 살펴보기"),
-                    Category("벡터 그래픽", "SVG 확대·회전과 다양한 그래픽 표현을 살펴보세요.", "SVG", "SVG 살펴보기"),
-                    Category("문서와 편집", "Markdown 문서를 읽고 실시간으로 편집해 보세요.", "Markdown", "Markdown 살펴보기"))),
-            Fluent.Caption1(GalleryText.Get("왼쪽 메뉴에서 구성요소를 선택하세요. 예제 바로 아래에서 C# 소스를 읽고 복사할 수 있습니다."))),
+                    Category("Actions and navigation", "Build navigation with buttons, links, and menus.", "Button", "Explore Button"),
+                    Category("Input and selection", "Try entering text, making selections, and adjusting values.", "Input", "Explore Input"),
+                    Category("Content and lists", "Organize content with cards and lists.", "Card", "Explore Card"),
+                    Category("Alerts and help", "Try dialogs and auxiliary panels.", "Dialog", "Explore Dialog"),
+                    Category("Vector graphics", "Zoom and rotate SVGs and explore graphics examples.", "SVG", "Explore SVG"),
+                    Category("Documents and editing", "Read and edit Markdown documents in real time.", "Markdown", "Explore Markdown"))),
+            Fluent.Caption1(GalleryText.Get("Choose a component from the navigation. Read or copy the C# source just below its example."))),
             new(0, 12, 8, 16));
     }
 

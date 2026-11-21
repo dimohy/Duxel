@@ -9,7 +9,7 @@ internal sealed class DialogPage : IObserverPage, IObserverNaturalPage, IGallery
     internal UiFluentDialog? Preview => _content?.Dialog;
     internal float MotionValue => _content?.Value ?? 0;
     public string Title => "대화 상자";
-    public string Description => "모달 창과 비모달 창, 경고 창을 비교해 보세요. 내용을 입력하고 창을 닫으면 원래 버튼으로 포커스가 돌아갑니다.";
+    public string Description => "Compare modal, nonmodal, and alert dialogs. Enter some text and close the dialog to return focus to its opening button.";
     UiWidget IObserverNaturalPage.MeasureRoot => (_content ??= new()).Root;
     void IObserverNaturalPage.PrepareContent(UiImmediateContext ui) => (_content ??= new()).Prepare(ui);
     void IObserverNaturalPage.RenderOverlays(UiImmediateContext ui) => _content!.RenderOverlays(ui);

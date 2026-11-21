@@ -8,7 +8,7 @@ internal sealed class SpinButtonPage : IObserverPage, IObserverNaturalPage, IGal
     private Content? _content;
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new()).Samples;
     public string Title => "숫자 입력";
-    public string Description => "숫자를 직접 입력하거나 버튼과 키보드로 값을 조절해 보세요. 허용 범위를 바꾸고 증감 버튼을 길게 눌러 볼 수 있습니다.";
+    public string Description => "Type a number or adjust it using the buttons or keyboard. Change the range and try holding the increase or decrease button.";
     UiWidget IObserverNaturalPage.MeasureRoot => (_content ??= new()).Root;
     public void Render(UiImmediateContext ui) => (_content ??= new()).Root.Render(ui);
     public void Dispose() => _content?.Root.Dispose();
@@ -22,16 +22,16 @@ internal sealed class SpinButtonPage : IObserverPage, IObserverNaturalPage, IGal
             var quantity = new UiState<double?>(3);
             var weight = new UiState<double?>(1.5);
             var count = 0;
-            var last = GalleryText.Get("변경 없음");
+            var last = GalleryText.Get("No changes");
             var quantityOptions = new UiSpinButtonOptions(Minimum : 0, Maximum : 100, PageStep : 10,
-                IncrementLabel : GalleryText.Get("수량 늘리기"), DecrementLabel : GalleryText.Get("수량 줄이기"));
+                IncrementLabel : GalleryText.Get("Increase quantity"), DecrementLabel : GalleryText.Get("Decrease quantity"));
             var quantitySample = GallerySample.Create(() =>
             {
-                var input = Fluent.SpinButton(GalleryText.Get("수량"), quantity.Binding, quantityOptions);
-                input.Changed = change => { count++; last = change.Accepted ? GalleryText.Get("반영됨") : GalleryText.Get("입력 확인 필요"); };
+                var input = Fluent.SpinButton(GalleryText.Get("Quantity"), quantity.Binding, quantityOptions);
+                input.Changed = change => { count++; last = change.Accepted ? GalleryText.Get("Applied") : GalleryText.Get("Check the input"); };
                 return input;
             }, layout : input => Dux.Column(new(Spacing : 4, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Label(GalleryText.Get("수량"), input), input));
+                Fluent.Label(GalleryText.Get("Quantity"), input), input));
             var amount = quantitySample.Preview;
             var quantityFactory = quantitySample.Source;
             quantitySample.BindSource(() => (Value : quantity.Value, Options : amount.Options, Count : count, Last : last),
@@ -40,10 +40,10 @@ internal sealed class SpinButtonPage : IObserverPage, IObserverNaturalPage, IGal
                     + "var quantityOptions = " + OptionsSource(state.Options) + ";\n\n" + quantityFactory);
 
             var weightOptions = new UiSpinButtonOptions(Minimum : 0, Maximum : 20, Step : .1, PageStep : 1, Precision : 1,
-                Appearance : UiInputAppearance.FilledDarker, IncrementLabel : GalleryText.Get("무게 늘리기"), DecrementLabel : GalleryText.Get("무게 줄이기"));
+                Appearance : UiInputAppearance.FilledDarker, IncrementLabel : GalleryText.Get("Increase weight"), DecrementLabel : GalleryText.Get("Decrease weight"));
             var weightSample = GallerySample.Create(() =>
             {
-                var input = Fluent.SpinButton(GalleryText.Get("무게"), weight.Binding, weightOptions);
+                var input = Fluent.SpinButton(GalleryText.Get("Weight"), weight.Binding, weightOptions);
                 input.Formatter = value => value is { } n ? n.ToString("0.0", CultureInfo.InvariantCulture) + " kg" : "";
                 input.Parser = text => string.IsNullOrWhiteSpace(text) ? new(true, null)
                     : double.TryParse(text.Trim().Replace("kg", "", StringComparison.Ordinal).Trim(),
@@ -51,7 +51,7 @@ internal sealed class SpinButtonPage : IObserverPage, IObserverNaturalPage, IGal
                         ? new(true, value) : new(false, null);
                 return input;
             }, layout : input => Dux.Column(new(Spacing : 4, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Label(GalleryText.Get("무게 (kg)"), input), input));
+                Fluent.Label(GalleryText.Get("Weight (kg)"), input), input));
             var mass = weightSample.Preview;
             var weightFactory = weightSample.Source;
             weightSample.BindSource(() => (Value : weight.Value, Options : mass.Options),
@@ -60,23 +60,23 @@ internal sealed class SpinButtonPage : IObserverPage, IObserverNaturalPage, IGal
             Samples = [quantitySample, weightSample];
             Root = Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
                 Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                    Fluent.Button(GalleryText.Get("수량 비우기"), () => quantity.Value = null),
-                    Fluent.Button(GalleryText.Get("읽기 전용 전환"), () => amount.Options = amount.Options with { ReadOnly = !amount.Options.ReadOnly }),
-                    Fluent.Button(GalleryText.Get("크기 전환"), () => amount.Options = amount.Options with
+                    Fluent.Button(GalleryText.Get("Clear quantity"), () => quantity.Value = null),
+                    Fluent.Button(GalleryText.Get("Toggle read-only"), () => amount.Options = amount.Options with { ReadOnly = !amount.Options.ReadOnly }),
+                    Fluent.Button(GalleryText.Get("Change size"), () => amount.Options = amount.Options with
                     {
                         Size = amount.Options.Size == UiSpinButtonSize.Medium ? UiSpinButtonSize.Small : UiSpinButtonSize.Medium
                     }),
-                    Fluent.Button(GalleryText.Get("모양 전환"), () => amount.Options = amount.Options with
+                    Fluent.Button(GalleryText.Get("Change appearance"), () => amount.Options = amount.Options with
                     {
                         Appearance = (UiInputAppearance)(((int)amount.Options.Appearance + 1) % 4)
                     })),
                 quantitySample, weightSample,
-                Fluent.Body1(() => GalleryText.Format("수량 : {0} / 무게 : {1}",
-                    quantity.Value?.ToString(CultureInfo.InvariantCulture) ?? GalleryText.Get("비어 있음"),
-                    weight.Value?.ToString(CultureInfo.InvariantCulture) ?? GalleryText.Get("비어 있음"))),
-                Fluent.Body1(() => GalleryText.Format("변경 알림 : {0} / {1}", count, last)),
-                Fluent.Caption1(GalleryText.Get("↑·↓ : 증감 / Page Up·Down : 큰 단위 / Home·End : 최솟값·최댓값")),
-                Fluent.Caption1(GalleryText.Get("Enter를 누르거나 포커스를 옮기면 입력한 값을 적용하고, Esc를 누르면 취소합니다. 증감 버튼을 길게 누르면 값이 계속 바뀝니다.")));
+                Fluent.Body1(() => GalleryText.Format("Quantity: {0} / Weight: {1}",
+                    quantity.Value?.ToString(CultureInfo.InvariantCulture) ?? GalleryText.Get("Empty"),
+                    weight.Value?.ToString(CultureInfo.InvariantCulture) ?? GalleryText.Get("Empty"))),
+                Fluent.Body1(() => GalleryText.Format("Change notifications: {0} / {1}", count, last)),
+                Fluent.Caption1(GalleryText.Get("Up/Down: adjust · Page Up/Down: larger steps · Home/End: minimum/maximum")),
+                Fluent.Caption1(GalleryText.Get("Press Enter or move focus to apply the value. Press Esc to cancel. Hold an increment or decrement button to keep changing the value.")));
         }
         private static string Number(double? value) => value is { } number ? number.ToString("R", CultureInfo.InvariantCulture) + "d" : "null";
         private static string OptionsSource(UiSpinButtonOptions options) =>

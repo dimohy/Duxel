@@ -12,7 +12,7 @@ internal sealed class DrawerPage : IObserverPage, IObserverNaturalPage, IGallery
     private readonly Action<UiImmediateContext> _renderOverlay;
     private int _saves;
     public string Title => "보조 패널";
-    public string Description => "화면 가장자리에서 패널을 열어 보세요. 패널 위치와 모달 여부를 바꾸거나 내용을 스크롤하고, 닫은 뒤 포커스가 돌아오는지 확인할 수 있습니다.";
+    public string Description => "Open a panel at the edge of the screen. Change its position or modal behavior, scroll its content, and check that focus returns on close.";
     internal UiFluentDrawer Overlay => _overlay;
     internal int Saves => _saves;
     public IReadOnlyList<IGallerySample> Samples { get; }

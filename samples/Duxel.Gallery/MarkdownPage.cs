@@ -120,7 +120,7 @@ internal sealed class MarkdownPage : IObserverPage, IObserverNaturalPage, IGalle
         get;
     }
     public string Title => "Markdown";
-    public string Description => "같은 문서를 미리 보거나 직접 편집해 보세요. 편집 중인 블록에만 #이나 ** 같은 마크다운 기호가 나타납니다.";
+    public string Description => "Preview or edit the same document. Markdown markers such as # and ** appear in the block being edited.";
     internal MarkdownPage()
     {
         var imagesDefinition = GallerySample.Define("images", () => new MarkdownImageResources());

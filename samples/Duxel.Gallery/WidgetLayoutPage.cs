@@ -7,7 +7,7 @@ internal sealed class WidgetLayoutPage : IObserverPage, IObserverNaturalPage, IG
 {
     private Content? _content;
     public string Title => "위젯 배치";
-    public string Description => "위젯에 여백을 주거나 회전·확대해 보세요. 변환한 위젯도 입력을 받으며, 팝업은 회전하지 않고 화면 방향에 맞춰 열립니다.";
+    public string Description => "Add spacing, rotate, or scale a widget. Transformed widgets still accept input, and their pop-ups open aligned with the screen.";
     public IReadOnlyList<IGallerySample> Samples => (_content ??= new()).Samples;
     internal UiEdgeInsets AppliedMargin => _content?.AppliedMargin ?? default;
     internal int Activations => _content?.Activations ?? 0;
