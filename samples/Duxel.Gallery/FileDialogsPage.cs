@@ -1,5 +1,6 @@
 using Duxel.App;
 using Duxel.Core;
+using System.Globalization;
 
 namespace Duxel.Gallery;
 
@@ -18,13 +19,14 @@ internal sealed class FileDialogsPage : IObserverPage, IObserverNaturalPage
         _session = session;
         var directory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var start = Directory.Exists(directory) ? directory : null;
+        var culture = CultureInfo.GetCultureInfo(GalleryText.RegionalCultureName);
         var allFiles = new UiFileDialogFilter(GalleryText.Get("All files"), "*");
         var textFiles = new UiFileDialogFilter(GalleryText.Get("Text files"), "*.txt");
         var open = new UiFileDialogRequest(UiFileDialogKind.OpenFile, GalleryText.Get("Choose files to open"), start,
-            allowMultiple: true, filters: [allFiles, textFiles]);
+            allowMultiple: true, filters: [allFiles, textFiles]) { Culture = culture };
         var save = new UiFileDialogRequest(UiFileDialogKind.SaveFile, GalleryText.Get("Choose where to save"), start,
-            suggestedFileName: GalleryText.Get("Notes.txt"), defaultExtension: "txt", filters: [textFiles]);
-        var folder = new UiFileDialogRequest(UiFileDialogKind.SelectFolder, GalleryText.Get("Select folder"), start);
+            suggestedFileName: GalleryText.Get("Notes.txt"), defaultExtension: "txt", filters: [textFiles]) { Culture = culture };
+        var folder = new UiFileDialogRequest(UiFileDialogKind.SelectFolder, GalleryText.Get("Select folder"), start) { Culture = culture };
         _root = Dux.Column(new(Spacing: 12, MainAxisSize: UiMainAxisSize.Min),
             Dux.Wrap(new(Spacing: 8, RunSpacing: 8),
                 Fluent.Button(GalleryText.Get("Open files"), () => Show(open)),

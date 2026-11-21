@@ -16,7 +16,7 @@ internal sealed class DuxelFileChooser : IDisposable
     private readonly UiState<string> _fileName = new("");
     private readonly UiState<string> _message = new("");
     private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
-    private readonly bool _korean = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ko";
+    private readonly CultureInfo _culture;
     private (string Directory, Task<Entry[]> Task)? _loading;
     private Entry[] _entries = [];
     private string _directory;
@@ -25,27 +25,28 @@ internal sealed class DuxelFileChooser : IDisposable
     private IReadOnlyList<string> _result = Array.Empty<string>();
     private bool FoldersOnly => _request.Kind == UiFileDialogKind.SelectFolder;
     private bool Saving => _request.Kind == UiFileDialogKind.SaveFile;
-    private string AcceptLabel => Saving ? Say("저장", "Save") : FoldersOnly ? Say("폴더 선택", "Select Folder") : Say("열기", "Open");
+    private string AcceptLabel => Saving ? Text("Save") : FoldersOnly ? Text("Select Folder") : Text("Open");
 
     internal DuxelFileChooser(UiFileDialogRequest request, Action<IReadOnlyList<string>> complete, Action requestFrame)
     {
         (_request, _requestFrame) = (request, requestFrame);
+        _culture = CultureInfo.ReadOnly(request.Culture ?? CultureInfo.CurrentUICulture);
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         _directory = Directory.Exists(home) ? home : Directory.GetCurrentDirectory();
         _fileName.Value = request.SuggestedFileName ?? "";
         _list = Dux.VirtualList(new Rows(this), 0, new(ItemExtent: 36, Width: 540, Height: 228));
-        _list.AccessibleName = Say("파일 및 폴더 목록", "Files and folders");
-        var path = Fluent.Input(Say("현재 폴더", "Current folder"), _location.Binding, 4096, 380);
+        _list.AccessibleName = Text("Files and folders");
+        var path = Fluent.Input(Text("Current folder"), _location.Binding, 4096, 380);
         var children = new List<UiWidget>
         {
             Dux.Row(new(Spacing: 8),
                 Dux.Expanded(path),
-                Fluent.Button(Say("이동", "Go"), () => Load(_location.Value)),
-                Fluent.Button(Say("상위 폴더", "Up"), () => Load(Directory.GetParent(_directory)?.FullName ?? _directory))),
+                Fluent.Button(Text("Go"), () => Load(_location.Value)),
+                Fluent.Button(Text("Up"), () => Load(Directory.GetParent(_directory)?.FullName ?? _directory))),
             _list
         };
         if (!FoldersOnly && !request.AllowMultiple)
-            children.Add(Fluent.Input(Say("파일 이름", "File name"), new UiBinding<string>(() => _fileName.Value, name =>
+            children.Add(Fluent.Input(Text("File name"), new UiBinding<string>(() => _fileName.Value, name =>
             {
                 _fileName.Value = name;
                 ResetReplace();
@@ -62,13 +63,13 @@ internal sealed class DuxelFileChooser : IDisposable
                     Load(_directory);
                 }
             });
-            children.Add(Fluent.Select(Say("파일 형식", "File type"), selected, options));
+            children.Add(Fluent.Select(Text("File type"), selected, options, new(ExpandLabel : Text("Show options"))));
         }
         children.Add(Fluent.Body1(() => _message.Value));
         _accept = Fluent.Button(AcceptLabel, Accept);
         _dialog = Fluent.Dialog(request.Title ?? AcceptLabel,
             new UiColumn(children.ToArray(), new(Spacing: 8, MainAxisSize: UiMainAxisSize.Min)),
-            [_accept, Fluent.Button(Say("취소", "Cancel"), Cancel)],
+            [_accept, Fluent.Button(Text("Cancel"), Cancel)],
             new(LightDismiss: false, MotionEnabled: false));
         _dialog.OpenChanged = open => { if (!open) complete(_result); };
         _dialog.Show();
@@ -89,10 +90,10 @@ internal sealed class DuxelFileChooser : IDisposable
                 _list.ItemCount = _entries.Length;
                 _list.Offset = 0;
                 _list.Refresh();
-                _message.Value = _entries.Length == 0 ? Say("표시할 항목이 없습니다.", "No items to show.") : "";
+                _message.Value = _entries.Length == 0 ? Text("No items to show.") : "";
             }
             else
-                _message.Value = Say("폴더를 열 수 없습니다.", "Could not open the folder.")
+                _message.Value = Text("Could not open the folder.")
                     + " " + load.Task.Exception?.GetBaseException().Message;
         }
         _dialog.Render(ui);
@@ -107,13 +108,13 @@ internal sealed class DuxelFileChooser : IDisposable
             var filter = _request.Filters.Count > 0 ? _request.Filters[_filter] : null;
             var task = Task.Run(() => ReadDirectory(path, filter, FoldersOnly));
             _loading = (path, task);
-            _message.Value = Say("폴더를 읽는 중입니다.", "Reading the folder.");
+            _message.Value = Text("Reading the folder.");
             _ = task.ContinueWith((_, wake) => ((Action)wake!)(), _requestFrame,
                 CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
         catch (Exception error) when (error is ArgumentException or IOException or NotSupportedException)
         {
-            _message.Value = error.Message;
+            _message.Value = Text("Could not open the folder.") + " " + error.Message;
         }
     }
 
@@ -136,7 +137,7 @@ internal sealed class DuxelFileChooser : IDisposable
         {
             if (!Directory.Exists(_directory) || _selected.Any(path => !Directory.Exists(path)))
             {
-                _message.Value = Say("선택한 폴더를 찾을 수 없습니다.", "A selected folder no longer exists.");
+                _message.Value = Text("A selected folder no longer exists.");
                 return;
             }
             Close(_selected.Count == 0 ? [_directory] : SelectedPaths());
@@ -146,7 +147,7 @@ internal sealed class DuxelFileChooser : IDisposable
         {
             if (_selected.Count == 0 || _selected.Any(path => !File.Exists(path)))
             {
-                _message.Value = Say("열 파일을 선택하세요.", "Select the files to open.");
+                _message.Value = Text("Select the files to open.");
                 return;
             }
             Close(SelectedPaths());
@@ -155,7 +156,7 @@ internal sealed class DuxelFileChooser : IDisposable
         var name = _fileName.Value.Trim();
         if (name.Length == 0 || name is "." or ".." || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
-            _message.Value = Say("파일 이름을 입력하세요.", "Enter a file name.");
+            _message.Value = Text("Enter a file name.");
             return;
         }
         if (Saving && _request.DefaultExtension is { } extension && !Path.HasExtension(name))
@@ -163,15 +164,14 @@ internal sealed class DuxelFileChooser : IDisposable
         var target = Path.Combine(_directory, name);
         if ((!Saving && !File.Exists(target)) || (Saving && (Directory.Exists(target) || !Directory.Exists(_directory))))
         {
-            _message.Value = Say("이 경로의 파일을 선택할 수 없습니다.", "This file path cannot be selected.");
+            _message.Value = Text("This file path cannot be selected.");
             return;
         }
         if (Saving && File.Exists(target) && _replacePath != target)
         {
             _replacePath = target;
-            _accept.Label = Say("덮어쓰기", "Replace");
-            _message.Value = Say("같은 이름의 파일이 있습니다. 덮어쓸 경로로 선택하시겠습니까?",
-                "This file already exists. Select Replace to use this path.");
+            _accept.Label = Text("Replace");
+            _message.Value = Text("This file already exists. Select Replace to use this path.");
             return;
         }
         Close([target]);
@@ -187,7 +187,7 @@ internal sealed class DuxelFileChooser : IDisposable
     {
         if (value) _selected.Add(entry.Path);
         else _selected.Remove(entry.Path);
-        _message.Value = _selected.Count == 0 ? "" : $"{_selected.Count} " + Say("개 선택", "selected");
+        _message.Value = _selected.Count == 0 ? "" : string.Format(_culture, Text("{0:N0} selected"), _selected.Count);
     }
 
     private string[] SelectedPaths() => _entries.Where(entry => _selected.Contains(entry.Path)).Select(entry => entry.Path).ToArray();
@@ -200,7 +200,7 @@ internal sealed class DuxelFileChooser : IDisposable
         _dialog.Close();
     }
 
-    private string Say(string korean, string english) => _korean ? korean : english;
+    private string Text(string source) => FileChooserLocalization.GetText(source, _culture);
     public void Dispose() => _dialog.Dispose();
 
     private sealed record Entry(string Path, string Name, bool Folder);
@@ -214,7 +214,7 @@ internal sealed class DuxelFileChooser : IDisposable
             var entry = owner._entries[index];
             if (entry.Folder)
             {
-                var open = Fluent.Button(owner.Say("폴더 열기", "Open folder") + " " + entry.Name, () => owner.Load(entry.Path));
+                var open = Fluent.Button(string.Format(owner._culture, owner.Text("Open folder {0}"), entry.Name), () => owner.Load(entry.Path));
                 return owner.FoldersOnly && owner._request.AllowMultiple
                     ? Dux.Row(new(Spacing: 8), Check(entry), open)
                     : open;
