@@ -171,9 +171,9 @@ internal static class SvgGalleryFrameBenchmark
     {
         Directory.CreateDirectory(output);
         using var log = new StreamWriter(Path.Combine(output, "bursts.tsv"));
-        log.WriteLine("tab\tframe\trequested\tcompleted\tms\tallocated\toffset\tvector_requests");
+        log.WriteLine("tab\tframe\trequested\tcompleted\tms\tallocated\toffset\tvector_requests\trenderer_ms\tframe_id\ttext_rasters\tempty_text_rasters");
         using var thumbLog = new StreamWriter(Path.Combine(output, "thumb.tsv"));
-        thumbLog.WriteLine("tab\tframe\trequested\tcompleted\tui_ms\trenderer_ms\tallocated\toffset\tcontent_lag\trepaint_width\trepaint_height\tvector_requests");
+        thumbLog.WriteLine("tab\tframe\trequested\tcompleted\tui_ms\trenderer_ms\tallocated\toffset\tcontent_lag\trepaint_width\trepaint_height\tvector_requests\tframe_id\ttext_rasters\tempty_text_rasters");
         foreach (var label in new[] { "테두리 범위", "호·곡선 비교" })
         {
             var platform = PresentationTestPlatform.Create(1280, 900, orderedInput: true);
@@ -184,6 +184,7 @@ internal static class SvgGalleryFrameBenchmark
             fixture.Context.InputProfilingEnabled = true;
             using var gallery = new ObserverScreen(ObserverServices.CreateWindows())
                 { FreezeDiagnosticText = true, SelectedPage = "SVG" };
+            (int Rasters, int EmptyRasters, int Evictions, int EmptyEvictions) paragraphRasters = default;
             var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false,
                 0, 0, [], [], default, default);
             Submit(idle);
@@ -227,17 +228,19 @@ internal static class SvgGalleryFrameBenchmark
                     throw new InvalidOperationException($"The Win32 wheel burst did not reach the source block: {batch.Length}.");
                 var allocated = GC.GetAllocatedBytesForCurrentThread();
                 var start = Stopwatch.GetTimestamp();
-                using var draw = fixture.Build(gallery.Render, batch[0], pollEvents: false, orderedInputs: batch);
-                var elapsed = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+                var before = paragraphRasters;
+                using var draw = fixture.Build(Draw, batch[0], pollEvents: false, orderedInputs: batch);
+                var composed = Stopwatch.GetTimestamp();
                 allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
                 if (!fixture.RenderSubmit(draw))
                     throw new InvalidOperationException("Vulkan rejected the code scroll frame.");
+                var submitted = Stopwatch.GetTimestamp();
                 var metrics = fixture.Context.InputProcessingMetrics;
                 var offset = ScrollPane().Scroll!.Value.Offset.Y;
                 var vectorRequests = draw.TextureUpdates.Count(update => update.Kind == UiTextureUpdateKind.RenderVectorScene);
                 if (frame >= 0)
                     log.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                        $"{label}\t{frame}\t{metrics.RequestedSteps}\t{metrics.CompletedSteps}\t{elapsed:F4}\t{allocated}\t{offset:R}\t{vectorRequests}"));
+                        $"{label}\t{frame}\t{metrics.RequestedSteps}\t{metrics.CompletedSteps}\t{Stopwatch.GetElapsedTime(start, composed).TotalMilliseconds:F4}\t{allocated}\t{offset:R}\t{vectorRequests}\t{Stopwatch.GetElapsedTime(composed, submitted).TotalMilliseconds:F4}\t{draw.DrawDataFrameId}\t{paragraphRasters.Rasters - before.Rasters}\t{paragraphRasters.EmptyRasters - before.EmptyRasters}"));
             }
             Submit(idle);
             fixture.WriteCapturePng(Path.Combine(output, label + ".png"), fixture.Capture(gallery.Render, idle));
@@ -284,7 +287,8 @@ internal static class SvgGalleryFrameBenchmark
                     throw new InvalidOperationException($"Expected 64 native scrollbar moves, received {inputs.Length}.");
                 var bytes = GC.GetAllocatedBytesForCurrentThread();
                 var start = Stopwatch.GetTimestamp();
-                using var draw = fixture.Build(gallery.Render, inputs[0], pollEvents: false, orderedInputs: inputs);
+                var before = paragraphRasters;
+                using var draw = fixture.Build(Draw, inputs[0], pollEvents: false, orderedInputs: inputs);
                 var composed = Stopwatch.GetTimestamp();
                 bytes = GC.GetAllocatedBytesForCurrentThread() - bytes;
                 if (!fixture.RenderSubmit(draw))
@@ -301,7 +305,7 @@ internal static class SvgGalleryFrameBenchmark
                 var lag = MathF.Abs(offset + textLayout.Origin.Y - referenceY);
                 if (frame >= 0)
                     thumbLog.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                        $"{label}\t{frame}\t{metrics.RequestedSteps}\t{metrics.CompletedSteps}\t{Stopwatch.GetElapsedTime(start, composed).TotalMilliseconds:F4}\t{Stopwatch.GetElapsedTime(composed, submitted).TotalMilliseconds:F4}\t{bytes}\t{offset:R}\t{lag:F4}\t{area.Width}\t{area.Height}\t{requests}"));
+                        $"{label}\t{frame}\t{metrics.RequestedSteps}\t{metrics.CompletedSteps}\t{Stopwatch.GetElapsedTime(start, composed).TotalMilliseconds:F4}\t{Stopwatch.GetElapsedTime(composed, submitted).TotalMilliseconds:F4}\t{bytes}\t{offset:R}\t{lag:F4}\t{area.Width}\t{area.Height}\t{requests}\t{draw.DrawDataFrameId}\t{paragraphRasters.Rasters - before.Rasters}\t{paragraphRasters.EmptyRasters - before.EmptyRasters}"));
             }
             var regrabPoint = thumb with { Y = thumb.Y - 8 };
             var owner = fixture.Context.State.ActiveId;
@@ -333,9 +337,15 @@ internal static class SvgGalleryFrameBenchmark
 
             void Submit(UiInputState input)
             {
-                using var draw = fixture.Build(gallery.Render, input);
+                using var draw = fixture.Build(Draw, input);
                 if (!fixture.RenderSubmit(draw))
                     throw new InvalidOperationException("Vulkan rejected the scroll setup frame.");
+            }
+
+            void Draw(UiImmediateContext ui)
+            {
+                gallery.Render(ui);
+                paragraphRasters = ui.ValidationParagraphRasterCounts;
             }
 
             void Post(uint message, nuint wParam, nint lParam)

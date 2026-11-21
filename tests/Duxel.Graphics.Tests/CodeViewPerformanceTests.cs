@@ -25,8 +25,11 @@ internal static class CodeViewPerformanceTests
 
         var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
         Submit(idle);
+        // SVG owns its document viewport, while Markdown uses the gallery page viewport.
+        var paneName = arc ? "observer-svg-page" : GalleryText.Get("Gallery page");
+        var codeName = GalleryText.CodeViewLabels().AccessibleName;
         var pane = tree.CaptureSnapshot().Elements.Single(element =>
-            element.Node is { Name: "갤러리 페이지", Role: UiAccessibilityRole.Pane });
+            element.Node.Name == paneName && element.Node.Role == UiAccessibilityRole.Pane);
         var top = pane.Node.Bounds.Y;
         var bottom = top + pane.Node.Bounds.Height;
         if (arc)
@@ -128,7 +131,7 @@ internal static class CodeViewPerformanceTests
         }
 
         UiAccessibilityTextLayout? VisibleCode() => tree.CaptureSnapshot().Elements
-            .Where(element => element.Node is { Name: "C# 예제 소스", Role: UiAccessibilityRole.Edit, ReadOnly: true })
+            .Where(element => element.Node.Name == codeName && element.Node is { Role: UiAccessibilityRole.Edit, ReadOnly: true })
             .Select(element => element.Node.TextLayout).OfType<UiAccessibilityTextLayout>()
             .MaxBy(layout => layout.ClipBounds.Height);
 

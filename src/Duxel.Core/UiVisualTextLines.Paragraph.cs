@@ -9,6 +9,7 @@ internal sealed partial class UiVisualTextLines
     private float[] _nativeParagraphLineOffsets = [];
     private int[] _nativeParagraphRunStarts = [], _nativeParagraphPaintRuns = [];
     private PlatformTextMeshResult?[] _nativeParagraphMeshes = [];
+    private System.Collections.BitArray? _emptyNativeParagraphRasters;
     internal PlatformTextParagraphLayout? NativeParagraph => _nativeParagraph;
     internal float NativeParagraphScale => _nativeParagraphScale;
     internal float NativeParagraphLineOffset(int line) => _nativeParagraphLineOffsets[line];
@@ -16,6 +17,9 @@ internal sealed partial class UiVisualTextLines
         _nativeParagraphPaintRuns.AsSpan(_nativeParagraphRunStarts[line], _nativeParagraphRunStarts[line + 1] - _nativeParagraphRunStarts[line]);
     internal PlatformTextMeshResult? NativeParagraphMesh(int run) => _nativeParagraphMeshes[run];
     internal void RememberNativeParagraphMesh(int run, PlatformTextMeshResult mesh) => _nativeParagraphMeshes[run] = mesh;
+    internal bool HasEmptyNativeParagraphRaster(int run) => _emptyNativeParagraphRasters?[run] == true;
+    internal void RememberEmptyNativeParagraphRaster(int run) =>
+        (_emptyNativeParagraphRasters ??= new(_nativeParagraph!.Runs.Length))[run] = true;
 
     private void ClearNativeParagraph()
     {
@@ -25,6 +29,7 @@ internal sealed partial class UiVisualTextLines
         _nativeParagraphRunStarts = [];
         _nativeParagraphPaintRuns = [];
         _nativeParagraphMeshes = [];
+        _emptyNativeParagraphRasters = null;
     }
 
     private bool TryBuildNativeStyledParagraph(UiImmediateContext ui, string text, float width, bool wrap)
@@ -56,6 +61,7 @@ internal sealed partial class UiVisualTextLines
                         return false;
             }
         _nativeParagraph = paragraph;
+        _emptyNativeParagraphRasters = null;
         _nativeParagraphScale = scale;
         _lines.Clear();
         ClearStyledTables();
@@ -385,14 +391,23 @@ public sealed partial class UiImmediateContext
                 RenderVectorText(_builder, mesh.Value, position, foreground, clip);
                 continue;
             }
+            // A native run with no ink has no texture or paint dependency. Retain that
+            // fact with its layout so scrolling cannot evict it from the shared cache.
+            if (visual.HasEmptyNativeParagraphRaster(index))
+                continue;
             var key = new DirectTextCacheKey(run.FontPath, null, string.Empty, run.FontSize, _directTextBackendGeneration)
             {
                 ParagraphRun = run
             };
-            TrackLayerTextDependency(key);
-            _capturingPaintGroup?.PendingTextKeys.Add(key);
             if (!_directTextCache.TryGetValue(key, out var entry))
                 entry = StoreParagraphRaster(key, backend.RasterizeParagraphRun(run), run.Origin);
+            if (entry.Width == 0 || entry.Height == 0)
+            {
+                visual.RememberEmptyNativeParagraphRaster(index);
+                continue;
+            }
+            TrackLayerTextDependency(key);
+            _capturingPaintGroup?.PendingTextKeys.Add(key);
             entry = UseParagraphRaster(key, entry);
             if (entry.TextureId is { } texture && entry.Width > 0 && entry.Height > 0)
             {
