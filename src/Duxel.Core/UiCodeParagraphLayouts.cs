@@ -31,7 +31,8 @@ internal sealed class UiCodeParagraphLayouts
     private List<Line> _lines = [];
 
     internal PlatformTextParagraphLayout Prepare(IPlatformTextParagraphBackend backend, string text,
-        PlatformTextParagraphStyle[] styles, float width, bool vector, UiLayoutMeasurementKey key)
+        PlatformTextParagraphStyle[] styles, float width, bool vector, UiLayoutMeasurementKey key,
+        UiCodeLineLayoutCache? shared = null)
     {
         if (_text != text || _key != key || _vector != vector || !_styles.AsSpan().SequenceEqual(styles))
         {
@@ -82,8 +83,7 @@ internal sealed class UiCodeParagraphLayouts
         {
             if (line.Natural is null)
             {
-                line.Natural = backend.CreateParagraph(new(line.Text, line.Styles), vector);
-                NativeBuilds++;
+                line.Natural = CreateLineLayout(line, float.PositiveInfinity);
             }
             var natural = line.Natural;
             var layout = natural;
@@ -91,9 +91,8 @@ internal sealed class UiCodeParagraphLayouts
             {
                 if (line.Wrapped is null || line.WrappedWidth != width)
                 {
-                    line.Wrapped = backend.CreateParagraph(new(line.Text, line.Styles, width), vector);
+                    line.Wrapped = CreateLineLayout(line, width);
                     line.WrappedWidth = width;
-                    NativeBuilds++;
                 }
                 layout = line.Wrapped;
             }
@@ -134,6 +133,19 @@ internal sealed class UiCodeParagraphLayouts
             }
         }
         return new(outputRuns.ToArray(), outputLines.ToArray(), carets, maximum, height);
+
+        PlatformTextParagraphLayout CreateLineLayout(Line line, float layoutWidth)
+        {
+            if (shared is null)
+            {
+                NativeBuilds++;
+                return backend.CreateParagraph(new(line.Text, line.Styles, layoutWidth), vector);
+            }
+            var result = shared.Create(backend, line.Text, line.Styles, layoutWidth, vector, key, out var built);
+            if (built)
+                NativeBuilds++;
+            return result;
+        }
     }
 
     private void ReuseUnchangedLines(List<Line> previous)

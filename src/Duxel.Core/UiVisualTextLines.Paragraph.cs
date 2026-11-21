@@ -198,6 +198,8 @@ internal sealed partial class UiVisualTextLines
 
 public sealed partial class UiImmediateContext
 {
+    private UiCodeLineLayoutCache? _codeLineLayouts;
+
     internal bool TryCreateNativeStyledParagraph(UiStyledTextProjection projection, float width, bool wrap, bool rightToLeft,
         bool plainInline, out PlatformTextParagraphLayout? paragraph, out float[] heights, out float scale,
         out PlatformTextParagraphRequest? wholeRequest, UiCodeDocument? code = null)
@@ -255,7 +257,9 @@ public sealed partial class UiImmediateContext
         {
             long started = 0;
             BeginValidationParagraphTiming(ref started);
-            paragraph = code.ParagraphLayouts.Prepare(backend, projection.Text, native, physicalWidth, vector, LayoutMeasurementKey);
+            var cache = _codeLineLayouts ??= new();
+            SelectValidationCodeLineLayoutCache(ref cache);
+            paragraph = code.ParagraphLayouts.Prepare(backend, projection.Text, native, physicalWidth, vector, LayoutMeasurementKey, cache);
             EndValidationParagraphTiming(started, raster: false);
         }
         else
@@ -457,5 +461,6 @@ public sealed partial class UiImmediateContext
 
     partial void ObserveValidationParagraphRaster(bool empty);
     partial void BeginValidationParagraphTiming(ref long timestamp);
+    partial void SelectValidationCodeLineLayoutCache(ref UiCodeLineLayoutCache? cache);
     partial void EndValidationParagraphTiming(long timestamp, bool raster);
 }

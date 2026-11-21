@@ -35,3 +35,19 @@ The shared cache now keeps up to 1,536 total entries and still limits ordinary t
 The times are medians of per-run frame medians from three managed Windows runs per variant with the RTX 5070 Ti. Both variants used the updated layout code, and the comparison varied only the cache limit. CPU time covers construction and the renderer call. Vulkan query results joined by submission ID put the GPU draw median below 0.04 ms in both scroll passes. The scroll capture after the final traversal matched byte for byte. This test excludes idle time, the screen capture, and the Win32 size call. The window change measurements overlap and leave window-resize performance open. Two of the slowest candidate resize frames spent more than 27 ms processing texture updates and also rebuilt native text layouts. A short atlas experiment lowered some resize spikes at the cost of extra coverage upload bytes. First tab layout and sustained memory need further measurement.
 
 Build `tests/Duxel.Graphics.Tests/Duxel.Graphics.Tests.csproj` in Release with `DuxelValidationHooks=true`. Run the built DLL with a fresh output directory and `gallery-svg-code-stages`. Set `DUXEL_TEST_CODE_CACHE_ENTRIES=512` for the control. Set `DUXEL_TEST_CODE_RESIZE=1` to include the native width sequence. The run writes `stages.tsv` and the Vulkan timing log.
+
+### Share repeated hard-line layouts
+
+A bounded cache in the UI context shares native line layouts when CodeViews have the same text, font and style properties, render mode, and wrap width. Each document still assigns its own source offsets and paint-style indices. The cache resets when layout resources change. It stores at most 512 lines of up to 256 UTF-16 code units each.
+
+| Same executable, three runs per variant | Shared layout off | Shared layout on |
+| --- | ---: | ---: |
+| First Arc tab frame, CPU | 139.96 ms | 88.76 ms |
+| CodeView layout in that frame | 82.49 ms | 36.98 ms |
+| Layout during window width changes | 9.97 ms | 5.50 ms |
+| Whole CPU frame during window width changes | 25.26 ms | 25.06 ms |
+| Repeated scroll, CPU | 2.48 ms | 3.39 ms |
+
+First-tab CPU time fell 36.6%. All six final scroll captures and the paired final resize captures matched byte for byte. A separate mixed Korean and English layout check compared source positions, paint indices, glyph placements and carets. The per-run repeated-scroll times overlapped. That phase made zero native CodeView layout calls in both variants. Window-width changes still generated the same raster and upload work.
+
+Set `DUXEL_TEST_DISABLE_SHARED_CODE_LAYOUT=1` for the line-layout control without changing the earlier raster cache limit. Run `codeview-layout-cache` to check the mixed-language layout.

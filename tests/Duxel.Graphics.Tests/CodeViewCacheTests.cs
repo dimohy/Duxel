@@ -9,6 +9,7 @@ internal static class CodeViewCacheTests
         VerifyVisibleWorkingSet(check);
         VerifyClippedAccessibilityGeometry(check);
         VerifyScrollbarDragging(check);
+        VerifySharedLineLayouts(check);
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
         ControlFontFixture.Configure(context);
         using var code = new UiCodeView("using Duxel.Core;\n" + string.Join("\n", Enumerable.Repeat("var message = \"한글 and English\"; // comment", 30)));
@@ -108,6 +109,44 @@ internal static class CodeViewCacheTests
             && original.GetCharacterExtents(0) == originalCharacter,
             "moving a code view updates accessibility ranges, carets and hit testing while preserving the prior snapshot");
     }
+    internal static void VerifySharedLineLayouts(Action<bool, string> check)
+    {
+        var fonts = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+        var backend = Duxel.Platform.Windows.WindowsPlatformTextBackend.Instance;
+        var line = "var mix = \"한글 + English #42\"; // " + new string('x', 70);
+        var source = string.Join("\n", line, line);
+        var style = new PlatformTextParagraphStyle(0, line.Length, Path.Combine(fonts, "consola.ttf"),
+            Path.Combine(fonts, "malgun.ttf"), 14);
+        PlatformTextParagraphStyle[] styles = [style with { Length = line.Length + 1 }, style with { Start = line.Length + 1 }];
+        var cache = new UiCodeLineLayoutCache();
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        ControlFontFixture.Configure(context);
+        var input = new UiInputState(default, false, false, false, false, false, false, 0, 0, [], [], default, default);
+        context.NewFrame(new(.016f, new(640, 480), new(1, 1)), input, new(0, 0, 640, 480), UiTextSettings.Default);
+        context.Render(new Screen(ui =>
+        {
+            var key = ui.LayoutMeasurementKey;
+            var first = new UiCodeParagraphLayouts();
+            first.Prepare(backend, line, [style], 220, false, key, cache);
+            var second = new UiCodeParagraphLayouts();
+            var reused = second.Prepare(backend, source, styles, 220, false, key, cache);
+            var fresh = new UiCodeParagraphLayouts().Prepare(backend, source, styles, 220, false, key);
+            check(first.NativeBuilds == 2 && second.NativeBuilds == 0,
+                "both wrapped and natural mixed-language lines are shared across documents");
+            check(reused.Width == fresh.Width && reused.Height == fresh.Height
+                && reused.Carets.Span.SequenceEqual(fresh.Carets.Span) && reused.Runs.Length == fresh.Runs.Length
+                && reused.Runs.ToArray().Zip(fresh.Runs.ToArray()).All(pair =>
+                    pair.First.StyleIndex == pair.Second.StyleIndex && pair.First.Origin == pair.Second.Origin
+                    && pair.First.Glyphs.Span.SequenceEqual(pair.Second.Glyphs.Span)),
+                "shared native lines preserve source offsets, paint slots, glyph placement and caret geometry");
+            second.Prepare(backend, source, styles, 200, false, key, cache);
+            check(second.NativeBuilds == 1, "a new width shapes the shared wrapped line once");
+            second.Prepare(backend, source, styles, 200, false, key with { BaseFontSize = 18 }, cache);
+            check(second.NativeBuilds == 3, "changing layout resources invalidates shared natural and wrapped lines");
+        }));
+        using var drawing = context.GetDrawData();
+    }
+
     internal static void VerifyScrollbarDragging(Action<bool, string> check)
     {
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));

@@ -8,6 +8,8 @@ public sealed partial class UiImmediateContext
     private int _validationEmptyParagraphEvictions;
     private long _validationCodeLayoutTicks, _validationParagraphRasterTicks;
     internal bool ValidationParagraphTimingEnabled { get; set; }
+    private readonly bool _validationDisableSharedCodeLayout =
+        Environment.GetEnvironmentVariable("DUXEL_TEST_DISABLE_SHARED_CODE_LAYOUT") == "1";
     internal int ValidationDirectTextCacheLimit { get; set; }
     internal int ValidationDirectTextCacheEntries => _directTextCache.Count;
     internal (long Layout, long Raster) ValidationParagraphTiming => (_validationCodeLayoutTicks, _validationParagraphRasterTicks);
@@ -22,6 +24,12 @@ public sealed partial class UiImmediateContext
     {
         if (ValidationDirectTextCacheLimit > 0)
             entryLimit = ValidationDirectTextCacheLimit;
+    }
+
+    partial void SelectValidationCodeLineLayoutCache(ref UiCodeLineLayoutCache? cache)
+    {
+        if (_validationDisableSharedCodeLayout)
+            cache = null;
     }
 
     partial void EndValidationParagraphTiming(long timestamp, bool raster)

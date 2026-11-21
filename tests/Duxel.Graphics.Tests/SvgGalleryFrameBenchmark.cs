@@ -219,6 +219,7 @@ internal static class SvgGalleryFrameBenchmark
             }
             for (var i = 0; i < 6; i++)
                 Submit("resize-drain", i, idle);
+            fixture.WriteCapturePng(Path.Combine(output, "resize-end.png"), fixture.Capture(gallery.Render, idle));
         }
 
         float Scroll(string phase, UiInputState input, int start, int limit, out int submitted)

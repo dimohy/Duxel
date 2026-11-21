@@ -49,6 +49,17 @@ if (args is [var svgCodeStagesOutput, "gallery-svg-code-stages"])
     return;
 }
 
+if (args is [_, "codeview-layout-cache"])
+{
+    CodeViewCacheTests.VerifySharedLineLayouts((passed, name) =>
+    {
+        Console.WriteLine((passed ? "PASS " : "FAIL ") + name);
+        if (!passed)
+            Environment.ExitCode = 1;
+    });
+    return;
+}
+
 if (args is [_, "codeview-scrollbars"])
 {
     CodeViewCacheTests.VerifyScrollbarDragging((passed, name) =>
