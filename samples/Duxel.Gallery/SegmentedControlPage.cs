@@ -23,23 +23,23 @@ internal sealed class SegmentedControlPage : IObserverPage, IObserverNaturalPage
         internal List<UiSegmentedControlWidget> Previews { get; } = [];
         internal UiWidget Root { get; }
         internal Content() => Root = Dux.Column(new(Spacing : 20, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Body1("기본 선택·키보드·RTL·아이콘·읽지 않음 표시와 네 가지 스타일을 확인하세요. 가로 스크롤에서는 캐시한 콘텐츠를 재사용하며 숨은 쪽만 옅어집니다."),
-            Example("중립 탐색 모음", [new("day", "일"), new("week", "주", false), new("month", "월", Unread : true)], false,
+            Fluent.Body1(GalleryText.Get("기본 선택·키보드·RTL·아이콘·읽지 않음 표시와 네 가지 스타일을 확인하세요. 가로 스크롤에서는 캐시한 콘텐츠를 재사용하며 숨은 쪽만 옅어집니다.")),
+            Example(GalleryText.Get("중립 탐색 모음"), [new("day", GalleryText.Get("일")), new("week", GalleryText.Get("주"), false), new("month", GalleryText.Get("월"), Unread : true)], false,
                 UiSegmentedControlStyle.NeutralOverNavBarPill),
-            Example("중립 본문", [new("all", "전체"), new("assigned", "나에게 할당된 항목"), new("saved", "저장한 항목")], false,
+            Example(GalleryText.Get("중립 본문"), [new("all", GalleryText.Get("전체")), new("assigned", GalleryText.Get("나에게 할당된 항목")), new("saved", GalleryText.Get("저장한 항목"))], false,
                 UiSegmentedControlStyle.NeutralOverCanvasPill),
-            Example("브랜드 탐색 모음", [new("calendar", "달력", Icon : UiMenuIcon.Create<SegmentCalendarIcon, SegmentCalendarIcon>()),
-                new("mail", "메일", Icon : UiMenuIcon.Create<SegmentMailIcon, SegmentMailIcon>(), Unread : true)], true,
+            Example(GalleryText.Get("브랜드 탐색 모음"), [new("calendar", GalleryText.Get("달력"), Icon : UiMenuIcon.Create<SegmentCalendarIcon, SegmentCalendarIcon>()),
+                new("mail", GalleryText.Get("메일"), Icon : UiMenuIcon.Create<SegmentMailIcon, SegmentMailIcon>(), Unread : true)], true,
                 UiSegmentedControlStyle.BrandOverNavBarPill),
-            Example("브랜드 본문", [new("all", "전체"), new("active", "진행 중"), new("done", "완료", Unread : true)], false,
+            Example(GalleryText.Get("브랜드 본문"), [new("all", GalleryText.Get("전체")), new("active", GalleryText.Get("진행 중")), new("done", GalleryText.Get("완료"), Unread : true)], false,
                 UiSegmentedControlStyle.BrandOverCanvasPill),
-            Example("가로 스크롤", Enumerable.Range(1, 10).Select(i => new UiSegmentOption(i.ToString(), "선택 항목 " + i)).ToArray(), false,
+            Example(GalleryText.Get("가로 스크롤"), Enumerable.Range(1, 10).Select(i => new UiSegmentOption(i.ToString(), GalleryText.Format("선택 항목 {0}", i))).ToArray(), false,
                 UiSegmentedControlStyle.NeutralOverCanvasPill, scrolling : true));
         private UiWidget Example(string label, UiSegmentOption[] items, bool icons, UiSegmentedControlStyle style, bool scrolling = false)
         {
             var state = new UiState<string?>(items[0].Value);
             var sample = GallerySample.Create(() => Fluent.SegmentedControl(label, state.Binding, items,
-                new(Style : style, UnreadLabel : "읽지 않음", IsFixedWidth : !scrolling)));
+                new(Style : style, UnreadLabel : GalleryText.Get("읽지 않음"), IsFixedWidth : !scrolling)));
             var preview = sample.Preview;
             Previews.Add(preview);
             sample.BindSource(() => (preview.Options, state.Value, preview.ContentVersion), value =>
@@ -64,13 +64,13 @@ internal sealed class SegmentedControlPage : IObserverPage, IObserverNaturalPage
             Samples.Add(sample);
             return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min), Fluent.Subtitle2(label),
                 Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                    Fluent.Button(label + " 너비 전환", () => preview.Options = preview.Options with { Width = preview.Options.Width == 320 ? 480 : 320 }),
-                    Fluent.Button(label + " 균등 너비 전환", () => preview.Options = preview.Options with { EqualWidth = !preview.Options.EqualWidth }),
-                    Fluent.Button(label + " 방향 전환", () => preview.Options = preview.Options with { RightToLeft = !preview.Options.RightToLeft }),
-                    Fluent.Button(label + " 스타일 전환", () => preview.Options = preview.Options with
+                    Fluent.Button(GalleryText.Format("{0} 너비 전환", label), () => preview.Options = preview.Options with { Width = preview.Options.Width == 320 ? 480 : 320 }),
+                    Fluent.Button(GalleryText.Format("{0} 균등 너비 전환", label), () => preview.Options = preview.Options with { EqualWidth = !preview.Options.EqualWidth }),
+                    Fluent.Button(GalleryText.Format("{0} 방향 전환", label), () => preview.Options = preview.Options with { RightToLeft = !preview.Options.RightToLeft }),
+                    Fluent.Button(GalleryText.Format("{0} 스타일 전환", label), () => preview.Options = preview.Options with
                     { Style = (UiSegmentedControlStyle)(((int)preview.Options.Style + 1) % 4) }),
-                    Fluent.Button(label + " 모션 줄이기 전환", () => preview.Options = preview.Options with { ReducedMotion = !preview.Options.ReducedMotion })),
-                Fluent.Body1(() => "선택 : " + state.Value), sample);
+                    Fluent.Button(GalleryText.Format("{0} 모션 줄이기 전환", label), () => preview.Options = preview.Options with { ReducedMotion = !preview.Options.ReducedMotion })),
+                Fluent.Body1(() => GalleryText.Get("선택 : ") + state.Value), sample);
         }
     }
 }

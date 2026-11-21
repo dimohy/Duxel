@@ -339,3 +339,57 @@ Tab 이동	Tab navigation	Tab キーで移動	使用 Tab 键导航
 크기	Size	サイズ	大小
 디자인 검토 파일	Design review files	デザインレビューのファイル	设计评审文件
 파일 {0:N0}개 · 선택 {1:N0}개	{0:N0} files · {1:N0} selected	ファイル {0:N0} 件 · 選択 {1:N0} 件	{0:N0} 个文件 · 已选 {1:N0} 个
+제목과 화면 동작	Title and screen actions	タイトルと画面の操作	标题和页面操作
+너비 전환	Change width	幅を切り替える	切换宽度
+브랜드 배경과 기간 선택	Brand background and period selection	ブランド背景と期間の選択	品牌背景和时段选择
+배치 방향 전환	Reverse layout direction	配置の方向を切り替える	切换布局方向
+문서 작업	Document actions	ドキュメントの操作	文档操作
+회의록	Meeting notes	議事録	会议纪要
+돌아가기	Go back	戻る	返回
+문서 목록	Document list	ドキュメント一覧	文档列表
+저장 {0}회	Saved {0} times	保存回数：{0}	已保存 {0} 次
+기간	Period	期間	时段
+일간	Daily	日別	按日
+주간	Weekly	週別	按周
+월간	Monthly	月別	按月
+기간 탐색	Browse periods	期間の切り替え	浏览时段
+일정	Schedule	予定	日程
+오늘	Today	今日	今天
+기본 선택·키보드·RTL·아이콘·읽지 않음 표시와 네 가지 스타일을 확인하세요. 가로 스크롤에서는 캐시한 콘텐츠를 재사용하며 숨은 쪽만 옅어집니다.	Try selection, keyboard navigation, right-to-left layout, icons, unread markers, and four styles. Horizontal scrolling reuses cached content and fades only edges with hidden items.	選択、キーボード操作、右から左への配置、アイコン、未読マーク、4 種類のスタイルを試せます。横スクロールではキャッシュを再利用し、項目が隠れている側だけをフェード表示します。	试用选择、键盘导航、从右到左的布局、图标、未读标记和四种样式。横向滚动时复用缓存，只在有隐藏项的一侧显示渐隐效果。
+중립 탐색 모음	Neutral navigation bar	ニュートラルなナビゲーションバー	中性导航栏
+일	Day	日	日
+주	Week	週	周
+월	Month	月	月
+중립 본문	Neutral canvas	ニュートラルなキャンバス	中性画布
+전체	All	すべて	全部
+나에게 할당된 항목	Assigned to me	自分に割り当てられた項目	分配给我的项目
+저장한 항목	Saved items	保存した項目	已保存的项目
+브랜드 탐색 모음	Brand navigation bar	ブランド色のナビゲーションバー	品牌导航栏
+달력	Calendar	カレンダー	日历
+메일	Mail	メール	邮件
+브랜드 본문	Brand canvas	ブランド色のキャンバス	品牌画布
+진행 중	In progress	進行中	进行中
+완료	Done	完了	已完成
+가로 스크롤	Horizontal scroll	横スクロール	横向滚动
+선택 항목 {0}	Option {0}	項目 {0}	选项 {0}
+읽지 않음	Unread	未読	未读
+{0} 너비 전환	Change width for {0}	{0}の幅を切り替える	切换{0}的宽度
+{0} 균등 너비 전환	Toggle equal widths for {0}	{0}の幅を均等にする設定を切り替える	切换{0}的等宽布局
+{0} 방향 전환	Reverse direction for {0}	{0}の向きを切り替える	切换{0}的方向
+{0} 스타일 전환	Change style for {0}	{0}のスタイルを切り替える	切换{0}的样式
+{0} 모션 줄이기 전환	Toggle reduced motion for {0}	{0}の動きを減らす設定を切り替える	切换{0}的减少动效设置
+기본 선택	Basic selection	基本の選択	基本选择
+지역	Region	地域	地区
+크기와 모양	Size and appearance	サイズと外観	大小和外观
+표시 방식	Appearance	外観	外观
+입력 검증과 방향	Validation and direction	検証と表示方向	验证和显示方向
+검증할 지역	Region to validate	検証する地域	要验证的地区
+대한민국	South Korea	韓国	韩国
+독일	Germany	ドイツ	德国
+{0} 크기 전환	Change size for {0}	{0}のサイズを切り替える	切换{0}的大小
+{0} 모양 전환	Change appearance for {0}	{0}の外観を切り替える	切换{0}的外观
+{0} 검증 전환	Toggle validation for {0}	{0}の入力エラー表示を切り替える	切换{0}的验证状态
+선택한 값 : {0}	Selected value: {0}	選択した値：{0}	所选值：{0}
+없음	None	なし	无
+오류 표시는 선택을 막지 않습니다. 필요하면 Field로 설명과 검증 문구를 연결하세요.	The error indicator leaves the options selectable. Use Field to associate help or validation text.	エラー表示中も項目を選択できます。補足や検証メッセージを関連付けるには Field を使います。	显示错误时仍可选择选项。可使用 Field 关联说明文字或验证消息。
+아이콘·설명·다중 선택은 Dropdown, 검색과 직접 입력은 Combobox 예제에서 확인하세요.	See Dropdown for icons, descriptions, and multiple selection, or Combobox for search and free-form input.	アイコン・説明・複数選択は Dropdown、検索や自由入力は Combobox の例で試せます。	图标、说明和多选见 Dropdown 示例，搜索和自由输入见 Combobox 示例。
