@@ -23,21 +23,21 @@ internal sealed class ListPage : IObserverPage, IObserverNaturalPage, IGallerySo
     {
         var selected = new UiState<string?>("seoul");
         var members = new UiState<string[]>(["seil"]);
-        var note = new UiState<string>("회의 준비");
+        var note = new UiState<string>(GalleryText.Get("Prepare for the meeting"));
         var keep = new UiState<bool>(false);
         var commands = new UiState<int>(0);
-        var plain = GallerySample.Create(() => Fluent.List("일반 안내",
+        var plain = GallerySample.Create(() => Fluent.List(GalleryText.Get("General information"),
         [
-            new("first", "첫 번째 안내", Fluent.Body1("내용을 자유롭게 배치하는 일반 목록입니다.")),
-            new("second", "두 번째 안내", Fluent.Button("목록 안 독립 버튼", () => commands.Value++))
+            new("first", GalleryText.Get("First notice"), Fluent.Body1(GalleryText.Get("A plain list can contain any layout."))),
+            new("second", GalleryText.Get("Second notice"), Fluent.Button(GalleryText.Get("Independent list button"), () => commands.Value++))
         ], new(Width : 520, Spacing : 8)));
         var plainFactory = plain.Source;
         plain.BindSource(() => commands.Value, value => $"var commands = new UiState<int>({value});\n\n" + plainFactory);
-        var single = GallerySample.Create(() => Fluent.List("방문 도시", selected.Binding,
+        var single = GallerySample.Create(() => Fluent.List(GalleryText.Get("Cities to visit"), selected.Binding,
         [
-            new("seoul", "서울", Fluent.Body1("서울"), selectionLabel : "서울 선택"),
-            new("busan", "부산", Fluent.Body1("부산"), selectionLabel : "부산 선택"),
-            new("jeju", "제주", Fluent.Body1("제주"), selectionLabel : "제주 선택")
+            new("seoul", GalleryText.Get("Seoul"), Fluent.Body1(GalleryText.Get("Seoul")), selectionLabel : GalleryText.Get("Select Seoul")),
+            new("busan", GalleryText.Get("Busan"), Fluent.Body1(GalleryText.Get("Busan")), selectionLabel : GalleryText.Get("Select Busan")),
+            new("jeju", GalleryText.Get("Jeju"), Fluent.Body1(GalleryText.Get("Jeju")), selectionLabel : GalleryText.Get("Select Jeju"))
         ], new(Width : 520)));
         var singleFactory = single.Source;
         single.BindSource(() => selected.Value, value => $"var selected = new UiState<string?>({GallerySample.String(value)});\n\n" + singleFactory);
@@ -48,15 +48,15 @@ internal sealed class ListPage : IObserverPage, IObserverNaturalPage, IGallerySo
                 commands.Value++;
                 action.PreventSelection = keep.Value;
             }
-            return Fluent.List("함께 작업하는 팀", members.Binding,
+            return Fluent.List(GalleryText.Get("Team members"), members.Binding,
             [
-                new("seil", "디모이", Dux.Row(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Center),
-                    Fluent.Body1("디모이"), Fluent.Input("디모이 메모", note.Binding, 100, 180),
-                    Fluent.Button("디모이에게 실행", () => commands.Value++)), Act, selectionLabel : "디모이 선택"),
-                new("minsu", "김민수", Dux.Row(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Center),
-                    Fluent.Body1("김민수"), Fluent.Button("김민수에게 실행", () => commands.Value++)), Act, selectionLabel : "김민수 선택"),
-                new("guest", "선택할 수 없는 손님", Fluent.Body1("손님 : 행 실행만 가능"), Act,
-                    disabledSelection : true, selectionLabel : "손님 선택")
+                new("seil", GalleryText.Get("Dimohy"), Dux.Row(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Center),
+                    Fluent.Body1(GalleryText.Get("Dimohy")), Fluent.Input(GalleryText.Get("Note for Dimohy"), note.Binding, 100, 180),
+                    Fluent.Button(GalleryText.Get("Run action for Dimohy"), () => commands.Value++)), Act, selectionLabel : GalleryText.Get("Select Dimohy")),
+                new("minsu", GalleryText.Get("Minsoo Kim"), Dux.Row(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Center),
+                    Fluent.Body1(GalleryText.Get("Minsoo Kim")), Fluent.Button(GalleryText.Get("Run action for Minsoo Kim"), () => commands.Value++)), Act, selectionLabel : GalleryText.Get("Select Minsoo Kim")),
+                new("guest", GalleryText.Get("Guest with selection disabled"), Fluent.Body1(GalleryText.Get("Guest: row action only")), Act,
+                    disabledSelection : true, selectionLabel : GalleryText.Get("Select guest"))
             ], new(Navigation : UiListNavigation.Composite, Width : 520, Spacing : 4));
         });
         var compositeFactory = composite.Source;
@@ -67,12 +67,24 @@ internal sealed class ListPage : IObserverPage, IObserverNaturalPage, IGallerySo
             + $"var commands = new UiState<int>({state.Commands});\n\n" + compositeFactory);
         _samples.AddRange([plain, single, composite]);
         return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-            plain, Fluent.Subtitle1("단일 선택"), single,
-            Fluent.Body1(() => "방문 도시 : " + (selected.Value ?? "선택 없음")),
-            Fluent.Subtitle1("복합 목록·다중 선택"), composite,
-            Fluent.Checkbox("행 실행 시 선택 유지", keep.Binding),
-            Fluent.Body1(() => $"선택 : {string.Join(", ", members.Value)} / 실행 : {commands.Value} / 메모 : {note.Value}"),
-            Fluent.Caption1("↑·↓로 행을 이동합니다. 복합 목록에서는 →로 행 안의 위젯에 들어가고 ←나 Esc로 행으로 돌아올 수 있습니다."),
-            Fluent.Caption1("Space로 선택하거나 선택을 해제하세요. Enter를 누르거나 행을 클릭하면 행의 동작을 실행한 뒤 선택합니다. 행 안의 체크박스나 버튼을 눌러도 행 자체의 동작은 실행되지 않습니다."));
+            plain, Fluent.Subtitle1(GalleryText.Get("Single selection")), single,
+            Fluent.Body1(() => GalleryText.Format("City to visit: {0}", GalleryText.Get(selected.Value switch
+            {
+                "seoul" => "Seoul", "busan" => "Busan", "jeju" => "Jeju", _ => "None selected"
+            }))),
+            Fluent.Subtitle1(GalleryText.Get("Composite list with multiple selection")), composite,
+            Fluent.Checkbox(GalleryText.Get("Keep selection when activating a row"), keep.Binding),
+            Fluent.Body1(() => GalleryText.Format("Selected: {0} / Actions: {1} / Note: {2}",
+                members.Value.Length == 0 ? GalleryText.Get("None selected") : string.Join(", ", members.Value.Select(MemberName)),
+                commands.Value, note.Value)),
+            Fluent.Caption1(GalleryText.Get("Use Up and Down to move between rows. In the composite list, use Right to enter the row's widgets and Left or Escape to return to the row.")),
+            Fluent.Caption1(GalleryText.Get("Press Space to toggle selection. Press Enter or click the row to run its action and select it. Clicking a checkbox or button within the row does not run the row action.")));
     }
+    private static string MemberName(string id) => GalleryText.Get(id switch
+    {
+        "seil" => "Dimohy",
+        "minsu" => "Minsoo Kim",
+        "guest" => "Guest with selection disabled",
+        _ => throw new ArgumentOutOfRangeException(nameof(id))
+    });
 }

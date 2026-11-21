@@ -548,11 +548,11 @@ internal static class GallerySampleTests
         check(tree.RequestAction(memo.Node.Id, memo.RuntimeId, UiAccessibilityAction.SetValue, "새 메모 \"D\"", wait : false)
             == UiAccessibilityResult.Success, "Accordion body accepts a native memo edit");
         Frame(); Frame();
-        check(accordion.Samples[0].Source.Contains("ImmutableArray.Create<string>(\"입력\")", StringComparison.Ordinal)
+        check(accordion.Samples[0].Source.Contains("ImmutableArray.Create<string>(\"input\")", StringComparison.Ordinal)
             && accordion.Samples[0].Source.Contains("새 메모 \\\"D\\\"", StringComparison.Ordinal),
             "Accordion source follows opened panels and escaped memo input");
         Click("여러 항목 열기 : 꺼짐"); Click("본문 버튼과 키보드 이동"); Click("본문 클릭 : 0");
-        Click("모두 접기 : 허용"); Click("화살표 : 앞"); Click("헤더 크기 : Medium");
+        Click("모두 접기 : 허용"); Click("화살표 : 앞"); Click("헤더 크기 : 보통");
         var code = accordion.Samples[0].Source;
         check(code.Contains("Fluent.Accordion(", StringComparison.Ordinal)
             && code.Contains("Multiple : true", StringComparison.Ordinal)
@@ -562,7 +562,7 @@ internal static class GallerySampleTests
             "Accordion current options appear in its captured factory source");
         check(code.Contains("var clicks = 1;", StringComparison.Ordinal),
             "Accordion nested button count appears in its source initializer");
-        check(code.Contains("ImmutableArray.Create<string>(\"버튼\", \"입력\")", StringComparison.Ordinal),
+        check(code.Contains("ImmutableArray.Create<string>(\"button\", \"input\")", StringComparison.Ordinal),
             "Accordion source preserves the control's ordinal ordering of open panels");
         var parses = accordion.Samples[0].Metrics.SyntaxParses;
         Frame(); Frame();

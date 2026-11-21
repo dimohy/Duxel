@@ -887,3 +887,51 @@ Use Escape, Tab, and Shift+Tab, and try saving to see input validation. Closing 
 Motion curve preview	모션 곡선 미리 보기	モーションカーブのプレビュー	动画曲线预览
 Press a button to start a 250 ms transition. Reversing continues from the current position. When the transition ends, it stops requesting frames.	버튼을 누르면 250ms 동안 전환합니다. 도중에 방향을 바꾸면 현재 위치에서 이어지며, 전환이 끝나면 더 이상 프레임을 요청하지 않습니다.	ボタンを押すと 250 ms の遷移が始まります。途中で反転すると現在位置から続きます。遷移が終わるとフレームの要求も止まります。	按下按钮后开始 250 毫秒的过渡。中途反向时会从当前位置继续。过渡结束后将停止请求帧。
 Several widgets share these animation curves. The dialog changes size and opacity as it opens and animates a snapshot as it closes. Reopening midway continues from its current state.	여러 위젯이 함께 사용하는 애니메이션 곡선의 예제입니다. 대화 상자는 크기와 투명도가 바뀌며 나타나고, 닫힐 때는 저장해 둔 화면으로 애니메이션을 이어갑니다. 사라지는 도중에 다시 열어도 현재 상태에서 자연스럽게 이어집니다.	複数のウィジェットがこのアニメーションカーブを共用します。ダイアログは大きさと不透明度を変えながら表示し、閉じるときはスナップショットをアニメーションさせます。途中で開き直すと現在の状態から続きます。	多个小组件共用这些动画曲线。对话框打开时改变大小和不透明度，关闭时使用画面快照播放动画。中途重新打开时会从当前状态继续。
+General information	일반 안내	一般案内	常规信息
+First notice	첫 번째 안내	最初の案内	第一条说明
+A plain list can contain any layout.	내용을 자유롭게 배치하는 일반 목록입니다.	通常のリストには自由にコンテンツを配置できます。	普通列表可自由布局内容。
+Second notice	두 번째 안내	2 番目の案内	第二条说明
+Independent list button	목록 안 독립 버튼	リスト内の独立したボタン	列表中的独立按钮
+Cities to visit	방문 도시	訪問先の都市	到访城市
+Select Seoul	서울 선택	ソウルを選択	选择首尔
+Select Busan	부산 선택	釜山を選択	选择釜山
+Select Jeju	제주 선택	済州を選択	选择济州
+Team members	함께 작업하는 팀	チームメンバー	团队成员
+Dimohy	디모이	ディモイ	Dimohy
+Note for Dimohy	디모이 메모	ディモイへのメモ	给 Dimohy 的备注
+Run action for Dimohy	디모이에게 실행	ディモイの操作を実行	为 Dimohy 执行操作
+Select Dimohy	디모이 선택	ディモイを選択	选择 Dimohy
+Run action for Minsoo Kim	김민수에게 실행	キム・ミンスの操作を実行	为金民秀执行操作
+Select Minsoo Kim	김민수 선택	キム・ミンスを選択	选择金民秀
+Guest with selection disabled	선택할 수 없는 손님	選択できないゲスト	不可选中的访客
+Guest: row action only	손님 : 행 실행만 가능	ゲスト：行の操作のみ	访客：仅可执行行操作
+Select guest	손님 선택	ゲストを選択	选择访客
+Prepare for the meeting	회의 준비	会議の準備	准备会议
+Single selection	단일 선택	単一選択	单项选择
+Composite list with multiple selection	복합 목록·다중 선택	複合リストの複数選択	支持多选的复合列表
+Keep selection when activating a row	행 실행 시 선택 유지	行の操作を実行しても選択を維持	执行行操作时保留选择
+City to visit: {0}	방문 도시 : {0}	訪問先：{0}	到访城市：{0}
+Selected: {0} / Actions: {1} / Note: {2}	선택 : {0} / 실행 : {1} / 메모 : {2}	選択：{0} / 実行回数：{1} / メモ：{2}	已选：{0} / 执行次数：{1} / 备注：{2}
+Use Up and Down to move between rows. In the composite list, use Right to enter the row's widgets and Left or Escape to return to the row.	↑·↓로 행을 이동합니다. 복합 목록에서는 →로 행 안의 위젯에 들어가고 ←나 Esc로 행으로 돌아올 수 있습니다.	上下矢印キーで行間を移動します。複合リストでは右矢印キーで行内のウィジェットに入り、左矢印キーまたは Escape で行に戻ります。	使用上下方向键在行之间移动。在复合列表中，按向右键进入行内控件，按向左键或 Escape 返回该行。
+Press Space to toggle selection. Press Enter or click the row to run its action and select it. Clicking a checkbox or button within the row does not run the row action.	Space로 선택하거나 선택을 해제하세요. Enter를 누르거나 행을 클릭하면 행의 동작을 실행한 뒤 선택합니다. 행 안의 체크박스나 버튼을 눌러도 행 자체의 동작은 실행되지 않습니다.	Space で選択を切り替えます。Enter を押すか行をクリックすると行の操作を実行して選択します。行内のチェックボックスやボタンをクリックしても、行の操作は実行されません。	按空格键切换选中状态。按 Enter 或单击该行可执行行操作并选中该行。单击行内的复选框或按钮不会执行行操作。
+Accordion example	접기·펼치기 예제	アコーディオンの例	折叠面板示例
+Panels open: {0}	열린 항목 : {0}	開いている項目：{0}	已展开的面板：{0}
+No open panels	열린 항목 : 없음	開いている項目はありません	没有展开的面板
+Body button clicks: {0}	본문 클릭 : {0}	本文ボタンのクリック数：{0}	面板内按钮的点击次数：{0}
+Keep input text	입력 내용 보존	入力内容を保持	保留输入内容
+Body button and keyboard navigation	본문 버튼과 키보드 이동	本文ボタンとキーボード操作	面板内按钮与键盘导航
+Disabled header	비활성 헤더	無効な見出し	已禁用的标题
+The text stays when you collapse and reopen the panel.	접었다 펼쳐도 이 입력은 유지됩니다.	パネルを折りたたんで開き直しても、この入力は保持されます。	折叠并重新展开面板后，这段输入仍会保留。
+Check that your input remains after reopening the panel or returning to this page.	본문을 접었다 펴거나 다른 페이지로 이동했다 돌아와도 입력한 값이 유지되는지 확인하세요.	パネルを開き直したり、このページに戻ったりしても入力値が保持されることを確認してください。	重新展开面板或返回此页后，检查输入内容是否保留。
+Accordion example note	접기 예제 메모	アコーディオンの例のメモ	折叠面板示例备注
+Use Tab to move from the header into the panel and on to the next header. Press Enter or Space to open or close a panel.	Tab으로 헤더와 본문, 다음 헤더로 차례로 이동하세요. Enter나 Space로 열고 닫을 수 있습니다.	Tab で見出しから本文へ移動し、次の見出しに進みます。Enter または Space でパネルを開閉できます。	按 Tab 依次移至标题、面板内容和下一个标题。按 Enter 或空格键可展开或折叠面板。
+A disabled header cannot be opened with a pointer, keyboard, or accessibility request.	비활성 헤더는 포인터·키보드·접근성 요청으로 열리지 않습니다.	無効な見出しはポインター、キーボード、アクセシビリティ操作では開けません。	无法通过指针、键盘或辅助功能请求展开已禁用的标题。
+Open multiple panels: {0}	여러 항목 열기 : {0}	複数項目を開く：{0}	展开多个面板：{0}
+Collapse all panels: {0}	모두 접기 : {0}	すべて折りたたむ：{0}	折叠所有面板：{0}
+Allowed	허용	許可	允许
+Disallowed	금지	禁止	禁止
+Chevron: {0}	화살표 : {0}	山形アイコン：{0}	箭头位置：{0}
+Leading edge	앞	先頭	起始侧
+Trailing edge	뒤	末尾	末尾侧
+Header size: {0}	헤더 크기 : {0}	見出しのサイズ：{0}	标题大小：{0}
+Panels start collapsed. Select a header to open its content and enter some text. You can also inspect the accessibility relationship between the header and panel.	처음에는 닫혀 있습니다. 헤더를 눌러 본문을 열고 입력해 보세요. 헤더와 본문을 연결한 접근성 정보도 확인할 수 있습니다.	パネルは最初、折りたたまれています。見出しを選んで本文を開き、入力してみてください。見出しと本文のアクセシビリティ上の関連も確認できます。	面板默认折叠。选择标题展开内容并输入一些文字。也可以检查标题与面板之间的辅助功能关联。

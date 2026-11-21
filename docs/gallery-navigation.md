@@ -18,6 +18,8 @@ Virtual list and virtual grid localize the names of rows and cells as they scrol
 
 Avatar, AvatarGroup, and Persona use the selected language for their controls, example labels, and copied C#. The Korean initials action still demonstrates the first Hangul character of a Korean name in every language.
 
+Nav, Toolbar, Tree, Dialog, Accordion, and List translate the controls and their example code. In Nav, selecting an item updates the localized page name and retains the stable item ID in the copied code. Open the Dialog or an Accordion panel and interact with its contents to see the translated validation, state messages, and input labels.
+
 Applications can use the same localization API from `Duxel.Core`. Supply a culture, source string, and translation for each entry. Resolve text or format arguments using the application's selected culture.
 
 ```csharp
