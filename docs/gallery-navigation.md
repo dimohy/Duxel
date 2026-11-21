@@ -2,7 +2,7 @@
 
 HeadsUpDisplay now provides the centered portal and five live-source examples, carrying NEW. Linkage is47/55 with8missing. New single/range Calendar work is a Duxel extension and is not counted as a completed menu before its UI is connected.
 
-Run `./run-gallery.ps1` on Windows, or `./run-gallery-linux.ps1` with the existing explicit Linux font/runtime arguments. Existing observer launchers and internal project/cache paths remain compatible.
+Run `./run-gallery.ps1` on Windows, or `./run-gallery-linux.ps1` with the existing explicit Linux font/runtime arguments. Existing observer launchers and internal project/cache paths remain compatible. The Windows launcher writes build progress and errors to the invoking console.
 
 ## Gallery language
 
