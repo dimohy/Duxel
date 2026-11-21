@@ -5,108 +5,112 @@ namespace Duxel.Gallery;
 internal sealed class MarkdownPage : IObserverPage, IObserverNaturalPage, IGallerySourcePage
 {
     private const string TableExample = """
-        # 네이티브 표 셀
+        # Native table cells
 
-        표 앞 문단의 **אב** abc 123에서도 글자 굵기와 양방향 배치를 확인할 수 있습니다.
+        The paragraph before the table also demonstrates bidirectional layout and the weight of **אב** abc 123.
 
-        | 왼쪽 | 가운데 | 오른쪽 |
+        | Left | Center | Right |
         | :--- | :---: | ---: |
-        | **אב** abc 123 | بِت لا · English | 한글과 `code` |
-        | AV é | 가운데 셀 | 정렬 확인 |
+        | **אב** abc 123 | بِت لا · English | Text and `code` |
+        | AV é | Center cell | Check alignment |
 
-        표 뒤 문단의 **גד** tail에도 같은 조판 방식을 적용합니다.
+        The paragraph after the table uses the same typesetting for **גד** tail.
 
-        각 셀은 내용에 필요한 너비를 유지합니다. 스마트 편집에서 표를 누르면 마크다운 원문이 나타납니다.
+        Each cell keeps the width it needs. Select the table in Smart edit to reveal its Markdown source.
         """;
     private const string StructuralExample = """
-        # 인용문과 작업 항목
+        # Quotes and tasks
 
-        > abc **אב גד** 123 · 한글과 English
+        > abc **אב גד** 123 · text and English
 
-        - [ ] 완료할 작업 · abc אב 123
-        - [x] 완료한 작업 · **굵은 글자**와 `code`
+        - [ ] Pending task · abc אב 123
+        - [x] Completed task · **bold** and `code`
 
         ---
 
-        스마트 편집에서 작업 항목을 누르면 마크다운 원문이 나타납니다.
+        Select a task in Smart edit to reveal its Markdown source.
         """;
     private const string ParagraphExample = """
-        # 공통 문단 조판
+        # Paragraph typesetting
 
-        한글과 **굵은 글자**, *강조*, `inline code`와 ~~취소선~~을 확인하세요.
+        Try **bold**, *emphasis*, `inline code`, and ~~strikethrough~~.
 
         abc **אב גד** 123 · بِت لا · English
 
-        엔티티 원문 &amp; &eacute; &fjlig; → 표시 문자와 커서 경계를 확인하세요.
+        Entity source &amp; &eacute; &fjlig; → inspect the displayed characters and caret positions.
 
-        [Duxel 문서](https://github.com/dimohy/Duxel)를 열거나 스마트 편집으로 전환해 커서·Shift 선택을 확인하세요.
+        Open the [Duxel documentation](https://github.com/dimohy/Duxel), or switch to Smart edit to try the caret and Shift selection.
         """;
-    private static readonly string NestedLinkExample = "[처음 링크](https://github.com/dimohy/Duxel)\n\n"
-        + string.Concat(Enumerable.Repeat("Tab으로 마지막 링크까지 이동한 뒤 Shift+Tab으로 돌아와 보세요.\n\n", 30))
-        + "[마지막 링크](https://github.com/dimohy/Duxel#readme)";
+    private static string NestedLinkExample() =>
+        GalleryText.Get("[First link](https://github.com/dimohy/Duxel)") + "\n\n"
+        + string.Concat(Enumerable.Repeat(GalleryText.Get("Press Tab to reach the last link, then Shift+Tab to return.") + "\n\n", 30))
+        + GalleryText.Get("[Last link](https://github.com/dimohy/Duxel#readme)");
     private readonly UiScrollView _nestedPreview;
     private readonly UiScrollView _nestedInner;
     private const string ImageExample = """
-        # 이미지와 SVG
+        # Images and SVG
 
-        아래 이미지는 같은 SVG 자원을 재사용합니다.
+        The image below reuses the same SVG resource.
 
-        ![원·삼각형·사각형 SVG](markdown-image.svg)
+        ![SVG showing a circle, triangle, and square](markdown-image.svg)
 
-        메모리에 있는 이미지도 같은 방식으로 표시합니다.
+        Images in memory are displayed the same way.
 
-        ![색상 팔레트](memory:palette)
+        ![Color palette](memory:palette)
 
-        ![사용할 수 없는 이미지](missing.svg)
+        ![Unavailable image](missing.svg)
 
-        스마트 편집으로 전환해 이미지를 누르면 원문을 편집할 수 있습니다.
+        Switch to Smart edit and select an image to edit its source.
         """;
     private readonly MarkdownImageResources _images;
     private readonly GallerySample<MarkdownSurface> _sample;
     public IReadOnlyList<IGallerySample> Samples { get; }
     private const string Initial = """
-        # 한글 Markdown
+        # Markdown editing
 
-        본문의 **굵은 글자**와 *강조*, `inline code`를 편집해 보세요.
+        Try editing the **bold**, *emphasis*, and `inline code` in this paragraph.
 
-        ## 편집 위치만 원문 표시
+        ## Show the source of the active block
 
-        제목이나 문단을 누르면 해당 블록의 마크다운 기호가 나타납니다.
-        나머지 블록에는 마크다운을 적용한 모습이 표시됩니다.
+        Select a heading or paragraph to show the Markdown markers for that block.
+        Other blocks continue to show the formatted result.
 
-        - 첫 번째 항목
-        - 한글 입력과 Ctrl+Z 되돌리기
+        - First item
+        - Type some text and press Ctrl+Z to undo.
 
-        > 인용문과 [Duxel](https://github.com/dimohy/Duxel) 링크
+        > A quote with a [Duxel](https://github.com/dimohy/Duxel) link
 
         ```csharp
-        var greeting = "안녕하세요";
+        var greeting = "Hello";
         ```
 
-        ## 작업 목록과 구분선
+        ## Task list and separator
 
-        - [ ] 검토할 항목
-        - [x] 완료한 항목
+        - [ ] To review
+        - [x] Reviewed
 
-        ***굵은 기울임***과 ~~취소선~~
+        ***Bold italic*** and ~~strikethrough~~
 
         ---
 
-        자동 링크: <https://github.com/dimohy/Duxel>
+        Automatic link: <https://github.com/dimohy/Duxel>
 
-        ## 표
+        ## Table
 
-        | 항목 | 수량 | 상태 |
+        | Item | Quantity | Status |
         | :--- | ---: | :---: |
-        | 한글 \| English | 12 | 진행 중 |
-        | 완료한 항목 | 2 | 완료 |
-        | 보류 | 0 | |
+        | Text \| English | 12 | In progress |
+        | Completed items | 2 | Done |
+        | On hold | 0 | |
 
-        표를 누르면 마크다운 원문을 편집할 수 있습니다. 넓은 표는 가로로 스크롤해 확인하세요.
+        Select the table to edit the Markdown source. Scroll horizontally to inspect wide tables.
 
         """;
-    private readonly UiState<string> _text = new(Initial);
-    private readonly UiState<string?> _mode = new("스마트 편집");
+    private const string EditMode = "edit";
+    private const string PreviewMode = "preview";
+    private const string NestedMode = "nested";
+    private readonly UiState<string> _text;
+    private readonly UiState<string?> _mode = new(EditMode);
     private readonly UiFluentTabList _tabs;
     private readonly UiWidget _toolbar;
     private readonly UiWidget _content;
@@ -123,9 +127,11 @@ internal sealed class MarkdownPage : IObserverPage, IObserverNaturalPage, IGalle
     public string Description => "Preview or edit the same document. Markdown markers such as # and ** appear in the block being edited.";
     internal MarkdownPage()
     {
+        var initial = LocalizeDocument(Initial);
+        _text = new(initial);
         var imagesDefinition = GallerySample.Define("images", () => new MarkdownImageResources());
         _images = imagesDefinition.Value;
-        var viewDefinition = GallerySample.Define("viewer", () => Dux.MarkdownView("마크다운 미리보기", _text.Binding, new(Height : 580)));
+        var viewDefinition = GallerySample.Define("viewer", () => Dux.MarkdownView(GalleryText.Get("Markdown preview"), _text.Binding, new(Height : 580)));
         var viewer = viewDefinition.Value;
         View = viewer;
         var innerDefinition = GallerySample.Define("inner", () => Dux.ScrollView(viewer, new(Width : 480, Height : 280)));
@@ -133,7 +139,7 @@ internal sealed class MarkdownPage : IObserverPage, IObserverNaturalPage, IGalle
         _nestedInner = inner;
         var nestedDefinition = GallerySample.Define("nested", () => Dux.ScrollView(inner, new(Width : 520, Height : 160)));
         _nestedPreview = nestedDefinition.Value;
-        var editorDefinition = GallerySample.Define("editor", () => Dux.MarkdownEditor("마크다운 스마트 편집", _text.Binding, new(Height : 580)));
+        var editorDefinition = GallerySample.Define("editor", () => Dux.MarkdownEditor(GalleryText.Get("Markdown smart edit"), _text.Binding, new(Height : 580)));
         Editor = editorDefinition.Value;
         View.ResolveImage = Editor.ResolveImage = _images.Resolve;
         View.Options = View.Options with { BaseUri = _images.BaseUri };
@@ -141,7 +147,7 @@ internal sealed class MarkdownPage : IObserverPage, IObserverNaturalPage, IGalle
         _sample = GallerySample.Create(() => new MarkdownSurface(this));
         _sample.BindSource(() => (Text : _text.Value, Mode : _mode.Value, Options : SelectedWidget.Options), state =>
         {
-            var editing = state.Mode == "스마트 편집";
+            var editing = state.Mode == EditMode;
             var name = editing ? "editor" : "viewer";
             var definition = editing ? editorDefinition.Source : viewDefinition.Source;
             var options = state.Options;
@@ -151,29 +157,29 @@ internal sealed class MarkdownPage : IObserverPage, IObserverNaturalPage, IGalle
                 + $"{name}.Options = new UiMarkdownOptions(Width : {GallerySample.Number(options.Width)}, Height : {GallerySample.Number(options.Height)},\n"
                 + $"    MaxLength : {options.MaxLength}, Wrap : {GallerySample.Boolean(options.Wrap)}, ShowBorder : {GallerySample.Boolean(options.ShowBorder)},\n"
                 + $"    ReadOnly : {GallerySample.Boolean(options.ReadOnly)}, BaseUri : images.BaseUri);\n\n";
-            source += state.Mode == "중첩 미리보기"
+            source += state.Mode == NestedMode
                 ? innerDefinition.Source + "\n" + nestedDefinition.Source + "\nUiWidget example = nested;"
                 : $"UiWidget example = {name};";
             return source + "\n\n" + GalleryPageSource.Declaration(nameof(MarkdownImageResources));
         });
         Samples = [_sample];
-        _tabs = Fluent.TabList("마크다운 표시 방식", _mode.Binding,
-            new UiTabOption[] { new("스마트 편집", "스마트 편집"), new("미리보기", "미리보기"), new("중첩 미리보기", "중첩 미리보기") }, new(Size: UiTabListSize.Small));
+        _tabs = Fluent.TabList(GalleryText.Get("Markdown display mode"), _mode.Binding,
+            new UiTabOption[] { new(EditMode, GalleryText.Get("Smart edit")), new(PreviewMode, GalleryText.Get("Preview")), new(NestedMode, GalleryText.Get("Nested preview")) }, new(Size: UiTabListSize.Small));
         _toolbar = Dux.Column(new(Spacing: 8, MainAxisSize: UiMainAxisSize.Min),
             Dux.Wrap(new(Spacing: 8, RunSpacing: 8),
-                Fluent.Button("예제 복원", () => _text.Value = Initial),
-                Fluent.Button("문단 조판 예제", () => ShowExample(ParagraphExample)),
-                Fluent.Button("이미지 예제", () => ShowExample(ImageExample)),
-                Fluent.Button("구조적 문단 예제", () => ShowExample(StructuralExample)),
-                Fluent.Button("표 셀 예제", () => ShowExample(TableExample)),
-                Fluent.Button("중첩 링크 예제", () =>
+                Fluent.Button(GalleryText.Get("Restore example"), () => _text.Value = initial),
+                Fluent.Button(GalleryText.Get("Paragraph typesetting example"), () => ShowExample(ParagraphExample)),
+                Fluent.Button(GalleryText.Get("Image example"), () => ShowExample(ImageExample)),
+                Fluent.Button(GalleryText.Get("Structured paragraph example"), () => ShowExample(StructuralExample)),
+                Fluent.Button(GalleryText.Get("Table cell example"), () => ShowExample(TableExample)),
+                Fluent.Button(GalleryText.Get("Nested link example"), () =>
                 {
-                    _text.Value = NestedLinkExample;
+                    _text.Value = NestedLinkExample();
                     _nestedInner.Offset = default;
                     _nestedPreview.Offset = default;
-                    _mode.Value = "중첩 미리보기";
+                    _mode.Value = NestedMode;
                 }),
-                Fluent.Button("줄바꿈 전환", () =>
+                Fluent.Button(GalleryText.Get("Toggle line wrapping"), () =>
                 {
                     Editor.Options = Editor.Options with
                     {
@@ -184,22 +190,32 @@ internal sealed class MarkdownPage : IObserverPage, IObserverNaturalPage, IGalle
                         Wrap = Editor.Options.Wrap
                     };
                 })),
-            Fluent.Caption1("제목이나 문단을 눌러 편집하세요. Tab으로 편집기를 벗어나면 모든 블록의 마크다운 기호가 숨겨집니다. 미리보기의 링크는 클릭하거나 Tab·Shift+Tab으로 선택한 뒤 Enter로 이동합니다."));
+            Fluent.Caption1(GalleryText.Get("Select a heading or paragraph to edit it. Tab leaves the editor and hides the source markers. In Preview, click a link or move to it with Tab or Shift+Tab and press Enter.")));
         _content = Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min), _toolbar, _tabs, _sample);
     }
+    private static string LocalizeDocument(string english) =>
+        string.Join("\n", english.ReplaceLineEndings("\n").Split('\n').Select(LocalizeDocumentLine));
+
+    private static string LocalizeDocumentLine(string line)
+    {
+        var markerLength = line.StartsWith("## ", StringComparison.Ordinal) ? 3
+            : line.StartsWith("# ", StringComparison.Ordinal) ? 2 : 0;
+        return line[..markerLength] + GalleryText.Get(line[markerLength..]);
+    }
+
     private void ShowExample(string source)
     {
-        _text.Value = source;
-        _mode.Value = "미리보기";
+        _text.Value = LocalizeDocument(source);
+        _mode.Value = PreviewMode;
     }
-    private bool ExampleReady(string source) => _mode.Value == "미리보기" && View.Document.Source == source;
+    private bool ExampleReady(string source) => _mode.Value == PreviewMode && View.Document.Source == LocalizeDocument(source);
     internal bool ParagraphExampleReady => ExampleReady(ParagraphExample);
     internal bool ImageExampleReady => ExampleReady(ImageExample);
     internal bool StructuralExampleReady => ExampleReady(StructuralExample);
     internal bool TableExampleReady => ExampleReady(TableExample);
-    private UiMarkdownWidget SelectedWidget => _mode.Value == "스마트 편집" ? Editor : View;
-    private UiWidget SelectedContent => _mode.Value == "중첩 미리보기" ? _nestedPreview
-        : _mode.Value == "미리보기" ? View : Editor;
+    private UiMarkdownWidget SelectedWidget => _mode.Value == EditMode ? Editor : View;
+    private UiWidget SelectedContent => _mode.Value == NestedMode ? _nestedPreview
+        : _mode.Value == PreviewMode ? View : Editor;
     private sealed class MarkdownSurface(MarkdownPage page) : UiControlWidget
     {
         protected override UiVector2 MeasureContent(UiControlContext context) => context.MeasureConstrained(page.SelectedContent, context.LayoutConstraints);

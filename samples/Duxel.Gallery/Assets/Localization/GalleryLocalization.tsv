@@ -1090,3 +1090,117 @@ Change the parent's minimum width	부모 최소 폭 변경	親の最小幅を変
 Change the minimum-size card's orientation	최소 크기 카드 방향	最小サイズカードの向きを変更	切换最小尺寸卡片的方向
 The header fills the remaining width and keeps its minimum size. The image is centered vertically.	헤더는 최소 크기보다 작아지지 않으면서 가로로 남은 공간을 채웁니다. 이미지는 세로 가운데에 놓입니다.	ヘッダーは最小サイズを維持したまま残りの幅を埋めます。画像は上下中央に配置されます。	标题区域在保持最小尺寸的同时填满剩余宽度。图像垂直居中。
 Card examples	카드 예제	カードの例	卡片示例
+Native table cells	네이티브 표 셀	ネイティブの表セル	原生表格单元格
+The paragraph before the table also demonstrates bidirectional layout and the weight of **אב** abc 123.	표 앞 문단의 **אב** abc 123에서도 글자 굵기와 양방향 배치를 확인할 수 있습니다.	表の前の段落でも **אב** abc 123 の太さと双方向の配置を確認できます。	在表格前的段落中也可以查看 **אב** abc 123 的字重及双向布局。
+| Left | Center | Right |	| 왼쪽 | 가운데 | 오른쪽 |	| 左 | 中央 | 右 |	| 左对齐 | 居中 | 右对齐 |
+| **אב** abc 123 | بِت لا · English | Text and `code` |	| **אב** abc 123 | بِت لا · English | 한글과 `code` |	| **אב** abc 123 | بِت لا · English | 日本語と `code` |	| **אב** abc 123 | بِت لا · English | 中文和 `code` |
+| AV é | Center cell | Check alignment |	| AV é | 가운데 셀 | 정렬 확인 |	| AV é | 中央のセル | 配置を確認 |	| AV é | 居中单元格 | 查看对齐 |
+The paragraph after the table uses the same typesetting for **גד** tail.	표 뒤 문단의 **גד** tail에도 같은 조판 방식을 적용합니다.	表の後の段落の **גד** tail にも同じ組版を適用します。	表格后段落中的 **גד** tail 采用相同的排版方式。
+Each cell keeps the width it needs. Select the table in Smart edit to reveal its Markdown source.	각 셀은 내용에 필요한 너비를 유지합니다. 스마트 편집에서 표를 누르면 마크다운 원문이 나타납니다.	各セルは内容に必要な幅を保ちます。スマート編集で表を選ぶと Markdown の原文が表示されます。	每个单元格保留内容所需的宽度。在智能编辑中选择表格可显示 Markdown 源文本。
+Quotes and tasks	인용문과 작업 항목	引用とタスク	引用与任务
+> abc **אב גד** 123 · text and English	> abc **אב גד** 123 · 한글과 English	> abc **אב גד** 123 · 日本語と English	> abc **אב גד** 123 · 中文和 English
+- [ ] Pending task · abc אב 123	- [ ] 완료할 작업 · abc אב 123	- [ ] 未完了のタスク · abc אב 123	- [ ] 待完成任务 · abc אב 123
+- [x] Completed task · **bold** and `code`	- [x] 완료한 작업 · **굵은 글자**와 `code`	- [x] 完了したタスク · **太字**と `code`	- [x] 已完成任务 · **粗体**和 `code`
+Select a task in Smart edit to reveal its Markdown source.	스마트 편집에서 작업 항목을 누르면 마크다운 원문이 나타납니다.	スマート編集でタスクを選ぶと Markdown の原文が表示されます。	在智能编辑中选择任务可显示 Markdown 源文本。
+Paragraph typesetting	공통 문단 조판	段落の組版	段落排版
+Try **bold**, *emphasis*, `inline code`, and ~~strikethrough~~.	한글과 **굵은 글자**, *강조*, `inline code`와 ~~취소선~~을 확인하세요.	日本語の **太字**、*強調*、`インラインコード`、~~取り消し線~~を確認してください。	试用中文**粗体**、*强调*、`行内代码`和~~删除线~~。
+Entity source &amp; &eacute; &fjlig; → inspect the displayed characters and caret positions.	엔티티 원문 &amp; &eacute; &fjlig; → 표시 문자와 커서 경계를 확인하세요.	文字参照 &amp; &eacute; &fjlig; → 表示される文字とカーソル位置を確認してください。	字符实体 &amp; &eacute; &fjlig; → 查看显示字符和光标位置。
+Open the [Duxel documentation](https://github.com/dimohy/Duxel), or switch to Smart edit to try the caret and Shift selection.	[Duxel 문서](https://github.com/dimohy/Duxel)를 열거나 스마트 편집으로 전환해 커서·Shift 선택을 확인하세요.	[Duxel のドキュメント](https://github.com/dimohy/Duxel)を開くか、スマート編集でカーソルと Shift 選択を試してください。	打开 [Duxel 文档](https://github.com/dimohy/Duxel)，或切换到智能编辑以体验光标与 Shift 选择。
+[First link](https://github.com/dimohy/Duxel)	[처음 링크](https://github.com/dimohy/Duxel)	[最初のリンク](https://github.com/dimohy/Duxel)	[第一个链接](https://github.com/dimohy/Duxel)
+Press Tab to reach the last link, then Shift+Tab to return.	Tab으로 마지막 링크까지 이동한 뒤 Shift+Tab으로 돌아와 보세요.	Tab で最後のリンクに移動し、Shift+Tab で戻ってみてください。	按 Tab 移到最后一个链接，再按 Shift+Tab 返回。
+[Last link](https://github.com/dimohy/Duxel#readme)	[마지막 링크](https://github.com/dimohy/Duxel#readme)	[最後のリンク](https://github.com/dimohy/Duxel#readme)	[最后一个链接](https://github.com/dimohy/Duxel#readme)
+Images and SVG	이미지와 SVG	画像と SVG	图像与 SVG
+The image below reuses the same SVG resource.	아래 이미지는 같은 SVG 자원을 재사용합니다.	下の画像は同じ SVG リソースを再利用します。	下方图像复用同一 SVG 资源。
+![SVG showing a circle, triangle, and square](markdown-image.svg)	![원·삼각형·사각형 SVG](markdown-image.svg)	![円、三角、四角の SVG](markdown-image.svg)	![包含圆形、三角形和正方形的 SVG](markdown-image.svg)
+Images in memory are displayed the same way.	메모리에 있는 이미지도 같은 방식으로 표시합니다.	メモリ上の画像も同じ方法で表示します。	内存中的图像也以相同方式显示。
+![Color palette](memory:palette)	![색상 팔레트](memory:palette)	![カラーパレット](memory:palette)	![调色板](memory:palette)
+![Unavailable image](missing.svg)	![사용할 수 없는 이미지](missing.svg)	![利用できない画像](missing.svg)	![不可用的图像](missing.svg)
+Switch to Smart edit and select an image to edit its source.	스마트 편집으로 전환해 이미지를 누르면 원문을 편집할 수 있습니다.	スマート編集に切り替え、画像を選ぶと原文を編集できます。	切换到智能编辑后，选择图像即可编辑其源文本。
+Markdown editing	한글 Markdown	Markdown 編集	Markdown 编辑
+Try editing the **bold**, *emphasis*, and `inline code` in this paragraph.	본문의 **굵은 글자**와 *강조*, `inline code`를 편집해 보세요.	この段落の **太字**、*強調*、`インラインコード`を編集してください。	试着编辑此段落中的**粗体**、*强调*和`行内代码`。
+Show the source of the active block	편집 위치만 원문 표시	編集中のブロックの原文を表示	显示当前编辑块的源文本
+Select a heading or paragraph to show the Markdown markers for that block.	제목이나 문단을 누르면 해당 블록의 마크다운 기호가 나타납니다.	見出しや段落を選ぶと、そのブロックの Markdown 記号が表示されます。	选择标题或段落可显示该块的 Markdown 标记。
+Other blocks continue to show the formatted result.	나머지 블록에는 마크다운을 적용한 모습이 표시됩니다.	ほかのブロックには引き続き整形済みの内容が表示されます。	其他块继续显示格式化后的内容。
+- First item	- 첫 번째 항목	- 最初の項目	- 第一项
+- Type some text and press Ctrl+Z to undo.	- 한글 입력과 Ctrl+Z 되돌리기	- 文字を入力し、Ctrl+Z で元に戻す	- 输入文字，再按 Ctrl+Z 撤销。
+> A quote with a [Duxel](https://github.com/dimohy/Duxel) link	> 인용문과 [Duxel](https://github.com/dimohy/Duxel) 링크	> [Duxel](https://github.com/dimohy/Duxel) へのリンクを含む引用	> 包含 [Duxel](https://github.com/dimohy/Duxel) 链接的引用
+var greeting = "Hello";	var greeting = "안녕하세요";	var greeting = "こんにちは";	var greeting = "你好";
+Task list and separator	작업 목록과 구분선	タスクリストと区切り線	任务列表和分隔线
+- [ ] To review	- [ ] 검토할 항목	- [ ] 確認する項目	- [ ] 待审核
+- [x] Reviewed	- [x] 완료한 항목	- [x] 確認済みの項目	- [x] 已审核
+***Bold italic*** and ~~strikethrough~~	***굵은 기울임***과 ~~취소선~~	***太字の斜体***と ~~取り消し線~~	***粗斜体***和~~删除线~~
+Automatic link: <https://github.com/dimohy/Duxel>	자동 링크: <https://github.com/dimohy/Duxel>	自動リンク：<https://github.com/dimohy/Duxel>	自动链接：<https://github.com/dimohy/Duxel>
+Table	표	表	表格
+| Item | Quantity | Status |	| 항목 | 수량 | 상태 |	| 項目 | 数量 | ステータス |	| 项目 | 数量 | 状态 |
+| Text \| English | 12 | In progress |	| 한글 \| English | 12 | 진행 중 |	| 日本語 \| English | 12 | 進行中 |	| 中文 \| English | 12 | 进行中 |
+| Completed items | 2 | Done |	| 완료한 항목 | 2 | 완료 |	| 完了した項目 | 2 | 完了 |	| 已完成项目 | 2 | 完成 |
+| On hold | 0 | |	| 보류 | 0 | |	| 保留 | 0 | |	| 暂缓 | 0 | |
+Select the table to edit the Markdown source. Scroll horizontally to inspect wide tables.	표를 누르면 마크다운 원문을 편집할 수 있습니다. 넓은 표는 가로로 스크롤해 확인하세요.	表を選ぶと Markdown の原文を編集できます。幅の広い表は横にスクロールして確認してください。	选择表格可编辑 Markdown 源文本。水平滚动可查看宽表格。
+Markdown preview	마크다운 미리보기	Markdown プレビュー	Markdown 预览
+Markdown smart edit	마크다운 스마트 편집	Markdown スマート編集	Markdown 智能编辑
+Markdown display mode	마크다운 표시 방식	Markdown の表示モード	Markdown 显示模式
+Smart edit	스마트 편집	スマート編集	智能编辑
+Preview	미리보기	プレビュー	预览
+Nested preview	중첩 미리보기	入れ子のプレビュー	嵌套预览
+Restore example	예제 복원	例を復元	还原示例
+Paragraph typesetting example	문단 조판 예제	段落組版の例	段落排版示例
+Image example	이미지 예제	画像の例	图像示例
+Structured paragraph example	구조적 문단 예제	構造化された段落の例	结构化段落示例
+Table cell example	표 셀 예제	表セルの例	表格单元格示例
+Nested link example	중첩 링크 예제	入れ子のリンクの例	嵌套链接示例
+Select a heading or paragraph to edit it. Tab leaves the editor and hides the source markers. In Preview, click a link or move to it with Tab or Shift+Tab and press Enter.	제목이나 문단을 눌러 편집하세요. Tab으로 편집기를 벗어나면 모든 블록의 마크다운 기호가 숨겨집니다. 미리보기의 링크는 클릭하거나 Tab·Shift+Tab으로 선택한 뒤 Enter로 이동합니다.	見出しや段落を選んで編集します。Tab でエディターから出ると原文の記号が隠れます。プレビューではリンクをクリックするか、Tab または Shift+Tab で移動し Enter を押します。	选择标题或段落进行编辑。按 Tab 离开编辑器后会隐藏源标记。在预览中，单击链接，或按 Tab 或 Shift+Tab 移到链接后按 Enter。
+Sample input	한글 입력	入力例	输入示例
+Run button	변환 버튼 실행	ボタンを実行	执行按钮
+Checkbox with margin	여백 체크박스	余白付きチェックボックス	带外边距的复选框
+Slider with margin	여백 예제 값	余白付きスライダー	带外边距的滑块
+Transformed input	변환 입력	変換された入力欄	变换后的输入框
+Transformed popover	변환 팝업	変換されたポップオーバー	变换后的弹出层
+The popover opens in screen coordinates.	팝업은 화면 좌표로 열립니다.	ポップオーバーは画面座標で開きます。	弹出层按屏幕坐标打开。
+Run from the popover	팝업 안에서 실행	ポップオーバーから実行	从弹出层执行
+Transformed menu	변환 메뉴	変換されたメニュー	变换后的菜单
+Run from the menu	메뉴에서 실행	メニューから実行	从菜单执行
+Transformed tooltip	변환 도구 설명	変換されたツールチップ	变换后的工具提示
+The tooltip appears next to the rotated target, aligned with the screen.	회전한 대상 옆에 화면 기준으로 표시합니다.	ツールチップは回転した対象の横に画面基準で表示されます。	工具提示显示在旋转后的目标旁，并与屏幕对齐。
+Set a margin on each side of the widget. Clicking the margin does not activate the button.	위젯의 상하좌우에 여백을 줍니다. 여백을 눌러도 버튼은 실행되지 않습니다.	ウィジェットの上下左右に余白を設定します。余白をクリックしてもボタンは実行されません。	为小部件四周设置外边距。单击外边距不会触发按钮。
+Shared left margin	공통 여백 - 왼쪽	共通の左余白	统一左外边距
+Shared top margin	공통 여백 - 위	共通の上余白	统一上外边距
+Shared right margin	공통 여백 - 오른쪽	共通の右余白	统一右外边距
+Shared bottom margin	공통 여백 - 아래	共通の下余白	统一下外边距
+Reset shared margins	공통 여백 초기화	共通の余白をリセット	重置统一外边距
+Shared rotation	공통 회전	共通の回転角度	统一旋转角度
+Shared scale	공통 확대	共通の拡大率	统一缩放比例
+Visual transform (keep layout size)	시각 변환 (배치 크기 유지)	見た目だけ変換（配置サイズを維持）	视觉变换（保持布局尺寸）
+Change rotation origin (visual transform)	회전 중심 전환 (시각 변환)	回転の基準点を切り替える（見た目だけ変換）	切换旋转原点（视觉变换）
+Reset shared transform	공통 변환 초기화	共通の変換をリセット	重置统一变换
+Margins: left {0:F0} / top {1:F0} / right {2:F0} / bottom {3:F0} px	여백 : 왼쪽 {0:F0} / 위 {1:F0} / 오른쪽 {2:F0} / 아래 {3:F0} px	余白：左 {0:F0} / 上 {1:F0} / 右 {2:F0} / 下 {3:F0} px	外边距：左 {0:F0} / 上 {1:F0} / 右 {2:F0} / 下 {3:F0} px
+Button layout: {0:F0} × {1:F0} px	버튼 배치 : {0:F0} × {1:F0} px	ボタンの配置サイズ：{0:F0} × {1:F0} px	按钮布局：{0:F0} × {1:F0} px
+Rotation: {0:F0}° / Scale: {1:F2} / Origin: {2} / {3}	회전 : {0:F0}° / 확대 : {1:F2} / 중심 : {2} / {3}	回転：{0:F0}° / 拡大率：{1:F2} / 基準点：{2} / {3}	旋转：{0:F0}° / 缩放：{1:F2} / 原点：{2} / {3}
+Top left	왼쪽 위	左上	左上
+Center	중앙	中央	中心
+Bottom right	오른쪽 아래	右下	右下
+Lay out at transformed size	변환 크기로 배치	変換後のサイズで配置	按变换后的尺寸布局
+Keep original layout	원래 배치 유지	元の配置を維持	保持原始布局
+Button actions: {0} / Checkbox: {1} / Value: {2:F2}	버튼 실행 : {0} / 체크 : {1} / 값 : {2:F2}	ボタンの操作回数：{0} / チェックボックス：{1} / 値：{2:F2}	按钮执行次数：{0} / 复选框：{1} / 值：{2:F2}
+Checked	선택	オン	已勾选
+Unchecked	해제	オフ	未勾选
+Edited text: {0}	편집 : {0}	編集したテキスト：{0}	编辑的文本：{0}
+Legacy popup API	기존 팝업 API	従来のポップアップ API	旧版弹出窗口 API
+BeginPopup also opens in screen coordinates.	BeginPopup도 화면 좌표로 열립니다.	BeginPopup も画面座標で開きます。	BeginPopup 也按屏幕坐标打开。
+Run from the legacy popup	기존 팝업에서 실행	従来のポップアップから実行	从旧版弹出窗口执行
+Close the legacy popup	기존 팝업 닫기	従来のポップアップを閉じる	关闭旧版弹出窗口
+Layout counter: {0}	배치 카운터 : {0}	レイアウトカウンター：{0}	布局计数器：{0}
+Column first item	Column 첫 번째	Column の最初の項目	Column 第一项
+Column second item	Column 두 번째	Column の 2 番目の項目	Column 第二项
+Wrap item {0}	Wrap {0}	Wrap 項目 {0}	Wrap 项 {0}
+Cell {0}	셀 {0}	セル {0}	单元格 {0}
+Columns: {0}	열 수 : {0}	列数：{0}	列数：{0}
+Move overlay	오버레이 이동	オーバーレイを移動	移动叠加层
+Select the button to move it within Stack and Positioned.	Stack + Positioned : 버튼을 눌러 위치를 바꾸세요.	ボタンを押すと Stack と Positioned の中で位置が変わります。	选择按钮可在 Stack 和 Positioned 中移动其位置。
+Aligned button	Align 위치	Align で配置したボタン	使用 Align 对齐的按钮
+Toggle alignment	정렬 전환	配置を切り替える	切换对齐
+Centered button	Center 가운데	Center で中央に配置したボタン	使用 Center 居中的按钮
+Container spacing	Container 여백	Container の余白	Container 间距
+Scroll item {0}	스크롤 항목 {0}	スクロール項目 {0}	滚动项 {0}
+Scroll direction: {0}	스크롤 방향 : {0}	スクロール方向：{0}	滚动方向：{0}
+Horizontal and vertical	가로·세로	横と縦	水平和垂直
+Try the controls, then check the C# below each example for the same settings.	예제를 조작한 뒤 바로 아래에서 같은 설정의 코드를 확인하세요.	例を操作した後、すぐ下の C# で同じ設定を確認してください。	操作示例后，可在下方的 C# 中查看相同设置。

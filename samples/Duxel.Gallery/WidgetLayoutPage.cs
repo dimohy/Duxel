@@ -29,7 +29,7 @@ internal sealed class WidgetLayoutPage : IObserverPage, IObserverNaturalPage, IG
         private readonly UiState<float> _value = new(.5f);
         private readonly UiState<float> _rotation = new(0), _scale = new(1);
         private readonly UiState<bool?> _visual = new(false);
-        private readonly UiState<string> _text = new("한글 입력");
+        private readonly UiState<string> _text = new(GalleryText.Get("Sample input"));
         private readonly UiState<int> _activations = new(0);
         private int _originIndex = 1;
         private UiWidgetTransform _transform = UiWidgetTransform.Identity;
@@ -46,54 +46,58 @@ internal sealed class WidgetLayoutPage : IObserverPage, IObserverNaturalPage, IG
         {
             var button = Record(GallerySample.Create(() =>
             {
-                var button = Fluent.Button("변환 버튼 실행", () => _activations.Value++);
+                var button = Fluent.Button(GalleryText.Get("Run button"), () => _activations.Value++);
                 button.Size = new(140, 32);
                 return button;
             }), () => _activations.Value, value => $"var _activations = new UiState<int>({value});");
-            var checkbox = Record(GallerySample.Create(() => Fluent.Checkbox("여백 체크박스", _checked.Binding)),
+            var checkbox = Record(GallerySample.Create(() => Fluent.Checkbox(GalleryText.Get("Checkbox with margin"), _checked.Binding)),
                 () => _checked.Value, value => $"var _checked = new UiState<bool?>({(value is null ? "null" : GallerySample.Boolean(value.Value))});");
             var slider = Record(GallerySample.Create(() =>
             {
-                var slider = Fluent.Slider("여백 예제 값", _value.Binding, 0, 1, .01f);
+                var slider = Fluent.Slider(GalleryText.Get("Slider with margin"), _value.Binding, 0, 1, .01f);
                 slider.Size = new(180, 32);
                 slider.Options = slider.Options with { ShowStepMarkers = false };
                 return slider;
             }), () => _value.Value, value => $"var _value = new UiState<float>({Number(value)});");
-            var input = Record(GallerySample.Create(() => Fluent.Input("변환 입력", _text.Binding, 200, 200)),
+            var input = Record(GallerySample.Create(() => Fluent.Input(GalleryText.Get("Transformed input"), _text.Binding, 200, 200)),
                 () => _text.Value, value => $"var _text = new UiState<string>({GallerySample.String(value)});");
-            var popover = Record(GallerySample.Create(() => Fluent.Popover("변환 팝업",
+            var popover = Record(GallerySample.Create(() => Fluent.Popover(GalleryText.Get("Transformed popover"),
                 Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
-                    Fluent.Body1("팝업은 화면 좌표로 열립니다."), Fluent.Button("팝업 안에서 실행", () => _activations.Value++)),
+                    Fluent.Body1(GalleryText.Get("The popover opens in screen coordinates.")), Fluent.Button(GalleryText.Get("Run from the popover"), () => _activations.Value++)),
                 options : new(Width : 240))), () => _activations.Value, value => $"var _activations = new UiState<int>({value});");
-            var menu = Record(GallerySample.Create(() => new UiMenu<UiFluentMenuPresentation>("변환 메뉴",
-                [new("run", "메뉴에서 실행")], _ => _activations.Value++)),
+            var menu = Record(GallerySample.Create(() => new UiMenu<UiFluentMenuPresentation>(GalleryText.Get("Transformed menu"),
+                [new("run", GalleryText.Get("Run from the menu"))], _ => _activations.Value++)),
                 () => _activations.Value, value => $"var _activations = new UiState<int>({value});");
-            var tooltip = Record(GallerySample.Create(() => Fluent.Tooltip(Fluent.Button("변환 도구 설명"),
-                "회전한 대상 옆에 화면 기준으로 표시합니다.")), () => 0, _ => string.Empty);
+            var tooltip = Record(GallerySample.Create(() => Fluent.Tooltip(Fluent.Button(GalleryText.Get("Transformed tooltip")),
+                GalleryText.Get("The tooltip appears next to the rotated target, aligned with the screen."))), () => 0, _ => string.Empty);
             var legacy = Record(GallerySample.Create(() => new LegacyPortalPreview(() => _activations.Value++)),
                 () => _activations.Value, value => $"var _activations = new UiState<int>({value});",
-                GalleryPageSource.Declaration(nameof(LegacyPortalPreview)));
+                GallerySample.LocalizeSource(GalleryPageSource.Declaration(nameof(LegacyPortalPreview))));
             _targets = [button.Preview, checkbox.Preview, slider.Preview, input.Preview,
                 popover.Preview, menu.Preview, tooltip.Preview, legacy.Preview];
             var controls = Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Body1("위젯의 상하좌우에 여백을 줍니다. 여백을 눌러도 버튼은 실행되지 않습니다."),
+                Fluent.Body1(GalleryText.Get("Set a margin on each side of the widget. Clicking the margin does not activate the button.")),
                 Dux.Wrap(new(Spacing : 16, RunSpacing : 12),
-                    Edge("공통 여백 - 왼쪽", _left), Edge("공통 여백 - 위", _top),
-                    Edge("공통 여백 - 오른쪽", _right), Edge("공통 여백 - 아래", _bottom)),
-                Fluent.Button("공통 여백 초기화", () => _left.Value = _top.Value = _right.Value = _bottom.Value = 0),
+                    Edge(GalleryText.Get("Shared left margin"), _left), Edge(GalleryText.Get("Shared top margin"), _top),
+                    Edge(GalleryText.Get("Shared right margin"), _right), Edge(GalleryText.Get("Shared bottom margin"), _bottom)),
+                Fluent.Button(GalleryText.Get("Reset shared margins"), () => _left.Value = _top.Value = _right.Value = _bottom.Value = 0),
                 Dux.Wrap(new(Spacing : 16, RunSpacing : 12),
-                    Numeric("공통 회전", _rotation, -180, 180, 1), Numeric("공통 확대", _scale, .25f, 3, .05f),
-                    Fluent.Checkbox("시각 변환 (배치 크기 유지)", _visual.Binding),
-                    Fluent.Button("회전 중심 전환 (시각 변환)", () => _originIndex = (_originIndex + 1) % 3),
-                    Fluent.Button("공통 변환 초기화", () => { _rotation.Value = 0; _scale.Value = 1; _visual.Value = false; _originIndex = 1; })));
+                    Numeric(GalleryText.Get("Shared rotation"), _rotation, -180, 180, 1), Numeric(GalleryText.Get("Shared scale"), _scale, .25f, 3, .05f),
+                    Fluent.Checkbox(GalleryText.Get("Visual transform (keep layout size)"), _visual.Binding),
+                    Fluent.Button(GalleryText.Get("Change rotation origin (visual transform)"), () => _originIndex = (_originIndex + 1) % 3),
+                    Fluent.Button(GalleryText.Get("Reset shared transform"), () => { _rotation.Value = 0; _scale.Value = 1; _visual.Value = false; _originIndex = 1; })));
             Root = Dux.ScrollView(Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
                 controls,
-                Fluent.Body1(() => $"여백 : 왼쪽 {_left.Value:F0} / 위 {_top.Value:F0} / 오른쪽 {_right.Value:F0} / 아래 {_bottom.Value:F0} px"),
-                Fluent.Body1(() => $"버튼 배치 : {_buttonSize.X:F0} × {_buttonSize.Y:F0} px"),
-                Fluent.Body1(() => $"회전 : {_rotation.Value:F0}° / 확대 : {_scale.Value:F2} / 중심 : {(_originIndex == 0 ? "왼쪽 위" : _originIndex == 1 ? "중앙" : "오른쪽 아래")} / {(_transform.Mode == UiWidgetTransformMode.Layout ? "변환 크기로 배치" : "원래 배치 유지")}"),
+                Fluent.Body1(() => GalleryText.Format("Margins: left {0:F0} / top {1:F0} / right {2:F0} / bottom {3:F0} px",
+                    _left.Value, _top.Value, _right.Value, _bottom.Value)),
+                Fluent.Body1(() => GalleryText.Format("Button layout: {0:F0} × {1:F0} px", _buttonSize.X, _buttonSize.Y)),
+                Fluent.Body1(() => GalleryText.Format("Rotation: {0:F0}° / Scale: {1:F2} / Origin: {2} / {3}", _rotation.Value, _scale.Value,
+                    GalleryText.Get(_originIndex switch { 0 => "Top left", 1 => "Center", _ => "Bottom right" }),
+                    GalleryText.Get(_transform.Mode == UiWidgetTransformMode.Layout ? "Lay out at transformed size" : "Keep original layout"))),
                 button, checkbox, slider, input, popover, menu, tooltip, legacy,
-                Fluent.Body1(() => $"버튼 실행 : {Activations} / 체크 : {(_checked.Value == true ? "선택" : "해제")} / 값 : {_value.Value:F2}"),
-                Fluent.Body1(() => $"편집 : {_text.Value}")));
+                Fluent.Body1(() => GalleryText.Format("Button actions: {0} / Checkbox: {1} / Value: {2:F2}", Activations,
+                    GalleryText.Get(_checked.Value == true ? "Checked" : "Unchecked"), _value.Value)),
+                Fluent.Body1(() => GalleryText.Format("Edited text: {0}", _text.Value))));
         }
 
         private GallerySample<T> Record<T, TState>(GallerySample<T> sample, Func<TState> read, Func<TState, string> setup,
