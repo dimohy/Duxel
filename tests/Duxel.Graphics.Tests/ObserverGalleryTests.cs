@@ -542,15 +542,15 @@ internal static class ObserverGalleryTests
             throw new InvalidOperationException("Combobox root is missing.");
         tree.RequestAction(city.Id, cityElement.RuntimeId, UiAccessibilityAction.Focus, wait: false);
         Frame("선택 목록");
-        tree.RequestAction(city.Id, cityElement.RuntimeId, UiAccessibilityAction.SetValue, "New ", wait: false);
+        tree.RequestAction(city.Id, cityElement.RuntimeId, UiAccessibilityAction.SetValue, "뉴", wait: false);
         Frame("선택 목록");
-        check(screen.DropdownPage.Editable!.IsOpen && !Find("New York", UiAccessibilityRole.Option).Offscreen
+        check(screen.DropdownPage.Editable!.IsOpen && !Find("뉴욕", UiAccessibilityRole.Option).Offscreen
             && Find("서울", UiAccessibilityRole.Option).Offscreen,
             "observer editable Combobox actually filters the persistent city options");
-        DropdownPointer(Find("New York", UiAccessibilityRole.Option));
+        DropdownPointer(Find("뉴욕", UiAccessibilityRole.Option));
         Frame("개요");
         Frame("선택 목록");
-        check(Find("도시 검색", UiAccessibilityRole.ComboBox).Value == "New York" && !screen.DropdownPage.Editable.IsOpen,
+        check(Find("도시 검색", UiAccessibilityRole.ComboBox).Value == "뉴욕" && !screen.DropdownPage.Editable.IsOpen,
             "observer editable Combobox pointer selection and input value survive page changes");
         var openCount = screen.DropdownPage.OpenChanges;
         Click("선택 목록", "도시 목록 열림 전환");

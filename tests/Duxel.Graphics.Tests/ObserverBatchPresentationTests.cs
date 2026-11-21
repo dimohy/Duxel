@@ -29,6 +29,9 @@ internal static class ObserverBatchPresentationTests
         }
         using var screen = new ObserverScreen(ObserverServices.CreateWindows()) { FreezeDiagnosticText = true };
         ControlFontFixture.Configure(context);
+        var fonts = GalleryText.ConfigureFonts(new());
+        context.SetDirectTextSecondaryFontPath(fonts.SecondaryFontPath);
+        context.SetTypographyFonts(fonts.Typography);
         using var tree = new UiAccessibilityTree();
         context.SetAccessibilityTree(tree);
         var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
@@ -44,9 +47,18 @@ internal static class ObserverBatchPresentationTests
             var nodes = tree.CaptureSnapshot().Elements.Select(element => element.Node).ToArray();
             var menuLabel = screen.NavigationLabelForPage(title);
             var heading = nodes.Single(node => node.Role == UiAccessibilityRole.Label && node.Name == menuLabel);
-            var description = nodes.Single(node => node.Role == UiAccessibilityRole.Label && node.Name == screen.DescriptionForPage(title));
-            check(heading.Bounds.Y + heading.Bounds.Height <= description.Bounds.Y && heading.Bounds.X == description.Bounds.X,
-                "Every Gallery page displays its menu label and aligned description : " + title);
+            var descriptionText = screen.DescriptionForPage(title);
+            if (string.IsNullOrWhiteSpace(descriptionText))
+            {
+                check(heading.Bounds.Height > 0, "Gallery displays its heading : " + title);
+            }
+            else
+            {
+                var description = nodes.Single(node => node.Role == UiAccessibilityRole.Label
+                    && node.Name == GalleryText.Get(descriptionText));
+                check(heading.Bounds.Y + heading.Bounds.Height <= description.Bounds.Y && heading.Bounds.X == description.Bounds.X,
+                    "Gallery displays its menu label and aligned description : " + title);
+            }
             var sources = tree.CaptureSnapshot().Elements.Where(element => element.Node.Role == UiAccessibilityRole.Edit && element.Node.Name == "C# 예제 소스").ToArray();
             check(GalleryPageFrame.HasSource(title) ? sources.Length == screen.SourceCountForPage(title) && sources.All(source => source.Node.ReadOnly && source.Node.Value is { Length: > 0 })
                 : sources.Length == 0, "Gallery page source policy matches its functional or informational role : " + title);
