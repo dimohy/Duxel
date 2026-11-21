@@ -21,14 +21,14 @@ internal sealed class NavigationPage : IObserverPage, IObserverNaturalPage, IGal
     internal NavigationPage()
     {
         var options = new UiNavOptions();
-        var sample = GallerySample.Create(() => Fluent.Nav("탐색 예제", _selected, new UiNavGroup[]
+        var sample = GallerySample.Create(() => Fluent.Nav(GalleryText.Get("Navigation example"), _selected, new UiNavGroup[]
         {
-            UiNavGroup.SectionHeader("work", "작업 공간"),
-            new("start", "시작", new UiNavItem[] { new("overview", "개요", SecondaryAction : new("개요 고정", () => _pinActions++, UiMenuIcon.Create<NavPinIcon, NavPinFilledIcon>())), new("activity", "최근 활동", Badge : new("새 소식")) },
+            UiNavGroup.SectionHeader("work", GalleryText.Get("Workspace")),
+            new("start", GalleryText.Get("Get started"), new UiNavItem[] { new("overview", GalleryText.Get("Overview"), SecondaryAction : new(GalleryText.Get("Pin overview"), () => _pinActions++, UiMenuIcon.Create<NavPinIcon, NavPinFilledIcon>())), new("activity", GalleryText.Get("Recent activity"), Badge : new(GalleryText.Get("What's new"))) },
                 UiMenuIcon.Create<HomeTabIcon, HomeTabFilledIcon>()),
-            UiNavGroup.SectionHeader("library", "라이브러리"),
-            new("documents", "문서", new UiNavItem[] { new("documents-all", "프로젝트의 긴 문서 이름은 사용 가능한 너비에 맞게 줄바꿈됩니다"),
-                new("disabled", "사용할 수 없음", false) }, UiMenuIcon.Create<GalleryContentIcon, GalleryContentIcon>())
+            UiNavGroup.SectionHeader("library", GalleryText.Get("Library")),
+            new("documents", GalleryText.Get("Documents"), new UiNavItem[] { new("documents-all", GalleryText.Get("Long project document names wrap to fit the available width")),
+                new("disabled", GalleryText.Get("Unavailable"), false) }, UiMenuIcon.Create<GalleryContentIcon, GalleryContentIcon>())
         }, options));
         _preview = sample.Preview;
         var factory = sample.Source;
@@ -38,15 +38,22 @@ internal sealed class NavigationPage : IObserverPage, IObserverNaturalPage, IGal
             + "\n\n" + IconDeclarations);
         Samples = [sample];
         _root = Dux.ScrollView(Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Body1("위·아래 방향키와 Home·End로 이동하고 Enter로 페이지를 선택하세요. 그룹은 좌·우 방향키 또는 클릭으로 접고 펼칩니다."),
-            Fluent.Caption1("작은 섹션 제목은 메뉴를 분류하는 데 쓰입니다. 선택하거나 접을 수 없으며 키보드 포커스도 받지 않습니다."),
-            Fluent.Button("배치 방향 전환", () => _preview.Options = _preview.Options with { RightToLeft = !_preview.Options.RightToLeft }),
-            Fluent.Body1(() => "현재 페이지 : " + _selected.Value),
-            Fluent.Body1(() => "개요 고정 실행 : " + _pinActions),
-            Fluent.Caption1("개요 위에 마우스를 올리면 고정 버튼이 나타납니다. Tab 또는 가로 방향키로 버튼에 이동하고, 우클릭·Shift+F10으로 같은 작업을 메뉴에서 실행할 수 있습니다."),
-            Fluent.Caption1("그룹을 접어도 선택은 유지됩니다. 접힌 그룹의 강조 표시는 현재 페이지가 그 안에 있음을 나타냅니다."),
+            Fluent.Body1(GalleryText.Get("Use Up and Down or Home and End to move, and Enter to select a page. Use Left and Right or click a group to collapse or expand it.")),
+            Fluent.Caption1(GalleryText.Get("Section headings organize the menu. You cannot select, collapse, or focus them.")),
+            Fluent.Button(GalleryText.Get("Reverse layout direction"), () => _preview.Options = _preview.Options with { RightToLeft = !_preview.Options.RightToLeft }),
+            Fluent.Body1(() => GalleryText.Format("Current page: {0}", SelectedPageName())),
+            Fluent.Body1(() => GalleryText.Format("Overview pin actions: {0}", _pinActions)),
+            Fluent.Caption1(GalleryText.Get("Hover over Overview to reveal its pin button. Press Tab or a horizontal arrow key to reach it. Right-click or press Shift+F10 to run the same action from the menu.")),
+            Fluent.Caption1(GalleryText.Get("Collapsing a group keeps the current selection. A highlighted collapsed group contains the current page.")),
             sample));
     }
+    private string SelectedPageName() => GalleryText.Get(_selected.Value switch
+    {
+        "overview" => "Overview",
+        "activity" => "Recent activity",
+        "documents-all" => "Long project document names wrap to fit the available width",
+        _ => "None selected"
+    });
     private const string IconDeclarations = """
         [UiFluentIcon("pin", UiFluentIconStyle.Regular, 20)] readonly partial struct NavPinIcon;
         [UiFluentIcon("pin", UiFluentIconStyle.Filled, 20)] readonly partial struct NavPinFilledIcon;

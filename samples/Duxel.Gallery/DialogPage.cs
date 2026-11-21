@@ -40,27 +40,27 @@ internal sealed class DialogPage : IObserverPage, IObserverNaturalPage, IGallery
         internal Content()
         {
             var name = new UiState<string>("");
-            var message = new UiState<string>("이름을 입력한 뒤 저장하세요.");
+            var message = new UiState<string>(GalleryText.Get("Enter your name, then save."));
             var open = new UiState<bool>(false);
-            var dialogOptions = new UiDialogOptions(Description : "이름을 입력하고 저장하거나 취소합니다.");
+            var dialogOptions = new UiDialogOptions(CloseLabel : GalleryText.Get("Close"), Description : GalleryText.Get("Enter your name, then save or cancel."));
             var dialogDefinition = GallerySample.Define("_dialog", () =>
             {
                 UiFluentDialog? dialog = null;
-                var input = Fluent.Input("이름", name.Binding, 100, 300);
-                var save = Fluent.Button("저장", () =>
+                var input = Fluent.Input(GalleryText.Get("Name"), name.Binding, 100, 300);
+                var save = Fluent.Button(GalleryText.Get("Save"), () =>
                 {
                     if (string.IsNullOrWhiteSpace(name.Value))
                     {
-                        message.Value = "이름을 입력해야 저장할 수 있습니다.";
+                        message.Value = GalleryText.Get("Enter a name before saving.");
                         return;
                     }
-                    message.Value = $"저장됨 : {name.Value}";
+                    message.Value = string.Format(GalleryText.Get("Saved: {0}"), name.Value);
                     dialog!.Close();
                 });
-                var cancel = Fluent.Button("취소", () => dialog!.Close());
-                dialog = Fluent.Dialog("사용자 정보", Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                    Fluent.Body1("탭으로 이동하고 한글을 입력해 보세요. 창을 다시 열어도 입력은 유지됩니다."),
-                    Fluent.Label("이름", input), input, Fluent.Body1(() => message.Value)), [save, cancel], dialogOptions);
+                var cancel = Fluent.Button(GalleryText.Get("Cancel"), () => dialog!.Close());
+                dialog = Fluent.Dialog(GalleryText.Get("User details"), Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
+                    Fluent.Body1(GalleryText.Get("Use Tab to move between controls and try typing Korean. Your input is kept when you reopen the dialog.")),
+                    Fluent.Label(GalleryText.Get("Name"), input), input, Fluent.Body1(() => message.Value)), [save, cancel], dialogOptions);
                 dialog.Open = open.Binding;
                 return dialog;
             });
@@ -77,9 +77,9 @@ internal sealed class DialogPage : IObserverPage, IObserverNaturalPage, IGallery
             var renderDefinition = GallerySample.Define<Action<UiImmediateContext>>("renderOverlays", () => (UiImmediateContext ui) => _dialog.Render(ui));
             _renderOverlays = renderDefinition.Value;
             var dialogSample = GallerySample.Create(() => Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                Fluent.Button("모달 열기", () => show(UiDialogType.Modal)),
-                Fluent.Button("비모달 열기", () => show(UiDialogType.NonModal)),
-                Fluent.Button("경고 열기", () => show(UiDialogType.Alert))));
+                Fluent.Button(GalleryText.Get("Open modal"), () => show(UiDialogType.Modal)),
+                Fluent.Button(GalleryText.Get("Open nonmodal"), () => show(UiDialogType.NonModal)),
+                Fluent.Button(GalleryText.Get("Open alert"), () => show(UiDialogType.Alert))));
             var dialogFactory = dialogSample.Source;
             dialogSample.BindSource(() => (Name : name.Value, Message : message.Value, Open : open.Value, _dialog.Options), state =>
                 $"var name = new UiState<string>({GallerySample.String(state.Name)});\nvar message = new UiState<string>({GallerySample.String(state.Message)});\n"
@@ -107,9 +107,9 @@ internal sealed class DialogPage : IObserverPage, IObserverNaturalPage, IGallery
                 motionPreview = progress;
                 return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
                     Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                        Fluent.Button("등장 곡선", () => setCurve(new(0, 0, 0, 1))),
-                        Fluent.Button("퇴장 곡선", () => setCurve(new(.8, 0, .78, 1))),
-                        Fluent.Button("배경 곡선", () => setCurve(new(.33, 0, .67, 1)))), progress);
+                        Fluent.Button(GalleryText.Get("Entrance curve"), () => setCurve(new(0, 0, 0, 1))),
+                        Fluent.Button(GalleryText.Get("Exit curve"), () => setCurve(new(.8, 0, .78, 1))),
+                        Fluent.Button(GalleryText.Get("Backdrop curve"), () => setCurve(new(.33, 0, .67, 1)))), progress);
             });
             var motionFactory = motionSample.Source;
             motionSample.BindSource(() => (_curve, _target), state =>
@@ -119,13 +119,13 @@ internal sealed class DialogPage : IObserverPage, IObserverNaturalPage, IGallery
                 + "\n// Invoke prepareMotion(ui) before rendering example in each frame.");
             Samples = [dialogSample, motionSample];
             Root = Dux.ScrollView(Dux.Column(new(Spacing : 16, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Body1("모달은 배경 입력을 막고, 비모달은 배경과 함께 조작할 수 있습니다. 경고 창은 배경을 눌러도 닫히지 않습니다."),
-                Fluent.Body1(() => $"열림 : {open.Value} / 이름 : {name.Value}"),
-                Fluent.Caption1("Escape·Tab·Shift+Tab으로 조작하고 저장할 때 입력값을 검사하는지 확인하세요. 창을 닫으면 원래 버튼으로 포커스가 돌아갑니다."),
+                Fluent.Body1(GalleryText.Get("The modal blocks background input. The nonmodal dialog leaves the background interactive. Clicking the background does not close the alert.")),
+                Fluent.Body1(() => GalleryText.Format("Open: {0} / Name: {1}", GalleryText.Get(open.Value ? "On" : "Off"), name.Value)),
+                Fluent.Caption1(GalleryText.Get("Use Escape, Tab, and Shift+Tab, and try saving to see input validation. Closing the dialog returns focus to the button that opened it.")),
                 dialogSample,
-                Fluent.Subtitle2("모션 곡선 미리 보기"),
-                Fluent.Body1("버튼을 누르면 250ms 동안 전환합니다. 도중에 방향을 바꾸면 현재 위치에서 이어지며, 전환이 끝나면 더 이상 프레임을 요청하지 않습니다."),
-                Fluent.Caption1("여러 위젯이 함께 사용하는 애니메이션 곡선의 예제입니다. 대화 상자는 크기와 투명도가 바뀌며 나타나고, 닫힐 때는 저장해 둔 화면으로 애니메이션을 이어갑니다. 사라지는 도중에 다시 열어도 현재 상태에서 자연스럽게 이어집니다."),
+                Fluent.Subtitle2(GalleryText.Get("Motion curve preview")),
+                Fluent.Body1(GalleryText.Get("Press a button to start a 250 ms transition. Reversing continues from the current position. When the transition ends, it stops requesting frames.")),
+                Fluent.Caption1(GalleryText.Get("Several widgets share these animation curves. The dialog changes size and opacity as it opens and animates a snapshot as it closes. Reopening midway continues from its current state.")),
                 motionSample));
         }
         private static string Number(double value) => value.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
