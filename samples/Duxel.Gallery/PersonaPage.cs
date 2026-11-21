@@ -18,7 +18,7 @@ internal sealed class PersonaPage(ObserverServices services) : IObserverPage, IO
         private readonly ObserverServices _services;
         private readonly SvgStore _store = new();
         private readonly UiImageSource _image;
-        private string _name = "디모이";
+        private string _name = GalleryText.Get("Dimoi");
         private int _lines = 4;
         internal UiFluentPersona Preview
         {
@@ -34,15 +34,14 @@ internal sealed class PersonaPage(ObserverServices services) : IObserverPage, IO
             _services = services;
             var path = Path.Combine(AppContext.BaseDirectory, "Assets", "Svg", "artwork.svg");
             _image = new(new SvgImageDecoder(_store, _services.ImageDecoder).Decode(path));
-            var content = new UiPersonaContent("디모이", SecondaryText : "사용자 인터페이스 개발",
-                TertiaryText : "Duxel 프로젝트", QuaternaryText : "한글·SVG·접근성");
+            var content = ContentForLines();
             var options = new UiPersonaOptions();
             var avatarOptions = new UiAvatarOptions(Color : UiAvatarColor.Brand, Presence : new());
             var sample = GallerySample.Create(() =>
             {
                 var persona = Fluent.Persona(content, options);
                 persona.Avatar.Options = avatarOptions;
-                persona.Avatar.PresenceText = "사용 가능";
+                persona.Avatar.PresenceText = GalleryText.Get("Available");
                 return persona;
             });
             Preview = sample.Preview;
@@ -71,30 +70,33 @@ internal sealed class PersonaPage(ObserverServices services) : IObserverPage, IO
                 return source;
             });
             Samples = [sample];
-            var name = Fluent.Input("인물 이름", new UiBinding<string>(() => _name, value => { _name = value; UpdateContent(); }), 100, 280);
+            var name = Fluent.Input(GalleryText.Get("Persona name"), new UiBinding<string>(() => _name, value => { _name = value; UpdateContent(); }), 100, 280);
             Root = Dux.ScrollView(Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
                 name,
                 Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                    Fluent.Button("인물 크기", () => Preview.Options = Preview.Options with { Size = (UiPersonaSize)(((int)Preview.Options.Size + 1) % 6) }),
-                    Fluent.Button("인물 텍스트 위치", () => Preview.Options = Preview.Options with { TextPosition = (UiPersonaTextPosition)(((int)Preview.Options.TextPosition + 1) % 3) }),
-                    Fluent.Button("인물 정렬", () => Preview.Options = Preview.Options with { TextAlignment = Preview.Options.TextAlignment == UiPersonaTextAlignment.Start ? UiPersonaTextAlignment.Center : UiPersonaTextAlignment.Start }),
-                    Fluent.Button("인물 방향", () => Preview.Options = Preview.Options with { RightToLeft = !Preview.Options.RightToLeft }),
-                    Fluent.Button("인물 정보 줄 수", () => { _lines = _lines % 4 + 1; UpdateContent(); })),
+                    Fluent.Button(GalleryText.Get("Change persona size"), () => Preview.Options = Preview.Options with { Size = (UiPersonaSize)(((int)Preview.Options.Size + 1) % 6) }),
+                    Fluent.Button(GalleryText.Get("Change persona text position"), () => Preview.Options = Preview.Options with { TextPosition = (UiPersonaTextPosition)(((int)Preview.Options.TextPosition + 1) % 3) }),
+                    Fluent.Button(GalleryText.Get("Change persona alignment"), () => Preview.Options = Preview.Options with { TextAlignment = Preview.Options.TextAlignment == UiPersonaTextAlignment.Start ? UiPersonaTextAlignment.Center : UiPersonaTextAlignment.Start }),
+                    Fluent.Button(GalleryText.Get("Reverse persona direction"), () => Preview.Options = Preview.Options with { RightToLeft = !Preview.Options.RightToLeft }),
+                    Fluent.Button(GalleryText.Get("Change the number of information lines"), () => { _lines = _lines % 4 + 1; UpdateContent(); })),
                 Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                    Fluent.Button("인물 상태 전용", () => Preview.Options = Preview.Options with { PresenceOnly = !Preview.Options.PresenceOnly }),
-                    Fluent.Button("인물 미디어 표시", () => Preview.Options = Preview.Options with { ShowMedia = !Preview.Options.ShowMedia }),
-                    Fluent.Button("인물 SVG 이미지", () => Preview.Avatar.Source = _image),
-                    Fluent.Button("인물 이니셜", () => Preview.Avatar.Source = null),
-                    Fluent.Button("인물 비활성 표현", () => Preview.Avatar.Options = Preview.Avatar.Options with { IsInactive = !Preview.Avatar.Options.IsInactive })),
-                Fluent.Body1(() => $"크기 : {Preview.Options.Size} / 위치 : {Preview.Options.TextPosition} / 상태 전용 : {Preview.Options.PresenceOnly} / 정보 : {_lines}줄"),
-                Fluent.Text("아바타와 상태 배지는 각각 Avatar와 PresenceBadge를 그릴 때와 같은 방식을 사용합니다. 배치가 바뀌지 않으면 이전 측정 결과를 재사용합니다."),
-                Fluent.Text("이름을 바꾸거나 다른 페이지로 이동했다 돌아와도 입력한 내용과 표시 설정은 유지됩니다."),
+                    Fluent.Button(GalleryText.Get("Toggle status-only persona"), () => Preview.Options = Preview.Options with { PresenceOnly = !Preview.Options.PresenceOnly }),
+                    Fluent.Button(GalleryText.Get("Toggle persona media"), () => Preview.Options = Preview.Options with { ShowMedia = !Preview.Options.ShowMedia }),
+                    Fluent.Button(GalleryText.Get("Show persona SVG image"), () => Preview.Avatar.Source = _image),
+                    Fluent.Button(GalleryText.Get("Show persona initials"), () => Preview.Avatar.Source = null),
+                    Fluent.Button(GalleryText.Get("Toggle inactive persona"), () => Preview.Avatar.Options = Preview.Avatar.Options with { IsInactive = !Preview.Avatar.Options.IsInactive })),
+                Fluent.Body1(() => GalleryText.Format("Size: {0} / Position: {1} / Status only: {2} / Information lines: {3}",
+                    Preview.Options.Size, Preview.Options.TextPosition, Preview.Options.PresenceOnly, _lines)),
+                Fluent.Text(GalleryText.Get("The avatar and status badge use the same rendering as Avatar and PresenceBadge. The example reuses its previous measurements when the layout stays the same.")),
+                Fluent.Text(GalleryText.Get("Your edits and display options stay in place when you leave this page and return.")),
                 sample));
         }
-        private void UpdateContent() => Preview.Content = new(_name,
-            SecondaryText : _lines >= 2 ? "사용자 인터페이스 개발" : null,
-            TertiaryText : _lines >= 3 ? "Duxel 프로젝트" : null,
-            QuaternaryText : _lines >= 4 ? "한글·SVG·접근성" : null);
+        private void UpdateContent() => Preview.Content = ContentForLines();
+
+        private UiPersonaContent ContentForLines() => new(_name,
+            SecondaryText : _lines >= 2 ? GalleryText.Get("User interface development") : null,
+            TertiaryText : _lines >= 3 ? GalleryText.Get("Duxel project") : null,
+            QuaternaryText : _lines >= 4 ? GalleryText.Get("Hangul, SVG, and accessibility") : null);
         public void Dispose()
         {
             Root.Dispose();

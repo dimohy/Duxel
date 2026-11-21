@@ -761,3 +761,72 @@ Last row and column	마지막 행·열	最後の行と列	最后一行和一列
 Realized cells: {0:N0} · Horizontal: {1:N2} · Vertical: {2:N2}	생성된 셀 {0:N0}개 · 가로 {1:N2} · 세로 {2:N2}	表示用のセル：{0:N0} · 横：{1:N2} · 縦：{2:N2}	已实例化的单元格：{0:N0} · 水平：{1:N2} · 垂直：{2:N2}
 Row {0:N0}, column {1:N0}	{0:N0}행 {1:N0}열	{0:N0} 行 {1:N0} 列	第 {0:N0} 行第 {1:N0} 列
 Cell value	셀 값	セルの値	单元格值
+Active	활동 중	アクティブ	活跃
+Avatar name	아바타 이름	アバターの名前	头像名称
+Toggle round or square avatar	아바타 원형·사각	丸形と四角形を切り替え	切换圆形或方形头像
+Change avatar size	아바타 크기 변경	アバターのサイズを変更	更改头像大小
+Change avatar color	아바타 색 변경	アバターの色を変更	更改头像颜色
+Show avatar initials	아바타 이니셜	アバターのイニシャルを表示	显示头像首字母
+Show avatar image	아바타 이미지	アバター画像を表示	显示头像图像
+Show avatar SVG icon	아바타 SVG 아이콘	アバターの SVG アイコンを表示	显示头像 SVG 图标
+Try Korean initials	아바타 한글 이니셜	ハングルの頭文字を試す	试用韩文姓名首字
+Toggle activity ring	아바타 활동 링	アクティビティリングを切り替え	切换活动圆环
+Toggle activity shadow	아바타 활동 그림자	アクティビティの影を切り替え	切换活动阴影
+Toggle inactive avatar	아바타 비활성 전환	アバターの非アクティブ表示を切り替え	切换头像的非活跃状态
+Toggle avatar presence badge	아바타 상태 배지	アバターの状態バッジを切り替え	切换头像状态徽章
+Change avatar status	아바타 상태 변경	アバターの状態を変更	更改头像状态
+Toggle avatar out-of-office status	아바타 외근 전환	アバターの不在表示を切り替え	切换头像外出状态
+Change avatar badge size	아바타 배지 크기	アバターバッジのサイズを変更	更改头像徽章大小
+Reverse avatar direction	아바타 좌우 전환	アバターの左右を反転	反转头像方向
+Size: {0}px / Shape: {1} / Color: {2}	크기 : {0}px / 모양 : {1} / 색 : {2}	サイズ：{0}px / 形状：{1} / 色：{2}	大小：{0}px / 形状：{1} / 颜色：{2}
+Korean names show the first Hangul character of the name. The default person icon uses the Fluent icon font, and the SVG icon reuses its parsed asset.	한글 이름은 첫 글자만 표시합니다. 예를 들어 디모이는 디로 표시됩니다. 기본 사람 아이콘은 Fluent 아이콘 폰트를 사용하고, SVG 아이콘은 한 번 해석한 결과를 재사용합니다.	韓国語の名前は最初のハングル文字を表示します。人物の既定アイコンには Fluent アイコンフォントを使い、SVG アイコンは解析済みデータを再利用します。	韩文姓名显示姓名的第一个韩文字。默认人物图标使用 Fluent 图标字体，SVG 图标复用解析后的资源。
+An inactive avatar is scaled to 0.875 of its size and drawn at 0.8 opacity. It hides the activity ring and shadow while keeping the presence badge visible. A static avatar does not request periodic frames.	비활성 상태에서는 아바타 전체 크기를 0.875배로 줄이고 불투명도 0.8을 한 번 적용합니다. 활동 링과 그림자는 숨기지만 상태 배지는 그대로 표시합니다. 움직이지 않는 아바타는 주기적으로 프레임을 요청하지 않습니다.	非アクティブなアバターは 0.875 倍の大きさと不透明度 0.8 で表示します。アクティビティリングと影を隠し、状態バッジは表示します。静止しているアバターは定期的なフレーム要求を行いません。	非活跃头像按原大小的 0.875 倍显示，不透明度为 0.8。活动圆环和阴影会隐藏，状态徽章继续显示。静止头像不会定期请求新帧。
+Presence badge	상태 배지	状態バッジ	状态徽章
+Change presence badge status	상태 배지 변경	状態バッジの状態を変更	更改状态徽章的状态
+Toggle out-of-office badge	상태 배지 외근 전환	不在バッジを切り替え	切换外出徽章
+Change presence badge size	상태 배지 크기 변경	状態バッジのサイズを変更	更改状态徽章大小
+Status: {0}	상태 : {0}	状態：{0}	状态：{0}
+Status: {0} / Out-of-office marker	상태 : {0} / 외근 표시	状態：{0} / 不在表示	状态：{0} / 外出标记
+{0} (out of office)	{0} 외근	{0}（不在）	{0}（外出）
+Supported sizes	지원 크기	対応サイズ	支持的大小
+Available	사용 가능	連絡可能	有空
+Away	자리 비움	退席中	离开
+Busy	다른 용무 중	取り込み中	忙碌
+Do not disturb	방해 금지	応答不可	请勿打扰
+Offline	오프라인	オフライン	离线
+Out of office	외근	不在	外出
+Unknown status	상태 미확인	状態不明	状态未知
+Blocked	차단됨	ブロック済み	已阻止
+No member selected.	선택한 구성원이 없습니다.	メンバーが選択されていません。	尚未选择成员。
+Hidden members	숨긴 구성원	非表示のメンバー	隐藏成员
+Minsoo Kim	김민수	キム・ミンス	金民秀
+Design team	디자인 팀	デザインチーム	设计团队
+Document collaborators	문서 공동 작업자	ドキュメントの共同編集者	文档协作者
+Change group layout	그룹 배치 변경	グループの配置を変更	更改群组布局
+Change group size	그룹 크기 변경	グループのサイズを変更	更改群组大小
+Change the visible member count	그룹 표시 수 변경	表示するメンバー数を変更	更改显示的成员数
+Reverse group direction	그룹 방향 전환	グループの左右を反転	反转群组方向
+Layout: {0}	배치 : {0}	配置：{0}	布局：{0}
+Side by side	펼침	横並び	并排
+Overlapping	겹침	重ね合わせ	重叠
+Pie	원 분할	円の分割	圆形分区
+Select the avatar with a number to open the hidden members. In the pie layout, select anywhere in the circle to open the full list.	숫자가 표시된 아바타를 누르면 숨겨진 구성원 목록이 열립니다. 원을 나눈 모양에서는 원 안의 어느 곳을 눌러도 전체 구성원 목록이 열립니다.	数字付きのアバターを選ぶと、非表示のメンバーが表示されます。円を分割した配置では、円内のどこを選んでも全員の一覧が開きます。	选择带数字的头像可打开隐藏成员列表。在圆形分区布局中，选择圆内任意位置可打开完整列表。
+Side-by-side avatars show both activity rings and status badges. Overlapping avatars show rings, and the pie layout hides both indicators.	나란히 놓으면 활동 링과 상태 배지가 모두 보이고, 겹쳐 놓으면 활동 링만 보입니다. 원을 나눈 모양에서는 둘 다 표시하지 않습니다.	横並びではアクティビティリングと状態バッジを表示します。重ねた配置ではリングを表示し、円の分割では両方を非表示にします。	并排布局显示活动圆环和状态徽章。重叠布局显示圆环，圆形分区布局隐藏这两种标记。
+Use Tab, Enter, and Escape to operate the member list. Settings stay in place when you leave this page and return.	Tab·Enter·Escape로 목록을 조작해 보세요. 다른 페이지로 이동했다 돌아와도 설정은 유지됩니다.	Tab、Enter、Esc でメンバー一覧を操作できます。別のページへ移動して戻っても設定は保持されます。	使用 Tab、Enter 和 Esc 操作成员列表。离开此页后返回时，设置会保留。
+User interface development	사용자 인터페이스 개발	ユーザーインターフェイス開発	用户界面开发
+Duxel project	Duxel 프로젝트	Duxel プロジェクト	Duxel 项目
+Hangul, SVG, and accessibility	한글·SVG·접근성	ハングル・SVG・アクセシビリティ	韩文、SVG 和无障碍
+Persona name	인물 이름	人物名	人员姓名
+Change persona size	인물 크기	人物情報のサイズを変更	更改人员信息大小
+Change persona text position	인물 텍스트 위치	人物情報のテキスト位置を変更	更改人员文本位置
+Change persona alignment	인물 정렬	人物情報の揃え方を変更	更改人员信息对齐
+Reverse persona direction	인물 방향	人物情報の左右を反転	反转人员信息方向
+Change the number of information lines	인물 정보 줄 수	情報の行数を変更	更改信息行数
+Toggle status-only persona	인물 상태 전용	人物情報の状態のみの表示を切り替え	切换仅显示人员状态
+Toggle persona media	인물 미디어 표시	人物情報のメディア表示を切り替え	切换人员媒体显示
+Show persona SVG image	인물 SVG 이미지	人物情報の SVG 画像を表示	显示人员 SVG 图像
+Show persona initials	인물 이니셜	人物情報のイニシャルを表示	显示人员姓名首字母
+Toggle inactive persona	인물 비활성 표현	人物情報の非アクティブ表示を切り替え	切换人员非活跃显示
+Size: {0} / Position: {1} / Status only: {2} / Information lines: {3}	크기 : {0} / 위치 : {1} / 상태 전용 : {2} / 정보 : {3}줄	サイズ：{0} / 位置：{1} / 状態のみ：{2} / 情報：{3} 行	大小：{0} / 位置：{1} / 仅状态：{2} / 信息行数：{3}
+The avatar and status badge use the same rendering as Avatar and PresenceBadge. The example reuses its previous measurements when the layout stays the same.	아바타와 상태 배지는 각각 Avatar와 PresenceBadge를 그릴 때와 같은 방식을 사용합니다. 배치가 바뀌지 않으면 이전 측정 결과를 재사용합니다.	アバターと状態バッジは Avatar と PresenceBadge と同じ方法で描画します。配置が変わらなければ前回の測定結果を再利用します。	头像和状态徽章采用与 Avatar 和 PresenceBadge 相同的绘制方式。布局不变时复用上次的测量结果。
+Your edits and display options stay in place when you leave this page and return.	이름을 바꾸거나 다른 페이지로 이동했다 돌아와도 입력한 내용과 표시 설정은 유지됩니다.	別のページへ移動して戻っても、入力内容と表示設定は保持されます。	离开此页后返回时，编辑内容和显示选项会保留。

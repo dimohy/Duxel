@@ -140,6 +140,7 @@ internal static class GalleryLocalizationTests
             VerifyTemporalExamples(Render, tree, services, check);
             VerifyVirtualAndFileExamples(Render, tree, services, check);
             VerifyFileChooserLanguages(Render, tree, check);
+            VerifyPeopleExamples(Render, tree, services, check);
 
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
             File.WriteAllText(path, "en");
@@ -819,6 +820,70 @@ internal static class GalleryLocalizationTests
         {
             ui.EnableRootViewportContentLayout(contentPadding : 0);
             chooser.Render(ui);
+        }
+    }
+
+    private static void VerifyPeopleExamples(Action<UiScreen> render, UiAccessibilityTree tree, ObserverServices services,
+        Action<bool, string> check)
+    {
+        foreach (var (language, statusButton, active, away, groupCount, hidden, minsoo, personaName, personaLines) in new[]
+        {
+            (GalleryLanguage.English, "Change presence badge status", "Active", "Away", "Change the visible member count", "Hidden members", "Minsoo Kim", "Persona name", "Change the number of information lines"),
+            (GalleryLanguage.Korean, "상태 배지 변경", "활동 중", "자리 비움", "그룹 표시 수 변경", "숨긴 구성원", "김민수", "인물 이름", "인물 정보 줄 수"),
+            (GalleryLanguage.Japanese, "状態バッジの状態を変更", "アクティブ", "退席中", "表示するメンバー数を変更", "非表示のメンバー", "キム・ミンス", "人物名", "情報の行数を変更"),
+            (GalleryLanguage.SimplifiedChinese, "更改状态徽章的状态", "活跃", "离开", "更改显示的成员数", "隐藏成员", "金民秀", "人员姓名", "更改信息行数")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            using var screen = new ObserverScreen(services, language : language);
+            Navigate("아바타");
+            check(HasSource(active, "avatar.ActivityText"), $"Avatar exposes its localized activity label in C# in {language}");
+            Activate(statusButton);
+            check(screen.AvatarPage.Presence?.AccessibleName == away
+                && HasSource(away, "UiPresenceStatus.Away"), $"Avatar badge changes its accessible label and C# in {language}");
+
+            Navigate("아바타 그룹");
+            Activate(groupCount);
+            Activate(hidden + " (5)");
+            Activate(minsoo, UiAccessibilityRole.MenuItem);
+            check(screen.AvatarGroupPage.Preview is { IsOverflowOpen : false }
+                && HasSource(minsoo, "var selection = " + GallerySample.String(minsoo)),
+                $"AvatarGroup selects a localized hidden member and updates the C# in {language}");
+
+            Navigate("인물 정보");
+            Request(personaName, UiAccessibilityRole.Edit, UiAccessibilityAction.SetValue, "Sample person");
+            Activate(personaLines);
+            check(screen.PersonaPage.Preview?.Content is { Name : "Sample person", SecondaryText : null }
+                && HasSource("Sample person", "SecondaryText : null"),
+                $"Persona updates the localized example after editing and changing its line count in {language}");
+
+            void Frame() { render(screen); render(screen); }
+            void Navigate(string page) { screen.SelectedPage = page; Frame(); }
+            UiAccessibilityElement Find(string label, UiAccessibilityRole role) => tree.CaptureSnapshot().Elements
+                .Single(element => element.Node.Name == label && element.Node.Role == role);
+            void Activate(string label, UiAccessibilityRole role = UiAccessibilityRole.Button) =>
+                Request(label, role, UiAccessibilityAction.Invoke);
+            void Request(string label, UiAccessibilityRole role, UiAccessibilityAction action, string? value = null)
+            {
+                var target = Find(label, role);
+                if (target.Node.Offscreen)
+                {
+                    if (tree.RequestAction(target.Node.Id, target.RuntimeId, UiAccessibilityAction.ScrollIntoView, wait : false)
+                        != UiAccessibilityResult.Success)
+                        throw new InvalidOperationException("Gallery control cannot be revealed: " + label);
+                    Frame();
+                    target = Find(label, role);
+                }
+                if (tree.RequestAction(target.Node.Id, target.RuntimeId, action, value, wait : false)
+                    != UiAccessibilityResult.Success)
+                    throw new InvalidOperationException("Gallery action was rejected: " + label);
+                Frame();
+            }
+            bool HasSource(string label, string fragment) => tree.CaptureSnapshot().Elements.Any(element =>
+                element.Node.Role == UiAccessibilityRole.Edit && element.Node.Name == GalleryText.Get("C# example source")
+                && element.Node.Value is { } code && code.Contains(GallerySample.String(label), StringComparison.Ordinal)
+                && code.Contains(fragment, StringComparison.Ordinal) && !code.Contains("GalleryText.", StringComparison.Ordinal)
+                && (language == GalleryLanguage.Korean || !ContainsHangul(code)));
         }
     }
 

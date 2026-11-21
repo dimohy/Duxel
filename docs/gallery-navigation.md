@@ -16,6 +16,8 @@ Calendar, RangeCalendar, DatePicker, TimePicker, and DateTimePicker initially us
 
 Virtual list and virtual grid localize the names of rows and cells as they scroll into view. The file-dialog example uses localized captions, filters, and example C# for opening, saving, and selecting a folder. System dialog controls follow the operating system's language. The Duxel picker follows the Gallery language when the desktop picker is unavailable.
 
+Avatar, AvatarGroup, and Persona use the selected language for their controls, example labels, and copied C#. The Korean initials action still demonstrates the first Hangul character of a Korean name in every language.
+
 Applications can use the same localization API from `Duxel.Core`. Supply a culture, source string, and translation for each entry. Resolve text or format arguments using the application's selected culture.
 
 ```csharp
