@@ -5,7 +5,7 @@ namespace Duxel.Gallery;
 
 internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGallerySourcePage
 {
-    internal const string BrowserResolutionLabel = "확대 시 고해상도로 다시 그리기";
+    internal static string BrowserResolutionLabel => GalleryText.Get("Redraw at high resolution when zoomed");
     private Content? _content;
     public string Title => "SVG";
     public string Description => "The gallery parses SVG once and renders it with Vulkan. Zooming and rotation reuse the prepared paths.";
@@ -86,7 +86,7 @@ internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGalle
         private readonly SvgImageDecoder _decoder;
         private readonly UiWidget _controls;
         private readonly UiSlider<UiFluentSliderBehavior, UiFluentSliderPresentation>[] _transformSliders;
-        private readonly UiWidget _hint = Fluent.Body1("SVG 위젯과 아이콘은 CPU에서 비트맵을 만들지 않고 GPU에서 경로와 효과를 그립니다. 확대·회전하거나 다른 페이지를 다녀와도 XML을 다시 해석하지 않습니다. 일반 이미지로 사용하는 예제에서는 SVG를 비트맵으로 변환합니다.");
+        private readonly UiWidget _hint = Fluent.Body1(GalleryText.Get("SVG widgets and icons draw paths and effects on the GPU. Zooming, rotating, and returning to this page reuse the parsed XML. The standard image example converts SVG to a bitmap."));
         private readonly UiFluentTabList _tabs;
         private readonly UiMenu<UiFluentMenuPresentation> _menu;
         private readonly UiState<float> _zoom = new(1);
@@ -97,8 +97,8 @@ internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGalle
         private readonly UiWidget _browserResolutionSwitch;
         private readonly UiState<string?> _selection = new("first");
         private readonly string[] _paths;
-        private string _action = "아직 메뉴를 선택하지 않았습니다.";
-        private string _reload = "파일이 바뀌면 다시 읽기를 누르세요.";
+        private string? _action;
+        private string _reload = GalleryText.Get("Select Reload after the file changes.");
         internal UiSvg Preview
         {
             get;
@@ -180,33 +180,33 @@ internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGalle
             var standaloneFactory = _iconSample.Source;
             _iconSample.BindSource(() => 0, _ => SvgExampleSource.Factory("CreateSvgIcon", iconDefinition.Source + "\n\n"
                 + standaloneFactory + "\nreturn (_store, icon, example);", icons : true));
-            _tabsSample = GallerySample.Create(() => Fluent.TabList("SVG 아이콘 탭", _selection.Binding,
+            _tabsSample = GallerySample.Create(() => Fluent.TabList(GalleryText.Get("SVG icon tabs"), _selection.Binding,
             new UiTabOption[]
             {
-                new("first", "이미지·텍스트", Icon : icon.TabIcon),
-                new("second", "문서 기능", Icon : icon.TabIcon),
-                new("browser", "브라우저 비교", Icon : icon.TabIcon),
-                new("clips", "클립·경계", Icon : icon.TabIcon),
-                new("layers", "레이어·테두리", Icon : icon.TabIcon),
-                new("domains", "테두리 범위", Icon : icon.TabIcon),
-                new("arcs", "호·곡선 비교", Icon : icon.TabIcon)
+                new("first", GalleryText.Get("Images and text"), Icon : icon.TabIcon),
+                new("second", GalleryText.Get("Document features"), Icon : icon.TabIcon),
+                new("browser", GalleryText.Get("Browser comparison"), Icon : icon.TabIcon),
+                new("clips", GalleryText.Get("Clips and edges"), Icon : icon.TabIcon),
+                new("layers", GalleryText.Get("Layers and strokes"), Icon : icon.TabIcon),
+                new("domains", GalleryText.Get("Stroke coverage"), Icon : icon.TabIcon),
+                new("arcs", GalleryText.Get("Arcs and curves"), Icon : icon.TabIcon)
             }));
             _tabs = _tabsSample.Preview;
             var tabsFactory = _tabsSample.Source;
             _tabsSample.BindSource(() => _selection.Value, value => SvgExampleSource.Factory("CreateSvgIconTabs",
                 $"var _selection = new UiState<string?>({GallerySample.String(value)});\n\n" + iconDefinition.Source
                 + "\n\n" + tabsFactory + "\nreturn (_store, icon, example);", icons : true));
-            _menuSample = GallerySample.Create<UiMenu<UiFluentMenuPresentation>>(() => Fluent.Menu("SVG 아이콘 메뉴",
-                [new("svg", "SVG 아이콘 항목") { Icon = icon.MenuIcon }], value => _action = value));
+            _menuSample = GallerySample.Create<UiMenu<UiFluentMenuPresentation>>(() => Fluent.Menu(GalleryText.Get("SVG icon menu"),
+                [new("svg", GalleryText.Get("SVG icon item")) { Icon = icon.MenuIcon }], value => _action = value));
             _menu = _menuSample.Preview;
             var menuFactory = _menuSample.Source;
             _menuSample.BindSource(() => _action, value => SvgExampleSource.Factory("CreateSvgIconMenu",
-                $"string _action = {GallerySample.String(value)};\n\n" + iconDefinition.Source
+                $"string? _action = {GallerySample.String(value)};\n\n" + iconDefinition.Source
                 + "\n\n" + menuFactory + "\nreturn (_store, icon, example);", icons : true));
-            var zoom = Fluent.Slider("SVG 확대", _zoom.Binding, .25f, 4, .01f);
-            var rotation = Fluent.Slider("SVG 회전", _rotation.Binding, 0, 360, 1);
-            var margin = Fluent.Slider("SVG 여백", _margin.Binding, 0, 100, 1);
-            var radius = Fluent.Slider("이미지·SVG 모서리", _radius.Binding, 0, 100, 1);
+            var zoom = Fluent.Slider(GalleryText.Get("SVG zoom"), _zoom.Binding, .25f, 4, .01f);
+            var rotation = Fluent.Slider(GalleryText.Get("SVG rotation"), _rotation.Binding, 0, 360, 1);
+            var margin = Fluent.Slider(GalleryText.Get("SVG margin"), _margin.Binding, 0, 100, 1);
+            var radius = Fluent.Slider(GalleryText.Get("Image and SVG corner radius"), _radius.Binding, 0, 100, 1);
             _transformSliders = [zoom, rotation, margin, radius];
             foreach (var slider in _transformSliders)
             {
@@ -215,17 +215,17 @@ internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGalle
             }
             _controls = Dux.Column(new(Spacing: 12, MainAxisSize: UiMainAxisSize.Min),
                 Dux.Wrap(new(Spacing: 16, RunSpacing: 12),
-                    Dux.Column(new(Spacing: 4, MainAxisSize: UiMainAxisSize.Min), Fluent.Caption1("SVG 확대 (1%)"), zoom),
-                    Dux.Column(new(Spacing: 4, MainAxisSize: UiMainAxisSize.Min), Fluent.Caption1("SVG 회전 (1°)"), rotation),
-                    Dux.Column(new(Spacing: 4, MainAxisSize: UiMainAxisSize.Min), Fluent.Caption1("SVG 왼쪽 여백 (1px)"), margin),
-                    Dux.Column(new(Spacing: 4, MainAxisSize: UiMainAxisSize.Min), Fluent.Caption1("이미지·SVG 모서리 (1px)"), radius)),
+                    Dux.Column(new(Spacing: 4, MainAxisSize: UiMainAxisSize.Min), Fluent.Caption1(GalleryText.Get("SVG zoom (1%)")), zoom),
+                    Dux.Column(new(Spacing: 4, MainAxisSize: UiMainAxisSize.Min), Fluent.Caption1(GalleryText.Get("SVG rotation (1°)")), rotation),
+                    Dux.Column(new(Spacing: 4, MainAxisSize: UiMainAxisSize.Min), Fluent.Caption1(GalleryText.Get("SVG left margin (1 px)")), margin),
+                    Dux.Column(new(Spacing: 4, MainAxisSize: UiMainAxisSize.Min), Fluent.Caption1(GalleryText.Get("Image and SVG corner radius (1 px)")), radius)),
                 Dux.Wrap(new(Spacing: 12, RunSpacing: 8),
-                    Fluent.Button("이미지 늘이기", () => _bitmap.Fit = UiImageFit.Stretch),
-                    Fluent.Button("이미지 전체 맞춤", () => _bitmap.Fit = UiImageFit.Contain),
-                    Fluent.Button("이미지 채우기", () => _bitmap.Fit = UiImageFit.Cover)),
+                    Fluent.Button(GalleryText.Get("Stretch image"), () => _bitmap.Fit = UiImageFit.Stretch),
+                    Fluent.Button(GalleryText.Get("Fit entire image"), () => _bitmap.Fit = UiImageFit.Contain),
+                    Fluent.Button(GalleryText.Get("Fill with image"), () => _bitmap.Fit = UiImageFit.Cover)),
                 Dux.Wrap(new(Spacing: 16, RunSpacing: 12),
-                    Fluent.Button("SVG 변환 초기화", Reset),
-                    Fluent.Button("SVG 파일 다시 읽기", Reload)));
+                    Fluent.Button(GalleryText.Get("Reset SVG transform"), Reset),
+                    Fluent.Button(GalleryText.Get("Reload SVG file"), Reload)));
         }
         private void RefreshSources()
         {
@@ -264,7 +264,7 @@ internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGalle
                 _store.Reload(path);
             if (artwork.Revision != revision)
                 _bitmap.Source = LoadBitmap();
-            _reload = before == _store.Statistics.XmlParses ? "파일 내용이 같아서 XML·장면·캐시를 유지했습니다." : "바뀐 파일의 장면을 갱신했습니다.";
+            _reload = before == _store.Statistics.XmlParses ? GalleryText.Get("The file is unchanged. The parsed XML, scene, and cache were reused.") : GalleryText.Get("Updated the scene from the changed file.");
         }
         private UiImageSource LoadBitmap()
         {
@@ -287,16 +287,17 @@ internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGalle
             _features.RotationDegrees = _rotation.Value;
             _features.Margin = new(_margin.Value, 0, 0, 0);
             SvgTelemetryText.Show(ui,
-                $"확대 : {_zoom.Value * 100:F0}% / 회전 : {_rotation.Value:F0}° / 왼쪽 여백 : {_margin.Value:F0}px",
+                GalleryText.Format("Zoom: {0:F0}% / Rotation: {1:F0}° / Left margin: {2:F0}px",
+                    _zoom.Value * 100, _rotation.Value, _margin.Value),
                 _synchronizeTransformSources);
             var fit = _bitmap.Fit switch
             {
-                UiImageFit.Stretch => "늘이기",
-                UiImageFit.Contain => "전체 맞춤",
-                UiImageFit.Cover => "채우기",
+                UiImageFit.Stretch => GalleryText.Get("Stretch"),
+                UiImageFit.Contain => GalleryText.Get("Contain"),
+                UiImageFit.Cover => GalleryText.Get("Cover"),
                 _ => throw new InvalidOperationException()
             };
-            ui.Text($"모서리 : {_radius.Value:F0}px / 일반 이미지 맞춤 : {fit}");
+            ui.Text(GalleryText.Format("Corner radius: {0:F0}px / Image fit: {1}", _radius.Value, fit));
             _tabs.Render(ui);
             var scrolling = IsComparisonScrolling(ui, viewportOrigin);
             _useBrowserPreview = !_synchronizeTransformSources || scrolling;
@@ -313,24 +314,41 @@ internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGalle
             _menu.Render(ui);
             _menuSample.SynchronizeSource();
             ui.RenderNaturalHeight(_menuSample.CodeView);
-            ui.Text("독립 SVG 아이콘 (Fluent.Icon)");
+            ui.Text(GalleryText.Get("Standalone SVG icon (Fluent.Icon)"));
             ui.RenderNaturalHeight(_iconSample);
-            ui.Text($"선택 : {_selection.Value} / 메뉴 : {_action}");
+            ui.Text(GalleryText.Format("Tab: {0} / Menu: {1}", SelectedTabName(),
+                GalleryText.Get(_action is null ? "No menu command selected" : "SVG icon item")));
             ui.TextWrapped(_reload);
             var source = _store.Statistics;
             var texture = ui.SvgTextureStatistics;
             var imageTexture = ui.ImageTextureStatistics;
             var font = _store.FontStatistics;
-            ui.Text($"파일 읽기 : {source.SourceReads} / XML : {source.XmlParses} / 장면 : {source.SceneCompiles} / GPU 준비 : {source.GpuSceneCompiles} / 비트맵 출력 : {source.Rasterizations}");
-            ui.Text($"SVG GPU 렌더 요청 : {texture.GpuRenderRequests} / CPU 픽셀 업로드 : {texture.UploadedBytes} B / 캐시 텍스처 : {texture.ResidentTextures}");
-            ui.Text($"명시적 비트맵 출력 캐시 : {source.CachedRasterBytes / 1024d:F1} KB");
-            ui.Text($"일반 이미지 업로드 요청 : {imageTexture.Uploads} / 캐시 텍스처 : {imageTexture.ResidentTextures} / 픽셀 : {imageTexture.ResidentBytes / 1024d:F1} KB");
-            ui.Text($"등록 글꼴 : {font.LoadedFaces} / 글꼴 해석 : {font.TypefaceRequests} / 글리프 확인 : {font.GlyphChecks}");
+            ui.Text(GalleryText.Format("File reads: {0} / XML parses: {1} / Scenes: {2} / GPU preparation: {3} / Bitmap renders: {4}",
+                source.SourceReads, source.XmlParses, source.SceneCompiles, source.GpuSceneCompiles, source.Rasterizations));
+            ui.Text(GalleryText.Format("SVG GPU render requests: {0} / CPU pixel uploads: {1} B / Cached textures: {2}",
+                texture.GpuRenderRequests, texture.UploadedBytes, texture.ResidentTextures));
+            ui.Text(GalleryText.Format("Explicit bitmap render cache: {0:F1} KB", source.CachedRasterBytes / 1024d));
+            ui.Text(GalleryText.Format("Standard image uploads: {0} / Cached textures: {1} / Pixels: {2:F1} KB",
+                imageTexture.Uploads, imageTexture.ResidentTextures, imageTexture.ResidentBytes / 1024d));
+            ui.Text(GalleryText.Format("Loaded fonts: {0} / Typeface requests: {1} / Glyph checks: {2}",
+                font.LoadedFaces, font.TypefaceRequests, font.GlyphChecks));
             _hint.Render(ui);
         }
+        private string SelectedTabName() => GalleryText.Get(_selection.Value switch
+        {
+            "first" => "Images and text",
+            "second" => "Document features",
+            "browser" => "Browser comparison",
+            "clips" => "Clips and edges",
+            "layers" => "Layers and strokes",
+            "domains" => "Stroke coverage",
+            "arcs" => "Arcs and curves",
+            _ => "None selected"
+        });
+
         private void RenderComparison(UiImmediateContext ui)
         {
-            ui.Text("일반 이미지 입력 (왼쪽) / 전용 SVG 위젯 (오른쪽)");
+            ui.Text(GalleryText.Get("Standard image (left) and SVG widget (right)"));
             if (_synchronizeTransformSources)
             {
                 _comparisonSample.SynchronizeSource();
@@ -341,7 +359,7 @@ internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGalle
         }
         private void RenderFeatures(UiImmediateContext ui)
         {
-            ui.TextWrapped("패턴 반복 / 방사형 그라디언트와 재사용 심볼 / 마스크 / 점선과 화살표 마커를 확인하세요. 흰 마름모는 숨긴 그룹의 자식만 다시 표시한 예제입니다. 같은 조절기로 확대·회전하고 여백을 확보합니다.");
+            ui.TextWrapped(GalleryText.Get("Look for repeating patterns, radial gradients, reused symbols, masks, dashes, and arrow markers. The white diamond is a visible child of a hidden group. Use the same controls to zoom, rotate, or add margin."));
             if (_synchronizeTransformSources)
                 _featureSample.SynchronizeSource();
             ui.RenderNaturalHeight(_featureSample);
@@ -350,7 +368,7 @@ internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGalle
         {
             _browserResolutionSwitch.Render(ui);
             var highResolution = _browserHighResolution.Value;
-            ui.TextWrapped("기본 모드에서는 GPU가 그려 둔 이미지를 카메라로 확대·회전합니다. 확대된 픽셀까지 비교하려면 고해상도로 다시 그리기를 켜세요.");
+            ui.TextWrapped(GalleryText.Get("By default, the camera zooms and rotates the GPU-rendered image. Enable high-resolution redraw to compare the zoomed pixels."));
             (_browser ??= new(_store, _decoder)).Render(ui, _zoom.Value, _rotation.Value,
                 new(_margin.Value, 0, 0, 0), _radius.Value, _synchronizeTransformSources,
                 _useBrowserPreview || !highResolution, highResolution);
