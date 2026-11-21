@@ -199,7 +199,7 @@ public sealed partial class UiImmediateContext
         if (tooltip.Requested != requested)
         {
             tooltip.Requested = requested;
-            var delay = requested ? (_tooltipVisibleOwner is null ? options.ShowDelay : 0)
+            var delay = requested ? options.ShowDelayAfterHandover(_tooltipVisibleOwner is not null)
                 : tooltip.Focused && !focused ? 0 : options.HideDelay;
             tooltip.Deadline = requested == visible ? null : _state.TimeSeconds + delay;
         }

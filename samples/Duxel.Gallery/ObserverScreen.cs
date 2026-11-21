@@ -8,6 +8,12 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
     internal bool ProfileRenderSections { get; set; }
     internal (long Navigation, long Options, long Page) RenderSectionTicks { get; private set; }
 #endif
+    private static readonly UiTooltipOptions ToolbarTooltipOptions = new()
+    {
+        ShowDelaySeconds = .75,
+        UseShowDelayOnHandover = true
+    };
+
     private readonly IObserverPage[] _pages;
     private readonly GalleryPageFrame?[] _pageFrames;
     private readonly UiState<string?> _selection = new("개요");
@@ -138,7 +144,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
                 _currentUi.RequestTheme(theme);
             }));
         _toolbar = Dux.SizedBox(Dux.Row(new(Spacing: 16, CrossAxisAlignment: UiCrossAxisAlignment.Center),
-            Dux.Expanded(Fluent.Tooltip(Fluent.Caption1(() => _rendererStatus), GalleryText.Get("P : presentations / D : draw calls / U : uploaded bytes / C : cache hits"))),
+            Dux.Expanded(Fluent.Tooltip(Fluent.Caption1(() => _rendererStatus), GalleryText.Get("P : presentations / D : draw calls / U : uploaded bytes / C : cache hits"), ToolbarTooltipOptions)),
             Fluent.Switch("V-Sync", new UiBinding<bool>(() => _currentUi!.GetVSync(), value => _currentUi!.SetVSync(value))),
             Fluent.Switch(GalleryText.Get("Event-driven mode"), new UiBinding<bool>(() => _updateOnlyOnChange, value => _updateOnlyOnChange = value)),
             Fluent.Switch(GalleryText.Get("Highlight repaints"), _repaintHighlights.Binding)));
@@ -186,7 +192,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
                 AccessibleName = settingsLabel
             };
             _headerActions = Dux.Row(new(Spacing : 12, CrossAxisAlignment : UiCrossAxisAlignment.Center),
-                _themeSwitch, Fluent.Tooltip(settingsButton, settingsLabel));
+                _themeSwitch, Fluent.Tooltip(settingsButton, settingsLabel, ToolbarTooltipOptions));
         }
         _options = Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
             Dux.Row(new(Spacing : 16, CrossAxisAlignment : UiCrossAxisAlignment.Start), Dux.Expanded(_toolbarScroll), _headerActions), Fluent.Divider());

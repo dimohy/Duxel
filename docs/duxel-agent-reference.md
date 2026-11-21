@@ -550,6 +550,8 @@ For the legacy widget/GPU bundle while resize is deferred, use the explicit `wid
 
 2026-11-11 [External UIA on host visibility](tooltip-events.md): a separate client receives two open and two close events across minimize, restore, hide and show in the actual Windows session. Close caches preserve logical identity and offscreen state. The retired live provider becomes unavailable and target HelpText remains readable.
 
+Use `UiTooltipOptions.UseShowDelayOnHandover` to keep a tooltip’s configured show delay when the pointer moves from a visible tooltip to this target. The Gallery toolbar uses a 750 ms delay.
+
 2026-11-11 [Tooltip host visibility](tooltip-targets.md): the Windows backend publishes hidden/minimized state and a hide sequence through the session frame. A host hide sends `HostHidden` requests and releases visual and accessibility surfaces. For zero-extent minimization, the session processes the change with one input-only pass and submits no GPU frame. Restore honors retained controlled values. Backends that omit visibility keep the visible default.
 
 2026-11-11 [Tooltip surface input](tooltip-auto-size.md): overlapping tooltip bodies share one pointer hit selection for hover and both wheel axes. The top painted eligible body receives input. Unmovable wheel axes remain available to the enclosing viewport, and externally dismissing the top body makes the visible body underneath eligible immediately.
