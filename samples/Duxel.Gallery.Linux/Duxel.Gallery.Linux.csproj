@@ -13,7 +13,7 @@
     <ProjectReference Include="../../src/Duxel.Linux.App/Duxel.Linux.App.csproj" />
     <ProjectReference Include="../../src/Duxel.Svg/Duxel.Svg.csproj" />
     <Compile Include="../Duxel.Gallery/*.cs"
-             Exclude="../Duxel.Gallery/Program.cs;../Duxel.Gallery/ObserverServices.Windows.cs"
+             Exclude="../Duxel.Gallery/Program.cs;../Duxel.Gallery/GalleryApp.cs;../Duxel.Gallery/ObserverServices.Windows.cs"
              Link="Observer/%(Filename)%(Extension)" />
     <Compile Include="../Duxel.Sample/SampleScreen.cs" Link="Legacy/SampleScreen.cs" />
     <Compile Include="../Duxel.Sample/ImGuiExamples.cs" Link="Legacy/ImGuiExamples.cs" />
