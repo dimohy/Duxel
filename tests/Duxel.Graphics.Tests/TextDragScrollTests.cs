@@ -116,6 +116,43 @@ internal static class TextDragScrollTests
         check(later.AnchorUtf16 == origin.AnchorUtf16 && later.CaretUtf16 > origin.CaretUtf16
             && Notes().Scroll!.Value.VerticalOffset > 0 && notes.Value == source,
             "editable multiline text scrolls its own viewport and retains selection and text");
+        Frame(idle with { MousePosition = inside, LeftMouseReleased = true });
+
+        var markdown = new UiState<string>("# Drag selection\n\n" + source.Replace("\n", "\n\n", StringComparison.Ordinal));
+        var originalMarkdown = markdown.Value;
+        var markdownOptions = new UiMarkdownOptions(Width: 260, Height: 122, Wrap: false);
+        using var markdownEditor = Dux.MarkdownEditor("Markdown editor", markdown.Binding, markdownOptions);
+        using var markdownView = Dux.MarkdownView("Markdown preview", markdown.Binding, markdownOptions);
+        CheckMarkdownDrag(markdownEditor, "Markdown editor");
+        CheckMarkdownDrag(markdownView, "Markdown preview");
+
+        void CheckMarkdownDrag(UiWidget widget, string name)
+        {
+            UiAccessibilityNode Markdown() => tree.CaptureSnapshot().Elements.Single(element =>
+                element.Node is { Role: UiAccessibilityRole.Edit } node && node.Name == name).Node;
+
+            draw.Widget = widget;
+            Frame(idle);
+            var viewport = Markdown().TextLayout!.ClipBounds;
+            var pointer = new UiVector2(viewport.X + 40, viewport.Y + 42);
+            Frame(idle with { MousePosition = pointer, LeftMouseDown = true, LeftMousePressed = true });
+            var anchor = Markdown().TextInfo!;
+            var outside = new UiVector2(viewport.X + viewport.Width + 70, viewport.Y + viewport.Height + 60);
+            Hold(outside);
+            var after = Markdown();
+            check(after.Scroll is { HorizontalOffset: > 0, VerticalOffset: > 0 }
+                && after.TextInfo!.AnchorUtf16 == anchor.AnchorUtf16 && after.TextInfo.CaretUtf16 > anchor.CaretUtf16
+                && markdown.Value == originalMarkdown, name + " extends selection across both axes without changing the source");
+            Frame(idle with { MousePosition = outside, LeftMouseReleased = true });
+            var released = Markdown();
+            // The editor can reveal the active Markdown block on release, then the viewport must stay still.
+            Frame(idle with { MousePosition = outside });
+            var settled = Markdown();
+            check(settled.Scroll?.Offset == released.Scroll?.Offset
+                && released.TextInfo!.CaretUtf16 == after.TextInfo!.CaretUtf16
+                && settled.TextInfo!.CaretUtf16 == released.TextInfo.CaretUtf16,
+                name + " stops scrolling and keeps its selected endpoint after release");
+        }
     }
 
     private sealed class Screen(UiWidget widget) : UiScreen
