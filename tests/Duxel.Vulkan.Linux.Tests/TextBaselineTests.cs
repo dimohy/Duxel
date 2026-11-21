@@ -6,6 +6,8 @@ using Duxel.Platform.Linux;
 
 internal static class TextBaselineTests
 {
+    private const int CheckboxKind = 2;
+
     internal static void Run(string output, int slots)
     {
         Directory.CreateDirectory(output);
@@ -85,7 +87,11 @@ internal static class TextBaselineTests
                         File.WriteAllBytes(Path.Combine(output, name + ".native-reference.rgba"), expectedPixels);
                         File.WriteAllBytes(Path.Combine(output, name + ".actual.rgba"), actualPixels);
                     }
-                    Check(reproduced, "Historical negative-descent mapping reproduces a visible widget displacement : " + name);
+                    // Checkbox centers the glyph ink in its indicator row instead of deriving the painted position from line descent.
+                    if (kind == CheckboxKind)
+                        Check(!reproduced, "Checkbox label ink remains centered with historical descent metrics : " + name);
+                    else
+                        Check(reproduced, "Historical negative-descent mapping reproduces a visible widget displacement : " + name);
                     Check(equal, "Actual widget and caret pixels match independent raw native metrics : " + name);
                 }
         File.WriteAllText(Path.Combine(output, "result.json"), JsonSerializer.Serialize(
@@ -98,7 +104,7 @@ internal static class TextBaselineTests
     {
         0 => Fluent.Button("확인 Abgj"),
         1 => Fluent.Badge("Ready"),
-        2 => Fluent.Checkbox("선택 Abgj", new UiState<bool?>(null).Binding),
+        CheckboxKind => Fluent.Checkbox("선택 Abgj", new UiState<bool?>(null).Binding),
         3 => Fluent.RadioGroup("처리 방식", new UiState<string?>("a").Binding,
             new UiRadioOption[] { new("a", "한글 Abgj"), new("b", "선택") }),
         4 => Fluent.Spinner("일시 정지 Abgj", new(ReducedMotion: true) { Paused = true }),
