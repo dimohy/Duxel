@@ -58,24 +58,43 @@ internal sealed class CatalogPage : UiWidget
             throw new InvalidOperationException($"Gallery catalog mappings must match the exposed factories. Missing : {string.Join(", ", missing)} / Extra : {string.Join(", ", extra)}");
     }
 
+    private IReadOnlyList<GalleryDestination> _destinations = [];
+    private Action<string?>? _navigate;
+
+    internal void Connect(IReadOnlyList<GalleryDestination> destinations, Action<string?> navigate)
+    {
+        _destinations = destinations;
+        _navigate = navigate;
+    }
+
     protected override IUiView Build(UiBuildContext context) => context.Child("root", () =>
     {
         var rows = new List<UiWidget>
         {
-            Fluent.Body1($"사용할 수 있는 팩터리 : {Fluent.ComponentNames.Length} / Fluent 구성요소 : {Fluent.RequiredComponentNames.Length} / 아직 연결하지 않은 구성요소 : {Fluent.MissingComponentNames.Length}"),
-            Fluent.Body1("아래에서 구성요소별 예제가 어느 메뉴에 있는지 확인하세요. 아직 제공하지 않는 구성요소는 왼쪽 메뉴에 미구현 배지로 표시합니다. 새 팩터리를 추가하고 예제 메뉴에 연결하지 않으면 시작할 때 오류를 알립니다.")
+            Fluent.Body1(GalleryText.Format("예제 {0}개 · 구현 예정 {1}개",
+                _destinations.Count(item => !item.Planned), _destinations.Count(item => item.Planned))),
+            Fluent.Body1(GalleryText.Get("예제 이름을 선택하면 해당 페이지가 열립니다."))
         };
+        foreach (var section in _destinations.Where(item => item.Page != "관찰 범위").GroupBy(item => item.Section))
+        {
+            if (section.Key.Length > 0)
+                rows.Add(Fluent.Title3(section.Key));
+            foreach (var category in section.GroupBy(item => item.Category))
+            {
+                rows.Add(Fluent.Subtitle1(category.Key));
+                rows.Add(Dux.Wrap(new(Spacing : 8, RunSpacing : 6), category.Select(destination =>
+                    (UiWidget)Fluent.Button(destination.Planned
+                            ? GalleryText.Format("{0} · 미구현", destination.Label) : destination.Label,
+                        () => _navigate!(destination.Key))).ToArray()));
+            }
+        }
+
+        rows.Add(Fluent.Divider(GalleryText.Get("Fluent 팩터리")));
         foreach (var group in Groups)
         {
-            rows.Add(Fluent.Subtitle1(group.Page));
+            rows.Add(Fluent.Subtitle1(GalleryText.Get(group.Page)));
             rows.Add(Fluent.Body1(string.Join(" / ", group.Components)));
         }
-        rows.Add(Fluent.Subtitle1("DataGrid"));
-        rows.Add(Fluent.Body1("Fluent.DataGrid · 고정 열 제목, 정렬, 행 선택, 키보드 탐색"));
-        rows.Add(Fluent.Divider("남은 범위"));
-        rows.Add(Fluent.Body1("컨테이너 메뉴에서 단일 자식 배치와 Flex·Stack·Wrap·Grid를 비교하세요. 가상 목록에서는 10억 개 행의 높이를 바꾸거나 값을 편집할 수 있으며, 행이 화면 밖으로 나가도 편집한 값은 유지됩니다. 렌더링 메뉴에서는 바뀌지 않는 레이어의 재사용, 기본 도형 그리기, 독립적인 3D 투영을 확인할 수 있습니다."));
-        rows.Add(Fluent.Body1("운영체제별 입력과 화면 표시는 계속 확인하고 있습니다. 예제가 있더라도 Fluent 디자인에 맞는지, 각 상태가 올바르게 표시되는지, 접근성에 문제가 없는지는 추가로 검증해야 합니다."));
-        rows.Add(Fluent.Caption1("실행 : 저장소 루트에서 ./run-gallery.ps1 / 안내 : samples/Duxel.Gallery/README.ko.md"));
         return new UiColumn(rows.ToArray(), new(Spacing: 16, MainAxisSize: UiMainAxisSize.Min));
     });
 }

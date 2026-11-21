@@ -18,18 +18,18 @@ internal sealed class FileDialogsPage : IObserverPage, IObserverNaturalPage
         _session = session;
         var directory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var start = Directory.Exists(directory) ? directory : null;
-        var allFiles = new UiFileDialogFilter("모든 파일", "*");
-        var textFiles = new UiFileDialogFilter("텍스트 파일", "*.txt");
-        var open = new UiFileDialogRequest(UiFileDialogKind.OpenFile, "열 파일 선택", start,
+        var allFiles = new UiFileDialogFilter(GalleryText.Get("모든 파일"), "*");
+        var textFiles = new UiFileDialogFilter(GalleryText.Get("텍스트 파일"), "*.txt");
+        var open = new UiFileDialogRequest(UiFileDialogKind.OpenFile, GalleryText.Get("열 파일 선택"), start,
             allowMultiple: true, filters: [allFiles, textFiles]);
-        var save = new UiFileDialogRequest(UiFileDialogKind.SaveFile, "저장할 파일 선택", start,
-            suggestedFileName: "메모.txt", defaultExtension: "txt", filters: [textFiles]);
-        var folder = new UiFileDialogRequest(UiFileDialogKind.SelectFolder, "폴더 선택", start);
+        var save = new UiFileDialogRequest(UiFileDialogKind.SaveFile, GalleryText.Get("저장할 파일 선택"), start,
+            suggestedFileName: GalleryText.Get("메모.txt"), defaultExtension: "txt", filters: [textFiles]);
+        var folder = new UiFileDialogRequest(UiFileDialogKind.SelectFolder, GalleryText.Get("폴더 선택"), start);
         _root = Dux.Column(new(Spacing: 12, MainAxisSize: UiMainAxisSize.Min),
             Dux.Wrap(new(Spacing: 8, RunSpacing: 8),
-                Fluent.Button("파일 열기", () => Show(open)),
-                Fluent.Button("다른 이름으로 저장", () => Show(save)),
-                Fluent.Button("폴더 선택", () => Show(folder))),
+                Fluent.Button(GalleryText.Get("파일 열기"), () => Show(open)),
+                Fluent.Button(GalleryText.Get("다른 이름으로 저장"), () => Show(save)),
+                Fluent.Button(GalleryText.Get("폴더 선택"), () => Show(folder))),
             Fluent.Body1(Status));
     }
 
@@ -42,18 +42,18 @@ internal sealed class FileDialogsPage : IObserverPage, IObserverNaturalPage
     private string Status()
     {
         if (_session is null)
-            return "실행 중인 앱에서 운영체제 대화 상자를 열 수 있습니다.";
+            return GalleryText.Get("실행 중인 앱에서 운영체제 대화 상자를 열 수 있습니다.");
         if (_pending is null)
-            return "선택한 경로가 여기에 표시됩니다.";
+            return GalleryText.Get("선택한 경로가 여기에 표시됩니다.");
         if (!_pending.IsCompleted)
-            return "대화 상자가 열려 있습니다.";
+            return GalleryText.Get("대화 상자가 열려 있습니다.");
         if (!_pending.IsCompletedSuccessfully)
-            return "대화 상자를 열 수 없습니다. " + _pending.Exception?.GetBaseException().Message;
+            return GalleryText.Get("대화 상자를 열 수 없습니다.") + " " + _pending.Exception?.GetBaseException().Message;
         var paths = _pending.Result;
         if (paths.Count == 0)
-            return "선택을 취소했습니다.";
+            return GalleryText.Get("선택을 취소했습니다.");
         var first = string.Join("\n", paths.Take(8));
-        return paths.Count > 8 ? first + $"\n외 {paths.Count - 8:N0}개" : first;
+        return paths.Count > 8 ? first + "\n" + GalleryText.Format("외 {0:N0}개", paths.Count - 8) : first;
     }
 
     public void Render(UiImmediateContext ui) => _root.Render(ui);

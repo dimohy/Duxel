@@ -35,24 +35,24 @@ internal sealed class GalleryPageFrame : IDisposable
     {
         _page = page;
         _body = new ExampleHost(this);
-        var title = Fluent.Title2(navigationLabel ?? page.Title);
+        var title = Fluent.Title2(navigationLabel ?? GalleryText.Get(page.Title));
         var header = string.IsNullOrWhiteSpace(page.Description)
             ? (UiWidget)title
             : Dux.Column(new(Spacing : 6, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
-                title, new UiInlineText([new(page.Description)]));
+                title, new UiInlineText([new(GalleryText.Get(page.Description))]));
         UiWidget body = _body;
         if (page is IGallerySourcePage { HasInlineSamples: true } inline)
             _samples = inline.Samples;
         else if (HasSource(page.Title))
         {
             _source = GalleryPageSource.For(page);
-            _codeView = new UiCodeView(_source, new(ShowToolbar : false));
+            _codeView = new UiCodeView(_source, new(ShowToolbar : false), GalleryText.CodeViewLabels());
             body = Dux.Column(new(Spacing : 16, MainAxisSize : UiMainAxisSize.Min,
                 CrossAxisAlignment : UiCrossAxisAlignment.Stretch), _body, _codeView);
         }
         var scroll = Dux.ScrollView(Dux.Column(new(Spacing : 28, MainAxisSize : UiMainAxisSize.Min,
             CrossAxisAlignment : UiCrossAxisAlignment.Stretch), header, body));
-        scroll.AccessibleName = "갤러리 페이지";
+        scroll.AccessibleName = GalleryText.Get("갤러리 페이지");
         _root = scroll;
     }
     internal static bool HasSource(string title) => title is not ("개요" or "관찰 범위") && !Fluent.MissingComponentNames.Contains(title);
@@ -162,6 +162,7 @@ internal static class GalleryPageSource
             "보조 패널" => "DrawerPage",
             "갱신 관찰" => "RepaintExperiment",
             "Markdown" => "MarkdownPage",
+            "Localization" => "LocalizationPage",
             _ => throw new InvalidOperationException("Gallery source is not registered : " + page.Title)
         };
         return Read(file);

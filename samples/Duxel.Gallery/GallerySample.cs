@@ -82,7 +82,7 @@ internal static class GallerySample
             source += "\n\nFunc<UiWidget, UiWidget> layout = " + layoutExpression + ";\nUiWidget example = layout(control);";
         if (declarations.Length != 0) source += "\n\n" + declarations;
         var widget = create();
-        return new(widget, new UiCodeView(source, new(MaximumVisibleLines: null, ShowToolbar: false)), layout?.Invoke(widget));
+        return new(widget, new UiCodeView(source, new(MaximumVisibleLines: null, ShowToolbar: false), GalleryText.CodeViewLabels()), layout?.Invoke(widget));
     }
 }
 

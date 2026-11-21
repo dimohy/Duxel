@@ -1,6 +1,6 @@
 # Duxel
 
-[Rating](docs/fluent2-rating.md): try `Fluent.Rating` half steps,RTL and wrapping in Gallery **평가**. Run `./run-gallery.ps1 -NoRestore` when restored package assets match current dependencies.
+[Rating](docs/fluent2-rating.md): try `Fluent.Rating` half steps, right-to-left layout, and wrapping in Gallery under **Fluent controls → Input and selection → Rating**. Run `./run-gallery.ps1 -NoRestore` when restored package assets match current dependencies.
 
 [Widget contract validation](docs/widget-contract-validation.md): one isolated runner for the declared managed CPU suites; GPU, NativeAOT and full product acceptance remain separate.
 
@@ -8,7 +8,7 @@
   <img src="logo.svg" alt="Duxel logo" width="615" />
 </p>
 
-Immediate-mode GUI framework for .NET 8, .NET 9, and .NET 10, using a Vulkan renderer with a Windows-native platform backend.
+Duxel is a .NET UI library with an immediate-mode API for drawing and interaction, composable Fluent 2 widgets for building application interfaces, and an extensible design system. Applications can use the two UI styles together within the same Vulkan-rendered window.
 
 **Current published package version:** `0.2.12-preview`
 
@@ -17,14 +17,16 @@ Immediate-mode GUI framework for .NET 8, .NET 9, and .NET 10, using a Vulkan ren
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-- 한국어 문서: [README.ko.md](README.ko.md)
-- Version history: [docs/version-history.md](docs/version-history.md) · [한국어](docs/version-history.ko.md)
-- Duxel agent reference: [docs/duxel-agent-reference.md](docs/duxel-agent-reference.md) · [한국어](docs/duxel-agent-reference.ko.md)
-- Extended title bar guide: [docs/extended-title-bar-guide.md](docs/extended-title-bar-guide.md) · [한국어](docs/extended-title-bar-guide.ko.md)
+- Korean documentation: [README.ko.md](README.ko.md)
+- Version history: [docs/version-history.md](docs/version-history.md) · [Korean](docs/version-history.ko.md)
+- Duxel agent reference: [docs/duxel-agent-reference.md](docs/duxel-agent-reference.md) · [Korean](docs/duxel-agent-reference.ko.md)
+- Extended title bar guide: [docs/extended-title-bar-guide.md](docs/extended-title-bar-guide.md) · [Korean](docs/extended-title-bar-guide.ko.md)
 
 ## What it provides
 
 - Immediate-mode widget API (`UiImmediateContext`) with `UiScreen.Render(...)` lifecycle.
+- Composable Fluent 2 controls with reusable widget trees, state bindings, keyboard navigation, and accessibility.
+- Extensible themes and design tokens. Customize colors with `UiTheme`, control geometry with `UiDesignTokens`, and package a design with `IUiDesign`.
 - Vulkan backend with profile-based defaults (`Display` / `Render`) and configurable MSAA.
 - Windows-native window/input backend (keyboard, mouse, wheel, IME, clipboard).
 - Windows 11-style extended title bars with application tabs, native caption behavior, Snap Layout, system menus, DPI, and multi-monitor support.
@@ -84,6 +86,7 @@ If you want to see Duxel beyond a hello-world window, start with these represent
 
 ## Samples
 
+- Gallery: run `./run-gallery.ps1` to try the widgets and inspect their C# examples. Open **Settings → Gallery language** to choose English, Korean, Japanese, or Simplified Chinese.
 - Project sample: `samples/Duxel.Sample`
   - `dotnet run --project samples/Duxel.Sample/`
 - FBA samples: `samples/fba/*.cs`
@@ -95,13 +98,13 @@ If you want to see Duxel beyond a hello-world window, start with these represent
 
 Duxel supports declarative `.ui` files (indent-based tree) and runtime/state bindings.
 
-- DSL reference: [docs/ui-dsl.md](docs/ui-dsl.md) · [한국어](docs/ui-dsl.ko.md)
-- Agent reference: [docs/duxel-agent-reference.md](docs/duxel-agent-reference.md) · [한국어](docs/duxel-agent-reference.ko.md)
-- Extended title bar: [docs/extended-title-bar-guide.md](docs/extended-title-bar-guide.md) · [한국어](docs/extended-title-bar-guide.ko.md)
-- FBA getting started: [docs/getting-started-fba.md](docs/getting-started-fba.md) · [한국어](docs/getting-started-fba.ko.md)
-- FBA reference guide: [docs/fba-reference-guide.md](docs/fba-reference-guide.md) · [한국어](docs/fba-reference-guide.ko.md)
-- FBA sample catalog: [docs/fba-run-samples.md](docs/fba-run-samples.md) · [한국어](docs/fba-run-samples.ko.md)
-- Custom widgets: [docs/custom-widgets.md](docs/custom-widgets.md) · [한국어](docs/custom-widgets.ko.md)
+- DSL reference: [docs/ui-dsl.md](docs/ui-dsl.md) · [Korean](docs/ui-dsl.ko.md)
+- Agent reference: [docs/duxel-agent-reference.md](docs/duxel-agent-reference.md) · [Korean](docs/duxel-agent-reference.ko.md)
+- Extended title bar: [docs/extended-title-bar-guide.md](docs/extended-title-bar-guide.md) · [Korean](docs/extended-title-bar-guide.ko.md)
+- FBA getting started: [docs/getting-started-fba.md](docs/getting-started-fba.md) · [Korean](docs/getting-started-fba.ko.md)
+- FBA reference guide: [docs/fba-reference-guide.md](docs/fba-reference-guide.md) · [Korean](docs/fba-reference-guide.ko.md)
+- FBA sample catalog: [docs/fba-run-samples.md](docs/fba-run-samples.md) · [Korean](docs/fba-run-samples.ko.md)
+- Custom widgets: [docs/custom-widgets.md](docs/custom-widgets.md) · [Korean](docs/custom-widgets.ko.md)
 - Design notes (Korean): [docs/design.ko.md](docs/design.ko.md)
 - Optimization policy (Korean): [docs/optimization-policy.ko.md](docs/optimization-policy.ko.md)
 

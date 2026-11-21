@@ -947,7 +947,7 @@ if (args.Length == 2 && args[1] == "slider-range-only")
     return;
 }
 
-if (args.Length == 2 && args[1] is "drawer-only" or "nav-only" or "legacy-gallery-only" or "observer-only" or "tablist-only" or "overflow-only" or "menu-only" or "tab-overflow-only")
+if (args.Length == 2 && args[1] is "drawer-only" or "nav-only" or "legacy-gallery-only" or "observer-only" or "gallery-localization-only" or "tablist-only" or "overflow-only" or "menu-only" or "tab-overflow-only")
 {
     var destination = Path.GetFullPath(args[0]);
     Directory.CreateDirectory(destination);
@@ -997,6 +997,10 @@ if (args.Length == 2 && args[1] is "drawer-only" or "nav-only" or "legacy-galler
     {
         NavTests.Run(CheckLegacy);
         NavSecondaryActionTests.Run(CheckLegacy);
+    }
+    else if (args[1] == "gallery-localization-only")
+    {
+        GalleryLocalizationTests.Run(CheckLegacy);
     }
     else if (args[1] == "observer-only")
     {

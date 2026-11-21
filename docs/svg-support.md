@@ -31,7 +31,7 @@ GPU tests exposed and fixed three image contracts: Image/ImageWithBg/ImageButton
 
 ## Document features and the Observer example
 
-Run `./run-gallery.ps1` → SVG → **문서 기능**. This actual tab panel shows a repeating pattern, radial gradient, a currentColor symbol reused through use, a cutout mask and an endpoint arrow marker. **이미지·텍스트** returns to the ordinary-image/widget comparison. Both panels retain their resources and share the1px/1°/1% controls; switching panels requests a frame without creating an animation timer. The five original assets live in the sample's Assets/Svg directory.
+Run `./run-gallery.ps1` → SVG → **Document features**. This actual tab panel shows a repeating pattern, radial gradient, a currentColor symbol reused through use, a cutout mask and an endpoint arrow marker. **Images and text** returns to the ordinary-image/widget comparison. Both panels retain their resources and share the1px/1°/1% controls; switching panels requests a frame without creating an animation timer. The five original assets live in the sample's Assets/Svg directory.
 
 Focused CPU pixel fixtures additionally cover legacy xlink use and embedded PNG straight alpha. Known interior/exterior pixels and declared tile periods are checked independently of the renderer's own output. MSAA1/4 GPU checks cover symbol viewport/currentColor, periodic pattern transparency, masked geometry and unchanged acquired-image replay. These are explicit tested cases, not a full SVG specification compliance claim.
 
@@ -45,7 +45,7 @@ Document-feature checkpoint: CPU102, Observer123, SVG GPU52 and actual Observer 
 
 SVG1.1 tref is compiled once to the equivalent span of referenced character data described by the [W3C text specification](https://www.w3.org/TR/SVG11/text.html#TRefElement). This includes tref nested in textPath, which the pinned backend otherwise renders empty. The compiler uses the already parsed XML DOM and the backend's typed clone API, retaining the original element name, ID, class, styles and positioning. It does not introduce another XML parse, renderer or per-frame reference lookup.
 
-Both href and xlink:href accept resolved local fragments. Target markup supplies characters, while the referring element supplies presentation; entity-decoded characters and neighboring text retain their order. Source Reload recompiles changed referenced content transactionally. The sample's curved line in SVG → 이미지·텍스트 now reads from a reusable text definition in text.svg.
+Both href and xlink:href accept resolved local fragments. Target markup supplies characters, while the referring element supplies presentation; entity-decoded characters and neighboring text retain their order. Source Reload recompiles changed referenced content transactionally. The sample's curved line in SVG → Images and text now reads from a reusable text definition in text.svg.
 
 Focused tests compare plain, nested, CSS-styled/positioned and curved references with authored literals/spans, including competing tref/tspan selectors. Bitmap decoding,100 replays, enlarged raster and target Reload share the resource path. Current CPU112, Observer123, SVG GPU52 and Observer GPU7 pass. The actual reference-sample body is pixel-identical to the previous literal sample; only variable FPS header text differs. Evidence: artifacts/svg-support-2026-11-11/tref-verification.json. Full SVG/CSS/script/native/AOT qualification remains open.
 
@@ -141,6 +141,6 @@ Acceptance must cover ordinary SVG file input, intrinsic dimensions/viewBox/alph
 
 UiSvg.CornerRadius adds a fixed rounded viewport while rotation/translation retain the same raster. See [rounded image contracts](image-widgets.md#rounded-viewports-and-image-fit) for fit, transparent source UVs, Observer controls and validation limits.
 
-See [browser comparison](svg-browser-validation.md) for complex real originals and separate direct-SVG/image references. Observer → SVG → 브라우저 비교 displays browser and Duxel results side by side. Core, SVG and Vulkan share RGBA8 boundary conversion, and color images interpolate in premultiplied form. XML remains once per source revision. Full pixel equality is still unfinished.
+See [browser comparison](svg-browser-validation.md) for complex real originals and separate direct-SVG/image references. Observer → SVG → Browser comparison displays browser and Duxel results side by side. Core, SVG and Vulkan share RGBA8 boundary conversion, and color images interpolate in premultiplied form. XML remains once per source revision. Full pixel equality is still unfinished.
 
 General paths use four GPU samples and Wang uniform cubic subdivision separately from smooth primitive coverage. Inherited `visibility`, visible descendants and hidden text advances are supported. The comparison guide records independent pixel examples, actual capture conditions and remaining ellipse/complex-original differences.

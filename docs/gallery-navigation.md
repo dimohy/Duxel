@@ -4,9 +4,41 @@ HeadsUpDisplay now provides the centered portal and five live-source examples, c
 
 Run `./run-gallery.ps1` on Windows, or `./run-gallery-linux.ps1` with the existing explicit Linux font/runtime arguments. Existing observer launchers and internal project/cache paths remain compatible.
 
-The fixed sidebar header contains the gallery title and component/missing counts. The **밝은 테마** switch belongs to the fixed right-hand toolbar alongside statistics, V-Sync, event-wait and repaint highlighting. Off selects dark; on selects light. The menu and page content scroll independently; very narrow toolbars scroll horizontally.
+## Gallery language
 
-The menu lists the55 canonical component names from the source catalog inside seven functional groups, alphabetically within each group. Start, additional samples and development tools remain separate. A Fluent vector icon precedes each group heading instead of repeating on every child entry. All13 missing factories remain in their normal category with a **미구현** badge; selecting one shows **아직 미구현됨**. Badge status is also accessibility help text and does not disable selection.
+Open **Settings → Gallery language**, choose **English**, **Korean**, **Japanese**, or **Simplified Chinese**. The change applies immediately. The Gallery starts in the matching system language on first launch and uses English for other system languages. It saves the choice independently of the system language.
+
+The interface redraws with the selected language while staying on the same destination. The current theme and toolbar preferences carry over. Interactive example state is recreated when switching languages. Fluent component names stay recognizable as C# API names. The embedded Gallery catalog contains the localized interface strings and is shared by the Windows and Linux hosts.
+
+Applications can use the same localization API from `Duxel.Core`. Supply a culture, source string, and translation for each entry. Resolve text or format arguments using the application's selected culture.
+
+```csharp
+using System.Globalization;
+using Duxel.Core;
+
+const string source = "Selected files: {0:N0}";
+var catalog = new UiLocalization([("fr", source, "Fichiers sélectionnés : {0:N0}")]);
+var culture = CultureInfo.GetCultureInfo("fr-CA");
+var caption = catalog.Format(source, culture, 1234);
+```
+
+The catalog checks the exact culture followed by its parent cultures. The source string is used when a translation has not been supplied. Locale storage, translation data, and settings UI belong to the app. Gallery bundles [Noto Sans CJK](../samples/Duxel.Gallery/Assets/Fonts/NotoSansCJK/README.md) for the four interface languages.
+
+## Where to find a feature
+
+| Menu | Interactive examples |
+| --- | --- |
+| Start | Overview and Feature index. Select any listed example to open it directly. |
+| Fluent controls | Actions and navigation, input and selection, content and lists, people, alerts and progress, text and graphics, and themes. |
+| Duxel widgets | Date and time, SVG, Markdown, localization, layouts, transforms, virtual lists and grids, and pop-up input. |
+| System integration | Open, save, and folder-selection dialogs. |
+| Development tools | Rendering, repaint regions, retained measurements, and the immediate-mode API examples. |
+
+The feature index reads the same routes as the sidebar. It marks planned Fluent components and also lists the available Fluent factories by example. Rendering, transforms, text input, and other APIs share examples when they are used together.
+
+The fixed sidebar header contains the gallery title and component/missing counts. The **Light theme** switch belongs to the fixed right-hand toolbar alongside statistics, V-Sync, event-wait and repaint highlighting. Off selects dark; on selects light. The menu and page content scroll independently; very narrow toolbars scroll horizontally.
+
+The menu lists the55 canonical component names from the source catalog inside seven functional groups, alphabetically within each group. Start, additional samples and development tools remain separate. A Fluent vector icon precedes each group heading instead of repeating on every child entry. All13 missing factories remain in their normal category with a **Planned** badge; selecting one shows **Planned component**. Badge status is also accessibility help text and does not disable selection.
 
 Theme and status options remain fixed at the upper-right while the content scrolls.
 
@@ -16,22 +48,22 @@ The theme switch preserves page selection, actual counter state and active syste
 
 2026-11-17 validation:556 gallery contracts (including66 focused Nav checks),4,642 general widget checks,378 menu checks and197 existing tab contracts pass. The final normal Windows run acknowledges68 presented scenarios including actual secondary-action and theme invocation. Linux host compilation has zero warnings/errors. Presentation acknowledgement is not pixel equality or physical OS keyboard proof. Native Linux, original pinned NativeAOT and full Fluent qualification remain open. [Verification](../artifacts/drawer-2026-11-17/verification.json).
 
-The official [Fluent React gallery](https://storybooks.fluentui.dev/react/?path=/docs/components-nav--docs) is the reference for component-name navigation. The functional grouping is this gallery's arrangement. The gallery now consumes the shared `Fluent.Nav` and `ScrollView`. Category headings collapse/expand and retain their descriptions. Open `동작과 탐색 → Nav` for the independent example.
+The official [Fluent React gallery](https://storybooks.fluentui.dev/react/?path=/docs/components-nav--docs) is the reference for component-name navigation. The functional grouping is this gallery's arrangement. The gallery now consumes the shared `Fluent.Nav` and `ScrollView`. Category headings collapse/expand and retain their descriptions. Open `Actions and navigation → Nav` for the independent example.
 ## Existing example names and component menus
 
 | Existing example page | Menu entries |
 | --- | --- |
-| Fluent | Integration examples → Fluent · 종합. Individual controls have their own Fluent destinations. |
-| 타이포그래피 | Text |
-| 입력·IME | Field, Input, Label, Textarea |
-| 평가 | Rating |
-| 아바타 / 아바타 그룹 / 인물 정보 | Avatar / AvatarGroup / Persona |
-| 선택 목록 | Combobox, Dropdown, Tag |
-| 접기·펼치기 / 목록 / 카드 / 경로 | Accordion / List / Card / Breadcrumb |
-| 검색 입력 / 숫자 입력 / 도구 모음 | SearchBox / SpinButton / Toolbar |
-| 추가 정보 / 메시지 표시 / 스켈레톤 | InfoLabel / MessageBar / Skeleton |
-| SVG / Markdown / 위젯 배치 / 가상 목록 / 팝업 입력 | Additional samples |
-| 렌더링 / 측정 재사용 / 갱신 관찰 / 관찰 범위 / 기존 API | Development tools |
+| Fluent | Integration examples → Fluent · combined. Individual controls have their own Fluent destinations. |
+| Typography | Text |
+| Input and IME | Field, Input, Label, Textarea |
+| Rating | Rating |
+| Avatar / Avatar group / Persona | Avatar / AvatarGroup / Persona |
+| Dropdown | Combobox, Dropdown, Tag |
+| Accordion / List / Card / Breadcrumb | Accordion / List / Card / Breadcrumb |
+| Search box / Spin button / Toolbar | SearchBox / SpinButton / Toolbar |
+| Info label / Message bar / Skeleton | InfoLabel / MessageBar / Skeleton |
+| SVG / Markdown / Widget transforms / Virtual list / Pop-up input | Additional samples |
+| Rendering / Measurement reuse / Repaint observer / Implementation scope / Legacy API | Development tools |
 
 ## Shared Nav API
 
@@ -52,7 +84,7 @@ var nav = Fluent.Nav("App navigation", selected, new UiNavGroup[]
 
 Call `nav.Render(ui)` followed by `nav.RenderPage(ui, "home", render)` in the same frame to render the selected borrowed page once and associate accessibility nodes. Nav exposes Navigation, destinations Link, disclosure categories Button with expansion state, and the body Pane. `RenderPage` is optional when the host manages content independently. Existing TabList Tab/TabPanel contracts are unchanged.
 
-Long labels and category descriptions wrap in narrow menus. Measurement is retained by width, typography, scale and expansion; changing selection alone does not remeasure. Providing a factory does not qualify complete official fidelity. At widths of 640 UI units or less, the Gallery uses an overlay Drawer opened by **탐색 메뉴 열기**; choosing a different destination closes it. Wider layouts keep the fixed sidebar. [Official Nav usage](https://fluent2.microsoft.design/components/web/react/core/nav/usage).
+Long labels and category descriptions wrap in narrow menus. Measurement is retained by width, typography, scale and expansion; changing selection alone does not remeasure. Providing a factory does not qualify complete official fidelity. At widths of 640 UI units or less, the Gallery uses an overlay Drawer opened by **Open navigation**; choosing a different destination closes it. Wider layouts keep the fixed sidebar. [Official Nav usage](https://fluent2.microsoft.design/components/web/react/core/nav/usage).
 
 ## Destination secondary actions
 
@@ -75,7 +107,7 @@ Tab moves destination → action → outside Nav; Shift+Tab returns from action 
 
 Right-click a row or press Shift+F10/the context-menu key while focused to open the shared Fluent menu containing that action. Accessible Expand on the action button opens this menu too. Escape or invocation restores its calling destination/action focus. Collapsing the category closes the menu and restores category focus. `IsContextMenuOpen` reports logical open state rather than the last painted menu node; a dismissed menu accessibility subtree retires in the following frame.
 
-Example: `./run-gallery.ps1` → **동작과 탐색 → Nav** → **개요 고정**. Compare pointer, Tab, arrows, right-click and Shift+F10; the displayed execution count increments once and survives theme/page changes. The caller owns icon painters and callbacks; Nav releases its menu and Tooltip state. Custom `IUiNavPresentation` implementations must also arrange and paint secondary actions.
+Example: `./run-gallery.ps1` → **Actions and navigation → Nav** → **Pin Overview**. Compare pointer, Tab, arrows, right-click and Shift+F10; the displayed execution count increments once and survives theme/page changes. The caller owns icon painters and callbacks; Nav releases its menu and Tooltip state. Custom `IUiNavPresentation` implementations must also arrange and paint secondary actions.
 
 
 ## Drawer and compact navigation
@@ -84,7 +116,7 @@ Example: `./run-gallery.ps1` → **동작과 탐색 → Nav** → **개요 고�
 
 Overlay entry/exit translates retained content without scaling it; completed motion stops requesting frames. Inline allocation currently changes immediately; animated inline reflow and full platform conformance remain pending. `ScrollBody : false` allows an already scrolling, finite-height body such as Gallery navigation. Hidden navigation hosts call `RenderPage(..., navigationVisible : false)` so the named Pane does not reference an absent Link.
 
-Run `./run-gallery.ps1` → **알림과 진행 상태 → Drawer** for overlay and inline examples. The compact Gallery keeps the theme control and groups inside its navigation Drawer. Input models survive dismissal and theme changes. Official guidance: [Fluent Drawer](https://fluent2.microsoft.design/components/web/react/core/drawer/usage). Verification: [Drawer record](../artifacts/drawer-2026-11-17/verification.json).
+Run `./run-gallery.ps1` → **Alerts and progress → Drawer** for overlay and inline examples. The compact Gallery keeps the theme control and groups inside its navigation Drawer. Input models survive dismissal and theme changes. Official guidance: [Fluent Drawer](https://fluent2.microsoft.design/components/web/react/core/drawer/usage). Verification: [Drawer record](../artifacts/drawer-2026-11-17/verification.json).
 
 
 2026-11-17 Drawer hosting verification: 564 Gallery checks include eight additional GPU/interaction checks. Captures cover compact navigation closed/open in dark/light themes, selection, explicit dismissal and both Drawer sample modes. The normal Windows runner passes 72 presented scenarios, including open/close/reopen/save with actual accessible commands, visible focus inside the overlay and focus restoration after close. Linux host compilation passes; native Linux was not rerun. Product modules are byte-identical to the prior Drawer build, so prior core regression results are reused. Inline allocation animation remains pending. [Evidence](../artifacts/drawer-hosting-2026-11-17/verification.json).
@@ -92,7 +124,7 @@ Run `./run-gallery.ps1` → **알림과 진행 상태 → Drawer** for overlay a
 
 ## Independent examples and equivalent source
 
-Every Gallery route has a distinct persistent page; duplicate page destinations fail startup validation. Twenty-one formerly shared component destinations now have standalone examples. Combined regression pages remain under **종합·회귀 예제**. Each page displays a selectable, read-only C# source pane below its live example, with independent vertical/horizontal scrolling.
+Every Gallery route has a distinct persistent page; duplicate page destinations fail startup validation. Twenty-one formerly shared component destinations now have standalone examples. Combined regression pages remain under **Combined examples**. Each page displays a selectable, read-only C# source pane below its live example, with independent vertical/horizontal scrolling.
 
 Standalone source comes from `CallerArgumentExpression` on the exact executed factory. Existing complex examples display their actual `.cs` file embedded at build time. This requires no repository files at runtime. Complex files use the Gallery project's supporting types and references. Planned components explicitly report that executable source is unavailable.
 
