@@ -503,3 +503,56 @@ Export as PNG	PNG로 내보내기	PNG としてエクスポート	导出为 PNG
 Add or reorder messages and inspect how the title and body are linked for accessibility. A new message requests a screen reader announcement. Verify speech with your screen reader.	메시지를 추가하거나 순서를 바꾸고, 제목과 본문이 접근성 정보로 연결되는지 확인해 보세요. 메시지가 나타나면 화면 읽기 프로그램에 알림을 요청하지만, 실제로 읽기를 마쳤는지는 여기서 확인할 수 없습니다.	メッセージを追加・並べ替え、タイトルと本文のアクセシビリティ上の関連付けを確認できます。新しいメッセージはスクリーンリーダーに通知を要求します。読み上げは実際のスクリーンリーダーで確認してください。	添加或重新排列消息，查看标题和正文的无障碍关联。新消息会请求屏幕阅读器播报，请用实际的屏幕阅读器确认播报效果。
 Explore cached geometry, basic shapes and standalone 3D projection. Compare circular and rounded clipping and transparent spacing. Animation requests frames while enabled.	바뀌지 않는 도형을 재사용하는 방식과 기본 도형 그리기, 독립적인 3D 투영을 살펴보세요. 원형으로 자르거나 모서리를 둥글게 자른 모습, 투명한 간격도 비교할 수 있습니다. 애니메이션을 켰을 때만 프레임을 요청합니다.	変更されていない図形の再利用、基本図形、独立した 3D 投影を確認できます。円形や角丸のクリッピング、透明な間隔も比較できます。アニメーションが有効な間はフレームを要求します。	查看几何缓存、基本图形和独立的 3D 投影。比较圆形裁剪、圆角裁剪以及透明间距。启用动画时会请求帧。
 No runnable example is available yet.	아직 미구현됨: 실행 가능한 예제 소스가 없습니다.	実行可能なサンプルはまだありません。	暂时没有可运行的示例。
+Loading profile	프로필 불러오는 중	プロフィールを読み込み中	正在加载个人资料
+Dimoi · Profile loaded.	디모이 · 프로필을 불러왔습니다.	ディモイ · プロフィールを読み込みました。	迪莫伊 · 个人资料已加载。
+The content is ready to use.	콘텐츠를 조작할 수 있습니다.	コンテンツを操作できます。	现在可以操作内容。
+Preview the layout of content while it loads. Items that are offscreen or paused do not request animation frames.	로딩할 콘텐츠의 구조를 미리 표시합니다. 화면 밖에 있거나 정지한 항목은 애니메이션을 위해 프레임을 요청하지 않습니다.	読み込み中のコンテンツの構造を表示します。画面外の項目や一時停止中の項目は、アニメーションのフレームを要求しません。	加载时预览内容布局。屏幕外或已暂停的项目不会请求动画帧。
+Loading	로딩 중	読み込み中	加载中
+Pulse	펄스	パルス	脉冲
+Translucent	반투명	半透明	半透明
+Reduce motion	모션 줄이기	動きを減らす	减少动画
+Pause animation	애니메이션 정지	アニメーションを一時停止	暂停动画
+Placeholders shown together share the same animation timing.	함께 표시되는 항목은 같은 타이밍으로 움직입니다.	同時に表示されるプレースホルダーは、同じタイミングで動きます。	同时显示的占位符共用动画时序。
+The profile is ready.	프로필이 준비되었습니다.	プロフィールの準備ができました。	个人资料已就绪。
+Open profile	프로필 열기	プロフィールを開く	打开个人资料
+Toggle loading state	불러오기 상태 전환	読み込み状態を切り替える	切换加载状态
+Toggle reduced motion	모션 줄이기 전환	動きを減らす設定を切り替える	切换减少动画
+While loading, the content cannot receive input or keyboard focus. The placeholder stops animating when the content is ready.	불러오기 중에는 실제 내용이 입력과 탭 이동에 참여하지 않습니다. 준비가 끝나면 자리 표시자의 애니메이션도 멈춥니다.	読み込み中は、コンテンツへの入力やキーボードフォーカスが無効です。準備ができると、プレースホルダーのアニメーションが止まります。	加载过程中，内容不会接收输入或键盘焦点。内容就绪后，占位符动画停止。
+File upload	파일 업로드	ファイルのアップロード	文件上传
+Sending the selected file to the server.	선택한 파일을 서버로 보내고 있습니다.	選択したファイルをサーバーに送信しています。	正在将所选文件发送到服务器。
+Server connection	서버 연결	サーバー接続	服务器连接
+Waiting for the server to respond. The task name and description stay visible when the bar is hidden.	서버의 응답을 기다립니다. 진행 막대를 숨겨도 작업 이름과 이 설명은 유지됩니다.	サーバーの応答を待っています。バーを非表示にしても、タスク名と説明は表示されます。	正在等待服务器响应。隐藏进度条后，任务名称和说明仍会显示。
+Processing	처리 중	処理中	处理中
+Increase progress for {0}	{0} 진행률 증가	{0}の進捗を増やす	增加{0}的进度
+Toggle waiting for {0}	{0} 대기 전환	{0}の待機状態を切り替える	切换{0}的等待状态
+Toggle progress bar for {0}	{0} 막대 표시 전환	{0}の進行状況バーを切り替える	切换{0}的进度条显示
+Loading document	문서를 불러오는 중	ドキュメントを読み込み中	正在加载文档
+Start or stop activity	활동 시작·중지	アクティビティを開始または停止	启动或停止活动指示器
+Toggle hiding when stopped	정지 시 숨김 전환	停止時に非表示にする設定を切り替える	切换停止时隐藏
+Change activity color	활동 색상 전환	インジケーターの色を切り替える	切换活动指示器颜色
+Toggle reduced motion for activity	활동 모션 줄이기	インジケーターの動きを減らす設定を切り替える	切换活动指示器的减少动画设置
+The default is Fluent iOS gray. The indicator rotates a 270-degree arc of constant length.	기본 색상은 Fluent iOS의 회색입니다. 270도 원호를 회전하며, 웹 Spinner처럼 원호의 길이를 늘였다 줄이지 않습니다.	既定色は Fluent iOS のグレーです。長さが一定の 270 度の円弧が回転します。	默认采用 Fluent iOS 的灰色。指示器旋转一段长度固定的 270 度圆弧。
+Extra small	아주 작게	極小	极小
+Small	작게	小	小
+Medium	보통	中	中
+Large	크게	大	大
+Extra large	아주 크게	特大	特大
+File sync circular progress	파일 동기화 원형 진행률	ファイル同期の円形進行状況	文件同步环形进度
+Circular progress	원형 진행 표시	円形の進行状況	环形进度
+Increase circular progress	원형 진행률 증가	円形インジケーターの進捗を増やす	增加环形进度
+Toggle circular waiting state	원형 대기 전환	円形インジケーターの待機状態を切り替える	切换环形指示器的等待状态
+Toggle circular reduced motion	원형 모션 줄이기 전환	円形インジケーターの動きを減らす設定を切り替える	切换环形指示器的减少动画设置
+Document upload	문서 업로드	ドキュメントのアップロード	文档上传
+Uploading the document.	문서를 올리는 중입니다.	ドキュメントをアップロードしています。	正在上传文档。
+Uploading	업로드 중	アップロード中	正在上传
+Web progress transitions and errors	웹 진행률 전환과 오류	Web の進行状況の切り替えとエラー	网页进度切换与错误
+Start waiting	웹 대기 시작	待機を開始	开始等待
+Waiting for a server response.	서버 응답을 기다리고 있습니다.	サーバーの応答を待っています。	正在等待服务器响应。
+Waiting for server	서버 응답 대기	サーバーの応答待ち	等待服务器
+Complete upload	웹 완료 전환	アップロードを完了する	完成上传
+The document finished uploading.	문서를 모두 올렸습니다.	ドキュメントのアップロードが完了しました。	文档已上传完成。
+Upload complete	업로드 완료	アップロード完了	上传完成
+Show upload error	웹 오류 표시	アップロードエラーを表示	显示上传错误
+Upload failed. Check the connection and try again.	업로드에 실패했습니다. 연결을 확인한 뒤 다시 시도하세요.	アップロードに失敗しました。接続を確認して、もう一度お試しください。	上传失败。请检查连接并重试。
+Upload failed	업로드 실패	アップロード失敗	上传失败
+Retry upload	웹 다시 시도	アップロードを再試行	重试上传

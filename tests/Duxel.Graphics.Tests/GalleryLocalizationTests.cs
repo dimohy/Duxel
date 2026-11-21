@@ -119,6 +119,7 @@ internal static class GalleryLocalizationTests
             }
 
             VerifyDedicatedExamples(Render, tree, services, check);
+            VerifyLoadingExamples(Render, tree, services, check);
 
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
             File.WriteAllText(path, "en");
@@ -375,6 +376,71 @@ internal static class GalleryLocalizationTests
                     && (language == GalleryLanguage.Korean || !ContainsHangul(source)),
                     page + " copies localized overlay strings in " + language);
             }
+        }
+    }
+
+    private static void VerifyLoadingExamples(Action<UiScreen> render, UiAccessibilityTree tree, ObserverServices services,
+        Action<bool, string> check)
+    {
+        foreach (var (language, shimmerToggle, profile, upload, increase, startStop, document, skeletonToggle) in new[]
+        {
+            (GalleryLanguage.English, "Toggle loading state", "Open profile", "File upload", "Increase progress for File upload",
+                "Start or stop activity", "Loading document", "Loading"),
+            (GalleryLanguage.Korean, "불러오기 상태 전환", "프로필 열기", "파일 업로드", "파일 업로드 진행률 증가",
+                "활동 시작·중지", "문서를 불러오는 중", "로딩 중"),
+            (GalleryLanguage.Japanese, "読み込み状態を切り替える", "プロフィールを開く", "ファイルのアップロード", "ファイルのアップロードの進捗を増やす",
+                "アクティビティを開始または停止", "ドキュメントを読み込み中", "読み込み中"),
+            (GalleryLanguage.SimplifiedChinese, "切换加载状态", "打开个人资料", "文件上传", "增加文件上传的进度",
+                "启动或停止活动指示器", "正在加载文档", "加载中")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            using var screen = new ObserverScreen(services, language : language);
+            RenderPage("Shimmer");
+            Invoke(GalleryText.Get("Toggle reduced motion"), UiAccessibilityAction.Invoke);
+            Invoke(shimmerToggle, UiAccessibilityAction.Invoke);
+            check(Nodes().Any(node => node.Name == profile && node.Role == UiAccessibilityRole.Button && node.Enabled)
+                && HasSource(GallerySample.String(profile), "example.IsDataLoaded = true"),
+                "Shimmer reveals localized content and updates copied loading state in " + language);
+
+            RenderPage("ProgressIndicator");
+            Invoke(increase, UiAccessibilityAction.Invoke);
+            check(HasSource(GallerySample.String(upload), "PercentComplete : 0.5f"),
+                "ProgressIndicator retains the localized task name when progress changes in " + language);
+
+            RenderPage("ActivityIndicator");
+            Invoke(startStop, UiAccessibilityAction.Invoke);
+            check(HasSource(GallerySample.String(document), "IsAnimating : false"),
+                "ActivityIndicator retains the localized accessible name when stopped in " + language);
+
+            RenderPage("스켈레톤");
+            Invoke(skeletonToggle, UiAccessibilityAction.Toggle);
+            check(HasSource(GallerySample.String(GalleryText.Get("Loading profile")), "var loading = false;"),
+                "Skeleton keeps localized strings when its loading state changes in " + language);
+
+            UiAccessibilityNode[] Nodes() => tree.CaptureSnapshot().Elements.Select(element => element.Node).ToArray();
+            void RenderPage(string page)
+            {
+                screen.SelectedPage = page;
+                render(screen);
+                render(screen);
+            }
+
+            void Invoke(string name, UiAccessibilityAction action)
+            {
+                var target = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == name && !element.Node.Offscreen
+                    && (element.Node.Role is UiAccessibilityRole.Button or UiAccessibilityRole.Switch));
+                if (tree.RequestAction(target.Node.Id, target.RuntimeId, action, wait : false) != UiAccessibilityResult.Success)
+                    throw new InvalidOperationException("Loading example action was rejected: " + name);
+                render(screen);
+                render(screen);
+            }
+
+            bool HasSource(string expectedLabel, string expectedState) => Nodes().Any(node => node.Role == UiAccessibilityRole.Edit
+                && node.Name == GalleryText.Get("C# example source") && node.Value is { } code
+                && code.Contains(expectedLabel, StringComparison.Ordinal) && code.Contains(expectedState, StringComparison.Ordinal)
+                && !code.Contains("GalleryText.", StringComparison.Ordinal)
+                && (language == GalleryLanguage.Korean || !ContainsHangul(code)));
         }
     }
 

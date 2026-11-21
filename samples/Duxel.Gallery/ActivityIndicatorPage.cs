@@ -22,7 +22,7 @@ internal sealed class ActivityIndicatorPage : IObserverPage, IObserverNaturalPag
             foreach (var size in new[] { UiActivityIndicatorSize.ExtraSmall, UiActivityIndicatorSize.Small,
                 UiActivityIndicatorSize.Medium, UiActivityIndicatorSize.Large, UiActivityIndicatorSize.ExtraLarge })
             {
-                var options = new UiActivityIndicatorOptions(size, IsAnimating : true, AccessibilityLabel : "문서를 불러오는 중");
+                var options = new UiActivityIndicatorOptions(size, IsAnimating : true, AccessibilityLabel : GalleryText.Get("Loading document"));
                 var sample = GallerySample.Create(() => Fluent.ActivityIndicator(options));
                 var preview = sample.Preview;
                 previews.Add(preview);
@@ -35,18 +35,26 @@ internal sealed class ActivityIndicatorPage : IObserverPage, IObserverNaturalPag
                     + ", ReducedMotion : " + GallerySample.Boolean(state.ReducedMotion)
                     + ",\n    AccessibilityLabel : " + GallerySample.String(state.AccessibilityLabel) + ");\n\n" + factory);
                 Samples.Add(sample);
-                examples.Add(Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min), Fluent.Subtitle2(size.ToString()), sample));
+                examples.Add(Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min), Fluent.Subtitle2(GalleryText.Get(size switch
+                {
+                    UiActivityIndicatorSize.ExtraSmall => "Extra small",
+                    UiActivityIndicatorSize.Small => "Small",
+                    UiActivityIndicatorSize.Medium => "Medium",
+                    UiActivityIndicatorSize.Large => "Large",
+                    UiActivityIndicatorSize.ExtraLarge => "Extra large",
+                    _ => throw new ArgumentOutOfRangeException(nameof(size))
+                })), sample));
             }
             Root = Dux.Column(new(Spacing : 16, MainAxisSize : UiMainAxisSize.Min),
                 Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                    Fluent.Button("활동 시작·중지", () => previews.ForEach(preview => preview.IsAnimating = !preview.IsAnimating)),
-                    Fluent.Button("정지 시 숨김 전환", () => previews.ForEach(preview => preview.Options = preview.Options with
+                    Fluent.Button(GalleryText.Get("Start or stop activity"), () => previews.ForEach(preview => preview.IsAnimating = !preview.IsAnimating)),
+                    Fluent.Button(GalleryText.Get("Toggle hiding when stopped"), () => previews.ForEach(preview => preview.Options = preview.Options with
                     { HidesWhenStopped = !preview.Options.HidesWhenStopped })),
-                    Fluent.Button("활동 색상 전환", () => previews.ForEach(preview => preview.Options = preview.Options with
+                    Fluent.Button(GalleryText.Get("Change activity color"), () => previews.ForEach(preview => preview.Options = preview.Options with
                     { Color = preview.Options.Color is null ? new UiColor(71, 158, 245) : null })),
-                    Fluent.Button("활동 모션 줄이기", () => previews.ForEach(preview => preview.Options = preview.Options with
+                    Fluent.Button(GalleryText.Get("Toggle reduced motion for activity"), () => previews.ForEach(preview => preview.Options = preview.Options with
                     { ReducedMotion = !preview.Options.ReducedMotion }))),
-                Fluent.Body1("기본 색상은 Fluent iOS의 회색입니다. 270도 원호를 회전하며, 웹 Spinner처럼 원호의 길이를 늘였다 줄이지 않습니다."),
+                Fluent.Body1(GalleryText.Get("The default is Fluent iOS gray. The indicator rotates a 270-degree arc of constant length.")),
                 Dux.Column(new(Spacing : 16, MainAxisSize : UiMainAxisSize.Min), examples.ToArray()));
         }
     }
