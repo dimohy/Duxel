@@ -14,6 +14,40 @@ internal sealed partial class WindowsDirectWriteGlyphRasterizer
     private static readonly Queue<VectorGlyphKey> VectorGlyphOrder = [];
     private const int VectorGlyphCapacity = 2048;
 
+    private readonly record struct VectorParagraphKey(string Primary, string? Secondary, float Size, string Text);
+    private static readonly Dictionary<VectorParagraphKey, ContextualParagraph> VectorParagraphs = [];
+    private static readonly Queue<VectorParagraphKey> VectorParagraphOrder = [];
+    private const int VectorParagraphCapacity = 512;
+    private const int VectorParagraphMaxLength = 128;
+    private const int VectorParagraphMaxGlyphs = 192;
+
+    private static ContextualParagraph GetVectorParagraph(in PlatformTextMeshRequest request, string line)
+    {
+        if (line.Length > VectorParagraphMaxLength)
+            return ShapeContextualParagraph(request.FontPath, request.SecondaryFontPath, line, request.FontSize);
+
+        var key = new VectorParagraphKey(request.FontPath, request.SecondaryFontPath, request.FontSize, line);
+        if (VectorParagraphs.TryGetValue(key, out var cached))
+            return cached;
+
+        var paragraph = ShapeContextualParagraph(key.Primary, key.Secondary, key.Text, key.Size);
+        var glyphCount = 0;
+        foreach (var run in paragraph.Runs)
+        {
+            glyphCount += run.Glyphs.Length;
+            if (glyphCount > VectorParagraphMaxGlyphs)
+                return paragraph;
+        }
+        // Vector rendering uses only placed glyphs and never reads the raster run.
+        for (var i = 0; i < paragraph.Runs.Length; i++)
+            paragraph.Runs[i] = paragraph.Runs[i] with { Raster = default };
+        if (VectorParagraphs.Count == VectorParagraphCapacity)
+            VectorParagraphs.Remove(VectorParagraphOrder.Dequeue());
+        VectorParagraphs.Add(key, paragraph);
+        VectorParagraphOrder.Enqueue(key);
+        return paragraph;
+    }
+
     internal static unsafe PlatformTextMeshResult CreateTextMesh(in PlatformTextMeshRequest request)
     {
         if (!float.IsFinite(request.FontSize) || request.FontSize <= 0
@@ -37,7 +71,7 @@ internal sealed partial class WindowsDirectWriteGlyphRasterizer
                         y += request.FontSize;
                         continue;
                     }
-                    var paragraph = ShapeContextualParagraph(request.FontPath, request.SecondaryFontPath, line, request.FontSize);
+                    var paragraph = GetVectorParagraph(request, line);
                     foreach (var run in paragraph.Runs)
                     {
                         if (!TryGetFontFace(run.FontPath, out var face))
