@@ -12,6 +12,8 @@ The common Vulkan renderer preserves previous images for screen-space static/dyn
 
 Dynamic geometry compares actual per-command vertex, index and primitive bytes. Resident geometry uses the existing `StaticGeometryKey` and content revision contract. History never retains borrowed source buffers. Snapshot storage is recycled after its last image reader releases it. Dynamic byte equality is not inferred from hashes alone.
 
+Vulkan keeps separate vertex, index and primitive buffers for retained draw lists. When the buffers fit in one 2 MiB page and share a device-local memory type, they bind to aligned ranges in one page. Larger groups and groups without a common type use individual allocations. A retired range becomes reusable after its frame-slot fence completes, and a page is freed as soon as its last range is released.
+
 MSAA stores the existing multisample attachment without allocating another screen copy. It compares both the shared MSAA surface history and the acquired resolved image, repairs their combined damage, then resolves that region. Both `renderArea` and scissor are restricted. Initial images, framebuffer/display changes, clear color changes and texture updates invalidate the full image. [Vulkan attachment operations apply within the render area](https://docs.vulkan.org/refpages/latest/refpages/source/VkRenderingAttachmentInfo.html).
 
 General projected/depth-tested 3D scenes, user draw callbacks and GPU simulation commands have whole-scene dependencies. Those frames redraw fully and invalidate older image histories. Existing shared geometry/GPU residency still applies to 3D camera scenes. Arbitrary 3D partial repaint is outside this contract. Widely distributed changes can produce a large union and smaller savings.

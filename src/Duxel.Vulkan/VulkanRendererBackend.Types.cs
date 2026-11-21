@@ -32,6 +32,7 @@ public sealed unsafe partial class VulkanRendererBackend
         public static StaticGeometryBuffer Empty { get; } = new(
             string.Empty, 0, default, default, 0, 0, default, default, 0,
             default, default, 0, 0, 0, 0, 0, false, 0, null);
+        public StaticMemorySlice StaticMemory { get; init; }
         public ulong IndexTopologyHash { get; init; }
         public ulong CommandTopologyHash { get; init; }
         public UiPooledList<UiDrawCommand>? TopologyCommands { get; init; }
@@ -126,7 +127,7 @@ public sealed unsafe partial class VulkanRendererBackend
     }
 
     private readonly record struct BufferResource(VkBuffer Buffer, DeviceMemory Memory);
-    private readonly record struct PendingBufferDestroy(BufferResource Resource, int DestroyFrame);
+    private readonly record struct PendingBufferDestroy(BufferResource Resource, int DestroyFrame, StaticMemorySlice StaticMemory);
     private readonly record struct PendingTextureDestroy(TextureResource Resource, int DestroyFrame);
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]

@@ -232,16 +232,21 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void QueueStaticGeometryBufferDestroy(StaticGeometryBuffer staticBuffer)
     {
-        QueueBufferDestroy(staticBuffer.VertexBuffer, staticBuffer.VertexMemory);
-        QueueBufferDestroy(staticBuffer.IndexBuffer, staticBuffer.IndexMemory);
-        QueueBufferDestroy(staticBuffer.PrimitiveBuffer, staticBuffer.PrimitiveMemory);
+        // All buffers share one fence deadline. The last live buffer returns the page range.
+        var hasPrimitive = staticBuffer.PrimitiveBuffer.Handle != 0;
+        var hasIndex = staticBuffer.IndexBuffer.Handle != 0;
+        QueueBufferDestroy(staticBuffer.VertexBuffer, staticBuffer.VertexMemory,
+            hasPrimitive || hasIndex ? default : staticBuffer.StaticMemory);
+        QueueBufferDestroy(staticBuffer.IndexBuffer, staticBuffer.IndexMemory,
+            hasPrimitive ? default : staticBuffer.StaticMemory);
+        QueueBufferDestroy(staticBuffer.PrimitiveBuffer, staticBuffer.PrimitiveMemory, staticBuffer.StaticMemory);
     }
 
     private void DestroyStaticGeometryBufferImmediate(StaticGeometryBuffer staticBuffer)
     {
         DestroyBufferResource(new BufferResource(staticBuffer.VertexBuffer, staticBuffer.VertexMemory));
         DestroyBufferResource(new BufferResource(staticBuffer.IndexBuffer, staticBuffer.IndexMemory));
-        DestroyBufferResource(new BufferResource(staticBuffer.PrimitiveBuffer, staticBuffer.PrimitiveMemory));
+        DestroyBufferResource(new BufferResource(staticBuffer.PrimitiveBuffer, staticBuffer.PrimitiveMemory), staticBuffer.StaticMemory);
     }
 
     private bool TryGetStaticDrawListTag(UiDrawList drawList, out string tag, out bool requiresContentHash)

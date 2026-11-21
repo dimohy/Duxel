@@ -3877,6 +3877,7 @@ if (args.Length >= 2 && args[1] == "directtext-cache")
     RetainedTextMaintenanceTests.VerifyShortTextRetention(frameSlots, Check);
     RetainedTextMaintenanceTests.VerifyShapedGlyphAtlas(frameSlots, Check);
     RetainedTextMaintenanceTests.VerifyShapedGlyphAtlasPacking(frameSlots, Check);
+    RetainedTextMaintenanceTests.VerifyStaticMemoryPages(frameSlots, Check);
     RetainedTextMaintenanceTests.VerifyExtendedStaticGeometryReuse(frameSlots, Check);
     RetainedTextMaintenanceTests.VerifyExtendedStaticGeometryReuseBudget(frameSlots, Check);
     File.WriteAllText(Path.Combine(output, "result.json"), JsonSerializer.Serialize(new GraphicsResult(

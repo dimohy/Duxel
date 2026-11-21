@@ -20,5 +20,6 @@ AI에 대상 플랫폼, 만들 화면, 사용할 Duxel 버전을 알려 주세�
 ## 결과 확인
 
 - 가장 가까운 갤러리 예제부터 확인하세요. 예제의 C#에는 컨트롤과 함께 필요한 상태나 옵션이 들어 있습니다.
+- GPU에 보관하는 기하의 메모리를 분석할 때는 그리기 목록의 데이터 크기와 Vulkan이 할당한 페이지 크기를 각각 확인하세요. [보존 렌더링](retained-rendering.ko.md)
 - 실제 화면에서 키보드 포커스, 편집, 콘텐츠가 영역을 벗어날 때의 동작을 확인하세요. [키보드 동작](widget-keyboard.ko.md) · [접근성](widget-accessibility.ko.md)
 - `./run-fba.ps1 samples/fba/declarative_dashboard_fba.cs -Managed -NoCache`로 로컬 소스 예제를 실행할 수 있습니다. 공개 패키지로 만들 때는 [파일 기반 앱 시작](getting-started-fba.ko.md)을 따르세요.

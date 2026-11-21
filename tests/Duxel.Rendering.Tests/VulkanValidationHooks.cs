@@ -509,6 +509,17 @@ public sealed unsafe partial class VulkanRendererBackend
     internal (int Count, ulong Bytes) ValidationExtendedStaticGeometryReuse
         => (_extendedStaticGeometryReuseCount, _extendedStaticGeometryReuseBytes);
 
+    internal int ValidationStaticPageCount => _staticMemoryPages.Count;
+
+    internal (ulong Page, ulong Offset, ulong Length) ValidationStaticMemory(string layerId)
+    {
+        var slice = _staticGeometryBuffers[$"duxel.layer.static:{layerId}:list:0"].StaticMemory;
+        return (slice.Page?.Memory.Handle ?? 0, slice.Offset, slice.Length);
+    }
+
+    internal void ValidationRetireUnusedStaticGeometry()
+        => PruneUnusedStaticGeometryBuffers(_frameIndex + StaticGeometryLruGraceFrames + 1);
+
     internal ulong ValidationStaticVertexBuffer(string layerId)
         => _staticGeometryBuffers[$"duxel.layer.static:{layerId}:list:0"].VertexBuffer.Handle;
 

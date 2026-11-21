@@ -8,6 +8,55 @@ using Duxel.Platform.Windows;
 
 internal static class RetainedTextMaintenanceTests
 {
+    internal static void VerifyStaticMemoryPages(int frameSlots, Action<bool, string> check)
+    {
+        using var fixture = new PresentationReuseTests.Fixture(frameSlots, false);
+
+        static void Draw(UiImmediateContext ui, string id, int quads)
+        {
+            if (ui.BeginLayer(id, new(false, 1, default) { ContentVersion = 1 }))
+            {
+                var draw = ui.GetWindowDrawList();
+                for (var i = 0; i < quads; i++)
+                    draw.AddImage(ui.WhiteTextureId, new(20, 20), new(23, 23), default,
+                        new(1, 1), new(0xFFFFFFFF));
+            }
+            ui.EndLayer();
+        }
+
+        check(fixture.Submit(ui =>
+        {
+            Draw(ui, "memory-page-first", 1);
+            Draw(ui, "memory-page-second", 1);
+        }), "small static geometry submits normally");
+        var first = fixture.Renderer.ValidationStaticMemory("memory-page-first");
+        var second = fixture.Renderer.ValidationStaticMemory("memory-page-second");
+        check(first.Page != 0 && first.Page == second.Page && first.Length > 0
+            && first.Offset + first.Length <= second.Offset && second.Length > 0,
+            "two small retained layers own disjoint ranges on one device memory page");
+
+        fixture.Renderer.ValidationRetireUnusedStaticGeometry();
+        check(fixture.Renderer.ValidationStaticPageCount > 0,
+            "retiring static buffers keeps the page alive until the frame-slot fence");
+        for (var frame = 0; frame <= frameSlots; frame++)
+            check(fixture.Submit(static _ => { }), "empty frame advances queued static memory retirement");
+        check(fixture.Renderer.ValidationStaticPageCount == 0,
+            "the last completed retirement frees the whole device memory page");
+
+        check(fixture.Submit(ui =>
+        {
+            if (ui.BeginLayer("memory-page-oversized", new(false, 1, default) { ContentVersion = 1 }))
+            {
+                var draw = ui.GetWindowDrawList();
+                for (var i = 0; i < 34_000; i++)
+                    draw.AddRectFilled(new(20, 20, 3, 3), new(0xFFFFFFFF), ui.WhiteTextureId);
+            }
+            ui.EndLayer();
+        }), "static geometry larger than one page submits normally");
+        check(fixture.Renderer.ValidationStaticMemory("memory-page-oversized").Page == 0,
+            "oversized static geometry keeps individually owned allocations");
+    }
+
     internal static void VerifyExtendedStaticGeometryReuse(int frameSlots, Action<bool, string> check)
     {
         using var reference = new PresentationReuseTests.Fixture(frameSlots, false, msaaSamples: 4);

@@ -40,26 +40,26 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
-    private void QueueBufferDestroy(VkBuffer buffer, DeviceMemory memory)
+    private void QueueBufferDestroy(VkBuffer buffer, DeviceMemory memory, StaticMemorySlice slice = default)
     {
-        if (buffer.Handle is 0 || memory.Handle is 0)
+        if (buffer.Handle is 0)
         {
             return;
         }
 
         if (_frames.Length == 0)
         {
-            DestroyBufferResource(new BufferResource(buffer, memory));
+            DestroyBufferResource(new BufferResource(buffer, memory), slice);
             return;
         }
 
         var frameCount = _frames.Length;
         var frame = _frameIndex % frameCount;
         var destroyFrame = _frameIndex + frameCount;
-        _frames[frame].PendingBufferDestroys.Add(new PendingBufferDestroy(new BufferResource(buffer, memory), destroyFrame));
+        _frames[frame].PendingBufferDestroys.Add(new PendingBufferDestroy(new BufferResource(buffer, memory), destroyFrame, slice));
     }
 
-    private void DestroyBufferResource(BufferResource resource)
+    private void DestroyBufferResource(BufferResource resource, StaticMemorySlice slice = default)
     {
         if (resource.Buffer.Handle is not 0)
         {
@@ -70,6 +70,9 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             _vk.FreeMemory(_device, resource.Memory, null);
         }
+
+        if (slice.Page is not null)
+            ReleaseStaticMemoryRange(in slice);
     }
 
     // Called only after this slot's fence completed. Retirement is attached to
@@ -109,7 +112,7 @@ public sealed unsafe partial class VulkanRendererBackend
             var entry = list[i];
             if (_frameIndex >= entry.DestroyFrame)
             {
-                DestroyBufferResource(entry.Resource);
+                DestroyBufferResource(entry.Resource, entry.StaticMemory);
                 continue;
             }
 
@@ -138,7 +141,7 @@ public sealed unsafe partial class VulkanRendererBackend
             var list = _frames[i].PendingBufferDestroys;
             foreach (var entry in list)
             {
-                DestroyBufferResource(entry.Resource);
+                DestroyBufferResource(entry.Resource, entry.StaticMemory);
             }
             list.Clear();
         }
@@ -152,6 +155,26 @@ public sealed unsafe partial class VulkanRendererBackend
         out DeviceMemory memory,
         MemoryPropertyFlags preferredProperties = 0
     )
+    {
+        buffer = CreateUnboundBuffer(size, usage);
+
+        _vk.GetBufferMemoryRequirements(_device, buffer, out var memRequirements);
+
+        // Memory type selection is capability policy: when the caller states a
+        // preferred set (e.g. BAR memory for shader-pulled dynamic geometry) and
+        // the device exposes it, that type is used; otherwise the required set
+        // decides. Missing required properties still fail explicitly.
+        var memoryTypeIndex = preferredProperties is not 0
+            && TryFindMemoryType(memRequirements.MemoryTypeBits, properties | preferredProperties, out var preferredTypeIndex)
+            ? preferredTypeIndex
+            : FindMemoryType(memRequirements.MemoryTypeBits, properties);
+
+        memory = AllocateBufferMemory(memRequirements.Size, memoryTypeIndex,
+            (usage & BufferUsageFlags.ShaderDeviceAddressBit) != 0);
+        Check(_vk.BindBufferMemory(_device, buffer, memory, 0));
+    }
+
+    private VkBuffer CreateUnboundBuffer(nuint size, BufferUsageFlags usage)
     {
         var queueFamilies = stackalloc uint[2];
         uint queueFamilyIndexCount = 0;
@@ -179,37 +202,26 @@ public sealed unsafe partial class VulkanRendererBackend
 
         var localBuffer = default(VkBuffer);
         Check(_vk.CreateBuffer(_device, bufferInfo, null, &localBuffer));
-        buffer = localBuffer;
+        return localBuffer;
+    }
 
-        _vk.GetBufferMemoryRequirements(_device, buffer, out var memRequirements);
-
-        // Memory type selection is capability policy: when the caller states a
-        // preferred set (e.g. BAR memory for shader-pulled dynamic geometry) and
-        // the device exposes it, that type is used; otherwise the required set
-        // decides. Missing required properties still fail explicitly.
-        var memoryTypeIndex = preferredProperties is not 0
-            && TryFindMemoryType(memRequirements.MemoryTypeBits, properties | preferredProperties, out var preferredTypeIndex)
-            ? preferredTypeIndex
-            : FindMemoryType(memRequirements.MemoryTypeBits, properties);
-
-        var allocFlagsInfo = new MemoryAllocateFlagsInfo
+    private DeviceMemory AllocateBufferMemory(ulong size, uint memoryTypeIndex, bool deviceAddress)
+    {
+        var flags = new MemoryAllocateFlagsInfo
         {
             SType = StructureType.MemoryAllocateFlagsInfo,
             Flags = MemoryAllocateFlags.DeviceAddressBit,
         };
-        var allocInfo = stackalloc MemoryAllocateInfo[1];
-        allocInfo[0] = new MemoryAllocateInfo
+        var allocation = new MemoryAllocateInfo
         {
             SType = StructureType.MemoryAllocateInfo,
-            PNext = (usage & BufferUsageFlags.ShaderDeviceAddressBit) is not 0 ? (nint)(&allocFlagsInfo) : 0,
-            AllocationSize = memRequirements.Size,
+            PNext = deviceAddress ? (nint)(&flags) : 0,
+            AllocationSize = size,
             MemoryTypeIndex = memoryTypeIndex,
         };
-
-        var localMemory = default(DeviceMemory);
-        Check(_vk.AllocateMemory(_device, allocInfo, null, &localMemory));
-        memory = localMemory;
-        Check(_vk.BindBufferMemory(_device, buffer, localMemory, 0));
+        var memory = default(DeviceMemory);
+        Check(_vk.AllocateMemory(_device, &allocation, null, &memory));
+        return memory;
     }
 
     private ulong GetBufferDeviceAddress(VkBuffer buffer)

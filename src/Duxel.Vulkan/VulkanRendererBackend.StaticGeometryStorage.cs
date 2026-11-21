@@ -19,73 +19,128 @@ public sealed unsafe partial class VulkanRendererBackend
         ReadOnlySpan<UiCircleFilledPrimitive> circles,
         in StaticGeometryShape shape)
     {
-        var vertexBuffer = default(VkBuffer);
-        var vertexMemory = default(DeviceMemory);
-        var vertexAddress = 0ul;
-        if (shape.CombinedVertexCount > 0)
+        const BufferUsageFlags shaderUsage = BufferUsageFlags.TransferDstBit | BufferUsageFlags.ShaderDeviceAddressBit;
+        const BufferUsageFlags indexUsage = BufferUsageFlags.TransferDstBit | BufferUsageFlags.IndexBufferBit;
+        Span<StaticBufferRange> ranges = stackalloc StaticBufferRange[3];
+        ranges.Clear();
+        var slice = default(StaticMemorySlice);
+        StaticGeometryBuffer created;
+        try
         {
-            CreateBuffer(
-                (nuint)(shape.CombinedVertexCount * sizeof(UiVertex)),
-                BufferUsageFlags.TransferDstBit | BufferUsageFlags.ShaderDeviceAddressBit,
-                MemoryPropertyFlags.DeviceLocalBit,
-                out vertexBuffer,
-                out vertexMemory
-            );
-            vertexAddress = GetBufferDeviceAddress(vertexBuffer);
+            CreateStaticBufferRange(ref ranges[0], (ulong)shape.CombinedVertexCount * (ulong)sizeof(UiVertex), shaderUsage);
+            CreateStaticBufferRange(ref ranges[1], (ulong)shape.CombinedIndexCount * sizeof(uint), indexUsage);
+            CreateStaticBufferRange(ref ranges[2], (ulong)shape.PrimitiveCount * (ulong)sizeof(PrimitiveInstance), shaderUsage);
+            BindStaticBufferRanges(ranges, ref slice);
+
+            ref readonly var vertex = ref ranges[0];
+            ref readonly var index = ref ranges[1];
+            ref readonly var primitive = ref ranges[2];
+            created = new StaticGeometryBuffer(
+                staticTag,
+                contentHash,
+                vertex.Buffer,
+                vertex.Memory,
+                vertex.Buffer.Handle != 0 ? GetBufferDeviceAddress(vertex.Buffer) : 0,
+                shape.VertexCount,
+                index.Buffer,
+                index.Memory,
+                shape.IndexCount,
+                primitive.Buffer,
+                primitive.Memory,
+                primitive.Buffer.Handle != 0 ? GetBufferDeviceAddress(primitive.Buffer) : 0,
+                shape.PrimitiveCount,
+                shape.PrimitiveInstanceBaseCount,
+                shape.RectPrimitiveCount,
+                shape.CirclePrimitiveCount,
+                shape.HasExpandedPrimitiveGeometry,
+                shape.PrimitiveTriangleLayout.RectExpandedIndexBase,
+                shape.PrimitiveTriangleLayout.CircleExpandedIndexOffsets
+            ) { IndexTopologyHash = HashIndexTopology(indices), StaticMemory = slice };
+        }
+        catch
+        {
+            foreach (ref readonly var range in ranges)
+                DestroyBufferResource(new BufferResource(range.Buffer, range.Memory));
+            if (slice.Page is not null)
+                ReleaseStaticMemoryRange(in slice);
+            throw;
         }
 
-        var indexBuffer = default(VkBuffer);
-        var indexMemory = default(DeviceMemory);
-        if (shape.CombinedIndexCount > 0)
+        try
         {
-            CreateBuffer(
-                (nuint)(shape.CombinedIndexCount * sizeof(uint)),
-                BufferUsageFlags.TransferDstBit | BufferUsageFlags.IndexBufferBit,
-                MemoryPropertyFlags.DeviceLocalBit,
-                out indexBuffer,
-                out indexMemory
-            );
+            UploadStaticGeometryBufferContent(created, vertices, indices, rects, circles, in shape);
+            return created;
+        }
+        catch
+        {
+            // Earlier copies may already be submitted. Keep their backing alive through retirement.
+            QueueStaticGeometryBufferDestroy(created);
+            throw;
+        }
+    }
+
+    private struct StaticBufferRange
+    {
+        public VkBuffer Buffer;
+        public DeviceMemory Memory;
+        public MemoryRequirements Requirements;
+        public ulong Offset;
+        public bool DeviceAddress;
+    }
+
+    private void CreateStaticBufferRange(ref StaticBufferRange range, ulong size, BufferUsageFlags usage)
+    {
+        if (size == 0)
+            return;
+
+        range.Buffer = CreateUnboundBuffer(checked((nuint)size), usage);
+        _vk.GetBufferMemoryRequirements(_device, range.Buffer, out range.Requirements);
+        range.DeviceAddress = (usage & BufferUsageFlags.ShaderDeviceAddressBit) != 0;
+    }
+
+    private void BindStaticBufferRanges(Span<StaticBufferRange> ranges, ref StaticMemorySlice slice)
+    {
+        var size = 0ul;
+        var alignment = 1ul;
+        var memoryTypes = uint.MaxValue;
+        foreach (ref var range in ranges)
+        {
+            if (range.Buffer.Handle == 0)
+                continue;
+
+            ref readonly var requirement = ref range.Requirements;
+            alignment = Math.Max(alignment, requirement.Alignment);
+            range.Offset = AlignStaticMemory(size, requirement.Alignment);
+            size = checked(range.Offset + requirement.Size);
+            memoryTypes &= requirement.MemoryTypeBits;
         }
 
-        var primitiveBuffer = default(VkBuffer);
-        var primitiveMemory = default(DeviceMemory);
-        var primitiveAddress = 0ul;
-        if (shape.PrimitiveCount > 0)
+        if (size == 0)
+            return;
+
+        // A page can back only buffers with a common device-local memory type.
+        if (size <= StaticMemoryPageBytes && TryFindMemoryType(memoryTypes, MemoryPropertyFlags.DeviceLocalBit, out var pageType))
         {
-            CreateBuffer(
-                (nuint)(shape.PrimitiveCount * sizeof(PrimitiveInstance)),
-                BufferUsageFlags.TransferDstBit | BufferUsageFlags.ShaderDeviceAddressBit,
-                MemoryPropertyFlags.DeviceLocalBit,
-                out primitiveBuffer,
-                out primitiveMemory
-            );
-            primitiveAddress = GetBufferDeviceAddress(primitiveBuffer);
+            slice = RentStaticMemoryRange(pageType, size, alignment);
+            var memory = slice.Page!.Memory;
+            foreach (ref readonly var range in ranges)
+            {
+                if (range.Buffer.Handle != 0)
+                    Check(_vk.BindBufferMemory(_device, range.Buffer, memory, slice.Offset + range.Offset));
+            }
+            return;
         }
 
-        var created = new StaticGeometryBuffer(
-            staticTag,
-            contentHash,
-            vertexBuffer,
-            vertexMemory,
-            vertexAddress,
-            shape.VertexCount,
-            indexBuffer,
-            indexMemory,
-            shape.IndexCount,
-            primitiveBuffer,
-            primitiveMemory,
-            primitiveAddress,
-            shape.PrimitiveCount,
-            shape.PrimitiveInstanceBaseCount,
-            shape.RectPrimitiveCount,
-            shape.CirclePrimitiveCount,
-            shape.HasExpandedPrimitiveGeometry,
-            shape.PrimitiveTriangleLayout.RectExpandedIndexBase,
-            shape.PrimitiveTriangleLayout.CircleExpandedIndexOffsets
-        ) { IndexTopologyHash = HashIndexTopology(indices) };
+        // Oversized groups and nonintersecting device memory types keep individually owned buffers.
+        foreach (ref var range in ranges)
+        {
+            if (range.Buffer.Handle == 0)
+                continue;
 
-        UploadStaticGeometryBufferContent(created, vertices, indices, rects, circles, in shape);
-        return created;
+            var type = FindMemoryType(range.Requirements.MemoryTypeBits, MemoryPropertyFlags.DeviceLocalBit);
+            range.Memory = AllocateBufferMemory(range.Requirements.Size, type, range.DeviceAddress);
+            Check(_vk.BindBufferMemory(_device, range.Buffer, range.Memory, 0));
+        }
     }
 
     private StaticGeometryBuffer ReuploadStaticGeometryBufferContent(
