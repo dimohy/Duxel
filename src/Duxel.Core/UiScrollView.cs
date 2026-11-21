@@ -23,7 +23,10 @@ public readonly record struct UiScrollOptions(UiScrollAxis Axis = UiScrollAxis.V
     }
 }
 
-internal readonly record struct UiScrollLayout(UiVector2 Size, UiVector2 Content, UiVector2 Viewport, float ScrollbarThickness);
+internal readonly record struct UiScrollLayout(UiVector2 Size, UiVector2 Content, UiVector2 Viewport, float ScrollbarThickness)
+{
+    internal UiVector2 MaximumOffset => new(MathF.Max(0, Content.X - Viewport.X), MathF.Max(0, Content.Y - Viewport.Y));
+}
 
 /// <summary>Owns one naturally measured child and a finite, clipped scrolling viewport.</summary>
 [UiComponent("ScrollView", UiComponentExposure.Infrastructure)]
@@ -34,6 +37,7 @@ public class UiScrollView : UiControlWidget
     private UiVector2 _offset;
     private UiRetainedLayout<UiScrollLayout>? _retained;
     private readonly UiScrollOwner _owner = new();
+    internal float VerticalScrollRange { get; private set; }
 
     public UiScrollView(UiWidget child, UiScrollOptions options = default, UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(identity)
     {
@@ -113,6 +117,7 @@ public class UiScrollView : UiControlWidget
     protected override void RenderControl(UiImmediateContext ui)
     {
         var layout = GetLayout(new(ui), render : true);
+        VerticalScrollRange = layout.MaximumOffset.Y;
         _offset = ui.RenderScrollView(PrimaryInputId("ScrollView"), Child, layout, _offset, _owner, _options.RightToLeft || ui.RightToLeft);
     }
 

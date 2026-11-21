@@ -23,7 +23,13 @@
 
 ## 갤러리 실행
 
-저장소를 내려받고 루트에서 실행합니다.
+.NET 11 SDK와 Vulkan을 지원하는 GPU가 있는 Windows에서 아래 PowerShell 한 줄을 실행하세요. C# 파일 하나를 내려받고 NuGet 패키지로 갤러리를 엽니다.
+
+```powershell
+$file = Join-Path ([IO.Path]::GetTempPath()) 'duxel_gallery_0_3_preview.cs'; Invoke-WebRequest 'https://raw.githubusercontent.com/dimohy/Duxel/v0.3.0-preview/samples/fba/duxel_gallery.cs' -OutFile $file -UseBasicParsing; dotnet run --file $file
+```
+
+저장소 소스로 갤러리를 빌드하려면 루트에서 실행합니다.
 
 ```powershell
 ./run-gallery.ps1
@@ -31,15 +37,15 @@
 
 예제를 열어 컨트롤을 조작하고 C# 코드를 복사할 수 있습니다. 설정에서 영어, 한국어, 일본어, 간체 중국어를 선택할 수 있습니다. [갤러리 안내](docs/gallery-navigation.ko.md) · [Linux 설정](docs/linux-platform.ko.md)
 
-## 저장소 소스로 Windows 앱 시작
+## Windows 앱 시작
 
-이 저장소를 내려받고 저장소에 지정된 SDK를 사용하세요. 실행 스크립트는 저장소의 프로젝트를 참조합니다.
-
-아래 코드를 저장소 루트에 `hello.cs`로 저장합니다.
+.NET 10 이상의 SDK를 사용하고 아래 코드를 `hello.cs`로 저장합니다. 이 예제는 NuGet에 공개된 Windows 패키지를 사용합니다.
 
 ```csharp
 #:property TargetFramework=net10.0
-#:package Duxel.Windows.App@*-*
+#:property PublishAot=false
+#:property SelfContained=false
+#:package Duxel.Windows.App@0.3.0-preview
 
 using Duxel.App;
 using Duxel.Core;
@@ -60,10 +66,10 @@ readonly struct LightDesign : IUiDesign
 ```
 
 ```powershell
-./run-fba.ps1 ./hello.cs -Managed -NoCache
+dotnet run hello.cs
 ```
 
-공개 NuGet 패키지로 앱을 만들려면 파일 기반 앱 시작 문서를 따르세요. 공개 공통 패키지는 .NET 8·9·10을 지원합니다. [파일 기반 앱 시작](docs/getting-started-fba.ko.md) · [선언형 C# 예제](samples/fba/declarative_dashboard_fba.cs) · [즉시 모드 예제](samples/fba/all_features.cs)
+기존 Windows 프로젝트에는 `dotnet add package Duxel.Windows.App --version 0.3.0-preview`로 설치할 수 있습니다. 패키지는 .NET 8·9·10을 지원합니다. [파일 기반 앱 시작](docs/getting-started-fba.ko.md) · [선언형 C# 예제](samples/fba/declarative_dashboard_fba.cs) · [즉시 모드 예제](samples/fba/all_features.cs)
 
 ## 소스 빌드
 

@@ -2,7 +2,9 @@
 
 [한국어](fluent2-accordion.ko.md)
 
-Run `./run-gallery.ps1` and select **Accordion** (use the tab overflow menu when necessary). Open the first item, edit its note, collapse it and visit another tab; the same content widget and value remain. Controls switch multiple open items, last-item collapse, chevron position and four header sizes. The third header demonstrates disabled behavior.
+Derive from `UiAccordion<TBehavior, TPresentation>` to select header input independently of measurement and painting. For example, `UiPressButtonBehavior` expands on pointer press. Panel layout and accessibility continue to reflect the value accepted by the binding.
+
+Run `./run-gallery.ps1` and select **Fluent 컨트롤 → Content and lists → Accordion**. Open the first item and edit its note. The value remains after collapsing the panel or visiting another page. Controls switch multiple open items, last-item collapse, chevron position and four header sizes. The third header demonstrates disabled behavior.
 
 ```csharp
 using System.Collections.Immutable;

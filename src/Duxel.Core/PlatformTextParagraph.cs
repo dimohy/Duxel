@@ -11,7 +11,14 @@ public enum PlatformTextParagraphDirection
 
 /// <summary>A complete source interval with explicit typography; its index is also the paint-style slot.</summary>
 public readonly record struct PlatformTextParagraphStyle(int Start, int Length, string FontPath,
-    string? SecondaryFontPath, float FontSize);
+    string? SecondaryFontPath, float FontSize)
+{
+    // Zero keeps the public contract of distinct style indices.
+    internal int PaintGroup { get; init; }
+
+    internal bool SharesPaintWith(PlatformTextParagraphStyle other)
+        => PaintGroup != 0 && PaintGroup == other.PaintGroup;
+}
 
 /// <summary>One U+FFFC source character reserved for an externally painted atomic object.</summary>
 public readonly record struct PlatformTextParagraphObject(int Start, float Width, float Height, float Baseline);
@@ -93,18 +100,22 @@ public sealed class PlatformTextParagraphRequest
 public readonly record struct PlatformTextParagraphGlyph(uint Index, int SourcePosition, float Advance,
     float AdvanceOffset, float AscenderOffset, float X, float Y);
 
+internal readonly record struct PlatformTextRunRasterContext(int LeftFromOrigin, int TopFromOrigin, int Width, int Height,
+    bool PreviousInk);
+
 /// <summary>Managed paint data; no native font face, layout, callback or other handle may be retained.</summary>
 public sealed class PlatformTextParagraphRun
 {
     private readonly PlatformTextParagraphGlyph[] _glyphs;
     internal int RasterHash { get; }
+    internal PlatformTextRunRasterContext? RasterContext { get; }
     private static UiVector2 Fraction(UiVector2 origin) => new(origin.X - MathF.Floor(origin.X), origin.Y - MathF.Floor(origin.Y));
     internal bool RasterEquals(PlatformTextParagraphRun other)
     {
         if (ReferenceEquals(this, other))
             return true;
         if (RasterHash != other.RasterHash || FontPath != other.FontPath || FontSize != other.FontSize
-            || BidiLevel != other.BidiLevel || Fraction(Origin) != Fraction(other.Origin) || _glyphs.Length != other._glyphs.Length)
+            || RasterContext != other.RasterContext || BidiLevel != other.BidiLevel || Fraction(Origin) != Fraction(other.Origin) || _glyphs.Length != other._glyphs.Length)
             return false;
         for (var i = 0; i < _glyphs.Length; i++)
         {
@@ -141,6 +152,10 @@ public sealed class PlatformTextParagraphRun
 
     public PlatformTextParagraphRun(int styleIndex, string fontPath, float fontSize, uint bidiLevel,
         UiVector2 origin, ReadOnlySpan<PlatformTextParagraphGlyph> glyphs)
+        : this(styleIndex, fontPath, fontSize, bidiLevel, origin, glyphs, null) { }
+
+    internal PlatformTextParagraphRun(int styleIndex, string fontPath, float fontSize, uint bidiLevel,
+        UiVector2 origin, ReadOnlySpan<PlatformTextParagraphGlyph> glyphs, PlatformTextRunRasterContext? rasterContext)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fontPath);
         if (styleIndex < 0 || !float.IsFinite(fontSize) || fontSize <= 0 || !float.IsFinite(origin.X) || !float.IsFinite(origin.Y))
@@ -156,12 +171,14 @@ public sealed class PlatformTextParagraphRun
         BidiLevel = bidiLevel;
         Origin = origin;
         _glyphs = glyphs.ToArray();
+        RasterContext = rasterContext;
         // Pixel content follows glyph geometry and subpixel phase, independently
         // of source/style indices and whole-pixel placement after paragraph reflow.
         var hash = new HashCode();
         hash.Add(FontPath);
         hash.Add(FontSize);
         hash.Add(BidiLevel);
+        hash.Add(RasterContext);
         hash.Add(Fraction(Origin));
         foreach (var glyph in _glyphs)
         {
@@ -274,6 +291,49 @@ public readonly record struct PlatformTextParagraphRaster(int Width, int Height,
     {
         get; init;
     }
+}
+
+internal readonly record struct PlatformTextParagraphCoverage(int Width, int Height, ReadOnlyMemory<byte> Pixels, UiVector2 Origin)
+{
+    internal PlatformTextParagraphRaster ToRgba()
+    {
+        var coverage = Pixels.Span;
+        var rgba = new byte[checked(coverage.Length * 4)];
+        for (var i = 0; i < coverage.Length; i++)
+            rgba.AsSpan(i * 4, 4).Fill(coverage[i]);
+        return new(Width, Height, rgba, Origin);
+    }
+}
+
+internal interface IPlatformTextWholeParagraphRasterizer
+{
+    PlatformTextParagraphCoverage RasterizeWholeParagraphCoverage(PlatformTextParagraphRequest request);
+}
+
+internal sealed class WholeParagraphMaskKey
+{
+    internal PlatformTextParagraphRequest Request { get; }
+    internal int RasterHash { get; }
+
+    internal WholeParagraphMaskKey(PlatformTextParagraphRequest request)
+    {
+        Request = request;
+        var hash = new HashCode();
+        hash.Add(request.Text, StringComparer.Ordinal);
+        hash.Add(request.Width);
+        hash.Add(request.Direction);
+        foreach (var style in request.Styles.Span)
+            hash.Add(style);
+        foreach (var item in request.Objects.Span)
+            hash.Add(item);
+        RasterHash = hash.ToHashCode();
+    }
+
+    internal bool RasterEquals(WholeParagraphMaskKey other)
+        => RasterHash == other.RasterHash && Request.Text == other.Request.Text
+            && Request.Width == other.Request.Width && Request.Direction == other.Request.Direction
+            && Request.Styles.Span.SequenceEqual(other.Request.Styles.Span)
+            && Request.Objects.Span.SequenceEqual(other.Request.Objects.Span);
 }
 
 /// <summary>Shapes full styled paragraphs once; painting must consume the returned glyphs without reshaping substrings.</summary>

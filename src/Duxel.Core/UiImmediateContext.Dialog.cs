@@ -60,7 +60,8 @@ public sealed partial class UiImmediateContext
             return;
         var opened = !wasOpen;
         using var screen = BeginWidgetScreenSpace();
-        if (!opened && OverlayOwnsEscape(input, includeTrigger: false) && string.IsNullOrEmpty(_imeHandler?.GetCompositionText())
+        if (!opened && !options.SuppressEscapeDismissal && OverlayOwnsEscape(input, includeTrigger: false)
+            && string.IsNullOrEmpty(_imeHandler?.GetCompositionText())
             && _keyEvents.Any(key => key.IsDown && key.Key == UiKey.Escape && key.Modifiers == 0)
             && RequestOverlayChange(input, false, true))
             return;
@@ -193,8 +194,19 @@ public sealed partial class UiImmediateContext
         RenderParentDataChild(body.Title, null, titleBounds, clip);
         if (body.HasClose)
             RenderParentDataChild(body.Close, null, new(body.RightToLeft ? origin.X : origin.X + layout.Size.X - 24, origin.Y, 24, 24), clip);
+        if (body.HeaderActions is { } headerActions)
+            RenderParentDataChild(headerActions, null, new(origin.X + (body.RightToLeft ? layout.Size.X - layout.HeaderActions.X : 0),
+                origin.Y + layout.HeaderHeight - layout.HeaderActions.Y, layout.HeaderActions.X, layout.HeaderActions.Y), clip);
         var contentY = origin.Y + layout.HeaderHeight + gap;
         RenderParentDataChild(body.Content, null, new(origin.X, contentY, layout.Size.X, layout.ContentHeight), clip);
+        if (body.ScrollSeparator is { } separator && layout.ContentHeight > 0)
+        {
+            var scroll = body.Content.Scroll;
+            if (scroll.Offset.Y > 0)
+                AddRectFilled(new(origin.X, contentY - 1, layout.Size.X, 1), separator, _whiteTexture);
+            if (body.Actions.Children.Length > 0 && scroll.Offset.Y < scroll.VerticalScrollRange)
+                AddRectFilled(new(origin.X, contentY + layout.ContentHeight, layout.Size.X, 1), separator, _whiteTexture);
+        }
         if (body.Actions.Children.Length > 0)
             RenderParentDataChild(body.Actions, null, new(origin.X + (body.ActionsStart != body.RightToLeft ? 0 : layout.Size.X - layout.Actions.X),
                 contentY + layout.ContentHeight + gap, layout.Actions.X, layout.Actions.Y), clip);

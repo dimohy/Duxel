@@ -62,7 +62,85 @@ internal static class SegmentedControlTests
         widget.SetItems(ReadOnlyMemory<UiSegmentOption>.Empty);
         check(Frame() == default && !tree.CaptureSnapshot().Elements.Any(e => e.Node.Role == UiAccessibilityRole.RadioButton),
             "empty segments produce neither paint area nor stale semantic items");
+        RunCustomPolicies(check);
     }
+
+    private static void RunCustomPolicies(Action<bool, string> check)
+    {
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        ControlFontFixture.Configure(context);
+        using var tree = new UiAccessibilityTree();
+        context.SetAccessibilityTree(tree);
+        var selected = new UiState<string?>("a");
+        using var widget = new CustomSegmentedControl(selected.Binding);
+        var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+
+        UiDrawData Frame(UiInputState input)
+        {
+            context.NewFrame(new(.016f, new(500, 300), new(1, 1)), input, new(0, 0, 500, 300), UiTextSettings.Default);
+            context.Render(new Screen(ui =>
+            {
+                ui.EnableRootViewportContentLayout(contentPadding : 0);
+                widget.Render(ui);
+            }));
+            return context.GetDrawData();
+        }
+
+        using (var draw = Frame(idle))
+            check(draw.DrawLists.Any(list => list.RectFilledPrimitives?.AsSpan().ToArray().Any(p => p.CornerRadius == 6) == true),
+                "a derived segmented control replaces the whole Fluent frame with custom paint");
+
+        var first = tree.CaptureSnapshot().Elements.Single(item => item.Node.Name == "First").Node.Bounds;
+        var point = new UiVector2(first.X + first.Width / 2, first.Y + first.Height / 2);
+        Frame(idle with { MousePosition = point, LeftMouseDown = true, LeftMousePressed = true }).ReleasePooled();
+        check(selected.Value == "b" && tree.CaptureSnapshot().Elements.Any(item => item.Node.Name == "Second" && item.Node.Selected == true),
+            "a custom press behavior can change the selected value through the original binding and accessibility tree");
+        Frame(idle with { MousePosition = point, LeftMouseReleased = true }).ReleasePooled();
+        check(selected.Value == "b", "releasing a press-configured segment keeps the committed selection");
+
+        widget.Options = widget.Options with { Width = 112, IsFixedWidth = false };
+        Frame(idle).ReleasePooled();
+        var captures = widget.PaintCaptureCount;
+        var nextAccent = new UiColor(216, 44, 88);
+        widget.Accent = nextAccent;
+        Frame(idle).ReleasePooled();
+        check(widget.MaximumScrollOffset > 0 && widget.PaintCaptureCount == captures + 1 && widget.LastPaintedAccent == nextAccent,
+            "the scrollable control recaptures a custom presentation whose external paint input changes");
+    }
+
+    private sealed class CustomSegmentedControl(UiBinding<string?> value)
+        : UiSegmentedControlWidget<PressBehavior, CustomPresentation>("Custom", value,
+            new UiSegmentOption[] { new("a", "First"), new("b", "Second") }, new(ReducedMotion : true))
+    {
+        internal UiColor Accent = new(22, 45, 170);
+        internal UiColor LastPaintedAccent;
+    }
+
+    private readonly struct PressBehavior : IUiSegmentedControlBehavior
+    {
+        public static UiRadioGroupInteraction Process(UiSegmentedControlInput input)
+        {
+            var interaction = input.Process(UiButtonActivation.Press);
+            if (interaction.Control.Activated && interaction.HoveredIndex == 0 && !input.SuppressPointerActivation)
+            {
+                input.State.Begin(input.SelectedValue);
+                input.State.Select(input.Items[1].Value);
+            }
+            return interaction;
+        }
+    }
+
+    private readonly struct CustomPresentation : IUiSegmentedControlPresentation
+    {
+        public static void Paint(UiControlContext context, UiSegmentedControlWidget widget,
+            ReadOnlySpan<UiRadioOptionLayout> layouts, UiRect bounds, UiRect thumb, int selected, UiRadioGroupInteraction interaction)
+        {
+            var custom = (CustomSegmentedControl)widget;
+            custom.LastPaintedAccent = custom.Accent;
+            context.Frame(bounds, custom.Accent, default, 6, 0);
+        }
+    }
+
     private sealed class Screen(Action<UiImmediateContext> render) : UiScreen
     {
         public override void Render(UiImmediateContext ui) => render(ui);

@@ -20,8 +20,7 @@ public sealed partial class UiImmediateContext
         ProcessHorizontalScroll(bounds, 0, widget.Scroll);
         if (previousOffset != widget.Scroll.Offset) _requestFrame?.Invoke();
         widget.ArrangeInput();
-        var interaction = ProcessRadioGroup(id, bounds, widget.RadioItems, widget.InputLayouts, widget.Value.Value,
-            widget.Input, UiButtonActivation.Release, options.RightToLeft || RightToLeft, widget.Scroll.SuppressClick);
+        var interaction = widget.ProcessInput(new(this, widget, id, bounds));
         interaction = ApplyRadioAccessibility(id, widget.Label, bounds, widget.RadioItems, widget.InputLayouts,
             widget.Input, interaction, selectionRequired : false, valueBinding : widget.Selection, beforePublication : widget.BeforePublication);
         var selected = -1;
@@ -46,7 +45,7 @@ public sealed partial class UiImmediateContext
         }
         if (options.IsFixedWidth)
         {
-            UiSegmentedControlPainter.Paint(context, widget, bounds,
+            widget.PaintSegments(context, bounds,
                 thumb with { X = bounds.X + thumb.X, Y = bounds.Y }, selected, interaction);
             return;
         }

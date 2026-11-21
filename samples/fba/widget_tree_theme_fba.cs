@@ -350,7 +350,7 @@ sealed class WidgetPage : UiWidget
         return Dux.Column(10,
             title,
             typography,
-            Dux.Text($"Count {count} | Build calls {_builds}"),
+            Fluent.Body1($"Count {count} | Build calls {_builds}"),
             Dux.Text("Fluent 2 is the first widget theme. Generated C# binds concrete implementations."),
             notice,
             Dux.TextWrapped("Generated standard catalog (migration in progress) : " + string.Join(", ", Fluent.ComponentNames.ToArray())),
@@ -438,7 +438,7 @@ sealed class ChildCounter : UiWidget
     {
         var value = context.Watch(_value);
         var action = context.Child("inherited-action", () => new ChildActionButton("Inherited Fluent action", () => _value.Value++));
-        return Dux.Row(12, Dux.Text($"Keyed child count {value}"),
+        return Dux.Row(12, Fluent.Body1($"Keyed child count {value}"),
             action);
     }
 }

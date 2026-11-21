@@ -1,27 +1,22 @@
-using System.Runtime.CompilerServices;
-
 namespace Duxel.Core;
 
 [Flags]
 public enum UiDrawCommandFeatures { None = 0, Callbacks = 1, GpuParticles = 2 }
 
+internal sealed record UiCommandFeaturesSnapshot(ulong Stamp, int Count, UiDrawCommandFeatures Features);
+
 public sealed partial record class UiDrawList
 {
-    private sealed record CommandFeaturesSnapshot(ulong Stamp, int Count, UiDrawCommandFeatures Features);
-    private sealed class CommandFeaturesCache { public CommandFeaturesSnapshot? Snapshot; }
-    private static readonly ConditionalWeakTable<UiPooledList<UiDrawCommand>, CommandFeaturesCache> CommandFeatures = new();
-
     /// <summary>Finds special commands. Nonzero CommandStateStamp permits reuse across immutable retained views.</summary>
     public UiDrawCommandFeatures GetCommandFeatures()
     {
         var stamp = CommandStateStamp;
         // Unstamped caller-owned commands may change between submissions.
         if (stamp == 0) return ScanCommandFeatures();
-        var cache = CommandFeatures.GetValue(Commands, static _ => new());
-        var snapshot = Volatile.Read(ref cache.Snapshot);
+        var snapshot = Volatile.Read(ref Commands.CommandFeatures);
         if (snapshot is not null && snapshot.Stamp == stamp && snapshot.Count == Commands.Count) return snapshot.Features;
         var features = ScanCommandFeatures();
-        Volatile.Write(ref cache.Snapshot, new(stamp, Commands.Count, features));
+        Volatile.Write(ref Commands.CommandFeatures, new(stamp, Commands.Count, features));
         return features;
     }
     private UiDrawCommandFeatures ScanCommandFeatures()

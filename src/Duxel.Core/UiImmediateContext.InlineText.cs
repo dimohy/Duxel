@@ -66,6 +66,8 @@ public sealed partial class UiImmediateContext
             throw new InvalidOperationException("Inline alignment offsets must match the prepared line count.");
         if (clip.Width <= 0 || clip.Height <= 0 || lines.Count == 0)
             return;
+        if (TryPaintWholeInlineParagraph(lines, origin, color, clip, lineOffsets))
+            return;
         // Include neighboring lines for glyph ink extending beyond the advance box.
         var first = Math.Max(0, lines.LineAtY(MathF.Max(0, clip.Y - origin.Y)) - 1);
         var end = Math.Min(lines.Count, lines.LineAtY(MathF.Max(0, clip.Y + clip.Height - origin.Y)) + 2);

@@ -34,12 +34,16 @@
     <InternalsVisibleTo Include="Duxel.App" />
     <InternalsVisibleTo Include="Duxel.Svg" />
     <InternalsVisibleTo Include="Duxel.Vulkan" />
+    <InternalsVisibleTo Include="Duxel.Platform.Windows" />
+    <InternalsVisibleTo Include="Duxel.Platform.Linux" />
     <PackageReference Include="Markdig" Version="1.4.0" />
     <ProjectReference Include="../Duxel.Core.Dsl.Generator/Duxel.Core.Dsl.Generator.csproj"
                       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <AdditionalFiles Include="FluentComponents.tsv" />
     <AdditionalFiles Include="Assets/FluentIcons/FluentSystemIcons-Regular.json" />
     <AdditionalFiles Include="Assets/FluentIcons/FluentSystemIcons-Filled.json" />
+    <EmbeddedResource Include="Assets/FluentIcons/*.ttf"
+                      LogicalName="Duxel.Core.FluentIcons.%(Filename)%(Extension)" />
     <Content Include="Assets/FluentIcons/FluentSystemIcons-Regular.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets/FluentIcons/FluentSystemIcons-Filled.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets/FluentIcons/LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

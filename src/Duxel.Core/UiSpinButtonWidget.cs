@@ -32,6 +32,42 @@ public readonly record struct UiSpinButtonOptions(double? Minimum = null, double
 }
 
 public readonly record struct UiSpinButtonLayout(UiInputLayout Input, UiRect Increment, UiRect Decrement);
+
+public enum UiSpinButtonKeyAction
+{
+    None, Increment, Decrement, PageIncrement, PageDecrement, Minimum, Maximum, Commit, Cancel
+}
+
+/// <summary>Selects the stepper and keyboard interaction without replacing numeric binding or validation.</summary>
+public interface IUiSpinButtonBehavior
+{
+    static abstract UiButtonActivation StepperActivation { get; }
+    static abstract bool RepeatOnHold { get; }
+    static abstract UiSpinButtonKeyAction ResolveKey(UiKeyEvent key);
+    static abstract (bool Increment, bool Decrement) GetHeldKeys(UiImmediateContext input);
+}
+
+public readonly struct UiDefaultSpinButtonBehavior : IUiSpinButtonBehavior
+{
+    public static UiButtonActivation StepperActivation => UiButtonActivation.Press;
+    public static bool RepeatOnHold => true;
+    public static UiSpinButtonKeyAction ResolveKey(UiKeyEvent key) => key.Key switch
+    {
+        UiKey.UpArrow => UiSpinButtonKeyAction.Increment,
+        UiKey.DownArrow => UiSpinButtonKeyAction.Decrement,
+        UiKey.PageUp => UiSpinButtonKeyAction.PageIncrement,
+        UiKey.PageDown => UiSpinButtonKeyAction.PageDecrement,
+        UiKey.Home when !key.Modifiers.HasFlag(KeyModifiers.Shift) => UiSpinButtonKeyAction.Minimum,
+        UiKey.End when !key.Modifiers.HasFlag(KeyModifiers.Shift) => UiSpinButtonKeyAction.Maximum,
+        UiKey.Enter => UiSpinButtonKeyAction.Commit,
+        UiKey.Escape => UiSpinButtonKeyAction.Cancel,
+        _ => UiSpinButtonKeyAction.None
+    };
+    public static (bool Increment, bool Decrement) GetHeldKeys(UiImmediateContext input)
+        => (input.IsKeyDown(UiKey.UpArrow) || input.IsKeyDown(UiKey.PageUp),
+            input.IsKeyDown(UiKey.DownArrow) || input.IsKeyDown(UiKey.PageDown));
+}
+
 public interface IUiSpinButtonPresentation
 {
     static virtual bool CanRetainMeasurement => false;
@@ -43,7 +79,9 @@ public interface IUiSpinButtonPresentation
 }
 
 /// <summary>A nullable numeric editor with one keyboard stop and independently invokable pointer steppers.</summary>
-public class UiSpinButton<TPresentation> : UiControlWidget, IUiLabelTarget where TPresentation : IUiSpinButtonPresentation
+public class UiSpinButton<TBehavior, TPresentation> : UiControlWidget, IUiLabelTarget
+    where TBehavior : IUiSpinButtonBehavior
+    where TPresentation : IUiSpinButtonPresentation
 {
     private UiBinding<double?>? _value;
     private UiSpinButtonOptions _options;
@@ -189,7 +227,7 @@ public class UiSpinButton<TPresentation> : UiControlWidget, IUiLabelTarget where
     }
     protected override bool CanRetainMeasurement => TPresentation.CanRetainMeasurement;
     protected override UiVector2 MeasureContent(UiControlContext context) => context.LayoutConstraints.Constrain(TPresentation.Measure(context, Options));
-    protected override void RenderControl(UiImmediateContext ui) => ui.RenderSpinButton<TPresentation>(this, PrimaryInputId(Label));
+    protected override void RenderControl(UiImmediateContext ui) => ui.RenderSpinButton(this, PrimaryInputId(Label));
     private protected override void ReleaseOwnedResources()
     {
         try
@@ -199,6 +237,11 @@ public class UiSpinButton<TPresentation> : UiControlWidget, IUiLabelTarget where
         finally { Input.Dispose(); _value = null; _formatter = null; _parser = null; Changed = null; base.ReleaseOwnedResources(); }
     }
 }
+
+public class UiSpinButton<TPresentation>(string label, UiBinding<double?> value, UiSpinButtonOptions? options = null,
+    int maxLength = 4096, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+    : UiSpinButton<UiDefaultSpinButtonBehavior, TPresentation>(label, value, options, maxLength, identity)
+    where TPresentation : IUiSpinButtonPresentation;
 
 [UiWidgetStyle(typeof(UiSpinButton<>), typeof(UiFluentSpinButtonPresentation))]
 [UiComponent("SpinButton", UiComponentExposure.Fluent)]

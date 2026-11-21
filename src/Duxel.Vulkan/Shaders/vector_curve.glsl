@@ -21,11 +21,19 @@ vec2 curvePoint(vec4 ab, vec4 cd, uint index, uint count, vec2 scale, vec2 origi
 }
 // Search the camera-dependent uniform polyline in monotone Y intervals. Retained
 // controls stay immutable; zoom requires neither CPU flattening nor buffer uploads.
-int curveWinding(vec2 point, uint offset, vec2 scale, vec2 origin) {
+int curveWinding(vec2 point, vec2 devicePoint, uint offset, vec2 scale, vec2 origin) {
     vec4 ab = pc.scene.data[offset], cd = pc.scene.data[offset + 1u];
     vec4 intervals = pc.scene.data[offset + 2u];
-    if (intervals.x == 0.0)
-        return edgeWinding(point, snapPoint(ab.xy, scale, origin), snapPoint(cd.zw, scale, origin));
+    if (intervals.x == 0.0) {
+        // Keep snapped line crossings in device space so a sample on the boundary stays a tie.
+        precise vec2 deviceA = ab.xy * scale + origin;
+        precise vec2 deviceB = cd.zw * scale + origin;
+        vec2 a = roundEven(deviceA * 256.0) / 256.0;
+        vec2 b = roundEven(deviceB * 256.0) / 256.0;
+        if (devicePoint.y < min(a.y, b.y) || devicePoint.y >= max(a.y, b.y)) return 0;
+        precise float x = a.x + (devicePoint.y - a.y) * (b.x - a.x) / (b.y - a.y);
+        return x > devicePoint.x ? (b.y > a.y ? 1 : -1) : 0;
+    }
     // Polynomial and positive-weight rational curves stay inside their control hull.
     // Leave room for device snapping and floating-point interpolation near the hull.
     vec2 minimum = min(min(ab.xy, ab.zw), min(cd.xy, cd.zw));
@@ -67,7 +75,7 @@ int curveWinding(vec2 point, uint offset, vec2 scale, vec2 origin) {
     return winding;
 }
 bool containsStroke(vec2 point, vec4 specification);
-bool containsPoint(vec2 point, vec4 bounds, vec4 specification, vec2 deviceScale, vec2 deviceOrigin) {
+bool containsPoint(vec2 point, vec2 devicePoint, vec4 bounds, vec4 specification, vec2 deviceScale, vec2 deviceOrigin) {
     if ((uint(specification.w) & 32u) != 0u) return containsStroke(point, specification);
     uint offset = uint(specification.x), count = uint(specification.y);
     uint flags = uint(specification.w);
@@ -80,7 +88,7 @@ bool containsPoint(vec2 point, vec4 bounds, vec4 specification, vec2 deviceScale
     int winding = 0;
     for (uint i = 0u; i < count; ++i) {
         if ((flags & 4u) != 0u) {
-            winding += curveWinding(point, offset + i * 3u, deviceScale, deviceOrigin);
+            winding += curveWinding(point, devicePoint, offset + i * 3u, deviceScale, deviceOrigin);
             continue;
         }
         vec4 edge = pc.scene.data[offset + i];

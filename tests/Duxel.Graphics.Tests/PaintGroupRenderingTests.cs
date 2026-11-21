@@ -4,7 +4,7 @@ internal static class PaintGroupRenderingTests
 {
     internal static void Run(UiContext context, Func<string, Action<UiImmediateContext>, byte[]> capture,
         Action<bool, string> check, Func<Action<UiImmediateContext>, UiDrawData> build, Func<UiDrawData, byte[]> render, Func<UiDrawData, bool> submit, Func<int> geometryEntries, int stride, UiTextureId white, Func<UiRendererFrameMetrics> metrics, int imageCount,
-        bool forceFullReference = false)
+        Func<UiTextureId, (ulong Black, ulong White, ulong Msaa)> targetHandles, bool forceFullReference = false)
     {
         var black = new UiTextureId(91001);
         var whiteOutput = new UiTextureId(91002);
@@ -230,27 +230,47 @@ internal static class PaintGroupRenderingTests
         using var asynchronous = new UiPaintGroup();
         var asynchronousVersion = 0UL;
         var asynchronousGreen = false;
+        var asynchronousBounds = new UiRect(96, 128, 32, 32);
         void Asynchronous(UiImmediateContext ui)
         {
             ui.EnableRootViewportContentLayout(contentPadding: 0);
             ui.GetWindowDrawList().AddRectFilled(new(0, 0, stride, 240), new(0, 0, 255), white);
-            ui.PaintGroup(asynchronous, new(96, 128, 32, 32), asynchronousVersion,
-                paint => paint.Frame(new(96, 128, 32, 32), asynchronousGreen ? new(0, 255, 0) : new(255, 0, 0), default, 0, 0), .8f);
+            ui.PaintGroup(asynchronous, asynchronousBounds, asynchronousVersion,
+                paint => paint.Frame(asynchronousBounds, asynchronousGreen ? new(0, 255, 0) : new(255, 0, 0), default, 0, 0), .8f);
         }
         var geometryBeforeUpdates = geometryEntries();
         var geometryRemainsBounded = true;
+        var targetsUnchanged = true;
+        (ulong Black, ulong White, ulong Msaa) originalTargets = default;
+        UiTextureId asynchronousTexture = default;
         for (var frame = 0; frame < 12; frame++)
         {
             asynchronousVersion++;
             asynchronousGreen = (frame & 1) != 0;
             using var submitted = build(Asynchronous);
+            asynchronousTexture = submitted.TextureUpdates.Single(update => update.Kind == UiTextureUpdateKind.RenderPaintGroup).TextureId;
             check(submit(submitted), "GPU paint replacement submits through the ordinary path without per-frame readback : " + frame);
+            var targets = targetHandles(asynchronousTexture);
+            if (frame == 0)
+                originalTargets = targets;
+            else
+                targetsUnchanged &= targets == originalTargets;
             geometryRemainsBounded &= geometryEntries() <= geometryBeforeUpdates + 1;
         }
+        check(targetsUnchanged && originalTargets.Black != 0 && originalTargets.White != 0,
+            "GPU same-extent content revisions reuse both matte images and the multisample attachment");
         check(geometryRemainsBounded, "GPU replaced paint geometry retires promptly rather than accumulating for the general cache grace period");
         var asynchronousPixels = capture("asynchronous-final", Asynchronous);
         check(asynchronousPixels[At(112, 144)] == 0 && asynchronousPixels[At(112, 144) + 1] == 204,
             "GPU latest capture pixels survive repeated ordinary submissions and deferred target retirement");
+        asynchronousBounds = asynchronousBounds with { Width = 48 };
+        asynchronousVersion++;
+        var differentExtent = capture("asynchronous-new-extent", Asynchronous);
+        var newTargets = targetHandles(asynchronousTexture);
+        check(newTargets.Black != originalTargets.Black && newTargets.White != originalTargets.White
+            && (originalTargets.Msaa == 0 || newTargets.Msaa != originalTargets.Msaa)
+            && differentExtent[At(140, 144) + 1] == 204,
+            "GPU changed paint extent replaces attachments and fills the newly visible area");
         asynchronous.Dispose();
         context.QueueTextureUpdate(new(UiTextureUpdateKind.Destroy, black, UiTextureFormat.Rgba8Unorm, 80, 80, ReadOnlyMemory<byte>.Empty));
         context.QueueTextureUpdate(new(UiTextureUpdateKind.Destroy, source, UiTextureFormat.Rgba8Unorm, 1, 1, ReadOnlyMemory<byte>.Empty));

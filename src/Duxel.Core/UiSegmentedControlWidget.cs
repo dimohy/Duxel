@@ -217,6 +217,13 @@ public partial class UiSegmentedControlWidget : UiControlWidget
     protected override bool CanRetainMeasurement => true;
     protected override UiVector2 MeasureContent(UiControlContext context) => context.MeasureSegments(this);
     protected override void RenderControl(UiImmediateContext ui) => ui.RenderSegments(this, PrimaryControlId);
+    internal virtual UiRadioGroupInteraction ProcessInput(UiSegmentedControlInput input) =>
+        UiSegmentedControlReleaseBehavior.Process(input);
+    internal virtual bool CanRetainPaint => true;
+    internal virtual void PaintSegments(UiControlContext context, UiRect bounds, UiRect thumb, int selected,
+        UiRadioGroupInteraction interaction) =>
+        UiFluentSegmentedControlPresentation.Paint(context, this, Layouts, bounds, thumb, selected, interaction);
+
     private protected override void ReleaseOwnedResources()
     {
         Input.Release();
@@ -232,6 +239,75 @@ public partial class UiSegmentedControlWidget : UiControlWidget
     }
 }
 
+/// <summary>Input for the current segmented control, including the shared selection and gesture processing.</summary>
+public readonly ref struct UiSegmentedControlInput
+{
+    private readonly UiImmediateContext _ui;
+    private readonly UiSegmentedControlWidget _widget;
+    public string Id { get; }
+    public UiRect Bounds { get; }
+    public UiControlContext Context => new(_ui);
+    public ReadOnlySpan<UiRadioOption> Items => _widget.RadioItems;
+    public ReadOnlySpan<UiRadioOptionLayout> Layouts => _widget.InputLayouts;
+    public string? SelectedValue => _widget.Value.Value;
+    public UiRadioGroupInputState State => _widget.Input;
+    public bool RightToLeft => _widget.Options.RightToLeft || _ui.RightToLeft;
+    public bool SuppressPointerActivation => _widget.Scroll.SuppressClick;
+
+    internal UiSegmentedControlInput(UiImmediateContext ui, UiSegmentedControlWidget widget, string id, UiRect bounds)
+    {
+        _ui = ui;
+        _widget = widget;
+        Id = id;
+        Bounds = bounds;
+    }
+
+    public UiRadioGroupInteraction Process(UiButtonActivation activation) =>
+        _ui.ProcessRadioGroup(Id, Bounds, Items, Layouts, SelectedValue, State, activation, RightToLeft, SuppressPointerActivation);
+}
+
+public interface IUiSegmentedControlBehavior
+{
+    static abstract UiRadioGroupInteraction Process(UiSegmentedControlInput input);
+}
+
+public interface IUiSegmentedControlPresentation
+{
+    /// <summary>Opt in when paint has only the built-in presentation's retained dependencies.</summary>
+    static virtual bool CanRetainPaint => false;
+
+    /// <summary>Layouts use content-local coordinates. Bounds and thumb use the current paint coordinates.</summary>
+    static abstract void Paint(UiControlContext context, UiSegmentedControlWidget widget,
+        ReadOnlySpan<UiRadioOptionLayout> layouts, UiRect bounds, UiRect thumb, int selected, UiRadioGroupInteraction interaction);
+}
+
+public readonly struct UiSegmentedControlReleaseBehavior : IUiSegmentedControlBehavior
+{
+    public static UiRadioGroupInteraction Process(UiSegmentedControlInput input) => input.Process(UiButtonActivation.Release);
+}
+
+public readonly struct UiFluentSegmentedControlPresentation : IUiSegmentedControlPresentation
+{
+    public static bool CanRetainPaint => true;
+
+    public static void Paint(UiControlContext context, UiSegmentedControlWidget widget,
+        ReadOnlySpan<UiRadioOptionLayout> layouts, UiRect bounds, UiRect thumb, int selected, UiRadioGroupInteraction interaction) =>
+        UiSegmentedControlPainter.Paint(context, widget, layouts, bounds, thumb, selected, interaction);
+}
+
+public class UiSegmentedControlWidget<TBehavior, TPresentation>(string label, UiBinding<string?> value,
+    ReadOnlyMemory<UiSegmentOption> items, UiSegmentedControlOptions? options = null,
+    UiWidgetIdentity identity = UiWidgetIdentity.Instance) : UiSegmentedControlWidget(label, value, items, options, identity)
+    where TBehavior : IUiSegmentedControlBehavior
+    where TPresentation : IUiSegmentedControlPresentation
+{
+    internal override UiRadioGroupInteraction ProcessInput(UiSegmentedControlInput input) => TBehavior.Process(input);
+    internal override bool CanRetainPaint => TPresentation.CanRetainPaint;
+
+    internal override void PaintSegments(UiControlContext context, UiRect bounds, UiRect thumb, int selected,
+        UiRadioGroupInteraction interaction) => TPresentation.Paint(context, this, Layouts, bounds, thumb, selected, interaction);
+}
+
 public readonly partial struct UiControlContext
 {
     internal UiVector2 MeasureSegments(UiSegmentedControlWidget widget)
@@ -242,6 +318,6 @@ public readonly partial struct UiControlContext
     }
 }
 
-[UiWidgetStyle(typeof(UiSegmentedControlWidget))]
+[UiWidgetStyle(typeof(UiSegmentedControlWidget<,>), typeof(UiSegmentedControlReleaseBehavior), typeof(UiFluentSegmentedControlPresentation))]
 [UiComponent("SegmentedControl", UiComponentExposure.Fluent)]
 public partial class UiFluentSegmentedControl;

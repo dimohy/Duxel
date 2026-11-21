@@ -49,6 +49,42 @@ internal static class ScrollbarMotionTests
         check(permanent.Opacity == 1 && permanent.NextFrameTimeSeconds is null,
             "AlwaysShowThumb remains an explicit stationary visibility policy");
         VerifyConsumers(check);
+        VerifyImmediateRegrab(check);
+    }
+
+    private static void VerifyImmediateRegrab(Action<bool, string> check)
+    {
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        ControlFontFixture.Configure(context);
+        const string id = "vertical-regrab";
+        var clip = new UiRect(0, 0, 320, 240);
+        var track = new UiRect(200, 0, 12, 180);
+        var offset = 0f;
+        var idle = new UiInputState(new(206, 14), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        var screen = new Screen(ui => offset = ui.RenderScrollbarV(id, track, offset, 1000, 1180, clip));
+
+        UiRect Frame(params UiInputState[] inputs)
+        {
+            context.NewInputBatch(new(.02f, new(320, 240), new(1, 1)), inputs, clip, UiTextSettings.Default);
+            context.Render(screen);
+            using var draw = context.GetDrawData();
+            return draw.DrawLists.SelectMany(list => list.RectFilledPrimitives?.AsSpan().ToArray() ?? [])
+                .Single(rectangle => rectangle.Rect.X == track.X + 2 && rectangle.Rect.Width == track.Width - 4).Rect;
+        }
+
+        Frame(idle with { LeftMouseDown = true, LeftMousePressed = true });
+        var dragged = idle with { MousePosition = new(206, 100), LeftMouseDown = true };
+        var displayedThumb = Frame(dragged);
+        check(offset > 0 && displayedThumb.Y > 80,
+            "Vertical dragging paints the thumb at the updated scroll offset in the same frame");
+        var regrab = idle with { MousePosition = new(206, displayedThumb.Y + displayedThumb.Height / 2) };
+        Frame(dragged with { LeftMouseDown = false, LeftMouseReleased = true },
+            regrab with { LeftMouseDown = true, LeftMousePressed = true });
+        check(context.State.ActiveId == id && context.State.PreciseScrollbarDrag is { Id: id },
+            "Release and re-press in one batch can grab the last displayed thumb");
+        var grabbedOffset = offset;
+        Frame(regrab with { MousePosition = regrab.MousePosition with { Y = regrab.MousePosition.Y + 30 }, LeftMouseDown = true });
+        check(offset > grabbedOffset, "A re-grab immediately starts a second scrollbar drag");
     }
 
     private static void VerifyConsumers(Action<bool, string> check)

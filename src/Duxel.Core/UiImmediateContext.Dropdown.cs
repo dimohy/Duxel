@@ -2,8 +2,10 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
-    internal void RenderDropdown<TPresentation>(string id, string label, UiOptionSelection selection,
-        UiMenuInputState state, UiDropdownOptions options, Func<string> countText, bool commitClosedSelection = false) where TPresentation : IUiDropdownPresentation
+    internal void RenderDropdown<TBehavior, TPresentation>(string id, string label, UiOptionSelection selection,
+        UiMenuInputState state, UiDropdownOptions options, Func<string> countText, bool commitClosedSelection = false)
+        where TBehavior : IUiMenuBehavior
+        where TPresentation : IUiDropdownPresentation
     {
         var context = new UiControlContext(this);
         options = options.WithInheritedDirection(RightToLeft);
@@ -23,7 +25,7 @@ public sealed partial class UiImmediateContext
         using var clip = context.Clip(bounds);
         var interaction = ProcessMenuTrigger(id, label, selection.MenuItems, state, bounds,
             triggerRole: UiAccessibilityRole.ComboBox, triggerValue: selection.Text, multipleSelection: selection.Multiple,
-            invalid: options.Invalid);
+            invalid: options.Invalid, activation: TBehavior.TriggerActivation);
         var expandId = ResolveCachedIdentifier(root, "##expand", true);
         var expand = TPresentation.ExpandBounds(bounds, options);
         try
@@ -53,7 +55,7 @@ public sealed partial class UiImmediateContext
                 new UiMenuOptions(MathF.Max(1, bounds.Width), 32, 4, options.RightToLeft)
                 {
                     MaximumHeight = options.MaximumPopupHeight ?? MathF.Max(40, _displaySize.Y * .8f)
-                }, state, bounds, interaction, selection);
+                }, state, bounds, interaction, selection, optionActivation: TBehavior.OptionActivation);
             if (state.PublishedFrame != GetFrameCount() || state.PublishedRoot != state.Root)
                 PublishClosedOptionList(selection, state, root, label, available);
             _accessibility?.SetSelectionPolicy(root, selection.Multiple, selection.Required);

@@ -16,6 +16,11 @@ internal interface IObserverPage : IDisposable
     void Render(UiImmediateContext ui);
 }
 
+internal interface IObserverDocumentPage : IObserverPage
+{
+    void RenderDocument(UiImmediateContext ui, UiWidget header);
+}
+
 internal sealed class WidgetPage(string title, string description, UiWidget content) : IObserverPage, IObserverNaturalPage, IGallerySourcePage
 {
     private readonly UiScrollView _scroll = new(content);

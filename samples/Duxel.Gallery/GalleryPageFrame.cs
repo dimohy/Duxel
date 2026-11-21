@@ -5,9 +5,10 @@ namespace Duxel.Gallery;
 /// <summary>Owns only presentation slots; the persistent example page is borrowed.</summary>
 internal sealed class GalleryPageFrame : IDisposable
 {
+    private const float HeaderSpacing = 28;
     private readonly IObserverPage _page;
     private readonly UiWidget _root;
-    private readonly ExampleHost _body;
+    private readonly ExampleHost? _body;
     private readonly string? _source;
     internal string? Source => _samples is null ? _source : string.Join("\n\n", _samples.Select(sample => sample.Source));
     private readonly UiCodeView? _codeView;
@@ -34,23 +35,29 @@ internal sealed class GalleryPageFrame : IDisposable
     internal GalleryPageFrame(IObserverPage page, string? navigationLabel = null)
     {
         _page = page;
-        _body = new ExampleHost(this);
         var title = Fluent.Title2(navigationLabel ?? GalleryText.PageTitle(page.Title));
         var header = string.IsNullOrWhiteSpace(page.Description)
             ? (UiWidget)title
             : Dux.Column(new(Spacing : 6, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
                 title, new UiInlineText([new(GalleryText.Get(page.Description))]));
-        UiWidget body = _body;
         if (page is IGallerySourcePage { HasInlineSamples: true } inline)
             _samples = inline.Samples;
-        else if (HasSource(page.Title))
+        if (page is IObserverDocumentPage)
+        {
+            // The document viewport scrolls its header and examples together.
+            _root = Dux.Padding(header, new(0, 0, 0, HeaderSpacing));
+            return;
+        }
+        _body = new ExampleHost(this);
+        UiWidget body = _body;
+        if (_samples is null && HasSource(page.Title))
         {
             _source = GalleryPageSource.For(page);
             _codeView = new UiCodeView(_source, new(ShowToolbar : false), GalleryText.CodeViewLabels());
             body = Dux.Column(new(Spacing : 16, MainAxisSize : UiMainAxisSize.Min,
                 CrossAxisAlignment : UiCrossAxisAlignment.Stretch), _body, _codeView);
         }
-        var scroll = Dux.ScrollView(Dux.Column(new(Spacing : 28, MainAxisSize : UiMainAxisSize.Min,
+        var scroll = Dux.ScrollView(Dux.Column(new(Spacing : HeaderSpacing, MainAxisSize : UiMainAxisSize.Min,
             CrossAxisAlignment : UiCrossAxisAlignment.Stretch), header, body));
         scroll.AccessibleName = GalleryText.Get("Gallery page");
         _root = scroll;
@@ -61,9 +68,15 @@ internal sealed class GalleryPageFrame : IDisposable
         if (_page is IObserverNaturalPage prepared) prepared.PrepareContent(ui);
         if (_samples is not null && _page is IGallerySourcePage { SynchronizesOwnSources: false })
             foreach (var sample in _samples) sample.SynchronizeSource();
-        var available = ui.GetContentRegionAvail();
-        _body.ViewportHeight = available.Y;
-        _root.Render(ui);
+        if (_page is IObserverDocumentPage document)
+        {
+            document.RenderDocument(ui, _root);
+        }
+        else if (_body is { } body)
+        {
+            body.ViewportHeight = ui.GetContentRegionAvail().Y;
+            _root.Render(ui);
+        }
         if (_page is IObserverNaturalPage natural) natural.RenderOverlays(ui);
     }
     private void RenderExample(UiImmediateContext ui)
@@ -139,6 +152,7 @@ internal static class GalleryPageSource
             "측정 재사용" => "MeasurementPage",
             "가상 목록" => "VirtualPage",
             "가상 그리드" => "VirtualGridPage",
+            "파일 대화 상자" => "FileDialogsPage",
             "렌더링" => "RenderingPage",
             "SVG" => "SvgPage",
             "위젯 배치" => "WidgetLayoutPage",
@@ -152,7 +166,6 @@ internal static class GalleryPageSource
             "대화 상자" => "DialogPage",
             "메시지 표시" => "MessageBarPage",
             "추가 정보" => "InfoLabelPage",
-            "파일 대화 상자" => "FileDialogsPage",
             "숫자 입력" => "SpinButtonPage",
             "목록" => "ListPage",
             "선택 목록" => "DropdownPage",

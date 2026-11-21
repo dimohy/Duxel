@@ -1,5 +1,7 @@
 # Fluent Combobox
 
+`UiCombobox<TBehavior, TPresentation>`은 목록을 여는 버튼과 항목의 포인터 동작을 `IUiMenuBehavior`로 지정합니다. 텍스트 편집, 검색, 바인딩과 접근성은 공통 Combobox 코드가 처리합니다.
+
 [English](fluent2-combobox.md)
 
 팝업 항목은 Dropdown과 같은 시스템 색상 표현을 사용합니다. Canvas·CanvasText, 비활성 GrayText, 단일·다중 선택 표시와 항목을 그린 뒤 표시하는 바깥 포커스 선이 함께 적용됩니다. 편집기와 입력·선택 바인딩은 바꾸지 않았습니다. [Dropdown 색상 역할과 검증 범위](fluent2-dropdown.ko.md)를 참고하세요. 근거: `artifacts/option-contrast-2026-11-16/verification.json`.

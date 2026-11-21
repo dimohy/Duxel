@@ -170,21 +170,21 @@ void dashJoin(vec2 point, vec2 first, vec2 last, uint join, float miter) {
 }
 void dashInterval(uint path, float start, float end, bool omitStart, bool omitEnd, uvec2 style, float miter) {
     dashBegin(path);
-    uint curve, firstCurve = 0u, lastCurve = 0u; vec2 parameters, a, b;
+    // Use the first curve index itself as the uninitialized marker across traversal.
+    uint curve, firstCurve = 0xffffffffu, lastCurve = 0u; vec2 parameters, a, b;
     float distance = 0.0, firstT = 0.0, lastT = 1.0;
-    bool found = false;
     while (dashNext(curve, parameters, a, b)) {
         float next = distance + length(b - a), length = next - distance;
         if (start <= next && end >= distance) {
             float low = clamp(parameters.x + (parameters.y - parameters.x) * (start - distance) / length, parameters.x, parameters.y);
             float high = clamp(parameters.x + (parameters.y - parameters.x) * (end - distance) / length, parameters.x, parameters.y);
-            if (!found) { found = true; firstCurve = curve; firstT = low; }
+            if (firstCurve == 0xffffffffu) { firstCurve = curve; firstT = low; }
             lastCurve = curve; lastT = high;
         }
         if (next >= end) break;
         distance = next;
     }
-    if (!found) { // A zero-length drawn contour still has cap semantics.
+    if (firstCurve == 0xffffffffu) { // A zero-length drawn contour still has cap semantics.
         vec2 point = pc.scene.data[path].zw;
         dashCap(point, vec2(1.0, 0.0), style.x);
         if (style.x == 2u) dashCap(point, vec2(-1.0, 0.0), style.x);

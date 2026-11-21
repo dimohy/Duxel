@@ -119,10 +119,11 @@ public sealed partial class UiImmediateContext
             _tooltipTargetDepth--;
         }
         var clip = IntersectRect(CurrentClipRect, bounds);
-        // A pointer outside an affine parent must not hide a focused or caller-owned tooltip.
-        var available = clip.Width > 0 && clip.Height > 0 && _layoutPointerBlockedTier != _popupTierDepth
-            && _popupTierDepth >= _blockingKeyboardTier;
-        var hovered = available && ItemHoverable(ResolveId("\u001ftooltip-target"), bounds,
+        var targetVisible = clip.Width > 0 && clip.Height > 0 && _popupTierDepth >= _blockingKeyboardTier;
+        var pointerRoutedToTarget = _layoutPointerBlockedTier != _popupTierDepth;
+        // A sibling can own the pointer while the caller still keeps this tooltip open.
+        var available = targetVisible && (pointerRoutedToTarget || visible == true);
+        var hovered = targetVisible && pointerRoutedToTarget && ItemHoverable(ResolveId("\u001ftooltip-target"), bounds,
             allowDisabled: true, setHovered: false);
         _lastItemPos = origin;
         _lastItemSize = size;

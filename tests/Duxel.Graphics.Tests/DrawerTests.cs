@@ -4,6 +4,18 @@ internal static class DrawerTests
 {
     internal static void Run(Action<bool, string> check)
     {
+        using var typedInline = Fluent.InlineDrawer(new UiDrawerHeader("Inline"), new UiDrawerBody(Fluent.Body1("Body"), Scroll : false),
+            options : new(Extent : 260));
+        using var typedOverlay = Fluent.OverlayDrawer(new UiDrawerHeader("Overlay"), new UiDrawerBody(Fluent.Body1("Body")),
+            options : new(Type : UiDrawerType.Inline, ScrollBody : false));
+        check(!typedInline.Options.ScrollBody && typedOverlay.Options.ScrollBody
+            && typedInline.Actions.IsEmpty && typedOverlay.Actions.IsEmpty,
+            "Drawer body selects its initial scrolling explicitly and the footer is optional");
+        check(typedInline.Options.Type == UiDrawerType.Inline && typedInline.Options.Extent == 260
+            && typedOverlay.Options.Type == UiDrawerType.Overlay && typedOverlay.Options.Modal,
+            "Drawer factories fix the host and preserve the remaining options");
+        check(RejectsHostChange(typedInline, UiDrawerType.Overlay) && RejectsHostChange(typedOverlay, UiDrawerType.Inline),
+            "fixed drawers reject host changes through the shared base API");
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
         ControlFontFixture.Configure(context);
         using var tree = new UiAccessibilityTree();
@@ -12,13 +24,16 @@ internal static class DrawerTests
         var memo = new UiState<string>("Retained text");
         var saved = 0;
         var outside = 0;
-        using var drawer = Fluent.Drawer("Details", Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
-            [Fluent.Input("Memo", memo, 4096, 220), .. Enumerable.Range(0, 60).Select(i => Fluent.Body1("Content " + i)).ToArray()]),
-            [Fluent.Button("Save", () => saved++), Fluent.Button("Cancel")], new(MotionEnabled : false));
+        var refreshed = 0;
+        var refresh = Fluent.Button("Refresh", () => refreshed++);
+        using var drawer = Fluent.Drawer(new UiDrawerHeader("Details", refresh), new UiDrawerBody(Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
+            [Fluent.Input("Memo", memo, 4096, 220), .. Enumerable.Range(0, 60).Select(i => Fluent.Body1("Content " + i)).ToArray()])),
+            new UiDrawerFooter([Fluent.Button("Save", () => saved++), Fluent.Button("Cancel")]), new(MotionEnabled : false));
         using var trigger = Fluent.Button("Open drawer", drawer.Show);
         using var background = Fluent.Button("Outside", () => outside++);
         var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
         var renderDrawer = true;
+        var direction = UiFlowDirection.Inherit;
         void Frame(UiInputState? input = null)
         {
             context.NewFrame(new(1f / 60, new(640, 640), new(1, 1)), input ?? idle, new(0, 0, 640, 640), UiTextSettings.Default);
@@ -29,6 +44,7 @@ internal static class DrawerTests
                 ui.SetCursorScreenPos(new(400, 40));
                 background.Render(ui);
                 ui.SetCursorScreenPos(new(0, 100));
+                using var provider = ui.BeginFluentProvider(null, direction : direction);
                 if (renderDrawer) drawer.Render(ui);
             }));
             using var draw = context.GetDrawData();
@@ -57,6 +73,7 @@ internal static class DrawerTests
         Click("Open drawer", UiAccessibilityRole.Button);
         Frame();
         var title = Find("Details", UiAccessibilityRole.Label).Node.Bounds;
+        var refreshBounds = Find("Refresh", UiAccessibilityRole.Button).Node.Bounds;
         var save = Find("Save", UiAccessibilityRole.Button).Node.Bounds;
         var viewport = tree.CaptureSnapshot().Elements.First(element => element.Node.Scroll is not null && element.Node.Bounds.Y > title.Y).Node.Bounds;
         Frame(idle with { MousePosition = new(viewport.X + 10, viewport.Y + 10), MouseWheel = -8 });
@@ -64,6 +81,11 @@ internal static class DrawerTests
         check(drawer.Body.Content.Offset.Y > 0 && drawer.Viewport.Offset.Y == 0
             && Find("Details", UiAccessibilityRole.Label).Node.Bounds == title && Find("Save", UiAccessibilityRole.Button).Node.Bounds == save,
             "Drawer scrolls its body while retaining fixed title and footer slots");
+        check(ReferenceEquals(drawer.HeaderActions, refresh) && refreshBounds.Y >= title.Y + title.Height
+            && refreshBounds.Y + refreshBounds.Height < viewport.Y && Find("Refresh", UiAccessibilityRole.Button).Node.Bounds == refreshBounds,
+            "Drawer owns the header action and keeps it above the scrolling body");
+        Click("Refresh", UiAccessibilityRole.Button);
+        check(refreshed == 1 && saved == 0 && drawer.IsOpen, "Drawer header action is reachable without invoking the footer or closing the panel");
         Click("Save", UiAccessibilityRole.Button);
         check(saved == 1 && drawer.IsOpen, "Drawer footer action remains operable without implicit dismissal");
         Click("Close", UiAccessibilityRole.Button);
@@ -93,7 +115,22 @@ internal static class DrawerTests
         check(Find("Details", UiAccessibilityRole.Dialog).Node.Bounds.X == 320, "Drawer RTL reverses logical start placement");
         drawer.Close();
         Frame();
-        drawer.Options = drawer.Options with { Type = UiDrawerType.Inline, InlineCrossExtent = 400, RightToLeft = false, Separator = true };
+        direction = UiFlowDirection.RightToLeft;
+        drawer.Options = drawer.Options with { RightToLeft = false };
+        drawer.Show();
+        Frame();
+        var inheritedStart = Find("Details", UiAccessibilityRole.Dialog).Node.Bounds;
+        check(inheritedStart.X == 320
+            && Find("Close", UiAccessibilityRole.Button).Node.Bounds.X < inheritedStart.X + inheritedStart.Width / 2
+            && Find("Save", UiAccessibilityRole.Button).Node.Bounds.X > inheritedStart.X + inheritedStart.Width / 2,
+            "Drawer inherits RTL for its start edge, close control, and footer actions");
+        drawer.Options = drawer.Options with { Position = UiDrawerPosition.End };
+        Frame();
+        check(Find("Details", UiAccessibilityRole.Dialog).Node.Bounds.X == 0, "Drawer inherits RTL for its end edge");
+        drawer.Close();
+        Frame();
+        direction = UiFlowDirection.Inherit;
+        drawer.Options = drawer.Options with { Type = UiDrawerType.Inline, Position = UiDrawerPosition.Start, InlineCrossExtent = 400, Separator = true };
         drawer.Show();
         Frame();
         check(Find("Details", UiAccessibilityRole.Group).Node.Bounds == new UiRect(0, 100, 320, 400),
@@ -131,8 +168,8 @@ internal static class DrawerTests
             context.SetAccessibilityTree(tree);
             ControlFontFixture.Configure(context);
             var open = new UiState<bool>(false);
-            var inline = Fluent.Drawer("Inline motion", Fluent.Body1("Unscaled content"),
-                options : new(Type : UiDrawerType.Inline, Position : position, Extent : 200, InlineCrossExtent : 200));
+            var inline = Fluent.InlineDrawer("Inline motion", Fluent.Body1("Unscaled content"),
+                options : new(Position : position, Extent : 200, InlineCrossExtent : 200));
             inline.Open = open.Binding;
             var marker = Fluent.Button("After inline");
             using var root = position == UiDrawerPosition.Bottom
@@ -185,6 +222,19 @@ internal static class DrawerTests
             check(!inline.IsOpen && Marker() == 0, "inline motion-disabled close immediately releases its allocation : " + position);
         }
     }
+    private static bool RejectsHostChange(UiDrawer<UiFluentDrawerPresentation> drawer, UiDrawerType type)
+    {
+        try
+        {
+            drawer.Options = drawer.Options with { Type = type };
+            return false;
+        }
+        catch (ArgumentException exception) when (exception.ParamName == "value")
+        {
+            return true;
+        }
+    }
+
     private static void VerifyFractionalSurfaceHeight(UiContext context, Action<bool, string> check)
     {
         using var body = new UiSurfaceBody<FractionalSurfacePresentation>("Fractional drawer",

@@ -8,6 +8,326 @@ using Duxel.Platform.Windows;
 
 internal static class RetainedTextMaintenanceTests
 {
+    internal static void VerifyExtendedStaticGeometryReuse(int frameSlots, Action<bool, string> check)
+    {
+        using var reference = new PresentationReuseTests.Fixture(frameSlots, false, msaaSamples: 4);
+        using var candidate = new PresentationReuseTests.Fixture(frameSlots, false, msaaSamples: 4);
+        if (!candidate.Renderer.ValidationUsesRotatingStaticGeometry)
+            return;
+        reference.Context.SetDirectTextBaseFontSize(18.24f);
+        candidate.Context.SetDirectTextBaseFontSize(18.24f);
+
+        const string layerId = "static-geometry-reuse";
+        string[] values = ["Frame CPU: 12.34 ms", "Frame CPU: 13.57 ms", "Frame CPU: 14.62 ms"];
+        void Draw(UiImmediateContext ui, int revision, bool retained, int versionOffset = 0, int x = 16)
+        {
+            ui.EnableRootViewportContentLayout(contentPadding: 0);
+            ui.SetCursorScreenPos(new(x, 16));
+            if (!retained)
+            {
+                ui.Text(values[revision]);
+                return;
+            }
+
+            if (ui.BeginLayer(layerId, new(false, 1, default) { ContentVersion = revision + versionOffset }))
+                ui.TextWithShortCache(values[revision]);
+            ui.EndLayer();
+        }
+
+        var firstUploads = new List<UiTextureUpdate>();
+        var first = candidate.Capture(ui => Draw(ui, 0, true), null, updates => firstUploads.AddRange(updates));
+        check(firstUploads.Count(update => update.Kind == UiTextureUpdateKind.Create && update.Width == 256 && update.Height == 128) == 1,
+            "versioned 18-pixel status geometry uses the shaped glyph atlas");
+        var firstBuffer = candidate.Renderer.ValidationStaticVertexBuffer(layerId);
+        check(firstBuffer != 0 && first.AsSpan().SequenceEqual(reference.Capture(ui => Draw(ui, 0, false))),
+            "first resident status revision matches whole-line Vulkan pixels");
+        check(candidate.Capture(ui => Draw(ui, 1, true)).AsSpan().SequenceEqual(reference.Capture(ui => Draw(ui, 1, false))),
+            "changed resident status revision matches whole-line Vulkan pixels");
+        check(candidate.Renderer.ValidationStaticVertexBuffer(layerId) != firstBuffer
+            && candidate.Renderer.ValidationExtendedStaticGeometryReuse.Count == 1,
+            "the first resident buffer stays distinct while it becomes eligible for reuse");
+        var reservation = candidate.Renderer.ValidationExtendedStaticGeometryReuse;
+        candidate.Renderer.ValidationPruneRetiredStaticGeometryAfterFrameGrace(elapsed: false);
+        check(candidate.Renderer.ValidationExtendedStaticGeometryReuse.Count == 1,
+            "small resident geometry stays available after the frame grace during the wall-clock grace");
+        for (var draw = 0; draw <= frameSlots; draw++)
+            check(candidate.Submit(ui => Draw(ui, 1, true)), "unchanged retained status submits while the old buffer ages");
+        check(candidate.Capture(ui => Draw(ui, 2, true)).AsSpan().SequenceEqual(reference.Capture(ui => Draw(ui, 2, false)))
+            && candidate.Renderer.ValidationStaticVertexBuffer(layerId) == firstBuffer,
+            "an updated status reuses the original Vulkan buffer and preserves exact pixels");
+        check(candidate.Renderer.ValidationExtendedStaticGeometryReuse == reservation,
+            "rotating a reusable Vulkan buffer transfers its reservation to the retired buffer");
+        candidate.Renderer.ValidationPruneRetiredStaticGeometryAfterFrameGrace(elapsed: true);
+        check(candidate.Renderer.ValidationExtendedStaticGeometryReuse == (0, 0UL),
+            "elapsed wall-clock and frame grace release the extended reuse budget");
+
+        reference.Context.SetDirectTextBaseFontSize(16);
+        candidate.Context.SetDirectTextBaseFontSize(16);
+        check(candidate.Capture(ui => Draw(ui, 2, true, versionOffset: 1, x: 42)).AsSpan()
+            .SequenceEqual(reference.Capture(ui => Draw(ui, 2, false, x: 42))),
+            "the same atlas can render a smaller retained status at a new position");
+        reference.Context.SetDirectTextBaseFontSize(18.24f);
+        candidate.Context.SetDirectTextBaseFontSize(18.24f);
+        check(candidate.Capture(ui => Draw(ui, 2, true, versionOffset: 2, x: 27)).AsSpan()
+            .SequenceEqual(reference.Capture(ui => Draw(ui, 2, false, x: 27))),
+            "returning to the 18-pixel status reuses its own masks and the current position");
+    }
+
+    internal static void VerifyExtendedStaticGeometryReuseBudget(int frameSlots, Action<bool, string> check)
+    {
+        void Verify(int layers, int quads, Func<(int Count, ulong Bytes), bool> expected, string description)
+        {
+            using var fixture = new PresentationReuseTests.Fixture(frameSlots, false);
+            if (!fixture.Renderer.ValidationUsesRotatingStaticGeometry)
+                return;
+
+            var ids = Enumerable.Range(0, layers).Select(index => $"static-geometry-budget-{index}").ToArray();
+            void Draw(UiImmediateContext ui, int revision)
+            {
+                foreach (var id in ids)
+                {
+                    if (ui.BeginLayer(id, new(false, 1, default) { ContentVersion = revision }))
+                    {
+                        var drawList = ui.GetWindowDrawList();
+                        for (var index = 0; index < quads; index++)
+                            drawList.AddImage(ui.WhiteTextureId, new(20 + revision, 20), new(23 + revision, 23), default,
+                                new(1, 1), new(0xFFFFFFFF));
+                    }
+                    ui.EndLayer();
+                }
+            }
+
+            check(fixture.Submit(ui => Draw(ui, 0)) && fixture.Submit(ui => Draw(ui, 1)),
+                "both geometry budget revisions submit normally");
+            check(expected(fixture.Renderer.ValidationExtendedStaticGeometryReuse), description);
+            fixture.Renderer.ValidationPruneRetiredStaticGeometryAfterFrameGrace(elapsed: true);
+            check(fixture.Renderer.ValidationExtendedStaticGeometryReuse == (0, 0UL),
+                "expiring budget entries returns every reservation");
+        }
+
+        Verify(66, 1, state => state.Count == 64 && state.Bytes > 0, "the extended reuse cache admits at most 64 buffers");
+        Verify(24, 128, state => state.Count == 19 && state.Bytes is > 240 * 1024 and <= 256 * 1024,
+            "the extended reuse cache admits only items within the aggregate byte limit");
+        Verify(1, 160, state => state == (0, 0UL), "a buffer over 16 KiB keeps the original frame-based grace");
+    }
+
+    internal static void VerifyShapedGlyphAtlas(int frameSlots, Action<bool, string> check)
+    {
+        using var reference = new PresentationReuseTests.Fixture(frameSlots, false);
+        using var candidate = new PresentationReuseTests.Fixture(frameSlots, false);
+        var values = Enumerable.Range(0, 24).Select(frame =>
+            FormattableString.Invariant($"Frame CPU: {12 + frame / 10}.{(frame * 7 + 34) % 100:00} ms")).ToArray();
+        var updates = new List<UiTextureUpdate>();
+        byte[] Draw(PresentationReuseTests.Fixture fixture, string text, bool shaped, bool observe = false)
+            => fixture.Capture(ui =>
+            {
+                ui.EnableRootViewportContentLayout(contentPadding: 0);
+                ui.SetCursorScreenPos(new(16, 16));
+                if (shaped)
+                    ui.TextWithShortCache(text);
+                else
+                    ui.Text(text);
+            }, null, observe ? change => updates.AddRange(change) : null);
+
+        var rendered = new List<byte[]>();
+        foreach (var value in values)
+        {
+            var pixels = Draw(reference, value, false);
+            rendered.Add(pixels);
+            check(pixels.AsSpan().SequenceEqual(Draw(candidate, value, true, true)),
+                "shaped numeric atlas matches direct text pixels: " + value);
+        }
+        var uploaded = updates.Where(update => update.TextureId.Value >= 1_100_000_000).ToArray();
+        check(uploaded.Count(update => update.Kind == UiTextureUpdateKind.Create) == 1
+            && uploaded.Any(update => update.Kind == UiTextureUpdateKind.Update)
+            && uploaded.Select(update => update.TextureId).Distinct().Count() == 1,
+            "new glyphs share a single texture and upload only missing atlas regions after creation");
+        updates.Clear();
+        for (var i = values.Length - 1; i >= 0; i--)
+            check(rendered[i].AsSpan().SequenceEqual(Draw(candidate, values[i], true, true)),
+                "known glyphs preserve exact draw output when status strings return");
+        check(updates.All(update => update.RgbaPixels.IsEmpty), "known glyphs cause zero texture-pixel upload");
+
+        var random = new Random(20261120);
+        const string characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        var foundFull = false;
+        for (var attempt = 0; attempt < 24 && !foundFull; attempt++)
+        {
+            var text = "0 " + new string(Enumerable.Range(0, 21).Select(_ => characters[random.Next(characters.Length)]).ToArray());
+            updates.Clear();
+            var pressured = Draw(candidate, text, true, true);
+            var creates = updates.Where(update => update.Kind == UiTextureUpdateKind.Create && update.TextureId.Value >= 1_100_000_000).ToArray();
+            check(creates.All(update => update.Width != 256 || update.Height != 128), "atlas pressure does not allocate another page");
+            if (creates.Length == 0)
+                continue;
+            check(pressured.AsSpan().SequenceEqual(Draw(reference, text, false)),
+                "a run that cannot fit the atlas matches the existing DirectText raster path");
+            foundFull = true;
+        }
+        check(foundFull, "varied glyph phases exercise the single-page atlas capacity");
+        updates.Clear();
+        check(rendered[0].AsSpan().SequenceEqual(Draw(candidate, values[0], true, true)) && updates.All(update => update.RgbaPixels.IsEmpty),
+            "atlas pressure keeps previously published glyph coordinates and pixels valid");
+    }
+
+    internal static void VerifyShapedGlyphAtlasPacking(int frameSlots, Action<bool, string> check)
+    {
+        using var reference = new PresentationReuseTests.Fixture(frameSlots, false, msaaSamples: 4);
+        using var candidate = new PresentationReuseTests.Fixture(frameSlots, false, msaaSamples: 4);
+        reference.Context.SetDirectTextBaseFontSize(18.24f);
+        candidate.Context.SetDirectTextBaseFontSize(18.24f);
+
+        const string layerId = "glyph-atlas-packing";
+        void Draw(UiImmediateContext ui, string[] values, int revision, bool retain)
+        {
+            ui.EnableRootViewportContentLayout(contentPadding: 0);
+            var draw = !retain || ui.BeginLayer(layerId, new(false, 1, default) { ContentVersion = revision });
+            if (draw)
+            {
+                for (var row = 0; row < values.Length; row++)
+                {
+                    ui.SetCursorScreenPos(new(16, 16 + row * 24));
+                    if (retain)
+                        ui.TextWithShortCache(values[row]);
+                    else
+                        ui.Text(values[row]);
+                }
+            }
+            if (retain)
+                ui.EndLayer();
+        }
+
+        var texturesCreated = new List<(int Width, int Height)>();
+        for (var revision = 0; revision < 485; revision++)
+        {
+            string[] values =
+            [
+                FormattableString.Invariant($"Scene builds total: {2477 + revision * 17}"),
+                FormattableString.Invariant($"Frame CPU: {12 + revision / 10}.{(revision * 7 + 34) % 100:00} ms"),
+                FormattableString.Invariant($"GPU (delayed): {320 + revision / 10}.{(revision * 3 + 1) % 10} us")
+            ];
+            using var data = candidate.Build(ui => Draw(ui, values, revision, retain: true));
+            foreach (var update in data.TextureUpdates)
+                if (update.Kind == UiTextureUpdateKind.Create && update.TextureId.Value >= 1_100_000_000)
+                    texturesCreated.Add((update.Width, update.Height));
+
+            if (revision is 0 or 447 or 448 or 480 or 484)
+                check(candidate.Render(data).AsSpan().SequenceEqual(reference.Capture(ui => Draw(ui, values, revision, retain: false))),
+                    $"packed glyphs match the whole-line Vulkan pixels at status revision {revision}");
+            else if (!candidate.RenderSubmit(data))
+                throw new InvalidOperationException($"Packed status revision {revision} did not submit.");
+        }
+
+        check(texturesCreated.SequenceEqual(new[] { (256, 128) }),
+            "all 485 status revisions fit one 256 by 128 glyph texture");
+    }
+
+    internal static void VerifyShortTextRetention(int frameSlots, Action<bool, string> check)
+    {
+        using var fixture = new PresentationReuseTests.Fixture(frameSlots, false);
+        var created = new List<UiTextureId>();
+        var destroyed = new List<UiTextureId>();
+        void Observe(UiPooledList<UiTextureUpdate> updates)
+        {
+            foreach (var update in updates)
+            {
+                if (update.TextureId.Value < 1_100_000_000)
+                    continue;
+                if (update.Kind == UiTextureUpdateKind.Create)
+                    created.Add(update.TextureId);
+                else if (update.Kind == UiTextureUpdateKind.Destroy)
+                    destroyed.Add(update.TextureId);
+            }
+        }
+        const string text = "가나다 Sample 123.45";
+        var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        byte[] Draw(bool? shortCache) => fixture.Capture(ui =>
+        {
+            ui.EnableRootViewportContentLayout(contentPadding: 0);
+            ui.SetCursorScreenPos(new(16, 16));
+            if (shortCache == true)
+                ui.TextWithShortCache(text);
+            else if (shortCache == false)
+                ui.Text(text);
+        }, idle, Observe);
+
+        var regular = Draw(false);
+        var shortened = Draw(true);
+        check(created.Count == 2 && created[0] != created[1] && regular.AsSpan().SequenceEqual(shortened),
+            "same text uses independent direct texture lifetimes and exact pixels in both policies");
+        check(shortened.AsSpan().SequenceEqual(Draw(true)) && created.Count == 2,
+            "short-cache text reuses its texture while it is still displayed");
+        for (var frame = 0; frame < 23; frame++)
+            Draw(null);
+        check(destroyed.Count == 0, "short-cache text stays available during the idle grace period");
+        for (var frame = 0; frame < 4; frame++)
+            Draw(null);
+        check(destroyed.SequenceEqual(new[] { created[1] }), "idle expiry retires only the short-cache texture");
+        check(regular.AsSpan().SequenceEqual(Draw(false)) && created.Count == 2,
+            "the normal cache still replays its original texture after short-cache expiry");
+        check(shortened.AsSpan().SequenceEqual(Draw(true)) && created.Count == 3,
+            "rasterizing an expired short-cache value reproduces exactly the same pixels");
+
+        using var paint = new UiPaintGroup();
+        byte[] DrawPaint() => fixture.Capture(ui =>
+        {
+            ui.EnableRootViewportContentLayout(contentPadding: 0);
+            ui.PaintGroup(paint, new(0, 0, 250, 64), 1, _ =>
+            {
+                ui.SetCursorScreenPos(new(16, 16));
+                ui.TextWithShortCache(text + " retained");
+            });
+        }, idle, Observe);
+        var retained = DrawPaint();
+        check(created.Count == 4, "paint group captures a direct texture using the short-cache policy");
+        var retainedTexture = created[^1];
+        for (var frame = 0; frame < 28; frame++)
+            Draw(null);
+        check(!destroyed.Contains(retainedTexture) && retained.AsSpan().SequenceEqual(DrawPaint()) && created.Count == 4,
+            "a short-cache texture outlives idle expiry while retained paint still refers to it");
+        paint.Dispose();
+        Draw(null);
+        check(destroyed.Contains(retainedTexture), "disposing retained paint makes its expired short-cache texture eligible for retirement");
+    }
+
+    internal static void VerifyVulkanTextTexturePool(int frameSlots, Action<bool, string> check)
+    {
+        const int countLimit = 2048;
+        const ulong byteLimit = 16 * 1024 * 1024;
+        foreach (var (width, height, label) in new[] { (1024, 128, "wide"), (1, 1, "small") })
+        {
+            using var fixture = new PresentationReuseTests.Fixture(frameSlots, false);
+            var pixels = new byte[width * height * 4];
+            Array.Fill(pixels, (byte)255);
+            UiTextureId Id(int index) => new((nuint)(1_200_000_000 + index));
+            void Submit() => check(fixture.Submit(static ui => ui.EnableRootViewportContentLayout(contentPadding: 0)),
+                $"{label} text texture pool frame submits");
+            void Update(UiTextureUpdateKind kind, int index) => fixture.Context.QueueTextureUpdate(new(kind, Id(index),
+                UiTextureFormat.Rgba8Unorm, width, height, kind == UiTextureUpdateKind.Create ? pixels : ReadOnlyMemory<byte>.Empty));
+
+            Update(UiTextureUpdateKind.Create, 0);
+            Submit();
+            var bytesPerImage = fixture.Renderer.ValidationTextureAllocationBytes(Id(0));
+            var capacity = (int)Math.Min((ulong)countLimit, byteLimit / bytesPerImage);
+            check(capacity > 0, $"{label} text image fits the idle pool budget");
+            for (var i = 1; i <= capacity + 2; i++)
+                Update(UiTextureUpdateKind.Create, i);
+            Submit();
+            for (var i = 0; i <= capacity + 2; i++)
+                Update(UiTextureUpdateKind.Destroy, i);
+            for (var i = 0; i <= frameSlots; i++)
+                Submit();
+
+            var full = fixture.Renderer.ValidationTextTexturePool;
+            check(full == (capacity, (ulong)capacity * bytesPerImage, 0L),
+                $"{label} text texture pool evicts excess retired images (count={capacity}, bytes={full.Bytes})");
+            Update(UiTextureUpdateKind.Create, capacity + 3);
+            Submit();
+            check(fixture.Renderer.ValidationTextTexturePool == (capacity - 1, full.Bytes - bytesPerImage, 1L),
+                $"{label} matching text upload reuses an image from the bounded pool");
+        }
+    }
+
     internal static void VerifyProjectedTextAtlasReplacement(
         UiContext context, Func<string, Action<UiImmediateContext>, byte[]> capture, Action<bool, string> check)
     {

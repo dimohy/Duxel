@@ -66,7 +66,7 @@ public sealed partial class UiImmediateContext
             ClaimAccessibilityField(resolvedId);
             ExposeAccessibility(resolvedId, _accessibilityParent, UiAccessibilityRole.ProgressBar,
                 accessibilityId == UiControlWidget.PrimaryControlId ? string.Empty : accessibilityId, bounds,
-                readOnly: true, focusable: false, valuePattern: false,
+                readOnly: true, focusable: false, valuePattern: false, busy: semantic.Fraction is null,
                 range: semantic.Value is { } numeric
                     ? new UiAccessibilityRangeInfo(Math.Clamp(numeric, 0, semantic.Maximum), 0, semantic.Maximum, 0, 0)
                     : null);

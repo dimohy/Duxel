@@ -193,6 +193,16 @@ internal static class SvgGalleryFrameBenchmark
                 throw new InvalidOperationException("Could not select the actual SVG comparison tab.");
             Submit(idle);
             Submit(idle);
+            var verticalViewports = tree.CaptureSnapshot().Elements
+                .Select(element => element.Node)
+                .Where(node => (node.Name is "갤러리 페이지" or "observer-svg-page")
+                    && node.Scroll is { VerticalMaximum: > 0 })
+                .Select(node => node.Name)
+                .ToArray();
+            if (verticalViewports is not ["observer-svg-page"])
+                throw new InvalidOperationException("Expected a single SVG document scrollbar; found: "
+                    + string.Join(", ", verticalViewports));
+            Console.WriteLine($"PASS {label}: single SVG document scrollbar");
             for (var frame = 0; frame < 32 && VisibleCode()?.ClipBounds.Height is not >= 500; frame++)
                 Submit(idle with { MousePosition = new(800, 680), MouseWheel = -1 });
             for (var frame = 0; frame < 8; frame++)
@@ -293,9 +303,24 @@ internal static class SvgGalleryFrameBenchmark
                     thumbLog.WriteLine(string.Create(CultureInfo.InvariantCulture,
                         $"{label}\t{frame}\t{metrics.RequestedSteps}\t{metrics.CompletedSteps}\t{Stopwatch.GetElapsedTime(start, composed).TotalMilliseconds:F4}\t{Stopwatch.GetElapsedTime(composed, submitted).TotalMilliseconds:F4}\t{bytes}\t{offset:R}\t{lag:F4}\t{area.Width}\t{area.Height}\t{requests}"));
             }
-            PostPointer(0x0202, thumb with { Y = thumb.Y - 8 }, 0);
+            var regrabPoint = thumb with { Y = thumb.Y - 8 };
+            var owner = fixture.Context.State.ActiveId;
+            PostPointer(0x0202, regrabPoint, 0);
+            PostPointer(0x0201, regrabPoint, 1);
+            platform.PollEvents();
+            var regrab = platform.Input.Snapshot.OrderedInputs!.ToArray();
+            if (regrab is not [{ LeftMouseReleased: true }, { LeftMousePressed: true }])
+                throw new InvalidOperationException("Expected an immediate Win32 thumb release and re-press in one batch.");
+            using (var draw = fixture.Build(gallery.Render, regrab[0], pollEvents: false, orderedInputs: regrab))
+                if (!fixture.RenderSubmit(draw))
+                    throw new InvalidOperationException("Vulkan rejected the scrollbar re-grab frame.");
+            if (owner is null || fixture.Context.State.ActiveId != owner
+                || fixture.Context.State.PreciseScrollbarDrag is not { Id: var active } || active != owner)
+                throw new InvalidOperationException("The SVG document did not recapture its scrollbar thumb.");
+            PostPointer(0x0202, regrabPoint, 0);
             platform.PollEvents();
             Submit(platform.Input.Snapshot.OrderedInputs!.Last(input => input.LeftMouseReleased));
+            Console.WriteLine($"PASS {label}: immediate scrollbar re-grab");
             fixture.WriteCapturePng(Path.Combine(output, label + "-thumb.png"), fixture.Capture(gallery.Render, idle));
 
             UiAccessibilityNode ScrollPane() => tree.CaptureSnapshot().Elements

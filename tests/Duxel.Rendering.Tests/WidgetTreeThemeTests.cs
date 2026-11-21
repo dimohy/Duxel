@@ -263,10 +263,14 @@ internal static class WidgetTreeThemeTests
             }).ReleasePooled();
         check(inheritedButton.Activations == 1, "inherited built-in invokes the user's activation override once");
         using (var customData = Frame(ui => ui.Button<UiReleaseButtonBehavior, CircularButtonPresentation>("Circle")))
+        using (var inheritedData = Frame(ui => inheritedButton.Render(ui)))
         {
             var circles = Primitives(customData).Where(primitive => primitive.CornerRadius < 0).ToArray();
             check(circles.Length == 1 && circles[0].CornerRadius == -20 && circles[0].Rect.Width == 40,
                 "custom presentation replaces the drawing algorithm with a circle through the existing layer pipeline");
+            var inheritedCircles = Primitives(inheritedData).Where(primitive => primitive.CornerRadius < 0).ToArray();
+            check(inheritedCircles.SequenceEqual(circles),
+                "custom presentation measures and paints the same circle through inherited and typed immediate buttons");
         }
         var directPress = false;
         Frame(ui => { ui.SetCursorScreenPos(new(10, 10)); directPress = ui.Button<UiPressButtonBehavior, CircularButtonPresentation>("Circle"); },
@@ -459,6 +463,37 @@ internal static class WidgetTreeThemeTests
             check(context.State.GetSelection(inputId!) == new UiTextSelection(0, inputValue.Length),
                 "text field theme controls select-all behavior on initial focus");
             check(Primitives(data).Any(p => p.Rect.Height == 2), "focused underline text field uses its compiled indicator thickness");
+        }
+
+        context.State.ActiveId = null;
+        context.SetDesign(UiCompiledDesign.Windows11);
+        var customText = new UiState<string>("alpha beta");
+        var defaultText = new UiState<string>("gamma");
+        var customField = Dux.TextField("custom-field", customText.Binding).TextFieldStyle(new UiTextFieldSkin
+        {
+            Appearance = UiTextFieldAppearance.Underline,
+            MinimumHeight = 57,
+            FocusedBorderWidth = 4,
+            SelectAllOnFocus = true
+        });
+        var defaultField = Dux.TextField("default-field", defaultText.Binding);
+        string? customFieldId = null;
+        using (var data = Frame(ui =>
+        {
+            ui.SetCursorScreenPos(new(10, 10));
+            customFieldId = ui.GetID("##custom-field");
+            customField.Render(ui);
+            ui.SetCursorScreenPos(new(10, 100));
+            defaultField.Render(ui);
+        }, idle with { MousePosition = new(20, 20), LeftMouseDown = true, LeftMousePressed = true }))
+        {
+            var primitives = Primitives(data);
+            check(primitives.Any(p => p.Rect.Y == 63 && p.Rect.Height == 4)
+                && context.State.GetSelection(customFieldId!) == new UiTextSelection(0, customText.Value.Length),
+                "a local TextField skin controls minimum height, focused underline and selection");
+            var defaultFieldPrimitives = primitives.Where(p => p.Rect.Y >= 100).ToArray();
+            check(defaultFieldPrimitives.Length > 0 && defaultFieldPrimitives.All(p => p.Rect.Height < 57),
+                "a sibling TextField keeps the global skin after a local override");
         }
 
         var selected = new UiState<int>(0);

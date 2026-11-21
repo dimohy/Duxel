@@ -58,6 +58,7 @@ public sealed partial class UiImmediateContext
     private Action<UiTextureUpdate>? _queueTextureUpdate;
     private readonly Action? _requestFrame;
     internal Action? FrameRequestCallback => _requestFrame;
+    internal bool UseR8ParagraphCoverage { get; init; }
     private Func<float, UiFontResource?>? _resolveFontResource;
     private string? _directTextPrimaryFontPath;
     private string? _directTextSecondaryFontPath;
@@ -86,6 +87,8 @@ public sealed partial class UiImmediateContext
     // The byte budget counts RGBA payload of idle dedicated textures.
     private const long DirectTextCacheMaxIdleTextureBytes = 16 * 1024 * 1024;
     private const int DirectTextCacheMaxIdleFrames = 600;
+    private const int ShortDirectTextCacheMaxIdleFrames = 24;
+    private bool _useShortDirectTextCache;
     private const int DirectTextAtlasPageSize = 1024;
     private const int DirectTextAtlasPadding = 1;
     private static readonly bool DirectTextAtlasPagesEnabled = IsDirectTextAtlasPageEnabled();
@@ -178,16 +181,28 @@ public sealed partial class UiImmediateContext
     private readonly record struct UiFontSizeState(float PreviousPushedSize, UiFontAtlas FontAtlas, float LineHeight, UiTextureId FontTexture);
     internal readonly record struct DirectTextCacheKey(string FontPath, string? SecondaryFontPath, string Text, float FontSize, long BackendGeneration)
     {
+        internal bool ShortLived { get; init; }
+        internal int MaxIdleFrames => ShortLived ? ShortDirectTextCacheMaxIdleFrames : DirectTextCacheMaxIdleFrames;
+
+        private object? ParagraphIdentity { get; init; }
         internal PlatformTextParagraphRun? ParagraphRun
         {
-            get; init;
+            get => ParagraphIdentity as PlatformTextParagraphRun;
+            init => ParagraphIdentity = value;
+        }
+        internal WholeParagraphMaskKey? WholeParagraph
+        {
+            get => ParagraphIdentity as WholeParagraphMaskKey;
+            init => ParagraphIdentity = value;
         }
         public bool Equals(DirectTextCacheKey other) => FontPath == other.FontPath && SecondaryFontPath == other.SecondaryFontPath
-            && Text == other.Text && FontSize == other.FontSize && BackendGeneration == other.BackendGeneration
-            && (ReferenceEquals(ParagraphRun, other.ParagraphRun)
-                || ParagraphRun is { } run && other.ParagraphRun is { } otherRun && run.RasterEquals(otherRun));
+            && Text == other.Text && FontSize == other.FontSize && BackendGeneration == other.BackendGeneration && ShortLived == other.ShortLived
+            && (ReferenceEquals(ParagraphIdentity, other.ParagraphIdentity)
+                || ParagraphRun is { } run && other.ParagraphRun is { } otherRun && run.RasterEquals(otherRun)
+                || WholeParagraph is { } paragraph && other.WholeParagraph is { } otherParagraph
+                    && paragraph.RasterEquals(otherParagraph));
         public override int GetHashCode() => HashCode.Combine(FontPath, SecondaryFontPath, Text, FontSize,
-            BackendGeneration, ParagraphRun?.RasterHash ?? 0);
+            BackendGeneration, ParagraphRun?.RasterHash ?? WholeParagraph?.RasterHash ?? 0, ShortLived);
     }
     private long _directTextBackendGeneration;
     private ulong _directTextBackendRevision;
@@ -208,7 +223,9 @@ public sealed partial class UiImmediateContext
         System.Buffers.IMemoryOwner<byte>? PixelOwner = null,
         bool HasRasterPixels = true,
         float OriginX = 0,
-        UiVector2 ParagraphOrigin = default);
+        UiVector2 ParagraphOrigin = default,
+        PlatformShapedGlyphRun? ShapedGlyphs = null,
+        UiTextureFormat TextureFormat = UiTextureFormat.Rgba8Unorm);
     private readonly record struct UiWindowCanvasState(UiDrawListBuilder DrawList, UiVector2 Origin, UiRect Rect, bool HasClipRect);
     private readonly record struct StyleColorEntry(UiStyleColor Color, UiColor Previous);
     private readonly record struct StyleVarEntry(UiStyleVar Var, float PrevX, float PrevY, bool IsVector);
@@ -860,7 +877,7 @@ public sealed partial class UiImmediateContext
                 continue;
             eligibleCount++;
             idleTextureBytes += GetDedicatedTextTexturePayloadBytes(pair.Value);
-            if (currentFrame - pair.Value.LastUsedFrame > DirectTextCacheMaxIdleFrames)
+            if (currentFrame - pair.Value.LastUsedFrame > pair.Key.MaxIdleFrames)
                 staleCount++;
         }
         // Counts alone cannot prove this: retained layout keys may live outside this cache.
@@ -876,7 +893,7 @@ public sealed partial class UiImmediateContext
 
             foreach (var pair in _directTextCache)
             {
-                if (currentFrame - pair.Value.LastUsedFrame > DirectTextCacheMaxIdleFrames
+                if (currentFrame - pair.Value.LastUsedFrame > pair.Key.MaxIdleFrames
                     && !(_layerCacheStore?.RetainedTextKeys.ContainsKey(pair.Key) ?? false)
                     && !_directTextPaintedKeys.Contains(pair.Key))
                 {
@@ -977,7 +994,7 @@ public sealed partial class UiImmediateContext
         QueueTextureUpdate(new UiTextureUpdate(
             UiTextureUpdateKind.Destroy,
             texId,
-            UiTextureFormat.Rgba8Unorm,
+            entry.TextureFormat,
             entry.Width,
             entry.Height,
             ReadOnlyMemory<byte>.Empty));
@@ -1023,7 +1040,7 @@ public sealed partial class UiImmediateContext
     private bool TryPlaceDirectTextInAtlas(DirectTextCacheEntry entry, out DirectTextCacheEntry placed)
     {
         placed = entry;
-        if (!DirectTextAtlasPagesEnabled)
+        if (!DirectTextAtlasPagesEnabled || entry.TextureFormat != UiTextureFormat.Rgba8Unorm)
         {
             return false;
         }
@@ -1216,7 +1233,7 @@ public sealed partial class UiImmediateContext
 
     private bool TryGetOrCreateDirectText(string text, float fontSize, out DirectTextCacheEntry entry)
     {
-        var key = CreateDirectTextCacheKey(text, fontSize);
+        var key = CreateDirectTextCacheKey(text, fontSize) with { ShortLived = _useShortDirectTextCache };
         TrackLayerTextDependency(key);
         _capturingPaintGroup?.PendingTextKeys.Add(key);
         if (_lastDirectTextCacheValid && _lastDirectTextCacheKey.Equals(key))
@@ -1315,7 +1332,7 @@ public sealed partial class UiImmediateContext
         QueueTextureUpdate(new UiTextureUpdate(
             UiTextureUpdateKind.Create,
             textureId,
-            UiTextureFormat.Rgba8Unorm,
+            entry.TextureFormat,
             entry.Width,
             entry.Height,
             entry.PendingPixels)
@@ -1340,6 +1357,9 @@ public sealed partial class UiImmediateContext
 
     internal void ReleaseDirectTextPixelOwners()
     {
+        _shapedGlyphAtlas = null;
+        _shapedGlyphColumnHeights = null;
+        _shapedGlyphs?.Clear();
         foreach (var entry in _directTextCache.Values)
             entry.PixelOwner?.Dispose();
         _directTextCache.Clear();
@@ -1463,7 +1483,12 @@ public sealed partial class UiImmediateContext
             return true;
         }
 
-        var renderKey = CreateDirectTextCacheKey(text, fontSize);
+        var renderKey = CreateDirectTextCacheKey(text, fontSize) with { ShortLived = _useShortDirectTextCache };
+        if (TryDrawShapedGlyphs(drawList, renderKey, entry, rasterOrigin, color, clipRect))
+        {
+            _directTextPaintedKeys.Add(renderKey);
+            return true;
+        }
         entry = EnsureDirectTextPixels(renderKey, entry, fontSize);
         entry = EnsureDirectTextTexture(renderKey, entry);
 
@@ -2901,7 +2926,8 @@ public sealed partial class UiImmediateContext
         var pressed = TActivation.OnPress && hovered && _leftMousePressed;
         if (_state.ActiveId == resolvedId && !_leftMouseDown)
         {
-            pressed = !TActivation.OnPress && hovered;
+            // A short click can deliver both pointer edges in one frame.
+            pressed |= !TActivation.OnPress && hovered;
             _state.ActiveId = null;
         }
 

@@ -16,6 +16,42 @@ public readonly record struct UiNavOptions(float Width = 260, bool RightToLeft =
 }
 public readonly record struct UiNavRowContent(string Label, UiMenuIcon Icon, UiNavBadge? Badge, bool Category, string Description = "", bool Disclosure = true, bool HasSecondaryAction = false, bool SectionHeader = false);
 public readonly record struct UiNavRowLayout(UiVector2 Size, UiControlTextBlock Text, UiVector2 BadgeSize, UiControlTextBlock Description);
+
+/// <summary>Input for a category disclosure or a destination row.</summary>
+public readonly ref struct UiNavInput
+{
+    private readonly UiImmediateContext _ui;
+    private readonly string _name;
+    private readonly UiRect _keyboardBounds;
+    public string Id { get; }
+    public UiRect Bounds { get; }
+    public bool IsCategory { get; }
+
+    internal UiNavInput(UiImmediateContext ui, string name, string id, UiRect bounds, UiRect keyboardBounds, bool isCategory)
+    {
+        _ui = ui;
+        _name = name;
+        Id = id;
+        Bounds = bounds;
+        _keyboardBounds = keyboardBounds;
+        IsCategory = isCategory;
+    }
+
+    /// <summary>Uses shared pointer capture, focus and category or link keyboard rules.</summary>
+    public UiButtonInteraction Process(UiButtonActivation activation) =>
+        _ui.ProcessNavRowInput(_name, Id, Bounds, _keyboardBounds, IsCategory, activation);
+}
+
+public interface IUiNavBehavior
+{
+    static abstract UiButtonInteraction Process(UiNavInput input);
+}
+
+public readonly struct UiFluentNavBehavior : IUiNavBehavior
+{
+    public static UiButtonInteraction Process(UiNavInput input) => input.Process(UiButtonActivation.Release);
+}
+
 public interface IUiNavPresentation
 {
     static virtual bool CanRetainMeasurement => false;
@@ -200,13 +236,15 @@ public class UiNav<TPresentation> : UiControlWidget where TPresentation : IUiNav
     internal override void InvalidateRetainedMeasurement() => _layout.Invalidate();
     protected override UiVector2 MeasureContent(UiControlContext context) => Prepare(context).Size;
     protected virtual void OnChanged(string value) => Value.Value = value;
+    internal void CommitDestination(string value) => OnChanged(value);
+    internal virtual UiButtonInteraction ProcessRowInput(UiNavInput input) => UiFluentNavBehavior.Process(input);
+
     protected override void RenderControl(UiImmediateContext ui)
     {
         ValidateSelection();
-        var invoked = ui.RenderNav(this, PrimaryInputId(Label), out var secondaryAction);
+        var secondaryAction = ui.RenderNav(this, PrimaryInputId(Label));
         _headerContext = ui;
         _headerFrame = ui.GetFrameCount();
-        if (invoked is not null) OnChanged(invoked);
         secondaryAction?.Invoke();
     }
     public bool RenderPage(UiImmediateContext ui, string value, Action<UiImmediateContext> render, bool focusable = true, bool navigationVisible = true)
@@ -252,6 +290,15 @@ public class UiNav<TPresentation> : UiControlWidget where TPresentation : IUiNav
     }
 }
 
-[UiWidgetStyle(typeof(UiNav<>), typeof(UiFluentNavPresentation))]
+public class UiNav<TBehavior, TPresentation>(string label, UiBinding<string?> value, ReadOnlyMemory<UiNavGroup> groups,
+    UiNavOptions? options = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+    : UiNav<TPresentation>(label, value, groups, options, identity)
+    where TBehavior : IUiNavBehavior
+    where TPresentation : IUiNavPresentation
+{
+    internal override UiButtonInteraction ProcessRowInput(UiNavInput input) => TBehavior.Process(input);
+}
+
+[UiWidgetStyle(typeof(UiNav<,>), typeof(UiFluentNavBehavior), typeof(UiFluentNavPresentation))]
 [UiComponent("Nav", UiComponentExposure.Fluent)]
 public partial class UiFluentNav;

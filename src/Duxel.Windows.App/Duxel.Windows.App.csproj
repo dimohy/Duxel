@@ -7,9 +7,9 @@
     <NoWarn>$(NoWarn);CA2255</NoWarn>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.Windows.App</PackageId>
-    <Version>0.2.12-preview</Version>
+    <Version>0.3.0-preview</Version>
     <Authors>dimohy</Authors>
-    <Description>Windows all-in-one Duxel package. Install this single package to build and run Duxel apps on Windows.</Description>
+    <Description>Windows host for Duxel, a .NET desktop UI library supporting immediate and retained modes with customizable Fluent 2 themes.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/dimohy/Duxel</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -19,7 +19,7 @@
 
 
   <ItemGroup>
-    <None Include="..\..\README.md" Pack="true" PackagePath="" />
+    <None Include="..\..\docs\nuget-package-readme.md" Pack="true" PackagePath="README.md" />
   </ItemGroup>
 
   <ItemGroup>

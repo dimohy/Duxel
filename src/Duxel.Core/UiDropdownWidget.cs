@@ -24,6 +24,15 @@ public readonly record struct UiDropdownOptions(float Width = 250, UiDropdownSiz
         _ = string.Format(System.Globalization.CultureInfo.CurrentCulture, SelectedCountFormat, 0);
     }
 }
+/// <summary>Selects pointer activation for a selection field and its popup options.</summary>
+public interface IUiDropdownBehavior : IUiMenuBehavior { }
+
+public readonly struct UiDefaultDropdownBehavior : IUiDropdownBehavior
+{
+    public static UiButtonActivation TriggerActivation => UiDefaultMenuBehavior.TriggerActivation;
+    public static UiButtonActivation OptionActivation => UiDefaultMenuBehavior.OptionActivation;
+}
+
 public interface IUiDropdownPresentation : IUiMenuPresentation
 {
     static virtual bool CanRetainMeasurement => false;
@@ -34,7 +43,9 @@ public interface IUiDropdownPresentation : IUiMenuPresentation
 }
 
 /// <summary>A bound readonly combobox with persistent logical options and a real selection listbox.</summary>
-public class UiDropdown<TPresentation> : UiControlWidget, IUiLabelTarget where TPresentation : IUiDropdownPresentation
+public class UiDropdown<TBehavior, TPresentation> : UiControlWidget, IUiLabelTarget
+    where TBehavior : IUiMenuBehavior
+    where TPresentation : IUiDropdownPresentation
 {
     private UiOptionSelection? _selection;
     private readonly Func<string> _readCountText;
@@ -92,7 +103,7 @@ public class UiDropdown<TPresentation> : UiControlWidget, IUiLabelTarget where T
         _input.Attach(ui);
         var selection = _selection!;
         selection.Synchronize();
-        ui.RenderDropdown<TPresentation>(PrimaryInputId(Label), Label, selection, _input.Menu, _options, _readCountText);
+        ui.RenderDropdown<TBehavior, TPresentation>(PrimaryInputId(Label), Label, selection, _input.Menu, _options, _readCountText);
     }
     private string ReadCountText()
     {
@@ -112,6 +123,18 @@ public class UiDropdown<TPresentation> : UiControlWidget, IUiLabelTarget where T
         _countFormat = null;
         base.ReleaseOwnedResources();
     }
+}
+
+public class UiDropdown<TPresentation> : UiDropdown<UiDefaultDropdownBehavior, TPresentation>
+    where TPresentation : IUiDropdownPresentation
+{
+    public UiDropdown(string label, UiBinding<string?> selection, UiSelectOption[] items,
+        UiDropdownOptions? options = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, selection, items, options, identity) { }
+
+    public UiDropdown(string label, UiBinding<string[]> selection, UiSelectOption[] items,
+        UiDropdownOptions? options = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, selection, items, options, identity) { }
 }
 
 [UiWidgetStyle(typeof(UiDropdown<>), typeof(UiFluentDropdownPresentation))]

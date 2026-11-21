@@ -3,7 +3,7 @@ using Duxel.Svg;
 
 namespace Duxel.Gallery;
 
-internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGallerySourcePage
+internal sealed class SvgPage(ObserverServices services) : IObserverDocumentPage, IGallerySourcePage
 {
     internal static string BrowserResolutionLabel => GalleryText.Get("Redraw at high resolution when zoomed");
     private Content? _content;
@@ -28,11 +28,16 @@ internal sealed class SvgPage(ObserverServices services) : IObserverPage, IGalle
     {
         get; private set;
     }
-    public void Render(UiImmediateContext ui)
+    public void Render(UiImmediateContext ui) => Render(ui, header : null);
+    void IObserverDocumentPage.RenderDocument(UiImmediateContext ui, UiWidget header) => Render(ui, header);
+
+    private void Render(UiImmediateContext ui, UiWidget? header)
     {
         var available = ui.GetContentRegionAvail();
-        if (ui.BeginChild("observer-svg-page", new(available.X, MathF.Max(120, available.Y - 8)), true, coalesceDocumentScrollInputs: true))
+        if (ui.BeginChild("observer-svg-page", new(available.X, MathF.Max(1, available.Y - 8)), true, coalesceDocumentScrollInputs : true))
         {
+            if (header is not null)
+                ui.RenderNaturalHeight(header);
             (_content ??= new(services)).Render(ui);
             TextureStatistics = ui.SvgTextureStatistics;
         }

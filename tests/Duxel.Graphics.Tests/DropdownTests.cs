@@ -260,8 +260,85 @@ internal static class DropdownTests
         Frame();
         check(!Find("Choice", UiAccessibilityRole.ComboBox).Node.Invalid,
             "Dropdown clearing standalone invalid state clears its native projection");
+
+        UiVector2 Center(string name, UiAccessibilityRole role)
+        {
+            var bounds = Find(name, role).Node.Bounds;
+            return new(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
+        }
+        void Press(UiVector2 position)
+            => Frame(idle with { MousePosition = position, LeftMousePressed = true, LeftMouseDown = true });
+        void Release(UiVector2 position)
+            => Frame(idle with { MousePosition = position, LeftMouseReleased = true });
+
+        string[] customValues = ["a"];
+        using var customDropdown = new PressDropdown(new(() => customValues, next => customValues = next), items);
+        current = customDropdown;
+        Frame();
+        var trigger = Center("Press choices", UiAccessibilityRole.ComboBox);
+        Press(trigger);
+        check(customDropdown.IsOpen && customValues.SequenceEqual(["a"]),
+            "Custom Dropdown opens on press without changing the existing selection");
+        Release(trigger);
+        check(customDropdown.IsOpen, "Custom Dropdown release does not toggle the popup again");
+        var beta = Center("Beta", UiAccessibilityRole.Option);
+        Press(beta);
+        check(customDropdown.IsOpen && customValues.SequenceEqual(["a", "b"])
+            && Find("Beta", UiAccessibilityRole.Option).Node.Selected == true,
+            "Custom Dropdown selects on press and publishes multiple selection while keeping the popup open");
+        Release(beta);
+        check(customValues.SequenceEqual(["a", "b"]), "Custom Dropdown release does not select the option again");
+        Send("Beta", UiAccessibilityRole.Option, UiAccessibilityAction.Deselect);
+        Frame();
+        check(customValues.SequenceEqual(["a"]) && customDropdown.IsOpen,
+            "Custom Dropdown still accepts a native deselection independently of pointer timing");
+        Frame(idle with { MousePosition = beta, LeftMousePressed = true, LeftMouseReleased = true });
+        check(customValues.SequenceEqual(["a", "b"]) && customDropdown.IsOpen,
+            "Custom Dropdown handles one fast option click whose press and release arrive in the same frame");
+        Send("Press choices", UiAccessibilityRole.ComboBox, UiAccessibilityAction.Collapse);
+        Frame();
+
+        var attempted = 0;
+        using var customSelect = new PressSelect(new(() => "a", _ => attempted++), items);
+        current = customSelect;
+        Frame();
+        trigger = Center("Press choice", UiAccessibilityRole.ComboBox);
+        Press(trigger);
+        check(customSelect.IsOpen, "Custom Select uses the same press-to-open policy");
+        Release(trigger);
+        beta = Center("Beta", UiAccessibilityRole.Option);
+        Press(beta);
+        check(customSelect.IsOpen && attempted == 0,
+            "Custom Select can keep release-to-select while opening on press");
+        Release(beta);
+        check(attempted == 1 && !customSelect.IsOpen
+            && Find("Press choice", UiAccessibilityRole.ComboBox).Node.Value == "Alpha"
+            && Find("Alpha", UiAccessibilityRole.Option).Node.Selected == true,
+            "Custom Select presents the binding's retained value after a rejected selection");
+        Frame(idle with { MousePosition = trigger, LeftMousePressed = true, LeftMouseReleased = true });
+        check(customSelect.IsOpen && attempted == 1,
+            "Custom Select can open when press and release arrive in the same frame");
         RunContextTransfer(check);
     }
+
+    private sealed class PressDropdown(UiBinding<string[]> value, UiSelectOption[] items)
+        : UiDropdown<PressSelectionBehavior, UiFluentSelectPresentation>("Press choices", value, items);
+
+    private sealed class PressSelect(UiBinding<string?> value, UiSelectOption[] items)
+        : UiSelect<PressTriggerBehavior, UiFluentDropdownPresentation>("Press choice", value, items);
+
+    private readonly struct PressSelectionBehavior : IUiDropdownBehavior
+    {
+        public static UiButtonActivation TriggerActivation => UiButtonActivation.Press;
+        public static UiButtonActivation OptionActivation => UiButtonActivation.Press;
+    }
+
+    private readonly struct PressTriggerBehavior : IUiDropdownBehavior
+    {
+        public static UiButtonActivation TriggerActivation => UiButtonActivation.Press;
+        public static UiButtonActivation OptionActivation => UiButtonActivation.Release;
+    }
+
     private static void RunContextTransfer(Action<bool, string> check)
     {
         using var first = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));

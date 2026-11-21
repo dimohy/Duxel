@@ -2,8 +2,8 @@ namespace Duxel.Core;
 
 internal static class UiSegmentedControlPainter
 {
-    internal static void Paint(UiControlContext context, UiSegmentedControlWidget widget, UiRect bounds,
-        UiRect thumb, int selected, UiRadioGroupInteraction interaction)
+    internal static void Paint(UiControlContext context, UiSegmentedControlWidget widget,
+        ReadOnlySpan<UiRadioOptionLayout> layouts, UiRect bounds, UiRect thumb, int selected, UiRadioGroupInteraction interaction)
     {
         var options = widget.Options;
         var theme = context.Theme;
@@ -22,7 +22,8 @@ internal static class UiSegmentedControlPainter
         for (var i = 0; i < widget.Items.Length; i++)
         {
             var item = widget.Items[i];
-            var local = widget.Layouts[i].Bounds;
+            var layout = layouts[i];
+            var local = layout.Bounds;
             var rect = new UiRect(bounds.X + local.X, bounds.Y, local.Width, bounds.Height);
             var enabled = context.IsEnabled && item.Enabled;
             var itemInteraction = new UiButtonInteraction(false, i == interaction.HoveredIndex, i == interaction.HeldIndex);
@@ -33,7 +34,7 @@ internal static class UiSegmentedControlPainter
                 using var itemClip = context.Clip(rect);
                 if (item.Icon.IsEmpty)
                 {
-                    var block = widget.Layouts[i].LabelBlock;
+                    var block = layout.LabelBlock;
                     context.TypographyTextBlock(block, rect with { Y = rect.Y + (rect.Height - block.Size.Y) / 2, Height = block.Size.Y },
                         ink, UiItemHorizontalAlign.Center);
                 }
@@ -47,7 +48,7 @@ internal static class UiSegmentedControlPainter
             }
             if (item.Unread)
             {
-                var contentSize = item.Icon.IsEmpty ? widget.Layouts[i].LabelBlock.Size : new UiVector2(20, 20);
+                var contentSize = item.Icon.IsEmpty ? layout.LabelBlock.Size : new UiVector2(20, 20);
                 var contentX = rect.X + (rect.Width - contentSize.X) / 2;
                 var dotX = options.RightToLeft ? contentX - 9 : contentX + contentSize.X + 9;
                 var dotY = rect.Y + (rect.Height - contentSize.Y) / 2 + 6;

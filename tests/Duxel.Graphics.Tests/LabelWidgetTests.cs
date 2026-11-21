@@ -143,11 +143,20 @@ internal static class LabelWidgetTests
             "group label names only the primary group and preserves individual option names");
         using (var prepared = Fluent.Label("BBBB"))
         {
-            Frame(custom : ui => { ui.SetCursorScreenPos(new(0, 1)); prepared.Render(ui); });
+            var mutateDuringRender = false;
+            using var layout = Dux.SizedBox(Dux.Column(new(Spacing : 0, MainAxisSize : UiMainAxisSize.Min),
+                new Mutator(() =>
+                {
+                    if (mutateDuringRender)
+                        prepared.Text = "BBBB";
+                }), Dux.SizedBox(prepared, 120, 20)), 120, 21);
+            Frame(custom : layout.Render);
             var expected = vertices;
             prepared.Text = "AAAA";
-            using var layout = Dux.SizedBox(Dux.Column(new(Spacing : 0, MainAxisSize : UiMainAxisSize.Min),
-                new Mutator(() => prepared.Text = "BBBB"), prepared), 120, 21);
+            Frame(custom : layout.Render);
+            check(expected.Length > 0 && vertices.Length > 0 && !vertices.AsSpan().SequenceEqual(expected),
+                "label fixture distinguishes both glyph sequences in the same parent layout");
+            mutateDuringRender = true;
             Frame(custom : layout.Render);
             check(vertices.AsSpan().SequenceEqual(expected),
                 "label text changed after parent measurement paints the new glyphs in that same frame");

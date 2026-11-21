@@ -125,6 +125,9 @@ internal static class GalleryComponentExamples
         {
             return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
                 Fluent.Button(GalleryText.Get("Increase count"), () => clicks.Value++),
+                Fluent.CompoundButton(GalleryText.Get("Create document"), GalleryText.Get("Start a new document from a blank form."), () => clicks.Value++),
+                Fluent.SplitButton(GalleryText.Get("Save as PNG"), GalleryText.Get("Save in another format"), () => clicks.Value++,
+                    [new("pdf", GalleryText.Get("Save as PDF")), new("svg", GalleryText.Get("Save as SVG"))], _ => clicks.Value += 10),
                 Fluent.Body1(() => GalleryText.Get("Click count: ") + clicks.Value));
         }, current => "var clicks = new UiState<int>(" + current.ToString(System.Globalization.CultureInfo.InvariantCulture) + ");"),
         Stateful("Checkbox", "Select the checkbox that starts in the mixed state.", new UiState<bool?>(null), value =>

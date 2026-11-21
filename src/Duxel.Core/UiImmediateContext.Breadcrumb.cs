@@ -2,8 +2,10 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
-    internal string? RenderBreadcrumb<TPresentation>(string id, string label, UiBreadcrumbOption[] items,
-        UiBreadcrumbLayout layout, UiBreadcrumbInputState input) where TPresentation : IUiBreadcrumbPresentation
+    internal string? RenderBreadcrumb<TBehavior, TPresentation>(string id, string label, UiBreadcrumbOption[] items,
+        UiBreadcrumbLayout layout, UiBreadcrumbInputState input)
+        where TBehavior : IUiBreadcrumbBehavior
+        where TPresentation : IUiBreadcrumbPresentation
     {
         EnsureNotMeasuring();
         var context = new UiControlContext(this);
@@ -30,7 +32,7 @@ public sealed partial class UiImmediateContext
         if (focused >= 0 && !layout.Indices.AsSpan().Contains(focused))
             FocusGroupControl(overflowVisible ? overflowId : input.ItemIds[0], true);
         if (layout.Options.FocusMode == UiBreadcrumbFocusMode.Arrow && !input.Menu.Open)
-            NavigateBreadcrumb(items, layout, input, overflowId);
+            NavigateBreadcrumb<TBehavior>(items, layout, input, overflowId);
         var parent = _accessibilityParent;
         var ownerWidget = _accessibilityWidget;
         var visibleRoot = IntersectRect(CurrentClipRect, bounds);
@@ -96,7 +98,7 @@ public sealed partial class UiImmediateContext
                         {
                             _lastItemId = itemId;
                             var pointer = items[index].Enabled && !current
-                                ? ProcessControlPointer(input.ScopedNames[index], rect, UiButtonActivation.Release) : default;
+                                ? ProcessControlPointer(input.ScopedNames[index], rect, TBehavior.ItemActivation) : default;
                             _lastItemId = itemId;
                             interaction = current ? default : ProcessControlKeyboard<ActionControlKeys>(rect, pointer,
                                 allowDisabledFocus: parentEnabled && items[index].DisabledFocusable && !items[index].Enabled);
@@ -159,7 +161,8 @@ public sealed partial class UiImmediateContext
         return invoked;
     }
 
-    private void NavigateBreadcrumb(UiBreadcrumbOption[] items, UiBreadcrumbLayout layout, UiBreadcrumbInputState input, string overflowId)
+    private void NavigateBreadcrumb<TBehavior>(UiBreadcrumbOption[] items, UiBreadcrumbLayout layout, UiBreadcrumbInputState input, string overflowId)
+        where TBehavior : IUiBreadcrumbBehavior
     {
         if (!IsControlEnabled || _popupTierDepth < _blockingKeyboardTier)
             return;
@@ -179,17 +182,14 @@ public sealed partial class UiImmediateContext
         {
             if (!key.IsDown || (key.Modifiers & (KeyModifiers.Ctrl | KeyModifiers.Alt | KeyModifiers.Super)) != 0)
                 continue;
-            var step = key.Key == UiKey.LeftArrow ? -1 : key.Key == UiKey.RightArrow ? 1 : 0;
-            if (layout.Options.RightToLeft)
-                step = -step;
-            var edge = key.Key is UiKey.Home or UiKey.End;
-            if (edge)
-            {
-                step = key.Key == UiKey.Home ? 1 : -1;
-                current = key.Key == UiKey.Home ? -1 : layout.Indices.Length;
-            }
-            if (step == 0)
+            var command = TBehavior.ResolveFocusCommand(key.Key, layout.Options.RightToLeft);
+            if (command == UiBreadcrumbFocusCommand.None)
                 continue;
+            var step = command is UiBreadcrumbFocusCommand.Next or UiBreadcrumbFocusCommand.First ? 1 : -1;
+            if (command == UiBreadcrumbFocusCommand.First)
+                current = -1;
+            else if (command == UiBreadcrumbFocusCommand.Last)
+                current = layout.Indices.Length;
             for (var attempt = 0; attempt < layout.Indices.Length; attempt++)
             {
                 current = (current + step + layout.Indices.Length) % layout.Indices.Length;

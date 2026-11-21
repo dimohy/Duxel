@@ -2,7 +2,7 @@
 
 > 마지막 동기화: 2026-07-28
 
-단일 `.cs` 파일로 Duxel 앱을 실행하는 .NET 10 FBA(File-Based App) 기준 가이드입니다. Duxel `0.2.12-preview` 패키지는 일반 `net8.0`, `net9.0`, `net10.0` 프로젝트를 지원합니다.
+단일 `.cs` 파일로 Duxel 앱을 실행하는 .NET 10 FBA(File-Based App) 기준 가이드입니다. Duxel `0.3.0-preview` 패키지는 일반 `net8.0`, `net9.0`, `net10.0` 프로젝트를 지원합니다.
 
 ## 필수 환경
 

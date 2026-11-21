@@ -115,7 +115,7 @@ internal static class GalleryVisualTests
         Capture("보조 패널", "gallery-drawer-source-order");
         var drawerNodes = tree.CaptureSnapshot().Elements.Select(element => element.Node).ToArray();
         var overlayCode = drawerNodes.Single(node => node.Role == UiAccessibilityRole.Edit && node.Name == "C# 예제 소스"
-            && node.Value!.Contains("UiDrawerType.Overlay", StringComparison.Ordinal));
+            && node.Value!.Contains("Fluent.OverlayDrawer(", StringComparison.Ordinal));
         var drawerSettings = drawerNodes.Where(node => !node.Offscreen && node.Name is "패널 위치 변경" or "패널 크기 변경"
             or "패널 모달" or "패널 오른쪽에서 왼쪽" or "보조 패널 열기").ToArray();
         var overlayOrdered = drawerSettings.Length == 5 && !overlayCode.Offscreen
@@ -124,7 +124,7 @@ internal static class GalleryVisualTests
         var inlineNodes = tree.CaptureSnapshot().Elements.Select(element => element.Node).ToArray();
         var inlineToggle = inlineNodes.Single(node => node.Role == UiAccessibilityRole.Switch && node.Name == "인라인 패널 표시");
         var inlineCode = inlineNodes.Single(node => node.Role == UiAccessibilityRole.Edit && node.Name == "C# 예제 소스"
-            && node.Value!.Contains("UiDrawerType.Inline", StringComparison.Ordinal));
+            && node.Value!.Contains("Fluent.InlineDrawer(", StringComparison.Ordinal));
         check(overlayOrdered && !inlineToggle.Offscreen
             && (inlineCode.Offscreen ? inlineCode.CanScrollIntoView : inlineCode.Bounds.Y >= inlineToggle.Bounds.Y + inlineToggle.Bounds.Height),
             "Drawer shows overlay controls before its source and follows with a separate inline example and source");
@@ -286,12 +286,30 @@ internal static class GalleryVisualTests
         var copied = tree.CaptureSnapshot().Elements.Single(element => element.Node.Role == UiAccessibilityRole.Tooltip && element.Node.Name == "복사됨").Node;
         check(copied.Bounds.Y + copied.Bounds.Height <= copy.Node.Bounds.Y,
             "Copy confirmation appears above its icon instead of occupying the source toolbar");
-        fixture.Context.State.AdvanceTime(1.4f);
-        fixture.Capture(Draw);
+        var overCopy = new UiInputState(new(copy.Node.Bounds.X + 16, copy.Node.Bounds.Y + 16),
+            false, false, false, false, false, false, 0, 0, [], [], default, default);
+        var overSource = overCopy with { MousePosition = new(buttonSource.Bounds.X + 12, copy.Node.Bounds.Y + 16) };
+        bool CopyConfirmationVisible() => tree.CaptureSnapshot().Elements.Any(element =>
+            element.Node.Role == UiAccessibilityRole.Tooltip && element.Node.Name == "복사됨");
+
+        fixture.Capture(Draw, overCopy with { LeftMouseDown = true, LeftMousePressed = true });
+        fixture.Capture(Draw, overCopy with { LeftMouseReleased = true });
+        fixture.Capture(Draw, overCopy);
+        fixture.Context.State.AdvanceTime(.45f);
+        var pointerAwayConfirmation = fixture.Capture(Draw, overSource);
+        check(CopyConfirmationVisible(), "Copy confirmation stays visible while the pointer moves from the icon into the code surface");
+        BrowserPng.Write(Path.Combine(output, "gallery-copy-pointer-away.png"), (int)fixture.FrameInfo.DisplaySize.X,
+            (int)fixture.FrameInfo.DisplaySize.Y, pointerAwayConfirmation);
+        fixture.Capture(Draw, overCopy);
+        check(CopyConfirmationVisible(), "Returning the pointer to the copy icon keeps the existing confirmation");
+        fixture.Context.State.AdvanceTime(.9f);
+        fixture.Capture(Draw, overCopy);
+        check(!CopyConfirmationVisible(), "Copy confirmation expires even when the pointer remains over the icon");
+        fixture.Capture(Draw, overSource);
+        fixture.Capture(Draw, overCopy);
+        check(!CopyConfirmationVisible(), "Hovering the copy icon again cannot reopen an expired confirmation");
         fixture.Context.State.AdvanceTime(.4f);
         fixture.Capture(Draw);
-        check(!tree.CaptureSnapshot().Elements.Any(element => element.Node.Role == UiAccessibilityRole.Tooltip && element.Node.Name == "복사됨"),
-            "Copy confirmation disappears after its finite display interval");
         check(fixture.Context.State.NextScheduledFrameTimeSeconds is null,
             "Settled copy confirmation stops scheduling renders in event-wait mode");
         Capture("Checkbox", "gallery-checkbox-source");

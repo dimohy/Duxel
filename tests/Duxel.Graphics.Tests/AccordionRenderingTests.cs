@@ -24,6 +24,13 @@ internal static class AccordionRenderingTests
             ui.SetCursorScreenPos(new(24, 24));
             accordion.Render(ui);
         }
+        byte[] CaptureSettled(string name)
+        {
+            for (var frame = 0; frame < 12 && state.NextScheduledFrameTimeSeconds.HasValue; frame++)
+                capture(name + "-transition", Render);
+            check(state.NextScheduledFrameTimeSeconds is null, "GPU Accordion settles its disclosure before comparing pixels : " + name);
+            return capture(name, Render);
+        }
         var closed = capture("closed", Render);
         var visible = false;
         for (var index = 4; index < closed.Length; index += 4)
@@ -32,11 +39,13 @@ internal static class AccordionRenderingTests
         value.Value = ImmutableArray.Create("a");
         var expanded = capture("expanded", Render);
         check(!closed.AsSpan().SequenceEqual(expanded), "GPU Accordion expansion adds actual body content and reflows following headers");
-        check(expanded.AsSpan().SequenceEqual(capture("replay", Render)), "GPU Accordion unchanged retained frame reproduces identical pixels");
+        var settledExpanded = CaptureSettled("expanded-settled");
+        check(settledExpanded.AsSpan().SequenceEqual(capture("replay", Render)), "GPU Accordion unchanged retained frame reproduces identical pixels");
         value.Value = ImmutableArray.Create("b");
-        check(!expanded.AsSpan().SequenceEqual(capture("second", Render)), "GPU single Accordion selection replaces its real panel content");
+        check(!settledExpanded.AsSpan().SequenceEqual(capture("second", Render)), "GPU single Accordion selection replaces its real panel content");
         value.Value = ImmutableArray<string>.Empty;
-        check(closed.AsSpan().SequenceEqual(capture("collapsed", Render)), "GPU collapse exactly restores the closed frame");
+        capture("collapse-start", Render);
+        check(closed.AsSpan().SequenceEqual(CaptureSettled("collapsed")), "GPU collapse exactly restores the closed frame");
         accordion.Options = accordion.Options with
         {
             ChevronPosition = UiAccordionChevronPosition.End

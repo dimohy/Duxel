@@ -158,7 +158,7 @@ void main() {
             for (uint s = 0u; s < 4u; ++s) {
                 vec2 point = points[s];
                 if (any(lessThan(point, bounds.xy)) || any(greaterThan(point, bounds.zw)) ||
-                    !containsPoint(point, bounds, specification, scale, origin)) continue;
+                    !containsPoint(point, vec2(pixel) + pc.camera.zw + samples[s], bounds, specification, scale, origin)) continue;
                 coveredSamples |= 1u << s;
             }
             if (coveredSamples == 0u) continue;

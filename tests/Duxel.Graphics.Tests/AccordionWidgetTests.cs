@@ -138,6 +138,63 @@ internal static class AccordionWidgetTests
         constrained.Frame();
         check(constrained.FocusedId == constrained.Accordion.HeaderIds[0],
             "externally closing a focused panel restores header focus even when accessibility capture is disabled");
+
+        CheckCustomHeader(check);
+    }
+
+    private static void CheckCustomHeader(Action<bool, string> check)
+    {
+        using var scene = new Scene();
+        var accepts = true;
+        scene.Root = new CustomAccordion(new(() => scene.Value, value =>
+        {
+            scene.Writes++;
+            if (accepts)
+                scene.Value = value;
+        }));
+        scene.Frame();
+        var header = scene.Find("Details");
+        var pointer = new UiVector2(header.Bounds.X + 20, header.Bounds.Y + header.Bounds.Height / 2);
+        check(header.Bounds.Height == 48, "Custom Accordion presentation measures a taller header using the shared layout");
+        scene.Pointer(pointer, true, true, false);
+        check(scene.Writes == 1 && scene.Value.SequenceEqual(["details"])
+            && scene.Find("Details").Expansion == UiAccessibilityExpansionState.Expanded
+            && CustomAccordionPresentation.LastExpanded,
+            "Custom Accordion press opens its panel and publishes the accepted value to paint and accessibility in the same frame");
+        scene.Pointer(pointer, false, false, true);
+        check(scene.Writes == 1, "Custom Accordion releases the header without a second write");
+        accepts = false;
+        scene.Pointer(pointer, true, true, false);
+        check(scene.Writes == 2 && scene.Count(UiAccessibilityRole.AccordionPanel) == 1 && CustomAccordionPresentation.LastExpanded,
+            "Custom Accordion preserves the expansion painted and exposed by a binding that rejects collapse");
+        scene.Pointer(pointer, false, false, true);
+        accepts = true;
+        scene.Request("Details", UiAccessibilityAction.Collapse);
+        check(scene.Writes == 3 && scene.Count(UiAccessibilityRole.AccordionPanel) == 0 && !CustomAccordionPresentation.LastExpanded,
+            "Custom Accordion preserves the independent native collapse path");
+    }
+
+    private sealed class CustomAccordion(UiBinding<ImmutableArray<string>> value)
+        : UiAccordion<UiPressButtonBehavior, CustomAccordionPresentation>("Custom Accordion", value,
+            new UiAccordionItem[] { new("details", "Details", Fluent.Body1("Retained content")) },
+            options : new(Collapsible : true));
+
+    private readonly struct CustomAccordionPresentation : IUiAccordionPresentation
+    {
+        internal static bool LastExpanded { get; private set; }
+        public static float PanelMargin => UiFluentAccordionPresentation.PanelMargin;
+        public static UiAccordionHeaderLayout MeasureHeader(UiControlContext context, UiAccordionItem item,
+            float width, UiAccordionOptions options)
+        {
+            var layout = UiFluentAccordionPresentation.MeasureHeader(context, item, width, options);
+            return layout with { Size = new(layout.Size.X, 48) };
+        }
+        public static void PaintHeader(UiControlContext context, UiAccordionItem item, UiAccordionHeaderLayout layout,
+            UiRect bounds, bool expanded, UiButtonInteraction interaction, UiAccordionOptions options)
+        {
+            LastExpanded = expanded;
+            UiFluentAccordionPresentation.PaintHeader(context, item, layout, bounds, expanded, interaction, options);
+        }
     }
 
     private sealed class Scene : IDisposable

@@ -92,5 +92,56 @@ internal static class HorizontalOpacityMaskRenderingTests
             && Math.Abs(At(camera, 24, 80, 1) - (255 * edgeFactor + 230 * (1 - edgeFactor))) <= 2,
             "UV-only camera crop reuses cached group pixels while keeping the opacity ramp in viewport coordinates");
         fixture.WriteCapturePng(Path.Combine(output, "group-camera.png"), camera);
+
+        CheckSplitFade(fixture, output, check);
+    }
+
+    private static void CheckSplitFade(PresentationReuseTests.Fixture fixture, string output, Action<bool, string> check)
+    {
+        using var combined = new UiPaintGroup();
+        using var surface = new UiPaintGroup();
+        using var thumb = new UiPaintGroup();
+        var bounds = new UiRect(16, 16, 128, 32);
+        var mask = new UiHorizontalOpacityMask(.25f, .25f);
+        var uv = UiImageUvTransform.Identity;
+        void Surface(UiControlContext paint) => paint.Frame(bounds, new(255, 0, 0), default, 0, 0);
+        void Thumb(UiControlContext paint) => paint.Frame(new(16, 16, 24, 32), new(0, 255, 0), default, 0, 0);
+
+        foreach (var samples in new[] { 1, 4 })
+        {
+            fixture.Renderer.SetMsaaSamples(samples);
+            byte[] Capture(bool split) => fixture.Capture(ui =>
+            {
+                ui.EnableRootViewportContentLayout(contentPadding : 0);
+                var paint = new UiControlContext(ui);
+                paint.Frame(bounds, new(0, 0, 255), default, 0, 0);
+                if (split)
+                {
+                    paint.PaintGroup(surface, bounds, 1, Surface, uv, mask);
+                    paint.PaintGroup(thumb, bounds, 1, Thumb, uv, mask);
+                }
+                else
+                {
+                    paint.PaintGroup(combined, bounds, 1, layer =>
+                    {
+                        Surface(layer);
+                        Thumb(layer);
+                    }, uv, mask);
+                }
+            });
+
+            var once = Capture(false);
+            var independently = Capture(true);
+            var overlap = (32 * fixture.LastCaptureSize.Width + 24) * 4;
+            var surfaceOnly = (32 * fixture.LastCaptureSize.Width + 80) * 4;
+            var opacity = mask.Evaluate(8.5f / bounds.Width);
+            var leakedRed = 255 * opacity * (1 - opacity);
+            check(once[overlap] == 0 && Math.Abs(independently[overlap] - leakedRed) <= 2
+                && Math.Abs(once[overlap + 1] - independently[overlap + 1]) <= 2
+                && once.AsSpan(surfaceOnly, 4).SequenceEqual(independently.AsSpan(surfaceOnly, 4)),
+                "msaa" + samples + " independent surface and thumb fades leak the covered surface only where layers overlap");
+            fixture.WriteCapturePng(Path.Combine(output, "msaa" + samples + "-combined-fade.png"), once);
+            fixture.WriteCapturePng(Path.Combine(output, "msaa" + samples + "-split-fade.png"), independently);
+        }
     }
 }

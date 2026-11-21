@@ -23,7 +23,9 @@ public interface IUiComboboxPresentation : IUiDropdownPresentation
 }
 
 /// <summary>One text editor, canonical selection and filtered popup retain their independent state and ownership.</summary>
-public class UiCombobox<TPresentation> : UiControlWidget, IUiLabelTarget where TPresentation : IUiComboboxPresentation
+public class UiCombobox<TBehavior, TPresentation> : UiControlWidget, IUiLabelTarget
+    where TBehavior : IUiMenuBehavior
+    where TPresentation : IUiComboboxPresentation
 {
     private UiOptionSelection? _selection;
     private UiFilteredOptionSelection? _filtered;
@@ -138,7 +140,7 @@ public class UiCombobox<TPresentation> : UiControlWidget, IUiLabelTarget where T
         var text = Text.Value ?? throw new InvalidOperationException("Combobox text cannot be null.");
         if (text.Length > _options.MaxLength || UiAccessibilityTree.ContainsControl(text, false))
             throw new InvalidOperationException("Combobox text exceeds its single-line input contract.");
-        if (ui.RenderCombobox<TPresentation>(PrimaryInputId(Label), Label, ref text, _selection, _filtered!,
+        if (ui.RenderCombobox<TBehavior, TPresentation>(PrimaryInputId(Label), Label, ref text, _selection, _filtered!,
             _popup.Menu, _logical, _editor, _options, _open, Completion))
             Text.Value = text;
         if (_lastReportedOpen != IsOpen)
@@ -165,6 +167,21 @@ public class UiCombobox<TPresentation> : UiControlWidget, IUiLabelTarget where T
             base.ReleaseOwnedResources();
         }
     }
+}
+
+public class UiCombobox<TPresentation> : UiCombobox<UiDefaultMenuBehavior, TPresentation>
+    where TPresentation : IUiComboboxPresentation
+{
+    public UiCombobox(string label, UiBinding<string> text, UiBinding<string?> selection, UiSelectOption[] items,
+        UiComboboxOptions? options = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, text, selection, items, options, identity) { }
+
+    public UiCombobox(string label, UiBinding<string> text, UiBinding<string[]> selection, UiSelectOption[] items,
+        UiComboboxOptions? options = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, text, selection, items, options, identity) { }
+
+    internal UiCombobox(string label, UiBinding<string> text, UiOptionSelection selection, UiComboboxOptions options)
+        : base(label, text, selection, options) { }
 }
 
 [UiWidgetStyle(typeof(UiCombobox<>), typeof(UiFluentComboboxPresentation))]

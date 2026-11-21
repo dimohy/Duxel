@@ -32,11 +32,14 @@ CardNudge	component	ios	documented-migration	https://fluent2.microsoft.design/co
 Carousel	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/carousel/usage
 Checkbox	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/checkbox/usage
 Combobox	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/combobox/usage
+CompoundButton	variant	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/button/usage
 CounterBadge	variant	web-react	parent-guidance-and-linked-reference	https://fluent2.microsoft.design/components/web/react/core/badge/usage
 Dialog	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/dialog/usage
 Display	variant	web-react	parent-guidance-and-linked-reference	https://fluent2.microsoft.design/components/web/react/core/text/usage
 Divider	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/divider/usage
 Drawer	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/drawer/usage
+InlineDrawer	variant	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/drawer/usage
+OverlayDrawer	variant	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/drawer/usage
 Dropdown	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/dropdown/usage
 Field	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/field/usage
 FluentProvider	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/fluentprovider/usage
@@ -63,6 +66,7 @@ Popover	component	web-react	documented	https://fluent2.microsoft.design/componen
 ProgressBar	component	ios	documented-migration	https://fluent2.microsoft.design/components/ios/core/progressbar/usage
 ProgressBar	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/progressbar/usage
 ProgressIndicator	component	android	documented-migration	https://fluent2.microsoft.design/components/android/core/progressindicator/usage
+CircularProgressIndicator	variant	android	documented	https://fluent2.microsoft.design/components/android/core/progressindicator/usage
 RadioGroup	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/radiogroup/usage
 Rating	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/rating/usage
 SearchBox	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/searchbox/usage
@@ -75,6 +79,7 @@ SkeletonItem	variant	web-react	parent-guidance-and-linked-reference	https://flue
 Slider	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/slider/usage
 SpinButton	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/spin/usage
 Spinner	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/spinner/usage
+SplitButton	variant	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/button/usage
 Subtitle1	variant	web-react	parent-guidance-and-linked-reference	https://fluent2.microsoft.design/components/web/react/core/text/usage
 Subtitle2	variant	web-react	parent-guidance-and-linked-reference	https://fluent2.microsoft.design/components/web/react/core/text/usage
 Subtitle2Stronger	variant	web-react	parent-guidance-and-linked-reference	https://fluent2.microsoft.design/components/web/react/core/text/usage

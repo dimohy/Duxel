@@ -222,6 +222,8 @@ public sealed partial class UiContext(
         _contentScale = scale;
     }
 
+    internal bool UseR8ParagraphCoverage { get; init; }
+
     public void SetPlatformTextBackend(IPlatformTextBackend? textBackend)
     {
         _platformTextBackend = textBackend;
@@ -979,7 +981,7 @@ public sealed partial class UiContext(
                 directTextEnabled: _directTextEnabled,
                 directTextFallbackEnabled: _directTextFallbackEnabled,
                 platformTextBackend: _platformTextBackend
-            );
+            ) { UseR8ParagraphCoverage = UseR8ParagraphCoverage };
             _immediateContext = ui;
             ui.TextureContentRevision = _textureContentRevision;
             ui.TextureContentVersions = _textureContentVersions;

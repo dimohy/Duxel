@@ -154,6 +154,21 @@ if (args is [var galleryTimePickerOutput, "uia-gallery-time-picker" or "win32-ga
     return;
 }
 
+if (args is [var progressContrastOutput, "progress-contrast-gpu"])
+{
+    Directory.CreateDirectory(progressContrastOutput);
+    var contrastChecks = new List<string>();
+    ProgressContrastTests.Run(progressContrastOutput, (condition, name) =>
+    {
+        if (!condition) throw new InvalidOperationException(name);
+        contrastChecks.Add(name);
+        Console.WriteLine("PASS " + name);
+    });
+    File.WriteAllText(Path.Combine(progressContrastOutput, "result.json"), JsonSerializer.Serialize(new GraphicsResult(
+        RuntimeInformation.FrameworkDescription, args[1], contrastChecks.Count, contrastChecks.ToArray(), 0, 0, 0, 0), GraphicsJson.Default.GraphicsResult));
+    return;
+}
+
 if (args is [var maskOutput, "opacity-mask-gpu" or "opacity-mask-gallery-only"])
 {
     Directory.CreateDirectory(maskOutput);
@@ -1039,6 +1054,11 @@ if (args.Length == 2 && args[1] == "multiline-only")
     Directory.CreateDirectory(destination);
     var passed = new List<string>();
     var failed = new List<string>();
+    TextDragScrollTests.Run((condition, name) =>
+    {
+        Console.WriteLine((condition ? "PASS " : "FAIL ") + name);
+        (condition ? passed : failed).Add(name);
+    });
     MultilineInputTests.Run((condition, name) =>
     {
         Console.WriteLine((condition ? "PASS " : "FAIL ") + name);
@@ -1050,11 +1070,6 @@ if (args.Length == 2 && args[1] == "multiline-only")
         (condition ? passed : failed).Add(name);
     });
     MultilineWrapTests.Run((condition, name) =>
-    {
-        Console.WriteLine((condition ? "PASS " : "FAIL ") + name);
-        (condition ? passed : failed).Add(name);
-    });
-    TextDragScrollTests.Run((condition, name) =>
     {
         Console.WriteLine((condition ? "PASS " : "FAIL ") + name);
         (condition ? passed : failed).Add(name);
@@ -1980,7 +1995,8 @@ if (args.Length >= 2 && args[1] == "paint-group")
     {
         renderer.SetMsaaSamples(samples);
         PaintGroupRenderingTests.Run(context, (name, draw) => Capture($"msaa{samples}-group-{name}", draw),
-            Check, Build, renderer.RenderAndReadback, renderer.TryRenderDrawData, () => renderer.ValidationPaintGeometryEntries, size.Width, white, () => renderer.LastFrameMetrics, renderer.ValidationSwapchainImageCount);
+            Check, Build, renderer.RenderAndReadback, renderer.TryRenderDrawData, () => renderer.ValidationPaintGeometryEntries, size.Width, white,
+            () => renderer.LastFrameMetrics, renderer.ValidationSwapchainImageCount, renderer.ValidationPaintTargetHandles);
     }
     File.WriteAllText(Path.Combine(output, "result.json"), JsonSerializer.Serialize(new GraphicsResult(
         RuntimeInformation.FrameworkDescription, "paint-group", checks.Count, checks.ToArray(), 0, 0, 0, 0), GraphicsJson.Default.GraphicsResult));
@@ -3857,6 +3873,12 @@ if (args.Length >= 2 && args[1] == "directtext-cache")
     DirectTextScaleRenderingTests.Run(Check, frameSlots, output);
     RetainedTextMaintenanceTests.VerifyAtlasReplacement(context, Capture, Check);
     RetainedTextMaintenanceTests.VerifyProjectedTextAtlasReplacement(context, Capture, Check);
+    RetainedTextMaintenanceTests.VerifyVulkanTextTexturePool(frameSlots, Check);
+    RetainedTextMaintenanceTests.VerifyShortTextRetention(frameSlots, Check);
+    RetainedTextMaintenanceTests.VerifyShapedGlyphAtlas(frameSlots, Check);
+    RetainedTextMaintenanceTests.VerifyShapedGlyphAtlasPacking(frameSlots, Check);
+    RetainedTextMaintenanceTests.VerifyExtendedStaticGeometryReuse(frameSlots, Check);
+    RetainedTextMaintenanceTests.VerifyExtendedStaticGeometryReuseBudget(frameSlots, Check);
     File.WriteAllText(Path.Combine(output, "result.json"), JsonSerializer.Serialize(new GraphicsResult(
         RuntimeInformation.FrameworkDescription, "directtext-cache", checks.Count, checks.ToArray(), 0, 0, 0, 0, renderer.UsesPresentationFences), GraphicsJson.Default.GraphicsResult));
     return;

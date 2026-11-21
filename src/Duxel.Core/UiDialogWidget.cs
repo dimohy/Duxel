@@ -10,6 +10,8 @@ public readonly record struct UiDialogOptions(UiDialogType Type = UiDialogType.M
     bool? ShowCloseButton = null, string CloseLabel = "Close", string? Description = null, bool MotionEnabled = true)
 {
     public UiDialogOptions() : this(UiDialogType.Modal, 600, null, true, null, "Close", null) { }
+    /// <summary>Keeps Escape from dismissing this dialog. Explicit close actions remain available.</summary>
+    public bool SuppressEscapeDismissal { get; init; }
     internal bool HasCloseButton => ShowCloseButton ?? Type == UiDialogType.NonModal;
     internal void Validate()
     {

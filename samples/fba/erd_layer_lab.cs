@@ -150,7 +150,15 @@ public sealed class ErdLayerLab : UiScreen
     private long _drawSum;
     private double _gpuSum;
     private int _gpuSamples;
+    private const int StatusLineAdvanceIntervals = 16;
+    private static readonly string StatusLineAdvanceShort = string.Join('\n', Enumerable.Repeat("Hg", StatusLineAdvanceIntervals + 1));
+    private static readonly string StatusLineAdvanceLong = string.Join('\n', Enumerable.Repeat("Hg", 2 * StatusLineAdvanceIntervals + 1));
     private string _statusText = string.Empty;
+    private string[] _statusLines = [];
+    private static readonly string[] StatusLayerIds = ["erd.status.scene-builds", "erd.status.frame-cpu", "erd.status.gpu"];
+    private readonly StatusLineLayer[] _statusLayers = new StatusLineLayer[3];
+
+    private readonly record struct StatusLineLayer(string? Text, UiVector2 Position, UiColor Color, float LineAdvance, long Version);
     private double _nextStatusTime;
     private float _minimumZoom = float.PositiveInfinity, _maximumZoom;
     private float _maximumMotionSpeed;
@@ -908,9 +916,11 @@ public sealed class ErdLayerLab : UiScreen
             _nextStatusTime = ui.GetTime() + .25;
             _statusText = string.Create(CultureInfo.InvariantCulture,
                 $"FPS: {_displayFps:0.0} / {TargetFps}\nZoom: {_zoom * 100:0}%\nScene builds/frame: {_lastBuilds}\nScene builds total: {_builds}\nFrame upload: {(metrics.DynamicUploadBytes + metrics.StagingUploadBytes + metrics.CompiledIndexUploadBytes + metrics.LayerStateUploadBytes) / 1024.0:0.0} KB\nDraw calls: {metrics.DrawCalls}\nLayer draws: {metrics.CompiledLayerDraws}\nFrame CPU: {ui.GetRenderTimeMs() + ui.GetSubmitTimeMs():0.00} ms\nGPU (delayed): {metrics.GpuRenderMicroseconds:0.0} us\n\nWheel: zoom at cursor\nMiddle drag: pan canvas\nCtrl + middle: drag zoom\nRight click: context menu\nLeft drag: move table\n\nIdle policy: {(_fullRebuild ? "continuous" : "on demand")}\nOverview: independent");
+            _statusLines = _statusText.Split('\n');
         }
+        var statusHeight = ui.CalcTextSize(_statusText).Y;
         var panelHeight = ui.GetFrameHeight() + 10 + ui.CalcTextSize(_introduction).Y
-            + 5 * (ui.GetFrameHeight() + 4) + ui.CalcTextSize(_statusText).Y + 36;
+            + 5 * (ui.GetFrameHeight() + 4) + statusHeight + 36;
         ui.SetNextWindowPos(new(work.X + 12, work.Y + 12));
         ui.SetNextWindowSize(new(248, MathF.Ceiling(panelHeight)));
         ui.BeginPanel("ERD / Layer Lab");
@@ -924,11 +934,50 @@ public sealed class ErdLayerLab : UiScreen
         if (ui.Button(_animateTable ? "Stop motion" : "Animate one table") && _scenario == "interactive")
         { _animateTable = !_animateTable; if (_animateTable) StartTableMotion(board); else _animatedIndex = -1; DuxelApp.RequestFrame(); }
         if (ui.Button("Fit diagram") && _scenario == "interactive") { _autoCamera = false; _anchoredZoom = false; _targetZoom = _fitZoom; _targetPan = default; }
-        ui.Text(_statusText);
+        DrawStatusLines(ui, statusHeight);
         ui.EndPanel();
         ui.PopStyleVar(2);
         ui.SetCursorScreenPos(new(board.X + 8, work.Y + 18));
         ui.TextColored(new(0xFFE8D8C5), "SCHEMA EXPLORER    /    commerce.public");
+    }
+
+    private void DrawStatusLines(UiImmediateContext ui, float height)
+    {
+        // Subtract two multiline measurements to isolate line advance from ink bounds.
+        var shortHeight = ui.CalcTextSize(StatusLineAdvanceShort).Y;
+        var longHeight = ui.CalcTextSize(StatusLineAdvanceLong).Y;
+        var advance = (longHeight - shortHeight) / StatusLineAdvanceIntervals;
+        var start = ui.GetCursorScreenPos();
+        var retainStatus = OperatingSystem.IsWindows() && ui.ContentScale == 1 && ui.GetDirectTextEnabled();
+        var textColor = ui.GetStyle().Text;
+        for (var row = 0; row < _statusLines.Length; row++)
+        {
+            var line = _statusLines[row];
+            if (line.Length == 0)
+                continue;
+            var position = new UiVector2(start.X, start.Y + row * advance);
+            ui.SetCursorScreenPos(position);
+            // Build totals, CPU time and GPU time produce new values most often.
+            var layerIndex = row switch { 3 => 0, 7 => 1, 8 => 2, _ => -1 };
+            if (layerIndex < 0)
+            {
+                ui.Text(line);
+                continue;
+            }
+            if (!retainStatus)
+            {
+                ui.TextWithShortCache(line);
+                continue;
+            }
+
+            ref var layer = ref _statusLayers[layerIndex];
+            if (layer.Text != line || layer.Position != position || layer.Color != textColor || layer.LineAdvance != advance)
+                layer = new(line, position, textColor, advance, layer.Version + 1);
+            if (ui.BeginLayer(StatusLayerIds[layerIndex], new(false, 1, default) { ContentVersion = layer.Version }))
+                ui.TextWithShortCache(line);
+            ui.EndLayer();
+        }
+        ui.SetCursorScreenPos(new(start.X, start.Y + height + ui.GetItemSpacing().Y));
     }
 
     public void SaveMeasurement(double processCpuMilliseconds, double processWallMilliseconds, long processPeakWorkingSetBytes)

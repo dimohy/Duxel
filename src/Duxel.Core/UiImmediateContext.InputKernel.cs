@@ -96,12 +96,12 @@ public sealed partial class UiImmediateContext
         }
         finally { _accessibilityParent = accessibilityParent; }
     }
-    internal bool LegacyInputSelectAllOnFocus => _controlSkins.TextField.SelectAllOnFocus;
+    internal bool LegacyInputSelectAllOnFocus => CurrentTextFieldSkin.SelectAllOnFocus;
     internal UiInputLayout MeasureContextInput(string displayLabel, float requestedWidth)
     {
         var textSize = MeasureTextInternal(displayLabel, _textSettings, _lineHeight);
         var inputTextLineHeight = GetTextLineHeight();
-        var frameHeight = MathF.Max(GetFrameHeight(), _controlSkins.TextField.MinimumHeight);
+        var frameHeight = MathF.Max(GetFrameHeight(), CurrentTextFieldSkin.MinimumHeight);
         var height = MathF.Max(textSize.Y, frameHeight);
         var hasLabel = !string.IsNullOrEmpty(displayLabel);
         var labelWidth = hasLabel ? textSize.X + ItemSpacingX : 0f;
@@ -639,7 +639,7 @@ public sealed partial class UiImmediateContext
         var active = edit.Active;
         var hovered = edit.Hovered;
         var borderColor = active ? _theme.InputBorderActive : hovered ? _theme.InputBorderHovered : _theme.InputBorder;
-        if (active && _controlSkins.TextField.Appearance == UiTextFieldAppearance.Frame)
+        if (active && CurrentTextFieldSkin.Appearance == UiTextFieldAppearance.Frame)
         {
             AddFocusRing(inputRect, _theme.InputBorderActive, _designTokens.InputCornerRadius);
         }

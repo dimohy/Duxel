@@ -36,6 +36,32 @@ public readonly record struct UiBreadcrumbOptions(UiBreadcrumbSize Size = UiBrea
     }
 }
 public readonly record struct UiBreadcrumbItemContent(string Text, UiMenuIcon Icon, bool Current);
+
+public enum UiBreadcrumbFocusCommand
+{
+    None, Previous, Next, First, Last
+}
+
+/// <summary>Selects the visible levels' pointer activation and focus navigation commands.</summary>
+public interface IUiBreadcrumbBehavior
+{
+    static abstract UiButtonActivation ItemActivation { get; }
+    static abstract UiBreadcrumbFocusCommand ResolveFocusCommand(UiKey key, bool rightToLeft);
+}
+
+public readonly struct UiDefaultBreadcrumbBehavior : IUiBreadcrumbBehavior
+{
+    public static UiButtonActivation ItemActivation => UiButtonActivation.Release;
+    public static UiBreadcrumbFocusCommand ResolveFocusCommand(UiKey key, bool rightToLeft) => key switch
+    {
+        UiKey.LeftArrow => rightToLeft ? UiBreadcrumbFocusCommand.Next : UiBreadcrumbFocusCommand.Previous,
+        UiKey.RightArrow => rightToLeft ? UiBreadcrumbFocusCommand.Previous : UiBreadcrumbFocusCommand.Next,
+        UiKey.Home => UiBreadcrumbFocusCommand.First,
+        UiKey.End => UiBreadcrumbFocusCommand.Last,
+        _ => UiBreadcrumbFocusCommand.None
+    };
+}
+
 public interface IUiBreadcrumbPresentation
 {
     static virtual bool CanRetainMeasurement => false;
@@ -51,7 +77,9 @@ internal readonly record struct UiBreadcrumbLayout(UiVector2 Size, int[] Indices
     UiBreadcrumbItemContent[] Content, string[] TooltipText, UiMenuOption[] Overflow, string OverflowTooltip, UiBreadcrumbOptions Options);
 
 /// <summary>Owns a hierarchical path, responsive overflow and stable input identities.</summary>
-public class UiBreadcrumb<TPresentation> : UiControlWidget where TPresentation : IUiBreadcrumbPresentation
+public class UiBreadcrumb<TBehavior, TPresentation> : UiControlWidget
+    where TBehavior : IUiBreadcrumbBehavior
+    where TPresentation : IUiBreadcrumbPresentation
 {
     private UiBreadcrumbOption[] _items;
     private UiBreadcrumbOptions _options;
@@ -172,7 +200,7 @@ public class UiBreadcrumb<TPresentation> : UiControlWidget where TPresentation :
     {
         var layout = MeasureLayout(new(ui), true);
         _input.Attach(ui);
-        var value = ui.RenderBreadcrumb<TPresentation>(PrimaryInputId(Label), Label, _items, layout, _input);
+        var value = ui.RenderBreadcrumb<TBehavior, TPresentation>(PrimaryInputId(Label), Label, _items, layout, _input);
         if (value is not null)
             OnNavigated(value);
     }
@@ -185,6 +213,11 @@ public class UiBreadcrumb<TPresentation> : UiControlWidget where TPresentation :
         base.ReleaseOwnedResources();
     }
 }
+
+public class UiBreadcrumb<TPresentation>(string label, UiBreadcrumbOption[] items, Action<string>? navigated = null,
+    UiBreadcrumbOptions? options = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+    : UiBreadcrumb<UiDefaultBreadcrumbBehavior, TPresentation>(label, items, navigated, options, identity)
+    where TPresentation : IUiBreadcrumbPresentation;
 
 [UiWidgetStyle(typeof(UiBreadcrumb<>), typeof(UiFluentBreadcrumbPresentation))]
 [UiComponent("Breadcrumb", UiComponentExposure.Fluent)]

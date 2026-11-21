@@ -6,9 +6,9 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.App</PackageId>
-    <Version>0.2.12-preview</Version>
+    <Version>0.3.0-preview</Version>
     <Authors>dimohy</Authors>
-    <Description>Duxel app facade with bundled Core/Platform/Vulkan and integrated DSL source generator analyzer.</Description>
+    <Description>Shared Duxel UI runtime, Fluent 2 widgets and themes, Vulkan renderer, and declarative UI source generator.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/dimohy/Duxel</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -17,7 +17,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\README.md" Pack="true" PackagePath="" />
+    <None Include="..\..\docs\nuget-package-readme.md" Pack="true" PackagePath="README.md" />
+    <None Include="../Duxel.Core/Assets/FluentIcons/LICENSE" Pack="true" PackagePath="licenses/FluentSystemIcons/" />
+    <None Include="../Duxel.Core/Duxel.Core.ThirdPartyNotices.txt" Pack="true" PackagePath="Duxel.Core.ThirdPartyNotices.txt" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(DuxelValidationHooks)' == 'true'">
@@ -36,6 +38,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Duxel.Core is bundled, so its Markdown dependency must flow to package consumers. -->
+    <PackageReference Include="Markdig" Version="1.4.0" />
   </ItemGroup>
 
   <Target Name="IncludeProjectReferenceOutputsInPackage" DependsOnTargets="ResolveReferences">

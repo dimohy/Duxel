@@ -3,15 +3,20 @@ param(
     [Parameter(Mandatory)][ValidatePattern('^[A-Fa-f0-9]{64}$')][string]$ExpectedSha256,
     [Parameter(Mandatory)][string]$OutputDirectory,
     [ValidateSet('motion-tour','idle')][string]$Scenario = 'motion-tour',
-    [ValidateRange(30,600)][int]$Seconds = 180,
+    [ValidateRange(30,1800)][int]$Seconds = 180,
     [ValidateRange(10,60)][int]$WarmupSeconds = 30,
     [ValidateRange(12,5000)][int]$Tables = 1200,
     [switch]$IncludeGcMetrics,
     [switch]$IncludeVirtualMemory,
     [switch]$IncludePrivateAllocations,
-    [Nullable[int]]$MaximizeAfterSeconds
+    [Nullable[int]]$MaximizeAfterSeconds,
+    [ValidatePattern('^[1-9][0-9]*x[1-9][0-9]*$')][string]$ExpectedVulkanExtent,
+    [switch]$IncludeMappedAllocations
 )
 $ErrorActionPreference = 'Stop'
+if ($ExpectedVulkanExtent -and $PSBoundParameters.ContainsKey('MaximizeAfterSeconds')) {
+    throw 'ERD_RESOURCE_FIXED_EXTENT_CONFLICTS_WITH_MAXIMIZE'
+}
 $exe = (Resolve-Path -LiteralPath $Executable).ProviderPath
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 if ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash -ne $ExpectedSha256) { throw 'ERD_RESOURCE_IMAGE_MISMATCH' }
@@ -19,7 +24,7 @@ if (Test-Path -LiteralPath $output) { throw 'ERD_RESOURCE_OUTPUT_EXISTS' }
 if (@(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($exe)) -ErrorAction SilentlyContinue).Count -ne 0) {
     throw 'ERD_RESOURCE_CONCURRENT_PROCESS'
 }
-$observeVirtualMemory = $IncludeVirtualMemory -or $IncludePrivateAllocations
+$observeVirtualMemory = $IncludeVirtualMemory -or $IncludePrivateAllocations -or $IncludeMappedAllocations
 if ($PSBoundParameters.ContainsKey('MaximizeAfterSeconds') -and
     ($null -eq $MaximizeAfterSeconds -or $MaximizeAfterSeconds -lt 1 -or $MaximizeAfterSeconds -gt $Seconds - 5 -or $Scenario -ne 'motion-tour')) {
     throw 'ERD_RESOURCE_MAXIMIZE_OUTSIDE_MOTION_OBSERVATION'
@@ -44,6 +49,7 @@ $settings = [ordered]@{
     DUXEL_VK_PROFILE_TIMING_SAMPLING='1'; DUXEL_VK_PROFILE_OUT=(Join-Path $output 'vk.log')
     DUXEL_SAMPLE_AUTO_EXIT_SECONDS="$($Seconds + $WarmupSeconds + 15)"
 }
+if ($ExpectedVulkanExtent) { $settings['DUXEL_VK_PROFILE'] = '1' }
 $saved = @{}
 foreach ($name in $settings.Keys) { $saved[$name] = [Environment]::GetEnvironmentVariable($name,'Process') }
 $rows = [Collections.Generic.List[object]]::new()
@@ -63,6 +69,8 @@ if ($observeVirtualMemory -or $null -ne $MaximizeAfterSeconds) {
 }
 $result.maximizeAfterSeconds = $MaximizeAfterSeconds
 $result.capturePrivateAllocations = [bool]$IncludePrivateAllocations
+if ($IncludeMappedAllocations) { $result.captureMappedAllocations = $true }
+if ($ExpectedVulkanExtent) { $result.expectedVulkanExtent = $ExpectedVulkanExtent }
 function Get-ErDCompletedProfileLines([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return @() }
     $stream = [IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
@@ -81,6 +89,13 @@ function Get-LoggedFrame([string]$Path) {
         if ($line -match '\bframe=(\d+)') { $last = [long]$Matches[1] }
     }
     return $last
+}
+function Read-ErDVulkanSurface([string]$Path) {
+    $surfaceEvents = @(Get-ErDCompletedProfileLines $Path | Where-Object { $_ -match '^\[duxel-vk-(wsi|resize)\]' })
+    $extents = @(foreach ($line in $surfaceEvents) {
+        if ($line -match '^\[duxel-vk-wsi\].*\bextent=(\d+x\d+)\s*$') { $Matches[1] }
+    })
+    return [ordered]@{ extents = $extents; events = $surfaceEvents }
 }
 function Get-ResourceMedian([object[]]$Items,[string]$Property) {
     $values = [double[]]@($Items | ForEach-Object { $_.$Property })
@@ -136,7 +151,7 @@ try {
         $allocationTail = $IncludePrivateAllocations -and $elapsed -ge $WarmupSeconds + $Seconds - 15
         if ($observeVirtualMemory -and ($allocationTail -or $elapsed -ge $nextVirtualMemory -or $elapsed -ge $WarmupSeconds + $Seconds)) {
             $queryStarted = $clock.Elapsed.TotalSeconds
-            $snapshot = [Duxel.Diagnostics.ErdVirtualMemorySnapshot]::Read($process.Handle, $IncludePrivateAllocations)
+            $snapshot = [Duxel.Diagnostics.ErdVirtualMemorySnapshot]::Read($process.Handle, $IncludePrivateAllocations, $IncludeMappedAllocations)
             $virtualRow = [pscustomobject]@{
                 processSampleSeconds=$elapsed; queryStartedSeconds=$queryStarted; loggedFrame=$row.loggedFrame
                 privateBytes=$row.privateBytes; privateCommitBytes=$snapshot.PrivateCommitBytes
@@ -149,6 +164,10 @@ try {
             if ($IncludePrivateAllocations) {
                 [ordered]@{processSampleSeconds=$elapsed;queryStartedSeconds=$queryStarted;loggedFrame=$row.loggedFrame;allocations=$snapshot.PrivateAllocations} |
                     ConvertTo-Json -Compress -Depth 4 | Add-Content -LiteralPath (Join-Path $output 'private-allocations.jsonl') -Encoding utf8
+            }
+            if ($IncludeMappedAllocations) {
+                [ordered]@{processSampleSeconds=$elapsed;queryStartedSeconds=$queryStarted;loggedFrame=$row.loggedFrame;mappings=$snapshot.MappedAllocations} |
+                    ConvertTo-Json -Compress -Depth 4 | Add-Content -LiteralPath (Join-Path $output 'mapped-allocations.jsonl') -Encoding utf8
             }
         }
         if ($null -ne $MaximizeAfterSeconds -and $ownedWindow -eq [IntPtr]::Zero -and $elapsed -ge $WarmupSeconds + $MaximizeAfterSeconds) {
@@ -235,6 +254,14 @@ try {
     }
     if ((Get-Item -LiteralPath (Join-Path $output 'stderr.log')).Length -ne 0) { throw 'ERD_RESOURCE_STDERR' }
     if ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash -ne $ExpectedSha256) { throw 'ERD_RESOURCE_INPUT_CHANGED' }
+    if ($ExpectedVulkanExtent) {
+        $surface = Read-ErDVulkanSurface $settings.DUXEL_VK_PROFILE_OUT
+        $result.vulkanSurface = $surface
+        if (!$surface.events.Count) { throw 'ERD_RESOURCE_VULKAN_SURFACE_UNOBSERVED' }
+        if ($surface.events.Count -ne 1 -or $surface.extents.Count -ne 1 -or $surface.extents[0] -ne $ExpectedVulkanExtent) {
+            throw 'ERD_RESOURCE_VULKAN_SURFACE_CHANGED_OR_UNEXPECTED'
+        }
+    }
     $result.state = 'complete'
 }
 catch {

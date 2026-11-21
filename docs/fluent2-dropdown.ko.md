@@ -8,6 +8,8 @@
 
 `Fluent.Dropdown`은 읽기 전용 선택 필드와 실제 ListBox를 제공합니다. `UiBinding<string?>`는 단일 선택, `UiBinding<string[]>`는 다중 선택입니다. 단일 선택은 팝업을 닫고 다중 선택은 열어 둡니다. `UiSelectOption(Value, Text, Enabled)`의 값은 고유해야 하며 알 수 없는 선택 값이나 중복 값은 실패합니다. 항목 배열은 복사하며 동적 교체 API는 없습니다.
 
+`UiDropdown<TBehavior, TPresentation>`을 상속하면 필드를 열 때와 항목을 선택할 때의 포인터 반응 시점을 각각 정하고, 측정·그리기 구현을 별도로 바꿀 수 있습니다. `IUiDropdownBehavior`는 Select에서도 사용합니다. 바인딩이 받아들인 값이 화면과 접근성 정보에 반영됩니다.
+
 ```csharp
 string? selected = null;
 using var dropdown = Fluent.Dropdown("위치",

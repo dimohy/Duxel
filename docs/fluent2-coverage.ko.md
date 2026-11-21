@@ -1,5 +1,9 @@
 # Fluent 2 전체 컴포넌트 전환
 
+2026-11-20 Drawer 아래에 `InlineDrawer`와 `OverlayDrawer`를 등록했습니다. Android ProgressIndicator의 원형 유형도 등록해 상위 구성요소 55개, 변형 36개에 팩터리가 있습니다. [원형 진행 표시](fluent2-progress-indicator.ko.md#원형-진행-표시) 세부 구성요소, 상태, 반응형 동작을 원문과 대조하는 중이므로 공식 범위는 초안으로 유지합니다. [공식 범위와 Drawer 유형](fluent2-scope.ko.md)
+
+같은 날 앞선 검토에서 Microsoft의 React, iOS, Android 목록과 카탈로그 링크 64개가 일치했습니다. `CompoundButton`, `MenuButton`, `SplitButton`을 추가한 시점의 등록 변형은 33개였습니다. Windows .NET 11에서 패키지와 SDK의 Roslyn으로 각각 소스 생성기 검사 131개를 통과했습니다. 엄격 빌드는 누락된 팩터리 0개를 확인했고, 공식 범위가 초안이어서 실패했습니다. [공식 범위와 버튼 유형](fluent2-scope.ko.md)
+
 2026-11-18 [FluentProvider 배치 방향](fluent2-provider.ko.md#영역별-배치-방향)을 추가했습니다. 자식의 측정과 탐색 컨트롤, 팝업이 영역의 방향을 따릅니다. Windows 갤러리와 관련 회귀 검사를 통과했습니다. 전체 컨트롤의 방향 상속과 브랜드·타이포그래피 검증은 이어서 진행합니다.
 
 2026-11-18 [NavigationBar](fluent2-navigation-bar.ko.md)를 추가했습니다. 현재 화면의 제목과 양쪽 동작, 보조 컨트롤을 배치합니다. 현재 카탈로그에서 추적하는 상위 구성요소 55개를 모두 팩터리에 연결했습니다. 전체 디자인과 동작, 플랫폼별 검증은 남아 있습니다.

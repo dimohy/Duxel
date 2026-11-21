@@ -1,5 +1,9 @@
 # Fluent 메뉴 표현과 공유 팝업
 
+`UiMenu<TBehavior, TPresentation>`에서는 메뉴를 여는 버튼과 항목이 포인터 누름 또는 놓기에 반응하는 시점을 각각 지정합니다. `IUiMenuBehavior`로 동작을 선택하고 표현 타입으로 측정과 그리기를 정합니다. 키보드 탐색은 공통 메뉴 코드가 처리합니다.
+
+`Fluent.MenuButton(label, items, invoked, options)`은 끝에 아래쪽 화살표가 있는 Fluent 버튼으로 메뉴를 엽니다. 누르거나 Enter·Space·아래 화살표를 사용해 메뉴를 열고, Escape로 닫으면 버튼으로 포커스가 돌아옵니다. 동작 콜백은 메뉴 항목을 선택할 때 실행됩니다. 갤러리의 **Menu → 내보내기** 예제에서 실행할 수 있습니다. [Fluent 2 Button 가이드](https://fluent2.microsoft.design/components/web/react/core/button/usage)
+
 Fluent 메뉴의 표면·행·선택 표시·아이콘·보조 텍스트에 시스템 대비 색상을 적용합니다. 기본 상태는 Canvas/CanvasText, 비활성 항목은 GrayText, 호버·누름 상태는 Highlight/HighlightText를 사용하며 보조 텍스트 위의 호버에도 같은 역할을 유지합니다. 표면의 1픽셀 테두리는 CanvasText를 사용합니다. 컨텍스트를 받는 `UiFluentMenuPalette.Resolve`·`Icon`·`Secondary` 오버로드를 추가했으며 기존 색상 모드 전용 API도 유지합니다.
 
 `IUiMenuPresentation.PaintFocus`는 선택적으로 구현하는 포커스 덧그리기 콜백입니다. 공통 팝업 렌더러는 모든 항목을 그린 뒤 항목 뷰포트의 클립을 닫고 호출하며, 바깥 팝업의 클립은 유지합니다. Fluent 대비 모드에서는 공식 방식대로 행 바깥에 두께 2픽셀의 Highlight 선을 표시해, 포커스와 호버가 겹쳐도 선이 보이게 합니다. 기존 표현은 빈 기본 콜백을 상속하며 일반 Fluent 포커스는 기존 경로를 유지합니다. 근거: [메뉴 항목의 대비 색상](https://raw.githubusercontent.com/microsoft/fluentui/master/packages/react-components/react-menu/library/src/components/MenuItem/useMenuItemStyles.styles.ts), [바깥 포커스 선의 배치](https://raw.githubusercontent.com/microsoft/fluentui/master/packages/react-components/react-tabster/src/focus/createFocusOutlineStyle.ts), [표면 테두리](https://raw.githubusercontent.com/microsoft/fluentui/master/packages/react-components/react-menu/library/src/components/MenuPopover/useMenuPopoverStyles.styles.ts).

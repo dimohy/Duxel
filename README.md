@@ -23,7 +23,13 @@ Duxel also includes virtualized lists and data grids, SVG and Markdown widgets, 
 
 ## Try the Gallery
 
-Clone the repository and run from its root:
+On Windows with the .NET 11 SDK and a Vulkan-capable GPU, run this PowerShell line. It downloads a single C# file and launches the Gallery from NuGet.
+
+```powershell
+$file = Join-Path ([IO.Path]::GetTempPath()) 'duxel_gallery_0_3_preview.cs'; Invoke-WebRequest 'https://raw.githubusercontent.com/dimohy/Duxel/v0.3.0-preview/samples/fba/duxel_gallery.cs' -OutFile $file -UseBasicParsing; dotnet run --file $file
+```
+
+To build the Gallery from this checkout, run:
 
 ```powershell
 ./run-gallery.ps1
@@ -31,13 +37,15 @@ Clone the repository and run from its root:
 
 Choose an example, operate the actual control, and copy its C# code. Gallery settings offer English, Korean, Japanese, and Simplified Chinese. [Gallery guide](docs/gallery-navigation.md) · [Linux setup](docs/linux-platform.md)
 
-## Start a Windows app from this checkout
+## Start a Windows app
 
-With this checkout and the repository SDK, save the example as `hello.cs` in the repository root. The runner uses this checkout's project references.
+With the .NET 10 SDK or later, save this example as `hello.cs`. The file uses the published Windows package.
 
 ```csharp
 #:property TargetFramework=net10.0
-#:package Duxel.Windows.App@*-*
+#:property PublishAot=false
+#:property SelfContained=false
+#:package Duxel.Windows.App@0.3.0-preview
 
 using Duxel.App;
 using Duxel.Core;
@@ -58,10 +66,10 @@ readonly struct LightDesign : IUiDesign
 ```
 
 ```powershell
-./run-fba.ps1 ./hello.cs -Managed -NoCache
+dotnet run hello.cs
 ```
 
-For the published NuGet packages, follow the file-based app guide. The published core packages target .NET 8, 9, and 10. [File-based app guide](docs/getting-started-fba.md) · [Declarative C# sample](samples/fba/declarative_dashboard_fba.cs) · [Immediate-mode sample](samples/fba/all_features.cs)
+For an existing Windows project, install `Duxel.Windows.App` with `dotnet add package Duxel.Windows.App --version 0.3.0-preview`. The packages target .NET 8, 9, and 10. [File-based app guide](docs/getting-started-fba.md) · [Declarative C# sample](samples/fba/declarative_dashboard_fba.cs) · [Immediate-mode sample](samples/fba/all_features.cs)
 
 ## Build from source
 

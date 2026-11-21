@@ -1,5 +1,6 @@
 using Duxel.Core;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System;
@@ -438,9 +439,14 @@ public sealed unsafe partial class VulkanRendererBackend
     }
 
     private const int StaticGeometryRetiredReuseGraceFrames = 120;
+    private const ulong MaxExtendedStaticGeometryBufferBytes = 16 * 1024;
+    private const ulong MaxExtendedStaticGeometryReuseBytes = 256 * 1024;
+    private const int MaxExtendedStaticGeometryReuseCount = 64;
 
     private readonly Dictionary<string, List<RetiredStaticGeometryBuffer>> _retiredStaticGeometryBuffers = new(StringComparer.Ordinal);
     private readonly List<string> _retiredStaticGeometryStaleTags = new();
+    private ulong _extendedStaticGeometryReuseBytes;
+    private int _extendedStaticGeometryReuseCount;
 
     private bool HasRetiredStaticGeometryBuffers()
     {
@@ -473,6 +479,7 @@ public sealed unsafe partial class VulkanRendererBackend
                     in shape))
             {
                 QueueStaticGeometryBufferDestroy(retiredBuffer);
+                ReleaseExtendedStaticGeometryReuse(in retired);
                 retiredBuffers.RemoveAt(i);
                 if (retiredBuffers.Count is 0)
                 {
@@ -484,6 +491,7 @@ public sealed unsafe partial class VulkanRendererBackend
             }
 
             reusable = retiredBuffer;
+            ReleaseExtendedStaticGeometryReuse(in retired);
             retiredBuffers.RemoveAt(i);
             if (retiredBuffers.Count is 0)
             {
@@ -513,8 +521,30 @@ public sealed unsafe partial class VulkanRendererBackend
             _retiredStaticGeometryBuffers[staticBuffer.Tag] = retiredBuffers;
         }
 
-        retiredBuffers.Add(new RetiredStaticGeometryBuffer(staticBuffer, availableFrame));
-        TrimRetiredStaticGeometryBufferList(retiredBuffers, Math.Max(1, frameCount));
+        TrimRetiredStaticGeometryBufferList(retiredBuffers, Math.Max(1, frameCount) - 1);
+        var bytes = GetStaticGeometryBufferByteSize(staticBuffer);
+        // Keep the frame-based reuse guard. A wall-clock grace prevents frequent
+        // presentation from expiring small rotating buffers between updates.
+        if (bytes is > 0 and <= MaxExtendedStaticGeometryBufferBytes
+            && _extendedStaticGeometryReuseCount < MaxExtendedStaticGeometryReuseCount
+            && bytes <= MaxExtendedStaticGeometryReuseBytes - _extendedStaticGeometryReuseBytes)
+        {
+            retiredBuffers.Add(new(staticBuffer, availableFrame, Stopwatch.GetTimestamp() + Stopwatch.Frequency, bytes));
+            _extendedStaticGeometryReuseBytes += bytes;
+            _extendedStaticGeometryReuseCount++;
+            return;
+        }
+
+        retiredBuffers.Add(new(staticBuffer, availableFrame, 0, 0));
+    }
+
+    private void ReleaseExtendedStaticGeometryReuse(in RetiredStaticGeometryBuffer retired)
+    {
+        if (retired.ExtendedReuseBytes == 0)
+            return;
+
+        _extendedStaticGeometryReuseBytes -= retired.ExtendedReuseBytes;
+        _extendedStaticGeometryReuseCount--;
     }
 
     private void QueueRetiredStaticGeometryBuffersDestroy(string staticTag)
@@ -526,7 +556,9 @@ public sealed unsafe partial class VulkanRendererBackend
 
         for (var i = 0; i < retiredBuffers.Count; i++)
         {
-            QueueStaticGeometryBufferDestroy(retiredBuffers[i].Buffer);
+            var retired = retiredBuffers[i];
+            QueueStaticGeometryBufferDestroy(retired.Buffer);
+            ReleaseExtendedStaticGeometryReuse(in retired);
         }
 
         retiredBuffers.Clear();
@@ -538,11 +570,12 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             var retired = retiredBuffers[0];
             QueueStaticGeometryBufferDestroy(retired.Buffer);
+            ReleaseExtendedStaticGeometryReuse(in retired);
             retiredBuffers.RemoveAt(0);
         }
     }
 
-    private void PruneRetiredStaticGeometryBuffers(int currentFrameIndex)
+    private void PruneRetiredStaticGeometryBuffers(int currentFrameIndex, long? timestamp = null)
     {
         if (_retiredStaticGeometryBuffers.Count is 0)
         {
@@ -551,6 +584,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
         var staleTags = _retiredStaticGeometryStaleTags;
         staleTags.Clear();
+        var now = timestamp ?? Stopwatch.GetTimestamp();
         foreach (var pair in _retiredStaticGeometryBuffers)
         {
             var retiredBuffers = pair.Value;
@@ -558,9 +592,11 @@ public sealed unsafe partial class VulkanRendererBackend
             for (var i = 0; i < retiredBuffers.Count; i++)
             {
                 var retired = retiredBuffers[i];
-                if (currentFrameIndex >= retired.AvailableFrame + StaticGeometryRetiredReuseGraceFrames)
+                if (currentFrameIndex >= retired.AvailableFrame + StaticGeometryRetiredReuseGraceFrames
+                    && now >= retired.ReuseUntilTimestamp)
                 {
                     QueueStaticGeometryBufferDestroy(retired.Buffer);
+                    ReleaseExtendedStaticGeometryReuse(in retired);
                     continue;
                 }
 
@@ -616,14 +652,15 @@ public sealed unsafe partial class VulkanRendererBackend
             retiredBuffers.Clear();
         }
 
-        _retiredStaticGeometryBuffers.Clear();
-        _retiredStaticGeometryStaleTags.Clear();
+        ClearRetiredStaticGeometryBuffers();
     }
 
     private void ClearRetiredStaticGeometryBuffers()
     {
         _retiredStaticGeometryBuffers.Clear();
         _retiredStaticGeometryStaleTags.Clear();
+        _extendedStaticGeometryReuseBytes = 0;
+        _extendedStaticGeometryReuseCount = 0;
     }
 }
 

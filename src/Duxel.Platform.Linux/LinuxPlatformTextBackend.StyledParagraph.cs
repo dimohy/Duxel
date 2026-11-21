@@ -5,11 +5,41 @@ using static Duxel.Platform.Linux.LinuxParagraphNative;
 
 namespace Duxel.Platform.Linux;
 
-public sealed unsafe partial class LinuxPlatformTextBackend
+public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextWholeParagraphRasterizer
 {
     private readonly record struct NativeParagraphLine(nint Handle, int Start, int Length, Rectangle Bounds, int Baseline);
 
     public PlatformTextParagraphLayout CreateParagraph(PlatformTextParagraphRequest request, bool vectorMetrics)
+        => WithStyledParagraph(request, static (layout, source, sourceBytes, text, selections) =>
+            CaptureStyledParagraph(layout, source, sourceBytes, Encoding.UTF8.GetBytes(text), selections));
+
+    PlatformTextParagraphCoverage IPlatformTextWholeParagraphRasterizer.RasterizeWholeParagraphCoverage(PlatformTextParagraphRequest request)
+        => RasterizeWholeParagraphCoverage(request);
+
+    internal PlatformTextParagraphRaster RasterizeWholeParagraph(PlatformTextParagraphRequest request)
+        => RasterizeWholeParagraphCoverage(request).ToRgba();
+
+    private PlatformTextParagraphCoverage RasterizeWholeParagraphCoverage(PlatformTextParagraphRequest request)
+        => WithStyledParagraph<PlatformTextParagraphCoverage>(request, static (layout, _, _, _, _) =>
+        {
+            pango_layout_get_pixel_extents(layout, out var ink, out _);
+            if (ink.Width <= 0 || ink.Height <= 0)
+                return default;
+            const int padding = 1;
+            var left = checked(ink.X - padding);
+            var top = checked(ink.Y - padding);
+            var width = checked(ink.Width + 2 * padding);
+            var height = checked(ink.Height + 2 * padding);
+            var alpha = RasterizeSurface(width, height, left, top, context =>
+            {
+                LinuxFontNative.cairo_move_to(context, 0, 0);
+                pango_cairo_show_layout(context, layout);
+            });
+            return new(width, height, alpha, new(left, top));
+        });
+
+    private TResult WithStyledParagraph<TResult>(PlatformTextParagraphRequest request,
+        Func<nint, PlatformTextParagraphRequest, int[], string, LinuxParagraphFontSet.Selection[], TResult> read)
     {
         ArgumentNullException.ThrowIfNull(request);
         lock (_sync)
@@ -78,11 +108,12 @@ public sealed unsafe partial class LinuxPlatformTextBackend
                         AddSelection(selectedStart, end, selected);
                 }
                 fonts = ParagraphFonts(styleFonts.ToArray());
-                layout = fonts.CreateStyledLayout(text, selections.ToArray(), styleFonts[0], request.Width,
+                var faceSpans = selections.ToArray();
+                layout = fonts.CreateStyledLayout(text, faceSpans, styleFonts[0], request.Width,
                     request.Direction == PlatformTextParagraphDirection.RightToLeft,
                     request.Objects.ToArray().Select(item => LinuxParagraphFontSet.ObjectShape(sourceBytes[item.Start],
                         sourceBytes[item.Start + 1], item.Width, item.Height, item.Baseline)).ToArray());
-                return CaptureStyledParagraph(layout, request, sourceBytes, Encoding.UTF8.GetBytes(text), selections.ToArray());
+                return read(layout, request, sourceBytes, text, faceSpans);
             }
             finally
             {
@@ -252,6 +283,7 @@ public sealed unsafe partial class LinuxPlatformTextBackend
     {
         var objectMetrics = request.Objects.ToArray().ToDictionary(item => item.Start);
         var output = new List<PlatformTextParagraphRun>();
+        var previousInk = false;
         var iterator = pango_layout_get_iter(layout);
         if (iterator == 0)
             throw new InvalidOperationException("Cannot enumerate styled paragraph glyphs.");
@@ -266,6 +298,13 @@ public sealed unsafe partial class LinuxPlatformTextBackend
                 pango_layout_iter_get_run_extents(iterator, null, out var bounds);
                 var x = bounds.X / (float)Scale;
                 var baseline = (pango_layout_iter_get_baseline(iterator) - run->YOffset) / (float)Scale;
+                Rectangle ink;
+                pango_layout_iter_get_line_extents(iterator, &ink, out _);
+                var left = (int)Math.Floor(ink.X / (double)Scale) - 1;
+                var top = (int)Math.Floor(ink.Y / (double)Scale) - 1;
+                var right = (int)Math.Ceiling((ink.X + (double)ink.Width) / Scale) + 1;
+                var bottom = (int)Math.Ceiling((ink.Y + (double)ink.Height) / Scale) + 1;
+                var origin = new UiVector2(x, baseline);
                 var glyphs = new List<PlatformTextParagraphGlyph>();
                 var currentStyle = -1;
                 void Commit()
@@ -273,7 +312,22 @@ public sealed unsafe partial class LinuxPlatformTextBackend
                     if (glyphs.Count == 0)
                         return;
                     var resource = font.Oblique ? ObliquePrefix + Uri.EscapeDataString(font.Path) : font.Path;
-                    output.Add(new(currentStyle, resource, font.Size, run->Item->Analysis.Level, new(bounds.X / (float)Scale, baseline), glyphs.ToArray()));
+                    var rasterContext = new PlatformTextRunRasterContext(left - (int)MathF.Floor(origin.X),
+                        top - (int)MathF.Floor(origin.Y), right - left, bottom - top, previousInk);
+                    output.Add(new(currentStyle, resource, font.Size, run->Item->Analysis.Level, origin,
+                        System.Runtime.InteropServices.CollectionsMarshal.AsSpan(glyphs), rasterContext));
+                    if (!previousInk)
+                    {
+                        foreach (var glyph in glyphs)
+                        {
+                            var nativeGlyph = new LinuxFontNative.Glyph(glyph.Index);
+                            LinuxFontNative.cairo_scaled_font_glyph_extents(font.Scaled, &nativeGlyph, 1, out var glyphInk);
+                            if (glyphInk.Width <= 0 || glyphInk.Height <= 0)
+                                continue;
+                            previousInk = true;
+                            break;
+                        }
+                    }
                     glyphs.Clear();
                 }
                 for (var index = 0; index < run->Glyphs->Count; index++)
@@ -293,7 +347,8 @@ public sealed unsafe partial class LinuxPlatformTextBackend
                     var style = 0;
                     while (style + 1 < request.Styles.Length && source >= request.Styles.Span[style].Start + request.Styles.Span[style].Length)
                         style++;
-                    if (style != currentStyle)
+                    if (style != currentStyle
+                        && (currentStyle < 0 || !request.Styles.Span[currentStyle].SharesPaintWith(request.Styles.Span[style])))
                     {
                         Commit();
                         currentStyle = style;

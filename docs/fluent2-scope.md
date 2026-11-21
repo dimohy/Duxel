@@ -1,5 +1,15 @@
 # Fluent 2 implementation scope — user correction, 2026-11-05
 
+Dialog uses `UiDialogType` for modal, nonmodal, and alert behavior. The design guide specifies footer buttons for alert dismissal. The pinned React implementation also requests a close on Escape for alerts. Duxel preserves that API default and uses `SuppressEscapeDismissal` in the Gallery alert example to show the guide's footer-only behavior. [Dialog design guide](https://fluent2.microsoft.design/components/web/react/core/dialog/usage) · [React source at c78d223](https://github.com/microsoft/fluentui/blob/c78d22353ba03b9eb744f577332aa400daf10934/packages/react-components/react-dialog/library/src/components/DialogSurface/useDialogSurface.ts)
+
+ProgressIndicator includes the official Android circular variant as `CircularProgressIndicator`. The Gallery's ProgressIndicator page exposes both examples. [Circular behavior and verification](fluent2-progress-indicator.md#circular-progress)
+
+2026-11-20. The official component indexes match the repository's 47 React, 12 iOS, and five Android links. [React index](https://fluent2.microsoft.design/components/web/react) · [iOS index](https://fluent2.microsoft.design/components/ios) · [Android index](https://fluent2.microsoft.design/components/android)
+
+The Button catalog now includes `CompoundButton` (title and secondary description), `MenuButton` (opens a menu), and `SplitButton` (primary action and separate menu trigger) as child variants. All three variants have Gallery examples and input and accessibility checks. Review of other components' variants and states continues. [Official Button guidance](https://fluent2.microsoft.design/components/web/react/core/button/usage)
+
+Drawer registers the official Inline and Overlay types as `InlineDrawer` and `OverlayDrawer` under the existing parent. The Gallery uses the fixed-host factories for both examples. Separate Drawer anatomy and responsive behavior remain part of the ongoing source review. [Official Drawer guidance](https://fluent2.microsoft.design/components/web/react/core/drawer/usage)
+
 2026-11-16: the compiled55-name requirement snapshot has39 connected names including Rating and16 missing. The68 exposed factories include variants and are separate from full state/visual/platform conformance. Follow the [Rating scope](fluent2-rating.md); the full original goal and first-declaration-removal cache gate0/2 remain open.
 
 2026-11-13 [List](fluent2-list.md): generated Fluent.List connects plain/single/multiple selection to Observer.59 factories,35/55 official top-level names connected,20 missing. Complete conformance remains open.

@@ -1,5 +1,11 @@
 # Linux Vulkan raw-pixel contracts
 
+Append `inline-paragraph-cache` to compare retained paragraph and texture behavior with freshly created widgets in a fixed 320×240 window.
+
+The retained fixture uploads R8 and the fresh reference uploads RGBA. The case checks 22 paragraph captures with 1× and 4× MSAA and adds five checks for texture creation, batched region updates, destruction, and recreation.
+
+Append `styled-paragraph-raster` to compare 36 whole-paragraph masks with independent Pango references.
+
 On .NET 11.0.0 with three frame slots, Windows passed 3,554 checks and WSLg Linux with llvmpipe passed 3,570. Each host's reuse and full-repaint pixels matched. Across hosts, 214 of 574 same-name raw RGBA pairs matched, including all 160 sparse-update cases. The other 360 differed, including text and some rounded-primitive scenes. [Comparison and case hashes](W:/Cache/Duxel/gallery-source-20261117/cross-host-present-1938/comparison.json).
 
 Append `host-pixels` to the Linux command below, or run the Windows graphics test as `Duxel.Graphics.Tests <fresh-output> presentation-reuse-host-pixels`. With three frame slots, both commands save ten 320 × 240 RGBA samples from the same full-repaint scenes. Both sparse controls matched exactly across hosts. Six rounded-primitive scenes differed by at most one RGB level, with identical alpha. At 4× MSAA, many differences were in repeated translucent bars. [Per-channel comparison](W:/Cache/Duxel/gallery-source-20261117/cross-host-rgba-1939/rgba-comparison.json).

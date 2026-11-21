@@ -10,5 +10,7 @@ public readonly struct UiFluentDrawerPresentation : IUiDrawerPresentation
     public static UiColor Background(UiControlContext context) => context.Theme.ForcedColors?.Canvas ?? UiFluentDialogPresentation.Background(context);
     public static UiColor Foreground(UiControlContext context) => context.Theme.ForcedColors?.CanvasText ?? UiFluentDialogPresentation.Foreground(context);
     public static UiColor Backdrop(UiControlContext context) => UiFluentDialogPresentation.Backdrop(context);
+    public static UiColor? ScrollSeparator(UiControlContext context) => context.Theme.ForcedColors?.CanvasText
+        ?? (context.FluentColorScheme == UiFluentColorScheme.Dark ? new UiColor(102, 102, 102) : new UiColor(209, 209, 209));
     public static void PaintClose(UiControlContext context, UiRect bounds, UiButtonInteraction interaction) => UiFluentDialogPresentation.PaintClose(context, bounds, interaction);
 }

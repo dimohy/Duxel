@@ -1,5 +1,7 @@
 # Fluent Combobox
 
+`UiCombobox<TBehavior, TPresentation>` uses `IUiMenuBehavior` to select pointer activation for the expander and options independently of painting. Text editing, filtering, binding and accessibility stay in the shared Combobox path.
+
 [한국어](fluent2-combobox.ko.md)
 
 Popup rows delegate to the same system-color option presentation as Dropdown, including Canvas/CanvasText, disabled GrayText, checked single/multiple markers and the post-row outer focus line. The editor and its bindings are unchanged. See [Dropdown contrast roles and scope](fluent2-dropdown.md). Evidence: `artifacts/option-contrast-2026-11-16/verification.json`.

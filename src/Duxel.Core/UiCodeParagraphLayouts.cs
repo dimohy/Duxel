@@ -25,6 +25,7 @@ internal sealed class UiCodeParagraphLayouts
     }
     internal int NativeBuilds { get; private set; }
     private string? _text;
+    private PlatformTextParagraphStyle[] _styles = [];
     private UiLayoutMeasurementKey _key;
     private bool _vector;
     private List<Line> _lines = [];
@@ -32,10 +33,11 @@ internal sealed class UiCodeParagraphLayouts
     internal PlatformTextParagraphLayout Prepare(IPlatformTextParagraphBackend backend, string text,
         PlatformTextParagraphStyle[] styles, float width, bool vector, UiLayoutMeasurementKey key)
     {
-        if (_text != text || _key != key || _vector != vector)
+        if (_text != text || _key != key || _vector != vector || !_styles.AsSpan().SequenceEqual(styles))
         {
             var previous = _key == key && _vector == vector ? _lines : null;
             _text = text;
+            _styles = styles;
             _key = key;
             _vector = vector;
             _lines = [];
@@ -123,7 +125,7 @@ internal sealed class UiCodeParagraphLayouts
                 for (var i = 0; i < glyphs.Length; i++)
                     glyphs[i] = glyphs[i] with { SourcePosition = line.Start + glyphs[i].SourcePosition, Y = glyphs[i].Y + shift };
                 outputRuns.Add(new(line.StyleMap[run.StyleIndex], run.FontPath, run.FontSize, run.BidiLevel,
-                    run.Origin with { Y = run.Origin.Y + shift }, glyphs));
+                    run.Origin with { Y = run.Origin.Y + shift }, glyphs, run.RasterContext));
             }
         }
         return new(outputRuns.ToArray(), outputLines.ToArray(), carets, maximum, height);

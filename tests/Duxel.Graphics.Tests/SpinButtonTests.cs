@@ -361,7 +361,86 @@ internal static class SpinButtonTests
         check(live!.TextFocusOwnerCount == 1, "SpinButton owns one weak editor focus observer");
         spin.Dispose();
         check(live.TextFocusOwnerCount == 0, "SpinButton disposal releases its editor focus observer");
+        CheckCustomPolicy(check);
     }
+
+    private static void CheckCustomPolicy(Action<bool, string> check)
+    {
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        ControlFontFixture.Configure(context);
+        using var native = new WindowsAccessibility(0);
+        var tree = native.Tree;
+        context.SetAccessibilityTree(tree);
+        double? model = 1;
+        var accept = true;
+        using var spin = new CustomSpinButton(new(() => model, value => { if (accept) model = value; }));
+        var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        void Frame(UiInputState input, float delta = 1f / 60)
+        {
+            context.NewFrame(new(delta, new(480, 320), new(1, 1)), input, new(0, 0, 480, 320), UiTextSettings.Default);
+            context.Render(new Screen(ui =>
+            {
+                ui.EnableRootViewportContentLayout(contentPadding: 0);
+                spin.Render(ui);
+            }));
+            using var draw = context.GetDrawData();
+        }
+        UiAccessibilityElement Root() => tree.TryGet(tree.Root.First!, out var root)
+            ? root : throw new InvalidOperationException("Missing custom SpinButton.");
+
+        Frame(idle);
+        var increment = ReleaseOnlyPresentation.IncrementBounds;
+        var point = new UiVector2(increment.X + increment.Width / 2, increment.Y + increment.Height / 2);
+        var down = idle with { MousePosition = point, LeftMouseDown = true };
+        Frame(down with { LeftMousePressed = true });
+        Frame(down, .5f);
+        check(model == 1 && spin.Input.RepeatAt is null, "Custom SpinButton waits for release and never schedules pointer repeat");
+        Frame(idle with { MousePosition = point, LeftMouseReleased = true });
+        check(model == 2 && Root().Node.Range?.Value == 2, "Custom SpinButton release uses the shared numeric and accessibility path");
+        var customKey = idle with { KeyEvents = [new(UiKey.DownArrow, true, default)] };
+        Frame(customKey);
+        check(model == 7 && Root().Node.Range?.Value == 7 && ReleaseOnlyPresentation.IncrementHeld,
+            "Custom SpinButton maps Down to page increment and its painter receives the mapped held state");
+        Frame(idle with { KeyEvents = [new(UiKey.DownArrow, false, default)] });
+        accept = false;
+        Frame(customKey);
+        check(model == 7 && spin.DisplayText == "7" && Root().Node is { Value: "7", Range.Value: 7 },
+            "Custom SpinButton preserves a rejected value in the editor and its accessible range");
+    }
+
+    private sealed class CustomSpinButton(UiBinding<double?> value)
+        : UiSpinButton<ReleaseOnlyBehavior, ReleaseOnlyPresentation>("Custom amount", value,
+            new(Minimum : 0, Maximum : 10, PageStep : 5));
+
+    private readonly struct ReleaseOnlyBehavior : IUiSpinButtonBehavior
+    {
+        public static UiButtonActivation StepperActivation => UiButtonActivation.Release;
+        public static bool RepeatOnHold => false;
+        public static UiSpinButtonKeyAction ResolveKey(UiKeyEvent key) => key.Key == UiKey.DownArrow
+            ? UiSpinButtonKeyAction.PageIncrement : UiDefaultSpinButtonBehavior.ResolveKey(key);
+        public static (bool Increment, bool Decrement) GetHeldKeys(UiImmediateContext input)
+            => (input.IsKeyDown(UiKey.DownArrow), false);
+    }
+
+    private readonly struct ReleaseOnlyPresentation : IUiSpinButtonPresentation
+    {
+        internal static UiRect IncrementBounds { get; private set; }
+        internal static bool IncrementHeld { get; private set; }
+        public static UiControlTypographyScope BeginText(UiControlContext context, UiSpinButtonOptions options)
+            => UiFluentSpinButtonPresentation.BeginText(context, options);
+        public static UiVector2 Measure(UiControlContext context, UiSpinButtonOptions options)
+            => UiFluentSpinButtonPresentation.Measure(context, options with { Width = 180 });
+        public static UiSpinButtonLayout Arrange(UiControlContext context, UiRect bounds, UiSpinButtonOptions options)
+            => UiFluentSpinButtonPresentation.Arrange(context, bounds, options);
+        public static void Paint(UiControlContext context, UiSpinButtonLayout layout, UiInputEditResult edit, UiSpinButtonOptions options,
+            UiButtonInteraction increment, UiButtonInteraction decrement, bool canIncrement, bool canDecrement)
+        {
+            IncrementBounds = layout.Increment;
+            IncrementHeld = increment.Held;
+            UiFluentSpinButtonPresentation.Paint(context, layout, edit, options, increment, decrement, canIncrement, canDecrement);
+        }
+    }
+
     private sealed class Screen(Action<UiImmediateContext> render) : UiScreen
     {
         public override void Render(UiImmediateContext ui) => render(ui);

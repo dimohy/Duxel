@@ -453,6 +453,13 @@
   ],
   "variants": [
     [
+      "CircularProgressIndicator",
+      "variant",
+      "android",
+      "documented",
+      "https://fluent2.microsoft.design/components/android/core/progressindicator/usage"
+    ],
+    [
       "Body1",
       "variant",
       "web-react",
@@ -537,6 +544,13 @@
       "https://fluent2.microsoft.design/components/web/react/core/card/usage"
     ],
     [
+      "CompoundButton",
+      "variant",
+      "web-react",
+      "documented",
+      "https://fluent2.microsoft.design/components/web/react/core/button/usage"
+    ],
+    [
       "CounterBadge",
       "variant",
       "web-react",
@@ -558,11 +572,74 @@
       "https://fluent2.microsoft.design/components/web/react/core/tag/usage"
     ],
     [
+      "InlineDrawer",
+      "variant",
+      "web-react",
+      "documented",
+      "https://fluent2.microsoft.design/components/web/react/core/drawer/usage"
+    ],
+    [
+      "OverlayDrawer",
+      "variant",
+      "web-react",
+      "documented",
+      "https://fluent2.microsoft.design/components/web/react/core/drawer/usage"
+    ],
+    [
       "LargeTitle",
       "variant",
       "web-react",
       "parent-guidance-and-linked-reference",
       "https://fluent2.microsoft.design/components/web/react/core/text/usage"
+    ],
+    [
+      "MenuButton",
+      "variant",
+      "web-react",
+      "documented",
+      "https://fluent2.microsoft.design/components/web/react/core/button/usage"
+    ],
+    [
+      "MessageBarActions",
+      "variant",
+      "web-react",
+      "documented",
+      "https://fluent2.microsoft.design/components/web/react/core/messagebar/usage"
+    ],
+    [
+      "MessageBarBody",
+      "variant",
+      "web-react",
+      "documented",
+      "https://fluent2.microsoft.design/components/web/react/core/messagebar/usage"
+    ],
+    [
+      "MessageBarGroup",
+      "variant",
+      "web-react",
+      "documented",
+      "https://fluent2.microsoft.design/components/web/react/core/messagebar/usage"
+    ],
+    [
+      "MessageBarTitle",
+      "variant",
+      "web-react",
+      "documented",
+      "https://fluent2.microsoft.design/components/web/react/core/messagebar/usage"
+    ],
+    [
+      "RatingDisplay",
+      "variant",
+      "web-react",
+      "parent-guidance-and-linked-reference",
+      "https://fluent2.microsoft.design/components/web/react/core/rating/usage"
+    ],
+    [
+      "SplitButton",
+      "variant",
+      "web-react",
+      "documented",
+      "https://fluent2.microsoft.design/components/web/react/core/button/usage"
     ],
     [
       "Subtitle1",
@@ -633,6 +710,11 @@
     "Windows guidance is contextual; repository APIs do not automatically become component requirements."
   ],
   "variantReviews": {
+    "CircularProgressIndicator": {
+      "source": "https://fluent2.microsoft.design/components/android/core/progressindicator/usage",
+      "section": "Types / Circular",
+      "reviewedDate": "2026-11-20"
+    },
     "CardFooter": {
       "source": "https://fluent2.microsoft.design/components/web/react/core/card/usage",
       "section": "Layout / Anatomy",
@@ -652,6 +734,16 @@
       "source": "https://fluent2.microsoft.design/components/web/react/core/tag/usage",
       "section": "Types / Interaction tag",
       "reviewedDate": "2026-11-13"
+    },
+    "InlineDrawer": {
+      "source": "https://fluent2.microsoft.design/components/web/react/core/drawer/usage",
+      "section": "Types / Inline",
+      "reviewedDate": "2026-11-20"
+    },
+    "OverlayDrawer": {
+      "source": "https://fluent2.microsoft.design/components/web/react/core/drawer/usage",
+      "section": "Types / Overlay",
+      "reviewedDate": "2026-11-20"
     },
     "PresenceBadge": {
       "source": "https://raw.githubusercontent.com/microsoft/fluentui/8830c10bfb2f4c1bdd540287b09713b9679cd1ad/packages/react-components/react-badge/library/src/components/PresenceBadge/PresenceBadge.types.ts",

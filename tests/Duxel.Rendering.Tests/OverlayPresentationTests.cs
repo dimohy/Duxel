@@ -51,6 +51,11 @@ internal static class OverlayPresentationTests
             var reference = capture($"overlay-reference-{samples}", ui => Content(ui, false));
             var actual = capture($"overlay-dynamic-{samples}", ui => Content(ui, true));
             check(actual.AsSpan().SequenceEqual(reference), $"automatic foreground preserves opaque, translucent and curved pixels at {samples}x MSAA");
+            var lastRow = actual.AsSpan(checked(actual.Length - (int)bounds.Width * 4));
+            var lastRowFilled = true;
+            for (var pixel = 0; pixel < lastRow.Length; pixel += 4)
+                lastRowFilled &= lastRow[pixel] == 255 && lastRow[pixel + 1] == 0 && lastRow[pixel + 2] == 0;
+            check(lastRowFilled, $"full-viewport geometry covers the last framebuffer row at {samples}x MSAA");
             check(renderer.LastFrameMetrics.DepthAllocatedBytes == 0, $"screen presentation creates no depth attachments at {samples}x MSAA");
             for (var i = 0; i < 4; i++) capture($"overlay-warm-{samples}", ui => Content(ui, true));
             check(renderer.LastFrameMetrics.ResidentHits > 0, $"automatic foreground reuses resident GPU geometry at {samples}x MSAA");

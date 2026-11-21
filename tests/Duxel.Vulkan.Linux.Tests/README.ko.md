@@ -1,5 +1,11 @@
 # Linux Vulkan 원시 픽셀 계약
 
+실행 명령 끝에 `inline-paragraph-cache`를 붙이면 320×240 고정 창에서 문단 레이아웃·글꼴 텍스처 재사용과 새 위젯의 픽셀을 비교합니다.
+
+재사용 위젯은 R8, 비교용 새 위젯은 RGBA를 올립니다. 1×·4× MSAA에서 문단 화면 22개를 비교하고, 텍스처 생성·영역 일괄 갱신·폐기·재생성 검사 5개를 실행합니다.
+
+실행 명령 끝에 `styled-paragraph-raster`를 붙이면 전체 문단 마스크 36개를 독립 Pango 기준과 대조합니다.
+
 .NET 11.0.0과 프레임 슬롯 3개로 실행해 Windows에서 3,554개, WSLg Linux의 llvmpipe에서 3,570개 검사를 통과했습니다. 각 운영체제에서 전체 다시 그리기와 화면 재사용의 픽셀이 일치했습니다. 운영체제 간에는 이름이 같은 RGBA 574쌍 중 214쌍이 일치했고 작은 영역 갱신 장면 160쌍은 모두 일치했습니다. 텍스트와 일부 둥근 도형 장면을 포함한 360쌍에는 차이가 있었습니다. [장면별 비교 결과](W:/Cache/Duxel/gallery-source-20261117/cross-host-present-1938/comparison.json).
 
 아래 Linux 명령 끝에 `host-pixels`를 붙이거나 Windows에서 `Duxel.Graphics.Tests <새-결과-폴더> presentation-reuse-host-pixels`를 실행합니다. 프레임 슬롯 3개로 맞추면 두 명령 모두 같은 전체 다시 그리기 장면의 320 × 240 RGBA 원본 10개를 저장합니다. 작은 영역 갱신 대조 장면 2쌍은 일치했습니다. 둥근 도형 장면 6쌍에서는 RGB 채널 값이 최대 1만 달랐고 알파 값은 모두 같았습니다. 4배 MSAA에서는 반복되는 반투명 막대에도 차이가 있었습니다. [채널별 차이](W:/Cache/Duxel/gallery-source-20261117/cross-host-rgba-1939/rgba-comparison.json).

@@ -31,7 +31,7 @@ Duxel 사용자가 C# 선언형 UI를 SwiftUI, Flutter, Jetpack Compose처럼 �
 5. skin은 런타임 테마 파싱 결과가 아니라 C# 타입 또는 source-generated 값으로 컴파일 타임에 고정될 수 있어야 한다.
 6. per-view override도 가능해야 한다.
    - 예: `Dux.Button("Save").ControlStyle(MyButtonStyle.PrimaryPill)`
-   - 예: `Dux.TextField("name", name).ControlStyle(MyTextFieldStyle.Underline)`
+   - 예: `Dux.TextField("name", name).TextFieldStyle(MyTextFieldStyle.Underline)`
 7. 기본 `Windows11` / `Windows11Dark` skin은 지금 개선한 모양을 보존한다.
 
 ## 설계 원칙
@@ -70,7 +70,7 @@ Dux.Button("Save", Save)
     .ControlStyle(ProductButtonStyle.PrimaryPill);
 
 Dux.TextField("name", name)
-    .ControlStyle(ProductTextFieldStyle.Underline);
+    .TextFieldStyle(ProductTextFieldStyle.Underline);
 ```
 
 ## 구현 후보 구조

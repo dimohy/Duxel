@@ -11,7 +11,9 @@ public readonly record struct UiSelectOptions(float Width = 250, UiDropdownSize 
 }
 
 /// <summary>A plain single-choice form control. Rich or multiple options belong to Dropdown.</summary>
-public class UiSelect<TPresentation> : UiControlWidget, IUiLabelTarget where TPresentation : IUiDropdownPresentation
+public class UiSelect<TBehavior, TPresentation> : UiControlWidget, IUiLabelTarget
+    where TBehavior : IUiMenuBehavior
+    where TPresentation : IUiDropdownPresentation
 {
     private UiOptionSelection? _selection;
     private readonly UiOwnedMenuState _input = new();
@@ -55,7 +57,7 @@ public class UiSelect<TPresentation> : UiControlWidget, IUiLabelTarget where TPr
         _input.Attach(ui);
         var selection = _selection!;
         selection.Synchronize();
-        ui.RenderDropdown<TPresentation>(PrimaryInputId(Label), Label, selection, _input.Menu, _options.Dropdown,
+        ui.RenderDropdown<TBehavior, TPresentation>(PrimaryInputId(Label), Label, selection, _input.Menu, _options.Dropdown,
             static () => string.Empty, commitClosedSelection : true);
     }
     private protected override void ReleaseOwnedResources()
@@ -63,6 +65,11 @@ public class UiSelect<TPresentation> : UiControlWidget, IUiLabelTarget where TPr
         _input.Dispose(); _selection = null; base.ReleaseOwnedResources();
     }
 }
+
+public class UiSelect<TPresentation>(string label, UiBinding<string?> selection, UiSelectOption[] items,
+    UiSelectOptions? options = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+    : UiSelect<UiDefaultDropdownBehavior, TPresentation>(label, selection, items, options, identity)
+    where TPresentation : IUiDropdownPresentation;
 
 [UiWidgetStyle(typeof(UiSelect<>), typeof(UiFluentSelectPresentation))]
 [UiComponent("Select", UiComponentExposure.Fluent)]

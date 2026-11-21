@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -31,6 +31,7 @@ internal static class PresentationReuseTests
             {
                 control.Renderer.SetMsaaSamples(samples);
                 candidate.Renderer.SetMsaaSamples(samples);
+                VerifyReplayTextMode(control, output, samples, Check);
                 byte[]? lastReferencePixels = null, previousReferencePixels = null;
                 void Pair(string name, Action<UiImmediateContext> draw, bool? expectReuse = null)
                 {
@@ -426,6 +427,7 @@ internal static class PresentationReuseTests
                     }, Check, fixture.Build, fixture.Render, fixture.RenderSubmit,
                         () => fixture.Renderer.ValidationPaintGeometryEntries, (int)fixture.FrameInfo.DisplaySize.X, new(2),
                         () => fixture.Renderer.LastFrameMetrics, fixture.Renderer.ValidationSwapchainImageCount,
+                        fixture.Renderer.ValidationPaintTargetHandles,
                         forceFullReference: !compare);
                     Check(fixture.Renderer.ValidationDamageOwnershipIsConsistent(), "paint-group lifetime preserves snapshot reader ownership");
                 }
@@ -521,12 +523,68 @@ internal static class PresentationReuseTests
             : new(20.25f + width - 7, 28.125f, 14, 24.5f), new(220, 230, 240, 220), default, 7, 0);
     }
 
+    private static void VerifyReplayTextMode(Fixture fixture, string output, int samples, Action<bool, string> check)
+    {
+        var flat = new UiLayerOptions(false, 1, default) { ContentVersion = 1 };
+        var camera = new UiLayer3D(System.Numerics.Matrix4x4.Identity, false);
+        var empty = fixture.Capture(_ => { });
+        foreach (var inherited in new[] { false, true })
+        {
+            var prefix = $"msaa{samples}-replay-text-mode-{(inherited ? "inherited" : "explicit")}";
+            (byte[] Pixels, bool Hit) Capture(bool projected, bool direct)
+            {
+                var hit = false;
+                var pixels = fixture.Capture(ui =>
+                {
+                    var parent = projected && inherited;
+                    if (parent)
+                        ui.BeginLayer(prefix + "-parent", new UiLayerOptions(false, 1, default) { Scene3D = camera });
+                    var options = flat with { Scene3D = projected && !inherited ? camera : null };
+                    var id = prefix + (direct ? "-direct" : "-scoped");
+                    hit = direct && ui.TryReplayLayer(id, options);
+                    if (!hit)
+                    {
+                        if (ui.BeginLayer(id, options))
+                        {
+                            ui.SetCursorScreenPos(new(20, 24));
+                            ui.TextColored(new(0xFFFFFFFF), "Layer 한글");
+                        }
+                        ui.EndLayer();
+                    }
+                    if (parent)
+                        ui.EndLayer();
+                });
+                return (pixels, hit);
+            }
+
+            byte[]? flatPixels = null;
+            for (var step = 0; step < 5; step++)
+            {
+                var projected = step is 1 or 2;
+                var expected = Capture(projected, false).Pixels;
+                var (actual, hit) = Capture(projected, true);
+                var same = actual.AsSpan().SequenceEqual(expected);
+                if (!same)
+                {
+                    File.WriteAllBytes(Path.Combine(output, $"{prefix}-{step}.scoped.rgba"), expected);
+                    File.WriteAllBytes(Path.Combine(output, $"{prefix}-{step}.direct.rgba"), actual);
+                }
+                if (!projected)
+                    flatPixels = expected;
+                check(!expected.AsSpan().SequenceEqual(empty), $"{prefix}-{step} draws visible text");
+                if (projected)
+                    check(!expected.AsSpan().SequenceEqual(flatPixels), $"{prefix}-{step} uses distinct vector text pixels");
+                check(same, $"{prefix}-{step} direct and scoped replay render the same text pixels");
+                check(hit == (step is 2 or 4), $"{prefix}-{step} only replays when the text mode is unchanged");
+            }
+        }
+    }
+
     internal sealed class Fixture : IDisposable
     {
         private readonly IPlatformBackend _platform;
         private VulkanRendererBackend? _renderer;
-        internal readonly UiContext Context = new(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255],
-            new Dictionary<int, UiGlyphInfo>(), new Dictionary<uint, float>(), 16, 0, 0, -1), new(1), new(2));
+        internal readonly UiContext Context;
         private bool _upload = true;
         private readonly bool _forceFullRepaint;
         internal bool TextureCreated;
@@ -541,8 +599,14 @@ internal static class PresentationReuseTests
         internal VulkanRendererBackend Renderer => _renderer ?? throw new ObjectDisposedException(nameof(Fixture));
         internal UiFrameInfo FrameInfo => new(1f / 60, new(_platform.FramebufferSize.Width, _platform.FramebufferSize.Height), new(1, 1));
 
-        internal Fixture(int frameSlots, bool reuse, IPlatformBackend? platform = null, int msaaSamples = 1)
+        internal Fixture(int frameSlots, bool reuse, IPlatformBackend? platform = null, int msaaSamples = 1,
+            bool useR8ParagraphCoverage = false)
         {
+            Context = new(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255],
+                new Dictionary<int, UiGlyphInfo>(), new Dictionary<uint, float>(), 16, 0, 0, -1), new(1), new(2))
+            {
+                UseR8ParagraphCoverage = useR8ParagraphCoverage
+            };
             _forceFullRepaint = !reuse;
             _platform = platform ?? PresentationTestPlatform.Create();
             try

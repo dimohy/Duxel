@@ -45,7 +45,9 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private readonly record struct RetiredStaticGeometryBuffer(
         StaticGeometryBuffer Buffer,
-        int AvailableFrame);
+        int AvailableFrame,
+        long ReuseUntilTimestamp,
+        ulong ExtendedReuseBytes);
 
     private readonly struct TextureResource
     {

@@ -3,6 +3,8 @@ namespace Duxel.Core;
 internal sealed partial class UiVisualTextLines
 {
     private PlatformTextParagraphLayout? _nativeParagraph;
+    internal WholeParagraphMaskKey? WholeParagraphMask { get; private set; }
+    internal float WholeParagraphOffsetY { get; private set; }
     private float _nativeParagraphScale;
     private float[] _nativeParagraphLineOffsets = [];
     private int[] _nativeParagraphRunStarts = [], _nativeParagraphPaintRuns = [];
@@ -18,6 +20,7 @@ internal sealed partial class UiVisualTextLines
     private void ClearNativeParagraph()
     {
         _nativeParagraph = null;
+        WholeParagraphMask = null;
         _nativeParagraphLineOffsets = [];
         _nativeParagraphRunStarts = [];
         _nativeParagraphPaintRuns = [];
@@ -35,8 +38,9 @@ internal sealed partial class UiVisualTextLines
             return false;
         var map = projection.SourceToDisplay;
         var rightToLeft = _styledSource is UiInlineTextSource { RightToLeft: true } or UiInlineFlowTextSource { RightToLeft: true };
-        if (!ui.TryCreateNativeStyledParagraph(projection, width, wrap, rightToLeft,
-            out var paragraph, out var heights, out var scale, _styledSource as UiCodeDocument))
+        var plainInline = _styledSource is UiInlineTextSource { BaseStyle.Flags: UiStyledTextFlags.None };
+        if (!ui.TryCreateNativeStyledParagraph(projection, width, wrap, rightToLeft, plainInline,
+            out var paragraph, out var heights, out var scale, out var wholeRequest, _styledSource as UiCodeDocument))
         {
             if (rightToLeft)
                 throw new NotSupportedException("Explicit paragraph direction requires a native paragraph backend and direct text.");
@@ -88,6 +92,19 @@ internal sealed partial class UiVisualTextLines
             _lines.Add(new(start, end, text.Substring(start, end - start), formattedWidth, Height, height));
             Width = MathF.Max(Width, formattedWidth);
             Height += height;
+        }
+        WholeParagraphMask = null;
+        if (wholeRequest is not null && nativeLines.Length != 0)
+        {
+            var offset = _nativeParagraphLineOffsets[0];
+            var sharesLinePlacement = true;
+            for (var line = 1; line < _nativeParagraphLineOffsets.Length; line++)
+                sharesLinePlacement &= _nativeParagraphLineOffsets[line] == offset;
+            if (sharesLinePlacement)
+            {
+                WholeParagraphMask = new(wholeRequest);
+                WholeParagraphOffsetY = offset;
+            }
         }
         var runs = paragraph.Runs.Span;
         var runLines = new int[runs.Length];
@@ -176,9 +193,11 @@ internal sealed partial class UiVisualTextLines
 public sealed partial class UiImmediateContext
 {
     internal bool TryCreateNativeStyledParagraph(UiStyledTextProjection projection, float width, bool wrap, bool rightToLeft,
-        out PlatformTextParagraphLayout? paragraph, out float[] heights, out float scale, UiCodeDocument? code = null)
+        bool plainInline, out PlatformTextParagraphLayout? paragraph, out float[] heights, out float scale,
+        out PlatformTextParagraphRequest? wholeRequest, UiCodeDocument? code = null)
     {
         paragraph = null;
+        wholeRequest = null;
         heights = [];
         scale = 1f / _contentScale;
         if (_platformTextBackend is not IPlatformTextParagraphBackend backend
@@ -194,7 +213,10 @@ public sealed partial class UiImmediateContext
             var style = styles.Length == 0 ? default : styles[index];
             using var typography = BeginStyledTypography(style.Style);
             native[index] = new(style.Start, style.Length, _directTextPrimaryFontPath!, _directTextSecondaryFontPath,
-                ResolveDirectTextFontSize(_textSettings));
+                ResolveDirectTextFontSize(_textSettings))
+            {
+                PaintGroup = UiStyledTextPalette.ForegroundGroup(style.Style)
+            };
             heights[index] = typography.LineHeight;
             var image = IsStyledImage(projection.Text.AsSpan(style.Start, style.Length), style.Style);
             var task = IsStyledTask(projection.Text.AsSpan(style.Start, style.Length), style.Style);
@@ -221,17 +243,110 @@ public sealed partial class UiImmediateContext
                     measurement.Baseline + (objectHeight - measurement.Height) / 2));
             }
         }
-        paragraph = code is not null
-            ? code.ParagraphLayouts.Prepare(backend, projection.Text, native, wrap ? width * _contentScale : float.PositiveInfinity,
-                IsVectorTextLayer(), LayoutMeasurementKey)
-            : backend.CreateParagraph(new(projection.Text, native, objects is null ? [] : objects.ToArray(),
-            wrap ? width * _contentScale : float.PositiveInfinity,
-            rightToLeft ? PlatformTextParagraphDirection.RightToLeft : PlatformTextParagraphDirection.LeftToRight), IsVectorTextLayer());
+        var physicalWidth = wrap ? width * _contentScale : float.PositiveInfinity;
+        var vector = IsVectorTextLayer();
+        if (code is not null)
+        {
+            paragraph = code.ParagraphLayouts.Prepare(backend, projection.Text, native, physicalWidth, vector, LayoutMeasurementKey);
+        }
+        else
+        {
+            var request = new PlatformTextParagraphRequest(projection.Text, native, objects is null ? [] : objects.ToArray(),
+                physicalWidth, rightToLeft ? PlatformTextParagraphDirection.RightToLeft : PlatformTextParagraphDirection.LeftToRight);
+            paragraph = backend.CreateParagraph(request, vector);
+            if (plainInline && !vector && scale == 1 && objects is null && backend is IPlatformTextWholeParagraphRasterizer
+                && paragraph.Width <= DirectTextAtlasPageSize - 2 && paragraph.Height <= DirectTextAtlasPageSize - 2)
+                wholeRequest = request;
+        }
         if (paragraph.Carets.Length != projection.Text.Length + 1)
             throw new InvalidOperationException("A paragraph backend omitted original source caret positions.");
         if (paragraph.Objects.Length != (objects?.Count ?? 0))
             throw new InvalidOperationException("A paragraph backend omitted declared inline objects.");
         return true;
+    }
+
+    private bool TryPaintWholeInlineParagraph(UiVisualTextLines lines, UiVector2 origin, UiColor color, UiRect clip,
+        ReadOnlySpan<float> lineOffsets)
+    {
+        if (lines.WholeParagraphMask is not { } mask || IsVectorTextLayer()
+            || _platformTextBackend is not IPlatformTextWholeParagraphRasterizer rasterizer)
+            return false;
+        // A single mask applies opacity once. Translucent runs retain their individual blending.
+        var foreground = StyledTextColor(default, color, new UiControlContext(this).FluentColorScheme == UiFluentColorScheme.Dark);
+        if ((foreground.Rgba >> 24) != 255)
+            return false;
+        var horizontalOffset = lineOffsets.IsEmpty ? 0 : lineOffsets[0];
+        foreach (var offset in lineOffsets)
+            if (offset != horizontalOffset)
+                return false;
+        var x = origin.X + horizontalOffset;
+        var y = origin.Y + lines.WholeParagraphOffsetY;
+        // At a half-pixel tie, rounding a translated bitmap can depend on the parity of its ink origin.
+        if (_textSettings.PixelSnap && (x - MathF.Floor(x) == .5f || y - MathF.Floor(y) == .5f))
+            return false;
+        if (!IsPresentationPass)
+            return true;
+        var key = new DirectTextCacheKey(string.Empty, null, string.Empty, 0, _directTextBackendGeneration)
+        {
+            WholeParagraph = mask
+        };
+        TrackLayerTextDependency(key);
+        _capturingPaintGroup?.PendingTextKeys.Add(key);
+        if (!_directTextCache.TryGetValue(key, out var entry))
+        {
+            var coverage = rasterizer.RasterizeWholeParagraphCoverage(mask.Request);
+            if (UseR8ParagraphCoverage)
+                entry = StoreParagraphRaster(key, coverage.Width, coverage.Height, coverage.Pixels,
+                    coverage.Origin, default, null, UiTextureFormat.R8CoverageUnorm);
+            else
+                entry = StoreParagraphRaster(key, coverage.ToRgba(), default);
+        }
+        entry = UseParagraphRaster(key, entry);
+        if (entry.TextureId is { } texture && entry.Width > 0 && entry.Height > 0)
+        {
+            var position = RasterTextOrigin(x + entry.OriginX, y - entry.Baseline, _textSettings.PixelSnap);
+            _builder.AddTextImage(texture, position, new(position.X + entry.Width, position.Y + entry.Height),
+                new(entry.U0, entry.V0), new(entry.U1, entry.V1), foreground, clip);
+        }
+        return true;
+    }
+
+    private DirectTextCacheEntry StoreParagraphRaster(in DirectTextCacheKey key, PlatformTextParagraphRaster pixels,
+        UiVector2 referenceOrigin)
+        => StoreParagraphRaster(key, pixels.Width, pixels.Height, pixels.RgbaPixels, pixels.Origin,
+            referenceOrigin, pixels.PixelOwner, UiTextureFormat.Rgba8Unorm);
+
+    private DirectTextCacheEntry StoreParagraphRaster(in DirectTextCacheKey key, int width, int height,
+        ReadOnlyMemory<byte> pixels, UiVector2 origin, UiVector2 referenceOrigin, System.Buffers.IMemoryOwner<byte>? pixelOwner,
+        UiTextureFormat format)
+    {
+        var transferred = false;
+        try
+        {
+            ObserveValidationParagraphRaster(pixels.IsEmpty);
+            var bytesPerPixel = format == UiTextureFormat.R8CoverageUnorm ? 1 : 4;
+            if (width < 0 || height < 0 || pixels.Length != checked(width * height * bytesPerPixel)
+                || !float.IsFinite(origin.X) || !float.IsFinite(origin.Y))
+                throw new InvalidOperationException("Paragraph paint returned invalid raster bounds or storage.");
+            var entry = new DirectTextCacheEntry(null, width, height, 0, -origin.Y, 0, _state.FrameCount,
+                pixels, PixelOwner: pixelOwner, OriginX: origin.X, ParagraphOrigin: referenceOrigin, TextureFormat: format);
+            StoreDirectTextEntry(key, entry);
+            transferred = true;
+            return entry;
+        }
+        finally
+        {
+            if (!transferred)
+                pixelOwner?.Dispose();
+        }
+    }
+
+    private DirectTextCacheEntry UseParagraphRaster(in DirectTextCacheKey key, DirectTextCacheEntry entry)
+    {
+        entry = entry with { LastUsedFrame = _state.FrameCount };
+        StoreDirectTextEntry(key, entry);
+        _directTextPaintedKeys.Add(key);
+        return EnsureDirectTextTexture(key, entry);
     }
 
     private void PaintNativeStyledParagraphLine(UiVisualTextLines visual, int line, UiVector2 origin, UiColor color, UiRect clip,
@@ -277,34 +392,8 @@ public sealed partial class UiImmediateContext
             TrackLayerTextDependency(key);
             _capturingPaintGroup?.PendingTextKeys.Add(key);
             if (!_directTextCache.TryGetValue(key, out var entry))
-            {
-                var pixels = backend.RasterizeParagraphRun(run);
-                ObserveValidationParagraphRaster(pixels.RgbaPixels.IsEmpty);
-                var transferred = false;
-                try
-                {
-                    if (pixels.Width < 0 || pixels.Height < 0 || pixels.RgbaPixels.Length != checked(pixels.Width * pixels.Height * 4)
-                        || !float.IsFinite(pixels.Origin.X) || !float.IsFinite(pixels.Origin.Y))
-                        throw new InvalidOperationException("Paragraph paint returned invalid raster bounds or storage.");
-                    entry = new(null, pixels.Width, pixels.Height, 0, -pixels.Origin.Y, 0, _state.FrameCount,
-                        pixels.RgbaPixels, PixelOwner: pixels.PixelOwner, OriginX: pixels.Origin.X, ParagraphOrigin: run.Origin);
-                    StoreDirectTextEntry(key, entry);
-                    transferred = true;
-                }
-                finally
-                {
-                    if (!transferred)
-                        pixels.PixelOwner?.Dispose();
-                }
-            }
-            entry = entry with
-            {
-                LastUsedFrame = _state.FrameCount
-            };
-            StoreDirectTextEntry(key, entry);
-            entry = EnsureDirectTextTexture(key, entry);
-            // Visible whitespace runs also belong to the working set, even without drawable pixels.
-            _directTextPaintedKeys.Add(key);
+                entry = StoreParagraphRaster(key, backend.RasterizeParagraphRun(run), run.Origin);
+            entry = UseParagraphRaster(key, entry);
             if (entry.TextureId is { } texture && entry.Width > 0 && entry.Height > 0)
             {
                 var placement = new UiVector2(run.Origin.X - entry.ParagraphOrigin.X, run.Origin.Y - entry.ParagraphOrigin.Y);
