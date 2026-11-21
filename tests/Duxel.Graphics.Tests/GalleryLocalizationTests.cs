@@ -15,10 +15,11 @@ internal static class GalleryLocalizationTests
             "Duxel localization formats arguments in the requested culture");
         check(catalog.GetText("Settings", region) == "Settings", "Duxel localization uses the source when no translation exists");
 
+        var systemLanguage = CultureInfo.CurrentUICulture;
         var path = Path.GetTempFileName();
         try
         {
-            File.WriteAllText(path, "en");
+            File.Delete(path);
             using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
             ControlFontFixture.Configure(context);
             var fonts = GalleryText.ConfigureFonts(new());
@@ -27,7 +28,6 @@ internal static class GalleryLocalizationTests
             using var tree = new UiAccessibilityTree();
             context.SetAccessibilityTree(tree);
             var services = ObserverServices.CreateWindows();
-            using var screen = new GalleryLocalizedScreen(services, new DuxelAppSession(), path);
             var input = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
             void Render(UiScreen active)
             {
@@ -35,14 +35,35 @@ internal static class GalleryLocalizationTests
                 context.Render(active);
                 using var draw = context.GetDrawData();
             }
+            UiAccessibilityNode? Find(string name, UiAccessibilityRole role) => tree.CaptureSnapshot().Elements
+                .Select(element => element.Node).FirstOrDefault(node => node.Name == name && node.Role == role);
+
+            foreach (var (culture, heading) in new[]
+            {
+                ("ko-KR", "개요"),
+                ("en-GB", "Overview"),
+                ("ja-JP", "概要"),
+                ("zh-CN", "概览"),
+                ("fr-FR", "Overview"),
+                ("", "Overview")
+            })
+            {
+                CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
+                using var firstLaunch = new GalleryLocalizedScreen(services, new DuxelAppSession(), path);
+                Render(firstLaunch);
+                check(Find(heading, UiAccessibilityRole.Pane) is not null && !File.Exists(path),
+                    "Gallery first launch uses the expected language for " + (culture.Length == 0 ? "the invariant culture" : culture));
+            }
+
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
+            File.WriteAllText(path, "en");
+            using var screen = new GalleryLocalizedScreen(services, new DuxelAppSession(), path);
             void Frame()
             {
                 Render(screen);
                 context.State.AdvanceTime(.25f);
                 Render(screen);
             }
-            UiAccessibilityNode? Find(string name, UiAccessibilityRole role) => tree.CaptureSnapshot().Elements
-                .Select(element => element.Node).FirstOrDefault(node => node.Name == name && node.Role == role);
             void Invoke(string name, UiAccessibilityRole role = UiAccessibilityRole.Button)
             {
                 var node = Find(name, role) ?? throw new InvalidOperationException("Gallery command is missing: " + name);
@@ -53,7 +74,7 @@ internal static class GalleryLocalizationTests
             }
 
             Frame();
-            check(Find("Overview", UiAccessibilityRole.Pane) is not null, "Gallery loads the saved English preference");
+            check(Find("Overview", UiAccessibilityRole.Pane) is not null, "Gallery prefers saved English to the Japanese system language");
             Invoke("Feature index", UiAccessibilityRole.Link);
             Invoke("DataGrid");
             check(Find("DataGrid", UiAccessibilityRole.Pane) is not null, "Feature index opens the live DataGrid route");
@@ -83,6 +104,7 @@ internal static class GalleryLocalizationTests
         }
         finally
         {
+            CultureInfo.CurrentUICulture = systemLanguage;
             File.Delete(path);
         }
     }
