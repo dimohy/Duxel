@@ -1279,3 +1279,96 @@ Yellow Gallardo: 132 paths, 113 gradients, and 3 patterns	노란 Gallardo · 경
 The Chromium reference is on the left. The GPU-rendered SVG is on the right. Use the controls above to zoom, rotate, and change margins or corners.	왼쪽은 Chromium 기준 이미지, 오른쪽은 GPU에서 그린 SVG입니다. 위의 조절기로 확대·회전하거나 여백과 모서리를 바꿔 보세요.	左は Chromium の参照画像、右は GPU で描画した SVG です。上の調整項目で拡大、回転、余白や角丸の変更ができます。	左侧是 Chromium 参考图像，右侧是 GPU 渲染的 SVG。使用上方控件可缩放、旋转并调整外边距或圆角。
 Pixel differences along outlines and fine patterns are under review. Sources, authors, and licenses are listed in Assets/Svg/Browser/ATTRIBUTION.md.	외곽선·미세 패턴의 픽셀 차이는 검증 중입니다. 원본·저작자·라이선스 : Assets/Svg/Browser/ATTRIBUTION.md	輪郭と細かいパターンのピクセル差を検証中です。原典、作者、ライセンスは Assets/Svg/Browser/ATTRIBUTION.md に記載しています。	正在验证轮廓和细小图案的像素差异。原始来源、作者和许可证见 Assets/Svg/Browser/ATTRIBUTION.md。
 SVG layout: {0:F1} × {1:F1} px (including transforms and margins)	SVG 배치 : {0:F1} × {1:F1} px (변환·여백 포함)	SVG の配置：{0:F1} × {1:F1} px（変換と余白を含む）	SVG 布局：{0:F1} × {1:F1} px（含变换和外边距）
+more tabs	개 탭 더 보기	個のタブを表示	个更多选项卡
+Tab overflow comparison	넘침 비교	タブのオーバーフロー比較	选项卡溢出对比
+Analysis	분석	分析	分析
+Help	도움말	ヘルプ	帮助
+Tab panel {0}: {1}	넘침 본문 {0} : {1}	タブパネル {0}：{1}	选项卡面板 {0}：{1}
+Tab width: {0}	탭 폭 : {0}	タブの幅：{0}	选项卡宽度：{0}
+Tab direction: {0}	탭 방향 : {0}	タブの方向：{0}	选项卡方向：{0}
+Tab orientation: {0}	탭 배치 : {0}	タブの配置：{0}	选项卡排列：{0}
+Tab overflow and panels	탭 넘침과 본문	タブのオーバーフローとパネル	选项卡溢出与面板
+Choose a hidden tab from the overflow menu to switch its header and panel together. The panel keeps its counter.	더 보기에서 숨긴 탭을 선택하면 헤더와 본문이 함께 바뀝니다. 본문 카운터는 유지됩니다.	オーバーフローメニューで非表示のタブを選ぶと、見出しとパネルが同時に切り替わります。パネルのカウンターは保持されます。	从溢出菜单选择隐藏选项卡时，标题和面板会一起切换。面板保留其计数。
+Tab styles and icons	탭 표현과 아이콘	タブの外観とアイコン	选项卡样式和图标
+The tab lists share one selection. Use the arrow keys to move focus, then select a tab. Watch its icon switch between outline and filled styles.	각 탭 목록은 선택한 값을 공유합니다. 방향키로 포커스를 옮겼을 때와 탭을 선택했을 때를 비교하고, 아이콘이 윤곽선과 채움 모양으로 바뀌는지도 살펴보세요.	各タブリストは選択を共有します。矢印キーでフォーカスを動かしてからタブを選び、アイコンが輪郭と塗りつぶしの間で変わることを確認してください。	各选项卡列表共享同一选择。使用方向键移动焦点后选择选项卡，查看图标在轮廓和填充样式之间切换。
+Shared selection: {0}	공유 선택 : {0}	共有する選択：{0}	共享选择：{0}
+Style comparison: {0}	표현 비교 : {0}	外観の比較：{0}	样式对比：{0}
+Icon-only tabs still have accessible names and share the selected value. The Settings tab is disabled.	아이콘 전용 목록도 접근성 이름과 선택 값을 유지합니다. 설정 탭은 비활성 상태입니다.	アイコンのみのタブにもアクセシビリティ名があり、選択を共有します。設定タブは無効です。	仅图标选项卡仍有无障碍名称，并共享选中值。设置选项卡已禁用。
+Combine tabs and menus. Check what happens when space runs out and whether items retain their state when shown again.	탭과 메뉴를 함께 배치해 보세요. 공간이 부족할 때 항목을 어떻게 숨기는지, 숨겼다 다시 표시해도 상태가 유지되는지 확인할 수 있습니다.	タブとメニューを組み合わせ、スペースが足りない場合の表示と、再表示時に項目の状態が保持されることを確認してください。	将选项卡与菜单组合使用，查看空间不足时哪些项目被隐藏，以及再次显示时是否保留状态。
+Overflow item {0}: {1}	넘침 항목 {0} : {1}	オーバーフロー項目 {0}：{1}	溢出项 {0}：{1}
+Hidden	숨김	非表示	隐藏
+Overflow width: {0}	넘침 폭 : {0}	オーバーフローの幅：{0}	溢出布局宽度：{0}
+Priority item: {0}	우선 항목 : {0}	優先項目：{0}	优先项：{0}
+Overflow direction: {0}	넘침 방향 : {0}	オーバーフローの方向：{0}	溢出布局方向：{0}
+Selection: none	선택 : 없음	選択：なし	选择：无
+Open standard menu	공통 메뉴 열기	標準メニューを開く	打开标准菜单
+First action	첫 번째 동작	最初の操作	第一项操作
+Unavailable action	사용할 수 없는 동작	利用できない操作	不可用的操作
+Last action	마지막 동작	最後の操作	最后一项操作
+Selection: {0}	선택 : {0}	選択：{0}	选择：{0}
+Open Fluent menu	Fluent 메뉴 열기	Fluent メニューを開く	打开 Fluent 菜单
+Fluent first action	Fluent 첫 번째	Fluent の最初の操作	Fluent 第一项操作
+Fluent unavailable action	Fluent 사용 불가	Fluent の利用できない操作	Fluent 不可用的操作
+Fluent last action	Fluent 마지막	Fluent の最後の操作	Fluent 最后一项操作
+Fluent selection: {0}	Fluent 선택 : {0}	Fluent の選択：{0}	Fluent 选择：{0}
+Long menu with typeahead	긴 메뉴·문자 탐색	入力検索付きの長いメニュー	支持键入定位的长菜单
+Item {0}	항목 {0}	項目 {0}	项目 {0}
+Zulu last action	Zulu 마지막 동작	Zulu 最後の操作	Zulu 最后一项操作
+Long menu selection: {0}	긴 메뉴 선택 : {0}	長いメニューの選択：{0}	长菜单选择：{0}
+Open menu with checkboxes	체크 메뉴 열기	チェックボックス付きメニューを開く	打开带复选框的菜单
+Show details	상세 정보 표시	詳細を表示	显示详情
+Show grid	격자 표시	グリッドを表示	显示网格
+Read-only option	변경할 수 없는 옵션	変更できないオプション	不可更改的选项
+Finish setup	설정 마침	設定を完了	完成设置
+Checkbox menu selection: {0}	체크 메뉴 선택 : {0}	チェックボックス付きメニューの選択：{0}	复选框菜单选择：{0}
+Sort order	정렬 기준	並べ替え順	排序方式
+View mode	보기 방식	表示方法	视图方式
+Open radio menu	라디오 메뉴 열기	ラジオメニューを開く	打开单选菜单
+Sort by name	이름순 정렬	名前順で並べ替え	按名称排序
+Sort by date	날짜순 정렬	日付順で並べ替え	按日期排序
+Unavailable sort order	사용할 수 없는 정렬	利用できない並べ替え順	不可用的排序方式
+Compact view	간결하게 보기	コンパクト表示	紧凑视图
+Wide view	넓게 보기	ワイド表示	宽视图
+Radio menu selection: {0}	라디오 메뉴 선택 : {0}	ラジオメニューの選択：{0}	单选菜单选择：{0}
+Open menu with icons	아이콘 메뉴 열기	アイコン付きメニューを開く	打开带图标的菜单
+Select new item	새 항목 선택	新しい項目を選ぶ	选择新建项
+Template	템플릿	テンプレート	模板
+Select format	형식 선택	形式を選ぶ	选择格式
+Show preview	미리보기 표시	プレビューを表示	显示预览
+Selection indicator	선택	選択	选中
+Unavailable item	사용할 수 없는 항목	利用できない項目	不可用的项
+Locked	잠김	ロック済み	已锁定
+Icon menu selection: {0}	아이콘 메뉴 선택 : {0}	アイコン付きメニューの選択：{0}	图标菜单选择：{0}
+Menu direction: {0}	메뉴 방향 : {0}	メニューの方向：{0}	菜单方向：{0}
+Shared Overflow layout	Overflow 공통 배치	共通の Overflow レイアウト	共用 Overflow 布局
+Reduce the width to hide lower-priority items. Expand it again to restore the same buttons and counters.	폭을 줄이면 우선순위가 낮은 항목을 숨깁니다. 다시 펼치면 같은 버튼과 카운터를 복원합니다.	幅を狭めると優先度の低い項目が隠れます。広げると同じボタンとカウンターが戻ります。	缩小宽度会隐藏优先级较低的项。再次展开后会恢复原有按钮和计数器。
+Visible: {0} / Hidden: {1} / Fits: {2}	표시 : {0} / 숨김 : {1} / 배치 가능 : {2}	表示：{0} / 非表示：{1} / 収まる：{2}	可见：{0} / 隐藏：{1} / 可容纳：{2}
+Layout not measured yet	배치 : 측정 전	レイアウトは測定前です	尚未测量布局
+The badge shows how many items are hidden. The preceding example shows how choosing a hidden tab also changes its panel.	배지는 공간이 부족해 숨겨진 항목의 수를 나타냅니다. 탭을 숨겼다가 선택할 때 본문도 바뀌는 모습은 위 예제에서 확인하세요.	バッジは非表示の項目数を示します。前の例では非表示のタブを選ぶとパネルも変わります。	徽标显示隐藏项的数量。上一个示例演示选择隐藏选项卡时面板也会切换。
+Shared menu behavior	Menu 공통 동작	共通のメニュー操作	共用菜单行为
+Details: {0} / Grid: {1}	상세 정보 : {0} / 격자 : {1}	詳細：{0} / グリッド：{1}	详情：{0} / 网格：{1}
+Sort: {0} / View: {1}	정렬 : {0} / 보기 : {1}	並べ替え：{0} / 表示：{1}	排序：{0} / 视图：{1}
+Name order	이름순	名前順	名称
+Date order	날짜순	日付順	日期
+Compact	간결하게	コンパクト	紧凑
+Wide	넓게	ワイド	宽
+Select with the arrow keys, Enter, or Space. Close with Escape, Tab, or an outside click. Styling, icons, and event behavior are still under review.	방향키·Enter·Space로 선택하고 Escape·Tab·바깥 클릭으로 닫습니다. 디자인의 세부 표현과 메뉴 아이콘, 이벤트 동작은 계속 검증하고 있습니다.	矢印キー、Enter、Space で選択し、Escape、Tab、外側のクリックで閉じます。外観、アイコン、イベントの動作は引き続き検証しています。	使用方向键、Enter 或空格键选择，按 Escape、Tab 或单击外部可关闭。样式、图标和事件行为仍在验证中。
+Keep selected	선택 유지	選択を維持	保持选中
+Share the toggle button state	토글 버튼과 값 공유	トグルボタンと状態を共有	与切换按钮共享状态
+This is the default choice.	기본 선택입니다.	これが既定の選択です。	这是默认选项。
+Unavailable processing option	사용 불가	選択不可	不可用
+Progress value	진행률	進行率	进度值
+Progress: {0:P0}	진행률 : {0:P0}	進行率：{0:P0}	进度：{0:P0}
+Choose an in-app destination	창 안에서 목적지 선택	画面内の移動先を選ぶ	选择应用内目标
+Selected destination: {0}	선택한 목적지 : {0}	選択したリンク先：{0}	所选目标：{0}
+Toggle Spinner playback	Spinner 재생 전환	Spinner の再生を切り替える	切换 Spinner 播放状态
+Playing	재생 중	再生中	播放中
+Clicks: {0} / Toggle: {1} / Checkbox: {2} / Choice: {3}	클릭 : {0} / 토글 : {1} / 체크 : {2} / 선택 : {3}	クリック：{0} / 切り替え：{1} / チェック：{2} / 選択：{3}	点击：{0} / 切换：{1} / 复选框：{2} / 选择：{3}
+Mixed	혼합	一部選択	部分选中
+Counter and badges	카운터와 배지	カウンターとバッジ	计数器和徽标
+Shared selection state	선택 상태 공유	選択状態の共有	共享选择状态
+Mixed checkbox state	체크박스의 혼합 상태	チェックボックスの一部選択状態	复选框的部分选中状态
+Choose a processing mode	처리 방식 선택	処理方法を選ぶ	选择处理方式
+Progress state	진행 상태	進行状況	进度状态
+Handle links within the window	창 안에서 링크 처리	ウィンドウ内でリンクを処理	在窗口内处理链接
+Play and pause a Spinner	Spinner 재생과 일시 정지	Spinner の再生と一時停止	播放与暂停 Spinner

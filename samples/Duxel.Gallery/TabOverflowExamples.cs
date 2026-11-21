@@ -10,18 +10,27 @@ internal sealed class TabOverflowExamples : UiWidget, IGallerySourcePage
     internal TabOverflowExamples()
     {
         var counts = Enumerable.Range(0, 5).Select(_ => new UiState<int>(0)).ToArray();
-        var tabOptions = new UiTabListOptions { Overflow = new(Label : "개 탭 더 보기") };
-        var tabsDefinition = GallerySample.Define("tabs", () => Fluent.TabList("넘침 비교", _value.Binding,
-            new UiTabOption[] { new("home", "홈"), new("document", "문서"), new("analysis", "분석"), new("settings", "설정", false), new("help", "도움말") }, tabOptions));
+        var tabOptions = new UiTabListOptions { Overflow = new(Label : GalleryText.Get("more tabs")) };
+        var itemsDefinition = GallerySample.Define("items", () => new UiTabOption[]
+        {
+            new("home", GalleryText.Get("Home")), new("document", GalleryText.Get("Documents")),
+            new("analysis", GalleryText.Get("Analysis")), new("settings", GalleryText.Get("Settings"), false),
+            new("help", GalleryText.Get("Help"))
+        });
+        var items = itemsDefinition.Value;
+        var tabsDefinition = GallerySample.Define("tabs", () => Fluent.TabList(GalleryText.Get("Tab overflow comparison"),
+            _value.Binding, items, tabOptions));
         var tabs = tabsDefinition.Value;
         var widthValue = 160f;
         var heightValue = 40f;
         var boxDefinition = GallerySample.Define("box", () => Dux.SizedBox(tabs, width : widthValue, height : heightValue));
         var box = boxDefinition.Value;
         var sample = GallerySample.Create(() => Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-            box, new TabOverflowBodies(tabs, counts), Fluent.Caption1(() => $"선택 값 : {_value.Value}")));
+            box, new TabOverflowBodies(tabs, items, counts),
+            Fluent.Caption1(() => string.Format(GalleryText.Get("Selected value: {0}"),
+                items.FirstOrDefault(item => item.Value == _value.Value).Label ?? GalleryText.Get("None selected")))));
         var factory = sample.Source;
-        var declaration = GalleryPageSource.Declaration(nameof(TabOverflowBodies));
+        var declaration = GallerySample.LocalizeSource(GalleryPageSource.Declaration(nameof(TabOverflowBodies)));
         sample.BindSource(() => (_value.Value, tabs.Options, box.Options.Width, box.Options.Height,
             Counts : (counts[0].Value, counts[1].Value, counts[2].Value, counts[3].Value, counts[4].Value)), state =>
         {
@@ -34,33 +43,33 @@ internal sealed class TabOverflowExamples : UiWidget, IGallerySourcePage
                 + $"    SelectOnFocus : {GallerySample.Boolean(options.SelectOnFocus)}, RightToLeft : {GallerySample.Boolean(options.RightToLeft)},\n"
                 + $"    ReserveSelectedSpace : {GallerySample.Boolean(options.ReserveSelectedSpace)}, Appearance : UiTabListAppearance.{options.Appearance}, Overflow : {overflow});\n"
                 + $"float? widthValue = {GallerySample.Number(state.Width)};\nfloat? heightValue = {GallerySample.Number(state.Height)};\n\n"
-                + tabsDefinition.Source + "\n\n" + boxDefinition.Source + "\n\n" + factory + "\n\n" + declaration;
+                + itemsDefinition.Source + "\n" + tabsDefinition.Source + "\n\n" + boxDefinition.Source + "\n\n" + factory + "\n\n" + declaration;
         });
         Samples = [sample];
-        var width = Fluent.Button("탭 폭 : 160");
+        var width = Fluent.Button(GalleryText.Format("Tab width: {0}", 160));
         width.Activated = () =>
         {
             var next = box.Options.Width == 160 ? 520 : 160;
             box.Options = box.Options with { Width = next };
-            width.Label = $"탭 폭 : {next}";
+            width.Label = GalleryText.Format("Tab width: {0}", next);
         };
-        var direction = Fluent.Button("탭 방향 : LTR");
+        var direction = Fluent.Button(GalleryText.Format("Tab direction: {0}", "LTR"));
         direction.Activated = () =>
         {
             tabs.Options = tabs.Options with { RightToLeft = !tabs.Options.RightToLeft };
-            direction.Label = tabs.Options.RightToLeft ? "탭 방향 : RTL" : "탭 방향 : LTR";
+            direction.Label = GalleryText.Format("Tab direction: {0}", tabs.Options.RightToLeft ? "RTL" : "LTR");
         };
-        var orientation = Fluent.Button("탭 배치 : 가로");
+        var orientation = Fluent.Button(GalleryText.Format("Tab orientation: {0}", GalleryText.Get("Horizontal")));
         orientation.Activated = () =>
         {
             var vertical = !tabs.Options.Vertical;
             tabs.Options = tabs.Options with { Vertical = vertical };
             box.Options = box.Options with { Height = vertical ? 110 : 40 };
-            orientation.Label = vertical ? "탭 배치 : 세로" : "탭 배치 : 가로";
+            orientation.Label = GalleryText.Format("Tab orientation: {0}", GalleryText.Get(vertical ? "Vertical" : "Horizontal"));
         };
         _root = Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Divider("탭 넘침과 본문"),
-            Fluent.Body1("더 보기에서 숨긴 탭을 선택하면 헤더와 본문이 함께 바뀝니다. 본문 카운터는 유지됩니다."),
+            Fluent.Divider(GalleryText.Get("Tab overflow and panels")),
+            Fluent.Body1(GalleryText.Get("Choose a hidden tab from the overflow menu to switch its header and panel together. The panel keeps its counter.")),
             Dux.Wrap(new(Spacing : 8, RunSpacing : 8), width, direction, orientation), sample);
         OwnChild("root", _root);
     }
