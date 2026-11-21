@@ -301,3 +301,41 @@ Duxel로 UI 만들기	Build UI with Duxel	Duxel で UI を作る	使用 Duxel �
 실행 : 	Command: 	実行したコマンド：	已执行命令：
 홈 아이콘에 크기와 색상을 지정한 예제입니다.	A home icon with a custom size and color.	サイズと色を指定したホームアイコンです。	为主页图标指定大小和颜色的示例。
 네 픽셀의 이미지 데이터를 위젯에 넣고 160 × 160 크기로 표시합니다.	Display a four-pixel image in a 160 × 160 widget.	4 ピクセルの画像を 160 × 160 サイズのウィジェットに表示します。	在 160 × 160 的小组件中显示一张由四个像素组成的图像。
+선택한 경로가 없습니다.	No path selected.	パスが選択されていません。	尚未选择路径。
+숨긴 경로	Hidden path segments	非表示のパス項目	隐藏的路径项
+현재 위치	Current location	現在の位置	当前位置
+홈	Home	ホーム	主页
+작업 공간	Workspace	ワークスペース	工作区
+문서 보관함	Document archive	ドキュメント保管庫	文档归档
+함께 작업하는 팀	Collaborating team	共同作業チーム	协作团队
+디모이의 한글과 English를 포함한 긴 프로젝트 이름	Dimoi’s project with a deliberately long name	ディモイの長い名前が付いたプロジェクト	迪莫伊的项目名称特别长
+현재 문서	Current document	現在のドキュメント	当前文档
+프로젝트 경로	Project path	プロジェクトのパス	项目路径
+경로 폭 변경	Change path width	パスの幅を変更	更改路径宽度
+경로 키보드 방식	Change keyboard navigation	キーボード操作を変更	切换键盘导航
+경로 방향 전환	Reverse path direction	パスの方向を切り替える	切换路径方向
+경로 크기 변경	Change path size	パス項目のサイズを変更	更改路径大小
+이동 : {0} / 실행 : {1}	Destination: {0} / Activations: {1}	移動先：{0} / 実行回数：{1}	目标：{0} / 激活次数：{1}
+키보드 : {0} / 방향 : {1}	Keyboard: {0} / Direction: {1}	キーボード：{0} / 方向：{1}	键盘：{0} / 方向：{1}
+Tab 이동	Tab navigation	Tab キーで移動	使用 Tab 键导航
+방향키 이동	Arrow-key navigation	矢印キーで移動	使用方向键导航
+오른쪽부터	Right to left	右から左	从右到左
+왼쪽부터	Left to right	左から右	从左到右
+너비가 좁아지면 두 번째 경로부터 더 보기 메뉴에 숨깁니다. 매우 좁으면 현재 위치만 표시합니다.	As the width shrinks, segments starting with the second move into the overflow menu. At the narrowest width, only the current location is shown.	幅が狭くなると、2 番目以降の項目がオーバーフローメニューに移ります。最も狭い幅では現在の位置だけが表示されます。	宽度缩小时，从第二项开始的路径会收起到更多菜单中。宽度最小时只显示当前位置。
+문서 보관함으로는 이동할 수 없지만 Tab과 방향키로 포커스를 옮겨 설명을 읽을 수 있습니다. 현재 위치를 눌러도 다른 곳으로 이동하지 않습니다.	The document archive is unavailable, but you can focus it with Tab or the arrow keys to read its description. Activating the current location keeps you on the same page.	ドキュメント保管庫には移動できませんが、Tab キーや矢印キーでフォーカスを移して説明を読めます。現在の位置を押してもページは変わりません。	无法打开文档归档，但可用 Tab 键或方向键聚焦该项并阅读说明。点击当前位置会停留在当前页面。
+긴 이름 위에 마우스를 올리거나 포커스를 두면 Tooltip이 표시됩니다. 탭을 바꿔도 설정과 이동 기록을 유지합니다.	Hover over or focus a long name to show a tooltip. Switching pages preserves the settings and navigation history.	長い名前にポインターを合わせるかフォーカスを移すと、ツールチップが表示されます。ページを切り替えても設定と移動履歴が保持されます。	将鼠标悬停在长名称上或聚焦该项即可显示工具提示。切换页面会保留设置和导航记录。
+경로 예제	Breadcrumb example	パンくずリストの例	面包屑导航示例
+김하나	Hana Kim	キム・ハナ	金荷娜
+이서준	Seo-jun Lee	イ・ソジュン	李瑞俊
+박지우	Ji-woo Park	パク・ジウ	朴智佑
+정민서	Min-seo Jeong	チョン・ミンソ	郑敏书
+초안	Draft	下書き	草稿
+검토 중	In review	レビュー中	审核中
+공유됨	Shared	共有済み	已共享
+디자인 검토 {0:D4}.pdf	Design review {0:D4}.pdf	デザインレビュー {0:D4}.pdf	设计评审 {0:D4}.pdf
+파일 이름	File name	ファイル名	文件名
+담당자	Owner	担当者	负责人
+상태	Status	状態	状态
+크기	Size	サイズ	大小
+디자인 검토 파일	Design review files	デザインレビューのファイル	设计评审文件
+파일 {0:N0}개 · 선택 {1:N0}개	{0:N0} files · {1:N0} selected	ファイル {0:N0} 件 · 選択 {1:N0} 件	{0:N0} 个文件 · 已选 {1:N0} 个
