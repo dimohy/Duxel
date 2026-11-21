@@ -146,7 +146,7 @@ public sealed partial class DuxelAppSession
         EmitStartupTiming("StartupClear");
 
         var renderedFrameNumber = 0;
-        var appStartUtc = DateTime.UtcNow;
+        var appStartTimestamp = Stopwatch.GetTimestamp();
         var autoExitSeconds = DuxelApp.ParseAutoExitSeconds(Environment.GetEnvironmentVariable("DUXEL_SAMPLE_AUTO_EXIT_SECONDS"));
 
         var glyphBuilder = new UiFontGlyphRangesBuilder();
@@ -869,7 +869,7 @@ public sealed partial class DuxelAppSession
                     break;
                 }
 
-                if (autoExitSeconds > 0d && (DateTime.UtcNow - appStartUtc).TotalSeconds >= autoExitSeconds)
+                if (autoExitSeconds > 0d && Stopwatch.GetElapsedTime(appStartTimestamp).TotalSeconds >= autoExitSeconds)
                 {
                     Volatile.Write(ref stopRequested, true);
                     frameWakeSignal.Set();
