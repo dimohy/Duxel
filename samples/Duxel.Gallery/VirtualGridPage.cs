@@ -35,10 +35,13 @@ internal sealed class VirtualGridPage : IObserverPage, IObserverNaturalPage
 
         public string GetKey(int row, int column) => string.Create(CultureInfo.InvariantCulture, $"{row}:{column}");
 
+        public string GetAccessibleCellName(int row, int column) =>
+            string.Format(CultureInfo.InvariantCulture, _cellName, row + 1, column + 1);
+
         public UiWidget Create(int row, int column)
         {
             var cell = (row, column);
-            var initial = string.Format(CultureInfo.InvariantCulture, _cellName, row + 1, column + 1);
+            var initial = GetAccessibleCellName(row, column);
             var editor = Fluent.Input(cellLabel, new UiBinding<string>(
                 () => _edits.GetValueOrDefault(cell, initial), value => _edits[cell] = value), 196);
             editor.AccessibleName = initial;
