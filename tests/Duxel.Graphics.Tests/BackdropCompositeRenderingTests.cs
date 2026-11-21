@@ -4,7 +4,7 @@ using System.Numerics;
 internal static class BackdropCompositeRenderingTests
 {
     internal static void Run(Func<string, Action<UiImmediateContext>, byte[]> capture, Action<bool, string> check,
-        int stride, Func<UiRendererFrameMetrics> metrics, int imageCount, string expectedFamily)
+        int stride, Func<UiRendererFrameMetrics> metrics, int imageCount, string expectedFamily, bool dualSourceBlend)
     {
         using var lcd = new UiBackdropImage(new(new(1, 1, [128, 0, 0, 0])), new(new(1, 1, [128, 127, 255, 255])));
         // This is a prepared affine reference pair, not runtime widget-group capture.
@@ -20,13 +20,19 @@ internal static class BackdropCompositeRenderingTests
             paint.Frame(new(140, 24, 40, 40), new(0, 255, 0), default, 0, 0);
         }
         int At(int x, int y) => (y * stride + x) * 4;
+        float scalarCoverage = (1f + 128f / 255f) / 3f;
+        float ExpectedRed(float opacity)
+            => 100f + 28f * opacity * (dualSourceBlend ? 1f : scalarCoverage);
         foreach (var opacity in new[] { 0f, .2f, .8f, 1f })
         {
             var pixels = capture("lcd-" + opacity, ui => Draw(ui, lcd, opacity, false));
             var offset = At(48, 48);
-            var expected = new[] { 128 * opacity + 100 * (1 - opacity), 160 * (1 - opacity * 128 / 255), 200f, 255f };
+            var expected = dualSourceBlend
+                ? new[] { 128 * opacity + 100 * (1 - opacity), 160 * (1 - opacity * 128 / 255), 200f, 255f }
+                : new[] { ExpectedRed(opacity), 160 * (1 - opacity * scalarCoverage), 200 * (1 - opacity * scalarCoverage), 255f };
             check(Enumerable.Range(0, 4).All(channel => Math.Abs(pixels[offset + channel] - expected[channel]) <= 2),
-                "GPU affine composite preserves RGB-specific LCD coverage even with zero source alpha : " + opacity);
+                (dualSourceBlend ? "GPU affine composite preserves RGB-specific LCD coverage"
+                    : "GPU affine composite normalizes LCD coverage for scalar blending") + " : " + opacity);
             check(pixels[At(150, 40) + 1] == 255 && pixels[At(150, 40)] == 0,
                 "GPU normal material pipeline is restored after composite : " + opacity);
         }
@@ -35,7 +41,7 @@ internal static class BackdropCompositeRenderingTests
             "GPU prepared opaque overlap result receives opacity once");
         var masked = capture("masked", ui => Draw(ui, lcd, .8f, true));
         check(masked[At(72, 72)] == 100 && masked[At(72, 72) + 1] == 160
-            && Math.Abs(masked[At(48, 48)] - 122) <= 2, "GPU circular subtraction preserves the rear surface inside composite");
+            && Math.Abs(masked[At(48, 48)] - ExpectedRed(.8f)) <= 2, "GPU circular subtraction preserves the rear surface inside composite");
         for (var frame = 0; frame <= imageCount; frame++)
             check(masked.AsSpan().SequenceEqual(capture("replay-" + frame, ui => Draw(ui, lcd, .8f, true))),
                 "GPU composite replay retains exact pixels across acquired images : " + frame);
@@ -91,12 +97,12 @@ internal static class BackdropCompositeRenderingTests
             }
         }
         var depth = capture("depth", ui => Depth(ui, false));
-        check(Math.Abs(depth[At(36, 76)] - 122) <= 2 && depth[At(48, 88)] == 100,
+        check(Math.Abs(depth[At(36, 76)] - ExpectedRed(.8f)) <= 2 && depth[At(48, 88)] == 100,
             "GPU backdrop helper splits depth-write parents into read-only composite material");
         check(depth.AsSpan().SequenceEqual(capture("depth-reverse", ui => Depth(ui, true))),
             "GPU translucent composite preserves full pixels when opaque rear submission is reversed");
         var moved = capture("depth-moved", ui => Depth(ui, false, .125f));
-        check(builds == 1 && Math.Abs(moved[At(56, 76)] - 122) <= 2 && moved[At(36, 76)] == 100,
+        check(builds == 1 && Math.Abs(moved[At(56, 76)] - ExpectedRed(.8f)) <= 2 && moved[At(36, 76)] == 100,
             "GPU retained composite inherits changed parent transform without rebuilding its geometry");
         for (var warm = 0; warm < 3; warm++)
             capture("compiled-warm-" + warm, ui => Depth(ui, false, 0, true));

@@ -11,6 +11,11 @@ public sealed unsafe partial class VulkanRendererBackend
     private static readonly byte[] VertexShaderSpirv = LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui.vert.spv");
     private static readonly byte[] FragmentShaderSpirv = LoadFragmentShader();
 
+    private string ResolveBlendFragmentResource(string resourceName)
+        => _dualSourceBlendEnabled
+            ? resourceName
+            : resourceName.Replace(".frag.spv", ".single.frag.spv", StringComparison.Ordinal);
+
     private static byte[] LoadFragmentShader(string resourceName = "Duxel.Vulkan.Shaders.imgui.frag.spv")
     {
         var shader = LoadEmbeddedShader(resourceName);
@@ -205,7 +210,9 @@ public sealed unsafe partial class VulkanRendererBackend
             _vertexShaderModule = CreateShaderModule(_viewportClipPlanesEnabled
                 ? LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui_viewport_clip.vert.spv")
                 : VertexShaderSpirv);
-            _fragmentShaderModule = CreateShaderModule(FragmentShaderSpirv);
+            _fragmentShaderModule = CreateShaderModule(_dualSourceBlendEnabled
+                ? FragmentShaderSpirv
+                : LoadFragmentShader(ResolveBlendFragmentResource("Duxel.Vulkan.Shaders.imgui.frag.spv")));
         }
 
         if (circleCutout && _circleCutoutVertexShaderModule.Handle == 0)
@@ -213,13 +220,13 @@ public sealed unsafe partial class VulkanRendererBackend
             _circleCutoutVertexShaderModule = CreateShaderModule(LoadEmbeddedShader(_viewportClipPlanesEnabled
                 ? "Duxel.Vulkan.Shaders.imgui_cutout_viewport_clip.vert.spv"
                 : "Duxel.Vulkan.Shaders.imgui_cutout.vert.spv"));
-            _circleCutoutFragmentShaderModule = CreateShaderModule(LoadFragmentShader("Duxel.Vulkan.Shaders.imgui_cutout.frag.spv"));
+            _circleCutoutFragmentShaderModule = CreateShaderModule(LoadFragmentShader(ResolveBlendFragmentResource("Duxel.Vulkan.Shaders.imgui_cutout.frag.spv")));
         }
 
         if (backdropComposite && _backdropFragmentShaderModule.Handle == 0)
         {
-            _backdropFragmentShaderModule = CreateShaderModule(LoadFragmentShader("Duxel.Vulkan.Shaders.imgui_backdrop.frag.spv"));
-            _backdropCutoutFragmentShaderModule = CreateShaderModule(LoadFragmentShader("Duxel.Vulkan.Shaders.imgui_backdrop_cutout.frag.spv"));
+            _backdropFragmentShaderModule = CreateShaderModule(LoadFragmentShader(ResolveBlendFragmentResource("Duxel.Vulkan.Shaders.imgui_backdrop.frag.spv")));
+            _backdropCutoutFragmentShaderModule = CreateShaderModule(LoadFragmentShader(ResolveBlendFragmentResource("Duxel.Vulkan.Shaders.imgui_backdrop_cutout.frag.spv")));
         }
         var entryPoint = VulkanMarshaling.StringToPtr("main");
 
@@ -358,10 +365,12 @@ public sealed unsafe partial class VulkanRendererBackend
             {
                 BlendEnable = true,
                 SrcColorBlendFactor = BlendFactor.One,
-                DstColorBlendFactor = BlendFactor.OneMinusSrc1Color,
+                DstColorBlendFactor = _dualSourceBlendEnabled
+                    ? BlendFactor.OneMinusSrc1Color : BlendFactor.OneMinusSrcAlpha,
                 ColorBlendOp = BlendOp.Add,
                 SrcAlphaBlendFactor = BlendFactor.One,
-                DstAlphaBlendFactor = BlendFactor.OneMinusSrc1Alpha,
+                DstAlphaBlendFactor = _dualSourceBlendEnabled
+                    ? BlendFactor.OneMinusSrc1Alpha : BlendFactor.OneMinusSrcAlpha,
                 AlphaBlendOp = BlendOp.Add,
                 ColorWriteMask = ColorComponentFlags.RBit | ColorComponentFlags.GBit | ColorComponentFlags.BBit | ColorComponentFlags.ABit,
             };
@@ -436,6 +445,8 @@ public sealed unsafe partial class VulkanRendererBackend
                 var opaqueCoverage = true;
                 OverrideValidationOpaqueCoverage(ref opaqueCoverage);
                 multisampling.AlphaToCoverageEnable = opaqueCoverage;
+                if (opaqueCoverage && !_dualSourceBlendEnabled)
+                    colorBlendAttachment.DstColorBlendFactor = BlendFactor.Zero;
                 specializationValues[4] = opaqueCoverage ? 1u : 0u;
                 ref var writePipeline = ref (backdropComposite ? ref _backdropPipelines[maskModeBase + 2 + (circleCutout ? 9 : 0)] : ref (circleCutout ? ref _circleCutoutPipelines[maskModeBase + 2] : ref (sharedCamera ? ref _sharedCameraDepthWritePipeline : ref (sharedBasis ? ref _sharedBasisDepthWritePipeline : ref (compiledLayers ? ref _compiledDepthWritePipeline : ref _depthWritePipeline)))));
                 fixed (Pipeline* pipeline = &writePipeline)
@@ -449,7 +460,7 @@ public sealed unsafe partial class VulkanRendererBackend
                             ? "Duxel.Vulkan.Shaders.imgui_depth_mask4.vert.spv"
                             : "Duxel.Vulkan.Shaders.imgui_depth_mask4_integer.vert.spv"));
                     if (_depthMask4FragmentShaderModule.Handle == 0)
-                        _depthMask4FragmentShaderModule = CreateShaderModule(LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui_depth_mask4.frag.spv"));
+                        _depthMask4FragmentShaderModule = CreateShaderModule(LoadEmbeddedShader(ResolveBlendFragmentResource("Duxel.Vulkan.Shaders.imgui_depth_mask4.frag.spv")));
                     multisampling.AlphaToCoverageEnable = false;
                     stages[0].Module = _depthMask4VertexShaderModule;
                     stages[1].Module = _depthMask4FragmentShaderModule;

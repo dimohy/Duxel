@@ -20,7 +20,11 @@ layout(location = 12) flat in uvec2 fragPaintClipAddress;
 #endif
 
 layout(location = 0, index = 0) out vec4 outColor;
+#ifdef DUXEL_SINGLE_SOURCE_BLEND
+vec4 outBlendFactor;
+#else
 layout(location = 0, index = 1) out vec4 outBlendFactor;
+#endif
 
 layout(set = 0, binding = 0) uniform sampler2D uTextures[];
 
@@ -57,7 +61,18 @@ void main()
     if (max(max(coverage.r, coverage.g), max(coverage.b, coverage.a)) <= 0.0) discard;
     // Black already contains premultiplied RGB, including independent LCD coverage.
     outColor = vec4(black.rgb * fragColor.rgb, black.a) * fragColor.a;
+#ifdef DUXEL_SINGLE_SOURCE_BLEND
+    // Scalar captures already store matching color and alpha coverage. Allow one
+    // quantization step in the black/white difference before decoding an LCD pair.
+    if (any(greaterThan(abs(coverage.rgb - black.aaa), vec3(1.1 / 255.0))))
+    {
+        float alpha = dot(coverage.rgb, vec3(1.0 / 3.0));
+        vec3 straight = clamp(black.rgb / max(coverage.rgb, vec3(1.0 / 255.0)), 0.0, 1.0);
+        outColor = vec4(straight * fragColor.rgb * alpha, alpha) * fragColor.a;
+    }
+#else
     outBlendFactor = coverage * fragColor.a;
+#endif
 #else
     // The push-constant index is dynamically uniform, so no nonuniformEXT is needed.
     vec4 texel = texture(uTextures[pc.texIndexAndMode & TextureIndexMask], fragUV);
@@ -115,9 +130,14 @@ void main()
         // Coverage values from DWrite ClearType represent per-subpixel opacity.
         vec3 coverage = texel.rgb * fragColor.a;
         float alphaCoverage = texel.a * fragColor.a;
+#ifdef DUXEL_SINGLE_SOURCE_BLEND
+        // A single alpha cannot carry independent subpixel coverage.
+        {
+#else
         // Projected/scaled text cannot preserve a physical RGB subpixel grid.
         if (EnableLayer3D)
         {
+#endif
             // Native ClearType masks may carry coverage only in RGB.
             alphaCoverage = dot(coverage, vec3(1.0 / 3.0));
             coverage = vec3(alphaCoverage);

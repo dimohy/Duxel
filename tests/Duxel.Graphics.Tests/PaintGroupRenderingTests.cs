@@ -4,7 +4,7 @@ internal static class PaintGroupRenderingTests
 {
     internal static void Run(UiContext context, Func<string, Action<UiImmediateContext>, byte[]> capture,
         Action<bool, string> check, Func<Action<UiImmediateContext>, UiDrawData> build, Func<UiDrawData, byte[]> render, Func<UiDrawData, bool> submit, Func<int> geometryEntries, int stride, UiTextureId white, Func<UiRendererFrameMetrics> metrics, int imageCount,
-        Func<UiTextureId, (ulong Black, ulong White, ulong Msaa)> targetHandles, bool forceFullReference = false)
+        Func<UiTextureId, (ulong Black, ulong White, ulong Msaa)> targetHandles, bool forceFullReference = false, bool dualSourceBlend = true)
     {
         var black = new UiTextureId(91001);
         var whiteOutput = new UiTextureId(91002);
@@ -51,8 +51,17 @@ internal static class PaintGroupRenderingTests
             "GPU runtime overlapping primitives compose before group opacity; no red leaks through overlap");
         check(pixels[At(96, 96) + 2] == 255 && pixels[At(145, 28)] == 255,
             "GPU runtime capture preserves transparent margins and restores ordinary main rendering");
-        check(pixels[At(32, 96)] == 204 && Math.Abs(pixels[At(32, 96) + 1] - 51) <= 1 && pixels[At(32, 96) + 2] == 255,
-            "GPU runtime capture preserves independent LCD RGB coverage when glyph alpha is zero");
+        var textOffset = At(32, 96);
+        if (dualSourceBlend)
+        {
+            check(pixels[textOffset] == 204 && Math.Abs(pixels[textOffset + 1] - 51) <= 1 && pixels[textOffset + 2] == 255,
+                "GPU runtime capture preserves independent LCD RGB coverage when glyph alpha is zero");
+        }
+        else
+        {
+            check(Math.Abs(pixels[textOffset] - 85) <= 2 && Math.Abs(pixels[textOffset + 1] - 85) <= 2 && pixels[textOffset + 2] == 255,
+                "GPU runtime capture uses grayscale coverage when glyph alpha is zero");
+        }
         check(pixels[At(80, 32)] == 0 && pixels[At(80, 32) + 2] == 255,
             "GPU runtime source circular subtraction preserves a transparent hole through both capture passes");
         check(metrics().PaintGroupPasses == 2 && metrics().PaintGroupDrawCalls > 0,

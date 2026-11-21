@@ -22,6 +22,11 @@ public sealed unsafe partial class VulkanRendererBackend
             return properties.Limits.StandardSampleLocations != 0;
         }
     }
+    internal bool ValidationDualSourceBlend => _dualSourceBlendEnabled;
+
+    partial void SelectValidationDualSourceBlend(ref bool enabled)
+        => enabled &= Environment.GetEnvironmentVariable("DUXEL_TEST_DISABLE_DUAL_SOURCE_BLEND") != "1";
+
     partial void SelectValidationViewportClipPlanes(ref bool enabled)
         => enabled &= Environment.GetEnvironmentVariable("DUXEL_TEST_DISABLE_VIEWPORT_CLIP") != "1";
     partial void SelectValidationStandardSampleLocations(ref bool enabled)

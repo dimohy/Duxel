@@ -226,6 +226,8 @@ public sealed unsafe partial class VulkanRendererBackend
         return graphicsQueueFamily;
     }
 
+    private bool _dualSourceBlendEnabled;
+
     private unsafe void CreateDevice()
     {
         RequireGpuDrivenRendererFeatures();
@@ -264,9 +266,11 @@ public sealed unsafe partial class VulkanRendererBackend
             _vk.GetPhysicalDeviceFeatures2(_physicalDevice, &availableFeatures);
             _viewportClipPlanesEnabled = availableFeatures.Features.ShaderClipDistance != 0;
             SelectValidationViewportClipPlanes(ref _viewportClipPlanesEnabled);
+            _dualSourceBlendEnabled = availableFeatures.Features.DualSrcBlend != 0;
+            SelectValidationDualSourceBlend(ref _dualSourceBlendEnabled);
             var enabledFeatures = new PhysicalDeviceFeatures
             {
-                DualSrcBlend = 1,
+                DualSrcBlend = _dualSourceBlendEnabled ? 1u : 0u,
                 ShaderSampledImageArrayDynamicIndexing = 1,
                 ShaderClipDistance = _viewportClipPlanesEnabled ? 1u : 0u,
             };
@@ -335,6 +339,7 @@ public sealed unsafe partial class VulkanRendererBackend
         return maintenance.SwapchainMaintenance1!=0;
     }
     partial void SelectValidationSwapchainMaintenance(ref bool enabled);
+    partial void SelectValidationDualSourceBlend(ref bool enabled);
     partial void SelectValidationViewportClipPlanes(ref bool enabled);
     partial void SelectValidationStandardSampleLocations(ref bool enabled);
 
@@ -362,7 +367,6 @@ public sealed unsafe partial class VulkanRendererBackend
         _vk.GetPhysicalDeviceFeatures2(_physicalDevice, &features2);
 
         List<string>? missing = null;
-        Require(features2.Features.DualSrcBlend, "dualSrcBlend");
         Require(features2.Features.ShaderSampledImageArrayDynamicIndexing, "shaderSampledImageArrayDynamicIndexing");
         Require(descriptorIndexingFeatures.DescriptorBindingSampledImageUpdateAfterBind, "descriptorBindingSampledImageUpdateAfterBind");
         Require(descriptorIndexingFeatures.DescriptorBindingUpdateUnusedWhilePending, "descriptorBindingUpdateUnusedWhilePending");

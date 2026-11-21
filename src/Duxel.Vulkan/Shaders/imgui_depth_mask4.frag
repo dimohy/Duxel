@@ -14,7 +14,11 @@ layout(location = 9) flat in vec4 fragGradientMiddleColor;
 layout(location = 10) flat in float fragGradientMiddleStop;
 layout(location = 11) flat in mat3 depthSampleToShape;
 layout(location = 0, index = 0) out vec4 outColor;
+#ifdef DUXEL_SINGLE_SOURCE_BLEND
+vec4 outBlendFactor;
+#else
 layout(location = 0, index = 1) out vec4 outBlendFactor;
+#endif
 layout(set = 0, binding = 0) uniform sampler2D uTextures[];
 layout(push_constant) uniform PushConstants
 {
