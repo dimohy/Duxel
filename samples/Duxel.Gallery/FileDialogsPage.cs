@@ -53,7 +53,7 @@ internal sealed class FileDialogsPage : IObserverPage, IObserverNaturalPage
         if (paths.Count == 0)
             return GalleryText.Get("Selection canceled.");
         var first = string.Join("\n", paths.Take(8));
-        return paths.Count > 8 ? first + "\n" + GalleryText.Format("And {0:N0} more", paths.Count - 8) : first;
+        return paths.Count > 8 ? first + "\n" + string.Format(GalleryText.Get("And {0:N0} more"), paths.Count - 8) : first;
     }
 
     public void Render(UiImmediateContext ui) => _root.Render(ui);

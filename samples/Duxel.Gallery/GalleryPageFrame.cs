@@ -165,8 +165,17 @@ internal static class GalleryPageSource
             "Localization" => "LocalizationPage",
             _ => throw new InvalidOperationException("Gallery source is not registered : " + page.Title)
         };
-        return Read(file);
+        var source = Read(file);
+        if (file is nameof(VirtualGridPage) or nameof(FileDialogsPage))
+        {
+            source = GallerySample.LocalizeSource(source);
+            var title = "public string Title => ";
+            source = source.Replace(title + GallerySample.String(page.Title),
+                title + GallerySample.String(GalleryText.PageTitle(page.Title)), StringComparison.Ordinal);
+        }
+        return source;
     }
+
     internal static string Declaration(string file)
     {
         var source = Read(file).TrimStart();

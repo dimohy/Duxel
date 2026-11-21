@@ -732,3 +732,32 @@ Enter a date or select it from the calendar to try regional formats and validati
 Enter a time or use the hour and minute wheels. Switch between 12- and 24-hour time and choose whether to show seconds.	시각을 직접 입력하거나 시·분 휠로 선택하세요. 12·24시간제와 초 표시도 바꿀 수 있습니다.	時刻を入力するか、時と分のホイールで選びます。12 時間制と 24 時間制を切り替え、秒の表示も変更できます。	直接输入时间或用时分滚轮选择。可以切换 12 或 24 小时制，并选择是否显示秒数。
 Enter a date and a time to store them as one value. You can also use the calendar and time wheels.	날짜와 시각을 따로 입력해 하나의 값으로 저장합니다. 달력과 시간 휠도 함께 사용할 수 있습니다.	日付と時刻を入力して、一つの値として保存できます。カレンダーと時刻ホイールも使用できます。	分别输入日期和时间，将两者存为一个值。也可以使用日历和时间滚轮。
 Seconds	초	秒	秒
+Observed virtual list	관찰 가상 목록	観察用の仮想リスト	虚拟列表示例
+Outer virtual list scroll view	가상 목록 바깥 스크롤	仮想リストの外側のスクロール領域	虚拟列表外部滚动区
+Row height: fixed	행 높이 : 고정	行の高さ：固定	行高：固定
+Row height: variable	행 높이 : 가변	行の高さ：可変	行高：可变
+Item width: fixed	항목 너비 : 고정	項目の幅：固定	项宽：固定
+Item width: variable	항목 너비 : 가변	項目の幅：可変	项宽：可变
+Orientation: horizontal	방향 : 가로	方向：横	方向：水平
+Orientation: vertical	방향 : 세로	方向：縦	方向：垂直
+Horizontal order: right to left	가로 순서 : 오른쪽부터	横の順序：右から左	水平顺序：从右到左
+Horizontal order: left to right	가로 순서 : 왼쪽부터	横の順序：左から右	水平顺序：从左到右
+Swap the first and last keys	키 순서 바꾸기	最初と最後のキーを入れ替え	交换首尾键
+Go to start	처음	先頭へ	转到开头
+Go to middle	중간	中央へ	转到中间
+Go to end	끝	末尾へ	转到末尾
+Realized rows: {0} / Live widgets: {1} / Created: {2} / Disposed: {3}	생성된 행 : {0} / 살아 있는 위젯 : {1} / 누적 생성 : {2} / 누적 해제 : {3}	表示用の行：{0} / 使用中のウィジェット：{1} / 累計作成：{2} / 累計破棄：{3}	已实例化的行：{0} / 活跃控件：{1} / 累计创建：{2} / 累计释放：{3}
+Rows: {0:N0} / Offset: {1:N2}	행 수 : {0:N0} / 오프셋 : {1:N2}	行数：{0:N0} / オフセット：{1:N2}	行数：{0:N0} / 偏移量：{1:N2}
+Edit the first row, go to the end, then return to see the value retained.	처음 행을 편집하고 끝으로 이동했다가 돌아오면 값이 유지됩니다.	最初の行を編集し、末尾に移動してから戻ると、値が保持されています。	编辑第一行，跳到末尾后返回，可以看到编辑后的值仍然保留。
+Swapping the keys exchanges the positions of the first and last rows.	키 순서를 바꾸면 첫 번째 행과 마지막 행의 위치가 서로 바뀝니다.	キーを入れ替えると、最初の行と最後の行の位置が入れ替わります。	交换键后，第一行和最后一行会互换位置。
+In horizontal mode, use the bottom scrollbar or the horizontal wheel.	가로 모드에서는 아래 손잡이 또는 가로 휠로 이동합니다.	横方向では、下のスクロールバーか横スクロールホイールで移動します。	在水平模式下，可使用底部滚动条或水平滚轮移动。
+Row	행	行	行
+Row: {0}	행 : {0}	行：{0}	行：{0}
+Row value: {0}	행 값 : {0}	行の値：{0}	行值：{0}
+Key: {0}	키 : {0}	キー：{0}	键：{0}
+Virtual grid example	가상 그리드 예제	仮想グリッドのサンプル	虚拟网格示例
+First row and column	첫 행·첫 열	最初の行と列	第一行和第一列
+Last row and column	마지막 행·열	最後の行と列	最后一行和一列
+Realized cells: {0:N0} · Horizontal: {1:N2} · Vertical: {2:N2}	생성된 셀 {0:N0}개 · 가로 {1:N2} · 세로 {2:N2}	表示用のセル：{0:N0} · 横：{1:N2} · 縦：{2:N2}	已实例化的单元格：{0:N0} · 水平：{1:N2} · 垂直：{2:N2}
+Row {0:N0}, column {1:N0}	{0:N0}행 {1:N0}열	{0:N0} 行 {1:N0} 列	第 {0:N0} 行第 {1:N0} 列
+Cell value	셀 값	セルの値	单元格值

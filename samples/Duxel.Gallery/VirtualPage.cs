@@ -5,7 +5,8 @@ namespace Duxel.Gallery;
 
 internal sealed class VirtualPage : IObserverPage, IObserverNaturalPage, IGallerySourcePage
 {
-    private readonly ObserverRows _source = new();
+    private readonly ObserverRows _source = new(GalleryText.Get("Row"), GalleryText.Get("Row: {0}"),
+        GalleryText.Get("Row value: {0}"), GalleryText.Get("Key: {0}"));
     private readonly UiVirtualList<ObserverRows> _list;
     private readonly UiWidget _root;
     public IReadOnlyList<IGallerySample> Samples { get; }
@@ -25,16 +26,17 @@ internal sealed class VirtualPage : IObserverPage, IObserverNaturalPage, IGaller
         };
         var listDefinition = GallerySample.Define("_list", () => Dux.VirtualList(_source, 1_000_000_000, listOptions));
         _list = listDefinition.Value;
-        _list.AccessibleName = "관찰 가상 목록";
+        _list.AccessibleName = GalleryText.Get("Observed virtual list");
         var frameDefinition = GallerySample.Define("frame", () => Dux.ScrollView(
             new UiColumn([_list, Dux.SizedBox(height : 100)], new(MainAxisSize : UiMainAxisSize.Min)),
             new(Width : 1000, Height : 380)));
         var frame = frameDefinition.Value;
-        frame.AccessibleName = "가상 목록 바깥 스크롤";
+        frame.AccessibleName = GalleryText.Get("Outer virtual list scroll view");
         var actionsDefinition = GallerySample.Define("actions", () =>
         {
-            string ExtentLabel() => (_list.Options.Axis == UiScrollAxis.Horizontal ? "항목 너비" : "행 높이")
-                + (_list.Options.ExtentIndex is null ? " : 고정" : " : 가변");
+            string ExtentLabel() => _list.Options.Axis == UiScrollAxis.Horizontal
+                ? (_list.Options.ExtentIndex is null ? GalleryText.Get("Item width: fixed") : GalleryText.Get("Item width: variable"))
+                : (_list.Options.ExtentIndex is null ? GalleryText.Get("Row height: fixed") : GalleryText.Get("Row height: variable"));
             var heights = Fluent.Button(ExtentLabel());
             heights.Activated = () =>
             {
@@ -46,7 +48,7 @@ internal sealed class VirtualPage : IObserverPage, IObserverNaturalPage, IGaller
                 };
                 heights.Label = ExtentLabel();
             };
-            string AxisLabel() => _list.Options.Axis == UiScrollAxis.Horizontal ? "방향 : 가로" : "방향 : 세로";
+            string AxisLabel() => _list.Options.Axis == UiScrollAxis.Horizontal ? GalleryText.Get("Orientation: horizontal") : GalleryText.Get("Orientation: vertical");
             var direction = Fluent.Button(AxisLabel());
             direction.Activated = () =>
             {
@@ -62,7 +64,7 @@ internal sealed class VirtualPage : IObserverPage, IObserverNaturalPage, IGaller
                 heights.Label = ExtentLabel();
             };
             string OrderLabel() => _list.Options.FlowDirection == UiFlowDirection.RightToLeft
-                ? "가로 순서 : 오른쪽부터" : "가로 순서 : 왼쪽부터";
+                ? GalleryText.Get("Horizontal order: right to left") : GalleryText.Get("Horizontal order: left to right");
             var order = Fluent.Button(OrderLabel());
             order.Activated = () =>
             {
@@ -73,20 +75,23 @@ internal sealed class VirtualPage : IObserverPage, IObserverNaturalPage, IGaller
                 };
                 order.Label = OrderLabel();
             };
-            var reorder = Fluent.Button("키 순서 바꾸기", () => { _source.Swapped = !_source.Swapped; _list.Refresh(); });
+            var reorder = Fluent.Button(GalleryText.Get("Swap the first and last keys"), () => { _source.Swapped = !_source.Swapped; _list.Refresh(); });
             return Dux.Wrap(new(Spacing : 12, RunSpacing : 12),
-                Fluent.Button("처음", () => _list.Offset = 0),
-                Fluent.Button("중간", () => _list.Offset = (_list.Options.ExtentIndex?.GetBoundary(_list.ItemCount)
+                Fluent.Button(GalleryText.Get("Go to start"), () => _list.Offset = 0),
+                Fluent.Button(GalleryText.Get("Go to middle"), () => _list.Offset = (_list.Options.ExtentIndex?.GetBoundary(_list.ItemCount)
                     ?? (double)_list.ItemCount * _list.Options.ItemExtent) / 2),
-                Fluent.Button("끝", () => _list.Offset = double.MaxValue), direction, heights, order, reorder);
+                Fluent.Button(GalleryText.Get("Go to end"), () => _list.Offset = double.MaxValue), direction, heights, order, reorder);
         });
         var actions = actionsDefinition.Value;
         var sample = GallerySample.Create(() => Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
             actions,
-            Fluent.Body1(() => $"생성된 행 : {_list.RealizedCount} / 살아 있는 위젯 : {_source.Created - _source.Disposed} / 누적 생성 : {_source.Created} / 누적 해제 : {_source.Disposed}"),
-            Fluent.Body1(() => $"행 수 : {_list.ItemCount:N0} / 오프셋 : {_list.Offset:N2}"), frame));
+            Fluent.Body1(() => string.Format(GalleryText.Get("Realized rows: {0} / Live widgets: {1} / Created: {2} / Disposed: {3}"),
+                _list.RealizedCount, _source.Created - _source.Disposed, _source.Created, _source.Disposed)),
+            Fluent.Body1(() => string.Format(GalleryText.Get("Rows: {0:N0} / Offset: {1:N2}"), _list.ItemCount, _list.Offset)), frame));
         var factory = sample.Source;
         var declaration = GalleryPageSource.Declaration(nameof(ObserverRows));
+        var rowLabels = string.Join(", ", GallerySample.String(GalleryText.Get("Row")), GallerySample.String(GalleryText.Get("Row: {0}")),
+            GallerySample.String(GalleryText.Get("Row value: {0}")), GallerySample.String(GalleryText.Get("Key: {0}")));
         sample.BindSource(() => (_list.Options, _source.Swapped,
             Values : string.Join("\n", _source.Values.OrderBy(pair => pair.Key).Select(pair =>
                 $"_source.SetValue({pair.Key}, {GallerySample.String(pair.Value)});"))), state =>
@@ -95,20 +100,20 @@ internal sealed class VirtualPage : IObserverPage, IObserverNaturalPage, IGaller
             static string Number(float? value) => value is { } number ? number.ToString("R", CultureInfo.InvariantCulture) + "f" : "null";
             var extentIndex = options.ExtentIndex is null ? "null"
                 : options.Axis == UiScrollAxis.Horizontal ? "new ObserverRowExtents(_source, horizontal : true)" : "new ObserverRowExtents(_source)";
-            return $"var _source = new ObserverRows {{ Swapped = {GallerySample.Boolean(state.Swapped)} }};\n"
+            return $"var _source = new ObserverRows({rowLabels}) {{ Swapped = {GallerySample.Boolean(state.Swapped)} }};\n"
                 + (state.Values.Length == 0 ? string.Empty : state.Values + "\n")
                 + $"var listOptions = new UiVirtualListOptions(ItemExtent : {Number(options.ItemExtent)}, Width : {Number(options.Width)},\n"
                 + $"    Height : {Number(options.Height)}, Overscan : {options.Overscan}, MaxRealizedItems : {options.MaxRealizedItems})\n"
                 + $"{{ Axis = UiScrollAxis.{options.Axis}, ExtentIndex = {extentIndex}, FlowDirection = UiFlowDirection.{options.FlowDirection} }};\n\n"
-                + listDefinition.Source + "\n_list.AccessibleName = \"관찰 가상 목록\";\n\n"
-                + frameDefinition.Source + "\nframe.AccessibleName = \"가상 목록 바깥 스크롤\";\n\n"
+                + listDefinition.Source + "\n_list.AccessibleName = " + GallerySample.String(_list.AccessibleName) + ";\n\n"
+                + frameDefinition.Source + "\nframe.AccessibleName = " + GallerySample.String(frame.AccessibleName) + ";\n\n"
                 + actionsDefinition.Source + "\n\n" + factory + "\n\n" + declaration;
         });
         Samples = [sample];
         _root = Dux.ScrollView(Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Body1("처음 행을 편집하고 끝으로 이동했다가 돌아오면 값이 유지됩니다."),
-            Fluent.Body1("키 순서를 바꾸면 첫 번째 행과 마지막 행의 위치가 서로 바뀝니다."),
-            Fluent.Body1("가로 모드에서는 아래 손잡이 또는 가로 휠로 이동합니다."), sample));
+            Fluent.Body1(GalleryText.Get("Edit the first row, go to the end, then return to see the value retained.")),
+            Fluent.Body1(GalleryText.Get("Swapping the keys exchanges the positions of the first and last rows.")),
+            Fluent.Body1(GalleryText.Get("In horizontal mode, use the bottom scrollbar or the horizontal wheel.")), sample));
     }
 
     public void Render(UiImmediateContext ui) => _root.Render(ui);
