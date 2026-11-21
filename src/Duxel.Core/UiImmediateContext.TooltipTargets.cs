@@ -221,7 +221,7 @@ public sealed partial class UiImmediateContext
             {
                 CloseAutomaticTooltip(UiTooltipVisibilityReason.Handover);
                 _tooltipOwner = candidate;
-                _tooltipDeadline = now + (handover ? 0 : _tooltipCandidateOptions.ShowDelay);
+                _tooltipDeadline = now + _tooltipCandidateOptions.ShowDelayAfterHandover(handover);
             }
             _tooltipHiding = false;
             _tooltipTargetBounds = _tooltipCandidateBounds;

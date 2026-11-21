@@ -12,11 +12,15 @@ public readonly record struct UiTooltipOptions
     public UiTooltipRelationship Relationship { get; init; }
     public double? ShowDelaySeconds { get; init; }
     public double? HideDelaySeconds { get; init; }
+    /// <summary>Apply this tooltip's show delay even when another tooltip is visible.</summary>
+    public bool UseShowDelayOnHandover { get; init; }
     public UiPopupPositioning Positioning { get; init; }
     public float? ScrollStep { get; init; }
     public bool ShowScrollbars { get; init; }
     internal double ShowDelay => ShowDelaySeconds ?? 0.25;
     internal double HideDelay => HideDelaySeconds ?? 0.25;
+    internal double ShowDelayAfterHandover(bool hasVisibleTooltip) =>
+        hasVisibleTooltip && !UseShowDelayOnHandover ? 0 : ShowDelay;
 
     internal void Validate()
     {

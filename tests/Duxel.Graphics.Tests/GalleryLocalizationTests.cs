@@ -143,6 +143,32 @@ internal static class GalleryLocalizationTests
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
             File.WriteAllText(path, "en");
             using var screen = new GalleryLocalizedScreen(services, new DuxelAppSession(), path);
+            Render(screen);
+            var gear = Find("Settings", UiAccessibilityRole.Button)!.Value.Bounds;
+            var center = new UiVector2(gear.X + gear.Width / 2, gear.Y + gear.Height / 2);
+            bool TooltipVisible() => Find("Settings", UiAccessibilityRole.Tooltip) is not null;
+            void Hover(UiVector2 position, float seconds)
+            {
+                input = input with { MousePosition = position };
+                context.State.AdvanceTime(seconds);
+                Render(screen);
+            }
+
+            Hover(center, 0);
+            Hover(center, .2f);
+            check(!TooltipVisible(), "A brief hover does not open the Settings tooltip");
+            var outside = new UiVector2(-100, -100);
+            Hover(outside, 0);
+            Hover(outside, .8f);
+            Hover(center, 0);
+            Hover(center, .65f);
+            check(!TooltipVisible(), "Returning to the Settings icon starts the full delay again");
+            Hover(center, .1f);
+            check(TooltipVisible(), "Sustained hover opens the Settings tooltip after its delay");
+            Hover(outside, 0);
+            Hover(outside, .3f);
+            check(!TooltipVisible(), "Leaving the Settings icon hides its tooltip");
+
             void Frame()
             {
                 Render(screen);

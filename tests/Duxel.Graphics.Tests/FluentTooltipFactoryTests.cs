@@ -62,6 +62,51 @@ internal static class FluentTooltipFactoryTests
         using var inherited = new InheritedTooltip(Fluent.Button("Inherited"), "Inherited help");
         check(inherited.Target is UiFluentButton && inherited.Text == "Inherited help",
             "the generated Fluent Tooltip class remains inheritable through its concrete constructor");
+
+        VerifyHandoverDelay(check, controlled : false);
+        VerifyHandoverDelay(check, controlled : true);
+    }
+
+    private static void VerifyHandoverDelay(Action<bool, string> check, bool controlled)
+    {
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        ControlFontFixture.Configure(context);
+        using var first = Fluent.Tooltip(Fluent.Button("First"), "First help", new() { ShowDelaySeconds = 0 });
+        using var next = Fluent.Tooltip(Fluent.Button("Next"), "Next help",
+            new() { ShowDelaySeconds = .75, UseShowDelayOnHandover = true });
+        var requested = false;
+        if (controlled)
+        {
+            next.Visible = false;
+            next.VisibleChangeRequested = change => requested = change.Visible;
+        }
+
+        var screen = new Screen(ui =>
+        {
+            ui.EnableRootViewportContentLayout(contentPadding : 0);
+            ui.SetCursorScreenPos(new(32, 32));
+            first.Render(ui);
+            ui.SetCursorScreenPos(new(180, 32));
+            next.Render(ui);
+        });
+        var source = new UiVector2(48, 46);
+        var destination = new UiVector2(192, 46);
+        bool Opened() => controlled ? requested : next.IsOpen;
+        void Frame(float seconds, UiVector2 point)
+        {
+            var input = new UiInputState(point, false, false, false, false, false, false, 0, 0, [], [], default, default);
+            context.NewFrame(new(seconds, new(320, 240), new(1, 1)), input, new(0, 0, 320, 240), UiTextSettings.Default);
+            context.Render(screen);
+            using var draw = context.GetDrawData();
+        }
+
+        Frame(.01f, source);
+        check(first.IsOpen, "Tooltip handover begins with a visible source tooltip");
+        Frame(.01f, destination);
+        Frame(.74f, destination);
+        check(!Opened(), $"The delayed {(controlled ? "controlled request" : "automatic tooltip")} waits after a handover");
+        Frame(.02f, destination);
+        check(Opened(), $"The delayed {(controlled ? "controlled request" : "automatic tooltip")} opens at its deadline");
     }
 
     private sealed class InheritedTooltip(UiWidget target, string text) : UiFluentTooltip(target, text);
