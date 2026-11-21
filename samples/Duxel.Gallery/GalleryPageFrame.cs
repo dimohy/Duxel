@@ -173,6 +173,9 @@ internal static class GalleryPageSource
             source = source.Replace(title + GallerySample.String(page.Title),
                 title + GallerySample.String(GalleryText.PageTitle(page.Title)), StringComparison.Ordinal);
         }
+        if (file == nameof(FileDialogsPage))
+            source = source.Replace(nameof(GalleryText) + "." + nameof(GalleryText.RegionalCultureName),
+                GallerySample.String(GalleryText.RegionalCultureName), StringComparison.Ordinal);
         return source;
     }
 

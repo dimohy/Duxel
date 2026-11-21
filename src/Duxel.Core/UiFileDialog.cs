@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Duxel.Core;
 
 public enum UiFileDialogKind
@@ -35,6 +37,10 @@ public sealed class UiFileDialogRequest
     public string? DefaultExtension { get; }
     public bool AllowMultiple { get; }
     public IReadOnlyList<UiFileDialogFilter> Filters { get; }
+
+    /// <summary>Locale for the Duxel file chooser when the system dialog is unavailable.</summary>
+    /// <remarks>Defaults to the system UI culture. Native dialog controls follow the desktop language.</remarks>
+    public CultureInfo? Culture { get; init; }
 
     public UiFileDialogRequest(UiFileDialogKind kind, string? title = null, string? initialDirectory = null,
         string? suggestedFileName = null, string? defaultExtension = null, bool allowMultiple = false,

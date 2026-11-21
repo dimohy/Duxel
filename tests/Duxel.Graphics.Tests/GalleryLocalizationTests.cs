@@ -138,6 +138,7 @@ internal static class GalleryLocalizationTests
             VerifyNoticeExamples(Render, tree, services, check);
             VerifyTemporalExamples(Render, tree, services, check);
             VerifyVirtualAndFileExamples(Render, tree, services, check);
+            VerifyFileChooserLanguages(Render, tree, check);
 
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
             File.WriteAllText(path, "en");
@@ -668,7 +669,15 @@ internal static class GalleryLocalizationTests
                 $"VirtualGrid restores an edit and exposes its localized C# in {language}");
 
             Navigate("파일 대화 상자");
-            check(new[] { open, save, folder }.All(label => Find(label, UiAccessibilityRole.Button).Node.Enabled && HasSource(label, "UiFileDialogRequest")),
+            var culture = language switch
+            {
+                GalleryLanguage.English => "en-US",
+                GalleryLanguage.Korean => "ko-KR",
+                GalleryLanguage.Japanese => "ja-JP",
+                GalleryLanguage.SimplifiedChinese => "zh-CN",
+                _ => throw new ArgumentOutOfRangeException(nameof(language))
+            };
+            check(new[] { open, save, folder }.All(label => Find(label, UiAccessibilityRole.Button).Node.Enabled && HasSource(label, "GetCultureInfo(" + GallerySample.String(culture) + ")")),
                 $"File dialogs expose localized actions and matching C# in {language}");
 
             void Navigate(string page)
@@ -708,6 +717,53 @@ internal static class GalleryLocalizationTests
                 && element.Node.Value is { } code && code.Contains(GallerySample.String(label), StringComparison.Ordinal)
                 && code.Contains(fragment, StringComparison.Ordinal) && !code.Contains("GalleryText.", StringComparison.Ordinal)
                 && (language == GalleryLanguage.Korean || !ContainsHangul(code)));
+        }
+    }
+
+    private static void VerifyFileChooserLanguages(Action<UiScreen> render, UiAccessibilityTree tree, Action<bool, string> check)
+    {
+        foreach (var (system, requested, folder, save, cancel, showOptions) in new (string, string?, string, string, string, string)[]
+        {
+            ("ko-KR", "en-US", "Current folder", "Save", "Cancel", "Show options"),
+            ("fr-FR", "ko-KR", "현재 폴더", "저장", "취소", "옵션 표시"),
+            ("ko-KR", "ja-JP", "現在のフォルダー", "保存", "キャンセル", "オプションを表示"),
+            ("ko-KR", "zh-CN", "当前文件夹", "保存", "取消", "显示选项"),
+            ("ko-KR", null, "현재 폴더", "저장", "취소", "옵션 표시"),
+            ("fr-FR", null, "Current folder", "Save", "Cancel", "Show options")
+        })
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(system);
+            var request = new UiFileDialogRequest(UiFileDialogKind.SaveFile, "Locale probe", Path.GetTempPath(), filters : [new("Text", "*.txt")])
+            {
+                Culture = requested is null ? null : CultureInfo.GetCultureInfo(requested)
+            };
+            IReadOnlyList<string>? completed = null;
+            using var chooser = new DuxelFileChooser(request, result => completed = result, static () => { });
+            var screen = new FileChooserScreen(chooser);
+            render(screen);
+            render(screen);
+
+            var nodes = tree.CaptureSnapshot().Elements;
+            check(nodes.Any(element => element.Node.Role == UiAccessibilityRole.Edit && element.Node.Name == folder)
+                && nodes.Any(element => element.Node.Role == UiAccessibilityRole.Button && element.Node.Name == save)
+                && nodes.Any(element => element.Node.Role == UiAccessibilityRole.Button && element.Node.Name == showOptions),
+                $"The built-in picker resolves display language for {requested ?? system}");
+
+            var button = nodes.Single(element => element.Node.Role == UiAccessibilityRole.Button && element.Node.Name == cancel);
+            var invoked = tree.RequestAction(button.Node.Id, button.RuntimeId, UiAccessibilityAction.Invoke, wait : false);
+            render(screen);
+            render(screen);
+            check(invoked == UiAccessibilityResult.Success && completed is { Count : 0 },
+                $"The localized Cancel action completes with no paths for {requested ?? system}");
+        }
+    }
+
+    private sealed class FileChooserScreen(DuxelFileChooser chooser) : UiScreen
+    {
+        public override void Render(UiImmediateContext ui)
+        {
+            ui.EnableRootViewportContentLayout(contentPadding : 0);
+            chooser.Render(ui);
         }
     }
 
