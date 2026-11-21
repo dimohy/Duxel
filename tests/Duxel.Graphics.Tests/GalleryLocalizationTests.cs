@@ -97,6 +97,7 @@ internal static class GalleryLocalizationTests
         {
             File.Delete(path);
             using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+            check(!context.State.NavCursorVisible, "Focus outlines start hidden until keyboard navigation");
             ControlFontFixture.Configure(context);
             var fonts = GalleryText.ConfigureFonts(new());
             context.SetDirectTextSecondaryFontPath(fonts.SecondaryFontPath);
@@ -168,6 +169,34 @@ internal static class GalleryLocalizationTests
             Hover(outside, 0);
             Hover(outside, .3f);
             check(!TooltipVisible(), "Leaving the Settings icon hides its tooltip");
+
+            void Click(UiRect bounds)
+            {
+                var point = new UiVector2(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
+                input = input with { MousePosition = point, LeftMouseDown = true, LeftMousePressed = true };
+                Render(screen);
+                input = input with { LeftMouseDown = false, LeftMousePressed = false, LeftMouseReleased = true };
+                Render(screen);
+                input = input with { LeftMouseReleased = false };
+                context.State.AdvanceTime(.25f);
+                Render(screen);
+            }
+
+            Click(gear);
+            check(Find("English", UiAccessibilityRole.RadioButton) is { Focused : true, Selected : true }
+                && !context.State.NavCursorVisible, "Opening Settings by mouse selects and focuses the current language without a focus outline");
+            input = input with { MousePosition = outside, KeyEvents = [new(UiKey.Tab, true, KeyModifiers.None)] };
+            Render(screen);
+            input = input with { KeyEvents = [] };
+            Render(screen);
+            check(context.State.NavCursorVisible, "Tab in Settings draws the keyboard focus outline");
+            Click(Find("日本語", UiAccessibilityRole.RadioButton)!.Value.Bounds);
+            check(Find("日本語", UiAccessibilityRole.RadioButton) is { Selected : true }
+                && !context.State.NavCursorVisible, "Mouse selection changes the radio marker and clears the keyboard focus outline");
+            Click(Find("Cancel", UiAccessibilityRole.Button)!.Value.Bounds);
+            check(Find("Settings", UiAccessibilityRole.Dialog) is null && !context.State.NavCursorVisible,
+                "Closing Settings by mouse returns focus without showing a focus outline");
+            input = input with { MousePosition = outside };
 
             void Frame()
             {

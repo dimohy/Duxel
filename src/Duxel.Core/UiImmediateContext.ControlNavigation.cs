@@ -64,9 +64,10 @@ public sealed partial class UiImmediateContext
             _spaceCanceled = false;
         if (_spacePressOwner != _state.FocusedId)
             CancelControlSpace();
+        if (_leftMousePressed || _rightMousePressed || _middleMousePressed)
+            _state.NavCursorVisible = false;
         if (_leftMousePressed)
         {
-            _state.NavCursorVisible = false;
             if (_state.FocusedId == _ownedControlFocus)
                 _state.ClearControlFocusForPointer();
             _ownedControlFocus = null;

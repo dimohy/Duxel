@@ -51,7 +51,7 @@ public sealed partial class UiState
     private UiMouseCursor _mouseCursor;
     private bool _wantCaptureKeyboardNextFrame;
     private bool _wantCaptureMouseNextFrame;
-    private bool _navCursorVisible = true;
+    private bool _navCursorVisible;
     private double _timeSeconds;
     private double _caretBlinkStartSeconds;
     private KeyModifiers _modifiers;
