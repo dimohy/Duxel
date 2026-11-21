@@ -124,16 +124,16 @@ internal static class GalleryComponentExamples
         Stateful("Button", "버튼을 눌러 클릭 횟수를 늘려 보세요.", new UiState<int>(0), clicks =>
         {
             return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Button("카운터 증가", () => clicks.Value++),
-                Fluent.Body1(() => "클릭 횟수 : " + clicks.Value));
+                Fluent.Button(GalleryText.Get("카운터 증가"), () => clicks.Value++),
+                Fluent.Body1(() => GalleryText.Get("클릭 횟수 : ") + clicks.Value));
         }, current => "var clicks = new UiState<int>(" + current.ToString(System.Globalization.CultureInfo.InvariantCulture) + ");"),
         Stateful("Checkbox", "일부만 선택된 상태에서 시작하는 체크박스를 눌러 보세요.", new UiState<bool?>(null), value =>
         {
-            return Fluent.Checkbox("혼합 상태에서 시작", value.Binding);
+            return Fluent.Checkbox(GalleryText.Get("혼합 상태에서 시작"), value.Binding);
         }, current => "var value = new UiState<bool?>(" + (current is null ? "null" : GallerySample.Boolean(current.Value)) + ");"),
         Stateful("Switch", "스위치로 기능을 켜거나 끄고, 아래 코드에 바뀐 값을 확인해 보세요.", new UiState<bool>(false), value =>
         {
-            return Fluent.Switch("기능 사용", value.Binding);
+            return Fluent.Switch(GalleryText.Get("기능 사용"), value.Binding);
         }, current => "var value = new UiState<bool>(" + GallerySample.Boolean(current) + ");"),
         RadioGroupExample(),
         Stateful("Slider", "손잡이를 끌거나 방향키를 눌러 0부터 1까지 값을 조절해 보세요.", new UiState<float>(.35f), value =>

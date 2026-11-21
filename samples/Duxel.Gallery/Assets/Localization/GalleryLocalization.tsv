@@ -19,7 +19,7 @@ P : 표시 횟수 / D : 그리기 호출 / U : 전송량 / C : 캐시 재사용	
 갤러리 페이지	Gallery page	ギャラリーページ	图库页面
 Duxel 로고	Duxel logo	Duxel ロゴ	Duxel 标志
 Duxel 갤러리	Duxel Gallery	Duxel ギャラリー	Duxel 图库
-컨트롤 · 그래픽 · 문서	Controls · Graphics · Documents	コントロール・グラフィック・ドキュメント	控件 · 图形 · 文档
+컨트롤 · 그래픽 · 문서	Controls · Graphics · Documents	UI・グラフィック・文書	控件 · 图形 · 文档
 시작	Get started	はじめに	入门
 소개와 컨트롤 모음	Introduction and examples	紹介とコントロールの例	介绍和控件示例
 개요	Overview	概要	概览
@@ -188,3 +188,17 @@ C# 예제 소스	C# example source	C# サンプルソース	C# 示例代码
 {0} · 미구현	{0} · planned	{0}・実装予定	{0} · 计划实现
 Fluent 팩터리	Fluent factories	Fluent ファクトリー	Fluent 工厂
 현재 언어: {0}	Current language: {0}	現在の言語: {0}	当前语言：{0}
+버튼을 눌러 클릭 횟수를 늘려 보세요.	Press the button to increase the click count.	ボタンを押してクリック数を増やせます。	按下按钮增加点击次数。
+카운터 증가	Increase count	カウントを増やす	增加计数
+클릭 횟수 : 	Click count: 	クリック数：	点击次数：
+문서 만들기	Create document	ドキュメントを作成	创建文档
+빈 양식에서 새 문서를 시작합니다.	Start a new document from a blank form.	空のフォームから新しいドキュメントを作成します。	从空白表单创建新文档。
+PNG로 저장	Save as PNG	PNG で保存	另存为 PNG
+다른 형식으로 저장	Save in another format	別の形式で保存	另存为其他格式
+PDF로 저장	Save as PDF	PDF で保存	另存为 PDF
+SVG로 저장	Save as SVG	SVG で保存	另存为 SVG
+일부만 선택된 상태에서 시작하는 체크박스를 눌러 보세요.	Select the checkbox that starts in the mixed state.	一部選択状態のチェックボックスを操作できます。	试用初始状态为部分选中的复选框。
+혼합 상태에서 시작	Start in mixed state	一部選択から開始	从部分选中状态开始
+스위치로 기능을 켜거나 끄고, 아래 코드에 바뀐 값을 확인해 보세요.	Turn the feature on or off and watch the value change in the code below.	機能をオンまたはオフにして、下のコードの値が変わることを確認できます。	打开或关闭该功能，观察下方代码中的值如何变化。
+기능 사용	Enable feature	機能を有効にする	启用功能
+Duxel로 UI 만들기	Build UI with Duxel	Duxel で UI を作る	使用 Duxel 构建界面
