@@ -12,6 +12,6 @@ internal sealed partial class ObserverServices
             new("Observer UI", Path.Combine(fonts, "segoeui.ttf")),
             new("Observer UI", Path.Combine(fonts, "segoeuib.ttf")),
             new("Observer Korean", Path.Combine(fonts, "malgun.ttf"))
-        ]), new Duxel.App.DuxelFontOptions().Typography);
+        ]), GalleryText.ConfigureFonts(new()).Typography);
     }
 }

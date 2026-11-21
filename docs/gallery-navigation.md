@@ -20,6 +20,8 @@ Avatar, AvatarGroup, and Persona use the selected language for their controls, e
 
 Nav, Toolbar, Tree, Dialog, Accordion, and List translate the controls and their example code. In Nav, selecting an item updates the localized page name and retains the stable item ID in the copied code. Open the Dialog or an Accordion panel and interact with its contents to see the translated validation, state messages, and input labels.
 
+Card and FluentProvider show localized labels and C# alongside the controls. Longer Card captions wrap within horizontal previews. The FluentProvider font example uses a local monospace font for Latin text and retains the Gallery font for CJK text.
+
 Applications can use the same localization API from `Duxel.Core`. Supply a culture, source string, and translation for each entry. Resolve text or format arguments using the application's selected culture.
 
 ```csharp
