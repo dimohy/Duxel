@@ -31,8 +31,8 @@ internal sealed class ToolbarPage : IObserverPage, IObserverNaturalPage, IGaller
             var sample = GallerySample.Create(() =>
             {
                 static UiWidget Action(string text, Action activated) => new UiButton<UiReleaseButtonBehavior, UiFluentButtonPresentation<UiFluentSubtleButtonAppearance>>(text, activated);
-                return Fluent.Toolbar("문서 도구", [Action("새 문서", () => _count++), Action("저장", () => _count++),
-                    Fluent.ToggleButton("굵게", _bold.Binding), Action("인쇄", () => _count++)], toolbarOptions);
+                return Fluent.Toolbar(GalleryText.Get("Document tools"), [Action(GalleryText.Get("New document"), () => _count++), Action(GalleryText.Get("Save"), () => _count++),
+                    Fluent.ToggleButton(GalleryText.Get("Bold"), _bold.Binding), Action(GalleryText.Get("Print"), () => _count++)], toolbarOptions);
             });
             Toolbar = sample.Preview;
             var factory = sample.Source;
@@ -42,13 +42,21 @@ internal sealed class ToolbarPage : IObserverPage, IObserverNaturalPage, IGaller
             Samples = [sample];
             Root = Dux.ScrollView(Dux.Column(new(Spacing: 12, MainAxisSize: UiMainAxisSize.Min),
                 Dux.Wrap(new(Spacing: 8, RunSpacing: 8),
-                    Fluent.Button("도구 모음 방향", () => Toolbar.Options = Toolbar.Options with { Vertical = !Toolbar.Options.Vertical }),
-                    Fluent.Button("도구 모음 크기", () => Toolbar.Options = Toolbar.Options with { Size = (UiToolbarSize)(((int)Toolbar.Options.Size + 1) % 3) }),
-                    Fluent.Button("도구 모음 RTL", () => Toolbar.Options = Toolbar.Options with { RightToLeft = !Toolbar.Options.RightToLeft })),
-                Fluent.Button("도구 모음 다음", () => _count++),
-                Fluent.Body1(() => $"실행 횟수 : {_count} / 굵게 : {_bold.Value} / 세로 : {Toolbar.Options.Vertical} / 크기 : {Toolbar.Options.Size}"),
-                Fluent.Text("Tab으로 들어간 뒤 방향키·Home·End로 이동하세요. Tab은 다음 컨트롤로 나갑니다."),
-                Fluent.Text("Enter·Space로 실제 버튼과 토글을 조작합니다. 다른 페이지로 이동했다 돌아와도 상태는 유지됩니다."),
+                    Fluent.Button(GalleryText.Get("Change toolbar orientation"), () => Toolbar.Options = Toolbar.Options with { Vertical = !Toolbar.Options.Vertical }),
+                    Fluent.Button(GalleryText.Get("Change toolbar size"), () => Toolbar.Options = Toolbar.Options with { Size = (UiToolbarSize)(((int)Toolbar.Options.Size + 1) % 3) }),
+                    Fluent.Button(GalleryText.Get("Reverse toolbar direction"), () => Toolbar.Options = Toolbar.Options with { RightToLeft = !Toolbar.Options.RightToLeft })),
+                Fluent.Button(GalleryText.Get("Run next toolbar action"), () => _count++),
+                Fluent.Body1(() => GalleryText.Format("Actions: {0} / Bold: {1} / Orientation: {2} / Size: {3}", _count,
+                    GalleryText.Get(_bold.Value ? "On" : "Off"),
+                    GalleryText.Get(Toolbar.Options.Vertical ? "Vertical" : "Horizontal"),
+                    GalleryText.Get(Toolbar.Options.Size switch
+                    {
+                        UiToolbarSize.Small => "Small",
+                        UiToolbarSize.Large => "Large",
+                        _ => "Medium"
+                    }))),
+                Fluent.Text(GalleryText.Get("Press Tab to enter the toolbar, then use the arrow keys or Home and End to move between commands. Press Tab again to go to the next control.")),
+                Fluent.Text(GalleryText.Get("Press Enter or Space to activate a button or toggle its state. The toolbar keeps its state when you return to this page.")),
                 sample));
         }
         public void Dispose() => Root.Dispose();

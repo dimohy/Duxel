@@ -830,3 +830,60 @@ Toggle inactive persona	인물 비활성 표현	人物情報の非アクティ�
 Size: {0} / Position: {1} / Status only: {2} / Information lines: {3}	크기 : {0} / 위치 : {1} / 상태 전용 : {2} / 정보 : {3}줄	サイズ：{0} / 位置：{1} / 状態のみ：{2} / 情報：{3} 行	大小：{0} / 位置：{1} / 仅状态：{2} / 信息行数：{3}
 The avatar and status badge use the same rendering as Avatar and PresenceBadge. The example reuses its previous measurements when the layout stays the same.	아바타와 상태 배지는 각각 Avatar와 PresenceBadge를 그릴 때와 같은 방식을 사용합니다. 배치가 바뀌지 않으면 이전 측정 결과를 재사용합니다.	アバターと状態バッジは Avatar と PresenceBadge と同じ方法で描画します。配置が変わらなければ前回の測定結果を再利用します。	头像和状态徽章采用与 Avatar 和 PresenceBadge 相同的绘制方式。布局不变时复用上次的测量结果。
 Your edits and display options stay in place when you leave this page and return.	이름을 바꾸거나 다른 페이지로 이동했다 돌아와도 입력한 내용과 표시 설정은 유지됩니다.	別のページへ移動して戻っても、入力内容と表示設定は保持されます。	离开此页后返回时，编辑内容和显示选项会保留。
+Navigation example	탐색 예제	ナビゲーションの例	导航示例
+Pin overview	개요 고정	概要をピン留め	固定概览
+Recent activity	최근 활동	最近のアクティビティ	最近活动
+What's new	새 소식	新着情報	最新动态
+Library	라이브러리	ライブラリ	资料库
+Documents	문서	ドキュメント	文档
+Long project document names wrap to fit the available width	프로젝트의 긴 문서 이름은 사용 가능한 너비에 맞게 줄바꿈됩니다	長いプロジェクト文書名は表示幅に合わせて折り返されます	较长的项目文档名称会按可用宽度自动换行
+Unavailable	사용할 수 없음	利用不可	不可用
+Use Up and Down or Home and End to move, and Enter to select a page. Use Left and Right or click a group to collapse or expand it.	위·아래 방향키와 Home·End로 이동하고 Enter로 페이지를 선택하세요. 그룹은 좌·우 방향키 또는 클릭으로 접고 펼칩니다.	上下矢印キーまたは Home・End で移動し、Enter でページを選択します。グループは左右矢印キーまたはクリックで折りたためます。	使用向上键、向下键或 Home、End 移动，按 Enter 选择页面。使用左右方向键或单击组标题可折叠或展开该组。
+Section headings organize the menu. You cannot select, collapse, or focus them.	작은 섹션 제목은 메뉴를 분류하는 데 쓰입니다. 선택하거나 접을 수 없으며 키보드 포커스도 받지 않습니다.	セクション見出しはメニューを分類します。見出しの選択、折りたたみ、フォーカスはできません。	分区标题用于组织菜单，无法选中、折叠或获得焦点。
+Current page: {0}	현재 페이지 : {0}	現在のページ：{0}	当前页面：{0}
+Overview pin actions: {0}	개요 고정 실행 : {0}	概要のピン留め操作：{0} 回	固定概览的操作次数：{0}
+Hover over Overview to reveal its pin button. Press Tab or a horizontal arrow key to reach it. Right-click or press Shift+F10 to run the same action from the menu.	개요 위에 마우스를 올리면 고정 버튼이 나타납니다. Tab 또는 가로 방향키로 버튼에 이동하고, 우클릭·Shift+F10으로 같은 작업을 메뉴에서 실행할 수 있습니다.	概要にポインターを重ねるとピン留めボタンが表示されます。Tab または左右矢印キーで移動できます。右クリックまたは Shift+F10 で開くメニューからも同じ操作を実行できます。	将鼠标悬停在“概览”上可显示固定按钮。按 Tab 或左右方向键可移至该按钮。右键单击或按 Shift+F10 也可从菜单执行相同操作。
+Collapsing a group keeps the current selection. A highlighted collapsed group contains the current page.	그룹을 접어도 선택은 유지됩니다. 접힌 그룹의 강조 표시는 현재 페이지가 그 안에 있음을 나타냅니다.	グループを折りたたんでも選択は維持されます。強調表示された折りたたみグループの中に現在のページがあります。	折叠组后仍保留当前选择。折叠组高亮表示当前页面位于该组内。
+Document tools	문서 도구	ドキュメントツール	文档工具
+Bold	굵게	太字	加粗
+Print	인쇄	印刷	打印
+Change toolbar orientation	도구 모음 방향	ツールバーの向きを変更	切换工具栏方向
+Change toolbar size	도구 모음 크기	ツールバーのサイズを変更	切换工具栏大小
+Reverse toolbar direction	도구 모음 RTL	ツールバーの並び順を反転	反转工具栏顺序
+Run next toolbar action	도구 모음 다음	次のツールバー操作を実行	执行下一项工具栏操作
+Actions: {0} / Bold: {1} / Orientation: {2} / Size: {3}	실행 횟수 : {0} / 굵게 : {1} / 방향 : {2} / 크기 : {3}	実行回数：{0} / 太字：{1} / 方向：{2} / サイズ：{3}	执行次数：{0} / 加粗：{1} / 方向：{2} / 大小：{3}
+Horizontal	가로	横	水平
+Vertical	세로	縦	垂直
+Press Tab to enter the toolbar, then use the arrow keys or Home and End to move between commands. Press Tab again to go to the next control.	Tab으로 들어간 뒤 방향키·Home·End로 이동하세요. Tab은 다음 컨트롤로 나갑니다.	Tab でツールバーに入り、矢印キーや Home・End でコマンド間を移動します。もう一度 Tab を押すと次のコントロールへ進みます。	按 Tab 进入工具栏，再用方向键或 Home、End 在命令之间移动。再次按 Tab 可转到下一个控件。
+Press Enter or Space to activate a button or toggle its state. The toolbar keeps its state when you return to this page.	Enter·Space로 실제 버튼과 토글을 조작합니다. 다른 페이지로 이동했다 돌아와도 상태는 유지됩니다.	Enter または Space でボタンを実行したり、状態を切り替えたりできます。このページに戻ってもツールバーの状態は保持されます。	按 Enter 或空格键可执行按钮命令或切换状态。返回本页时，工具栏会保留原有状态。
+Folder and file selection	폴더와 파일 선택	フォルダーとファイルの選択	选择文件夹和文件
+Button within a row	행 안의 버튼	行内のボタン	行内按钮
+Project	프로젝트	プロジェクト	项目
+Documents to read before starting Dimohy's project	디모이의 프로젝트를 시작하기 전에 읽어 볼 문서	ディモイのプロジェクトを始める前に読むドキュメント	开始 Dimohy 的项目前必读的文档
+Report	보고서	レポート	报告
+Open	열기	開く	打开
+On the Report row, press F2 to move to the Open button. Press Escape to return to the row.	보고서 행에서 F2를 누르면 열기 버튼으로 이동합니다. Escape를 누르면 행으로 돌아옵니다.	レポートの行で F2 を押すと「開く」ボタンに移動します。Escape で行に戻ります。	在“报告”行按 F2 移至“打开”按钮，按 Escape 返回该行。
+Select the checkbox next to Project to select all its children.	프로젝트 옆 체크 표시를 누르면 하위 항목이 함께 선택됩니다.	プロジェクトの横のチェックボックスをオンにすると、配下の項目も選択されます。	勾选“项目”旁的复选框即可选中所有子项。
+Toggle line wrapping	줄바꿈 전환	折り返しを切り替える	切换自动换行
+Change direction	방향 전환	方向を切り替える	切换方向
+Align checkbox to top	체크 표시 위쪽 정렬	チェックボックスを上揃えにする	将复选框与顶部对齐
+Report opens: {0}	보고서를 연 횟수 : {0}	レポートを開いた回数：{0}	打开报告的次数：{0}
+Selected files: {0}	선택한 파일 : {0}개	選択したファイル：{0} 件	选中的文件：{0} 个
+Enter your name, then save.	이름을 입력한 뒤 저장하세요.	名前を入力してから保存してください。	输入姓名后保存。
+Enter your name, then save or cancel.	이름을 입력하고 저장하거나 취소합니다.	名前を入力し、保存するかキャンセルします。	输入姓名，然后保存或取消。
+Enter a name before saving.	이름을 입력해야 저장할 수 있습니다.	保存する前に名前を入力してください。	请输入姓名后再保存。
+Saved: {0}	저장됨 : {0}	保存しました：{0}	已保存：{0}
+User details	사용자 정보	ユーザー情報	用户信息
+Use Tab to move between controls and try typing Korean. Your input is kept when you reopen the dialog.	탭으로 이동하고 한글을 입력해 보세요. 창을 다시 열어도 입력은 유지됩니다.	Tab でコントロール間を移動し、韓国語を入力してみてください。ダイアログを開き直しても入力内容は保持されます。	按 Tab 在控件之间移动，并尝试输入韩文。重新打开对话框时会保留输入内容。
+Open modal	모달 열기	モーダルを開く	打开模态对话框
+Open nonmodal	비모달 열기	モードレスを開く	打开非模态对话框
+Open alert	경고 열기	警告を開く	打开警告
+Entrance curve	등장 곡선	表示時のカーブ	进入曲线
+Exit curve	퇴장 곡선	非表示時のカーブ	退出曲线
+Backdrop curve	배경 곡선	背景のカーブ	背景曲线
+The modal blocks background input. The nonmodal dialog leaves the background interactive. Clicking the background does not close the alert.	모달은 배경 입력을 막고, 비모달은 배경과 함께 조작할 수 있습니다. 경고 창은 배경을 눌러도 닫히지 않습니다.	モーダルは背後の操作をブロックします。モードレスでは背後を操作できます。警告は背景をクリックしても閉じません。	模态对话框阻止操作背景，非模态对话框则允许操作背景。单击背景不会关闭警告。
+Open: {0} / Name: {1}	열림 : {0} / 이름 : {1}	表示：{0} / 名前：{1}	打开状态：{0} / 姓名：{1}
+Use Escape, Tab, and Shift+Tab, and try saving to see input validation. Closing the dialog returns focus to the button that opened it.	Escape·Tab·Shift+Tab으로 조작하고 저장할 때 입력값을 검사하는지 확인하세요. 창을 닫으면 원래 버튼으로 포커스가 돌아갑니다.	Escape、Tab、Shift+Tab で操作し、保存時の入力チェックを試してください。ダイアログを閉じると、開いたボタンにフォーカスが戻ります。	试用 Escape、Tab 和 Shift+Tab，并尝试保存以查看输入验证。关闭对话框会将焦点返回到打开它的按钮。
+Motion curve preview	모션 곡선 미리 보기	モーションカーブのプレビュー	动画曲线预览
+Press a button to start a 250 ms transition. Reversing continues from the current position. When the transition ends, it stops requesting frames.	버튼을 누르면 250ms 동안 전환합니다. 도중에 방향을 바꾸면 현재 위치에서 이어지며, 전환이 끝나면 더 이상 프레임을 요청하지 않습니다.	ボタンを押すと 250 ms の遷移が始まります。途中で反転すると現在位置から続きます。遷移が終わるとフレームの要求も止まります。	按下按钮后开始 250 毫秒的过渡。中途反向时会从当前位置继续。过渡结束后将停止请求帧。
+Several widgets share these animation curves. The dialog changes size and opacity as it opens and animates a snapshot as it closes. Reopening midway continues from its current state.	여러 위젯이 함께 사용하는 애니메이션 곡선의 예제입니다. 대화 상자는 크기와 투명도가 바뀌며 나타나고, 닫힐 때는 저장해 둔 화면으로 애니메이션을 이어갑니다. 사라지는 도중에 다시 열어도 현재 상태에서 자연스럽게 이어집니다.	複数のウィジェットがこのアニメーションカーブを共用します。ダイアログは大きさと不透明度を変えながら表示し、閉じるときはスナップショットをアニメーションさせます。途中で開き直すと現在の状態から続きます。	多个小组件共用这些动画曲线。对话框打开时改变大小和不透明度，关闭时使用画面快照播放动画。中途重新打开时会从当前状态继续。
