@@ -556,3 +556,104 @@ Show upload error	웹 오류 표시	アップロードエラーを表示	显示�
 Upload failed. Check the connection and try again.	업로드에 실패했습니다. 연결을 확인한 뒤 다시 시도하세요.	アップロードに失敗しました。接続を確認して、もう一度お試しください。	上传失败。请检查连接并重试。
 Upload failed	업로드 실패	アップロード失敗	上传失败
 Retry upload	웹 다시 시도	アップロードを再試行	重试上传
+Toast {0}	알림 {0}	通知 {0}	通知 {0}
+No toasts are visible.	표시 중인 알림이 없습니다.	表示中の通知はありません。	当前没有可见通知。
+Add timed toast	시간제 알림 추가	時間制限付きの通知を追加	添加定时通知
+Add persistent toast	계속 표시할 알림 추가	常時表示する通知を追加	添加常驻通知
+Add priority toast	우선 알림 추가	優先通知を追加	添加优先通知
+Finish entering	등장 완료	表示開始を完了	结束入场
+Advance one second	1초 진행	1 秒進める	前进一秒
+Toggle pause	일시 정지 전환	一時停止を切り替える	切换暂停
+Dismiss all	모두 닫기	すべて閉じる	全部关闭
+Finish exiting	퇴장 완료	非表示への移行を完了	结束退场
+Lifetime and queue diagnostics	수명·대기열 진단	表示時間とキューの診断	显示时长和队列诊断
+Advance time manually in this preview. The buttons below complete the entry and exit transitions.	동작 검증용 미리보기입니다. 시간을 직접 진행하므로 대기 중에 계속 화면을 갱신하지 않습니다. 아래 버튼은 실제 등장·퇴장 완료 신호를 대신합니다.	このプレビューでは時間を手動で進めます。下のボタンで表示開始と終了の遷移を完了します。	此预览中可以手动推进时间。下方按钮用于完成入场和退场过渡。
+Entering	나타나는 중	表示開始中	入场中
+Visible	표시 중	表示中	已显示
+Exiting	닫히는 중	終了中	退场中
+Queued	대기 중	待機中	排队中
+Visible: {0} / Queued: {1} / Next timeout: {2}	표시 {0} / 대기 {1} / 다음 자동 닫힘 : {2}	表示：{0} / 待機：{1} / 次の自動終了：{2}	显示：{0} / 排队：{1} / 下次自动关闭：{2}
+In {0:0} s	{0:0}초 후	{0:0} 秒後	{0:0} 秒后
+No recent toasts.	최근 알림이 없습니다.	最近の通知はありません。	没有最近的通知。
+Document saved	저장했습니다	ドキュメントを保存しました	文档已保存
+The document is ready	문서가 준비되었습니다	ドキュメントの準備ができました	文档已就绪
+Show save toast	저장 알림 표시	保存通知を表示	显示保存通知
+Show toast with an action	동작 있는 알림 표시	操作付きの通知を表示	显示带操作的通知
+Show progress toast	진행 알림 표시	進行状況の通知を表示	显示进度通知
+Show mixed-language toast	혼합 언어 알림	複数言語を含む通知を表示	显示混合语言通知
+Dismiss toast	알림 닫기	通知を閉じる	关闭通知
+Reverse toast direction	알림 방향 전환	通知の方向を切り替える	切换通知方向
+Change toast width	알림 너비 전환	通知の幅を切り替える	更改通知宽度
+Show long toast	긴 알림 표시	長い通知を表示	显示长通知
+Long toast	긴 알림	長い通知	长通知
+Scroll the long message and try the action below.	긴 본문을 스크롤하고 아래 동작을 확인하세요.	長い本文をスクロールし、下の操作を試します。	滚动长消息并试用下方的操作。
+Confirm	확인	確認	确认
+Dismiss all live toasts	실제 알림 모두 닫기	表示中の通知をすべて閉じる	关闭所有实时通知
+Change toast position	알림 위치 전환	通知の位置を切り替える	更改通知位置
+Toggle reduced motion for toasts	알림 모션 줄이기 전환	通知の動きを減らす設定を切り替える	切换通知的减少动画设置
+Toasts appear in a corner. Hover or focus a toast to pause its timer. Press F6 to enter or return, and press Delete or use the dismiss button to close it.	알림은 화면 모서리에 나타납니다. 마우스를 올리거나 알림에 초점을 두면 자동 닫힘이 멈춥니다. F6으로 들어가거나 돌아오고 Delete·닫기 버튼으로 닫습니다.	通知は画面の隅に表示されます。ポインターを合わせるかフォーカスを移すと、タイマーが一時停止します。F6 で移動または復帰し、Delete キーまたは閉じるボタンで閉じます。	通知显示在屏幕角落。将鼠标悬停在通知上或使其获得焦点可暂停计时。按 F6 进入或返回，按 Delete 或使用关闭按钮可关闭通知。
+Toast actions: {0}	알림에서 실행 : {0}	通知の操作回数：{0}	通知操作次数：{0}
+Live toasts	실제 알림 표면	ライブ通知	实时通知
+Transferring file	파일 전송 중	ファイルを転送中	正在传输文件
+Track progress directly in the toast	알림에서 진행 상태를 확인합니다	通知内で進行状況を確認できます	可在通知中查看进度
+35% complete	35% 완료	35% 完了	已完成 35%
+Confirmation required	확인할 알림이 있습니다	確認が必要です	需要确认
+Try the confirmation button below	아래 확인 버튼을 눌러 보세요	下の確認ボタンを試してください	试用下方的确认按钮
+Recent toasts: {0}	최근 알림 : {0}	最近の通知：{0}	最近的通知：{0}
+Standalone toast composition	독립 알림 구성	独立した通知の構成	独立通知组合
+Toast sample	알림 샘플	通知のサンプル	通知示例
+Try the body and dismiss button	본문과 닫기 버튼을 조작해 보세요	本文と閉じるボタンを操作してみてください	试用正文和关闭按钮
+Progress composition	진행 상태 구성	進行状況の構成	进度组合
+Keep the toast open until the transfer finishes	완료 전까지 알림을 유지합니다	転送が完了するまで通知を開いたままにします	传输完成前保持通知显示
+Show {0} again	{0} 다시 표시	{0}を再表示	重新显示{0}
+Hide {0}	{0} 숨기기	{0}を非表示にする	隐藏{0}
+Toggle mixed-language text for {0}	{0} 혼합 언어 전환	{0}の複数言語テキストを切り替える	切换{0}的混合语言文本
+Add 10% progress	진행률 +10%	進捗を 10% 増やす	增加 10% 进度
+Change progress mode	진행 방식 전환	進行状況の表示方式を切り替える	切换进度模式
+Toggle pause for progress animation	진행 모션 일시 정지 전환	進行アニメーションの一時停止を切り替える	切换进度动画暂停状态
+Show transfer completion	전송 완료 표시	転送完了を表示	显示传输完成
+Transfer complete	전송했습니다	転送が完了しました	传输完成
+The file is ready to view	파일을 확인할 수 있습니다	ファイルを確認できます	文件已可查看
+Saving	저장 중	保存中	正在保存
+Save complete	저장 완료	保存完了	保存完成
+Save failed	저장 실패	保存失敗	保存失败
+Custom icon	사용자 아이콘	カスタムアイコン	自定义图标
+Show	표시	表示	显示
+Show at screen center	화면 중앙에 표시	画面中央に表示	在屏幕中央显示
+Show progress	진행 표시	進行状況を表示	显示进度
+Show success	성공 표시	成功を表示	显示成功
+Show failure	실패 표시	失敗を表示	显示失败
+Toggle HUD input blocking	HUD 입력 차단 전환	HUD の入力ブロックを切り替える	切换 HUD 输入阻止
+Simulate on-screen keyboard area	화면 키보드 영역 모의	画面キーボードの領域をシミュレート	模拟屏幕键盘区域
+Compare the centered display in each state. Keyboard simulation reserves space at the bottom to test layout without opening a keyboard.	화면 중앙 표시와 각 상태의 모양을 비교하세요. 화면 키보드 영역 모의는 실제 키보드를 띄우지 않고 아래쪽 영역을 비워 배치를 확인합니다.	画面中央の各状態を比較できます。キーボードのシミュレーションでは、実際にキーボードを開かず画面下部に領域を確保して配置を確認します。	比较每种状态在屏幕中央的显示效果。键盘模拟会在底部预留空间以检查布局，无需打开实际键盘。
+Reduce HUD motion	HUD 모션 줄이기	HUD の動きを減らす	减少 HUD 动画
+Yet to be announced	아직 없음	まだ通知なし	尚未播报
+Message: {0}	메시지 {0}	メッセージ：{0}	消息：{0}
+Information	정보	情報	信息
+Warning	경고	警告	警告
+Success	성공	成功	成功
+Error	오류	エラー	错误
+Your work is preserved. Change the width to see how the message wraps.	작업 내용은 유지됩니다. 너비를 바꾸어 줄바꿈을 확인하세요.	作業内容は保持されます。幅を変えるとメッセージの折り返しを確認できます。	工作内容会保留。更改宽度可查看消息如何换行。
+Retry	재시도	再試行	重试
+Add, remove, or reorder messages. Resources are released when the example closes.	메시지를 추가·삭제하거나 순서를 바꿔 보세요. 예제를 닫을 때 사용한 자원도 해제됩니다.	メッセージの追加、削除、並べ替えを試せます。例を閉じると使用したリソースが解放されます。	试用添加、移除或重新排列消息。关闭示例时会释放所用资源。
+Delete	삭제	削除	删除
+Add message	메시지 추가	メッセージを追加	添加消息
+Delete first message	첫 메시지 삭제	最初のメッセージを削除	删除第一条消息
+Reverse order	순서 뒤집기	順序を逆にする	反转顺序
+MessageBar width	MessageBar 너비	MessageBar の幅	MessageBar 宽度
+Multi-line layout	여러 행 배치	複数行のレイアウト	多行布局
+Square corners	각진 모서리	角を四角くする	直角边角
+Right-to-left layout	오른쪽에서 왼쪽 배치	右から左へのレイアウト	从右到左布局
+Width: {0:F0} / Actions: {1}	너비 : {0:F0} / 액션 실행 : {1}	幅：{0:F0} / 操作回数：{1}	宽度：{0:F0} / 操作次数：{1}
+Announce when shown	표시할 때 자동 공지	表示時に自動で通知	显示时自动播报
+Always use polite announcements	차분한 공지로 고정	控えめな通知に固定	始终使用礼貌播报
+Announcement requests: {0} / {1}	공지 요청 : {0} / {1}	通知要求：{0} / {1}	播报请求：{0} / {1}
+Reopen all messages	모두 다시 열기	すべてのメッセージを再表示	重新打开所有消息
+Dynamic messages with keys	키를 가진 동적 메시지	キー付きの動的メッセージ	带键的动态消息
+Polite: {0}	차분 : {0}	控えめ：{0}	礼貌：{0}
+Assertive: {0}	즉시 : {0}	即時：{0}	立即：{0}
+Activity preview	활동 미리보기	アクティビティのプレビュー	活动预览
+Success preview	성공 미리보기	成功のプレビュー	成功预览
+Failure preview	실패 미리보기	失敗のプレビュー	失败预览
+Custom icon preview	사용자 아이콘 미리보기	カスタムアイコンのプレビュー	自定义图标预览
+Reduce message motion	동작 줄이기	メッセージの動きを減らす	减少消息动画

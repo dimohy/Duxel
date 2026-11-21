@@ -13,7 +13,7 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
     private readonly UiState<bool> _announce = new(true);
     private readonly UiState<bool> _polite = new(false);
     private readonly UiState<int> _announcementCount = new(0);
-    private readonly UiState<string> _lastAnnouncement = new("아직 없음");
+    private readonly UiState<string> _lastAnnouncement = new(GalleryText.Get("Yet to be announced"));
     private UiAccessibilityTree? _observedTree;
     private UiImmediateContext? _announcementUi;
     private int? _verificationAnnouncementBaseline;
@@ -31,14 +31,24 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
     internal MessageBarPage()
     {
         _resolvedOptions = ResolveOptions(new());
+        var intentDefinition = GallerySample.Define<Func<UiMessageBarIntent, string>>("intentLabel",
+            () => (UiMessageBarIntent intent) => intent switch
+            {
+                UiMessageBarIntent.Info => GalleryText.Get("Information"),
+                UiMessageBarIntent.Warning => GalleryText.Get("Warning"),
+                UiMessageBarIntent.Success => GalleryText.Get("Success"),
+                UiMessageBarIntent.Error => GalleryText.Get("Error"),
+                _ => throw new ArgumentOutOfRangeException(nameof(intent))
+            });
+        var intentLabel = intentDefinition.Value;
         var fixedSample = GallerySample.Create(() =>
         {
             UiFluentMessageBarGroup? group = null;
             var messages = Enum.GetValues<UiMessageBarIntent>().Select((intent, index) => Fluent.MessageBar(
-                "메시지 " + intent,
-                Fluent.MessageBarBody("작업 내용은 유지됩니다. 너비를 바꾸어 줄바꿈을 확인하세요.", Fluent.MessageBarTitle(intent.ToString())),
-                Fluent.MessageBarActions([Fluent.Button("재시도", () => _actions.Value++)]),
-                Fluent.Button("닫기", () => group!.SetVisible(index, false)), _resolvedOptions with { Intent = intent })).ToArray();
+                string.Format(GalleryText.Get("Message: {0}"), intentLabel(intent)),
+                Fluent.MessageBarBody(GalleryText.Get("Your work is preserved. Change the width to see how the message wraps."), Fluent.MessageBarTitle(intentLabel(intent))),
+                Fluent.MessageBarActions([Fluent.Button(GalleryText.Get("Retry"), () => _actions.Value++)]),
+                Fluent.Button(GalleryText.Get("Close"), () => group!.SetVisible(index, false)), _resolvedOptions with { Intent = intent })).ToArray();
             group = Fluent.MessageBarGroup(messages, new(Gap : 10));
             return group;
         });
@@ -48,7 +58,7 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
         fixedSample.BindSource(() => (_resolvedOptions, Actions : _actions.Value, Reduced : _reducedMotion.Value,
             Hidden : string.Join(",", Enumerable.Range(0, _messages.Length).Where(index => !_group.IsVisible(index)))), state =>
             $"var _actions = new UiState<int>({state.Actions});\n"
-            + $"var _resolvedOptions = {OptionsSource(state._resolvedOptions)};\n\n" + fixedFactory
+            + $"var _resolvedOptions = {OptionsSource(state._resolvedOptions)};\n\n" + intentDefinition.Source + "\n\n" + fixedFactory
             + $"\n((UiFluentMessageBarGroup)example).Options = ((UiFluentMessageBarGroup)example).Options with {{ ReducedMotion = {GallerySample.Boolean(state.Reduced)} }};"
             + string.Concat(state.Hidden.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(index =>
                 $"\n((UiFluentMessageBarGroup)example).SetVisible({index}, false);")));
@@ -63,8 +73,8 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
         var removeDynamic = remove.Value;
         var messageDefinition = GallerySample.Define<Func<string, UiFluentMessageBar>>("createMessage", () => (string key) =>
             Fluent.MessageBar(key,
-                Fluent.MessageBarBody("메시지를 추가·삭제하거나 순서를 바꿔 보세요. 예제를 닫을 때 사용한 자원도 해제됩니다.", Fluent.MessageBarTitle(key)),
-                containerAction : Fluent.Button("삭제", () => removeDynamic(key)), options : _resolvedOptions));
+                Fluent.MessageBarBody(GalleryText.Get("Add, remove, or reorder messages. Resources are released when the example closes."), Fluent.MessageBarTitle(key)),
+                containerAction : Fluent.Button(GalleryText.Get("Delete"), () => removeDynamic(key)), options : _resolvedOptions));
         var createMessage = messageDefinition.Value;
         var add = GallerySample.Define<Action>("addDynamic", () => () =>
         {
@@ -87,8 +97,8 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
         var reverseDynamic = _reverseDynamic = reverse.Value;
         var dynamicSample = GallerySample.Create(() => Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min,
             CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
-            Dux.Wrap(new(Spacing : 12, RunSpacing : 8), Fluent.Button("메시지 추가", addDynamic),
-                Fluent.Button("첫 메시지 삭제", removeFirstDynamic), Fluent.Button("순서 뒤집기", reverseDynamic)), _dynamicGroup));
+            Dux.Wrap(new(Spacing : 12, RunSpacing : 8), Fluent.Button(GalleryText.Get("Add message"), addDynamic),
+                Fluent.Button(GalleryText.Get("Delete first message"), removeFirstDynamic), Fluent.Button(GalleryText.Get("Reverse order"), reverseDynamic)), _dynamicGroup));
         var dynamicFactory = dynamicSample.Source;
         dynamicSample.BindSource(() => (_resolvedOptions, Next : _nextMessage, Reduced : _reducedMotion.Value,
             Keys : string.Join(",", _dynamicItems.Select(item => GallerySample.String(item.Key)))), state =>
@@ -102,22 +112,22 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
         Samples = [fixedSample, dynamicSample];
         _root = new UiScrollView(Dux.Column(new(Spacing: 12, MainAxisSize: UiMainAxisSize.Min),
         [
-            Fluent.Slider("MessageBar 너비", _width.Binding, 300, 800, 1),
-            Dux.Wrap(new(Spacing: 16, RunSpacing: 8), Fluent.Switch("여러 행 배치", _multiline.Binding),
-                Fluent.Switch("각진 모서리", _square.Binding), Fluent.Switch("오른쪽에서 왼쪽 배치", _rightToLeft.Binding)),
-            Fluent.Body1(() => $"너비 : {_width.Value:F0} / 액션 실행 : {_actions.Value}"),
-            Dux.Wrap(new(Spacing: 16, RunSpacing: 8), Fluent.Switch("표시할 때 자동 공지", _announce.Binding),
-                Fluent.Switch("차분한 공지로 고정", _polite.Binding)),
-            Fluent.Caption1(() => $"공지 요청 : {_announcementCount.Value} / {_lastAnnouncement.Value}"),
-            Dux.Wrap(new(Spacing: 16, RunSpacing: 8), Fluent.Button("모두 다시 열기", () =>
+            Fluent.Slider(GalleryText.Get("MessageBar width"), _width.Binding, 300, 800, 1),
+            Dux.Wrap(new(Spacing: 16, RunSpacing: 8), Fluent.Switch(GalleryText.Get("Multi-line layout"), _multiline.Binding),
+                Fluent.Switch(GalleryText.Get("Square corners"), _square.Binding), Fluent.Switch(GalleryText.Get("Right-to-left layout"), _rightToLeft.Binding)),
+            Fluent.Body1(() => GalleryText.Format("Width: {0:F0} / Actions: {1}", _width.Value, _actions.Value)),
+            Dux.Wrap(new(Spacing: 16, RunSpacing: 8), Fluent.Switch(GalleryText.Get("Announce when shown"), _announce.Binding),
+                Fluent.Switch(GalleryText.Get("Always use polite announcements"), _polite.Binding)),
+            Fluent.Caption1(() => GalleryText.Format("Announcement requests: {0} / {1}", _announcementCount.Value, _lastAnnouncement.Value)),
+            Dux.Wrap(new(Spacing: 16, RunSpacing: 8), Fluent.Button(GalleryText.Get("Reopen all messages"), () =>
             {
                 for (var i = 0; i < _messages.Length; i++) _group.SetVisible(i, true);
-            }), Fluent.Switch("동작 줄이기", _reducedMotion.Binding)),
+            }), Fluent.Switch(GalleryText.Get("Reduce message motion"), _reducedMotion.Binding)),
             fixedSample,
-            Fluent.Subtitle1("키를 가진 동적 메시지"),
+            Fluent.Subtitle1(GalleryText.Get("Dynamic messages with keys")),
             dynamicSample
         ]));
-        _root.AccessibleName = Title;
+        _root.AccessibleName = GalleryText.PageTitle(Title);
     }
     private void AddDynamic() => _addDynamic();
     private void RemoveFirstDynamic() => _removeFirstDynamic();
@@ -195,8 +205,8 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
     {
         _announcementCount.Value++;
         var text = new System.Globalization.StringInfo(announcement.Message);
-        _lastAnnouncement.Value = (announcement.Priority == UiAnnouncementPriority.Polite ? "차분 : " : "즉시 : ")
-            + text.SubstringByTextElements(0, Math.Min(28, text.LengthInTextElements));
+        _lastAnnouncement.Value = GalleryText.Format(announcement.Priority == UiAnnouncementPriority.Polite ? "Polite: {0}" : "Assertive: {0}",
+            text.SubstringByTextElements(0, Math.Min(28, text.LengthInTextElements)));
         if (_announcementUi is { } ui)
             ui.RequestFrameAt(ui.GetTime());
     }

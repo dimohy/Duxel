@@ -54,10 +54,11 @@ internal static class MessageBarPageInteractionTests
         }
         UiFluentMessageBar[] AllMessages() => page.FixedMessages.Children.ToArray().Concat(page.DynamicMessages.Children.ToArray())
             .Cast<UiFluentMessageBar>().ToArray();
+        string[] fixedNames = ["메시지 정보", "메시지 성공", "메시지 경고", "메시지 오류"];
         Settle();
         check(page.FixedMessages.Children.Length == 4 && announcements.Count == 4
             && announcements.Count(x => x.Priority == UiAnnouncementPriority.Polite) == 1
-            && Enum.GetValues<UiMessageBarIntent>().All(x => Find("메시지 " + x).Node.LabeledBy is not null),
+            && fixedNames.All(name => Find(name).Node.LabeledBy is not null),
             "Actual Observer exposes all four owned intents with real title relations and initial priority announcements");
         Toggle("동작 줄이기");
         check(Find("동작 줄이기").Node.Checked == true && page.FixedMessages.Options.ReducedMotion
@@ -82,19 +83,19 @@ internal static class MessageBarPageInteractionTests
             && ReferenceEquals(page.DynamicMessages.Items[0].Widget, before[1].Widget)
             && ReferenceEquals(page.DynamicMessages.Items[1].Widget, before[0].Widget),
             "Actual reverse button preserves owned message identities while changing key order");
-        Invoke("재시도", Find("메시지 Info").Node.Id);
+        Invoke("재시도", Find("메시지 정보").Node.Id);
         check(tree.CaptureSnapshot().Elements.Any(x => x.Node.Name == "너비 : 800 / 액션 실행 : 1"),
             "Actual retry button executes its callback and updates the visible action count");
         var count = announcements.Count;
-        Invoke("닫기", Find("메시지 Info").Node.Id);
-        check(tree.CaptureSnapshot().Elements.All(x => x.Node.Name != "메시지 Info")
+        Invoke("닫기", Find("메시지 정보").Node.Id);
+        check(tree.CaptureSnapshot().Elements.All(x => x.Node.Name != "메시지 정보")
             && page.RequestedDynamicCount == 2, "Actual close retires only its fixed message without removing dynamic items");
         Invoke("모두 다시 열기");
-        check(Find("메시지 Info").Node.LabeledBy is not null && announcements.Count == count + 1,
+        check(Find("메시지 정보").Node.LabeledBy is not null && announcements.Count == count + 1,
             "Actual reopen restores the owned message and announces only that new mount");
         Toggle("표시할 때 자동 공지");
         count = announcements.Count;
-        Invoke("닫기", Find("메시지 Success").Node.Id);
+        Invoke("닫기", Find("메시지 성공").Node.Id);
         Invoke("모두 다시 열기");
         check(announcements.Count == count && AllMessages().All(x => x.Options.DisableAnnouncement),
             "Actual announcement disable switch suppresses a close/reopen across fixed and dynamic messages");
@@ -116,13 +117,13 @@ internal static class MessageBarPageInteractionTests
         check(AllMessages().All(x => !x.Options.RightToLeft && x.Options.Shape == UiMessageBarShape.Rounded
             && x.Options.Layout == UiMessageBarLayoutMode.Auto), "Actual option switches restore both fixed and dynamic message defaults");
         var originalFixed = page.FixedMessages.Children.ToArray();
-        foreach (var intent in Enum.GetValues<UiMessageBarIntent>())
-            Invoke("닫기", Find("메시지 " + intent).Node.Id);
+        foreach (var name in fixedNames)
+            Invoke("닫기", Find(name).Node.Id);
         check(tree.CaptureSnapshot().Elements.All(x => x.Node.Role != UiAccessibilityRole.Group
             || !x.Node.Name.StartsWith("메시지 ", StringComparison.Ordinal)),
             "Each actual intent-specific close callback retires its own message");
         Invoke("모두 다시 열기");
-        check(Enum.GetValues<UiMessageBarIntent>().All(x => Find("메시지 " + x).Node.LabeledBy is not null)
+        check(fixedNames.All(name => Find(name).Node.LabeledBy is not null)
             && page.FixedMessages.Children.ToArray().SequenceEqual(originalFixed),
             "Actual reopen restores all four fixed owned instances and title identities");
         Toggle("동작 줄이기");

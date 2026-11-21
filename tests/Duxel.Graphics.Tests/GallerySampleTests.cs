@@ -1048,7 +1048,7 @@ internal static class GallerySampleTests
         }
         Frame(); Frame();
         var sources = tree.CaptureSnapshot().Elements.Where(element => element.Node.Name == "C# 예제 소스").Select(element => element.Node).ToArray();
-        var messageBounds = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == "메시지 Error"
+        var messageBounds = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == "메시지 오류"
             && element.Node.Role == UiAccessibilityRole.Group).Node.Bounds;
         check(page.Samples.Count == 2 && sources.Length == 2, "fixed and keyed MessageBar examples have separate source blocks");
         var end = messageBounds.Y + messageBounds.Height;

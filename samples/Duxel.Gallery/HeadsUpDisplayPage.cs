@@ -23,10 +23,10 @@ internal sealed class HeadsUpDisplayPage : IObserverPage, IObserverNaturalPage, 
             {
                 var options = new UiHeadsUpDisplayContentOptions(kind, kind switch
                 {
-                    UiHeadsUpDisplayKind.Activity => "저장 중",
-                    UiHeadsUpDisplayKind.Success => "저장 완료",
-                    UiHeadsUpDisplayKind.Failure => "저장 실패",
-                    UiHeadsUpDisplayKind.Custom => "사용자 아이콘",
+                    UiHeadsUpDisplayKind.Activity => GalleryText.Get("Saving"),
+                    UiHeadsUpDisplayKind.Success => GalleryText.Get("Save complete"),
+                    UiHeadsUpDisplayKind.Failure => GalleryText.Get("Save failed"),
+                    UiHeadsUpDisplayKind.Custom => GalleryText.Get("Custom icon"),
                     _ => throw new ArgumentOutOfRangeException(nameof(kind))
                 }, kind == UiHeadsUpDisplayKind.Custom ? UiMenuIcon.Create<StatusIcon, StatusIcon>() : default);
                 var sample = GallerySample.Create(() => new UiHeadsUpDisplayContent(options));
@@ -39,9 +39,16 @@ internal sealed class HeadsUpDisplayPage : IObserverPage, IObserverNaturalPage, 
                     + ");\nvar content = new UiHeadsUpDisplayContent(options);"
                     + (state.Kind == UiHeadsUpDisplayKind.Custom ? "\n\n" + IconSource : string.Empty));
                 Samples.Add(sample);
-                examples.Add(Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min), Fluent.Subtitle2(kind.ToString()), sample));
+                examples.Add(Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min), Fluent.Subtitle2(kind switch
+                {
+                    UiHeadsUpDisplayKind.Activity => GalleryText.Get("Activity preview"),
+                    UiHeadsUpDisplayKind.Success => GalleryText.Get("Success preview"),
+                    UiHeadsUpDisplayKind.Failure => GalleryText.Get("Failure preview"),
+                    UiHeadsUpDisplayKind.Custom => GalleryText.Get("Custom icon preview"),
+                    _ => throw new ArgumentOutOfRangeException(nameof(kind))
+                }), sample));
             }
-            var portalSample = GallerySample.Create(() => Fluent.HeadsUpDisplay(new(Label : "저장 중")));
+            var portalSample = GallerySample.Create(() => Fluent.HeadsUpDisplay(new(Label : GalleryText.Get("Saving"))));
             var portal = portalSample.Preview;
             portal.Content.Tapped = () => portal.Hide();
             portalSample.BindSource(() => (Content : portal.Content.Options, Options : portal.Options), state =>
@@ -52,26 +59,26 @@ internal sealed class HeadsUpDisplayPage : IObserverPage, IObserverNaturalPage, 
                 + ",\n    ReducedMotion : " + GallerySample.Boolean(state.Options.ReducedMotion)
                 + ", KeyboardHeight : " + state.Options.KeyboardHeight.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 + ");\nvar hud = Fluent.HeadsUpDisplay(content, options);\nhud.Content.Tapped = () => hud.Hide();\n"
-                + "var show = Fluent.Button(\"표시\", hud.Show);\nvar example = Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min), show, hud);");
+                + "var show = Fluent.Button(" + GallerySample.String(GalleryText.Get("Show")) + ", hud.Show);\nvar example = Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min), show, hud);");
             Samples.Insert(0, portalSample);
             examples.Insert(0, Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Subtitle2("화면 중앙에 표시"),
+                Fluent.Subtitle2(GalleryText.Get("Show at screen center")),
                 Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                    Fluent.Button("진행 표시", () =>
+                    Fluent.Button(GalleryText.Get("Show progress"), () =>
                     {
-                        portal.Content.Options = new(Label : "저장 중");
+                        portal.Content.Options = new(Label : GalleryText.Get("Saving"));
                         portal.Options = portal.Options with { IsPersistent = true };
                         portal.Show();
                     }),
-                    Fluent.Button("성공 표시", () => portal.ShowSuccess("저장 완료")),
-                    Fluent.Button("실패 표시", () => portal.ShowFailure("저장 실패")),
-                    Fluent.Button("HUD 입력 차단 전환", () => portal.Options = portal.Options with { IsBlocking = !portal.Options.IsBlocking }),
-                    Fluent.Button("화면 키보드 영역 모의", () => portal.Options = portal.Options with
+                    Fluent.Button(GalleryText.Get("Show success"), () => portal.ShowSuccess(GalleryText.Get("Save complete"))),
+                    Fluent.Button(GalleryText.Get("Show failure"), () => portal.ShowFailure(GalleryText.Get("Save failed"))),
+                    Fluent.Button(GalleryText.Get("Toggle HUD input blocking"), () => portal.Options = portal.Options with { IsBlocking = !portal.Options.IsBlocking }),
+                    Fluent.Button(GalleryText.Get("Simulate on-screen keyboard area"), () => portal.Options = portal.Options with
                     { KeyboardHeight = portal.Options.KeyboardHeight == 0 ? 200 : 0 })),
                 portalSample));
             Root = Dux.Column(new(Spacing : 16, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Body1("화면 중앙 표시와 각 상태의 모양을 비교하세요. 화면 키보드 영역 모의는 실제 키보드를 띄우지 않고 아래쪽 영역을 비워 배치를 확인합니다."),
-                Fluent.Button("HUD 모션 줄이기", () =>
+                Fluent.Body1(GalleryText.Get("Compare the centered display in each state. Keyboard simulation reserves space at the bottom to test layout without opening a keyboard.")),
+                Fluent.Button(GalleryText.Get("Reduce HUD motion"), () =>
                 {
                     portal.Options = portal.Options with { ReducedMotion = !portal.Options.ReducedMotion };
                     previews.ForEach(preview => preview.Options = preview.Options with { ReducedMotion = portal.Options.ReducedMotion });
