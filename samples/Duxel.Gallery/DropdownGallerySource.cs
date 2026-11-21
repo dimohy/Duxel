@@ -34,9 +34,9 @@ internal static class DropdownGallerySource
         var artwork = store.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Svg", "artwork.svg"));
         var size = artwork.IntrinsicSize;
         var raster = artwork.Rasterize(checked((int)MathF.Ceiling(size.X)), checked((int)MathF.Ceiling(size.Y)));
-        using var _memberAvatar = Fluent.Avatar("디모이", new(Color : UiAvatarColor.Brand,
+        using var _memberAvatar = Fluent.Avatar({{GallerySample.String(GalleryText.Get("Dimohy"))}}, new(Color : UiAvatarColor.Brand,
             Presence : new(), IsInactive : {{GallerySample.Boolean(inactive)}}));
-        using var _imageAvatar = Fluent.Avatar("SVG 이미지", new(Presence : new(UiPresenceStatus.Busy),
+        using var _imageAvatar = Fluent.Avatar({{GallerySample.String(GalleryText.Get("SVG image"))}}, new(Presence : new(UiPresenceStatus.Busy),
             IsInactive : {{GallerySample.Boolean(inactive)}}));
         _imageAvatar.Source = new UiImageSource(raster.CopyImageData());
         """;

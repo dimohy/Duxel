@@ -9,7 +9,7 @@ internal sealed class ValidatedNameExample : UiWidget
     internal ValidatedNameExample(UiState<string> name)
     {
         _name = name;
-        _field = Fluent.Field(Fluent.Input("이름", name.Binding, 256, 460));
+        _field = Fluent.Field(Fluent.Input(GalleryText.Get("Name"), name.Binding, 256, 460));
         _field.Width = 460;
         OwnChild("field", _field);
     }
@@ -18,10 +18,10 @@ internal sealed class ValidatedNameExample : UiWidget
         var name = context.Watch(_name);
         _field.Options = new()
         {
-            Label = "이름",
+            Label = GalleryText.Get("Name"),
             Required = true,
-            Hint = "라벨을 눌러 입력창에 포커스를 옮겨 보세요.",
-            ValidationMessage = name.Length < 2 ? "두 글자 이상 입력하세요." : "입력되었습니다.",
+            Hint = GalleryText.Get("Select the label to focus its input."),
+            ValidationMessage = name.Length < 2 ? GalleryText.Get("Enter at least two characters.") : GalleryText.Get("Name entered."),
             ValidationState = name.Length < 2 ? UiFieldValidationState.Error : UiFieldValidationState.Success
         };
         return context.Child("field", () => _field);
