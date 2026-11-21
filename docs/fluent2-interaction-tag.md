@@ -15,7 +15,7 @@ Accessibility publishes a passive Group with two real Buttons. × has a LabeledB
 
 Existing custom `IUiTagPresentation` implementations keep basic Tag support. InteractionTag requires `SupportsInteraction`, `MeasureInteraction`, `SecondaryWidth` and `PaintInteraction`. Unsupported presentations fail explicitly at construction instead of switching styles. Borrowed icon/SVG owners must outlive widgets.
 
-Run `./run-gallery.ps1` → **선택 목록** → **확인할 기능** and select image/SVG features. Click an upper interactive tag's primary text to update **태그 확인** while preserving selection. Click × to remove it. Lower basic tags dismiss from their entire surface. Compare size changes, direction changes and page persistence.
+Run `./run-gallery.ps1` → **Selection lists · combined** → **Features to try** and select image/SVG features. Click an upper interactive tag's primary text to update **Tag activation** while preserving selection. Click × to remove it. Lower basic tags dismiss from their entire surface. Compare size changes, direction changes and page persistence.
 
 Evidence: `artifacts/interaction-tag-2026-11-13/`. [Official Tag guidance](https://fluent2.microsoft.design/components/web/react/core/tag/usage), pinned commit `8830c10b`. InteractionTag is a Tag variant and does not increase the top-level denominator. Overflow, forced colors, extended small touch targets, physical screen-reader and fixed RC3 NativeAOT/performance/device acceptance remain open.
 
@@ -32,7 +32,7 @@ tag.Selected = selected.Binding;
 
 A bound primary exposes the existing Button Toggle pattern, rather than Invoke; the secondary remains Invoke-only. Clearing the binding removes Toggle capability. `UiTagOptions.Selected` supplies visual emphasis only when no binding overrides it; it does not invent selection or Toggle semantics. Disabled styling takes precedence. Selected rest/hover/pressed, white foreground/divider and outline use the pinned brand aliases. TagGroup's existing selection binding still controls visible values; it is independent of this standalone emphasis binding.
 
-Run `./run-gallery.ps1` → **선택 목록**, scroll to **강조 선택**, then toggle **태그 변경 허용 전환** to compare accepted and rejected changes. The displayed state, color and native Toggle state follow the accepted model value. Evidence: `artifacts/tag-selection-2026-11-13/`.
+Run `./run-gallery.ps1` → **Selection lists · combined**, scroll to **Emphasis selection**, then toggle **Toggle whether tag changes are allowed** to compare accepted and rejected changes. The displayed state, color and native Toggle state follow the accepted model value. Evidence: `artifacts/tag-selection-2026-11-13/`.
 
 
 ## Independent group emphasis
@@ -48,6 +48,6 @@ The optional `emphasized` binding controls selected styling and primary Toggle s
 
 `dismissible: false` retains primary Toggle actions and roving keyboard navigation. Disabled options reject Toggle. Changing size/RTL does not replace selected providers. Group children inherit the same standalone selected rendering; `TagOptions.Selected` remains only a visual default when no emphasis binding is present.
 
-Run `./run-gallery.ps1` → **선택 목록** → select features. Click an upper tag's text to toggle its highlight, × to remove it, then add that feature again to verify the highlight is retained. The lower basic group still follows the same visible values. Evidence: `artifacts/tag-group-emphasis-2026-11-13/`.
+Run `./run-gallery.ps1` → **Selection lists · combined** → select features. Click an upper tag's text to toggle its highlight, × to remove it, then add that feature again to verify the highlight is retained. The lower basic group still follows the same visible values. Evidence: `artifacts/tag-group-emphasis-2026-11-13/`.
 
 Media now shares [Tag avatar/image slots](fluent2-tag.md#borrowed-avatar-and-image-media), including independent per-tag resource ownership.

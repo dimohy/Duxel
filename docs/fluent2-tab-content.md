@@ -2,7 +2,7 @@
 
 Last synced: 2026-11-11
 
-Run `./run-gallery.ps1`, select **Fluent**, then scroll to **탭 표현과 아이콘**. Four actual tab lists share a persistent selection. Compare text with icons, icon-only content, disabled items and Transparent/Subtle/SubtleCircular/FilledCircular. The last two appearances use pill rounding; they do not draw an underline. Arrow keys move focus; Enter or Space selects. Selection switches the regular icon to its filled export. Hover and focus alone do not select that export.
+Run `./run-gallery.ps1`, select **Fluent**, then scroll to **Tab styles and icons**. Four actual tab lists share a persistent selection. Compare text with icons, icon-only content, disabled items and Transparent/Subtle/SubtleCircular/FilledCircular. The last two appearances use pill rounding; they do not draw an underline. Arrow keys move focus; Enter or Space selects. Selection switches the regular icon to its filled export. Hover and focus alone do not select that export.
 
 ```csharp
 var icon = UiTabIcon.Create<UiFluentAddIcon, UiFluentAddFilledIcon>();

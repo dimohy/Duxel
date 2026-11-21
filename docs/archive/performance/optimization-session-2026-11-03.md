@@ -1315,7 +1315,7 @@ Native baselineB13F2B47and PDB were copied with hash readback to the owned memor
 최신 측정(2026-11-03): MSAA 경계 수정＋픽셀 소유권 재사용을 포함한 NativeAOT694550C9는1200테이블,dense/resident,MSAA4,VSync off,실제 준비 후18초×각3회에서 카메라937.19FPS(93.72%,범위919.51–982.09),카메라＋엔티티 이동960.30FPS(96.03%,942.55–970.95),단일 실행 평균 최고982.09FPS다. 두 시나리오 모두1000미달이다. 기존09584FF4의1000이상 기록은 보존하되 발견한 MSAA 경계 결함을 포함하므로 최신 화면 정확성의 증거로 재사용하지 않는다. 정확성 수정은 유지하며 단계 간 차이를 격리된 회귀율로 계산하지 않는다. 원시 프레임 통계·표시/소스 연결·준비 구간·초기 자세·설정·해시6/6감사 통과. 상위 일회성 실행 래퍼는 완료 뒤 PowerShell 스크립트에 native LASTEXITCODE를 잘못 검사해1로 끝났고,실제6개 자식은 기존 실행기가 정상 종료를 확인했다. 기록을 직접 감사했고 비용 큰 재실행은 하지 않았다. 근거:artifacts/perf-2026-11-03/coverage-erd-current 및 fps-current.json. 기본09584FF4EXE/PDB는 갱신하지 않았고 최신 후보는 기존binding-candidate경로다. 최종.NET10/11 Managed/AOT 비교와 처리량 개선은 남아 있다.
 ## 최종 검증 결과 — 2026-11-03
 
-현재 검증한 배포 이미지는 **DE068949E4A92689455341057405F6BFE0BEC38C9C89DC64D50A1D43A6D60715**다. 아래의 과거 단계별 수치는 당시 소스·이미지의 기록이며 현재 결과는 이 절과 [최신 FPS 기록](../artifacts/perf-2026-11-03/fps-current.json)을 기준으로 한다.
+현재 검증한 배포 이미지는 **DE068949E4A92689455341057405F6BFE0BEC38C9C89DC64D50A1D43A6D60715**다. 아래의 과거 단계별 수치는 당시 소스·이미지의 기록이며 현재 결과는 이 절과 [최신 FPS 기록](../../../artifacts/perf-2026-11-03/fps-current.json)을 기준으로 한다.
 
 | ERD1200테이블·MSAA4 | 독립3회 평균의 중앙값 | 실행 범위 | 목표1000 |
 | --- | ---: | ---: | --- |
@@ -1335,9 +1335,9 @@ GPU검사 NET10/11각438개,직접 제출414개,실제 동적3D 샘플·상태 �
 | .NET10 NativeAOT Speed | 7049.16 | 1815.60 | 581.45 |
 | .NET11 NativeAOT Speed | 8124.30 | 2426.84 | 806.74 |
 
-각 값은 독립3회 FPS중앙값이다. 전체12실행·72구간·원시 프레임72개·GPU계측72구간·표시 창12개 검증을 완료했다. .NET10 SDK10.0.403/runtime10.0.14와 .NET11 SDK11.0.100-rc.3.26522.148/runtime11.0.0-rc.3.26522.148을 사용했다. MSAA1,VSync off,정적 레이어 캐시 없음,직렬 UI프레임 시작 시계,구간별 준비0.25초＋측정1.5초다. 순서 반전과 동일한 표시 창 조건을 적용했다. 이 표의 수치는 ERD의 병렬 렌더링·MSAA4·표시 요청 시계와 직접 비교하지 않는다. 평균 외 median/p95/p99/1%low,할당,드로우,업로드,GPU시간과 실행 범위는 [런타임 결과](../artifacts/perf-2026-11-03/coverage-complete-runtime/summary.json)에 보존했다. .NET11이나 AOT가 모든 부하에서 가장 빠르다고 주장하지 않는다.
+각 값은 독립3회 FPS중앙값이다. 전체12실행·72구간·원시 프레임72개·GPU계측72구간·표시 창12개 검증을 완료했다. .NET10 SDK10.0.403/runtime10.0.14와 .NET11 SDK11.0.100-rc.3.26522.148/runtime11.0.0-rc.3.26522.148을 사용했다. MSAA1,VSync off,정적 레이어 캐시 없음,직렬 UI프레임 시작 시계,구간별 준비0.25초＋측정1.5초다. 순서 반전과 동일한 표시 창 조건을 적용했다. 이 표의 수치는 ERD의 병렬 렌더링·MSAA4·표시 요청 시계와 직접 비교하지 않는다. 평균 외 median/p95/p99/1%low,할당,드로우,업로드,GPU시간과 실행 범위는 [런타임 결과](../../../artifacts/perf-2026-11-03/coverage-complete-runtime/summary.json)에 보존했다. .NET11이나 AOT가 모든 부하에서 가장 빠르다고 주장하지 않는다.
 
-픽셀 소유권 재사용의 이전 변경 전/후 각3회180초 비교에서 Private Bytes 증가 중앙값은116.33MiB→0.375MiB(증가량99.68%감소)였다. 최종 DE068949이미지의 별도180초 확인은 증가0.383MiB,작업 집합 변화-0.297MiB,정상 종료였다. 유휴59.99초는 추가 로그 프레임0,CPU62.5ms,정상 종료였다. 강제 GC를 사용하지 않았다. 전체 메모리99.68%감소,무기한 누수 없음 또는 VRAM 측정으로 해석하지 않는다. [현재 자원 관측](../artifacts/perf-2026-11-03/coverage-complete-resources-audit.json).
+픽셀 소유권 재사용의 이전 변경 전/후 각3회180초 비교에서 Private Bytes 증가 중앙값은116.33MiB→0.375MiB(증가량99.68%감소)였다. 최종 DE068949이미지의 별도180초 확인은 증가0.383MiB,작업 집합 변화-0.297MiB,정상 종료였다. 유휴59.99초는 추가 로그 프레임0,CPU62.5ms,정상 종료였다. 강제 GC를 사용하지 않았다. 전체 메모리99.68%감소,무기한 누수 없음 또는 VRAM 측정으로 해석하지 않는다. [현재 자원 관측](../../../artifacts/perf-2026-11-03/coverage-complete-resources-audit.json).
 
 현재 GPU 실측은 NVIDIA RTX5070Ti Laptop이다. 다른 GPU의 성능 보장은 하지 않는다. 글리프는 벡터 메시이고 기본 곡선 근사 오차0.001폰트 픽셀이므로 무한 배율의 해석적 글리프라고 주장하지 않는다. 비트맵 이미지의 확대 품질은 원본 해상도에 제한된다. 기존 SDK10.0.301기준과 공개 지원 TFM은 유지한다.
 
@@ -1372,7 +1372,7 @@ GPU검사 NET10/11각438개,직접 제출414개,실제 동적3D 샘플·상태 �
 
 품질·회귀: 최신 코어 NET10/11 각465검사, 기존 이미지136/136동일, ERD1200테이블 각3회6초 카메라1259.94·동시 이동1249.24FPS. 명령 전수 탐색 도입 시 카메라1103.06FPS였던 중간 악화도 보존했고, 공통 분류 재사용으로 개선했다. 초기18초 투어와는 직접 개선율로 비교하지 않는다. 계측 비활성 상태의 NaN JSON 저장 실패도 수정하여 미수집 값은null과 표본 수로 기록하고 기본 실행 정상 종료를 확인했다.
 
-재현: [측정 문서](polygon-performance.ko.md)의 빌드·실행 명령. 최신 EXE SHA256은 F69412D1AF0694EE6C7C687FCCE4C01E62BEDA47ADC96C804FA238F17E11C033. 근거는 final-native-paired, final-profile-cache-suite, final-native-raw-audit.json, frame-cache-image-regression.json, gpu-current-source-manifest.json이다. UI 할당은 샘플 Render 현재 스레드, renderer 할당은 렌더 스레드 측정 범위이며 프로세스 전체 할당이 아니다.
+재현: [측정 문서](../../polygon-performance.ko.md)의 빌드·실행 명령. 최신 EXE SHA256은 F69412D1AF0694EE6C7C687FCCE4C01E62BEDA47ADC96C804FA238F17E11C033. 근거는 final-native-paired, final-profile-cache-suite, final-native-raw-audit.json, frame-cache-image-regression.json, gpu-current-source-manifest.json이다. UI 할당은 샘플 Render 현재 스레드, renderer 할당은 렌더 스레드 측정 범위이며 프로세스 전체 할당이 아니다.
 
 남은 검증: 최종 요구사항별 배포 감사와 빌드 산출물 수명 관리. 원형 경계·이산 시간 모델이며 연속 충돌 검출이나 일반 강체 물리 엔진이 아니다. 다른 GPU 벤더의 실측은 없다. 과거 기준 바이너리2개의 정리는 자동 승인 검토에서 거부되어 실행하지 않았고 같은 삭제를 우회 재시도하지 않는다.
 

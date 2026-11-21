@@ -142,7 +142,7 @@ Duxel의 버전별 변경 내역 누적 기록.
 ### 주요 개선 사항
 
 - **[개선]** Theme design-token 파이프라인 — `.duxel-theme`에서 `Design.*` 숫자 token을 해석하고, `Windows11` / `Windows11Dark` base preset과 theme accessor 옆 compiled design accessor를 지원.
-- **[개선]** Windows 11 시각 정리 — rounded control geometry, token 기반 radius, button/input/slider/progress/list/table/menu 색상 정리, dark/light 시스템 theme 해석으로 기본 앱 표면을 덜 ImGui스럽게 정리.
+- **[개선]** Windows 11 시각 정리 — rounded control geometry, token 기반 radius, button/input/slider/progress/list/table/menu 색상 정리, 시스템의 밝은·어두운 테마 선택 지원.
 - **[개선]** 선언형 샘플 표면 — 제품 대시보드 FBA 샘플을 추가하고 ThemeDemo 및 FBA 문서를 갱신해 reusable component, app shell, command bar, property list, status row, badge, callout을 확인 가능.
 - **[개선]** GPU renderer 문서화 — 이전 GPU-driven renderer 전환 내용을 기록해 `0.2.3-preview` 이후의 shader/pipeline 전제를 추적 가능하게 유지.
 
@@ -209,7 +209,7 @@ Duxel의 버전별 변경 내역 누적 기록.
 - **[개선]** 텍스트/불릿 수직 중앙 정렬 — glyph metrics 기반 시각 중심 계산으로 기존 heuristic ascent offset 대체.
 - **[개선]** `Combo` 위젯 이벤트 알림 — 값 변경 시 `EventSink.OnButton(id)` 발동, DSL 이벤트 핸들러 반응형 처리 가능.
 - **[개선]** `DuxelAppOptions.Screen` — nullable optional에서 `required`로 변경, 폐기된 `DuxelDslOptions` 진입점 및 `UiDslBindings` 클래스 제거.
-- **[개선]** ProgressBar accent 색상 — `ProgressBarFill`이 `SliderGrab` 대신 `PlotHistogram` 사용 (Dear ImGui 기준 일치).
+- **[개선]** ProgressBar accent 색상 — `ProgressBarFill`이 `SliderGrab` 대신 `PlotHistogram` 사용.
 
 ### 주요 버그 수정
 
@@ -370,7 +370,7 @@ Duxel의 버전별 변경 내역 누적 기록.
 
 - **[개선]** 배포 구조 단순화 — 패키지 설명을 최신 구조에 맞추고 NuGet 배포를 `Duxel.App`, `Duxel.Windows.App` 두 패키지에 집중.
 - **[개선]** 샘플 표면의 DSL 검증 중심 축소 — `samples/Duxel.Sample`만 유지, 이전 샘플 프로젝트 제거, FBA 패키지 지시자를 `Duxel.Windows.App` 기준으로 통일.
-- **[개선]** 축소된 샘플/패키지 구조에 맞춘 문서 정리 — README 표, 삭제 샘플 참조, ImGui 설계 문서, `docs/todo.md`를 한 번에 재구성.
+- **[개선]** 축소된 샘플/패키지 구조에 맞춘 문서 정리 — README 표, 이전 샘플 링크, 설계 문서, 작업 목록를 한 번에 재구성.
 
 ## 0.1.8-preview (2026-02-15)
 

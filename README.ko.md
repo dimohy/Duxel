@@ -1,117 +1,70 @@
 # Duxel
 
-[Rating 별점](docs/fluent2-rating.ko.md): `Fluent.Rating`의 반점·RTL·줄바꿈을 갤러리 **평가** 메뉴에서 확인합니다. 현재 의존성과 일치하는 복원 자산이 있다면 `./run-gallery.ps1 -NoRestore`로 실행할 수 있습니다.
-
-[위젯 계약 통합 검증](docs/widget-contract-validation.ko.md): 선언된 관리 CPU 검사를 하나의 독립 실행 경로로 확인합니다. GPU·NativeAOT·전체 제품 수락은 별도입니다.
-
 <p align="center">
-  <img src="logo.svg" alt="Duxel logo" width="615" />
+  <img src="logo.svg" alt="Duxel 로고" width="440" />
 </p>
 
-.NET 8, .NET 9 및 .NET 10 기반 즉시 모드 GUI 프레임워크로, Vulkan 렌더러와 Windows 네이티브 플랫폼 백엔드를 사용합니다.
-
-**현재 공개 패키지 버전:** `0.2.12-preview`
-
-**지원 패키지 타깃:** `net8.0`, `net9.0`, `net10.0`. 파일 기반 앱(FBA) 워크플로에는 계속 .NET 10 SDK가 필요합니다.
+Duxel은 네이티브 데스크톱 애플리케이션을 만드는 .NET UI 라이브러리입니다. C# 위젯을 조합해 Fluent 2 인터페이스를 만들거나, 즉시 모드 API로 직접 그리고 입력을 처리할 수 있습니다. 한 Vulkan 창에서 두 방식을 함께 쓸 수도 있습니다.
 
 [![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://licenses.nuget.org/MIT)
 
-- English: [README.md](README.md)
-- 버전 이력: [docs/version-history.ko.md](docs/version-history.ko.md) · [English](docs/version-history.md)
-- Duxel 에이전트 참조 문서: [docs/duxel-agent-reference.ko.md](docs/duxel-agent-reference.ko.md) · [English](docs/duxel-agent-reference.md)
-- 확장 타이틀바 가이드: [docs/extended-title-bar-guide.ko.md](docs/extended-title-bar-guide.ko.md) · [English](docs/extended-title-bar-guide.md)
+[English](README.md) · [문서](docs/README.ko.md) · [버전 이력](docs/version-history.ko.md)
 
-## 제공 기능
+## 인터페이스 만들기
 
-- `UiScreen.Render(...)` 기반 즉시 모드 위젯 API (`UiImmediateContext`).
-- 프로필 기반 렌더 설정(`Display` / `Render`)과 MSAA 설정.
-- Windows 네이티브 입력/IME/클립보드 지원.
-- 애플리케이션 탭, 네이티브 캡션 동작, Snap Layout, 시스템 메뉴, DPI, 다중 모니터를 지원하는 Windows 11 스타일 확장 타이틀바.
-- NativeAOT 친화 런타임 구성.
-- UI DSL(`.ui`) 파서/런타임 및 소스 생성기 경로.
+- **위젯 방식**은 `Dux`로 레이아웃을 구성하고 `Fluent`로 컨트롤을 배치합니다. 애플리케이션 상태는 `UiState<T>`와 바인딩으로 연결합니다. C#과 선언형 `.ui` 파일을 사용할 수 있습니다.
+- **즉시 모드**는 `UiScreen.Render`와 `UiImmediateContext`로 그리기, 맞춤 입력 처리, 진단 화면을 구현합니다. 같은 애플리케이션에 즉시 모드 콘텐츠와 위젯을 배치할 수 있습니다.
+- **Fluent 2 테마**는 Windows 11의 밝은·어두운 디자인을 제공합니다. `UiTheme`, `UiDesignTokens`, `IUiDesign`으로 색상과 서체, 컨트롤 크기나 간격을 바꿀 수 있습니다. 테마 공급자를 사용하면 특정 영역에만 다른 테마를 적용할 수 있습니다.
 
-## 패키지
+가상화 목록과 데이터 그리드, SVG와 Markdown 위젯, 키보드 탐색과 플랫폼 접근성도 제공합니다. 플랫폼과 컴포넌트별 지원 범위는 문서에서 확인할 수 있습니다. [Fluent 2 지원 범위](docs/fluent2-coverage.ko.md) · [테마 공급자](docs/fluent2-provider.ko.md)
 
-| 패키지 | 용도 |
-|---|---|
-| `Duxel.App` | 앱 파사드 및 공용 런타임 파이프라인 |
-| `Duxel.Windows.App` | Windows 플랫폼 러너 (`DuxelWindowsApp.Run`) |
+## 갤러리 실행
 
-일반 .NET 8 Windows 애플리케이션은 `net8.0-windows7.0` 또는 그 이후 Windows TFM을 사용하세요. Duxel 패키지 어셈블리는 이식 가능한 `net8.0` 자산으로 제공하고, 소비자 프로젝트의 Windows TFM이 플랫폼 요구사항을 분석기와 빌드에 명확히 전달합니다. 파일 기반 앱에는 .NET 10 SDK가 필요하므로 FBA 샘플은 계속 `net10.0`을 사용합니다.
+저장소를 내려받고 루트에서 실행합니다.
 
-## 빠른 시작 (FBA, Windows)
+```powershell
+./run-gallery.ps1
+```
 
-`hello.cs`:
+예제를 열어 컨트롤을 조작하고 C# 코드를 복사할 수 있습니다. 설정에서 영어, 한국어, 일본어, 간체 중국어를 선택할 수 있습니다. [갤러리 안내](docs/gallery-navigation.ko.md) · [Linux 설정](docs/linux-platform.ko.md)
+
+## 저장소 소스로 Windows 앱 시작
+
+이 저장소를 내려받고 저장소에 지정된 SDK를 사용하세요. 실행 스크립트는 저장소의 프로젝트를 참조합니다.
+
+아래 코드를 저장소 루트에 `hello.cs`로 저장합니다.
 
 ```csharp
 #:property TargetFramework=net10.0
-#:property platform=windows
-#:package Duxel.$(platform).App@*-*
+#:package Duxel.Windows.App@*-*
 
 using Duxel.App;
 using Duxel.Core;
 using Duxel.Windows.App;
 
-DuxelWindowsApp.Run(new DuxelAppOptions
-{
-    Window = new DuxelWindowOptions { Title = "Hello Duxel" },
-    Screen = new HelloScreen()
-});
+var clicks = new UiState<int>(0);
+var root = Dux.Column(12,
+    Fluent.Title2("Hello, Duxel"),
+    Fluent.Button("Add one", () => clicks.Value++),
+    Fluent.Body1(() => $"Count: {clicks.Value}"));
 
-public sealed class HelloScreen : UiScreen
+DuxelWindowsApp.Run(DuxelApp.Options<LightDesign>(Dux.App(root), title: "Hello Duxel"));
+
+readonly struct LightDesign : IUiDesign
 {
-    public override void Render(UiImmediateContext ui)
-    {
-        ui.Text("Hello, Duxel!");
-    }
+    public static UiCompiledDesign Create() => UiCompiledDesign.Windows11;
 }
 ```
 
-실행:
-
 ```powershell
-dotnet run hello.cs
+./run-fba.ps1 ./hello.cs -Managed -NoCache
 ```
 
-## 대표 FBA 쇼케이스
+공개 NuGet 패키지로 앱을 만들려면 파일 기반 앱 시작 문서를 따르세요. 공개 공통 패키지는 .NET 8·9·10을 지원합니다. [파일 기반 앱 시작](docs/getting-started-fba.ko.md) · [선언형 C# 예제](samples/fba/declarative_dashboard_fba.cs) · [즉시 모드 예제](samples/fba/all_features.cs)
 
-헬로 월드보다 한 단계 더 나아간 Duxel 화면을 빠르게 보고 싶다면, 아래 대표 FBA 샘플부터 실행하면 됩니다.
-
-- `samples/fba/all_features.cs` — 타이포그래피, 레이아웃, 팝업/컨텍스트, 입력 진단, 아이템 상태, 멀티셀렉트, 레이어, 드로잉, 이미지, 마크다운 쇼케이스 창까지 포함한 전체 위젯 갤러리이며, 첫 실행 시 빈 화면 대신 `Markdown Studio`를 바로 엽니다.
-- `samples/fba/ui_mixed_stress.cs` — 컨트롤, 폼, 긴 리스트, 데이터 테이블, 텍스트 렌더링, 조밀한 캔버스 영역을 한 화면에 배치한 균형형 멀티윈도우 쇼케이스입니다.
-- `samples/fba/Duxel_perf_test_fba.cs` — VSync, MSAA, 캐시 토글, 폴리곤 설정, 렌더러 프로파일을 즉시 조절해 볼 수 있는 폴리곤 스트레스 테스트 샘플입니다.
-
-## 샘플
-
-- 프로젝트 샘플: `samples/Duxel.Sample`
-  - `dotnet run --project samples/Duxel.Sample/`
-- FBA 샘플: `samples/fba/*.cs`
-  - `dotnet run samples/fba/all_features.cs`
-  - `./run-fba.ps1 samples/fba/all_features.cs` (로컬 프로젝트 참조, 기본 NativeAOT)
-  - `all_features.cs`는 기본으로 `Markdown Studio`를 열고, 전용 타이포그래피, 레이아웃, 팝업/컨텍스트, 입력 질의, 아이템 상태, 멀티셀렉트, 레이어/애니메이션 쇼케이스 창을 함께 제공합니다.
-
-## DSL
-
-`.ui` 선언형 문법과 상태 바인딩을 지원합니다.
-
-- DSL 문서: [docs/ui-dsl.ko.md](docs/ui-dsl.ko.md) · [English](docs/ui-dsl.md)
-- 에이전트 참조 문서: [docs/duxel-agent-reference.ko.md](docs/duxel-agent-reference.ko.md) · [English](docs/duxel-agent-reference.md)
-- 확장 타이틀바: [docs/extended-title-bar-guide.ko.md](docs/extended-title-bar-guide.ko.md) · [English](docs/extended-title-bar-guide.md)
-- FBA 시작 가이드: [docs/getting-started-fba.ko.md](docs/getting-started-fba.ko.md) · [English](docs/getting-started-fba.md)
-- FBA 참조 가이드: [docs/fba-reference-guide.ko.md](docs/fba-reference-guide.ko.md) · [English](docs/fba-reference-guide.md)
-- FBA 샘플 카탈로그: [docs/fba-run-samples.ko.md](docs/fba-run-samples.ko.md) · [English](docs/fba-run-samples.md)
-- 커스텀 위젯 문서: [docs/custom-widgets.ko.md](docs/custom-widgets.ko.md) · [English](docs/custom-widgets.md)
-- 설계 문서: [docs/design.ko.md](docs/design.ko.md)
-- 최적화 정책: [docs/optimization-policy.ko.md](docs/optimization-policy.ko.md)
-
-## 빌드
+## 소스 빌드
 
 ```powershell
 dotnet build Duxel.slnx -c Release
 ```
-
-## 라이선스
-
-MIT
-

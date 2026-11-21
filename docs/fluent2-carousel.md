@@ -6,7 +6,7 @@ Previous and next buttons step through the slides. `Wrap` connects the first and
 
 Set `AutoPlayInterval` to at least one second to add an autoplay switch. Autoplay starts off and can also be controlled through `IsPlaying`. While playing, pointer hover or keyboard focus inside the Carousel suspends the timer. Rotation stops at the last slide when wrapping is disabled. The switch stops scheduling rotation when turned off.
 
-Run `./run-gallery.ps1` on Windows or `./run-gallery-linux.ps1` from Windows to launch the WSL Gallery. Under **콘텐츠와 목록 → Carousel**, each example has C# source directly below it. Change slides or use a slide action to see the source state update. [Fluent 2 Carousel guidance](https://fluent2.microsoft.design/components/web/react/core/carousel/usage)
+Run `./run-gallery.ps1` on Windows or `./run-gallery-linux.ps1` from Windows to launch the WSL Gallery. Under **Content and lists → Carousel**, each example has C# source directly below it. Change slides or use a slide action to see the source state update. [Fluent 2 Carousel guidance](https://fluent2.microsoft.design/components/web/react/core/carousel/usage)
 
 Verification covers 17 focused checks, Vulkan captures of the Gallery and its image previews, and 1,019 checks across the focused and related suites. The Windows Gallery presented all 100 scenarios, including Carousel. Both example sources compile against the Windows and platform-neutral .NET 11 builds.
 

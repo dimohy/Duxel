@@ -18,7 +18,7 @@ A Vulkan probe read back the label “More context.” inside a `ScrollView` on 
 
 Run `./run-fba.ps1 samples/fba/layout_radio_allocation_fba.cs -TargetFramework net11.0-windows7.0 -NoCache` from the repository root to try the three layouts. Change Width and Height and click the options to see how the parent allocation affects wrapping.
 
-In the Gallery, open **입력과 선택 → RadioGroup** and scroll down to **부모 폭에 따라 줄바꿈**. **부모 폭 전환** changes the parent's maximum width between 180 and 360 logical pixels. The selected value is retained, and the C# example below the group shows the current width and selected value.
+In the Gallery, open **Input and selection → RadioGroup** and scroll down to **Wrapping at different container widths**. **Change container width** changes the parent's maximum width between 180 and 360 logical pixels. The selected value is retained, and the C# example below the group shows the current width and selected value.
 
 The Windows Gallery source fixture checks that the long option gets shorter and wider, that the selected value survives, and that both code views show their actual factories. The external Linux client takes the Gallery process ID, output JSON path, and X11 window ID after `x11-gallery-radio-allocation-pixels`. Managed and NativeAOT .NET 11.0.0 each passed seven checks on WSLg. Four cross-runtime screenshot pairs match outside the diagnostics header and fading scrollbar. The Windows parent-allocation fixture's 245 current managed GPU readbacks also match the archived Windows NativeAOT hashes. These checks cover the Gallery on WSLg and the dedicated Windows GPU fixture. Evidence is in `W:/Cache/Duxel/gallery-source-20261117/radio-gallery-allocation-2116`.
 

@@ -1,6 +1,6 @@
 # ProgressIndicator
 
-Run `./run-gallery.ps1` → **알림과 진행 상태 → ProgressIndicator**. Completion, waiting, track visibility and reduced-motion options update the adjacent source of each example. NEW now belongs only to ProgressIndicator.
+Run `./run-gallery.ps1` → **Alerts and progress → ProgressIndicator**. Completion, waiting, track visibility and reduced-motion options update the adjacent source of each example. NEW now belongs only to ProgressIndicator.
 
 ```csharp
 var progress = Fluent.ProgressIndicator(new(

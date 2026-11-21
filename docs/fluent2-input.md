@@ -126,7 +126,7 @@ Final interactive-slot validation: NET10 full2959/input82/GPU3561/focused1362; f
 
 Known Fluent Input sizes, appearances and adornments now explicitly opt into parent measurement retention through CanRetainMeasurement. Unknown custom traits and the compatibility presentation default false. Measurement uses label/options/width and declared slot allocations; it does not consume editor values or child measurement. Owned slot widgets still render normally, even when they are opaque to measurement. Typing, undo, IME and caller bindings continue through the existing editor path. Property and slot changes invalidate the original ownership chain; no extra leaf cache is added.
 
-Evidence: artifacts/form-layout-retention-2026-11-12/verification.json. Observer: ./run-gallery.ps1 → Measurement reuse (측정 재사용).
+Evidence: artifacts/form-layout-retention-2026-11-12/verification.json. Observer: ./run-gallery.ps1 → Measurement reuse.
 
 
 ## TextField

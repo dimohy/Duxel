@@ -34,7 +34,7 @@ Validation: code capture pixels match exactly;18native paragraph cases/5,273sele
 - Validation: published Graphics.Tests `gallery-samples-only` runs measurement1074 and measurement1078 plus `observer-only` gallery1075; each executes 1000 warmup passes then 1000 measured passes over 2 real SynchronizeSource callbacks (2000 measured calls).
 - Environment: SDK11.0.100/runtime11.0.0,managed Release. Current-thread GC allocation counter,without forced GC. Three fresh processes:0/0/0 B. Previous path had no per-example source synchronization,so Before and improvement are N/A. No frame/FPS/CPU-time/RSS/VRAM/AOT/Linux speed claim.
 - Risks: excludes complete UI frames,changed-state formatting,other threads and total memory. New geometry/source layout is checked by existing measurement/input/menu/tab/tooltip contracts and actual GPU interactions.
-- Evidence: [result](../artifacts/gallery-measurement-source-2026-11-17/result.json),[allocation](../artifacts/gallery-measurement-source-2026-11-17/allocation.json).
+- Evidence: [result](../../../artifacts/gallery-measurement-source-2026-11-17/result.json),[allocation](../../../artifacts/gallery-measurement-source-2026-11-17/allocation.json).
 
 | Metric | Before | After | Improvement |
 | --- | --- | --- | --- |

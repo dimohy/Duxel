@@ -110,7 +110,7 @@ Run `./run-fba.ps1 samples/fba/dynamic_layer_camera_fba.cs -Managed -NoCache` fo
 
 Analytic circles and rounded rectangles retain their mathematical boundaries on the GPU. `fwidth` adapts antialiasing to final screen pixels, including perspective scaling; zoom does not magnify a rasterized layer. GPU tests compare an 8x camera zoom with a directly enlarged analytic vector while asserting no geometry rebuild or upload. Explicit polygon meshes retain their original tessellation. Native text in 3D layers now requires `IPlatformVectorTextBackend`: Windows provides DirectWrite outlines tessellated by Direct2D, cached as vector geometry. Its default flattening tolerance is 0.001 source font pixels and the demo uses 4x MSAA; approximation error scales with zoom. Ordinary 2D native text keeps its raster path. Raster image detail remains limited by source resolution. See the [ERD layer lab](erd-layer-lab.md) for editing and update-mode comparisons.
 
-See `tests/runtime-net11/README.md` for the isolated .NET 11 comparison commands. The repository SDK remains pinned to .NET 10. See the [optimization session](optimization-session-2026-11-03.md) for measurements, hardware, and limits.
+See `tests/runtime-net11/README.md` for the isolated .NET 11 comparison commands. The repository SDK remains pinned to .NET 10. See the [optimization session](archive/performance/optimization-session-2026-11-03.md) for measurements, hardware, and limits.
 
 ## Combining different matrices in one GPU draw
 

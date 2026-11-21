@@ -2,7 +2,7 @@
 
 > 마지막 동기화: 2026-11-06
 >
-> 대상: Duxel 애플리케이션 개발자, 프레임워크 기여자, 코딩 AI 에이전트
+> 대상: Duxel 애플리케이션 개발자와 프레임워크 기여자
 >
 > 플랫폼: Windows 11/Windows 네이티브 백엔드
 >
@@ -432,37 +432,7 @@ dotnet build Duxel.slnx -c Release --no-restore
 10. `ExtendedContent`에서는 안정된 공개 Duxel 경계와 비클라이언트 호버/누름 상태로 그리며 클릭 명령·`HTMAXBUTTON`·Snap Layout은 Windows 경로에 유지한다.
 11. 등록된 `HTCAPTION`/`HTSYSMENU` 영역의 `WM_NCRBUTTONUP`을 네이티브 시스템 메뉴로 연결해 앱이 그린 창 아이콘도 기본 타이틀바 동작을 유지한다.
 12. `System`과 `Duxel` 모드의 기존 동작을 회귀시키지 않는다.
-13. 공개 API, 샘플, 이 가이드와 `duxel-agent-reference` 한·영 문서를 같은 변경 집합에서 동기화한다.
-
-## 코딩 AI 작업 절차
-
-코딩 AI는 확장 타이틀바 요청을 받을 때 다음 순서를 따른다.
-
-1. 이 가이드와 `samples/fba/extended_title_bar_fba.cs`를 먼저 읽는다.
-2. 라이브러리 소유 일반 크롬은 `Duxel`, 애플리케이션 UI가 `y = 0`에 필요한 경우에만 `ExtendedContent`를 선택한다.
-3. 요청이 앱 레이아웃 변경인지 플랫폼 백엔드 변경인지 구분한다.
-4. 앱 작업이라면 공개 API만 사용하고 별도 Win32 히트 테스트를 중복 구현하지 않는다.
-5. 원시 DWM 좌표를 읽거나 하드코딩하지 않고 공개 Duxel 캡션 버튼 경계를 매 프레임 조회한다.
-6. 모든 상호작용 요소의 사각형을 먼저 확정한 뒤 남은 빈 구간만 드래그 영역으로 등록한다.
-7. `false` 경로와 빈 영역 경로에서 이전 계산 구간을 제거한다. 고정된 왼쪽 아이콘 영역처럼 독립적으로 유효한 영역만 남길 수 있다.
-8. 로컬 소스는 `run-fba.ps1`로 실행한다.
-9. `ExtendedContent` 최소화/최대화/닫기 아이콘, 호버 피드백, 창 아이콘 우클릭 시스템 메뉴, 탭 모양을 육안 확인한다. 히트 테스트 진단만으로는 충분하지 않다.
-10. `Duxel`과 `ExtendedContent` 최대화 아이콘이 최대화 시 복원 아이콘으로, 복원 후 다시 최대화 아이콘으로 바뀌는지 확인한다.
-11. 공개 동작을 바꿨다면 한·영 문서와 샘플을 함께 갱신한다.
-12. Release 전체 빌드와 NativeAOT 실제 HWND 진단을 수행한다.
-12. 요구사항별 증거와 남은 환경 한계를 보고한 뒤에만 완료로 판단한다.
-
-AI에 바로 전달할 수 있는 작업 지시는 다음과 같다.
-
-```text
-일반적인 라이브러리 소유 크롬은 Duxel 모드를, 앱 콘텐츠가 y=0부터 시작해야 하면 ExtendedContent를 선택하라.
-docs/extended-title-bar-guide.ko.md와 samples/fba/extended_title_bar_fba.cs를 기준으로 삼아라.
-Duxel 모드에서는 라이브러리 소유 캡션 버튼을 다시 구현하거나 최대화/복원 상태를 앱 코드에 캐시하지 마라.
-Duxel 캡션 버튼 경계를 매 프레임 조회하고 그 사각형을 레이아웃과 드래그 영역에서 제외하라.
-탭, 버튼, 메뉴, 입력 요소는 HTCLIENT로 남도록 빈 공간만 드래그 영역으로 등록하라.
-캡션 폭이나 DPI를 하드코딩하지 마라.
-완료 전에 Release 빌드와 NativeAOT HWND 진단을 실행하고 요구사항별 PASS 증거를 보고하라.
-```
+13. 공개 API, 샘플, 이 가이드의 한·영 문서를 함께 갱신한다.
 
 ## 완료 체크리스트
 
@@ -484,7 +454,6 @@ Duxel 캡션 버튼 경계를 매 프레임 조회하고 그 사각형을 레이
 
 ## 관련 문서
 
-- [Duxel 에이전트 참조](duxel-agent-reference.ko.md)
 - [FBA 시작 가이드](getting-started-fba.ko.md)
 - [FBA 참조 가이드](fba-reference-guide.ko.md)
 - [FBA 샘플 카탈로그](fba-run-samples.ko.md)

@@ -22,7 +22,7 @@ The pinned reference is Fluent UI `8830c10bfb2f4c1bdd540287b09713b9679cd1ad`: [M
 
 `UiMenuOptions.ItemSpacing` and `MaximumWidth` also support custom presentations. Invalid spacing and widths fail before mutation. `IUiMenuPresentation.DefaultOptions` selects presentation defaults; `PaintItem` receives those options explicitly. An open menu resolves all queued item focus requests before painting or publishing items, so one frame cannot paint two focused rows because of a later focus request. A disabled owner closes without restoring focus to its disabled trigger.
 
-Run `./run-gallery.ps1`, choose **컨테이너**, scroll to **Menu 공통 동작**, and use **Fluent 메뉴 열기**. The common theme menu remains alongside it for comparison; both use actual callbacks and the selected-action text. Coverage maps the new factory to this page and validates the mapping at startup.
+Run `./run-gallery.ps1`, choose **Layout examples**, scroll to **Shared menu behavior**, and use **Open Fluent menu**. The common theme menu remains alongside it for comparison; both use actual callbacks and the selected-action text. Coverage maps the new factory to this page and validates the mapping at startup.
 
 Evidence: `artifacts/menu-composition-2026-11-11/verification.json`. CPU 57 checks cover both presentations, official color data, actual geometry, maximum width and generated factory discovery. GPU 96 checks cover both presentations, both color schemes, MSAA 1/4, glyph visibility, acquired-image reuse, removal and independent pixel checks for actual Fluent hover/pressed/disabled backgrounds. Each presentation also has an external Windows UIA client with 4 checks and an owned host with 2 checks. Observer 53 and focused accessibility/scheduling/tab/overflow/widget-tree regressions remain separate evidence. Exact managed SDK 11.0.100/runtime 11.0.0 are used; NativeAOT remains unqualified.
 
@@ -34,7 +34,7 @@ Remaining scope includes exact shadow16, actual OS contrast transitions and full
 
 The shared layout reserves a 16px check slot plus4px gap and a20px icon slot plus4px gap across all rows when those columns are present. Fluent uses6px root inset,2px content inset and12px secondary text with20px line height. Secondary text has its own local hover color; hovering the label does not change that color. Label and secondary text have separate clips, with intrinsic trailing width and remaining primary width. RTL mirrors the columns. Both theme/Fluent presentations use this layout. Custom presentations must implement the structured UiMenuItemContent overloads; missing support fails explicitly. UiControlContext.IsHovered is a read-only clipped pointer query, without registering input/focus or requesting frames.
 
-Run `./run-gallery.ps1` → **Menu** → **Menu 공통 동작** → **아이콘 메뉴 열기**; **메뉴 방향 : LTR/RTL** switches direction. The popup includes plain, checkable, missing-icon and disabled rows. Evidence: artifacts/menu-content-2026-11-11/verification.json. Independent GPU references draw the real pinned glyph and12px/20px caption separately for pixel comparisons, including local hover. Existing tab icons share the compiled pair cache. This unit uses icon fonts; the separately requested SVG image/widget goal is tracked in [SVG support](svg-support.md).
+Run `./run-gallery.ps1` → **Menu** → **Shared menu behavior** → **Open menu with icons**; **Menu direction: LTR/RTL** switches direction. The popup includes plain, checkable, missing-icon and disabled rows. Evidence: artifacts/menu-content-2026-11-11/verification.json. Independent GPU references draw the real pinned glyph and12px/20px caption separately for pixel comparisons, including local hover. Existing tab icons share the compiled pair cache. This unit uses icon fonts; the separately requested SVG image/widget goal is tracked in [SVG support](svg-support.md).
 
 ## Long menus and first-character navigation — 2026-11-11
 
@@ -48,7 +48,7 @@ var menu = Fluent.Menu("Actions", items, Select,
 
 Printable Unicode input moves to the next item with a matching initial character, ignoring case. Repeated input cycles matches; Korean and supplementary-plane characters are supported. Ctrl, Alt and Super modified input is excluded. Space keeps its activation behavior. This is first-character navigation, without a cumulative search buffer. Navigation does not invoke items and cancels a pending Space press. Stationary menus schedule neither periodic frames nor search timers.
 
-The shared behavior covers theme menus, Fluent menus and tab overflow. In the observer use Containers → Menu common behavior → 긴 메뉴·문자 탐색, then wheel, scrollbar, Z and Enter. The optional character navigation follows the [WAI menu pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menubar/). Full Fluent visuals, submenus, checked items and complete expansion/scroll UIA contracts remain pending.
+The shared behavior covers theme menus, Fluent menus and tab overflow. In the observer use Layout examples → Shared menu behavior → Long menu with typeahead, then wheel, scrollbar, Z and Enter. The optional character navigation follows the [WAI menu pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menubar/). Full Fluent visuals, submenus, checked items and complete expansion/scroll UIA contracts remain pending.
 
 ## Menu scrolling accessibility — 2026-11-11
 
@@ -78,7 +78,7 @@ Both built-in presentations reserve a shared 20px check column for all rows when
 
 `UiAccessibilityNode.Checked` is nullable: null means no Toggle capability. `ToggleChanged` reports retained final state/capability changes after publication, outside locks. Windows exposes pattern10015, availability30041 and state30086, with generated COM `IToggleProvider` (Toggle/get_ToggleState). Disabled, hidden and retired mutations are rejected through the existing request queue. Synchronous calls from the producer thread return Busy.
 
-Run `./run-gallery.ps1` → **Menu** → **Menu 공통 동작** → **체크 메뉴 열기**. Toggle details/grid, use **설정 마침** to close, and navigate away/back to check retained state. Submenus, secondary text, shadow16, forced colors and full narration remain unqualified. Reference: [pinned checkbox hook](https://github.com/microsoft/fluentui/blob/8830c10bfb2f4c1bdd540287b09713b9679cd1ad/packages/react-components/react-menu/library/src/components/MenuItemCheckbox/useMenuItemCheckbox.tsx). Evidence: artifacts/menu-checkbox-2026-11-11/verification.json.
+Run `./run-gallery.ps1` → **Menu** → **Shared menu behavior** → **Open menu with checkboxes**. Toggle details/grid, use **Finish setup** to close, and navigate away/back to check retained state. Submenus, secondary text, shadow16, forced colors and full narration remain unqualified. Reference: [pinned checkbox hook](https://github.com/microsoft/fluentui/blob/8830c10bfb2f4c1bdd540287b09713b9679cd1ad/packages/react-components/react-menu/library/src/components/MenuItemCheckbox/useMenuItemCheckbox.tsx). Evidence: artifacts/menu-checkbox-2026-11-11/verification.json.
 
 ## Radio groups — 2026-11-11
 
@@ -96,11 +96,11 @@ Pointer release, Enter, Space release, Invoke and Select commit peer state befor
 
 The accessibility tree contains named MenuGroup containers (Windows Group50026), with Selection10001 and child MenuItem SelectionItem10010. SelectionContainer resolves the real group. CanSelectMultiple is false; IsSelectionRequired reflects whether the current rows contain the bound selection. Final selection/property notifications reuse the shared selection publication engine. Transient menu notifications use immutable event sources and read-only selection state so asynchronous UIA caches can finish after dismissal; event snapshots reject mutations. The live providers still retire on close.
 
-Run `./run-gallery.ps1` → **Menu** → **Menu 공통 동작** → **라디오 메뉴 열기**. Select sorting and view independently, reopen after each change, and leave/return to the page. Evidence and remaining scope: artifacts/menu-radio-2026-11-11/verification.json. Exact NativeAOT and full narration remain separate gates.
+Run `./run-gallery.ps1` → **Menu** → **Shared menu behavior** → **Open radio menu**. Select sorting and view independently, reopen after each change, and leave/return to the page. Evidence and remaining scope: artifacts/menu-radio-2026-11-11/verification.json. Exact NativeAOT and full narration remain separate gates.
 
 
 ## Parent measurement retention — 2026-11-12
 
 IUiMenuPresentation.CanRetainTriggerMeasurement promises deterministic trigger geometry only. Built-in Theme/Fluent presentations opt in; custom presentations default false. This does not cache popup content or suppress checked/radio binding reads, scrolling, selection or actions. Actual Observer checkbox activation is verified while its parent trigger measurement remains retained.
 
-Evidence: artifacts/form-layout-retention-2026-11-12/verification.json. Observer: ./run-gallery.ps1 → Measurement reuse (측정 재사용).
+Evidence: artifacts/form-layout-retention-2026-11-12/verification.json. Observer: ./run-gallery.ps1 → Measurement reuse.

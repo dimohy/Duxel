@@ -40,7 +40,7 @@ Orphan low surrogates are rejected. A new ordinary character or high surrogate s
 
 Run the local-source graphics validation executable:
 
-For the user sample, run `./run-gallery.ps1` from the repository root. In **입력·IME**, switch between the name and memo during Korean composition and inspect commit/caret restoration. This manual path exercises the actual IME service; the automated message checks have a separate scope.
+For the user sample, run `./run-gallery.ps1` from the repository root. In **Input and IME · combined**, switch between the name and memo during Korean composition and inspect commit/caret restoration. This manual path exercises the actual IME service; the automated message checks have a separate scope.
 
 ```powershell
 ./Duxel.Graphics.Tests.exe <fresh-output> ime-owner-only

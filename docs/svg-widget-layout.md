@@ -11,7 +11,7 @@ using var preview = new UiSvg(store.Load(svgPath))
 };
 ```
 
-Gallery **추가 샘플 → SVG → 브라우저 비교 → 흰색 배경을 SVG에 포함** compares this with compositing a transparent texture onto white afterward. This choice does not make every document browser-identical. [Evidence and limits](../artifacts/svg-target-background-2026-11-17/verification.json).
+Gallery **SVG → Browser comparison → Include the white background in the SVG** compares this with compositing a transparent texture onto white afterward. This choice does not make every document browser-identical. [Evidence and limits](../artifacts/svg-target-background-2026-11-17/verification.json).
 
 2026-11-14: SVG Zoom/RotationDegrees now forward to UiWidget.Transform, with no separate rotation geometry. Margin is inherited from the common widget path. See [shared transforms, origins and visual mode](widget-transform-contract.md).
 

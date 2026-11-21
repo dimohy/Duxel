@@ -18,4 +18,4 @@ The common retained layer batcher cache compared geometry fingerprints but omitt
 
 Final executable: `artifacts/all-features-2026-11-04/native/all_features.exe`, SHA256 `37FEB8C1D4BE032F7F5D1EDD5C14420ABA6A4147C859E218F5B688DDC0E8A3E2`. Idle waiting can stop or lower displayed FPS; holding the button keeps the input-driven render loop active.
 
-No throughput or Private-memory improvement percentage is claimed. Diagnostic profiles are single runs, not warmed three-run median comparisons. Earlier rejected cleanup targets and manual instructions remain in [cleanup guidance](rejected-build-cleanup.md); validation proceeded without deleting them.
+No throughput or Private-memory improvement percentage is claimed. Diagnostic profiles are single runs, not warmed three-run median comparisons. Earlier rejected cleanup targets and manual instructions remain in cleanup guidance; validation proceeded without deleting them.

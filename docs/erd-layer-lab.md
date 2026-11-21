@@ -72,7 +72,7 @@ Dense view fits the document; explore view magnifies part of a large document. T
 
 An initial single Managed run with 120 tables observed about 14 FPS for full regeneration and 1,877 FPS for changed-only updates. Scene rebuilds during camera movement were zero in the latter; after warmup, its idle run rendered zero extra frames. These are initial observations, not repeated current-source or 1,200-table conclusions.
 
-Ordinary 2D native raster text keeps its existing path. `IPlatformVectorTextBackend` supplies projected text meshes; `UiRendererFrameMetrics` exposes last-submitted-frame diagnostics. See the [session record](optimization-session-2026-11-03.md) for validation status and remaining work.
+Ordinary 2D native raster text keeps its existing path. `IPlatformVectorTextBackend` supplies projected text meshes; `UiRendererFrameMetrics` exposes last-submitted-frame diagnostics. See the [session record](archive/performance/optimization-session-2026-11-03.md) for validation status and remaining work.
 
 
 

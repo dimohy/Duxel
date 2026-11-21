@@ -61,7 +61,7 @@ With `ReserveSelectedSpace` enabled, both selected and unselected tabs reserve t
 
 The key includes resource identity, typography/text settings, options and selection when reservation is off. Item/property invalidation clears key references; disposal drops the buffer. Failed or invalidated-in-progress measurements cannot commit. Header rectangles and overflow visibility are rebuilt every time from intrinsic sizes, so hidden/RTL/selected overflow positions never poison the cache. Overflow indicator measurement and actual input, painting, popup actions and panels remain live. Reserved nonoverflow tabs also opt into the existing ancestor measurement cache; nonreserved or overflow tabs remain dynamic to ancestors.
 
-Observer ./run-gallery.ps1 → 측정 재사용 includes actual sample tabs, a process-wide diagnostic metric count, selection and a size-change button. Selection preserves that count; changing size invalidates it. This sample counter is diagnostic and introduces no periodic frame request. Full application timing/memory and exactRC3 NativeAOT qualification remain open. Evidence: artifacts/tab-measurement-retention-2026-11-12/verification.json.
+Observer ./run-gallery.ps1 → Measurement reuse includes actual sample tabs, a process-wide diagnostic metric count, selection and a size-change button. Selection preserves that count; changing size invalidates it. This sample counter is diagnostic and introduces no periodic frame request. Full application timing/memory and exactRC3 NativeAOT qualification remain open. Evidence: artifacts/tab-measurement-retention-2026-11-12/verification.json.
 
 
 ### Drag-scroll tab headers

@@ -54,4 +54,4 @@ The new local `layout_divider_allocation_fba.cs` sample offers Width : 100, Heig
 
 Static text sources and deterministic Divider presentations participate in existing parent measurement retention. Getter sources and unknown presentations default to dynamic measurement. Source/options changes invalidate the owning parent; actual rendering still runs each frame. A derived class that introduces mutable measurement state must opt out or invalidate with RequestRebuild.
 
-Evidence: artifacts/form-layout-retention-2026-11-12/verification.json. Observer: ./run-gallery.ps1 → Measurement reuse (측정 재사용).
+Evidence: artifacts/form-layout-retention-2026-11-12/verification.json. Observer: ./run-gallery.ps1 → Measurement reuse.

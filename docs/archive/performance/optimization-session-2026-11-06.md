@@ -52,17 +52,17 @@ Stack/Positioned/Wrap/Grid 묶음 단계를 완료해 컨테이너2/6을 기록�
 
 고정 SDK11.0.100-rc.3.26522.148/runtime11.0.0-rc.3.26522.148 win-x64 Release/Speed NativeAOT, 같은 화면 밖 Spinner·논리640x480/실제800x600·MSAA4·VSync 끔·슬롯2·파이프라인·이벤트 대기·강제 GC 없음이다.300ms 이후 제출 상태를 갱신하고100ms 더 기다린 뒤1초씩 독립3회 교대 측정했다. 같은 실행 파일에서 이전 인수 없는 연속 깨우기만 재현했다. 앱 프레임 중앙값3701→0·할당9,223,472B→0(각100% 감소), 프로세스 CPU593.75ms→타이머 해상도에서0ms다. Private 마지막 중앙값154,398,720B→142,352,384B(-7.8021%), 작업 집합124,248,064B→111,054,848B(-10.6184%)이며 범위는 겹치지 않았다. 마지막 GPU draw·업로드 표본은 양쪽 모두0이다. 프레임을 만들지 않는 대기 실험이므로 FPS·raw 프레임 분포 개선 주장은 하지 않는다. 표본의 CPU·기하 처리 생략과 GPU 제출 상태를 구분한다.
 
-리스크/후속: 다른 작업이 프레임을 만들면 숨긴 애니메이션 레이어도 다시 구성될 수 있다. 투영 장면의 화면 밖 생략, 최초 기하 캡처, 수동 캐시의 입력/UIA 의미 정보 보존은 남아 있다. 표시 FPS·전체 앱·장시간 누수·생성기·Pi로 결과를 확대하지 않는다. 근거 `artifacts/animation-visibility-2026-11-06/verification.json`·`comparison.json`·`image-comparison-qualified-final.json`, 설명은 [공통 예약·애니메이션](frame-scheduling.ko.md)에 있다.
+리스크/후속: 다른 작업이 프레임을 만들면 숨긴 애니메이션 레이어도 다시 구성될 수 있다. 투영 장면의 화면 밖 생략, 최초 기하 캡처, 수동 캐시의 입력/UIA 의미 정보 보존은 남아 있다. 표시 FPS·전체 앱·장시간 누수·생성기·Pi로 결과를 확대하지 않는다. 근거 `artifacts/animation-visibility-2026-11-06/verification.json`·`comparison.json`·`image-comparison-qualified-final.json`, 설명은 [공통 예약·애니메이션](../../frame-scheduling.ko.md)에 있다.
 
-English: bounded visual wakes now respect nested2D clips/translations and transparent ancestors; retained replay adds child/parent offsets instead of replacing them. Fixed.NET11 Native focused51 per presentation mode and29 exact images per mode, application20 and broad graphics4690 pass. Three alternating hidden-phase samples reduce median frames3701/allocation9,223,472B to0 while last GPU draw/upload snapshots already remained0 in both cases. Final Private/working-set medians fall7.8021%/10.6184% in this short phase. Visible throughput, whole-app, leak, generator and Pi results are not established. Hidden layers may still rebuild on unrelated frames. See [scheduled frames](frame-scheduling.md) and the linked evidence.
+English: bounded visual wakes now respect nested2D clips/translations and transparent ancestors; retained replay adds child/parent offsets instead of replacing them. Fixed.NET11 Native focused51 per presentation mode and29 exact images per mode, application20 and broad graphics4690 pass. Three alternating hidden-phase samples reduce median frames3701/allocation9,223,472B to0 while last GPU draw/upload snapshots already remained0 in both cases. Final Private/working-set medians fall7.8021%/10.6184% in this short phase. Visible throughput, whole-app, leak, generator and Pi results are not established. Hidden layers may still rebuild on unrelated frames. See [scheduled frames](../../frame-scheduling.md) and the linked evidence.
 
 ## 공통 예약 프레임·캐시 의존성
 
 표시 지연 중 연속 갱신 대신 가장 이른 UI 시각을 기존 이벤트 대기에 연결했다. 타이머 객체 없이 외부 요청·입력·종료와 커서 깜빡임을 유지한다. 캐시 재생에서 예약이 사라지는 집중 실패를 재현하고 레이어별 예약·애니메이션 의존성을 보존하도록 수정했다. 관계없는 정적 레이어는 재사용한다. .NET10 전체3140·집중16·실제 앱14, 고정 RC3 NativeAOT 집중16·실제 앱14 통과, net8/9/10 빌드 경고0/오류0이다.
 
-동일 실행 파일에서 이전 연속 깨우기만 재현한 비교다. 고정 Native 독립3회씩 교대, 표시 대기1초·실제800x600·MSAA4·VSync 끔에서 연속10,622~10,926프레임·할당5,869,600~6,032,808B 대 예약0프레임·관측 할당0B였다. 프로세스 CPU859.375~968.75ms 대 타이머 해상도에서0ms, 마지막 Private147,390,464~149,946,368B 대140,902,400~141,201,408B였다. 강제 GC·부하/품질 감소는 없다. 전체 앱·표시 모션·장시간 누수·생성기·Pi 성능 주장으로 확대하지 않는다. 자세한 범위·작업 집합·원본 결과는 `artifacts/frame-deadlines-2026-11-06/comparison.json`과 [예약 프레임](frame-scheduling.ko.md)을 참고한다.
+동일 실행 파일에서 이전 연속 깨우기만 재현한 비교다. 고정 Native 독립3회씩 교대, 표시 대기1초·실제800x600·MSAA4·VSync 끔에서 연속10,622~10,926프레임·할당5,869,600~6,032,808B 대 예약0프레임·관측 할당0B였다. 프로세스 CPU859.375~968.75ms 대 타이머 해상도에서0ms, 마지막 Private147,390,464~149,946,368B 대140,902,400~141,201,408B였다. 강제 GC·부하/품질 감소는 없다. 전체 앱·표시 모션·장시간 누수·생성기·Pi 성능 주장으로 확대하지 않는다. 자세한 범위·작업 집합·원본 결과는 `artifacts/frame-deadlines-2026-11-06/comparison.json`과 [예약 프레임](../../frame-scheduling.ko.md)을 참고한다.
 
-English: common UI deadlines now survive retained-layer replay and share the existing interruptible event wait. NET10 full3140/focused16/application14 and fixed RC3 Native focused16/application14 pass. Three alternating native samples per mechanism show zero pending frames/observed allocation instead of10,622–10,926 frames and5,869,600–6,032,808 bytes per second. This short pending-work result does not establish visible-motion, whole-application, source-generator, leak or Pi performance. See [scheduled frames](frame-scheduling.md).
+English: common UI deadlines now survive retained-layer replay and share the existing interruptible event wait. NET10 full3140/focused16/application14 and fixed RC3 Native focused16/application14 pass. Three alternating native samples per mechanism show zero pending frames/observed allocation instead of10,622–10,926 frames and5,869,600–6,032,808 bytes per second. This short pending-work result does not establish visible-motion, whole-application, source-generator, leak or Pi performance. See [scheduled frames](../../frame-scheduling.md).
 
 ## Spinner·공통 원환 기하
 
@@ -86,7 +86,7 @@ English: removal publication now prunes provider keys and burst capacity without
 
 초기 AccessibleName 기본 필드가 기존 Parent 팩터리 할당 기준을 깨뜨렸다. 이름을 지연 정체성 캐시에 보관하고 의미 정보 범위를 분리해 객체 크기·ID를 보존했다. 수정 전 실패와 수정 후 기존25% 감소 검사 통과를 원본 로그에 남겼다. 범위 정체성 캐시의 참조1개와 실제 UIA 트리/공급자 비용은 추가된다. 준비 후1만 노드의 반복 발행 할당0B는 기능 집중 검사다. 앱 CPU/Private/FPS나 Pi 개선의3회 교대 측정으로 해석하지 않는다.
 
-검증: .NET10 전체3024·집중34, 고정 .NET11 RC3 NativeAOT 집중34와 외부 UIA 클라이언트4, 실제 Native 갤러리 정상 종료0. 초기 종료 시 공급자 등록/해제 순서 오류도 수정했다. 최종 net8/9/10 경고0/오류0. 근거 `artifacts/uia-foundation-2026-11-06/verification.json`과 [접근성 문서](widget-accessibility.ko.md). 자식 공급자 회수·동시성·다른 역할/패턴/이벤트·전체 비용과 공식 동치는 미완료다.
+검증: .NET10 전체3024·집중34, 고정 .NET11 RC3 NativeAOT 집중34와 외부 UIA 클라이언트4, 실제 Native 갤러리 정상 종료0. 초기 종료 시 공급자 등록/해제 순서 오류도 수정했다. 최종 net8/9/10 경고0/오류0. 근거 `artifacts/uia-foundation-2026-11-06/verification.json`과 [접근성 문서](../../widget-accessibility.ko.md). 자식 공급자 회수·동시성·다른 역할/패턴/이벤트·전체 비용과 공식 동치는 미완료다.
 
 English: the common semantic tree and source-generated native COM provider now serve actual Button/Input controls. External requests reach existing bindings/callbacks on the render producer. The initial base-field allocation and disconnect-order regressions were reproduced and corrected. Final NET10 full3024/focused34, fixed RC3 NativeAOT focused34 and external UIA4 pass. This adds semantic/provider storage and makes no application or Pi speed/memory claim. Child-provider reclamation, broader concurrency, remaining roles/events and full Fluent fidelity remain open.
 
@@ -126,7 +126,7 @@ Before/After: 깊이162,201,600→54,067,200B(-66.67%), Private434,470,912→326
 
 초기 핸들 판정 실패·과거320×240 대비 현재400×300 비교·새 검사 선행에 따른14개 이미지 차이를 보존했다. 숨긴 창 조건 수정·같은 DPI 기준 재사용·새 검사를 기존 스냅샷 뒤로 분리한 후 이전1,109×2/관리1,117×2이미지가 정확히 같았다. 허용 오차를 완화하지 않았다.
 
-리스크: 공유 깊이는 프레임 간 병렬성을 줄일 수 있다. 다른 GPU/Pi/장기 메모리는 미검증이다. 동기화 validation layer는 활성화하지 않았다. 집중 검증을 전체 Fluent 완료로 올리지 않는다. 명령·원시 표본·해시·범위는 artifacts/gpu-current-2026-11-06/ab-plan.json, summary.json, verification.json과 [설명](shared-depth-target.ko.md)을 따른다.
+리스크: 공유 깊이는 프레임 간 병렬성을 줄일 수 있다. 다른 GPU/Pi/장기 메모리는 미검증이다. 동기화 validation layer는 활성화하지 않았다. 집중 검증을 전체 Fluent 완료로 올리지 않는다. 명령·원시 표본·해시·범위는 artifacts/gpu-current-2026-11-06/ab-plan.json, summary.json, verification.json과 [설명](../../shared-depth-target.ko.md)을 따른다.
 
 
 ## Checkbox 정적 표현과 정확한 크기 아이콘
@@ -141,7 +141,7 @@ Before/After 구조: 기존 Core 생성57개 →63개, 기존57개는 바이트 
 
 초기 테스트 알파 속성명/명시적 폰트 누락을 수정했다. fixture가 grey30/70을 산술 반올림한 두 오류는 원본 colors.ts를 읽어24개 상태 행 전체를 다시 확인하고 바로잡았다. 생산 팔레트를 잘못된 fixture에 맞추지 않았다. 초기 로그를 보존하고 --checkbox-only 집중 검사를 긴 실행 전에 사용했다. 기존 strict 제거 캐시 기준은 여전히 false다.
 
-리스크/후속: 공식 브라우저 픽셀 일치, UIA/논리적 RTL/강제 색상, 긴 라벨/Field, 공식 focus/motion과 전체 컴포넌트 지원은 미완료다. Checkbox는 원래 연결되어 있었으므로 카탈로그 상위 지원 수를 늘리지 않았다. 정확한 명령/해시/결과는 artifacts/fluent-checkbox-2026-11-06/verification.json과 [설명](fluent2-checkbox.ko.md)을 따른다.
+리스크/후속: 공식 브라우저 픽셀 일치, UIA/논리적 RTL/강제 색상, 긴 라벨/Field, 공식 focus/motion과 전체 컴포넌트 지원은 미완료다. Checkbox는 원래 연결되어 있었으므로 카탈로그 상위 지원 수를 늘리지 않았다. 정확한 명령/해시/결과는 artifacts/fluent-checkbox-2026-11-06/verification.json과 [설명](../../fluent2-checkbox.ko.md)을 따른다.
 
 
 ## RadioGroup와 보존된 여러 줄 텍스트
@@ -156,7 +156,7 @@ Before/After 구조: 기존 Core 생성57개 →63개, 기존57개는 바이트 
 
 Before/After: 기본 카탈로그27→28이름, 상위 연결8→9, 미연결47→46. Core 생성63→64파일이며 카탈로그 수정과 새 RadioGroup 어댑터 외62파일은 바이트 동일하다. 신규 기능/구조의 수치이며 FPS/Private/GC/Pi 개선율이 아니다. 같은 조건 성능 비교를 수행하지 않아 속도 향상을 주장하지 않는다.
 
-리스크/후속: 공식 브라우저/UIA/RTL/강제 색상/Field-required/toolbar 입력/모션은 미완료다. 아주 긴 단일 단어는 공통 최소 내용 폭을 사용할 수 있다. 현재 전체 Fluent 목표나 공통 엔진 최적화 완료로 올리지 않는다. 근거는 artifacts/fluent-radio-2026-11-06/verification.json, plan.json, image-comparison-final.json, visual-defect.json과 [설명](fluent2-radio-group.ko.md)이다.
+리스크/후속: 공식 브라우저/UIA/RTL/강제 색상/Field-required/toolbar 입력/모션은 미완료다. 아주 긴 단일 단어는 공통 최소 내용 폭을 사용할 수 있다. 현재 전체 Fluent 목표나 공통 엔진 최적화 완료로 올리지 않는다. 근거는 artifacts/fluent-radio-2026-11-06/verification.json, plan.json, image-comparison-final.json, visual-defect.json과 [설명](../../fluent2-radio-group.ko.md)이다.
 
 ## Switch 정적 크기·구성 보완
 
@@ -304,7 +304,7 @@ UiWidget의 소유권은 기존 키별 자식 저장소에서 검증하고, 부�
 
 관리/Native 각각 트리·소유권·수명101개와 컨테이너175개 검사 통과,GPU121이미지 전부 일치. 기존 팩터리25% 감소 조건은 완화하지 않았고,Native 비소유 버튼1024개에서114,688→81,920B(-28.57%)로 통과했다. 유지된 Wrap/Grid 순수 측정 중앙값0.2→0.2µs,p950.3→0.3,p990.3→0.3이며 실행별 범위가 겹쳐 속도 향상은 확정하지 않는다. 작은 진단의 Private·작업 집합 감소는 실제 앱·장기 메모리 개선의 근거가 아니다. 강제GC·부하·품질 저하는 없다. 이전 Container 생성 추가 비용80,000B보다 크게 줄었으며 과거 기록은 보존한다.
 
-근거:[검증](../artifacts/build-store-2026-11-06/verification.json),[전후 비교](../artifacts/build-store-2026-11-06/comparison.json). 원본과 초기 실패 진단은 L:/Cache/Duxel/build-store-2026-11-06/에 보존한다. Fluent2 전체·나머지 컨테이너 계약·고부하 메모리·이식성은 미완료이며 리사이즈는 별도 보류다. 개발 검증은.NET11만,NET9·10 배포 컴파일은 전체 목표 최종 완료 시 수행한다.
+근거:[검증](../../../artifacts/build-store-2026-11-06/verification.json),[전후 비교](../../../artifacts/build-store-2026-11-06/comparison.json). 원본과 초기 실패 진단은 L:/Cache/Duxel/build-store-2026-11-06/에 보존한다. Fluent2 전체·나머지 컨테이너 계약·고부하 메모리·이식성은 미완료이며 리사이즈는 별도 보류다. 개발 검증은.NET11만,NET9·10 배포 컴파일은 전체 목표 최종 완료 시 수행한다.
 
 ## 생성된 단일 자식 배치 위젯 — 2026-11-06
 
@@ -325,7 +325,7 @@ Padding은 자식의 최소·최대 제약을 여백만큼 줄인다. Align/Cent
 
 별도 Native1만 Padding 저장 진단:생성5,280,000B,최초 측정 확보2,320,000B,변경 없는 측정과 무효화 후 재측정0B,자식1만 개 해제. 최초 측정 비용은 정체성 준비와 유지 결과를 포함하며 캐시만의 크기나 프로세스 Private가 아니다. 배열·문맥·프레임·해제는 할당 측정 구간 밖이며 강제GC는 없다. 관리 생성은5,280,384B로 관측했고 최초 측정·이후 값은 같다. 런타임별1회 저장 진단이며 전후 성능·메모리 향상 비교가 아니다. 기존 Container 생성5,760,000B/첫Build640,000B/변경 없는Build0B도 Native 집중 회귀 진단에서 유지됐다.
 
-[검증 기록](../artifacts/single-child-2026-11-06/verification.json). 컨테이너3/6단계를 완료했고,말단 확장·스크롤/가상화·전체 통합/성능은 남아 있다. 리사이즈는 별도 보류,개발 검증은.NET11만 수행한다.2026-11-06 조회한 공식 참고:[Padding](https://api.flutter.dev/flutter/widgets/Padding-class.html),[Align](https://api.flutter.dev/flutter/widgets/Align-class.html),[SizedBox](https://api.flutter.dev/flutter/widgets/SizedBox-class.html),[ConstrainedBox](https://api.flutter.dev/flutter/widgets/ConstrainedBox-class.html). 갱신되는 API 문서이며 Flutter 소스 커밋을 고정하지 않았고 Flutter 전체 API 동등성을 주장하지 않는다.
+[검증 기록](../../../artifacts/single-child-2026-11-06/verification.json). 컨테이너3/6단계를 완료했고,말단 확장·스크롤/가상화·전체 통합/성능은 남아 있다. 리사이즈는 별도 보류,개발 검증은.NET11만 수행한다.2026-11-06 조회한 공식 참고:[Padding](https://api.flutter.dev/flutter/widgets/Padding-class.html),[Align](https://api.flutter.dev/flutter/widgets/Align-class.html),[SizedBox](https://api.flutter.dev/flutter/widgets/SizedBox-class.html),[ConstrainedBox](https://api.flutter.dev/flutter/widgets/ConstrainedBox-class.html). 갱신되는 API 문서이며 Flutter 소스 커밋을 고정하지 않았고 Flutter 전체 API 동등성을 주장하지 않는다.
 
 ## Slider·Toggle의 부모 할당 반영 — 2026-11-06
 
@@ -337,7 +337,7 @@ SizedBox 측정은80x64인데 생성 Slider의 실제 그리기·입력은120x32
 
 고정RC3 관리/Native 각각172개 집중 검사에 기존 Slider/Checkbox/Switch 계약,할당 입력 영역·끝값·세로/0길이 레일·키보드·사용자 참여/실패·실제 생성 Arrange 선택을 포함했다. MSAA1/4·프레임 슬롯3에서GPU43이미지 전부 일치했다. 독립적인 할당 기하로 썸/표시기 크기와 부모 변경을 확인했다. 원본 엔진의 재현 실패,새 검사의 DirectText 준비 누락,중립 기대 화면과 실제 hover 입력이 달랐던 이미지는 로그에 보존했다. 마지막 검사는 실제·기대 화면 모두 포인터를 화면 밖에 두어 같은 rest 상태로 비교하며 픽셀 기준을 완화하지 않았다.
 
-[검증 기록](../artifacts/leaf-constraints-2026-11-06/verification.json). 기능·배치·입력 수정이며 속도 향상 주장은 아니다. 컨테이너3/6을 유지하고 Input·RadioGroup·텍스트·진행/스피너 등 나머지 말단 계약은 전체 점검이 필요하다. Fluent2 전체·장기 메모리·이식성은 미완료이며 리사이즈는 별도 보류한다.
+[검증 기록](../../../artifacts/leaf-constraints-2026-11-06/verification.json). 기능·배치·입력 수정이며 속도 향상 주장은 아니다. 컨테이너3/6을 유지하고 Input·RadioGroup·텍스트·진행/스피너 등 나머지 말단 계약은 전체 점검이 필요하다. Fluent2 전체·장기 메모리·이식성은 미완료이며 리사이즈는 별도 보류한다.
 
 ## 편집 입력창의 부모 할당 반영 — 2026-11-06
 
@@ -347,4 +347,4 @@ SizedBox 측정은80x64인데 생성 Slider의 실제 그리기·입력은120x32
 
 고정RC3 관리/Native 각각212개 검사에 기존 InputKernel·Fluent Input·장식·소유 자식·Field 검사를 포함했다. MSAA1/4·프레임 슬롯3에서GPU25이미지 전부 일치했다. 독립적인80x64/160x48 기하·타이포그래피·밑줄 기준선·24px 소유 자식·획득 이미지 반복을 확인했다. 원본 빌드는 실제 선택한5개 파일과 이전 검증본에 일치하는 해시를 기록했다. 초기에 겹친 빌드는 중단·무효 처리했고,기준 빌드는 별도 중간 경로를 사용한 뒤 개선본을 직렬 전체 재빌드했다. 최초 수명 검사는 다른 살아 있는 입력 소유자를 빠뜨렸으며,수정한 검사는 각 소유자 상태의 유지/해제와 모두 해제한 뒤 저장소0개를 확인한다. GPU 기준 입력의 빈 키도 유효한 숨김ID로 고쳤다. 초기 기록은 보존한다.
 
-[검증 기록](../artifacts/input-allocation-2026-11-06/verification.json). 기능·편집·배치 수정이며 처리량/FPS/Private 향상 주장은 아니다. 컨테이너3/6을 유지하고 RadioGroup·텍스트·진행/스피너·스크롤/가상화·전체 말단/통합 계약은 남아 있다. 리사이즈는 별도 보류,개발 검증은.NET11만 수행했다.
+[검증 기록](../../../artifacts/input-allocation-2026-11-06/verification.json). 기능·편집·배치 수정이며 처리량/FPS/Private 향상 주장은 아니다. 컨테이너3/6을 유지하고 RadioGroup·텍스트·진행/스피너·스크롤/가상화·전체 말단/통합 계약은 남아 있다. 리사이즈는 별도 보류,개발 검증은.NET11만 수행했다.

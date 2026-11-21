@@ -6,7 +6,7 @@ The header centers its title independently of the action widths. When more room 
 
 `UiNavigationBarAppearance` offers the inherited neutral surface, a transparent surface, and a blue brand gradient with light foreground. System contrast colors are applied when forced colors are active. `Options.Width` requests a width within the parent constraints.
 
-Run `./run-gallery.ps1` on Windows and open **동작과 탐색 → NavigationBar**. The first example changes title and width. The second embeds a period selector in the branded header. Each example shows its source directly below it. [Fluent 2 Navigation bar guidance](https://fluent2.microsoft.design/components/ios/core/navigationbar/usage)
+Run `./run-gallery.ps1` on Windows and open **Actions and navigation → NavigationBar**. The first example changes title and width. The second embeds a period selector in the branded header. Each example shows its source directly below it. [Fluent 2 Navigation bar guidance](https://fluent2.microsoft.design/components/ios/core/navigationbar/usage)
 
 The Windows run presented 100 Gallery scenarios, including NavigationBar. Thirteen focused checks cover action input, title placement, RTL, narrow layout, live source and Vulkan pixels under the brand and system contrast palettes. Both sample sources compile for Windows and platform-neutral .NET 11.
 

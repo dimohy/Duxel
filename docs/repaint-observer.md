@@ -4,14 +4,14 @@
 
 Last synced: 2026-11-19
 
-Run `./run-gallery.ps1` from the repository, then select **갱신 관찰**. An already open Observer uses its previous executable; review the freshly built executable. Header V-Sync and event-wait options use Fluent Switch; V-Sync defaults to off.
+Run `./run-gallery.ps1` from the repository, then select **Repaint observer**. An already open Observer uses its previous executable; review the freshly built executable. Header V-Sync and event-wait options use Fluent Switch; V-Sync defaults to off.
 
-1. Press **한 번 변경** or edit **갱신 관찰 입력**.
-2. Enable **갱신 영역 강조** to outline the actual region Vulkan redrew in the acquired image for 0.2 seconds.
-3. Enable **텍스트 자동 변경 (60Hz)** for repeated updates. Disabling it returns to event waiting after diagnostic cleanup. A focused editor still needs caret blinking.
-4. Disable highlighting for performance comparisons. Stop automatic updates and press **측정값 확인** to inspect the preceding page-build duration, draws, uploads, reuse, repair bounds and extra diagnostic repair.
+1. Press **Update once** or edit **Repaint observer input**.
+2. Enable **Highlight repaints** to outline the actual region Vulkan redrew in the acquired image for 0.2 seconds.
+3. Enable **Update text automatically (60 Hz)** for repeated updates. Disabling it returns to event waiting after diagnostic cleanup. A focused editor still needs caret blinking.
+4. Disable highlighting for performance comparisons. Stop automatic updates and press **Read measurements** to inspect the preceding page-build duration, draws, uploads, reuse, repair bounds and extra diagnostic repair.
 
-**측정 재사용** checks reuse of child layout measurements. **갱신 관찰** is a separate tab comparing CPU content construction with actual GPU repair. Static panel construction can remain cached while the GPU redraws a larger region containing another change.
+**Measurement reuse** checks reuse of child layout measurements. **Repaint observer** is a separate tab comparing CPU content construction with actual GPU repair. Static panel construction can remain cached while the GPU redraws a larger region containing another change.
 
 The outline shows the scene's actual repair rectangle, including older swapchain images and MSAA history. A reused presentation adds no outline. Header statistics freeze while highlighting to prevent their own feedback loop, and cleanup for the outline is measured separately.
 

@@ -65,4 +65,4 @@ Constrained measurement obtains intrinsic child height under an unbounded vertic
 
 Field now propagates measurement retention only when its presentation ReuseLayout and the owned control RetainsMeasurement both allow it. Explicit ControlSize alone does not authorize skipping arbitrary child measurement. Natural Field rendering now shares validated child sizing with measurement. Known unchanged owned controls can reuse that result; opaque controls and legacy immediate AutoField retain live measurement. Rendering, field metadata, focus and editing remain live.
 
-Evidence: artifacts/form-layout-retention-2026-11-12/verification.json. Observer: ./run-gallery.ps1 → Measurement reuse (측정 재사용).
+Evidence: artifacts/form-layout-retention-2026-11-12/verification.json. Observer: ./run-gallery.ps1 → Measurement reuse.

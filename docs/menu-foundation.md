@@ -2,7 +2,7 @@
 
 Current presentation checkpoint: [Fluent Menu](fluent2-menu.md) adds a generated factory, checkboxes, scrolling and expansion events on the shared popup path. [TabList overflow](fluent2-tab-overflow.md) consumes that path. The initial qualification below remains historical; full Fluent fidelity is pending.
 
-The immediate `MenuItem(label, selected)` used in Gallery's **기존 API** page reserves a fixed 16-DIP vector checkmark slot with a 4-DIP gap. Selection shows the shared Fluent checkmark, while the menu label continues to use the selected text font. The checkmark works with fonts that lack U+2713.
+The immediate `MenuItem(label, selected)` used in Gallery's **Legacy API** page reserves a fixed 16-DIP vector checkmark slot with a 4-DIP gap. Selection shows the shared Fluent checkmark, while the menu label continues to use the selected text font. The checkmark works with fonts that lack U+2713.
 
 The Windows .NET 11 Vulkan fixture first reproduces the missing glyph in DirectWrite, then reads back selected, unselected and cleared frames in light and dark with MSAA 1× and 4×. Managed and x64 NativeAOT pass 13 checks each and produce eight matching images. Evidence is in `W:/Cache/Duxel/gallery-source-20261117/legacy-menu-gpu-1961/verification.json`.
 
@@ -23,7 +23,7 @@ Down/Up on the focused trigger opens at the first/last enabled item. Enter/Space
 
 Menu/MenuItem semantics use UIA control types 50009/50011 and leaf Invoke support. Disabled items reject actions. Closing retires item providers; reopening creates fresh runtime identities, while stale clients stay unavailable. The current guide qualifies Scroll/ScrollItem, trigger expansion, menu opened/closed events and checkbox Toggle. Complete assistive-technology qualification remains pending. The control types follow [Microsoft's identifiers](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-controltype-ids).
 
-Run `./run-gallery.ps1`, choose **컨테이너**, scroll to **Menu 공통 동작**, and open **공통 메뉴 열기**. Select an enabled action and inspect the selected-value text. The adjacent overflow example remains independent; its badge has not become a tab menu.
+Run `./run-gallery.ps1`, choose **Layout examples**, scroll to **Shared menu behavior**, and open **Open standard menu**. Select an enabled action and inspect the selected-value text. The adjacent overflow example remains independent; its badge has not become a tab menu.
 
 Qualification is recorded in `artifacts/menu-2026-11-11/verification.json`. Exact managed SDK 11.0.100/runtime 11.0.0: CPU 21, GPU 20 (MSAA 1/4, popup drawing, real pointer invocation, removal and acquired-image reuse), external Windows UIA client 4/host 2, observer 51. Regressions include accessibility 49, tab list 197, scheduling 35 and overflow 26. Initial compilation, missing typography scope and GPU font setup failures are preserved with the corrected results. Focus regressions exposed stale popup blocking registration and trigger press ownership; the shared registration now retires only the closing menu's current rectangle. No NativeAOT or general performance improvement claim is made.
 

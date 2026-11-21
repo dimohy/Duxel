@@ -238,12 +238,12 @@ Next performance hypothesis: vector_scene.comp still scans source commands per v
 
 ## 정지한 마우스 누름의 공통 입력 무효화
 
-가설: 공통 앱 루프의 `HasInputDrivenInvalidation`이 누른 상태 자체를 새 입력으로 간주해 이벤트 대기를 건너뜁니다. 변경: 직전 버튼 상태와 비교하고 실제 누름·놓기·이동·예약 프레임은 유지했습니다. 검증: 동일 RC3 NativeAOT3쌍 교대, 화면3개×버튼3개,350ms 정착/400ms 측정. Before239~317회 구성→After0회; 정규화한 프로세스 CPU 작업 감소99.94~99.96%. 정지 FPS0은 의도된 결과라 최대FPS 개선으로 세지 않습니다. 24회 연속 이동과850ms SpinButton 반복1→4 유지, 최종32화면·384입력 정상 종료. Windows 관리형614프레임·4개 세션 검사와415조합 계약 통과. 추가 입력 게시 순서 조정은48→48구성으로 기각·제거. 구형 Rendering.Tests 드라이버 빌드 CS0436/CS0759 실패는 별도 보존, 현재 Graphics.Tests 엄격 빌드는 통과. 물리 표시 지연·전체 목표 완료를 주장하지 않습니다. 명령·정확한 수치·해시는 [검증 기록](../artifacts/linux-held-input-idle-2026-11-15/README.ko.md)과 `verification.json`에 있습니다.
+가설: 공통 앱 루프의 `HasInputDrivenInvalidation`이 누른 상태 자체를 새 입력으로 간주해 이벤트 대기를 건너뜁니다. 변경: 직전 버튼 상태와 비교하고 실제 누름·놓기·이동·예약 프레임은 유지했습니다. 검증: 동일 RC3 NativeAOT3쌍 교대, 화면3개×버튼3개,350ms 정착/400ms 측정. Before239~317회 구성→After0회; 정규화한 프로세스 CPU 작업 감소99.94~99.96%. 정지 FPS0은 의도된 결과라 최대FPS 개선으로 세지 않습니다. 24회 연속 이동과850ms SpinButton 반복1→4 유지, 최종32화면·384입력 정상 종료. Windows 관리형614프레임·4개 세션 검사와415조합 계약 통과. 추가 입력 게시 순서 조정은48→48구성으로 기각·제거. 구형 Rendering.Tests 드라이버 빌드 CS0436/CS0759 실패는 별도 보존, 현재 Graphics.Tests 엄격 빌드는 통과. 물리 표시 지연·전체 목표 완료를 주장하지 않습니다. 명령·정확한 수치·해시는 [검증 기록](../../../artifacts/linux-held-input-idle-2026-11-15/README.ko.md)과 `verification.json`에 있습니다.
 
 
 ## Dialog 소비 경로를 위한 공통 오버레이 상태·수명
 
-가설: 기존 Popover의 검증된 포커스·소유권·취소·예약·수명을 공유하면 Dialog에서 중복된 입력 모델을 만들지 않을 수 있습니다. 변경: UiOverlayInputState와 공통 런타임으로 분리하고 상태별 ContainsScreenPoint가 구체적 형상을 처리합니다. 검증: Windows 엄격한 .NET11 게시,240 CPU·452 GPU·53 변환·25 팝업 입력·614프레임/4 앱 세션 통과; 기준437개 이미지 완전 일치. Linux 고정 RC3 NativeAOT32화면·384입력과 정지 누름9조건0회 구성, 속도 지정 드래그·예정된 숫자 반복 유지. Before/After 기능과 픽셀은 동일하며 속도·메모리 개선율은 미측정입니다. 리스크: Dialog 소비 구현과 전체 적합성은 아직 없으며437개 기존 Popover 이미지를 전체 Fluent 완료로 해석하지 않습니다. [계약·검증 명령 범위](../artifacts/fluent-dialog-2026-11-15/README.ko.md).
+가설: 기존 Popover의 검증된 포커스·소유권·취소·예약·수명을 공유하면 Dialog에서 중복된 입력 모델을 만들지 않을 수 있습니다. 변경: UiOverlayInputState와 공통 런타임으로 분리하고 상태별 ContainsScreenPoint가 구체적 형상을 처리합니다. 검증: Windows 엄격한 .NET11 게시,240 CPU·452 GPU·53 변환·25 팝업 입력·614프레임/4 앱 세션 통과; 기준437개 이미지 완전 일치. Linux 고정 RC3 NativeAOT32화면·384입력과 정지 누름9조건0회 구성, 속도 지정 드래그·예정된 숫자 반복 유지. Before/After 기능과 픽셀은 동일하며 속도·메모리 개선율은 미측정입니다. 리스크: Dialog 소비 구현과 전체 적합성은 아직 없으며437개 기존 Popover 이미지를 전체 Fluent 완료로 해석하지 않습니다. [계약·검증 명령 범위](../../../artifacts/fluent-dialog-2026-11-15/README.ko.md).
 
 
 ## Linux animation deadline pacing

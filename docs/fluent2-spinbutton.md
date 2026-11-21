@@ -21,7 +21,7 @@ The default parser accepts finite invariant numeric text, including exponent not
 
 Small/Medium use minimum heights24/32, with four `UiInputAppearance` values. `RightToLeft` mirrors stepper placement. `ReadOnly` disables editing and both actions. Field and standalone Label associations use the common input path. Native semantics use Spinner type50016, Value and optional RangeValue; empty values withdraw RangeValue.
 
-Run `./run-gallery.ps1` → **숫자 입력**. Try empty values, units, size/appearance/read-only toggles, typing, focus changes and holding the steppers.
+Run `./run-gallery.ps1` → **SpinButton**. Try empty values, units, size/appearance/read-only toggles, typing, focus changes and holding the steppers.
 
 References: pinned [behavior](https://github.com/microsoft/fluentui/blob/8830c10bfb2f4c1bdd540287b09713b9679cd1ad/packages/react-components/react-spinbutton/library/src/components/SpinButton/useSpinButton.tsx) and [styles](https://github.com/microsoft/fluentui/blob/8830c10bfb2f4c1bdd540287b09713b9679cd1ad/packages/react-components/react-spinbutton/library/src/components/SpinButton/useSpinButtonStyles.styles.ts).
 

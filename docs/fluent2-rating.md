@@ -26,7 +26,7 @@ When package assets already match the current project dependencies, run from the
 ./run-gallery.ps1 -NoRestore
 ```
 
-Open **평가** for shared whole/half values,reset,RTL and width56 wrapping. `-NoRestore` explicitly reuses existing NuGet assets. Missing assets fail without switching to an implicit restore. If dependencies changed, restore them before using this mode. When restoration is required,prepare a writable cache and use `./run-gallery.ps1`. Global L: cache exhaustion remains a separate environment issue.
+Open **Rating** for shared whole/half values,reset,RTL and width56 wrapping. `-NoRestore` explicitly reuses existing NuGet assets. Missing assets fail without switching to an implicit restore. If dependencies changed, restore them before using this mode. When restoration is required,prepare a writable cache and use `./run-gallery.ps1`. Global L: cache exhaustion remains a separate environment issue.
 
 Managed .NET11 passes14 input checks and32 GPU pairs,Radio accessibility18,compatibility91,composite contracts500,ordered input595 and Observer356. GPU references independently position glyphs for0/.5/2.5/5,LTR/RTL,width140/56 and slots1/3. They do not establish browser SVG pixel equivalence. The normal Observer acknowledges45 QueuePresent pages including the rating page; Linux is a host build only.
 
@@ -50,7 +50,7 @@ var rating = Fluent.Rating("Service rating", score.Binding, new UiRatingOptions
 
 Input identities remain culture-independent. Relabeling preserves selection,accessibility runtime identities and the pressed option. Names are prepared on creation and when the culture instance or formatter changes. Call `rating.RefreshItemLabels()` when only external translation data changes. Formatters must be pure and return nonempty,non-whitespace text. Failures never publish partially replaced labels. Disposal releases captured formatter references.
 
-Observer **평가** includes Korean half-step names. The official browser example confirms a committed score4 survives hover preview2,right-arrow selects5,and default icons occupy28 units. Forced-colors browser captures establish a reference only; engine acceptance remains open.
+Observer **Rating** includes Korean half-step names. The official browser example confirms a committed score4 survives hover preview2,right-arrow selects5,and default icons occupy28 units. Forced-colors browser captures establish a reference only; engine acceptance remains open.
 
 The official browser SVG uses a20-unit viewBox. Rating therefore scales the20-unit glyph instead of switching to a24-unit glyph. Icons originate from compiled Fluent fonts and require `IPlatformVectorTextBackend`. The shared path cancels interior mesh edges once and renders outline coverage through the same GPU vector-fill engine as SVG. Ordinary raster text remains unchanged.
 
@@ -80,7 +80,7 @@ var compact = Fluent.RatingDisplay("Average rating", () => new UiRatingDisplayVa
 
 Numbers use the thread's `CultureInfo.CurrentCulture`. Replacing its instance changes the shared measurement key and recomputes parent geometry,including custom numeric formats with equal culture names. Replace the instance instead of mutating a culture already in use. Static values retain measurements; getter sources read current values. Scores must be finite within 0..Maximum,counts nonnegative,and display Maximum at least 2.
 
-Observer **평가** includes full/compact displays,review counts,shapes,colors and RTL. GPU glyph comparisons are separate from browser rendering equivalence.
+Observer **Rating** includes full/compact displays,review counts,shapes,colors and RTL. GPU glyph comparisons are separate from browser rendering equivalence.
 
 Managed validation passes 132 Rating checks (previous 46,display CPU 14 and GPU 72 pairs),110 retention checks,500 composite contracts,356 Observer checks and595 ordered-input checks. Display GPU coverage uses the current default color scheme across three shapes,three colors,full/compact,LTR/RTL and slots1/3. It does not establish visual conformance for every theme or text size. [Display evidence](../artifacts/fluent-rating-2026-11-16/display-verification.json).
 

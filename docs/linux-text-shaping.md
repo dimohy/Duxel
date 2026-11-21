@@ -24,7 +24,7 @@ From the Windows repository root:
 & 'W:/MyWorks/Duxel/artifacts/linux-present-path-2026-11-15/run-observer.ps1'
 ```
 
-The verified manifest selects NativeAOT executable `7746d0b7` and checks its full hash. The launcher supplies the five explicit fonts and limits llvmpipe workers to4 in the launched process. Open **입력·IME** and select **커닝·혼합 문장 예제** to inspect kerning and mixed-direction text. Older delivery `ce552ef3` is preserved separately.
+The verified manifest selects NativeAOT executable `7746d0b7` and checks its full hash. The launcher supplies the five explicit fonts and limits llvmpipe workers to4 in the launched process. Open **Input and IME · combined** and select **Kerning and mixed-script example** to inspect kerning and mixed-direction text. Older delivery `ce552ef3` is preserved separately.
 
 The focused `paragraph-geometry` profile in `tests/Duxel.Vulkan.Linux.Tests` takes a fresh output directory, sample count1, the five explicit regular/bold/Korean/monospace font paths, then the profile name. It needs no GUI. The native suite passed334 checks:11 text cases at five sizes, each with advance, exact native pixels, original-grapheme carets, retained Core consumption, native hit/affinity and native selection coverage, plus four resource/font-isolation checks. Text baseline114, actual candidate Observer41 and delivered-launcher38 scenarios also passed. Windows related geometry/shaping/input/Markdown regressions passed. [Evidence](../artifacts/fluent-messagebar-2026-11-15/linux-paragraph-verification.json).
 

@@ -1,6 +1,6 @@
 # ActivityIndicator
 
-Run `./run-gallery.ps1` → **알림과 진행 상태 → ActivityIndicator**. Each of five sizes has adjacent source. Start/stop, hides-when-stopped, color and reduced-motion options update those snippets. NEW belongs only to ActivityIndicator.
+Run `./run-gallery.ps1` → **Alerts and progress → ActivityIndicator**. Each of five sizes has adjacent source. Start/stop, hides-when-stopped, color and reduced-motion options update those snippets. NEW belongs only to ActivityIndicator.
 
 ```csharp
 var activity = Fluent.ActivityIndicator(new(

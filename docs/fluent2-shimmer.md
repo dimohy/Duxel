@@ -1,6 +1,6 @@
 # Shimmer
 
-Run `./run-gallery.ps1` → **알림과 진행 상태 → Shimmer**. Toggle loading/completion and reduced motion. The adjacent source follows the actual options. Shimmer is the latest menu addition and owns NEW.
+Run `./run-gallery.ps1` → **Alerts and progress → Shimmer**. Toggle loading/completion and reduced motion. The adjacent source follows the actual options. Shimmer is the latest menu addition and owns NEW.
 
 ```csharp
 var placeholder = Fluent.Skeleton(Fluent.SkeletonItem(new(Width : 240)));

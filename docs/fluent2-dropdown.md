@@ -21,7 +21,7 @@ dropdown.Render(ui);
 
 Common popup and scrolling machinery handles arrows, Home, End, PageUp, PageDown, Enter, Space, Escape and incremental name search, skipping disabled options. No periodic frames or XML reparsing are introduced. Windows exposes readonly ComboBox, ListBox and Option nodes, closed selection, actual GetSelection, multiple add/remove and Value changes.
 
-Run `./run-gallery.ps1` → **입력과 선택 → Dropdown**. Try single/multiple selection, SVG, size/appearance/direction/width and reset. State persists across page changes.
+Run `./run-gallery.ps1` → **Input and selection → Dropdown**. Try single/multiple selection, SVG, size/appearance/direction/width and reset. State persists across page changes.
 
 Evidence: `artifacts/dropdown-2026-11-13/`. Dynamic options, large-list virtualization, complete Fluent conformance and fixed RC3 NativeAOT/performance remain open.
 
@@ -29,4 +29,4 @@ References: [Fluent usage](https://fluent2.microsoft.design/components/web/react
 
 Additional allocation/state validation covers80×64 and live120×24 parent bounds, isolated Parent-identity siblings sharing option values, in-place external selection-array mutation, setter normalization in the same frame, Space press/release toggling and empty lists. Actual Observer pointer tests select Korean/image/SVG options, operate all appearance controls, switch pages and reset both bindings. Moving to another UI context with the same frame number invalidates shared popup publication stamps and republishes the closed logical list.
 
-Standalone `UiDropdownOptions.Invalid` now reaches Windows accessibility validation state and clears when reset. Run `./run-gallery.ps1` → **입력과 선택 → Dropdown / 검증 상태 전환** to inspect the city editor and both Dropdowns. External UIA DataValidForForm transitions and page persistence are covered. Evidence: `artifacts/combobox-lifetime-2026-11-13/`.
+Standalone `UiDropdownOptions.Invalid` now reaches Windows accessibility validation state and clears when reset. Run `./run-gallery.ps1` → **Input and selection → Dropdown / Toggle validation state** to inspect the city editor and both Dropdowns. External UIA DataValidForForm transitions and page persistence are covered. Evidence: `artifacts/combobox-lifetime-2026-11-13/`.
