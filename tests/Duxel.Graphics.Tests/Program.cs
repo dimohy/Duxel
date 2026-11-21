@@ -2875,12 +2875,12 @@ if (args.Length >= 2 && args[1] is "observer-gallery" or "observer-rendering" or
     using var localObserverAccessibility = new UiAccessibilityTree();
     var observerAccessibility = args[1] == "observer-widget-transform" ? platform.AccessibilityTree : localObserverAccessibility;
     context.SetAccessibilityTree(observerAccessibility);
-    var observerOptions = new Duxel.App.DuxelAppOptions { Screen = observer };
+    var observerFonts = Duxel.Gallery.GalleryText.ConfigureFonts(new());
     context.SetPlatformTextBackend(platform.TextBackend);
-    context.SetTypographyFonts(observerOptions.Font.Typography);
+    context.SetTypographyFonts(observerFonts.Typography);
     context.SetTheme(UiCompiledDesign.Windows11Dark.Theme);
-    context.SetDirectTextPrimaryFontPath(observerOptions.Font.PrimaryFontPath);
-    context.SetDirectTextSecondaryFontPath(observerOptions.Font.SecondaryFontPath);
+    context.SetDirectTextPrimaryFontPath(observerFonts.PrimaryFontPath);
+    context.SetDirectTextSecondaryFontPath(observerFonts.SecondaryFontPath);
     context.SetDirectTextBaseFontSize(16);
     context.SetDirectTextEnabled(true);
     context.SetDirectTextFallbackEnabled(false);
@@ -3736,7 +3736,7 @@ if (args.Length >= 2 && args[1] is "observer-gallery" or "observer-rendering" or
         var offset = (y * size.Width + x) * 4;
         return focusedPanel[offset + 2] > focusedPanel[offset] + 20 && focusedPanel[offset + 1] > focusedPanel[offset] + 20;
     }
-    const int galleryContentLeft = 8 + 280 + 20;
+    const int galleryContentLeft = 8 + 280 + 28;
     Check(panelBounds.X == galleryContentLeft && panelBounds.X + panelBounds.Width == size.Width - 8
         && panelBounds.Y + panelBounds.Height == size.Height - 8,
         "observer editing panel reserves matching right and bottom content padding");
