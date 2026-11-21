@@ -144,7 +144,7 @@ Sources: [official Nav usage](https://fluent2.microsoft.design/components/web/re
 
 ## Current values and example code
 
-All22 standalone examples share GallerySample and UiCodeView. The16 interactive factories update current initializers; the6 fixed examples retain their code. Factory bodies come from the lambdas actually compiled. Unchanged values reuse strings and syntax. TagPicker tracks query and selected array; Combobox tracks query and selected value.
+All22 standalone examples share GallerySample and UiCodeView. The16 interactive factories update current initializers; the6 fixed examples retain their code. Factory bodies come from the lambdas actually compiled. Unchanged values reuse strings and syntax. TagPicker tracks query and selected array; Combobox tracks query and selected value. The standalone examples use the selected Gallery language for descriptions, controls, and displayed C# literals. Factory names and sample identifiers stay stable across languages.
 
 The gallery-component-source-only mode accepts optional comma-separated page names in its third argument, such as TagPicker,Combobox. Omitting it runs all22. Each finished page writes completed-pages.txt and source snapshots. Selection is explicit, not a global automatic test cache.
 

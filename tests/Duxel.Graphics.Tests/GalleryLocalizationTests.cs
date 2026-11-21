@@ -29,6 +29,41 @@ internal static class GalleryLocalizationTests
                 "Feature index localizes every factory group heading in " + language);
         }
 
+        foreach (var (language, field, multiline, country, container) in new[]
+        {
+            (GalleryLanguage.English, "Enter at least two characters.", "First line\nSecond line", "United States", "Maximum container width: {0:F0} px"),
+            (GalleryLanguage.Korean, "두 글자 이상 입력하세요.", "첫 줄\n둘째 줄", "미국", "부모 최대 폭 {0:F0}px"),
+            (GalleryLanguage.Japanese, "2 文字以上入力してください。", "1 行目\n2 行目", "米国", "親コンテナーの最大幅：{0:F0} px"),
+            (GalleryLanguage.SimplifiedChinese, "请输入至少两个字符。", "第一行\n第二行", "美国", "父容器最大宽度：{0:F0} px")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            foreach (var example in GalleryComponentExamples.Create())
+            {
+                using var page = (ComponentExamplePage)example;
+                var description = GalleryText.Get(page.Description);
+                var samples = page.Samples.Select(sample => sample.Source).ToArray();
+                check(!string.IsNullOrWhiteSpace(description) && (language == GalleryLanguage.Korean
+                    || (description != page.Description && !ContainsHangul(description))),
+                    $"{page.Title} has a localized description in {language}");
+                check(samples.All(source => !source.Contains("GalleryText.Get", StringComparison.Ordinal)
+                    && (language == GalleryLanguage.Korean || !ContainsHangul(source))),
+                    $"{page.Title} exposes self-contained localized C# in {language}");
+
+                var expectedSourceText = page.Title switch
+                {
+                    "Field" => field,
+                    "Textarea" => multiline,
+                    "Dropdown" => country,
+                    "RadioGroup" => container,
+                    _ => null
+                };
+                if (expectedSourceText is not null)
+                    check(samples.Any(source => source.Contains(GallerySample.String(expectedSourceText), StringComparison.Ordinal)),
+                        $"{page.Title} includes the expected localized label or value in {language}");
+            }
+        }
+
         var systemLanguage = CultureInfo.CurrentUICulture;
         var path = Path.GetTempFileName();
         try
@@ -161,6 +196,8 @@ internal static class GalleryLocalizationTests
             File.Delete(path);
         }
     }
+
+    private static bool ContainsHangul(string text) => text.Any(character => character is >= '\uAC00' and <= '\uD7A3');
 
     internal static void CaptureOverview(string output, Action<bool, string> check)
     {

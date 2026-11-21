@@ -219,3 +219,85 @@ Duxel로 UI 만들기	Build UI with Duxel	Duxel で UI を作る	使用 Duxel �
 보조 패널	Side panels	サイドパネル	侧边面板
 목록	Lists	リスト	列表
 컨테이너·Menu 공통 동작	Shared container and menu behavior	コンテナーとメニューの共通動作	容器和菜单的共同行为
+처리 방식	Processing mode	処理モード	处理模式
+속도 우선	Prioritize speed	速度優先	速度优先
+균형	Balanced	バランス	均衡
+품질 우선	Prioritize quality	品質優先	质量优先
+처리 우선순위	Processing priority	処理の優先順位	处理优先级
+응답 시간을 줄이는 데 집중합니다.	Focus on reducing response time.	応答時間の短縮を優先します。	优先缩短响应时间。
+속도와 결과의 품질을 고르게 유지합니다.	Balance speed and result quality.	速度と結果の品質のバランスを取ります。	兼顾速度和结果质量。
+시간이 더 걸려도 결과의 품질을 높입니다.	Improve result quality even if it takes longer.	時間がかかっても結果の品質を高めます。	即使耗时更长，也优先提高结果质量。
+부모 폭에 따라 줄바꿈	Wrapping at different container widths	親コンテナーの幅に応じた折り返し	随父容器宽度换行
+부모 폭 전환	Change container width	親コンテナーの幅を切り替える	切换父容器宽度
+부모 최대 폭 {0:F0}px	Maximum container width: {0:F0} px	親コンテナーの最大幅：{0:F0} px	父容器最大宽度：{0:F0} px
+방향키로 선택을 바꾸고, 부모 폭에 따라 긴 라벨이 어떻게 줄바꿈되는지 살펴보세요.	Use the arrow keys to change the selection and see how long labels wrap at different container widths.	矢印キーで選択を変え、親コンテナーの幅によって長いラベルがどう折り返されるかを確認できます。	使用方向键更改选择，观察长标签在不同容器宽度下如何换行。
+이름을 검색해 받는 사람을 추가하고, 선택한 태그를 지워 보세요.	Search for a recipient by name, then try removing a selected tag.	名前を検索して宛先を追加し、選択したタグを削除できます。	搜索姓名以添加收件人，再试着移除已选标签。
+디모이	Dimoi	ディモイ	迪莫伊
+김민수	Min-su Kim	キム・ミンス	金民秀
+박지연	Ji-yeon Park	パク・ジヨン	朴智妍
+손님	Guest	ゲスト	访客
+받는 사람	Recipients	宛先	收件人
+이름을 입력하세요	Enter a name	名前を入力	输入姓名
+일치하는 사람이 없습니다	No matching people	一致する人が見つかりません	找不到匹配的联系人
+제거	Remove	削除	移除
+이름을 입력해 검색하고 Enter로 추가하세요. 커서가 입력창 맨 앞에 있을 때 ←나 Backspace를 누르면 마지막 태그로 이동합니다.	Type a name to search and press Enter to add it. At the start of the input, press Left Arrow or Backspace to focus the last tag.	名前を入力して検索し、Enter キーで追加します。入力欄の先頭で左矢印キーまたは Backspace キーを押すと、最後のタグにフォーカスが移ります。	输入姓名进行搜索，然后按 Enter 添加。光标位于输入框开头时，按向左方向键或退格键可将焦点移到最后一个标签。
+선택 : 	Selected: 	選択：	已选：
+손잡이를 끌거나 방향키를 눌러 0부터 1까지 값을 조절해 보세요.	Drag the thumb or use the arrow keys to adjust the value between 0 and 1.	つまみをドラッグするか矢印キーを押して、0 から 1 の範囲で値を調整できます。	拖动滑块或按方向键，在 0 到 1 之间调整数值。
+값 조절	Adjust value	値の調整	调整数值
+값 : 	Value: 	値：	数值：
+진행률을 막대로 표시합니다. 예제는 작업이 35% 진행된 상태입니다.	The bar shows a task that is 35% complete.	作業の進捗が 35% の状態をバーで表示します。	进度条显示任务已完成 35%。
+상태를 짧은 글자로 표시하는 배지와 개수를 보여 주는 배지를 비교해 보세요.	Compare a short status badge with a badge that shows a count.	短い状態を示すバッジと、件数を示すバッジを比較できます。	比较显示简短状态的徽章与显示数量的徽章。
+준비됨	Ready	準備完了	就绪
+구분선과 가운데 라벨로 위아래 내용을 나눕니다.	Divide the content above and below with a line and a centered label.	区切り線と中央のラベルで上下の内容を分けます。	使用分隔线和居中标签区分上下内容。
+위쪽 내용	Content above	上の内容	上方内容
+구분	Section break	区切り	分隔
+아래쪽 내용	Content below	下の内容	下方内容
+링크를 눌러 선택한 목적지가 아래에 표시되는지 확인해 보세요.	Activate the link to display its destination below.	リンクを押すと、そのリンク先が下に表示されます。	点击链接后，下方会显示链接目标。
+아직 선택하지 않았습니다.	No destination selected yet.	リンク先はまだ選択されていません。	尚未选择链接目标。
+목적지 선택	Choose a destination	リンク先を選ぶ	选择目标
+선택한 목적지 : 	Selected destination: 	選択したリンク先：	所选目标：
+진행률을 알 수 없는 작업을 표시합니다. 버튼으로 회전을 시작하거나 멈춰 보세요.	Show work with no known completion percentage. Use the button to start or stop the spinner.	完了までの進捗が分からない作業を示します。ボタンで回転を開始または停止できます。	用于显示进度未知的任务。点击按钮可启动或停止旋转。
+일시 정지	Paused	一時停止	已暂停
+재생 전환	Toggle playback	再生と停止を切り替える	切换播放状态
+한 줄에 한글과 영문을 입력하고 일부를 선택해 수정해 보세요.	Type on a single line, then select and replace part of the text.	1 行に文字を入力し、一部を選んで書き換えてみてください。	在单行中输入文字，再选中并替换其中一部分。
+한글과 English	Hello, world	日本語と English	中文与 English
+한 줄 입력	Single-line input	1 行入力	单行输入
+여러 줄에 걸쳐 글을 입력하거나 줄 사이를 이동해 수정해 보세요.	Type across multiple lines or move between lines to edit the text.	複数行に入力し、行の間を移動して文章を編集できます。	输入多行文字，或移动到其他行进行编辑。
+첫 줄	First line	1 行目	第一行
+둘째 줄	Second line	2 行目	第二行
+여러 줄 입력	Multiline input	複数行入力	多行输入
+이름 입력란에 필수 표시와 입력 안내를 함께 배치합니다.	A name field with both a required indicator and a hint.	名前の入力欄に必須マークと入力のヒントを表示します。	在姓名字段中同时显示必填标记和输入提示。
+이름	Name	名前	姓名
+두 글자 이상 입력하세요.	Enter at least two characters.	2 文字以上入力してください。	请输入至少两个字符。
+라벨을 누르면 연결된 입력란으로 포커스가 옮겨갑니다.	Activate the label to focus its associated input.	ラベルを押すと、対応する入力欄にフォーカスが移ります。	点击标签可将焦点移到关联的输入框。
+라벨 대상	Labeled input	ラベルに対応する入力欄	关联的输入框
+눌러서 입력창으로 이동	Select to focus the input	押して入力欄に移動	点击以聚焦输入框
+목록을 열고 작업 위치를 하나 선택해 보세요.	Open the list and choose a work location.	リストを開いて作業場所を選びます。	打开列表并选择一个工作地点。
+작업 위치	Work location	作業場所	工作地点
+한국	South Korea	韓国	韩国
+미국	United States	米国	美国
+일본	Japan	日本	日本
+위치를 선택하세요	Choose a location	場所を選択	选择地点
+목록 열기	Open list	リストを開く	打开列表
+도시 이름을 입력해 목록을 좁히거나, 목록에 없는 이름을 직접 입력해 보세요.	Type a city name to filter the list or to enter a city of your own.	都市名を入力して候補を絞り込んだり、一覧にない都市名を直接入力したりできます。	输入城市名称以筛选列表，也可直接输入列表中没有的城市。
+도시 검색	Search cities	都市を検索	搜索城市
+서울	Seoul	ソウル	首尔
+부산	Busan	釜山	釜山
+런던	London	ロンドン	伦敦
+도시 이름을 입력하세요	Enter a city name	都市名を入力	输入城市名称
+도시 목록 열기	Open city list	都市の一覧を開く	打开城市列表
+세 도시 이름을 작은 태그로 나란히 표시합니다.	Show three city names as small tags side by side.	3 つの都市名を小さなタグで横に並べます。	将三个城市名称并排显示为小标签。
+제주	Jeju	済州	济州
+탭을 클릭하거나 키보드로 이동해 선택 표시가 어떻게 바뀌는지 살펴보세요.	Click a tab or use the keyboard to see how the selection indicator changes.	タブをクリックするかキーボードで移動して、選択の表示がどう変わるかを確認できます。	点击选项卡或使用键盘切换，观察选中标记如何变化。
+예제 탭	Example tabs	サンプルのタブ	示例选项卡
+첫 번째	First	1 番目	第一项
+두 번째	Second	2 番目	第二项
+세 번째	Third	3 番目	第三项
+메뉴를 열어 새 문서나 저장 명령을 실행해 보세요.	Open the menu and run the New document or Save command.	メニューを開いて、新規ドキュメントまたは保存コマンドを実行できます。	打开菜单，执行新建文档或保存命令。
+선택 없음	None selected	未選択	未选择
+메뉴 열기	Open menu	メニューを開く	打开菜单
+새 문서	New document	新規ドキュメント	新建文档
+저장	Save	保存	保存
+실행 : 	Command: 	実行したコマンド：	已执行命令：
+홈 아이콘에 크기와 색상을 지정한 예제입니다.	A home icon with a custom size and color.	サイズと色を指定したホームアイコンです。	为主页图标指定大小和颜色的示例。
+네 픽셀의 이미지 데이터를 위젯에 넣고 160 × 160 크기로 표시합니다.	Display a four-pixel image in a 160 × 160 widget.	4 ピクセルの画像を 160 × 160 サイズのウィジェットに表示します。	在 160 × 160 的小组件中显示一张由四个像素组成的图像。

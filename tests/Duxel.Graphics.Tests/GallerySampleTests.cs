@@ -2307,7 +2307,7 @@ internal static class GallerySampleTests
                     break;
                 case "Dropdown":
                     Send("작업 위치", UiAccessibilityRole.ComboBox, UiAccessibilityAction.Expand);
-                    Send("日本", UiAccessibilityRole.Option, UiAccessibilityAction.Select);
+                    Send("일본", UiAccessibilityRole.Option, UiAccessibilityAction.Select);
                     expected = "new UiState<string?>(\"jp\")";
                     break;
                 case "Combobox":

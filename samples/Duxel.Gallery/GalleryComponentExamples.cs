@@ -80,28 +80,28 @@ internal static class GalleryComponentExamples
     {
         var choices = StatefulSample(new UiState<string?>("balanced"), value =>
         {
-            return Fluent.RadioGroup("처리 방식", value.Binding,
-                new UiRadioOption[] { new("efficient", "속도 우선"), new("balanced", "균형"), new("quality", "품질 우선") });
+            return Fluent.RadioGroup(GalleryText.Get("처리 방식"), value.Binding,
+                new UiRadioOption[] { new("efficient", GalleryText.Get("속도 우선")), new("balanced", GalleryText.Get("균형")), new("quality", GalleryText.Get("품질 우선")) });
         }, current => TextState("value", current, nullable : true));
 
         var allocation = StatefulSample(new UiState<string?>("balanced"), new UiState<float>(180), (selection, width) =>
         {
-            var group = Fluent.RadioGroup("처리 우선순위", selection.Binding, new UiRadioOption[]
+            var group = Fluent.RadioGroup(GalleryText.Get("처리 우선순위"), selection.Binding, new UiRadioOption[]
             {
-                new("efficient", "응답 시간을 줄이는 데 집중합니다."),
-                new("balanced", "속도와 결과의 품질을 고르게 유지합니다."),
-                new("quality", "시간이 더 걸려도 결과의 품질을 높입니다.")
+                new("efficient", GalleryText.Get("응답 시간을 줄이는 데 집중합니다.")),
+                new("balanced", GalleryText.Get("속도와 결과의 품질을 고르게 유지합니다.")),
+                new("quality", GalleryText.Get("시간이 더 걸려도 결과의 품질을 높입니다."))
             });
             // A finite maximum lets the sample fit when the Gallery is narrower than the requested width.
             var parent = Dux.ConstrainedBox(group, new(0, width.Value, 0, float.PositiveInfinity));
             return Dux.Column(new(Spacing : 10, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Subtitle2("부모 폭에 따라 줄바꿈"),
-                Fluent.Button("부모 폭 전환", () =>
+                Fluent.Subtitle2(GalleryText.Get("부모 폭에 따라 줄바꿈")),
+                Fluent.Button(GalleryText.Get("부모 폭 전환"), () =>
                 {
                     width.Value = width.Value == 180 ? 360 : 180;
                     parent.Options = parent.Options with { MaxWidth = width.Value };
                 }),
-                Fluent.Caption1(() => $"부모 최대 폭 {width.Value:F0}px"),
+                Fluent.Caption1(() => string.Format(GalleryText.Get("부모 최대 폭 {0:F0}px"), width.Value)),
                 parent);
         }, (selection, width) => TextState("selection", selection, nullable : true)
             + "\nvar width = new UiState<float>(" + GallerySample.Number(width) + ");");
@@ -114,12 +114,12 @@ internal static class GalleryComponentExamples
     [
         Stateful("TagPicker", "이름을 검색해 받는 사람을 추가하고, 선택한 태그를 지워 보세요.", new UiState<string>(string.Empty), new UiState<string[]>(["dimoi"]), (query, selected) =>
         {
-            UiSelectOption[] people = [new("dimoi", "디모이"), new("kim", "김민수"), new("park", "박지연"), new("guest", "손님", false)];
+            UiSelectOption[] people = [new("dimoi", GalleryText.Get("디모이")), new("kim", GalleryText.Get("김민수")), new("park", GalleryText.Get("박지연")), new("guest", GalleryText.Get("손님"), false)];
             return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.TagPicker("받는 사람", query.Binding, selected.Binding, people,
-                    new(Field: new(Width: 520, Placeholder: "이름을 입력하세요"), EmptyText: "일치하는 사람이 없습니다", DismissLabel: "제거")),
-                Fluent.Caption1("이름을 입력해 검색하고 Enter로 추가하세요. 커서가 입력창 맨 앞에 있을 때 ←나 Backspace를 누르면 마지막 태그로 이동합니다."),
-                Fluent.Body1(() => "선택 : " + string.Join(", ", selected.Value)));
+                Fluent.TagPicker(GalleryText.Get("받는 사람"), query.Binding, selected.Binding, people,
+                    new(Field: new(Width: 520, Placeholder: GalleryText.Get("이름을 입력하세요")), EmptyText: GalleryText.Get("일치하는 사람이 없습니다"), DismissLabel: GalleryText.Get("제거"))),
+                Fluent.Caption1(GalleryText.Get("이름을 입력해 검색하고 Enter로 추가하세요. 커서가 입력창 맨 앞에 있을 때 ←나 Backspace를 누르면 마지막 태그로 이동합니다.")),
+                Fluent.Body1(() => GalleryText.Get("선택 : ") + string.Join(", ", selected.Value)));
         }, (query, selected) => TextState("query", query) + "\nvar selected = new UiState<string[]>(" + StringArray(selected) + ");"),
         Stateful("Button", "버튼을 눌러 클릭 횟수를 늘려 보세요.", new UiState<int>(0), clicks =>
         {
@@ -139,8 +139,8 @@ internal static class GalleryComponentExamples
         Stateful("Slider", "손잡이를 끌거나 방향키를 눌러 0부터 1까지 값을 조절해 보세요.", new UiState<float>(.35f), value =>
         {
             return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Slider("값 조절", value.Binding, 0, 1, .01f),
-                Fluent.Body1(() => "값 : " + value.Value.ToString("F2")));
+                Fluent.Slider(GalleryText.Get("값 조절"), value.Binding, 0, 1, .01f),
+                Fluent.Body1(() => GalleryText.Get("값 : ") + value.Value.ToString("F2")));
         }, current => "var value = new UiState<float>(" + GallerySample.Number(current) + ");"),
         Example("ProgressBar", "진행률을 막대로 표시합니다. 예제는 작업이 35% 진행된 상태입니다.", () =>
         {
@@ -150,74 +150,74 @@ internal static class GalleryComponentExamples
         }),
         Example("Badge", "상태를 짧은 글자로 표시하는 배지와 개수를 보여 주는 배지를 비교해 보세요.", () =>
         {
-            return Dux.Wrap(new(Spacing : 12), Fluent.Badge("Ready"), Fluent.CounterBadge(() => new(5)));
+            return Dux.Wrap(new(Spacing : 12), Fluent.Badge(GalleryText.Get("준비됨")), Fluent.CounterBadge(() => new(5)));
         }),
         Example("Divider", "구분선과 가운데 라벨로 위아래 내용을 나눕니다.", () =>
         {
             return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Body1("위쪽 내용"), Fluent.Divider("구분"), Fluent.Body1("아래쪽 내용"));
+                Fluent.Body1(GalleryText.Get("위쪽 내용")), Fluent.Divider(GalleryText.Get("구분")), Fluent.Body1(GalleryText.Get("아래쪽 내용")));
         }),
-        Stateful("Link", "링크를 눌러 선택한 목적지가 아래에 표시되는지 확인해 보세요.", new UiState<string>("아직 선택하지 않았습니다."), destination =>
+        Stateful("Link", "링크를 눌러 선택한 목적지가 아래에 표시되는지 확인해 보세요.", new UiState<string>(GalleryText.Get("아직 선택하지 않았습니다.")), destination =>
         {
             return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Link("목적지 선택", new Uri("/gallery", UriKind.Relative), uri => destination.Value = uri.ToString()),
-                Fluent.Body1(() => "선택한 목적지 : " + destination.Value));
+                Fluent.Link(GalleryText.Get("목적지 선택"), new Uri("/gallery", UriKind.Relative), uri => destination.Value = uri.ToString()),
+                Fluent.Body1(() => GalleryText.Get("선택한 목적지 : ") + destination.Value));
         }, current => TextState("destination", current)),
         Stateful("Spinner", "진행률을 알 수 없는 작업을 표시합니다. 버튼으로 회전을 시작하거나 멈춰 보세요.", new UiState<bool>(true), paused =>
         {
-            var spinner = Fluent.Spinner("일시 정지", new(ReducedMotion : true) { Paused = paused.Value });
+            var spinner = Fluent.Spinner(GalleryText.Get("일시 정지"), new(ReducedMotion : true) { Paused = paused.Value });
             return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Button("재생 전환", () =>
+                Fluent.Button(GalleryText.Get("재생 전환"), () =>
                 {
                     paused.Value = !paused.Value;
                     spinner.Options = spinner.Options with { Paused = paused.Value };
                 }), spinner);
         }, current => "var paused = new UiState<bool>(" + GallerySample.Boolean(current) + ");"),
-        Stateful("Input", "한 줄에 한글과 영문을 입력하고 일부를 선택해 수정해 보세요.", new UiState<string>("한글과 English"), text =>
+        Stateful("Input", "한 줄에 한글과 영문을 입력하고 일부를 선택해 수정해 보세요.", new UiState<string>(GalleryText.Get("한글과 English")), text =>
         {
-            return Fluent.Input("한 줄 입력", text.Binding, 4096, 280);
+            return Fluent.Input(GalleryText.Get("한 줄 입력"), text.Binding, 4096, 280);
         }, current => TextState("text", current)),
-        Stateful("Textarea", "여러 줄에 걸쳐 글을 입력하거나 줄 사이를 이동해 수정해 보세요.", new UiState<string>("첫 줄\n둘째 줄"), text =>
+        Stateful("Textarea", "여러 줄에 걸쳐 글을 입력하거나 줄 사이를 이동해 수정해 보세요.", new UiState<string>(GalleryText.Get("첫 줄") + "\n" + GalleryText.Get("둘째 줄")), text =>
         {
-            return Fluent.Textarea("여러 줄 입력", text.Binding, 16384, 280, 180);
+            return Fluent.Textarea(GalleryText.Get("여러 줄 입력"), text.Binding, 16384, 280, 180);
         }, current => TextState("text", current)),
         Stateful("Field", "이름 입력란에 필수 표시와 입력 안내를 함께 배치합니다.", new UiState<string>(string.Empty), text =>
         {
-            var field = Fluent.Field(Fluent.Input("이름", text.Binding, 256, 280));
-            field.Options = new() { Label = "이름", Required = true, Hint = "두 글자 이상 입력하세요." };
+            var field = Fluent.Field(Fluent.Input(GalleryText.Get("이름"), text.Binding, 256, 280));
+            field.Options = new() { Label = GalleryText.Get("이름"), Required = true, Hint = GalleryText.Get("두 글자 이상 입력하세요.") };
             return field;
         }, current => TextState("text", current)),
         Stateful("Label", "라벨을 누르면 연결된 입력란으로 포커스가 옮겨갑니다.", new UiState<string>(string.Empty), text =>
         {
-            var input = Fluent.Input("라벨 대상", text.Binding, 256, 280);
-            return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min), Fluent.Label("눌러서 입력창으로 이동", input), input);
+            var input = Fluent.Input(GalleryText.Get("라벨 대상"), text.Binding, 256, 280);
+            return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min), Fluent.Label(GalleryText.Get("눌러서 입력창으로 이동"), input), input);
         }, current => TextState("text", current)),
         Stateful("Dropdown", "목록을 열고 작업 위치를 하나 선택해 보세요.", new UiState<string?>(null), selected =>
         {
-            return Fluent.Dropdown("작업 위치", selected.Binding,
-                [new("kr", "한국"), new("us", "United States"), new("jp", "日本")],
-                new(Placeholder : "위치를 선택하세요", ExpandLabel : "목록 열기"));
+            return Fluent.Dropdown(GalleryText.Get("작업 위치"), selected.Binding,
+                [new("kr", GalleryText.Get("한국")), new("us", GalleryText.Get("미국")), new("jp", GalleryText.Get("일본"))],
+                new(Placeholder : GalleryText.Get("위치를 선택하세요"), ExpandLabel : GalleryText.Get("목록 열기")));
         }, current => TextState("selected", current, nullable : true)),
         Stateful("Combobox", "도시 이름을 입력해 목록을 좁히거나, 목록에 없는 이름을 직접 입력해 보세요.", new UiState<string>(string.Empty), new UiState<string?>(null), (query, selected) =>
         {
-            return Fluent.Combobox("도시 검색", query.Binding, selected.Binding,
-                [new("seoul", "서울"), new("busan", "부산"), new("london", "London")],
-                new(Field : new(Placeholder : "도시 이름을 입력하세요", ExpandLabel : "도시 목록 열기"), Freeform : true));
+            return Fluent.Combobox(GalleryText.Get("도시 검색"), query.Binding, selected.Binding,
+                [new("seoul", GalleryText.Get("서울")), new("busan", GalleryText.Get("부산")), new("london", GalleryText.Get("런던"))],
+                new(Field : new(Placeholder : GalleryText.Get("도시 이름을 입력하세요"), ExpandLabel : GalleryText.Get("도시 목록 열기")), Freeform : true));
         }, (query, selected) => TextState("query", query) + "\n" + TextState("selected", selected, nullable : true)),
         Example("Tag", "세 도시 이름을 작은 태그로 나란히 표시합니다.", () =>
         {
-            return Dux.Wrap(new(Spacing : 8), Fluent.Tag("서울"), Fluent.Tag("부산"), Fluent.Tag("제주"));
+            return Dux.Wrap(new(Spacing : 8), Fluent.Tag(GalleryText.Get("서울")), Fluent.Tag(GalleryText.Get("부산")), Fluent.Tag(GalleryText.Get("제주")));
         }),
         Stateful("TabList", "탭을 클릭하거나 키보드로 이동해 선택 표시가 어떻게 바뀌는지 살펴보세요.", new UiState<string?>("first"), selected =>
         {
-            return Fluent.TabList("예제 탭", selected.Binding,
-                new UiTabOption[] { new("first", "첫 번째"), new("second", "두 번째"), new("third", "세 번째") });
+            return Fluent.TabList(GalleryText.Get("예제 탭"), selected.Binding,
+                new UiTabOption[] { new("first", GalleryText.Get("첫 번째")), new("second", GalleryText.Get("두 번째")), new("third", GalleryText.Get("세 번째")) });
         }, current => TextState("selected", current, nullable : true)),
-        Stateful("Menu", "메뉴를 열어 새 문서나 저장 명령을 실행해 보세요.", new UiState<string>("선택 없음"), chosen =>
+        Stateful("Menu", "메뉴를 열어 새 문서나 저장 명령을 실행해 보세요.", new UiState<string>(GalleryText.Get("선택 없음")), chosen =>
         {
             return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Menu("메뉴 열기", [new("new", "새 문서"), new("save", "저장")], value => chosen.Value = value),
-                Fluent.Body1(() => "실행 : " + chosen.Value));
+                Fluent.Menu(GalleryText.Get("메뉴 열기"), [new("new", GalleryText.Get("새 문서")), new("save", GalleryText.Get("저장"))], value => chosen.Value = value),
+                Fluent.Body1(() => GalleryText.Get("실행 : ") + chosen.Value));
         }, current => TextState("chosen", current)),
         Example("Icon", "홈 아이콘에 크기와 색상을 지정한 예제입니다.", () =>
         {
