@@ -83,6 +83,8 @@ public sealed partial class UiImmediateContext
     private bool _lastDirectTextCacheValid;
     private nuint _nextOwnedTextureId = 2_100_000_000;
     private const int DirectTextCacheMaxEntries = 512;
+    // The byte budget counts RGBA payload of idle dedicated textures.
+    private const long DirectTextCacheMaxIdleTextureBytes = 16 * 1024 * 1024;
     private const int DirectTextCacheMaxIdleFrames = 600;
     private const int DirectTextAtlasPageSize = 1024;
     private const int DirectTextAtlasPadding = 1;
@@ -848,6 +850,7 @@ public sealed partial class UiImmediateContext
         var eligibleCount = 0;
         var layerUnretainedCount = 0;
         var staleCount = 0;
+        long idleTextureBytes = 0;
         foreach (var pair in _directTextCache)
         {
             if (_layerCacheStore?.RetainedTextKeys.ContainsKey(pair.Key) ?? false)
@@ -856,6 +859,7 @@ public sealed partial class UiImmediateContext
             if (_directTextPaintedKeys.Contains(pair.Key))
                 continue;
             eligibleCount++;
+            idleTextureBytes += GetDedicatedTextTexturePayloadBytes(pair.Value);
             if (currentFrame - pair.Value.LastUsedFrame > DirectTextCacheMaxIdleFrames)
                 staleCount++;
         }
@@ -882,12 +886,15 @@ public sealed partial class UiImmediateContext
 
             for (var i = 0; i < staleCount; i++)
             {
-                RemoveDirectTextCacheEntry(staleBuffer[i]);
+                var key = staleBuffer[i];
+                idleTextureBytes -= GetDedicatedTextTexturePayloadBytes(_directTextCache[key]);
+                RemoveDirectTextCacheEntry(key);
             }
         }
 
         var overflow = _directTextCache.Count - DirectTextCacheMaxEntries;
-        if (overflow <= 0)
+        var textureOverflow = idleTextureBytes - DirectTextCacheMaxIdleTextureBytes;
+        if (overflow <= 0 && textureOverflow <= 0)
         {
             return;
         }
@@ -913,11 +920,22 @@ public sealed partial class UiImmediateContext
         // Layout-only/offscreen requests must not crowd the visible text's GPU
         // texture working set out of this shared, bounded cache.
         Array.Sort(lruBuffer, 0, lruCount, DirectTextEvictionComparer);
-        for (var i = 0; i < overflow && i < lruCount; i++)
+        for (var i = 0; i < lruCount && (overflow > 0 || textureOverflow > 0); i++)
         {
-            RemoveDirectTextCacheEntry(lruBuffer[i].Key);
+            var key = lruBuffer[i].Key;
+            var textureBytes = GetDedicatedTextTexturePayloadBytes(_directTextCache[key]);
+            if (overflow <= 0 && textureBytes == 0)
+                continue;
+
+            RemoveDirectTextCacheEntry(key);
+            overflow--;
+            textureOverflow -= textureBytes;
         }
     }
+
+    // Atlas entries share their page; removing a single entry does not reclaim a dedicated image.
+    private static long GetDedicatedTextTexturePayloadBytes(in DirectTextCacheEntry entry)
+        => entry.TextureId.HasValue && entry.AtlasPageIndex < 0 ? (long)entry.Width * entry.Height * 4 : 0;
 
     private void RemoveDirectTextCacheEntry(DirectTextCacheKey key)
     {

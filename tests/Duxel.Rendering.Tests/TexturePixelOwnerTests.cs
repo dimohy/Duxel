@@ -105,6 +105,8 @@ internal static class TexturePixelOwnerTests
         }
         check(narrow.Last!.Disposals == 1, "atlas-eligible raster ownership is returned once after copying or frame consumption");
 
+        VerifyIdleDedicatedTextureBudget(check);
+
         var text = string.Join('\n', Enumerable.Repeat("Dynamic status: 1200 tables / 1000 FPS / vector layers", 24));
         check(backend.TryRasterize(new(fontPath, fontPath, text, 16), out var first)
             && first.RgbaPixels.Length > 85000 && first.PixelOwner is not null,
@@ -120,6 +122,65 @@ internal static class TexturePixelOwnerTests
                 && ReferenceEquals(firstArray.Array, secondArray.Array), "consecutive large multiline rasters reuse returned storage");
         }
         finally { second.PixelOwner?.Dispose(); }
+    }
+
+    internal static void VerifyIdleDedicatedTextureBudget(Action<bool, string> check)
+    {
+        using var context = Context(new FakeTextBackend(bitmapHeight: 1024));
+        var transient = Array.Empty<string>();
+        var screen = new BudgetScreen(() => transient);
+        UiTextureUpdate[] Draw(params string[] labels)
+        {
+            transient = labels;
+            Begin(context);
+            context.Render(screen);
+            using var data = context.GetDrawData();
+            return data.TextureUpdates.ToArray();
+        }
+
+        var first = Draw("oldest").Where(update => update.Kind == UiTextureUpdateKind.Create
+            && update.Width == 2048 && update.Height == 1024).ToArray();
+        var pinned = first[0].TextureId;
+        var oldest = first[1].TextureId;
+        Draw("middle");
+        Draw("newest");
+        var graceFrame = Draw();
+        var budgetFrame = Draw();
+
+        check(first.Length == 2 && graceFrame.All(update => update.Kind != UiTextureUpdateKind.Destroy),
+            "retained and previous-frame text are excluded from the idle dedicated texture budget");
+        check(budgetFrame.Count(update => update.Kind == UiTextureUpdateKind.Destroy) == 1
+            && budgetFrame.Any(update => update.Kind == UiTextureUpdateKind.Destroy && update.TextureId == oldest)
+            && budgetFrame.All(update => update.TextureId != pinned),
+            "idle texture payload pressure evicts the oldest dedicated texture before the entry-count limit");
+        var revisited = Draw("middle", "newest", "oldest");
+        check(revisited.Count(update => update.Kind == UiTextureUpdateKind.Create && update.Width == 2048) == 1,
+            "two recent textures still reuse their images and the evicted text can be rasterized again");
+        var visible = Draw("middle", "newest", "oldest");
+        check(visible.All(update => update.Kind != UiTextureUpdateKind.Destroy && update.Kind != UiTextureUpdateKind.Create),
+            "a visible working set larger than the idle texture budget remains resident");
+        check(screen.RetainedBuilds == 1, "budget pressure preserves the retained layer and its texture");
+    }
+
+    private sealed class BudgetScreen(Func<string[]> labels) : UiScreen
+    {
+        internal int RetainedBuilds { get; private set; }
+
+        public override void Render(UiImmediateContext ui)
+        {
+            if (ui.BeginLayer("budget-retained", new(true, 1, default) { ContentVersion = 1 }))
+            {
+                RetainedBuilds++;
+                ui.SetCursorScreenPos(new(20, 20));
+                ui.Text("retained texture");
+            }
+            ui.EndLayer();
+            foreach (var label in labels())
+            {
+                ui.SetCursorScreenPos(new(20, 30));
+                ui.Text(label);
+            }
+        }
     }
 
     private static UiTextureUpdate Update(ObservedPixels pixels)
@@ -149,7 +210,7 @@ internal static class TexturePixelOwnerTests
         }
     }
     private sealed class EmptyScreen : UiScreen { public override void Render(UiImmediateContext ui) { } }
-    private sealed class FakeTextBackend(bool wide = true) : IPlatformTextBackend
+    private sealed class FakeTextBackend(bool wide = true, int bitmapHeight = 2) : IPlatformTextBackend
     {
         internal ObservedPixels? Last;
         public bool TryMeasure(in PlatformTextMeasureRequest request, out PlatformTextMeasureResult result)
@@ -157,9 +218,9 @@ internal static class TexturePixelOwnerTests
         public bool TryRasterize(in PlatformTextRasterizeRequest request, out PlatformTextRasterizeResult result)
         {
             var width = wide ? 2048 : 2;
-            Last = new(width * 2 * 4);
+            Last = new(width * bitmapHeight * 4);
             Last.Memory.Span.Fill(255);
-            result = new(width, 2, Last.Memory, 1, 1, width) { PixelOwner = Last };
+            result = new(width, bitmapHeight, Last.Memory, 1, 1, width) { PixelOwner = Last };
             return true;
         }
     }
