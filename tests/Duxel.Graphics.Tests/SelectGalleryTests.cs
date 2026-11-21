@@ -44,7 +44,7 @@ internal static class SelectGalleryTests
             && page.Samples[0].Source.Contains("Invalid : true", StringComparison.Ordinal),
             "actual size, appearance, direction and validation changes update the adjacent Select source");
         var list = tree.CaptureSnapshot().Elements.Single(e => e.Node.Role == UiAccessibilityRole.ListBox && e.Node.Name == "지역");
-        var option = tree.CaptureSnapshot().Elements.Single(e => e.Node.ParentId == list.Node.Id && e.Node.Name == "日本");
+        var option = tree.CaptureSnapshot().Elements.Single(e => e.Node.ParentId == list.Node.Id && e.Node.Name == "일본");
         check(tree.RequestAction(option.Node.Id, option.RuntimeId, UiAccessibilityAction.Select, wait : false) == UiAccessibilityResult.Success,
             "Select Gallery accepts an actual option selection");
         fixture.Capture(Draw); Export("changed");

@@ -64,6 +64,8 @@ internal static class GalleryLocalizationTests
             }
         }
 
+        VerifyNavigationAndSelection(check);
+
         var systemLanguage = CultureInfo.CurrentUICulture;
         var path = Path.GetTempFileName();
         try
@@ -253,6 +255,46 @@ internal static class GalleryLocalizationTests
                 && !code.Contains("GalleryText.Get", StringComparison.Ordinal)
                 && (language == GalleryLanguage.Korean || !ContainsHangul(code))),
                 page + " localizes its copied C# in " + language);
+        }
+    }
+
+    private static void VerifyNavigationAndSelection(Action<bool, string> check)
+    {
+        foreach (var (language, title, week, unread, region, germany) in new[]
+        {
+            (GalleryLanguage.English, "Meeting notes", "Weekly", "Unread", "Region", "Germany"),
+            (GalleryLanguage.Korean, "회의록", "주간", "읽지 않음", "지역", "독일"),
+            (GalleryLanguage.Japanese, "議事録", "週別", "未読", "地域", "ドイツ"),
+            (GalleryLanguage.SimplifiedChinese, "会议纪要", "按周", "未读", "地区", "德国")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            using var navigation = new NavigationBarPage();
+            var doc = (GallerySample<UiFluentNavigationBar>)navigation.Samples[0];
+            check(doc.Preview.Title == title && navigation.PeriodSelector.Items[1].Label == week,
+                "NavigationBar localizes its title and hosted selection in " + language);
+            CheckSources(navigation.Samples, title, week, language, "NavigationBar");
+
+            using var segments = new SegmentedControlPage();
+            check(segments.Preview(0).Options.UnreadLabel == unread && segments.Preview(4).Items.Length == 10,
+                "SegmentedControl localizes its unread label and retains its horizontal samples in " + language);
+            CheckSources(segments.Samples, unread, unread, language, "SegmentedControl");
+
+            using var select = new SelectPage();
+            var preview = ((GallerySample<UiFluentSelect>)select.Samples[0]).Preview;
+            check(preview.Label == region && preview.Items[3] is { Enabled: false } disabled && disabled.Text == germany,
+                "Select localizes its accessible label and retains the disabled country in " + language);
+            CheckSources(select.Samples, region, germany, language, "Select");
+        }
+
+        void CheckSources(IEnumerable<IGallerySample> samples, string first, string second, GalleryLanguage language, string page)
+        {
+            var source = string.Join("\n", samples.Select(sample => sample.Source));
+            check(source.Contains(GallerySample.String(first), StringComparison.Ordinal)
+                && source.Contains(GallerySample.String(second), StringComparison.Ordinal)
+                && !source.Contains("GalleryText.", StringComparison.Ordinal)
+                && (language == GalleryLanguage.Korean || !ContainsHangul(source)),
+                page + " exposes the localized example data in its C# source in " + language);
         }
     }
 
