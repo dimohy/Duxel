@@ -9,6 +9,13 @@ public readonly record struct UiCodeViewOptions(bool Wrap = true, bool LineNumbe
     }
 }
 
+public sealed record UiCodeViewLabels(string Title, string LineCountFormat, string Wrap, string LineNumbers,
+    string ShowAll, string Copy, string Copied, string AccessibleName)
+{
+    public static UiCodeViewLabels Default { get; } = new("C# 소스", "{0}줄", "줄바꿈",
+        "줄 번호", "전체 표시", "소스 복사", "복사됨", "C# 예제 소스");
+}
+
 public readonly record struct UiCodeViewMetrics(int MeasurementBuilds, int PaintBuilds, int SyntaxParses);
 
 /// <summary>A selectable, read-only C# block with cached syntax, line numbers and shared text navigation.</summary>
@@ -47,8 +54,13 @@ public sealed class UiCodeView : UiWidget
             ThrowIfBuilding(); _options = value; RequestRebuild();
         }
     }
-    public UiCodeView(string code, UiCodeViewOptions? options = null)
+    public UiCodeViewLabels Labels { get; }
+
+    public UiCodeView(string code, UiCodeViewOptions? options = null) : this(code, options, UiCodeViewLabels.Default) { }
+
+    public UiCodeView(string code, UiCodeViewOptions? options, UiCodeViewLabels labels)
     {
+        Labels = labels ?? throw new ArgumentNullException(nameof(labels));
         _code = Normalize(code);
         _options = options ?? new();
         _options.Validate();
@@ -76,11 +88,11 @@ public sealed class UiCodeView : UiWidget
         if (!Options.ShowToolbar) return source;
         return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
             Dux.Wrap(new(Spacing : 12, RunSpacing : 8, CrossAlignment : UiWrapCrossAlignment.Center),
-                Fluent.Subtitle2("C# 소스"),
-                Fluent.Caption1(() => LineStarts.Length + "줄"),
-                Fluent.Switch("줄바꿈", new UiBinding<bool>(() => Options.Wrap, value => Options = Options with { Wrap = value })),
-                Fluent.Switch("줄 번호", new UiBinding<bool>(() => Options.LineNumbers, value => Options = Options with { LineNumbers = value })),
-                Fluent.Switch("전체 표시", new UiBinding<bool>(() => _expanded, value => { _expanded = value; RequestRebuild(); }))), source);
+                Fluent.Subtitle2(Labels.Title),
+                Fluent.Caption1(() => string.Format(System.Globalization.CultureInfo.CurrentCulture, Labels.LineCountFormat, LineStarts.Length)),
+                Fluent.Switch(Labels.Wrap, new UiBinding<bool>(() => Options.Wrap, value => Options = Options with { Wrap = value })),
+                Fluent.Switch(Labels.LineNumbers, new UiBinding<bool>(() => Options.LineNumbers, value => Options = Options with { LineNumbers = value })),
+                Fluent.Switch(Labels.ShowAll, new UiBinding<bool>(() => _expanded, value => { _expanded = value; RequestRebuild(); }))), source);
     });
     private protected override void ReleaseOwnedResources()
     {
@@ -92,19 +104,21 @@ public sealed class UiCodeView : UiWidget
     private sealed class CopyAction : UiWidget
     {
         private readonly UiFluentTooltip _hint;
+        private readonly string _copyLabel;
         private double? _until;
         internal CopyAction(UiCodeView code)
         {
-            var button = new UiButton<UiReleaseButtonBehavior, CopyPresentation>("소스 복사", () =>
+            _copyLabel = code.Labels.Copy;
+            var button = new UiButton<UiReleaseButtonBehavior, CopyPresentation>(_copyLabel, () =>
             {
                 var ui = RenderingContext!;
                 ui.SetClipboardText(code.Code);
                 _until = ui.GetTime() + 1.2;
-                _hint!.Text = "복사됨";
+                _hint!.Text = code.Labels.Copied;
                 _hint.Visible = true;
                 ui.RequestFrameAt(ui.GetTime());
             });
-            _hint = Fluent.Tooltip(button, "소스 복사", new()
+            _hint = Fluent.Tooltip(button, _copyLabel, new()
             {
                 Positioning = new() { Position = UiPopupPosition.AboveEnd },
                 ShowDelaySeconds = 0,
@@ -120,7 +134,7 @@ public sealed class UiCodeView : UiWidget
             {
                 _hint.Visible = now < until;
                 if (now < until) ui.RequestFrameAt(until);
-                else { _until = null; _hint.Text = "소스 복사"; }
+                else { _until = null; _hint.Text = _copyLabel; }
             }
             base.RenderContent(ui);
         }
@@ -143,7 +157,7 @@ public sealed class UiCodeView : UiWidget
     private sealed class Surface(UiCodeView code) : UiControlWidget
     {
         protected override UiVector2 MeasureContent(UiControlContext context) => context.MeasureCodeView(code);
-        protected override void RenderControl(UiImmediateContext ui) => ui.RenderCodeView(code, PrimaryInputId("C# 예제 소스"));
+        protected override void RenderControl(UiImmediateContext ui) => ui.RenderCodeView(code, PrimaryInputId("code-source"));
     }
 }
 

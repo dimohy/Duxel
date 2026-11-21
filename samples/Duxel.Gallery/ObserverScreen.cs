@@ -100,6 +100,8 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
     private readonly UiWidget _themeSwitch;
     private readonly UiSizedBox _toolbar;
     private readonly UiScrollView _toolbarScroll;
+    private readonly UiWidget _headerActions;
+    private readonly UiFluentDialog? _settings;
     private UiImmediateContext? _currentUi;
     private string _rendererStatus = "";
     internal int ClickCount => _controls.ClickCount;
@@ -117,7 +119,8 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
     internal bool UpdateOnlyOnChange => _updateOnlyOnChange;
     internal string PerformanceText => _performance;
 
-    internal ObserverScreen(ObserverServices services, Duxel.App.DuxelAppSession? fileDialogSession = null)
+    internal ObserverScreen(ObserverServices services, Duxel.App.DuxelAppSession? fileDialogSession = null,
+        GalleryLanguage language = GalleryLanguage.Korean, Action<GalleryLanguage>? requestLanguage = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         SvgPage = new(services);
@@ -127,7 +130,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
         AvatarGroupPage = new(services);
         RepaintPage = new();
         CatalogPage.Validate();
-        _themeSwitch = Fluent.Switch("밝은 테마", new UiBinding<bool>(
+        _themeSwitch = Fluent.Switch(GalleryText.Get("밝은 테마"), new UiBinding<bool>(
             () => _currentUi!.GetStyle(includeRequested : true).FluentColorScheme == UiFluentColorScheme.Light, light =>
             {
                 var theme = (light ? UiCompiledDesign.Windows11 : UiCompiledDesign.Windows11Dark).Theme;
@@ -135,14 +138,48 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
                 _currentUi.RequestTheme(theme);
             }));
         _toolbar = Dux.SizedBox(Dux.Row(new(Spacing: 16, CrossAxisAlignment: UiCrossAxisAlignment.Center),
-            Dux.Expanded(Fluent.Tooltip(Fluent.Caption1(() => _rendererStatus), "P : 표시 횟수 / D : 그리기 호출 / U : 전송량 / C : 캐시 재사용")),
+            Dux.Expanded(Fluent.Tooltip(Fluent.Caption1(() => _rendererStatus), GalleryText.Get("P : 표시 횟수 / D : 그리기 호출 / U : 전송량 / C : 캐시 재사용"))),
             Fluent.Switch("V-Sync", new UiBinding<bool>(() => _currentUi!.GetVSync(), value => _currentUi!.SetVSync(value))),
-            Fluent.Switch("이벤트 대기 모드", new UiBinding<bool>(() => _updateOnlyOnChange, value => _updateOnlyOnChange = value)),
-            Fluent.Switch("갱신 영역 강조", _repaintHighlights.Binding)));
+            Fluent.Switch(GalleryText.Get("이벤트 대기 모드"), new UiBinding<bool>(() => _updateOnlyOnChange, value => _updateOnlyOnChange = value)),
+            Fluent.Switch(GalleryText.Get("갱신 영역 강조"), _repaintHighlights.Binding)));
         _toolbarScroll = Dux.ScrollView(_toolbar, new(UiScrollAxis.Horizontal));
-        _toolbarScroll.AccessibleName = "갤러리 상태와 옵션";
+        _toolbarScroll.AccessibleName = GalleryText.Get("갤러리 상태와 옵션");
+        _performance = GalleryText.Get("FPS 측정 중");
+        _headerActions = _themeSwitch;
+        if (requestLanguage is not null)
+        {
+            var current = GalleryText.Tag(language);
+            var error = new UiState<string>(string.Empty);
+            var choices = GalleryText.LanguageOptions.Select(option => (UiWidget)Fluent.Button(option.Text, () =>
+            {
+                try
+                {
+                    requestLanguage(GalleryText.FromTag(option.Value));
+                    _settings!.Close();
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    error.Value = GalleryText.Get("언어 설정을 저장할 수 없습니다.");
+                }
+            })).ToArray();
+            _settings = Fluent.Dialog(GalleryText.Get("설정"),
+                Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
+                    Fluent.Subtitle2(GalleryText.Get("갤러리 언어")),
+                    Fluent.Body1(GalleryText.Format("현재 언어: {0}", GalleryText.LanguageOptions.Single(option => option.Value == current).Text)),
+                    Dux.Wrap(new(Spacing : 8, RunSpacing : 8), choices),
+                    Fluent.Caption1(() => error.Value)),
+                [Fluent.Button(GalleryText.Get("닫기"), () => _settings!.Close())],
+                new(Width : 410, CloseLabel : GalleryText.Get("닫기")));
+            _headerActions = Dux.Row(new(Spacing : 12, CrossAxisAlignment : UiCrossAxisAlignment.Center),
+                _themeSwitch, Fluent.Button(GalleryText.Get("설정"), () =>
+                {
+                    error.Value = string.Empty;
+                    _settings.Show();
+                }));
+        }
         _options = Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
-            Dux.Row(new(Spacing : 16, CrossAxisAlignment : UiCrossAxisAlignment.Start), Dux.Expanded(_toolbarScroll), _themeSwitch), Fluent.Divider());
+            Dux.Row(new(Spacing : 16, CrossAxisAlignment : UiCrossAxisAlignment.Start), Dux.Expanded(_toolbarScroll), _headerActions), Fluent.Divider());
+        var catalog = new CatalogPage();
         _pages =
         [
             new WidgetPage("개요", "Duxel의 컨트롤과 그래픽, 문서 기능을 직접 조작하고 C# 예제 코드를 살펴보세요.", CreateOverview()),
@@ -199,48 +236,50 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             NavigationPage,
             new NavigationBarPage(),
             DrawerPage,
-            new WidgetPage("관찰 범위", "사용할 수 있는 팩터리와 예제가 있는 메뉴, 아직 검증할 부분을 살펴보세요.", new CatalogPage()),
+            new WidgetPage("관찰 범위", "사용할 수 있는 팩터리와 예제가 있는 메뉴, 아직 검증할 부분을 살펴보세요.", catalog),
             new WidgetPage("측정 재사용", "값·입력은 계속 처리하면서 변하지 않은 배치 측정을 재사용합니다.", MeasurementPage),
             RepaintPage,
             MarkdownPage,
+            new LocalizationPage(),
             .. GalleryComponentExamples.Create(),
             .. Fluent.MissingComponentNames.ToArray().Where(static component => component != "Toast").Select(static component => (IObserverPage)new WidgetPage(component,
                 "Fluent 구성요소 구현 예정",
                 Dux.Column(new(Spacing: 16, MainAxisSize: UiMainAxisSize.Min),
-                    Fluent.Subtitle1("아직 미구현됨"),
-                    Fluent.Body1("이 구성요소의 API와 동작 예제는 아직 제공되지 않습니다."),
-                    Fluent.Body1("구현 예정 목록은 공식 구성요소 카탈로그를 기준으로 만듭니다. 구현한 예제도 디자인과 접근성이 올바른지는 계속 검증하고 있습니다."))))
+                    Fluent.Subtitle1(GalleryText.Get("아직 미구현됨")),
+                    Fluent.Body1(GalleryText.Get("이 구성요소의 API와 동작 예제는 아직 제공되지 않습니다.")),
+                    Fluent.Body1(GalleryText.Get("구현 예정 목록은 공식 구성요소 카탈로그를 기준으로 만듭니다. 구현한 예제도 디자인과 접근성이 올바른지는 계속 검증하고 있습니다.")))))
         ];
         _navigation = new(PageTitles, Fluent.MissingComponentNames.ToArray(), new UiBinding<string?>(() => _selection.Value, SelectRoute));
-        _navigationDrawer = Fluent.Drawer("갤러리 탐색", _navigation.Content,
-            options : new(Extent : 320, CloseLabel : "탐색 메뉴 닫기", ScrollBody : false));
+        catalog.Connect(_navigation.Destinations, SelectRoute);
+        _navigationDrawer = Fluent.Drawer(GalleryText.Get("갤러리 탐색"), _navigation.Content,
+            options : new(Extent : 320, CloseLabel : GalleryText.Get("탐색 메뉴 닫기"), ScrollBody : false));
         _compactHeader = Dux.Row(new(Spacing : 12, CrossAxisAlignment : UiCrossAxisAlignment.Center),
-            Fluent.Button("탐색 메뉴 열기", OpenNavigation),
-            Dux.Expanded(Fluent.Subtitle2(() => SelectedPage is null ? "페이지를 선택하세요" : _navigation.SelectedLabel)));
+            Fluent.Button(GalleryText.Get("탐색 메뉴 열기"), OpenNavigation),
+            Dux.Expanded(Fluent.Subtitle2(() => SelectedPage is null ? GalleryText.Get("페이지를 선택하세요") : _navigation.SelectedLabel)));
         _pageFrames = new GalleryPageFrame?[_pages.Length];
     }
 
     private UiWidget CreateOverview()
     {
         UiWidget Category(string title, string description, string route, string action) =>
-            Fluent.Card(title, Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Subtitle1(title), Fluent.Text(description),
-                Fluent.Button(action, () => SelectRoute(route))),
+            Fluent.Card(GalleryText.Get(title), Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
+                Fluent.Subtitle1(GalleryText.Get(title)), Fluent.Text(GalleryText.Get(description)),
+                Fluent.Button(GalleryText.Get(action), () => SelectRoute(route))),
                 new(Width : 272, Appearance : UiCardAppearance.Outline));
         var missing = Fluent.MissingComponentNames.Length;
         UiWidget[] pendingBadge = missing == 0 ? [] :
-            [Fluent.Badge($"미구현 {missing}", new(Appearance : UiBadgeAppearance.Tint, Color : UiBadgeColor.Severe))];
+            [Fluent.Badge(GalleryText.Format("미구현 {0}", missing), new(Appearance : UiBadgeAppearance.Tint, Color : UiBadgeColor.Severe))];
         UiWidget[] pendingHelp = missing == 0 ? [] :
-            [Fluent.Caption1("미구현 배지가 붙은 항목에서는 앞으로 추가될 구성요소를 확인할 수 있습니다.")];
+            [Fluent.Caption1(GalleryText.Get("미구현 배지가 붙은 항목에서는 앞으로 추가될 구성요소를 확인할 수 있습니다."))];
         return Dux.Column(new(Spacing : 24, MainAxisSize : UiMainAxisSize.Min),
         [
             Dux.Wrap(new(Spacing : 12),
             [
-                Fluent.Badge($"구성요소 {Fluent.RequiredComponentNames.Length}"),
-                Fluent.Badge($"사용 가능한 예제 {Fluent.RequiredComponentNames.Length - missing}"),
+                Fluent.Badge(GalleryText.Format("구성요소 {0}", Fluent.RequiredComponentNames.Length)),
+                Fluent.Badge(GalleryText.Format("사용 가능한 예제 {0}", Fluent.RequiredComponentNames.Length - missing)),
                 ..pendingBadge
             ]),
-            Fluent.Title2("어디서 시작할까요?"),
+            Fluent.Title2(GalleryText.Get("어디서 시작할까요?")),
             Dux.Wrap(new(Spacing : 16, RunSpacing : 16),
                 Category("동작과 탐색", "버튼과 링크, 메뉴로 화면의 흐름을 만드세요.", "Button", "Button 살펴보기"),
                 Category("입력과 선택", "텍스트 입력과 선택, 값 조절을 직접 확인하세요.", "Input", "Input 살펴보기"),
@@ -248,10 +287,16 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
                 Category("알림과 도움말", "대화 상자와 보조 패널의 동작을 확인하세요.", "Dialog", "Dialog 살펴보기"),
                 Category("벡터 그래픽", "SVG 확대·회전과 다양한 그래픽 표현을 살펴보세요.", "SVG", "SVG 살펴보기"),
                 Category("문서와 편집", "Markdown 문서를 읽고 실시간으로 편집해 보세요.", "Markdown", "Markdown 살펴보기")),
-            Fluent.Title2("예제에서 코드까지"),
-            Fluent.Text("왼쪽 메뉴에서 구성요소를 선택하세요. 예제 바로 아래에서 C# 소스를 읽고 복사할 수 있습니다."),
+            Fluent.Title2(GalleryText.Get("예제에서 코드까지")),
+            Fluent.Text(GalleryText.Get("왼쪽 메뉴에서 구성요소를 선택하세요. 예제 바로 아래에서 C# 소스를 읽고 복사할 수 있습니다.")),
             ..pendingHelp
         ]);
+    }
+
+    internal void CopyPreferencesFrom(ObserverScreen previous)
+    {
+        _updateOnlyOnChange = previous._updateOnlyOnChange;
+        _repaintHighlights.Value = previous._repaintHighlights.Value;
     }
 
     private void OpenNavigation() => _navigationDrawer.Show();
@@ -307,7 +352,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
 #if DUXEL_GALLERY_PROFILING
         var optionsStart = sample ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
 #endif
-        var themeSize = _themeSwitch.MeasureConstrained(ui, new(0, float.PositiveInfinity, 0, float.PositiveInfinity));
+        var themeSize = _headerActions.MeasureConstrained(ui, new(0, float.PositiveInfinity, 0, float.PositiveInfinity));
         var statusWidth = MathF.Max(1, ui.GetContentRegionAvail().X - themeSize.X - 16);
         var toolbarWidth = MathF.Max(760, statusWidth);
         _toolbar.Options = new(Width: toolbarWidth);
@@ -329,6 +374,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
                 break;
             }
         }
+        _settings?.Render(ui);
 #if DUXEL_GALLERY_PROFILING
         if (sample)
             RenderSectionTicks = (optionsStart - navigationStart, pageStart - optionsStart,
@@ -342,6 +388,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
         _compactHeader.Dispose();
         _navigation.Dispose();
         _options.Dispose();
+        _settings?.Dispose();
         foreach (var frame in _pageFrames) frame?.Dispose();
         foreach (var page in _pages)
             page.Dispose();

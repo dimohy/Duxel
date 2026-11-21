@@ -22,7 +22,8 @@ var services = new ObserverServices(LinuxUiImageDecoder.Shared, new SvgFontOptio
     new("Observer Korean", fontPaths[2]), new("Observer Korean", fontPaths[3])
 ]), fonts.Typography);
 var session = new DuxelAppSession();
-using var observer = new ObserverScreen(services, session);
+using var localized = verifyMode is null ? new GalleryLocalizedScreen(services, session) : null;
+using var observer = verifyMode is not null && verifyMode != "--verify-presentation-reuse" ? new ObserverScreen(services, session) : null;
 if (verifyMode == "--verify-presentation-reuse")
 {
     using var platform = new LinuxX11PlatformBackend(new(640, 360, "Duxel / owned native presentation probe")
@@ -53,7 +54,7 @@ if (verifyMode is "--verify-idle-pointer" or "--verify-stream-pointer")
         Accessibility = new()
     });
     using var clipboard = new LinuxX11Clipboard();
-    using var idle = new ObserverLinuxIdleVerificationScreen(observer, platform, session, verifyOutput!, verifyMode == "--verify-stream-pointer");
+    using var idle = new ObserverLinuxIdleVerificationScreen(observer!, platform, session, verifyOutput!, verifyMode == "--verify-stream-pointer");
     var idleOptions = DuxelApp.Options<ObserverLinuxDesign>(idle, title: "Duxel / owned finite idle pointer probe", width: 1280, height: 900, vsync: false);
     session.RunCore(idleOptions with
     {
@@ -76,7 +77,7 @@ if (verifyMode == "--verify-pointer-performance")
         Accessibility = new()
     });
     using var clipboard = new LinuxX11Clipboard();
-    using var pointer = new ObserverLinuxPointerVerificationScreen(observer, platform, session, verifyOutput!);
+    using var pointer = new ObserverLinuxPointerVerificationScreen(observer!, platform, session, verifyOutput!);
     var probeOptions = DuxelApp.Options<ObserverLinuxDesign>(pointer, title: "Duxel / owned finite native pointer probe", width: 1280, height: 900, vsync: false);
     try
     {
@@ -96,23 +97,23 @@ if (verifyMode == "--verify-pointer-performance")
     return;
 }
 var sliderVerification = verifyMode == "--verify-slider-performance"
-    ? new ObserverLinuxSliderVerificationScreen(observer, session, verifyOutput!) : null;
+    ? new ObserverLinuxSliderVerificationScreen(observer!, session, verifyOutput!) : null;
 var verification = verifyMode is not null && sliderVerification is null
-    ? new ObserverPresentationVerificationScreen(observer, session, verifyOutput!,
+    ? new ObserverPresentationVerificationScreen(observer!, session, verifyOutput!,
         gpuCamera : verifyMode is "--verify-gpu-camera" or "--verify-gpu-camera-reuse", liveHoliday : verifyMode == "--verify-live-holidays",
         highResolutionCamera : verifyMode != "--verify-gpu-camera-reuse") : null;
-var options = DuxelApp.Options<ObserverLinuxDesign>(sliderVerification ?? verification ?? (UiScreen)observer,
+var options = DuxelApp.Options<ObserverLinuxDesign>(sliderVerification ?? verification ?? (UiScreen)localized!,
     title: "Duxel Gallery (Linux)", width: 1280, height: 900, vsync: false);
 try
 {
     DuxelLinuxApp.Run(options with
     {
-        Font = fonts,
+        Font = GalleryText.ConfigureFonts(fonts),
         Frame = options.Frame with
         {
             EnableIdleFrameSkip = sliderVerification is null,
             UseEventDrivenPlatformLoop = true,
-            IsAnimationActiveProvider = () => sliderVerification is not null || !observer.UpdateOnlyOnChange
+            IsAnimationActiveProvider = () => sliderVerification is not null || !(localized?.UpdateOnlyOnChange ?? observer!.UpdateOnlyOnChange)
         }
     }, session);
     verification?.Complete();

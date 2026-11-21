@@ -49,7 +49,7 @@ Implement `IUiVirtualGridSource` with a stable key for each cell and a bounded c
 
 The native grid publishes the full logical dimensions alongside both scroll axes. UIA `Grid.GetItem` and AT-SPI `Table.GetAccessibleAt` accept zero-based row and column coordinates. Looking up a distant cell publishes one offscreen provider without moving the viewport or creating its widget. UIA `VirtualizedItem.Realize` or AT-SPI `Component.ScrollTo(Nearest)` brings it into view and attaches its editor or other content to that same provider. The next distant lookup can replace the placeholder. Call `Refresh` after changing keys or names. A placeholder whose key no longer matches its coordinate is retired. Use row and column coordinates for large grids. AT-SPI's flat index uses a 32-bit integer.
 
-In the Gallery, open **가상 그리드**, edit the first cell, choose **마지막 행·열**, and return with **첫 행·첫 열**. The code sits directly below the example.
+In the Gallery, open **Virtual grid**, edit the first cell, choose **Last row and column**, and return with **First row and column**. The code sits directly below the example.
 
 Run `virtual-grid-pixels` in the Windows or Linux Vulkan test runner to compare independently drawn cells and scrollbar tracks. It covers both axes at fractional offsets, fixed and indexed sizes, right-to-left order, inherited clipping, and cases where one scrollbar makes the other necessary.
 
@@ -73,9 +73,9 @@ On Linux, run `dotnet Duxel.Linux.App.Tests.dll atspi-gallery-virtual-list <gall
 
 Use `atspi-gallery-virtual-horizontal` with the same arguments to verify the horizontal Gallery example. An external AT-SPI client switches the direction and uses `Component.ScrollTo` to bring an offscreen overscan editor into view while retaining the same accessible object. It also checks bounded realization and keyed edits at the billionth item.
 
-Use `atspi-gallery-virtual-rtl` to check the same interactions with right-to-left order, including the editors' actual X positions. In the Gallery, click **가로 순서 : 왼쪽부터** in horizontal mode to switch to right-to-left. The `virtual-list-rtl-pixels` mode compares right-to-left placement with independent reference draws.
+Use `atspi-gallery-virtual-rtl` to check the same interactions with right-to-left order, including the editors' actual X positions. In the Gallery, click **Horizontal order : left to right** in horizontal mode to switch to right-to-left. The `virtual-list-rtl-pixels` mode compares right-to-left placement with independent reference draws.
 
-Run `./run-gallery.ps1` on Windows or `./run-gallery-linux.ps1` for WSL. Open **가상 목록** and click **방향 : 세로** to switch to the horizontal example. Try its bottom scrollbar, horizontal wheel, and **끝** button. The source below the example updates to show the active axis and extent configuration.
+Run `./run-gallery.ps1` on Windows or `./run-gallery-linux.ps1` for WSL. Open **Virtual list** and click **Orientation : vertical** to switch to the horizontal example. Try its bottom scrollbar, horizontal wheel, and **End** button. The source below the example updates to show the active axis and extent configuration.
 
 Run `virtual-list-pixels` in the Windows or Linux Vulkan test runner to compare fixed and variable sizes on both axes with reference draws. The cases include fractional offsets near the end of one billion items, a narrow inherited clip, legacy columns, and raster and vector layers.
 

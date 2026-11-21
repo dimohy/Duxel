@@ -52,7 +52,7 @@ public sealed partial class UiImmediateContext
                 else if (_clippedCodeTextLayout is { } clipped && clipped.Id == root)
                     _clippedCodeTextLayout = (root, clipped.Layout, frame);
             }
-            ExposeAccessibility(root, _accessibilityParent, UiAccessibilityRole.Edit, "C# 예제 소스", bounds,
+            ExposeAccessibility(root, _accessibilityParent, UiAccessibilityRole.Edit, code.Labels.AccessibleName, bounds,
                 text, readOnly : true, multiline : true, textInfo : CaptureAccessibilityText(root, text, 0, 0));
             FinishLayoutBox(origin, size);
             return;
@@ -105,7 +105,7 @@ public sealed partial class UiImmediateContext
             }
             CompleteMultilineInput(root, layout, edit, code.Owner.Scrollbars);
             var scroll = new UiAccessibilityScrollInfo(new(area.Width, area.Height), new(edit.ContentWidth, edit.ContentHeight), new(edit.ScrollX, edit.ScrollY));
-            ExposeAccessibility(root, parent, UiAccessibilityRole.Edit, "C# 예제 소스", bounds, text, readOnly : true,
+            ExposeAccessibility(root, parent, UiAccessibilityRole.Edit, code.Labels.AccessibleName, bounds, text, readOnly : true,
                 multiline : true, scroll : CanPublishScroll(IntersectRect(CurrentClipRect, area), scroll) ? scroll : null,
                 textInfo : edit.AccessibilityText, textLayout : CaptureMultilineTextLayout(root, edit.AccessibilityText, layout, edit,
                     reusePositionIndependentGeometry: true));

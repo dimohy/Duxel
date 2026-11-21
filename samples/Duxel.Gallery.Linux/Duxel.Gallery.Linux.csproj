@@ -39,6 +39,7 @@
           Link="Assets/Svg/Browser/ArcGeometry/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="../Duxel.Gallery/Assets/Localization/GalleryLocalization.tsv" LogicalName="GalleryLocalization.tsv" />
     <EmbeddedResource Include="../Duxel.Gallery/*.cs" LogicalName="GallerySource.%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>

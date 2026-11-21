@@ -1,6 +1,6 @@
 # File and folder dialogs
 
-In Gallery, open **통합·개발 도구 → 시스템 연동 → 파일 대화 상자**.
+In Gallery, open **System integration → Files and folders → File dialogs**.
 
 Use the running `DuxelAppSession` to pick files or folders from an input callback. An empty result means the user canceled. Open and folder dialogs support multiple selections. Save returns a destination path and can suggest a file name and default extension.
 

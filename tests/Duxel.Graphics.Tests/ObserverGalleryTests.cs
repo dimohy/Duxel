@@ -5,6 +5,7 @@ internal static class ObserverGalleryTests
 {
     internal static void Run(Action<bool, string> check)
     {
+        GalleryLocalizationTests.Run(check);
         GallerySampleTests.Run(check);
         CodeViewCacheTests.Run(check);
         ObserverBatchPresentationTests.Run(check);

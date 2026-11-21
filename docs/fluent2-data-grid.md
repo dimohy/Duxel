@@ -1,6 +1,6 @@
 # Fluent DataGrid
 
-In Gallery, open **Fluent 컨트롤 → 콘텐츠와 목록 → DataGrid**. The example shows 2,048 design files. Column headers stay visible while rows scroll. Activate a sortable header to start in ascending order and activate it again to reverse the order.
+In Gallery, open **Fluent controls → Content and lists → DataGrid**. The example shows 2,048 design files. Column headers stay visible while rows scroll. Activate a sortable header to start in ascending order and activate it again to reverse the order.
 
 `Fluent.DataGrid<T>(rows, getKey, columns, options)` snapshots the rows. Supply a unique string key for each row, a display function for each column, and an optional typed comparison. Column weights share the available width. Numeric columns can align right and sort by their underlying values. Set `AccessibleName` to describe the grid's contents.
 
