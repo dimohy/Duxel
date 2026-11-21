@@ -659,8 +659,9 @@ internal static class GalleryLocalizationTests
             Navigate("가상 그리드");
             SetValue(firstCell);
             Invoke(gridEnd);
-            check(Find(lastCell, UiAccessibilityRole.Edit).Node.Name.Length > 0,
-                $"VirtualGrid localizes cells created after horizontal and vertical navigation in {language}");
+            check(Find(lastCell, UiAccessibilityRole.Edit).Node.Name.Length > 0
+                && Find(lastCell, UiAccessibilityRole.GridCell).Node.Name.Length > 0,
+                $"VirtualGrid localizes realized and accessible cells after two-axis navigation in {language}");
             Invoke(gridStart);
             check(Find(firstCell, UiAccessibilityRole.Edit).Node.Value == "local edit"
                 && HasSource(gridEnd, "IUiVirtualGridSource"),
