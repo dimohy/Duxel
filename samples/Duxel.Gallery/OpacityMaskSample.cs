@@ -31,7 +31,7 @@ internal sealed class OpacityMaskSample : IDisposable
             paint.Frame(_sourceBounds, new(20, 80, 145, 180), default, 12, 0);
             paint.Frame(new(140, 8, 220, 80), new(0, 125, 90), default, 8, 0);
             using var typography = paint.BeginTypography<UiRegularTypeface, UiFluentType300>();
-            paint.Text("Duxel · 한글 · Alpha", new(20, 32), new(255, 255, 255));
+            paint.Text(GalleryText.Get("Duxel · Text · Alpha"), new(20, 32), new(255, 255, 255));
             paint.Text("Cached source", new(380, 32), new(255, 255, 255));
         });
         var PaintContent = content.Value;
@@ -58,7 +58,7 @@ internal sealed class OpacityMaskSample : IDisposable
             Draw(ui);
         };
         var sample = GallerySample.Create(() => Dux.SizedBox(new UiViewHost(new UiView(render))
-            { AccessibleName = "양끝 투명 마스크와 캐시 카메라" }, width : 640, height : 96));
+            { AccessibleName = GalleryText.Get("Edge transparency mask and cached camera") }, width : 640, height : 96));
         var factory = sample.Source.Replace("new UiView(render)", "new UiView(Draw)", StringComparison.Ordinal);
         sample.BindSource(() => (_mask, _uv, _light, _version), state =>
             "using " + group.Source + "\nvar _sourceBounds = new UiRect(0, 0, 640, 96);\nulong _version = "
@@ -72,18 +72,18 @@ internal sealed class OpacityMaskSample : IDisposable
             + "var _light = " + GallerySample.Boolean(state._light) + ";\n\n" + content.Source + "\n\n" + drawing.Source + "\n\n" + factory);
         Sample = sample;
         View = Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Subtitle2("양끝 투명 마스크와 캐시 카메라"),
-            Fluent.Body1("배경을 바꾸거나 확대해도 이전에 준비한 내용을 재사용합니다. 양끝은 배경색으로 덮지 않고 실제로 투명해집니다."),
+            Fluent.Subtitle2(GalleryText.Get("Edge transparency mask and cached camera")),
+            Fluent.Body1(GalleryText.Get("Changing the background or zoom reuses the prepared content. The edges are transparent, so you can see the background through them.")),
             Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                Fluent.Button("양끝", () => Mask = new(.25f, .25f)),
-                Fluent.Button("왼쪽", () => Mask = new(.25f, 0)),
-                Fluent.Button("오른쪽", () => Mask = new(0, .25f)),
-                Fluent.Button("마스크 없음", () => Mask = default),
-                Fluent.Button("배경 전환", () => _light = !_light),
-                Fluent.Button("카메라 확대 전환", () => Camera = _uv == UiImageUvTransform.Identity
+                Fluent.Button(GalleryText.Get("Both edges"), () => Mask = new(.25f, .25f)),
+                Fluent.Button(GalleryText.Get("Left edge"), () => Mask = new(.25f, 0)),
+                Fluent.Button(GalleryText.Get("Right edge"), () => Mask = new(0, .25f)),
+                Fluent.Button(GalleryText.Get("No mask"), () => Mask = default),
+                Fluent.Button(GalleryText.Get("Toggle the background"), () => _light = !_light),
+                Fluent.Button(GalleryText.Get("Toggle camera zoom"), () => Camera = _uv == UiImageUvTransform.Identity
                     ? new(new(.25f, .25f), new(.5f, 0), new(0, .5f)) : UiImageUvTransform.Identity),
-                Fluent.Button("내용 다시 준비", InvalidateContent)),
-            Fluent.Caption1(() => "내용 준비 횟수 : " + _captureBuilds), sample);
+                Fluent.Button(GalleryText.Get("Rebuild source content"), InvalidateContent)),
+            Fluent.Caption1(() => GalleryText.Format("Source builds: {0}", _captureBuilds)), sample);
     }
     public void Dispose()
     {

@@ -1372,3 +1372,47 @@ Choose a processing mode	처리 방식 선택	処理方法を選ぶ	选择处理
 Progress state	진행 상태	進行状況	进度状态
 Handle links within the window	창 안에서 링크 처리	ウィンドウ内でリンクを処理	在窗口内处理链接
 Play and pause a Spinner	Spinner 재생과 일시 정지	Spinner の再生と一時停止	播放与暂停 Spinner
+Text Aa	한글 Aa	文字 Aa	文字 Aa
+Static geometry example	정적 도형 예제	静的な図形の例	静态几何图形示例
+3D projection example	3D 투영 예제	3D 投影の例	三维投影示例
+Reference compositing example	참조 합성 예제	参照合成の例	参考合成示例
+Group compositing example	그룹 합성 예제	グループ合成の例	组级合成示例
+Projected text example	투영 텍스트 예제	投影テキストの例	投影文本示例
+Animation: {0}	애니메이션 : {0}	アニメーション：{0}	动画：{0}
+Circular cutout: {0}	원형 잘라내기 : {0}	円形の切り抜き：{0}	圆形镂空：{0}
+Rounded clipping: {0}	둥근 클리핑 : {0}	角丸クリップ：{0}	圆角裁剪：{0}
+Change static content	정적 내용 변경	静的な内容を変更	更改静态内容
+New frames reuse the retained geometry commands while the version stays the same. The counter measures how often those commands were built. It does not measure total CPU or GPU work.	입력이나 상단 수치가 바뀌어 새 프레임을 그리더라도, 버전이 같으면 이전에 만든 도형 그리기 명령을 재사용합니다. 아래 횟수는 이 명령을 만든 횟수이며, 전체 CPU 작업량이나 GPU 사용량을 뜻하지 않습니다.	バージョンが同じ間は、新しいフレームでも保持している図形描画コマンドを再利用します。カウンターはコマンドの生成回数を示します。CPU や GPU の全体負荷を示すものではありません。	只要版本保持不变，新帧就会复用保留的图形绘制命令。计数器统计这些命令的构建次数，并不表示 CPU 或 GPU 的总工作量。
+Geometry version: {0} / Static command builds: {1}	기하 버전 : {0} / 정적 그리기 본문 실행 : {1}	図形のバージョン：{0} / 静的コマンドの生成回数：{1}	几何图形版本：{0} / 静态命令构建次数：{1}
+3D projection in an independent viewport	독립 뷰포트의 3D 투영	独立したビューポートでの 3D 投影	独立视口中的三维投影
+Compare RGB coverage compositing at glyph edges. Each black and white reference uses opacity 0, 0.5, and 1 once.	글자 가장자리의 RGB 커버리지 합성을 비교합니다. 검정·흰색 기준 이미지에 불투명도 0 / 0.5 / 1을 한 번씩 적용합니다.	文字の輪郭で RGB カバレッジの合成を比較します。黒と白の参照画像に不透明度 0、0.5、1 を一度ずつ適用します。	比较字形边缘的 RGB 覆盖率合成。对黑白参考图像各应用一次不透明度 0、0.5 和 1。
+Capture overlapping shapes on the GPU and apply opacity 0.8 once.	실제 겹친 도형을 GPU로 캡처해 불투명도 0.8을 한 번 적용합니다.	重なった図形を GPU でキャプチャし、不透明度 0.8 を一度適用します。	在 GPU 上捕获重叠的图形，然后应用一次 0.8 的不透明度。
+Capture text at 0.875 times its original size.	글자를 0.875배로 줄인 크기에 맞춰 캡처합니다.	文字を元の 0.875 倍のサイズでキャプチャします。	按原尺寸的 0.875 倍捕获文本。
+Duxel · Text · Alpha	Duxel · 한글 · Alpha	Duxel · 文字 · Alpha	Duxel · 文字 · Alpha
+Cached source	캐시된 원본	キャッシュしたソース	已缓存的源
+Edge transparency mask and cached camera	양끝 투명 마스크와 캐시 카메라	両端の透明マスクとキャッシュを使うカメラ	边缘透明遮罩和缓存相机
+Changing the background or zoom reuses the prepared content. The edges are transparent, so you can see the background through them.	배경을 바꾸거나 확대해도 이전에 준비한 내용을 재사용합니다. 양끝은 배경색으로 덮지 않고 실제로 투명해집니다.	背景や拡大率を変えても準備済みの内容を再利用します。両端は透明なので背景が透けて見えます。	更改背景或缩放时会复用已准备的内容。两端透明，可以看到下方背景。
+Both edges	양끝	両端	两端
+Left edge	왼쪽	左端	左边缘
+Right edge	오른쪽	右端	右边缘
+No mask	마스크 없음	マスクなし	无遮罩
+Toggle the background	배경 전환	背景を切り替える	切换背景
+Toggle camera zoom	카메라 확대 전환	カメラの拡大率を切り替える	切换相机缩放
+Rebuild source content	내용 다시 준비	ソース内容を再構築する	重新构建源内容
+Source builds: {0}	내용 준비 횟수 : {0}	ソースの生成回数：{0}	源内容构建次数：{0}
+Rotated title	회전 제목	回転したタイトル	旋转后的标题
+abc אב גד 123 / text and بِت لا	abc אב גד 123 / 한글과 بِت لا 	abc אב גד 123 / 日本語と بِت لا	abc אב גד 123 / 中文和 بِت لا
+Live link	동작하는 링크	操作できるリンク	可点击的链接
+Body2: sample text with English 123	Body2 : 본문과 English 123	Body2：本文と English 123	Body2：正文与 English 123
+Body1: sample text with English 123	Body1 : 본문과 English 123	Body1：本文と English 123	Body1：正文与 English 123
+Text: default Body1 style	Text : 기본 Body1 표현	Text：既定の Body1 スタイル	Text：默认 Body1 样式
+Paragraph with mixed weights	혼합 굵기 문단	太さの異なる文字を含む段落	混合字重段落
+Change font weight and typeface in a paragraph and see how it wraps. Windows and Linux both use the operating system's typesetting.	한 문단 안에서 글자 굵기와 글꼴을 바꾸고 줄바꿈되는 모습을 확인해 보세요. Windows와 Linux 모두 운영체제에서 조판한 결과를 사용합니다.	段落の中で文字の太さや書体を変えて、折り返しを確認してください。Windows と Linux のどちらも OS の組版結果を使います。	更改段落内的字重和字体，查看换行效果。Windows 和 Linux 均使用操作系统的排版结果。
+Sample heading	한글 제목	見出しの例	示例标题
+Sample body with English, AV office é.	본문과 English, AV office é를 함께 표시합니다.	本文と English、AV office é を一緒に表示します。	同时显示正文和 English、AV office é。
+Right-to-left paragraph	오른쪽에서 왼쪽 문단	右から左に並ぶ段落	从右到左的段落
+Bidi sample character	정	日	中
+Explicit directional context	명시적 방향 문맥	明示的な方向指定	显式方向上下文
+Paragraph with widgets	위젯을 포함한 문단	ウィジェットを含む段落	包含小部件的段落
+The switch above also changes the direction of inline widgets. The rotated title and link are separate widgets.	위 스위치를 바꾸면 문단 안의 위젯도 방향이 바뀝니다. 회전한 제목과 링크는 각각 별도의 위젯입니다.	上のスイッチで段落内のウィジェットの方向も切り替わります。回転したタイトルとリンクはそれぞれ独立したウィジェットです。	上方开关也会改变内联小部件的方向。旋转标题和链接是独立的小部件。
+גד regular 123 / text and بِت لا	גד regular 123 / 한글과 بِت لا	גד regular 123 / 日本語と بِت لا	גד regular 123 / 中文和 بِت لا

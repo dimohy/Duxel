@@ -142,6 +142,7 @@ internal static class GalleryLocalizationTests
             VerifyFileChooserLanguages(Render, tree, check);
             VerifyPeopleExamples(Render, tree, services, check);
             VerifyMarkdownExamples(Render, tree, services, check);
+            VerifyTypographyExamples(check);
 
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
             File.WriteAllText(path, "en");
@@ -919,6 +920,60 @@ internal static class GalleryLocalizationTests
                 && page.View.Document.Source.Contains("| :--- | :---: | ---: |", StringComparison.Ordinal)
                 && page.Samples[0].Source.Contains(tableHeading, StringComparison.Ordinal),
                 $"Markdown preview and C# preserve translated table structure in {language}");
+        }
+    }
+
+    private static void VerifyTypographyExamples(Action<bool, string> check)
+    {
+        foreach (var (language, direction, rotatedTitle, bidiSuffix) in new[]
+        {
+            (GalleryLanguage.English, "Right-to-left paragraph", "Rotated title", "Explicit directional context"),
+            (GalleryLanguage.Korean, "오른쪽에서 왼쪽 문단", "회전 제목", "명시적 방향 문맥"),
+            (GalleryLanguage.Japanese, "右から左に並ぶ段落", "回転したタイトル", "明示的な方向指定"),
+            (GalleryLanguage.SimplifiedChinese, "从右到左的段落", "旋转后的标题", "显式方向上下文")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+            ControlFontFixture.Configure(context);
+            var fonts = GalleryText.ConfigureFonts(new());
+            context.SetDirectTextSecondaryFontPath(fonts.SecondaryFontPath);
+            context.SetTypographyFonts(fonts.Typography);
+            using var tree = new UiAccessibilityTree();
+            context.SetAccessibilityTree(tree);
+            using var page = new TypographyPage();
+            using var frame = new GalleryPageFrame(new WidgetPage("타이포그래피", string.Empty, page));
+            var screen = new TypographyTestScreen(frame);
+            var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+            void Render()
+            {
+                context.NewFrame(new(.016f, new(1280, 6000), new(1, 1)), idle, new(0, 0, 1280, 6000), UiTextSettings.Default);
+                context.Render(screen);
+                using var drawing = context.GetDrawData();
+            }
+            Render();
+            Render();
+            var toggle = tree.CaptureSnapshot().Elements.Single(element => element.Node.Role == UiAccessibilityRole.Switch
+                && element.Node.Name == direction);
+            if (tree.RequestAction(toggle.Node.Id, toggle.RuntimeId, UiAccessibilityAction.Toggle, wait : false)
+                != UiAccessibilityResult.Success)
+                throw new InvalidOperationException("Gallery paragraph direction action was rejected: " + direction);
+            Render();
+            Render();
+            check(page.DirectionReady(true)
+                && page.Samples.Count(sample => sample.Source.Contains("RightToLeft = true", StringComparison.Ordinal)) == 2
+                && page.Samples.Any(sample => sample.Source.Contains(rotatedTitle, StringComparison.Ordinal))
+                && page.Samples.Any(sample => sample.Source.Contains(bidiSuffix, StringComparison.Ordinal)),
+                $"Typography changes both live paragraphs and includes the current direction and translated captions in C# in {language}");
+        }
+    }
+
+    private sealed class TypographyTestScreen(GalleryPageFrame frame) : UiScreen
+    {
+        public override void Render(UiImmediateContext ui)
+        {
+            ui.EnableRootViewportContentLayout(contentPadding : 0);
+            frame.Render(ui);
         }
     }
 
