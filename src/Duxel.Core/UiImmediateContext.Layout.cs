@@ -86,7 +86,7 @@ public sealed partial class UiImmediateContext
         {
             var child = _childStack.Peek();
             var childRect = child.Rect;
-            var contentEndX = childRect.X + childRect.Width - 2f;
+            var contentEndX = childRect.X + childRect.Width - child.ContentRightInset;
             var contentEndY = childRect.Y + childRect.Height - 2f;
             var visibleCursorX = cursor.X + child.ScrollX;
             var visibleCursorY = cursor.Y + child.ScrollY;
@@ -112,8 +112,8 @@ public sealed partial class UiImmediateContext
         if(_inputSlotBounds is {} slot&&_inputSlotBoundsTier==_popupTierDepth)return new(slot.X+slot.Width,slot.Y+slot.Height);
         if (HasCurrentChild && (!HasCurrentFlowRegion || _childStack.Count > _flowRegionChildDepth))
         {
-            var childRect = _childStack.Peek().Rect;
-            return new UiVector2(childRect.X + childRect.Width - 2f, childRect.Y + childRect.Height - 2f);
+            var child = _childStack.Peek();
+            return new UiVector2(child.Rect.X + child.Rect.Width - child.ContentRightInset, child.Rect.Y + child.Rect.Height - 2f);
         }
 
         if (HasCurrentFlowRegion && _flowRegionBounds is { } flow) return new(flow.X + flow.Width, flow.Y + flow.Height);

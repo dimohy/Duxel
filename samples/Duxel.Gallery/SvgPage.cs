@@ -34,7 +34,8 @@ internal sealed class SvgPage(ObserverServices services) : IObserverDocumentPage
     private void Render(UiImmediateContext ui, UiWidget? header)
     {
         var available = ui.GetContentRegionAvail();
-        if (ui.BeginChild("observer-svg-page", new(available.X, MathF.Max(1, available.Y - 8)), true, coalesceDocumentScrollInputs : true))
+        if (ui.BeginChild("observer-svg-page", new(available.X, MathF.Max(1, available.Y - 8)), true,
+            coalesceDocumentScrollInputs : true, horizontalScroll : false))
         {
             if (header is not null)
                 ui.RenderNaturalHeight(header);

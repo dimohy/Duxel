@@ -43,6 +43,17 @@ if (args is [var svgCodeScrollOutput, "gallery-svg-code-scroll"])
     return;
 }
 
+if (args is [_, "codeview-scrollbars"])
+{
+    CodeViewCacheTests.VerifyScrollbarDragging((passed, name) =>
+    {
+        Console.WriteLine((passed ? "PASS " : "FAIL ") + name);
+        if (!passed)
+            Environment.ExitCode = 1;
+    });
+    return;
+}
+
 if (args is [var svgLayerMixOutput, "gallery-svg-layer-mix"])
 {
     SvgGalleryFrameBenchmark.MeasureLayerMix(svgLayerMixOutput);

@@ -3931,6 +3931,8 @@ public sealed partial class UiImmediateContext
         bool CoalesceDocumentScrollInputs)
     {
         internal ulong TextDragScrollRevision { get; init; }
+        internal bool HorizontalScroll { get; init; }
+        internal float ContentRightInset { get; init; }
     }
     private readonly record struct UiMenuState(
         string Id,

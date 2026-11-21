@@ -8,6 +8,7 @@ internal static class CodeViewCacheTests
         ParagraphRasterKeyTests.Run(check);
         VerifyVisibleWorkingSet(check);
         VerifyClippedAccessibilityGeometry(check);
+        VerifyScrollbarDragging(check);
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
         ControlFontFixture.Configure(context);
         using var code = new UiCodeView("using Duxel.Core;\n" + string.Join("\n", Enumerable.Repeat("var message = \"한글 and English\"; // comment", 30)));
@@ -107,6 +108,69 @@ internal static class CodeViewCacheTests
             && original.GetCharacterExtents(0) == originalCharacter,
             "moving a code view updates accessibility ranges, carets and hit testing while preserving the prior snapshot");
     }
+    internal static void VerifyScrollbarDragging(Action<bool, string> check)
+    {
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        using var tree = new UiAccessibilityTree();
+        ControlFontFixture.Configure(context);
+        context.SetAccessibilityTree(tree);
+        var source = string.Join("\n", Enumerable.Repeat("var value = " + new string('W', 100) + ";", 35));
+        using var sized = Dux.ConstrainedBox(new UiCodeView(source, new(Wrap: false, ShowToolbar: false)),
+            new(MinWidth: 410, MaxWidth: 410, MinHeight: 210, MaxHeight: 210));
+        var idle = new UiInputState(new(-10, -10), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        var thickness = context.GetStyleData().ScrollbarSize;
+
+        UiAccessibilityNode Frame(UiInputState input)
+        {
+            context.NewFrame(new(.016f, new(640, 480), new(1, 1)), input, new(0, 0, 640, 480), UiTextSettings.Default);
+            context.Render(new Screen(ui =>
+            {
+                ui.EnableRootViewportContentLayout(contentPadding: 0);
+                ui.RenderNaturalHeight(sized);
+            }));
+            using var drawing = context.GetDrawData();
+            return tree.CaptureSnapshot().Elements.Single(element => element.Node.Role == UiAccessibilityRole.Edit).Node;
+        }
+
+        foreach (var horizontal in new[] { true, false })
+        {
+            var bounds = Frame(idle).Bounds;
+            var text = new UiVector2(bounds.X + 80, bounds.Y + 32);
+            Frame(idle with { MousePosition = text, LeftMouseDown = true, LeftMousePressed = true });
+            var before = Frame(idle with { MousePosition = text, LeftMouseReleased = true });
+            var point = ThumbCenter(before);
+            var held = idle with { MousePosition = point, LeftMouseDown = true };
+            Frame(held with { LeftMousePressed = true });
+            var scrollbar = context.State.PreciseScrollbarDrag?.Id;
+            var moved = horizontal ? point with { X = point.X + 48 } : point with { Y = point.Y + 36 };
+            Frame(held with { MousePosition = moved });
+            Frame(idle with { MousePosition = moved, LeftMouseReleased = true });
+            var after = Frame(idle);
+            var offset = after.Scroll!.Value.Offset;
+            check(scrollbar is not null && (horizontal ? offset.X : offset.Y) > 0,
+                $"code view {(horizontal ? "horizontal" : "vertical")} thumb captures after text focus and scrolls");
+            var regrab = ThumbCenter(after);
+            Frame(held with { MousePosition = regrab, LeftMousePressed = true });
+            check(scrollbar is not null && context.State.PreciseScrollbarDrag?.Id == scrollbar,
+                $"code view {(horizontal ? "horizontal" : "vertical")} thumb can be grabbed again at its new position");
+            Frame(idle with { MousePosition = regrab, LeftMouseReleased = true });
+
+            UiVector2 ThumbCenter(UiAccessibilityNode node)
+            {
+                var range = node.Scroll ?? throw new InvalidOperationException("The bounded code view must publish both scroll ranges.");
+                var track = (horizontal ? node.Bounds.Width : node.Bounds.Height) - thickness;
+                var content = horizontal ? range.Content.X : range.Content.Y;
+                var offset = horizontal ? range.Offset.X : range.Offset.Y;
+                var maximum = horizontal ? range.HorizontalMaximum : range.VerticalMaximum;
+                var thumb = MathF.Min(track, MathF.Max(horizontal ? 24 : 16, track * (track / content)));
+                var center = (float)(offset / maximum) * (track - thumb) + thumb / 2;
+                return horizontal
+                    ? new(node.Bounds.X + center, node.Bounds.Y + node.Bounds.Height - thickness / 2)
+                    : new(node.Bounds.X + node.Bounds.Width - thickness / 2, node.Bounds.Y + center);
+            }
+        }
+    }
+
     private static void VerifyClippedAccessibilityGeometry(Action<bool, string> check)
     {
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));

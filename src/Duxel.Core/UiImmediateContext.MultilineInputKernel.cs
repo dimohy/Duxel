@@ -182,7 +182,8 @@ public sealed partial class UiImmediateContext
                 caretMoved = true;
                 _state.SetCursor(id, caretIndex);
             }
-            else if (!hovered && _state.ActiveId == id && (!navigable || _fieldFocusedControlId != id && _accessibilityFocus != id))
+            else if (!hovered && _state.ActiveId == id
+                && (readOnly || !navigable || _fieldFocusedControlId != id && _accessibilityFocus != id))
             {
                 _state.ActiveId = null;
                 _state.PendingTextInputFocusId = null;

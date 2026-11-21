@@ -42,6 +42,8 @@ public sealed partial class UiImmediateContext
         var clipBounds = IntersectRect(CurrentClipRect, bounds);
         if (clipBounds.Width <= 0 || clipBounds.Height <= 0)
         {
+            if (_leftMousePressed && _state.ActiveId == root)
+                _state.ActiveId = null;
             // Keep at most one small geometry snapshot while its widget is still rendered.
             // The offscreen node publishes no text geometry.
             if (_accessibility is { } tree)

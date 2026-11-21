@@ -203,6 +203,8 @@ internal static class SvgGalleryFrameBenchmark
             if (verticalViewports is not ["observer-svg-page"])
                 throw new InvalidOperationException("Expected a single SVG document scrollbar; found: "
                     + string.Join(", ", verticalViewports));
+            if (ScrollPane().Scroll is { HorizontalMaximum: > 0 })
+                throw new InvalidOperationException("The SVG document scrollbar must not create horizontal overflow.");
             Console.WriteLine($"PASS {label}: single SVG document scrollbar");
             for (var frame = 0; frame < 32 && VisibleCode()?.ClipBounds.Height is not >= 500; frame++)
                 Submit(idle with { MousePosition = new(800, 680), MouseWheel = -1 });
@@ -262,6 +264,13 @@ internal static class SvgGalleryFrameBenchmark
             var thumb = new UiVector2(pane.Bounds.X + pane.Bounds.Width - 5,
                 pane.Bounds.Y + (float)(scroll.Offset.Y / scroll.VerticalMaximum) * (trackExtent - thumbExtent) + thumbExtent / 2);
             thumb = new UiVector2(MathF.Round(thumb.X), MathF.Round(thumb.Y));
+            PostPointer(0x0200, new(x, y), 0);
+            PostPointer(0x0201, new(x, y), 1);
+            platform.PollEvents();
+            Submit(platform.Input.Snapshot.OrderedInputs!.Last(input => input.LeftMousePressed));
+            PostPointer(0x0202, new(x, y), 0);
+            platform.PollEvents();
+            Submit(platform.Input.Snapshot.OrderedInputs!.Last(input => input.LeftMouseReleased));
             PostPointer(0x0200, thumb, 0);
             PostPointer(0x0201, thumb, 1);
             platform.PollEvents();

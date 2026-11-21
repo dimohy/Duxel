@@ -7,6 +7,10 @@ public sealed partial class UiImmediateContext
 
     /// <summary>Begins a child viewport, optionally combining wheel input that stays over the same code block and captured thumb moves.</summary>
     public bool BeginChild(string id, UiVector2 size, bool border, bool coalesceDocumentScrollInputs)
+        => BeginChild(id, size, border, coalesceDocumentScrollInputs, horizontalScroll: true);
+
+    /// <summary>Begins a child viewport. Vertical-only viewports reserve the scrollbar gutter when laying out their contents.</summary>
+    public bool BeginChild(string id, UiVector2 size, bool border, bool coalesceDocumentScrollInputs, bool horizontalScroll)
     {
         id ??= "Child";
         var resolvedId = ResolveId(id);
@@ -17,7 +21,8 @@ public sealed partial class UiImmediateContext
         var totalSize = new UiVector2(width, height);
         var cursor = AdvanceCursor(totalSize);
         var rect = new UiRect(cursor.X, cursor.Y, width, height);
-        var contentRect = new UiRect(rect.X + 2f, rect.Y + 2f, MathF.Max(0f, rect.Width - 4f), MathF.Max(0f, rect.Height - 4f));
+        var rightInset = horizontalScroll ? 2f : MathF.Max(2f, ScrollbarSize);
+        var contentRect = new UiRect(rect.X + 2f, rect.Y + 2f, MathF.Max(0f, rect.Width - 2f - rightInset), MathF.Max(0f, rect.Height - 4f));
 
         if (border)
         {
@@ -25,7 +30,7 @@ public sealed partial class UiImmediateContext
         }
 
         var scrollY = _state.GetScrollY(resolvedId);
-        var scrollX = _state.GetScrollX(resolvedId);
+        var scrollX = horizontalScroll ? _state.GetScrollX(resolvedId) : 0;
         if (coalesceDocumentScrollInputs && _leftMouseDown
             && _state.PreciseScrollbarDrag is { DocumentTrack: { } track } drag
             && track.Viewport == rect && _state.ActiveId == drag.Id
@@ -43,7 +48,7 @@ public sealed partial class UiImmediateContext
         {
             var offset = accessibility.ApplyScrollIntoView(resolvedId, new(scrollX, scrollY),
                 new((float)range.HorizontalMaximum, (float)range.VerticalMaximum));
-            scrollX = offset.X;
+            scrollX = horizontalScroll ? offset.X : 0;
             scrollY = offset.Y;
         }
 
@@ -75,7 +80,12 @@ public sealed partial class UiImmediateContext
             _accessibilityParent,
             GetDisplayLabel(id),
             enclosingClip,
-            coalesceDocumentScrollInputs) { TextDragScrollRevision = _textDragScrollRevision });
+            coalesceDocumentScrollInputs)
+        {
+            TextDragScrollRevision = _textDragScrollRevision,
+            HorizontalScroll = horizontalScroll,
+            ContentRightInset = rightInset
+        });
         _accessibilityParent = resolvedId;
         _columnsActive = false;
         _columnsCount = 0;
@@ -105,7 +115,9 @@ public sealed partial class UiImmediateContext
         // Calculate content height and max scroll
         var contentHeight = cursorY - state.Rect.Y - 2f + state.ScrollY;
         var contentWidth = MathF.Max(0f, state.ContentMaxX - (state.Rect.X + 2f));
-        var visibleWidth = MathF.Max(0f, state.Rect.Width - 4f);
+        var visibleWidth = MathF.Max(0f, state.Rect.Width - 2f - state.ContentRightInset);
+        if (!state.HorizontalScroll)
+            contentWidth = visibleWidth;
         var visibleHeight = MathF.Max(0f, state.Rect.Height - 4f);
         var maxScrollX = 0f;
         var maxScrollY = 0f;
@@ -119,7 +131,8 @@ public sealed partial class UiImmediateContext
             hasHScroll = maxScrollX > 0f;
             hasVScroll = maxScrollY > 0f;
 
-            var nextVisibleWidth = MathF.Max(0f, state.Rect.Width - 4f - (hasVScroll ? ScrollbarSize : 0f));
+            var nextVisibleWidth = MathF.Max(0f, state.Rect.Width - 2f - state.ContentRightInset
+                - (state.HorizontalScroll && hasVScroll ? ScrollbarSize : 0f));
             var nextVisibleHeight = MathF.Max(0f, state.Rect.Height - 4f - (hasHScroll ? ScrollbarSize : 0f));
             if (MathF.Abs(nextVisibleWidth - visibleWidth) < 0.001f && MathF.Abs(nextVisibleHeight - visibleHeight) < 0.001f)
             {
@@ -139,14 +152,15 @@ public sealed partial class UiImmediateContext
         var step = GetFrameHeight() * 3f;
 
         // Mouse wheel
-        if (IsScrollHoverable(state.Rect, CurrentClipRect))
+        if (IsScrollHoverable(state.Rect, state.EnclosingClip))
         {
             scrollY = ApplyScrollWheel(scrollY, maxScrollY, step, ref _mouseWheel);
             scrollX = ApplyScrollWheel(scrollX, maxScrollX, step, ref _mouseWheelHorizontal);
         }
         var afterWheel = scrollY;
 
-        // Render scrollbar before PopClipRect (respects parent clip)
+        // Scrollbars belong to the child frame, outside its content clip.
+        PopClipRect();
         if (maxScrollY > 0f)
         {
             var trackRect = new UiRect(
@@ -202,7 +216,6 @@ public sealed partial class UiImmediateContext
             }
             _state.DocumentWheelRegion = null;
         }
-        PopClipRect();
         _state.SetScrollX(state.Id, scrollX);
         _state.SetScrollY(state.Id, scrollY);
         _lastItemPos = new UiVector2(state.Rect.X, state.Rect.Y);

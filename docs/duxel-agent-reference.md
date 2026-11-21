@@ -22,4 +22,5 @@ Give your assistant the target platform, the screen you want, and the reference 
 - Start with the nearest Gallery example. Its copied C# often includes the state and options needed to use the control.
 - When diagnosing resident geometry memory, distinguish cached draw-list bytes from Vulkan page allocations. See [retained rendering](retained-rendering.md).
 - Review keyboard focus, editing and content overflow for the actual screen. Use [keyboard guidance](widget-keyboard.md) and [accessibility guidance](widget-accessibility.md).
+- For an immediate-mode document viewport that scrolls vertically, pass `horizontalScroll: false` to `BeginChild`. The viewport reserves the scrollbar gutter during layout. A nested code view can still scroll horizontally when a line exceeds its own width.
 - Run the local source example with `./run-fba.ps1 samples/fba/declarative_dashboard_fba.cs -Managed -NoCache`. For published packages, follow the [file-based app quick start](getting-started-fba.md).
