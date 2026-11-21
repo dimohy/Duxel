@@ -1,6 +1,20 @@
 // Camera-dependent dash metrics operate on retained authored curves, never raster pixels.
 struct DashCurve { vec4 ab; vec4 cd; bool cubic; vec3 weights; };
-DashCurve dashStack[22];
+// Keep dynamically indexed stack storage uniform for SPIR-V-to-DXIL translation.
+vec4 dashStackAB[22];
+vec4 dashStackCD[22];
+vec4 dashStackTypeAndWeights[22];
+
+void storeDashCurve(int index, DashCurve curve) {
+    dashStackAB[index] = curve.ab;
+    dashStackCD[index] = curve.cd;
+    dashStackTypeAndWeights[index] = vec4(curve.cubic ? 1.0 : 0.0, curve.weights);
+}
+
+DashCurve loadDashCurve(int index) {
+    vec4 typeAndWeights = dashStackTypeAndWeights[index];
+    return DashCurve(dashStackAB[index], dashStackCD[index], typeAndWeights.x != 0.0, typeAndWeights.yzw);
+}
 vec2 dashParameters[22];
 int dashTop;
 uint dashCurveIndex, dashCurveCount, dashPath;
@@ -61,11 +75,11 @@ bool dashNext(out uint curveIndex, out vec2 parameters, out vec2 first, out vec2
     for (uint step = 0u; step < 1000000u; ++step) {
         if (dashTop == 0) {
             if (dashCurveIndex >= dashCurveCount) return false;
-            dashStack[0] = dashRead(dashPath, dashCurveIndex++);
+            storeDashCurve(0, dashRead(dashPath, dashCurveIndex++));
             dashParameters[0] = vec2(0.0, 1.0); dashTop = 1;
         }
         --dashTop;
-        DashCurve curve = dashStack[dashTop];
+        DashCurve curve = loadDashCurve(dashTop);
         vec2 interval = dashParameters[dashTop];
         precise vec2 chordA = curve.ab.xy * (1.0 - 1.0 / 3.0) + curve.cd.zw / 3.0;
         precise vec2 chordB = curve.ab.xy * (1.0 - 2.0 / 3.0) + curve.cd.zw * (2.0 / 3.0);
@@ -79,8 +93,8 @@ bool dashNext(out uint curveIndex, out vec2 parameters, out vec2 first, out vec2
         if (dashTop >= 20 || interval.y - interval.x <= 1.0 / 1048576.0) { overflow = true; return false; }
         DashCurve left, right; dashSplit(curve, .5, left, right);
         float middle = (interval.x + interval.y) * .5;
-        dashStack[dashTop] = right; dashParameters[dashTop++] = vec2(middle, interval.y);
-        dashStack[dashTop] = left; dashParameters[dashTop++] = vec2(interval.x, middle);
+        storeDashCurve(dashTop, right); dashParameters[dashTop++] = vec2(middle, interval.y);
+        storeDashCurve(dashTop, left); dashParameters[dashTop++] = vec2(interval.x, middle);
     }
     overflow = true; return false;
 }
