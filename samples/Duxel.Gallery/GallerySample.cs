@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using Duxel.Core;
 
 namespace Duxel.Gallery;
@@ -16,17 +17,24 @@ internal interface IGallerySample
     void SynchronizeSource();
 }
 
-internal static class GallerySample
+internal static partial class GallerySample
 {
     internal static GalleryValue<T> Define<T>(string name, Func<T> create,
         [CallerArgumentExpression(nameof(create))] string expression = "")
     {
-        var body = expression.Trim();
+        var body = LocalizeFactory(expression.Trim());
         var source = body.StartsWith("() => ", StringComparison.Ordinal) && !body.AsSpan(6).TrimStart().StartsWith("{")
             ? $"var {name} = {body[6..].Trim()};"
             : $"var {name}Factory = {body};\nvar {name} = {name}Factory();";
         return new(create(), source);
     }
+    // Captured factories use literal translation keys. Inline the resolved values in the displayed C#.
+    [GeneratedRegex("""\bGalleryText\.Get\("(?<text>[^"\\\r\n]*)"\)""", RegexOptions.CultureInvariant)]
+    private static partial Regex TranslationCall();
+
+    private static string LocalizeFactory(string source) => TranslationCall().Replace(source,
+        match => String(GalleryText.Get(match.Groups["text"].Value)));
+
     internal static string Boolean(bool value) => value ? "true" : "false";
     internal static string Number(float? value) => value is { } number
         ? number.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "f" : "null";
@@ -70,7 +78,7 @@ internal static class GallerySample
         [CallerArgumentExpression(nameof(create))] string expression = "",
         [CallerArgumentExpression(nameof(layout))] string layoutExpression = "") where T : UiWidget
     {
-        var body = expression.Trim();
+        var body = LocalizeFactory(expression.Trim());
         var imports = (body.Contains("UiSvg", StringComparison.Ordinal) || setup.Contains("SvgStore", StringComparison.Ordinal)
             ? "using Duxel.Svg;\n" : string.Empty);
         var variable = layout is null ? "example" : "control";

@@ -1001,6 +1001,7 @@ if (args.Length == 2 && args[1] is "drawer-only" or "nav-only" or "legacy-galler
     else if (args[1] == "gallery-localization-only")
     {
         GalleryLocalizationTests.Run(CheckLegacy);
+        GalleryLocalizationTests.CaptureOverview(destination, CheckLegacy);
     }
     else if (args[1] == "observer-only")
     {

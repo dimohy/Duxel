@@ -170,19 +170,26 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
                     Fluent.Caption1(() => error.Value)),
                 [Fluent.Button(GalleryText.Get("닫기"), () => _settings!.Close())],
                 new(Width : 410, CloseLabel : GalleryText.Get("닫기")));
-            _headerActions = Dux.Row(new(Spacing : 12, CrossAxisAlignment : UiCrossAxisAlignment.Center),
-                _themeSwitch, Fluent.Button(GalleryText.Get("설정"), () =>
+            var settingsLabel = GalleryText.Get("설정");
+            var settingsButton = new UiButton<UiReleaseButtonBehavior,
+                UiFluentIconButtonPresentation<UiFluentMediumButtonIconSize, UiFluentSubtleButtonAppearance,
+                    SettingsTabIcon, UiButtonIconBefore>>(string.Empty, () =>
                 {
                     error.Value = string.Empty;
                     _settings.Show();
-                }));
+                })
+            {
+                AccessibleName = settingsLabel
+            };
+            _headerActions = Dux.Row(new(Spacing : 12, CrossAxisAlignment : UiCrossAxisAlignment.Center),
+                _themeSwitch, Fluent.Tooltip(settingsButton, settingsLabel));
         }
         _options = Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
             Dux.Row(new(Spacing : 16, CrossAxisAlignment : UiCrossAxisAlignment.Start), Dux.Expanded(_toolbarScroll), _headerActions), Fluent.Divider());
         var catalog = new CatalogPage();
         _pages =
         [
-            new WidgetPage("개요", "Duxel의 컨트롤과 그래픽, 문서 기능을 직접 조작하고 C# 예제 코드를 살펴보세요.", CreateOverview()),
+            new WidgetPage("개요", string.Empty, CreateOverview()),
             new LegacyPage(),
             new FluentProviderPage(services.TypographyFonts),
             new ShimmerPage(),
@@ -261,36 +268,42 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
 
     private UiWidget CreateOverview()
     {
-        UiWidget Category(string title, string description, string route, string action) =>
-            Fluent.Card(GalleryText.Get(title), Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Subtitle1(GalleryText.Get(title)), Fluent.Text(GalleryText.Get(description)),
-                Fluent.Button(GalleryText.Get(action), () => SelectRoute(route))),
-                new(Width : 272, Appearance : UiCardAppearance.Outline));
-        var missing = Fluent.MissingComponentNames.Length;
-        UiWidget[] pendingBadge = missing == 0 ? [] :
-            [Fluent.Badge(GalleryText.Format("미구현 {0}", missing), new(Appearance : UiBadgeAppearance.Tint, Color : UiBadgeColor.Severe))];
-        UiWidget[] pendingHelp = missing == 0 ? [] :
-            [Fluent.Caption1(GalleryText.Get("미구현 배지가 붙은 항목에서는 앞으로 추가될 구성요소를 확인할 수 있습니다."))];
-        return Dux.Column(new(Spacing : 24, MainAxisSize : UiMainAxisSize.Min),
-        [
-            Dux.Wrap(new(Spacing : 12),
-            [
-                Fluent.Badge(GalleryText.Format("구성요소 {0}", Fluent.RequiredComponentNames.Length)),
-                Fluent.Badge(GalleryText.Format("사용 가능한 예제 {0}", Fluent.RequiredComponentNames.Length - missing)),
-                ..pendingBadge
-            ]),
-            Fluent.Title2(GalleryText.Get("어디서 시작할까요?")),
-            Dux.Wrap(new(Spacing : 16, RunSpacing : 16),
-                Category("동작과 탐색", "버튼과 링크, 메뉴로 화면의 흐름을 만드세요.", "Button", "Button 살펴보기"),
-                Category("입력과 선택", "텍스트 입력과 선택, 값 조절을 직접 확인하세요.", "Input", "Input 살펴보기"),
-                Category("콘텐츠와 목록", "카드와 목록으로 내용을 정리하세요.", "Card", "Card 살펴보기"),
-                Category("알림과 도움말", "대화 상자와 보조 패널의 동작을 확인하세요.", "Dialog", "Dialog 살펴보기"),
-                Category("벡터 그래픽", "SVG 확대·회전과 다양한 그래픽 표현을 살펴보세요.", "SVG", "SVG 살펴보기"),
-                Category("문서와 편집", "Markdown 문서를 읽고 실시간으로 편집해 보세요.", "Markdown", "Markdown 살펴보기")),
-            Fluent.Title2(GalleryText.Get("예제에서 코드까지")),
-            Fluent.Text(GalleryText.Get("왼쪽 메뉴에서 구성요소를 선택하세요. 예제 바로 아래에서 C# 소스를 읽고 복사할 수 있습니다.")),
-            ..pendingHelp
-        ]);
+        UiWidget Category(string title, string description, string route, string action)
+        {
+            var name = GalleryText.Get(title);
+            return Fluent.Card(name,
+                Dux.ConstrainedBox(Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
+                    Fluent.Subtitle2(name),
+                    new UiInlineText([new(GalleryText.Get(description))]),
+                    Fluent.Button(GalleryText.Get(action), () => SelectRoute(route))),
+                    new(MinHeight : 118, MaxWidth : float.PositiveInfinity, MaxHeight : float.PositiveInfinity, MinWidth : 0)),
+                new(Appearance : UiCardAppearance.Outline, Width : 280));
+        }
+
+        var intro = GalleryText.Get("Duxel로 UI 만들기");
+        var browse = new UiButton<UiReleaseButtonBehavior, UiFluentButtonPresentation<UiFluentPrimaryButtonAppearance>>(
+            GalleryText.Get("기능 찾아보기"), () => SelectRoute("관찰 범위"));
+        var hero = Fluent.Card(intro,
+            Dux.Padding(Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
+                Fluent.Title1(intro),
+                new UiInlineText([new(GalleryText.Get("Duxel의 컨트롤과 그래픽, 문서 기능을 직접 조작하고 C# 예제 코드를 살펴보세요."))]),
+                Dux.Align(browse, UiAlignment.TopLeft)), new(12)),
+            new(Appearance : UiCardAppearance.FilledAlternative));
+
+        return Dux.Padding(Dux.Column(new(Spacing : 24, MainAxisSize : UiMainAxisSize.Min,
+            CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
+            hero,
+            Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
+                Fluent.Title3(GalleryText.Get("어디서 시작할까요?")),
+                Dux.Wrap(new(Spacing : 16, RunSpacing : 16),
+                    Category("동작과 탐색", "버튼과 링크, 메뉴로 화면의 흐름을 만드세요.", "Button", "Button 살펴보기"),
+                    Category("입력과 선택", "텍스트 입력과 선택, 값 조절을 직접 확인하세요.", "Input", "Input 살펴보기"),
+                    Category("콘텐츠와 목록", "카드와 목록으로 내용을 정리하세요.", "Card", "Card 살펴보기"),
+                    Category("알림과 도움말", "대화 상자와 보조 패널의 동작을 확인하세요.", "Dialog", "Dialog 살펴보기"),
+                    Category("벡터 그래픽", "SVG 확대·회전과 다양한 그래픽 표현을 살펴보세요.", "SVG", "SVG 살펴보기"),
+                    Category("문서와 편집", "Markdown 문서를 읽고 실시간으로 편집해 보세요.", "Markdown", "Markdown 살펴보기"))),
+            Fluent.Caption1(GalleryText.Get("왼쪽 메뉴에서 구성요소를 선택하세요. 예제 바로 아래에서 C# 소스를 읽고 복사할 수 있습니다."))),
+            new(0, 12, 8, 16));
     }
 
     internal void CopyPreferencesFrom(ObserverScreen previous)
@@ -344,8 +357,8 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             if (_navigationDrawer.IsOpen) _navigationDrawer.Close();
             var navigationWidth = MathF.Min(280, MathF.Max(112, available.X * .26f));
             _navigation.Render(ui, new(navigationWidth, MathF.Max(0, available.Y)));
-            var contentX = origin.X + navigationWidth + 20;
-            ui.GetWindowDrawList().AddRectFilled(new(contentX - 10, origin.Y, 1, MathF.Max(0, available.Y)),
+            var contentX = origin.X + navigationWidth + 28;
+            ui.GetWindowDrawList().AddRectFilled(new(contentX - 14, origin.Y, 1, MathF.Max(0, available.Y)),
                 ui.GetColorU32(UiStyleColor.Separator), ui.WhiteTextureId);
             ui.SetCursorScreenPos(new(contentX, origin.Y));
         }
@@ -354,7 +367,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
 #endif
         var themeSize = _headerActions.MeasureConstrained(ui, new(0, float.PositiveInfinity, 0, float.PositiveInfinity));
         var statusWidth = MathF.Max(1, ui.GetContentRegionAvail().X - themeSize.X - 16);
-        var toolbarWidth = MathF.Max(760, statusWidth);
+        var toolbarWidth = MathF.Max(720, statusWidth);
         _toolbar.Options = new(Width: toolbarWidth);
         var toolbarSize = _toolbar.MeasureConstrained(ui, new(0, float.PositiveInfinity, 0, float.PositiveInfinity));
         _toolbarScroll.Options = new(UiScrollAxis.Horizontal, Width: statusWidth,

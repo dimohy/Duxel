@@ -162,7 +162,7 @@ internal sealed class GalleryNavigation : IDisposable
         var header = Dux.Padding(Dux.Column(new(Spacing : 10, MainAxisSize : UiMainAxisSize.Min),
             Dux.Row(new(Spacing : 10, CrossAxisAlignment : UiCrossAxisAlignment.Center), logo,
                 Dux.Expanded(Dux.Column(new(Spacing : 2, MainAxisSize : UiMainAxisSize.Min),
-                    Fluent.Subtitle2(GalleryText.Get("Duxel 갤러리")), Fluent.Text(GalleryText.Get("컨트롤 · 그래픽 · 문서"))))),
+                    Fluent.Subtitle2(GalleryText.Get("Duxel 갤러리")), Fluent.Caption1(GalleryText.Get("컨트롤 · 그래픽 · 문서"))))),
             counts), new(8));
         _root = Dux.SizedBox(Dux.Column(new(Spacing : 8, CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
             header, Dux.Expanded(scroll)));

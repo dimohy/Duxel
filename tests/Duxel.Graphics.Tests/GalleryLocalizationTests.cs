@@ -36,7 +36,8 @@ internal static class GalleryLocalizationTests
                 using var draw = context.GetDrawData();
             }
             UiAccessibilityNode? Find(string name, UiAccessibilityRole role) => tree.CaptureSnapshot().Elements
-                .Select(element => element.Node).FirstOrDefault(node => node.Name == name && node.Role == role);
+                .Where(element => element.Node.Name == name && element.Node.Role == role)
+                .Select(element => (UiAccessibilityNode?)element.Node).FirstOrDefault();
 
             foreach (var (culture, heading) in new[]
             {
@@ -75,24 +76,39 @@ internal static class GalleryLocalizationTests
 
             Frame();
             check(Find("Overview", UiAccessibilityRole.Pane) is not null, "Gallery prefers saved English to the Japanese system language");
+            var settingsButton = Find("Settings", UiAccessibilityRole.Button)
+                ?? throw new InvalidOperationException("The settings gear was not published.");
+            check(settingsButton.Bounds.Width <= settingsButton.Bounds.Height + 1f,
+                "Gallery settings uses a square icon button with a localized accessible name");
             Invoke("Feature index", UiAccessibilityRole.Link);
             Invoke("DataGrid");
             check(Find("DataGrid", UiAccessibilityRole.Pane) is not null, "Feature index opens the live DataGrid route");
 
-            foreach (var (settings, choice, next, language) in new[]
+            Invoke("Button", UiAccessibilityRole.Link);
+            foreach (var (settings, choice, next, language, description, increment, count, codeView) in new[]
             {
-                ("Settings", "日本語", "設定", "ja"),
-                ("設定", "简体中文", "设置", "zh-Hans"),
-                ("设置", "한국어", "설정", "ko"),
-                ("설정", "English", "Settings", "en")
+                ("Settings", "日本語", "設定", "ja", "ボタンを押してクリック数を増やせます。", "カウントを増やす", "クリック数：", "C# サンプルソース"),
+                ("設定", "简体中文", "设置", "zh-Hans", "按下按钮增加点击次数。", "增加计数", "点击次数：", "C# 示例代码"),
+                ("设置", "한국어", "설정", "ko", "버튼을 눌러 클릭 횟수를 늘려 보세요.", "카운터 증가", "클릭 횟수 : ", "C# 예제 소스"),
+                ("설정", "English", "Settings", "en", "Press the button to increase the click count.", "Increase count", "Click count: ", "C# example source")
             })
             {
                 Invoke(settings);
                 Invoke(choice);
                 check(Find(next, UiAccessibilityRole.Button) is not null && File.ReadAllText(path) == language,
                     "Gallery settings apply and save " + language);
-                check(Find("DataGrid", UiAccessibilityRole.Pane) is not null,
+                check(Find("Button", UiAccessibilityRole.Pane) is not null,
                     "Gallery retains the selected page after switching to " + language);
+                check(tree.CaptureSnapshot().Elements.Any(element => element.Node.Name == description),
+                    "Gallery localizes the Button description in " + language);
+                Invoke(increment);
+                var source = Find(codeView, UiAccessibilityRole.Edit)?.Value;
+                check(source is not null
+                    && source.Contains("var clicks = new UiState<int>(1);", StringComparison.Ordinal)
+                    && source.Contains("Fluent.Button(" + GallerySample.String(increment), StringComparison.Ordinal)
+                    && source.Contains(GallerySample.String(count), StringComparison.Ordinal)
+                    && !source.Contains("GalleryText.Get", StringComparison.Ordinal),
+                    "Gallery source and working example use the same localized strings in " + language);
             }
 
             Invoke("Settings");
@@ -106,6 +122,37 @@ internal static class GalleryLocalizationTests
         {
             CultureInfo.CurrentUICulture = systemLanguage;
             File.Delete(path);
+        }
+    }
+
+    internal static void CaptureOverview(string output, Action<bool, string> check)
+    {
+        using var locale = GalleryText.Use(GalleryLanguage.English);
+        using var fixture = new PresentationReuseTests.Fixture(1, true, PresentationTestPlatform.Create(1280, 900));
+        using var tree = new UiAccessibilityTree();
+        using var screen = new ObserverScreen(ObserverServices.CreateWindows(), language : GalleryLanguage.English,
+            requestLanguage : _ => { }) { FreezeDiagnosticText = true };
+        var font = GalleryText.ConfigureFonts(new());
+        fixture.Context.SetDirectTextSecondaryFontPath(font.SecondaryFontPath);
+        fixture.Context.SetTypographyFonts(font.Typography);
+        fixture.Context.SetAccessibilityTree(tree);
+        foreach (var (name, theme) in new[]
+        {
+            ("dark", UiCompiledDesign.Windows11Dark.Theme), ("light", UiCompiledDesign.Windows11.Theme)
+        })
+        {
+            fixture.Context.SetTheme(theme);
+            var pixels = fixture.Capture(ui =>
+            {
+                ui.GetWindowDrawList().AddRectFilled(new(0, 0, 1280, 900), theme.WindowBg, ui.WhiteTextureId);
+                screen.Render(ui);
+            });
+            BrowserPng.Write(Path.Combine(output, "gallery-overview-" + name + ".png"), 1280, 900, pixels);
+            var nodes = tree.CaptureSnapshot().Elements.Select(element => element.Node).ToArray();
+            check(nodes.Any(node => node.Name == "Feature index" && node.Role == UiAccessibilityRole.Button && !node.Offscreen)
+                && nodes.Any(node => node.Name == "Explore Button" && !node.Offscreen)
+                && nodes.Any(node => node.Name == "Explore Markdown" && !node.Offscreen),
+                "Gallery overview presents the feature index and example cards in " + name);
         }
     }
 }

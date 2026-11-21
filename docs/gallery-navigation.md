@@ -6,7 +6,7 @@ Run `./run-gallery.ps1` on Windows, or `./run-gallery-linux.ps1` with the existi
 
 ## Gallery language
 
-Open **Settings → Gallery language**, choose **English**, **Korean**, **Japanese**, or **Simplified Chinese**. The change applies immediately. The Gallery starts in the matching system language on first launch and uses English for other system languages. It saves the choice independently of the system language.
+Open the **Settings** gear, then choose **Gallery language**, choose **English**, **Korean**, **Japanese**, or **Simplified Chinese**. The change applies immediately. The Gallery starts in the matching system language on first launch and uses English for other system languages. It saves the choice independently of the system language.
 
 The interface redraws with the selected language while staying on the same destination. The current theme and toolbar preferences carry over. Interactive example state is recreated when switching languages. Fluent component names stay recognizable as C# API names. The embedded Gallery catalog contains the localized interface strings and is shared by the Windows and Linux hosts.
 
@@ -34,7 +34,7 @@ The catalog checks the exact culture followed by its parent cultures. The source
 | System integration | Open, save, and folder-selection dialogs. |
 | Development tools | Rendering, repaint regions, retained measurements, and the immediate-mode API examples. |
 
-The feature index reads the same routes as the sidebar. It marks planned Fluent components and also lists the available Fluent factories by example. Rendering, transforms, text input, and other APIs share examples when they are used together.
+The Overview starts with a feature-index action, followed by cards that open representative controls, graphics, and document examples. The feature index reads the same routes as the sidebar. It marks planned Fluent components and also lists the available Fluent factories by example. Rendering, transforms, text input, and other APIs share examples when they are used together.
 
 The fixed sidebar header contains the gallery title and component/missing counts. The **Light theme** switch belongs to the fixed right-hand toolbar alongside statistics, V-Sync, event-wait and repaint highlighting. Off selects dark; on selects light. The menu and page content scroll independently; very narrow toolbars scroll horizontally.
 
