@@ -16,11 +16,11 @@ internal sealed class ProgressIndicatorPage : IObserverPage, IObserverNaturalPag
         internal List<IGallerySample> Samples { get; } = [];
         internal UiWidget Root { get; }
         internal Content() => Root = Dux.Column(new(Spacing : 20, MainAxisSize : UiMainAxisSize.Min),
-            Example("파일 업로드", .25f, "선택한 파일을 서버로 보내고 있습니다."),
-            Example("서버 연결", null, "서버의 응답을 기다립니다. 진행 막대를 숨겨도 작업 이름과 이 설명은 유지됩니다."));
+            Example(GalleryText.Get("File upload"), .25f, GalleryText.Get("Sending the selected file to the server.")),
+            Example(GalleryText.Get("Server connection"), null, GalleryText.Get("Waiting for the server to respond. The task name and description stay visible when the bar is hidden.")));
         private UiWidget Example(string label, float? value, string description)
         {
-            var options = new UiProgressIndicatorOptions(label, description, value, Width : 360, ValueText : "처리 중");
+            var options = new UiProgressIndicatorOptions(label, description, value, Width : 360, ValueText : GalleryText.Get("Processing"));
             var sample = GallerySample.Create(() => Fluent.ProgressIndicator(options));
             var preview = sample.Preview;
             var factory = sample.Source;
@@ -35,13 +35,13 @@ internal sealed class ProgressIndicatorPage : IObserverPage, IObserverNaturalPag
             Samples.Add(sample);
             return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
                 Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                    Fluent.Button(label + " 진행률 증가", () => preview.Options = preview.Options with
+                    Fluent.Button(GalleryText.Format("Increase progress for {0}", label), () => preview.Options = preview.Options with
                     { PercentComplete = ((preview.Options.PercentComplete ?? 0) + .25f) % 1.25f }),
-                    Fluent.Button(label + " 대기 전환", () => preview.Options = preview.Options with
+                    Fluent.Button(GalleryText.Format("Toggle waiting for {0}", label), () => preview.Options = preview.Options with
                     { PercentComplete = preview.Options.PercentComplete is null ? .5f : null }),
-                    Fluent.Button(label + " 막대 표시 전환", () => preview.Options = preview.Options with
+                    Fluent.Button(GalleryText.Format("Toggle progress bar for {0}", label), () => preview.Options = preview.Options with
                     { ProgressHidden = !preview.Options.ProgressHidden }),
-                    Fluent.Button(label + " 모션 줄이기 전환", () => preview.Options = preview.Options with
+                    Fluent.Button(GalleryText.Format("Toggle reduced motion for {0}", label), () => preview.Options = preview.Options with
                     { ReducedMotion = !preview.Options.ReducedMotion })), sample);
         }
     }
