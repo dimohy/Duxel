@@ -66,6 +66,8 @@ internal static class GalleryLocalizationTests
 
         VerifyNavigationAndSelection(check);
 
+        VerifyInputExampleSources(check);
+
         var systemLanguage = CultureInfo.CurrentUICulture;
         var path = Path.GetTempFileName();
         try
@@ -295,6 +297,36 @@ internal static class GalleryLocalizationTests
                 && !source.Contains("GalleryText.", StringComparison.Ordinal)
                 && (language == GalleryLanguage.Korean || !ContainsHangul(source)),
                 page + " exposes the localized example data in its C# source in " + language);
+        }
+    }
+
+    private static void VerifyInputExampleSources(Action<bool, string> check)
+    {
+        foreach (var (language, query, clear, quantity, weight, email, hint) in new[]
+        {
+            (GalleryLanguage.English, "Search query", "Clear search query", "Increase quantity", "Weight (kg)", "Email", "Example: name@example.com"),
+            (GalleryLanguage.Korean, "검색어", "검색어 지우기", "수량 늘리기", "무게 (kg)", "이메일", "예: name@example.com"),
+            (GalleryLanguage.Japanese, "検索語", "検索語を消去", "数量を増やす", "重量 (kg)", "メールアドレス", "例：name@example.com"),
+            (GalleryLanguage.SimplifiedChinese, "搜索词", "清除搜索词", "增加数量", "重量（kg）", "电子邮箱", "例如：name@example.com")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            using var search = new SearchBoxPage();
+            using var number = new SpinButtonPage();
+            using var field = new TextFieldPage();
+            Check(search.Samples, query, clear, "SearchBox");
+            Check(number.Samples, quantity, weight, "SpinButton");
+            Check(field.Samples, email, hint, "TextField");
+
+            void Check(IEnumerable<IGallerySample> samples, string name, string label, string page)
+            {
+                var source = string.Join("\n", samples.Select(sample => sample.Source));
+                check(source.Contains(GallerySample.String(name), StringComparison.Ordinal)
+                    && source.Contains(GallerySample.String(label), StringComparison.Ordinal)
+                    && !source.Contains("GalleryText.", StringComparison.Ordinal)
+                    && (language == GalleryLanguage.Korean || !ContainsHangul(source)),
+                    page + " copies localized input and accessibility labels in " + language);
+            }
         }
     }
 
