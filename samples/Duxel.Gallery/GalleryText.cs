@@ -48,13 +48,23 @@ internal static class GalleryText
         _ => throw new ArgumentException("Unknown Gallery language: " + tag, nameof(tag))
     };
 
-    internal static GalleryLanguage FromSystemCulture(CultureInfo culture) => culture.TwoLetterISOLanguageName switch
+    internal static GalleryLanguage FromSystemCulture(CultureInfo culture)
     {
-        "ko" => GalleryLanguage.Korean,
-        "ja" => GalleryLanguage.Japanese,
-        "zh" => GalleryLanguage.SimplifiedChinese,
-        _ => GalleryLanguage.English
-    };
+        if (culture.TwoLetterISOLanguageName == "zh")
+        {
+            for (var current = culture; current.Name.Length != 0; current = current.Parent)
+                if (current.Name == "zh-Hant")
+                    return GalleryLanguage.English;
+            return GalleryLanguage.SimplifiedChinese;
+        }
+
+        return culture.TwoLetterISOLanguageName switch
+        {
+            "ko" => GalleryLanguage.Korean,
+            "ja" => GalleryLanguage.Japanese,
+            _ => GalleryLanguage.English
+        };
+    }
 
     internal static string Get(string text) => Catalog.GetText(text, Cultures[(int)_language]);
 

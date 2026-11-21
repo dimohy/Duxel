@@ -150,31 +150,35 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
         {
             var current = GalleryText.Tag(language);
             var error = new UiState<string>(string.Empty);
-            var choices = GalleryText.LanguageOptions.Select(option => (UiWidget)Fluent.Button(option.Text, () =>
+            var selected = new UiState<string?>(current);
+            var languageLabel = GalleryText.Get("갤러리 언어");
+            var choices = GalleryText.LanguageOptions
+                .Select(option => new UiRadioOption(option.Value, option.Text)).ToArray();
+            var apply = Fluent.Button(GalleryText.Get("적용"), () =>
             {
                 try
                 {
-                    requestLanguage(GalleryText.FromTag(option.Value));
+                    if (selected.Value is { } tag)
+                        requestLanguage(GalleryText.FromTag(tag));
                     _settings!.Close();
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                 {
                     error.Value = GalleryText.Get("언어 설정을 저장할 수 없습니다.");
                 }
-            })).ToArray();
+            });
             _settings = Fluent.Dialog(GalleryText.Get("설정"),
                 Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
-                    Fluent.Subtitle2(GalleryText.Get("갤러리 언어")),
-                    Fluent.Body1(GalleryText.Format("현재 언어: {0}", GalleryText.LanguageOptions.Single(option => option.Value == current).Text)),
-                    Dux.Wrap(new(Spacing : 8, RunSpacing : 8), choices),
+                    Fluent.RadioGroup(languageLabel, selected.Binding, choices),
                     Fluent.Caption1(() => error.Value)),
-                [Fluent.Button(GalleryText.Get("닫기"), () => _settings!.Close())],
+                [apply, Fluent.Button(GalleryText.Get("취소"), () => _settings!.Close())],
                 new(Width : 410, CloseLabel : GalleryText.Get("닫기")));
             var settingsLabel = GalleryText.Get("설정");
             var settingsButton = new UiButton<UiReleaseButtonBehavior,
                 UiFluentIconButtonPresentation<UiFluentMediumButtonIconSize, UiFluentSubtleButtonAppearance,
                     SettingsTabIcon, UiButtonIconBefore>>(string.Empty, () =>
                 {
+                    selected.Value = current;
                     error.Value = string.Empty;
                     _settings.Show();
                 })

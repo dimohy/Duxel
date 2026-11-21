@@ -6,7 +6,7 @@ Run `./run-gallery.ps1` on Windows, or `./run-gallery-linux.ps1` with the existi
 
 ## Gallery language
 
-Open the **Settings** gear, then choose **Gallery language**, choose **English**, **Korean**, **Japanese**, or **Simplified Chinese**. The change applies immediately. The Gallery starts in the matching system language on first launch and uses English for other system languages. It saves the choice independently of the system language.
+Open the **Settings** gear, then select **English**, **Korean**, **Japanese**, or **Simplified Chinese**. Select **Apply** to switch languages, or **Cancel** to keep the current language. The selected radio button marks the current language when Settings opens. The Gallery starts in the matching system language on first launch and uses English for unsupported system languages, including Traditional Chinese. It saves the choice independently of the system language.
 
 The interface redraws with the selected language while staying on the same destination. The current theme and toolbar preferences carry over. Interactive example state is recreated when switching languages. Fluent component names stay recognizable as C# API names. The embedded Gallery catalog contains the localized interface strings and is shared by the Windows and Linux hosts.
 
