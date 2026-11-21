@@ -87,7 +87,7 @@ internal static class CalendarRenderingTests
                 fixture.Capture(Draw);
                 var pixels = fixture.Capture(Draw);
                 fixture.WriteCapturePng(Path.Combine(output, "gallery-" + route + ".png"), pixels);
-                check(gallery.SelectedNavigationLabel == route
+                check(gallery.SelectedNavigationLabel == GalleryText.PageTitle(route)
                     && tree.CaptureSnapshot().Elements.Any(item => item.Node.Role == UiAccessibilityRole.Grid),
                     "actual Gallery route " + route + " displays its implemented date grid");
             }

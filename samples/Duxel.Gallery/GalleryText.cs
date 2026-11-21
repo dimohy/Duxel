@@ -68,6 +68,15 @@ internal static class GalleryText
         };
     }
 
+    internal static string RegionalCultureName => _language switch
+    {
+        GalleryLanguage.English => "en-US",
+        GalleryLanguage.Korean => "ko-KR",
+        GalleryLanguage.Japanese => "ja-JP",
+        GalleryLanguage.SimplifiedChinese => "zh-CN",
+        _ => throw new ArgumentOutOfRangeException(nameof(_language))
+    };
+
     internal static string Get(string english) => Catalog.GetText(english, Cultures[(int)_language]);
 
     // Page identifiers predate localization and remain stable for navigation and source lookup.

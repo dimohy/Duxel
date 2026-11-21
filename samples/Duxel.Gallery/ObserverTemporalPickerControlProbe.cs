@@ -47,7 +47,7 @@ internal sealed class ObserverTemporalPickerControlProbe
         switch (_stage)
         {
             case Stage.OpenDate:
-                if (Invoke(UiAccessibilityRole.Button, "날짜 선택")) _stage = Stage.OpenMonth;
+                if (Invoke(UiAccessibilityRole.Button, _date!.Options.Labels!.ChooseDate)) _stage = Stage.OpenMonth;
                 break;
             case Stage.OpenMonth:
                 var monthCalendar = _date!.Calendar;
@@ -57,7 +57,7 @@ internal sealed class ObserverTemporalPickerControlProbe
                 break;
             case Stage.SelectMonth:
                 var month = elements.SingleOrDefault(element => element.Node.Role == UiAccessibilityRole.ListBox
-                    && element.Node.Name == "월 선택" && !element.Node.Offscreen);
+                    && element.Node.Name == _date!.Calendar.Options.Labels!.ChooseMonth && !element.Node.Offscreen);
                 if (month.Node.Id is null) break;
                 var options = elements.Where(element => element.Node.Role == UiAccessibilityRole.Option
                     && element.Node.ParentId == month.Node.Id && !element.Node.Offscreen).OrderBy(element => element.Node.Bounds.Y).ToArray();
@@ -74,17 +74,17 @@ internal sealed class ObserverTemporalPickerControlProbe
                 break;
             case Stage.OpenTime:
                 if (_date is { IsOpen: true }) break;
-                if (Invoke(UiAccessibilityRole.Button, "시각 선택")) _stage = Stage.SelectMinute;
+                if (Invoke(UiAccessibilityRole.Button, _time!.Options.Labels!.ChooseTime)) _stage = Stage.SelectMinute;
                 break;
             case Stage.SelectMinute:
                 var minutes = elements.SingleOrDefault(element => element.Node.Role == UiAccessibilityRole.ListBox
-                    && element.Node.Name == "분" && !element.Node.Offscreen);
+                    && element.Node.Name == _time!.Options.Labels!.Minute && !element.Node.Offscreen);
                 if (!_time!.IsOpen || minutes.Node.Id is null) break;
                 var label = new UiIntegerWheelSequence(0, 59, _time.Options.Culture).Format(TargetTime.Minute);
                 if (Invoke(UiAccessibilityRole.Option, label, minutes.Node.Id)) _stage = Stage.CloseTime;
                 break;
             case Stage.CloseTime:
-                if (_time!.Value.Value == TargetTime && Invoke(UiAccessibilityRole.Button, "확인")) _stage = Stage.Done;
+                if (_time!.Value.Value == TargetTime && Invoke(UiAccessibilityRole.Button, _time.Options.Labels!.Done)) _stage = Stage.Done;
                 break;
         }
     }
