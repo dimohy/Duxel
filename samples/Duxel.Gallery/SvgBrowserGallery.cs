@@ -29,7 +29,7 @@ internal sealed class SvgBrowserGallery : IDisposable
     {
         var _store = store;
         var _decoder = decoder;
-        var backgroundDefinition = GallerySample.Define("backgroundSwitch", () => Fluent.Switch("흰색 배경을 SVG에 포함", new UiBinding<bool>(() => _includeBackground, value => _includeBackground = value)));
+        var backgroundDefinition = GallerySample.Define("backgroundSwitch", () => Fluent.Switch(GalleryText.Get("Include the white background in the SVG"), new UiBinding<bool>(() => _includeBackground, value => _includeBackground = value)));
         _backgroundSwitch = backgroundDefinition.Value;
         var declarations = GalleryPageSource.Declaration(nameof(SvgBrowserPair)) + "\n\n" + GalleryPageSource.Declaration(nameof(SvgBrowserReference));
         var directory = Path.Combine(AppContext.BaseDirectory, "Assets", "Svg", "Browser");
@@ -40,41 +40,41 @@ internal sealed class SvgBrowserGallery : IDisposable
         _entries = group switch
         {
             "ArcGeometry" => [
-                Create("arc-circle", "원형 호 · 배경 합성 비교", new(64, 64)),
-                Create("arc-ellipse", "타원 호 · 배경 합성 비교", new(64, 64)),
-                Create("arc-transformed", "변환된 타원 호 · 배경 합성 비교", new(64, 64)),
-                Create("arc-rotated", "회전된 호 · 배경 합성 비교", new(64, 64)),
-                Create("control-cubic", "Cubic 대조군 · 배경 합성 비교", new(64, 64)),
-                Create("control-rectangle", "직선 대조군", new(64, 64))
+                Create("arc-circle", GalleryText.Get("Circular arc with background compositing"), new(64, 64)),
+                Create("arc-ellipse", GalleryText.Get("Elliptical arc with background compositing"), new(64, 64)),
+                Create("arc-transformed", GalleryText.Get("Transformed ellipse arc with background compositing"), new(64, 64)),
+                Create("arc-rotated", GalleryText.Get("Rotated arc with background compositing"), new(64, 64)),
+                Create("control-cubic", GalleryText.Get("Cubic curve control with background compositing"), new(64, 64)),
+                Create("control-rectangle", GalleryText.Get("Straight line control"), new(64, 64))
             ],
             "StrokeDomains" => [
-                Create("thin", "얇은 테두리 · 보정 중", new(64, 64)),
-                Create("thick", "중앙이 채워지는 두꺼운 테두리", new(64, 64)),
-                Create("reflected", "반사된 테두리", new(64, 64)),
-                Create("scaled", "비균등 배율 · 미세 차이 검증 중", new(64, 64)),
-                Create("opaque", "불투명 테두리", new(64, 64))
+                Create("thin", GalleryText.Get("Thin stroke, calibration in progress"), new(64, 64)),
+                Create("thick", GalleryText.Get("Thick stroke that fills the center"), new(64, 64)),
+                Create("reflected", GalleryText.Get("Reflected stroke"), new(64, 64)),
+                Create("scaled", GalleryText.Get("Nonuniform scale, fine differences under review"), new(64, 64)),
+                Create("opaque", GalleryText.Get("Opaque stroke"), new(64, 64))
             ],
             "LayerOrigin" => [
-                Create("base", "채우기·테두리 · 폭 8", new(64, 64)),
-            Create("stroke4", "채우기·테두리 · 폭 4", new(64, 64)),
-            Create("stroke6", "채우기·테두리 · 폭 6", new(64, 64)),
-            Create("translated", "이동된 반투명 레이어", new(64, 64)),
-            Create("fractional", "분수 좌표 · 분석적 테두리 커버리지", new(64, 64))
+                Create("base", GalleryText.Get("Fill and stroke, width 8"), new(64, 64)),
+            Create("stroke4", GalleryText.Get("Fill and stroke, width 4"), new(64, 64)),
+            Create("stroke6", GalleryText.Get("Fill and stroke, width 6"), new(64, 64)),
+            Create("translated", GalleryText.Get("Translated translucent layer"), new(64, 64)),
+            Create("fractional", GalleryText.Get("Fractional coordinates and analytical stroke coverage"), new(64, 64))
             ],
             "ClipStorage" => [
-                Create("base", "기본 클립·반투명", new(64, 64)),
-            Create("source-translated", "이동된 소스 · 그룹 불투명도·클립", new(64, 64)),
-            Create("clip-translated", "이동된 클립", new(64, 64)),
-            Create("clip-reflected", "반사된 클립", new(64, 64)),
-            Create("subject-inside", "클립 안의 사각형", new(64, 64)),
-            Create("near-edge", "서브픽셀 경계", new(64, 64)),
-            Create("transformed-no-clip", "변환·반투명 저장", new(64, 64)),
-            Create("opaque-rect", "불투명 모서리", new(64, 64)),
-            Create("partial-rect", "반투명 모서리", new(64, 64))
+                Create("base", GalleryText.Get("Basic clipping and translucency"), new(64, 64)),
+            Create("source-translated", GalleryText.Get("Translated source with group opacity and clip"), new(64, 64)),
+            Create("clip-translated", GalleryText.Get("Translated clip"), new(64, 64)),
+            Create("clip-reflected", GalleryText.Get("Reflected clip"), new(64, 64)),
+            Create("subject-inside", GalleryText.Get("Rectangle inside the clip"), new(64, 64)),
+            Create("near-edge", GalleryText.Get("Subpixel edge"), new(64, 64)),
+            Create("transformed-no-clip", GalleryText.Get("Transform and translucency without clipping"), new(64, 64)),
+            Create("opaque-rect", GalleryText.Get("Opaque edge"), new(64, 64)),
+            Create("partial-rect", GalleryText.Get("Translucent edge"), new(64, 64))
             ],
             "" => [
-                Create("Red_Gallardo", "빨간 Gallardo · 경로 251 / 그라데이션 279 / 패턴 17 / Gaussian blur", new(382, 186)),
-            Create("TheStructorr_Lamborghini_Gallardo", "노란 Gallardo · 경로 132 / 그라데이션 113 / 패턴 3", new(384, 150))
+                Create("Red_Gallardo", GalleryText.Get("Red Gallardo: 251 paths, 279 gradients, 17 patterns, and Gaussian blur"), new(382, 186)),
+            Create("TheStructorr_Lamborghini_Gallardo", GalleryText.Get("Yellow Gallardo: 132 paths, 113 gradients, and 3 patterns"), new(384, 150))
             ],
             _ => throw new ArgumentOutOfRangeException(nameof(group))
         };
@@ -128,8 +128,8 @@ internal sealed class SvgBrowserGallery : IDisposable
         bool synchronizeSource, bool useFixedResolutionPreview, bool highResolution = true)
     {
         _highResolution = highResolution;
-        ui.TextWrapped("왼쪽은 Chromium 기준 이미지, 오른쪽은 GPU에서 그린 SVG입니다. 위의 조절기로 확대·회전하거나 여백과 모서리를 바꿔 보세요.");
-        ui.TextWrapped("외곽선·미세 패턴의 픽셀 차이는 검증 중입니다. 원본·저작자·라이선스 : Assets/Svg/Browser/ATTRIBUTION.md");
+        ui.TextWrapped(GalleryText.Get("The Chromium reference is on the left. The GPU-rendered SVG is on the right. Use the controls above to zoom, rotate, and change margins or corners."));
+        ui.TextWrapped(GalleryText.Get("Pixel differences along outlines and fine patterns are under review. Sources, authors, and licenses are listed in Assets/Svg/Browser/ATTRIBUTION.md."));
         _backgroundSwitch.Render(ui);
         FirstPairBounds = null;
         var sources = SourceUpdateRange(ui, synchronizeSource, (zoom, rotationDegrees, margin, cornerRadius, _includeBackground, highResolution));
@@ -143,7 +143,7 @@ internal sealed class SvgBrowserGallery : IDisposable
             entry.Vector.UseFixedResolutionPreview = useFixedResolutionPreview;
             ui.Text(entry.Label);
             var measured = entry.Vector.MeasureConstrained(ui, new UiBoxConstraints());
-            SvgTelemetryText.Show(ui, $"SVG 배치 : {measured.X:F1} × {measured.Y:F1} px (변환·여백 포함)", synchronizeSource);
+            SvgTelemetryText.Show(ui, GalleryText.Format("SVG layout: {0:F1} × {1:F1} px (including transforms and margins)", measured.X, measured.Y), synchronizeSource);
             if (index >= sources.Start && index < sources.End)
                 entry.Sample.SynchronizeSource();
             ui.RenderNaturalHeight(entry.Sample);

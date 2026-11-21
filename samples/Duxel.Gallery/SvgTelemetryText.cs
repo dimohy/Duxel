@@ -5,8 +5,6 @@ namespace Duxel.Gallery;
 internal readonly struct SvgTelemetryText : IUiTextPresentation
 {
     private static readonly string[] Digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
-    private const string TransformMetrics = "확대 : 0123456789% / 회전 : 0123456789° / 왼쪽 여백 : 0123456789px";
-    private const string PlacementMetrics = "SVG 배치 : 0123456789.0 × 0123456789.0 px (변환·여백 포함)";
 
     internal static void Show(UiImmediateContext ui, string text, bool settled)
     {
@@ -36,11 +34,12 @@ internal readonly struct SvgTelemetryText : IUiTextPresentation
     public static UiVector2 Measure(UiControlContext context, string text)
     {
         var width = 0f;
-        var metrics = text.StartsWith("SVG 배치", StringComparison.Ordinal) ? PlacementMetrics : TransformMetrics;
-        var height = context.MeasureText(metrics).Y;
+        var height = 0f;
         for (var offset = 0; offset < text.Length;)
         {
-            width += context.MeasureText(ReadFragment(text, ref offset)).X;
+            var size = context.MeasureText(ReadFragment(text, ref offset));
+            width += size.X;
+            height = MathF.Max(height, size.Y);
         }
         return new(width, height);
     }
