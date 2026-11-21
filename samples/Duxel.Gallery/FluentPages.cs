@@ -200,34 +200,40 @@ internal sealed class TypographyPage : UiWidget, IGallerySourcePage
         var directionSample = GallerySample.Create(() => Dux.SizedBox(new UiInlineText([
             new("abc אב ", UiInlineTextWeight.Bold), new("גד regular 123 / بِت لا 123")]), width: 240));
         _directionExample = (UiInlineText)directionSample.Preview.Child!;
-        var rotatedTitle = Fluent.MessageBarTitle("회전 제목");
+        var directionFactory = directionSample.Source;
+        directionSample.BindSource(() => _rightToLeft.Value, rtl => directionFactory
+            + $"\n((UiInlineText)((UiSizedBox)example).Child!).RightToLeft = {GallerySample.Boolean(rtl)};");
+        var rotatedTitle = Fluent.MessageBarTitle(GalleryText.Get("Rotated title"));
         rotatedTitle.Margin = new(4);
         rotatedTitle.Transform = new(RotationDegrees: 15);
-        var ownedSample = GallerySample.Create(() => Dux.SizedBox(Fluent.MessageBarBody("abc אב גד 123 / 한글과 بِت لا ", rotatedTitle,
-            Fluent.Link("동작하는 링크", new Uri("https://github.com/dimohy/Duxel"), UiLinkNavigation.OpenExternal)), width: 320),
-            setup: "var rotatedTitle = Fluent.MessageBarTitle(\"회전 제목\");\nrotatedTitle.Margin = new(4);\nrotatedTitle.Transform = new(RotationDegrees: 15);");
+        var ownedSample = GallerySample.Create(() => Dux.SizedBox(Fluent.MessageBarBody(GalleryText.Get("abc אב גד 123 / text and بِت لا"), rotatedTitle,
+            Fluent.Link(GalleryText.Get("Live link"), new Uri("https://github.com/dimohy/Duxel"), UiLinkNavigation.OpenExternal)), width: 320),
+            setup: "var rotatedTitle = Fluent.MessageBarTitle(" + GallerySample.String(GalleryText.Get("Rotated title")) + ");\nrotatedTitle.Margin = new(4);\nrotatedTitle.Transform = new(RotationDegrees: 15);");
         _ownedDirectionExample = (UiMessageBarBodyWidget)ownedSample.Preview.Child!;
+        var ownedFactory = ownedSample.Source;
+        ownedSample.BindSource(() => _rightToLeft.Value, rtl => ownedFactory
+            + $"\n((UiMessageBarBodyWidget)((UiSizedBox)example).Child!).RightToLeft = {GallerySample.Boolean(rtl)};");
         return
         Dux.Column(new(Spacing: 12, MainAxisSize: UiMainAxisSize.Min),
             Record(GallerySample.Create(() => Fluent.Display("Display"))), Record(GallerySample.Create(() => Fluent.LargeTitle("LargeTitle"))),
             Record(GallerySample.Create(() => Fluent.Title1("Title1"))), Record(GallerySample.Create(() => Fluent.Title2("Title2"))), Record(GallerySample.Create(() => Fluent.Title3("Title3"))),
             Record(GallerySample.Create(() => Fluent.Subtitle1("Subtitle1"))), Record(GallerySample.Create(() => Fluent.Subtitle2("Subtitle2"))), Record(GallerySample.Create(() => Fluent.Subtitle2Stronger("Subtitle2Stronger"))),
-            Record(GallerySample.Create(() => Fluent.Body2("Body2 : 본문과 English 123"))), Record(GallerySample.Create(() => Fluent.Body1("Body1 : 본문과 English 123"))),
+            Record(GallerySample.Create(() => Fluent.Body2(GalleryText.Get("Body2: sample text with English 123")))), Record(GallerySample.Create(() => Fluent.Body1(GalleryText.Get("Body1: sample text with English 123")))),
             Record(GallerySample.Create(() => Fluent.Body1Strong("Body1Strong"))), Record(GallerySample.Create(() => Fluent.Body1Stronger("Body1Stronger"))),
             Record(GallerySample.Create(() => Fluent.Caption1("Caption1"))), Record(GallerySample.Create(() => Fluent.Caption1Strong("Caption1Strong"))), Record(GallerySample.Create(() => Fluent.Caption1Stronger("Caption1Stronger"))),
-            Record(GallerySample.Create(() => Fluent.Caption2("Caption2"))), Record(GallerySample.Create(() => Fluent.Caption2Strong("Caption2Strong"))), Record(GallerySample.Create(() => Fluent.Text("Text : 기본 Body1 표현"))),
-            Fluent.Subtitle1("혼합 굵기 문단"),
-            Fluent.Caption1("한 문단 안에서 글자 굵기와 글꼴을 바꾸고 줄바꿈되는 모습을 확인해 보세요. Windows와 Linux 모두 운영체제에서 조판한 결과를 사용합니다."),
+            Record(GallerySample.Create(() => Fluent.Caption2("Caption2"))), Record(GallerySample.Create(() => Fluent.Caption2Strong("Caption2Strong"))), Record(GallerySample.Create(() => Fluent.Text(GalleryText.Get("Text: default Body1 style")))),
+            Fluent.Subtitle1(GalleryText.Get("Paragraph with mixed weights")),
+            Fluent.Caption1(GalleryText.Get("Change font weight and typeface in a paragraph and see how it wraps. Windows and Linux both use the operating system's typesetting.")),
             Record(GallerySample.Create(() => Dux.SizedBox(new UiInlineText([
-                new("한글 제목 ", UiInlineTextWeight.Semibold), new("본문과 English, AV office e\u0301를 함께 표시합니다.")]), width: 420))),
-            Fluent.Switch("오른쪽에서 왼쪽 문단", _rightToLeft.Binding),
+                new(GalleryText.Get("Sample heading") + " ", UiInlineTextWeight.Semibold), new(GalleryText.Get("Sample body with English, AV office é."))]), width: 420))),
+            Fluent.Switch(GalleryText.Get("Right-to-left paragraph"), _rightToLeft.Binding),
             Record(directionSample),
             Record(GallerySample.Create(() => Dux.SizedBox(new UiInlineText([
-                new("A \u202Bאב 정 ", UiInlineTextWeight.Semibold), new("גד\u202C Z / 명시적 방향 문맥")]), width: 240))),
-            Fluent.Subtitle1("위젯을 포함한 문단"),
-            Fluent.Caption1("위 스위치를 바꾸면 문단 안의 위젯도 방향이 바뀝니다. 회전한 제목과 링크는 각각 별도의 위젯입니다."),
+                new("A \u202Bאב " + GalleryText.Get("Bidi sample character") + " ", UiInlineTextWeight.Semibold), new("גד\u202C Z / " + GalleryText.Get("Explicit directional context"))]), width: 240))),
+            Fluent.Subtitle1(GalleryText.Get("Paragraph with widgets")),
+            Fluent.Caption1(GalleryText.Get("The switch above also changes the direction of inline widgets. The rotated title and link are separate widgets.")),
             Record(ownedSample),
-            Record(GallerySample.Create(() => Dux.SizedBox(Fluent.MessageBarBody("גד regular 123 / 한글과 بِت لا",
+            Record(GallerySample.Create(() => Dux.SizedBox(Fluent.MessageBarBody(GalleryText.Get("גד regular 123 / text and بِت لا"),
                 Fluent.MessageBarTitle("abc אב")), width: 240))));
     }
 }

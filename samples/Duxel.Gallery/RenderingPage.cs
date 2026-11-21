@@ -39,7 +39,7 @@ internal sealed class RenderingPage : IObserverPage, IObserverNaturalPage, IGall
         var textPaint = GallerySample.Define<Action<UiControlContext>>("_projectedTextPaint", () => (UiControlContext paint) =>
         {
             using var textStyle = paint.BeginTypography<UiRegularTypeface, UiFluentType300>();
-            paint.Text("한글 Aa", new(_projectedTextSourceBounds.X + 2, _projectedTextSourceBounds.Y + 2), new(255, 255, 255));
+            paint.Text(GalleryText.Get("Text Aa"), new(_projectedTextSourceBounds.X + 2, _projectedTextSourceBounds.Y + 2), new(255, 255, 255));
         });
         _projectedTextPaint = textPaint.Value;
         var runtimePaint = GallerySample.Define<Action<UiControlContext>>("_runtimePaint", () => (UiControlContext paint) =>
@@ -79,7 +79,7 @@ internal sealed class RenderingPage : IObserverPage, IObserverNaturalPage, IGall
         });
         var renderStatic = staticDraw.Value;
         var staticSample = GallerySample.Create(() => Dux.SizedBox(
-            new UiViewHost(new UiView(renderStatic)) { AccessibleName = "정적 도형 예제" }, width : 1000, height : 180));
+            new UiViewHost(new UiView(renderStatic)) { AccessibleName = GalleryText.Get("Static geometry example") }, width : 1000, height : 180));
         var staticFactory = staticSample.Source;
         staticSample.BindSource(() => (_revision, _circleCutout, _roundedClip), state =>
             Settings(state._revision, state._circleCutout, state._roundedClip)
@@ -115,7 +115,7 @@ internal sealed class RenderingPage : IObserverPage, IObserverNaturalPage, IGall
         });
         var renderProjection = projection.Value;
         var projectedSample = GallerySample.Create(() => Dux.SizedBox(
-            new UiViewHost(new UiView(renderProjection)) { AccessibleName = "3D 투영 예제" }, width : 600, height : 240));
+            new UiViewHost(new UiView(renderProjection)) { AccessibleName = GalleryText.Get("3D projection example") }, width : 600, height : 240));
         var projectedFactory = projectedSample.Source;
         projectedSample.BindSource(() => (_revision, _circleCutout, _roundedClip, _animate), state =>
             "using System.Numerics;\n\n" + Settings(state._revision, state._circleCutout, state._roundedClip)
@@ -136,7 +136,7 @@ internal sealed class RenderingPage : IObserverPage, IObserverNaturalPage, IGall
         });
         var renderCoverage = coverage.Value;
         var coverageSample = GallerySample.Create(() => Dux.SizedBox(
-            new UiViewHost(new UiView(renderCoverage)) { AccessibleName = "참조 합성 예제" }, width : 320, height : 48));
+            new UiViewHost(new UiView(renderCoverage)) { AccessibleName = GalleryText.Get("Reference compositing example") }, width : 320, height : 48));
         var coverageFactory = coverageSample.Source;
         coverageSample.BindSource(() => 0, _ => "using " + backdrop.Source + "\nUiRect BackdropPreviewBounds = default;\n\n"
             + coverage.Source + "\n\n" + coverageFactory);
@@ -150,7 +150,7 @@ internal sealed class RenderingPage : IObserverPage, IObserverNaturalPage, IGall
         });
         var renderRuntime = runtime.Value;
         var runtimeSample = GallerySample.Create(() => Dux.SizedBox(
-            new UiViewHost(new UiView(renderRuntime)) { AccessibleName = "그룹 합성 예제" }, width : 80, height : 48));
+            new UiViewHost(new UiView(renderRuntime)) { AccessibleName = GalleryText.Get("Group compositing example") }, width : 80, height : 48));
         var runtimeFactory = runtimeSample.Source;
         runtimeSample.BindSource(() => _roundedClip, value => $"var _roundedClip = {GallerySample.Boolean(value)};\n"
             + "using " + runtimeGroup.Source + "\nUiRect _runtimeBounds = default;\n\n" + runtimePaint.Source + "\n\n" + runtime.Source + "\n\n" + runtimeFactory);
@@ -166,30 +166,30 @@ internal sealed class RenderingPage : IObserverPage, IObserverNaturalPage, IGall
         });
         var renderText = text.Value;
         var textSample = GallerySample.Create(() => Dux.SizedBox(
-            new UiViewHost(new UiView(renderText)) { AccessibleName = "투영 텍스트 예제" }, width : 84, height : 42));
+            new UiViewHost(new UiView(renderText)) { AccessibleName = GalleryText.Get("Projected text example") }, width : 84, height : 42));
         var textFactory = textSample.Source;
         textSample.BindSource(() => 0, _ => "using " + textGroup.Source
             + "\nUiRect _projectedTextSourceBounds = default, ProjectedTextBounds = default;\n\n"
             + textPaint.Source + "\n\n" + text.Source + "\n\n" + textFactory);
         _opacityMask = new();
         Samples = [staticSample, projectedSample, coverageSample, runtimeSample, textSample, _opacityMask.Sample];
-        var animation = Fluent.Button("애니메이션 : 꺼짐");
+        var animation = Fluent.Button(GalleryText.Format("Animation: {0}", GalleryText.Get("Off")));
         animation.Activated = () =>
         {
             _animate = !_animate;
-            animation.Label = _animate ? "애니메이션 : 켜짐" : "애니메이션 : 꺼짐";
+            animation.Label = GalleryText.Format("Animation: {0}", GalleryText.Get(_animate ? "On" : "Off"));
             _revision++;
         };
-        _cutoutButton = Fluent.Button("원형 잘라내기 : 꺼짐", ToggleCircleCutout);
-        _roundedClipButton = Fluent.Button("둥근 클리핑 : 꺼짐", ToggleRoundedClip);
+        _cutoutButton = Fluent.Button(GalleryText.Format("Circular cutout: {0}", GalleryText.Get("Off")), ToggleCircleCutout);
+        _roundedClipButton = Fluent.Button(GalleryText.Format("Rounded clipping: {0}", GalleryText.Get("Off")), ToggleRoundedClip);
         _root = Dux.ScrollView(Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-            Dux.Wrap(new(Spacing : 16, RunSpacing : 8), Fluent.Button("정적 내용 변경", () => _revision++), animation, _cutoutButton, _roundedClipButton),
-            Fluent.Body1("입력이나 상단 수치가 바뀌어 새 프레임을 그리더라도, 버전이 같으면 이전에 만든 도형 그리기 명령을 재사용합니다. 아래 횟수는 이 명령을 만든 횟수이며, 전체 CPU 작업량이나 GPU 사용량을 뜻하지 않습니다."),
-            Fluent.Body1(() => $"기하 버전 : {_revision} / 정적 그리기 본문 실행 : {_staticBuilds}"), staticSample,
-            Fluent.Subtitle2("독립 뷰포트의 3D 투영"), projectedSample,
-            Fluent.Body1("글자 가장자리의 RGB 커버리지 합성을 비교합니다. 검정·흰색 기준 이미지에 불투명도 0 / 0.5 / 1을 한 번씩 적용합니다."), coverageSample,
-            Fluent.Body1("실제 겹친 도형을 GPU로 캡처해 불투명도 0.8을 한 번 적용합니다."), runtimeSample,
-            Fluent.Body1("글자를 0.875배로 줄인 크기에 맞춰 캡처합니다."), textSample,
+            Dux.Wrap(new(Spacing : 16, RunSpacing : 8), Fluent.Button(GalleryText.Get("Change static content"), () => _revision++), animation, _cutoutButton, _roundedClipButton),
+            Fluent.Body1(GalleryText.Get("New frames reuse the retained geometry commands while the version stays the same. The counter measures how often those commands were built. It does not measure total CPU or GPU work.")),
+            Fluent.Body1(() => GalleryText.Format("Geometry version: {0} / Static command builds: {1}", _revision, _staticBuilds)), staticSample,
+            Fluent.Subtitle2(GalleryText.Get("3D projection in an independent viewport")), projectedSample,
+            Fluent.Body1(GalleryText.Get("Compare RGB coverage compositing at glyph edges. Each black and white reference uses opacity 0, 0.5, and 1 once.")), coverageSample,
+            Fluent.Body1(GalleryText.Get("Capture overlapping shapes on the GPU and apply opacity 0.8 once.")), runtimeSample,
+            Fluent.Body1(GalleryText.Get("Capture text at 0.875 times its original size.")), textSample,
             _opacityMask.View));
     }
     private static string Settings(long revision, bool cutout, bool rounded) =>
@@ -197,13 +197,13 @@ internal sealed class RenderingPage : IObserverPage, IObserverNaturalPage, IGall
     internal void ToggleCircleCutout()
     {
         _circleCutout = !_circleCutout;
-        _cutoutButton.Label = _circleCutout ? "원형 잘라내기 : 켜짐" : "원형 잘라내기 : 꺼짐";
+        _cutoutButton.Label = GalleryText.Format("Circular cutout: {0}", GalleryText.Get(_circleCutout ? "On" : "Off"));
         _revision++;
     }
     internal void ToggleRoundedClip()
     {
         _roundedClip = !_roundedClip;
-        _roundedClipButton.Label = _roundedClip ? "둥근 클리핑 : 켜짐" : "둥근 클리핑 : 꺼짐";
+        _roundedClipButton.Label = GalleryText.Format("Rounded clipping: {0}", GalleryText.Get(_roundedClip ? "On" : "Off"));
         _revision++;
     }
     public void Render(UiImmediateContext ui) => _root.Render(ui);
