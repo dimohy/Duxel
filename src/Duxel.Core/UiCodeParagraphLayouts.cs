@@ -41,6 +41,7 @@ internal sealed class UiCodeParagraphLayouts
             _key = key;
             _vector = vector;
             _lines = [];
+            var firstStyle = 0;
             for (var start = 0; start <= text.Length;)
             {
                 var end = text.IndexOf('\n', start);
@@ -48,7 +49,11 @@ internal sealed class UiCodeParagraphLayouts
                 if (end < 0) end = text.Length;
                 var local = new List<PlatformTextParagraphStyle>();
                 var map = new List<int>();
-                for (var i = 0; i < styles.Length; i++)
+                // Display styles cover ordered source intervals. Revisit only
+                // styles that can overlap this line, including spanning styles.
+                while (firstStyle < styles.Length && styles[firstStyle].Start + styles[firstStyle].Length <= start)
+                    firstStyle++;
+                for (var i = firstStyle; i < styles.Length && styles[i].Start < end; i++)
                 {
                     var from = Math.Max(start, styles[i].Start);
                     var to = Math.Min(end, styles[i].Start + styles[i].Length);

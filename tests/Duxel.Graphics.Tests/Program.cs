@@ -43,6 +43,12 @@ if (args is [var svgCodeScrollOutput, "gallery-svg-code-scroll"])
     return;
 }
 
+if (args is [var svgCodeStagesOutput, "gallery-svg-code-stages"])
+{
+    SvgGalleryFrameBenchmark.MeasureCodeScrollStages(svgCodeStagesOutput);
+    return;
+}
+
 if (args is [_, "codeview-scrollbars"])
 {
     CodeViewCacheTests.VerifyScrollbarDragging((passed, name) =>

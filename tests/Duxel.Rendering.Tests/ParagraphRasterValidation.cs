@@ -6,6 +6,34 @@ public sealed partial class UiImmediateContext
     private int _validationEmptyParagraphRasters;
     private int _validationParagraphEvictions;
     private int _validationEmptyParagraphEvictions;
+    private long _validationCodeLayoutTicks, _validationParagraphRasterTicks;
+    internal bool ValidationParagraphTimingEnabled { get; set; }
+    internal int ValidationDirectTextCacheLimit { get; set; }
+    internal int ValidationDirectTextCacheEntries => _directTextCache.Count;
+    internal (long Layout, long Raster) ValidationParagraphTiming => (_validationCodeLayoutTicks, _validationParagraphRasterTicks);
+
+    partial void BeginValidationParagraphTiming(ref long timestamp)
+    {
+        if (ValidationParagraphTimingEnabled)
+            timestamp = System.Diagnostics.Stopwatch.GetTimestamp();
+    }
+
+    partial void SelectValidationDirectTextCacheLimit(ref int entryLimit)
+    {
+        if (ValidationDirectTextCacheLimit > 0)
+            entryLimit = ValidationDirectTextCacheLimit;
+    }
+
+    partial void EndValidationParagraphTiming(long timestamp, bool raster)
+    {
+        if (timestamp == 0)
+            return;
+        var elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - timestamp;
+        if (raster)
+            _validationParagraphRasterTicks += elapsed;
+        else
+            _validationCodeLayoutTicks += elapsed;
+    }
 
     internal (int Rasters, int EmptyRasters, int Evictions, int EmptyEvictions) ValidationParagraphRasterCounts =>
         (_validationParagraphRasters, _validationEmptyParagraphRasters, _validationParagraphEvictions,

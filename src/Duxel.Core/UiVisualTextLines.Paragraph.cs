@@ -253,7 +253,10 @@ public sealed partial class UiImmediateContext
         var vector = IsVectorTextLayer();
         if (code is not null)
         {
+            long started = 0;
+            BeginValidationParagraphTiming(ref started);
             paragraph = code.ParagraphLayouts.Prepare(backend, projection.Text, native, physicalWidth, vector, LayoutMeasurementKey);
+            EndValidationParagraphTiming(started, raster: false);
         }
         else
         {
@@ -400,7 +403,13 @@ public sealed partial class UiImmediateContext
                 ParagraphRun = run
             };
             if (!_directTextCache.TryGetValue(key, out var entry))
-                entry = StoreParagraphRaster(key, backend.RasterizeParagraphRun(run), run.Origin);
+            {
+                long started = 0;
+                BeginValidationParagraphTiming(ref started);
+                var raster = backend.RasterizeParagraphRun(run);
+                EndValidationParagraphTiming(started, raster: true);
+                entry = StoreParagraphRaster(key, raster, run.Origin);
+            }
             if (entry.Width == 0 || entry.Height == 0)
             {
                 visual.RememberEmptyNativeParagraphRaster(index);
@@ -447,4 +456,6 @@ public sealed partial class UiImmediateContext
     }
 
     partial void ObserveValidationParagraphRaster(bool empty);
+    partial void BeginValidationParagraphTiming(ref long timestamp);
+    partial void EndValidationParagraphTiming(long timestamp, bool raster);
 }

@@ -84,6 +84,9 @@ public sealed partial class UiImmediateContext
     private bool _lastDirectTextCacheValid;
     private nuint _nextOwnedTextureId = 2_100_000_000;
     private const int DirectTextCacheMaxEntries = 512;
+    // A visible source line can contain several colored paragraph runs. Keep
+    // neighboring lines resident for reverse scrolling under the same byte limit.
+    private const int DirectTextCacheMaxEntriesWithParagraphs = 1536;
     // The byte budget counts RGBA payload of idle dedicated textures.
     private const long DirectTextCacheMaxIdleTextureBytes = 16 * 1024 * 1024;
     private const int DirectTextCacheMaxIdleFrames = 600;
@@ -867,9 +870,12 @@ public sealed partial class UiImmediateContext
         var eligibleCount = 0;
         var layerUnretainedCount = 0;
         var staleCount = 0;
+        var nonParagraphCount = count;
         long idleTextureBytes = 0;
         foreach (var pair in _directTextCache)
         {
+            if (pair.Key.ParagraphRun is not null)
+                nonParagraphCount--;
             if (_layerCacheStore?.RetainedTextKeys.ContainsKey(pair.Key) ?? false)
                 continue;
             layerUnretainedCount++;
@@ -905,13 +911,18 @@ public sealed partial class UiImmediateContext
             {
                 var key = staleBuffer[i];
                 idleTextureBytes -= GetDedicatedTextTexturePayloadBytes(_directTextCache[key]);
+                if (key.ParagraphRun is null)
+                    nonParagraphCount--;
                 RemoveDirectTextCacheEntry(key);
             }
         }
 
-        var overflow = _directTextCache.Count - DirectTextCacheMaxEntries;
+        var entryLimit = DirectTextCacheMaxEntriesWithParagraphs;
+        SelectValidationDirectTextCacheLimit(ref entryLimit);
+        var overflow = _directTextCache.Count - entryLimit;
+        var nonParagraphOverflow = nonParagraphCount - DirectTextCacheMaxEntries;
         var textureOverflow = idleTextureBytes - DirectTextCacheMaxIdleTextureBytes;
-        if (overflow <= 0 && textureOverflow <= 0)
+        if (overflow <= 0 && nonParagraphOverflow <= 0 && textureOverflow <= 0)
         {
             return;
         }
@@ -937,15 +948,18 @@ public sealed partial class UiImmediateContext
         // Layout-only/offscreen requests must not crowd the visible text's GPU
         // texture working set out of this shared, bounded cache.
         Array.Sort(lruBuffer, 0, lruCount, DirectTextEvictionComparer);
-        for (var i = 0; i < lruCount && (overflow > 0 || textureOverflow > 0); i++)
+        for (var i = 0; i < lruCount && (overflow > 0 || nonParagraphOverflow > 0 || textureOverflow > 0); i++)
         {
             var key = lruBuffer[i].Key;
+            var nonParagraph = key.ParagraphRun is null;
             var textureBytes = GetDedicatedTextTexturePayloadBytes(_directTextCache[key]);
-            if (overflow <= 0 && textureBytes == 0)
+            if (overflow <= 0 && (nonParagraphOverflow <= 0 || !nonParagraph) && (textureOverflow <= 0 || textureBytes == 0))
                 continue;
 
             RemoveDirectTextCacheEntry(key);
             overflow--;
+            if (nonParagraph)
+                nonParagraphOverflow--;
             textureOverflow -= textureBytes;
         }
     }
@@ -1001,6 +1015,7 @@ public sealed partial class UiImmediateContext
     }
 
     partial void ObserveValidationParagraphEviction(in DirectTextCacheKey key, in DirectTextCacheEntry entry);
+    partial void SelectValidationDirectTextCacheLimit(ref int entryLimit);
 
     private bool TryAllocateDirectTextAtlasRegion(DirectTextAtlasPage page, int width, int height, out int x, out int y)
     {

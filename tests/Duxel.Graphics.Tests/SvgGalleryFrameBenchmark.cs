@@ -167,6 +167,111 @@ internal static class SvgGalleryFrameBenchmark
         }
     }
 
+    internal static void MeasureCodeScrollStages(string output)
+    {
+        Directory.CreateDirectory(output);
+        Environment.SetEnvironmentVariable("DUXEL_VK_PROFILE", "1");
+        Environment.SetEnvironmentVariable("DUXEL_VK_GPU_PROFILE", "1");
+        Environment.SetEnvironmentVariable("DUXEL_VK_PROFILE_EVERY", "1");
+        Environment.SetEnvironmentVariable("DUXEL_VK_PROFILE_OUT", Path.Combine(output, "vulkan.log"));
+        using var tree = new UiAccessibilityTree();
+        var platform = PresentationTestPlatform.Create(1280, 900);
+        using var fixture = new PresentationReuseTests.Fixture(3, true, platform);
+        fixture.Context.SetDesign(UiCompiledDesign.Windows11);
+        fixture.Context.SetAccessibilityTree(tree);
+        using var gallery = new ObserverScreen(ObserverServices.CreateWindows())
+            { FreezeDiagnosticText = true, SelectedPage = "SVG" };
+        using var log = new StreamWriter(Path.Combine(output, "stages.tsv")) { AutoFlush = true };
+        log.WriteLine("phase\tstep\tframe_id\toffset\tvisible_code_height\tcompose_ms\trenderer_cpu_ms\tcode_layout_ms\tparagraph_raster_ms\tparagraph_rasters\tcoverage_update_bytes\tcache_entries\tprivate_bytes\tworking_set");
+        var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        using var process = Process.GetCurrentProcess();
+        var cacheLimit = int.TryParse(Environment.GetEnvironmentVariable("DUXEL_TEST_CODE_CACHE_ENTRIES"), out var limit) ? limit : 0;
+        (long Layout, long Raster) timing = default;
+        var rasters = 0;
+        var cacheEntries = 0;
+        Submit("open-svg", 0, idle);
+        var tab = tree.CaptureSnapshot().Elements.Single(e => e.Node is { Name: "호·곡선 비교", Role: UiAccessibilityRole.Tab });
+        if (tree.RequestAction(tab.Node.Id, tab.RuntimeId, UiAccessibilityAction.Select, wait: false) != UiAccessibilityResult.Success)
+            throw new InvalidOperationException("Could not select the SVG comparison tab.");
+        Submit("open-tab", 0, idle);
+        Submit("open-tab", 1, idle);
+        var wheel = idle with { MousePosition = new(800, 680), MouseWheel = -1 };
+        var first = Scroll("first", wheel, 0, 64, out var inputs);
+        if (first >= 0 || inputs <= 1)
+            throw new InvalidOperationException("The first pass did not traverse the SVG source.");
+        Scroll("reset", wheel with { MouseWheel = 1 }, 0, 64, out _);
+        Scroll("repeat", wheel, 0, inputs, out _);
+        for (var i = 0; i < 6; i++)
+            Submit("drain", i, idle);
+        fixture.WriteCapturePng(Path.Combine(output, "end.png"), fixture.Capture(gallery.Render, idle));
+        if (Environment.GetEnvironmentVariable("DUXEL_TEST_CODE_RESIZE") == "1")
+        {
+            for (var i = 0; i < 16; i++)
+            {
+                var previous = platform.FramebufferSize;
+                const uint noMoveActivateOrZOrder = 0x0016;
+                if (!PresentationTestPlatform.SetWindowPos(platform.WindowHandle, 0, 0, 0, 1280 + 18 * i, 900, noMoveActivateOrZOrder))
+                    throw new Win32Exception(Marshal.GetLastPInvokeError());
+                platform.PollEvents();
+                if (platform.FramebufferSize.Width == previous.Width && i > 0)
+                    throw new InvalidOperationException("Win32 did not resize the fixture's framebuffer.");
+                Submit("resize", i, idle);
+            }
+            for (var i = 0; i < 6; i++)
+                Submit("resize-drain", i, idle);
+        }
+
+        float Scroll(string phase, UiInputState input, int start, int limit, out int submitted)
+        {
+            var change = 0f;
+            var previous = Pane().Scroll!.Value.Offset.Y;
+            for (submitted = start; submitted < limit;)
+            {
+                var current = Submit(phase, submitted++, input);
+                change += previous - current;
+                if (MathF.Abs(current - previous) < .01f)
+                    break;
+                previous = current;
+            }
+            return change;
+        }
+
+        UiAccessibilityNode Pane() => tree.CaptureSnapshot().Elements.Single(e => e.Node.Name == "observer-svg-page").Node;
+
+        float Submit(string phase, int step, UiInputState input)
+        {
+            var previous = timing;
+            var previousRasters = rasters;
+            var start = Stopwatch.GetTimestamp();
+            using var draw = fixture.Build(ui =>
+            {
+                ui.ValidationParagraphTimingEnabled = true;
+                ui.ValidationDirectTextCacheLimit = cacheLimit;
+                gallery.Render(ui);
+                timing = ui.ValidationParagraphTiming;
+                rasters = ui.ValidationParagraphRasterCounts.Rasters;
+                cacheEntries = ui.ValidationDirectTextCacheEntries;
+            }, input);
+            var composed = Stopwatch.GetTimestamp();
+            long coverageBytes = 0;
+            foreach (var update in draw.TextureUpdates)
+                if (!update.IsColorImage)
+                    coverageBytes += update.RgbaPixels.Length;
+            if (!fixture.RenderSubmit(draw))
+                throw new InvalidOperationException($"Vulkan rejected {phase} frame {step}.");
+            var rendered = Stopwatch.GetTimestamp();
+            var offset = Pane().Scroll!.Value.Offset.Y;
+            var codeHeight = tree.CaptureSnapshot().Elements
+                .Where(e => e.Node.Name == "C# 예제 소스")
+                .Select(e => e.Node.TextLayout?.ClipBounds.Height ?? 0)
+                .DefaultIfEmpty().Max();
+            process.Refresh();
+            log.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"{phase}\t{step}\t{draw.DrawDataFrameId}\t{offset:F2}\t{codeHeight:F2}\t{Stopwatch.GetElapsedTime(start, composed).TotalMilliseconds:F4}\t{Stopwatch.GetElapsedTime(composed, rendered).TotalMilliseconds:F4}\t{Stopwatch.GetElapsedTime(previous.Layout, timing.Layout).TotalMilliseconds:F4}\t{Stopwatch.GetElapsedTime(previous.Raster, timing.Raster).TotalMilliseconds:F4}\t{rasters - previousRasters}\t{coverageBytes}\t{cacheEntries}\t{process.PrivateMemorySize64}\t{process.WorkingSet64}"));
+            return offset;
+        }
+    }
+
     internal static void MeasureCodeScrollBursts(string output)
     {
         Directory.CreateDirectory(output);
