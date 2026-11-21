@@ -6,7 +6,7 @@ internal sealed class RepaintExperiment : UiControlWidget
 {
     private readonly UiState<bool> _running = new(false);
     private readonly UiState<bool> _profile = new(false);
-    private readonly UiState<string> _text = new("빠르게 입력해 보세요. 한글과 English");
+    private readonly UiState<string> _text = new(GalleryText.Get("Try typing quickly. Text and English"));
     private readonly UiViewHost _host;
     private readonly UiWidget _controls;
     private readonly UiWidget _textView;
@@ -17,8 +17,8 @@ internal sealed class RepaintExperiment : UiControlWidget
     private string? _drawnText;
     private UiRect _dynamicBounds, _staticBounds;
     private double _nextUpdate;
-    private string _snapshot = "자동 변경을 멈춘 뒤 ‘측정값 확인’을 누르세요. 강조를 끄면 진단용 추가 그리기가 사라집니다.";
-    private string _cpuSnapshot = "CPU 구간 측정을 켠 뒤 ‘측정값 확인’을 누르세요.";
+    private string _snapshot = GalleryText.Get("Stop automatic updates and select Read measurements. Turn off repaint highlighting to remove its extra drawing.");
+    private string _cpuSnapshot = GalleryText.Get("Enable CPU profiling and select Read measurements.");
     internal string CpuSnapshot => _cpuSnapshot;
     private UiRendererFrameMetrics _lastMetrics;
     private UiInputProcessingMetrics _lastInputMetrics;
@@ -32,23 +32,23 @@ internal sealed class RepaintExperiment : UiControlWidget
     internal RepaintExperiment()
     {
         _controls = Dux.Column(new(Spacing : 10, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Body1("직접 입력하거나 텍스트를 자동으로 바꾸면서 아래의 고정된 패널과 비교해 보세요."),
-            Fluent.Body1("강조 테두리는 0.2초 뒤 사라집니다. 테두리를 지우느라 다시 그린 영역은 내용이 바뀐 영역과 따로 기록합니다."),
-            Fluent.Body1("오른쪽 상단의 갱신 영역 강조는 모든 탭에 적용됩니다. 강조 중에는 상단 수치 표시를 고정합니다."),
+            Fluent.Body1(GalleryText.Get("Type or enable automatic text updates and compare the result with the fixed panel below.")),
+            Fluent.Body1(GalleryText.Get("The highlight fades after 0.2 seconds. Redrawing to clear it is counted separately from repainting changed content.")),
+            Fluent.Body1(GalleryText.Get("The repaint highlight in the top toolbar applies to all pages. The toolbar statistics freeze while highlighting is active.")),
             Dux.Wrap(new(Spacing : 16, RunSpacing : 8),
-                Fluent.Switch("텍스트 자동 변경 (60Hz)", _running.Binding),
-                Fluent.Switch("CPU 구간 측정", _profile.Binding),
-                Fluent.Button("한 번 변경", Advance),
-                Fluent.Button("측정값 확인", Snapshot)),
-            Fluent.Input("갱신 관찰 입력", _text.Binding, 512),
+                Fluent.Switch(GalleryText.Get("Update text automatically (60 Hz)"), _running.Binding),
+                Fluent.Switch(GalleryText.Get("CPU profiling"), _profile.Binding),
+                Fluent.Button(GalleryText.Get("Update once"), Advance),
+                Fluent.Button(GalleryText.Get("Read measurements"), Snapshot)),
+            Fluent.Input(GalleryText.Get("Repaint observer input"), _text.Binding, 512),
             Fluent.Caption1(() => _snapshot),
             Fluent.Caption1(() => _cpuSnapshot));
-        _textView = Fluent.Body1(() => $"변경 횟수 : {_revision:D8} / {_text.Value}");
+        _textView = Fluent.Body1(() => string.Format(GalleryText.Get("Updates: {0:D8} / {1}"), _revision, _text.Value));
         _fixedView = Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
-            Fluent.Title3("변하지 않는 패널"),
-            Fluent.Body1("텍스트가 바뀌어도 이 패널의 구성은 재사용합니다."),
-            Fluent.Body1("이 패널을 GPU가 다시 그렸는지는 초록 테두리로 확인하세요."));
-        _host = new(new UiView(RenderContents)) { AccessibleName = "갱신 관찰 실험" };
+            Fluent.Title3(GalleryText.Get("Fixed panel")),
+            Fluent.Body1(GalleryText.Get("This panel reuses its content when the text changes.")),
+            Fluent.Body1(GalleryText.Get("A green border shows when the GPU repaints this panel.")));
+        _host = new(new UiView(RenderContents)) { AccessibleName = GalleryText.Get("Repaint experiment") };
         OwnChild("host", _host);
         OwnChild("controls", _controls);
         OwnChild("dynamic", _textView);
@@ -60,15 +60,16 @@ internal sealed class RepaintExperiment : UiControlWidget
     private void Snapshot()
     {
         var m = _lastMetrics;
-        _snapshot = $"직전 내용 구성 : {_lastBuildMilliseconds:F3} ms / Draw : {m.DrawCalls} / Upload : {m.DynamicUploadBytes + m.StagingUploadBytes} B / "
-            + $"재사용 : {m.ResidentHits} / 내용 갱신 : {m.RepaintBounds.Width:F0}×{m.RepaintBounds.Height:F0} px / 진단 추가 갱신 : {m.RepaintDiagnosticRedraw} / "
-            + $"정적 구성 : {_staticBuilds} / 텍스트 구성 : {_textBuilds}";
+        _snapshot = string.Format(GalleryText.Get("Previous composition: {0:F3} ms / Draws: {1} / Upload: {2} B / Reuse: {3} / Content repaint: {4:F0}×{5:F0} px / Diagnostic redraw: {6} / Static builds: {7} / Text builds: {8}"),
+            _lastBuildMilliseconds, m.DrawCalls, m.DynamicUploadBytes + m.StagingUploadBytes, m.ResidentHits,
+            m.RepaintBounds.Width, m.RepaintBounds.Height, m.RepaintDiagnosticRedraw, _staticBuilds, _textBuilds);
         var input = _lastInputMetrics;
         _cpuSnapshot = input.ProfilingEnabled
-            ? $"직전 Render : 입력 {input.CompletedSteps}/{input.RequestedSteps} / 그리기 구성 {input.BuiltDrawings}"
-                + $"\n준비 : {input.PreparationMilliseconds:F3} ms / UI : {input.CompositionMilliseconds:F3} ms / 마무리 : {input.FinalizationMilliseconds:F3} ms"
-                + $"\n현재 렌더 스레드 할당 : {input.AllocatedBytesOnRenderThread} B"
-            : "CPU 구간 측정 꺼짐";
+            ? string.Format(GalleryText.Get("Previous render: input {0}/{1} / Drawings built: {2}"), input.CompletedSteps, input.RequestedSteps, input.BuiltDrawings)
+                + "\n" + string.Format(GalleryText.Get("Preparation: {0:F3} ms / UI: {1:F3} ms / Finalization: {2:F3} ms"),
+                    input.PreparationMilliseconds, input.CompositionMilliseconds, input.FinalizationMilliseconds)
+                + "\n" + string.Format(GalleryText.Get("Render thread allocations: {0} B"), input.AllocatedBytesOnRenderThread)
+            : GalleryText.Get("CPU profiling is off");
     }
 
     protected override UiVector2 MeasureContent(UiControlContext context)

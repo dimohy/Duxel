@@ -1416,3 +1416,61 @@ Explicit directional context	명시적 방향 문맥	明示的な方向指定	�
 Paragraph with widgets	위젯을 포함한 문단	ウィジェットを含む段落	包含小部件的段落
 The switch above also changes the direction of inline widgets. The rotated title and link are separate widgets.	위 스위치를 바꾸면 문단 안의 위젯도 방향이 바뀝니다. 회전한 제목과 링크는 각각 별도의 위젯입니다.	上のスイッチで段落内のウィジェットの方向も切り替わります。回転したタイトルとリンクはそれぞれ独立したウィジェットです。	上方开关也会改变内联小部件的方向。旋转标题和链接是独立的小部件。
 גד regular 123 / text and بِت لا	גד regular 123 / 한글과 بِت لا	גד regular 123 / 日本語と بِت لا	גד regular 123 / 中文和 بِت لا
+Try typing quickly. Text and English	빠르게 입력해 보세요. 한글과 English	すばやく入力してみてください。日本語と English	试着快速输入。中文和 English
+Stop automatic updates and select Read measurements. Turn off repaint highlighting to remove its extra drawing.	자동 변경을 멈춘 뒤 ‘측정값 확인’을 누르세요. 강조를 끄면 진단용 추가 그리기가 사라집니다.	自動更新を止めて「測定値を表示」を選びます。再描画の強調をオフにすると、診断用の追加描画がなくなります。	停止自动更新后选择“读取测量值”。关闭重绘突出显示可移除额外的诊断绘制。
+Enable CPU profiling and select Read measurements.	CPU 구간 측정을 켠 뒤 ‘측정값 확인’을 누르세요.	CPU の計測を有効にし、「測定値を表示」を選びます。	启用 CPU 分段测量，然后选择“读取测量值”。
+Type or enable automatic text updates and compare the result with the fixed panel below.	직접 입력하거나 텍스트를 자동으로 바꾸면서 아래의 고정된 패널과 비교해 보세요.	入力するかテキストの自動更新を有効にし、下の固定パネルと比較してください。	手动输入或启用自动文本更新，与下方固定面板对比。
+The highlight fades after 0.2 seconds. Redrawing to clear it is counted separately from repainting changed content.	강조 테두리는 0.2초 뒤 사라집니다. 테두리를 지우느라 다시 그린 영역은 내용이 바뀐 영역과 따로 기록합니다.	強調枠は 0.2 秒で消えます。枠を消すための再描画は、内容に変更があった領域と分けて記録します。	高亮边框在 0.2 秒后消失。为清除边框而发生的重绘与内容变更引起的重绘分别记录。
+The repaint highlight in the top toolbar applies to all pages. The toolbar statistics freeze while highlighting is active.	오른쪽 상단의 갱신 영역 강조는 모든 탭에 적용됩니다. 강조 중에는 상단 수치 표시를 고정합니다.	上部ツールバーの再描画の強調はすべてのページに適用されます。有効な間はツールバーの統計表示を固定します。	顶部工具栏的重绘突出显示适用于所有页面。启用高亮期间，工具栏统计数据会保持不变。
+Update text automatically (60 Hz)	텍스트 자동 변경 (60Hz)	テキストを自動更新（60 Hz）	自动更新文本（60 Hz）
+CPU profiling	CPU 구간 측정	CPU の計測	CPU 分段测量
+Update once	한 번 변경	1 回更新	更新一次
+Read measurements	측정값 확인	測定値を表示	读取测量值
+Repaint observer input	갱신 관찰 입력	再描画の観察用入力欄	重绘观察输入框
+Updates: {0:D8} / {1}	변경 횟수 : {0:D8} / {1}	更新回数：{0:D8} / {1}	更新次数：{0:D8} / {1}
+Fixed panel	변하지 않는 패널	固定パネル	固定面板
+This panel reuses its content when the text changes.	텍스트가 바뀌어도 이 패널의 구성은 재사용합니다.	テキストが変わっても、このパネルは内容を再利用します。	即使文本改变，此面板也会复用其内容。
+A green border shows when the GPU repaints this panel.	이 패널을 GPU가 다시 그렸는지는 초록 테두리로 확인하세요.	GPU がこのパネルを再描画すると、緑の枠が表示されます。	绿色边框表示 GPU 重新绘制了此面板。
+Repaint experiment	갱신 관찰 실험	再描画の観察実験	重绘观察实验
+Previous composition: {0:F3} ms / Draws: {1} / Upload: {2} B / Reuse: {3} / Content repaint: {4:F0}×{5:F0} px / Diagnostic redraw: {6} / Static builds: {7} / Text builds: {8}	직전 내용 구성 : {0:F3} ms / Draw : {1} / Upload : {2} B / 재사용 : {3} / 내용 갱신 : {4:F0}×{5:F0} px / 진단 추가 갱신 : {6} / 정적 구성 : {7} / 텍스트 구성 : {8}	直前の構成：{0:F3} ms / 描画：{1} / 転送：{2} B / 再利用：{3} / 内容の再描画：{4:F0}×{5:F0} px / 診断の追加描画：{6} / 静的構成：{7} / テキスト構成：{8}	上次构建：{0:F3} ms / 绘制：{1} / 上传：{2} B / 复用：{3} / 内容重绘：{4:F0}×{5:F0} px / 诊断重绘：{6} / 静态构建：{7} / 文本构建：{8}
+Previous render: input {0}/{1} / Drawings built: {2}	직전 Render : 입력 {0}/{1} / 그리기 구성 {2}	直前の描画：入力 {0}/{1} / 描画の構成：{2}	上次渲染：输入 {0}/{1} / 已构建绘制：{2}
+Preparation: {0:F3} ms / UI: {1:F3} ms / Finalization: {2:F3} ms	준비 : {0:F3} ms / UI : {1:F3} ms / 마무리 : {2:F3} ms	準備：{0:F3} ms / UI：{1:F3} ms / 後処理：{2:F3} ms	准备：{0:F3} ms / UI：{1:F3} ms / 收尾：{2:F3} ms
+Render thread allocations: {0} B	현재 렌더 스레드 할당 : {0} B	描画スレッドの割り当て：{0} B	渲染线程分配：{0} B
+CPU profiling is off	CPU 구간 측정 꺼짐	CPU の計測はオフです	CPU 分段测量已关闭
+Reuse checkbox	재사용 체크	測定再利用チェックボックス	复用复选框
+Reuse checkbox: changed label	재사용 체크 : 변경된 라벨	測定再利用チェックボックス：ラベル変更済み	复用复选框：标签已更改
+Reuse body	재사용 본문	測定再利用の本文	复用正文
+Reuse body: content changed.	재사용 본문 : 내용이 바뀌었습니다.	測定再利用の本文：内容が変わりました。	复用正文：内容已更改。
+Reuse spinner	재사용 대기	測定再利用スピナー	复用微调指示器
+Reuse spinner: changed	재사용 대기 : 변경	測定再利用スピナー：変更済み	复用微调指示器：已更改
+Reuse slider	재사용 슬라이더	測定再利用スライダー	复用滑块
+Reuse selection	재사용 선택	測定再利用の選択	复用选择
+Reuse Alpha	재사용 Alpha	再利用 Alpha	复用 Alpha
+Reuse Beta	재사용 Beta	再利用 Beta	复用 Beta
+Reuse link	재사용 링크	測定再利用リンク	复用链接
+Probe a frame	프레임 확인	フレームを確認	检查帧
+Change measurement label	측정 라벨 변경	測定用ラベルを変更	更改测量标签
+Change measurement width	측정 너비 변경	測定用の幅を変更	更改测量宽度
+Change measured body	측정 본문 변경	測定する本文を変更	更改测量正文
+Change tab size	탭 크기 변경	タブのサイズを変更	更改选项卡大小
+Try the checkbox, slider, selection, and link. The display and progress can change even when child measurement counts stay the same.	체크·슬라이더·선택·링크를 조작하세요. 자식 측정 수가 그대로여도 화면과 진행률은 바뀝니다.	チェックボックス、スライダー、選択、リンクを試してください。子要素の測定回数が変わらなくても、表示と進行率は更新されます。	试用复选框、滑块、选择与链接。即使子项测量次数不变，显示内容和进度也会更新。
+Changing the label or parent width recalculates layout. These counters do not measure FPS or GPU work.	라벨이나 부모 너비를 바꾸면 배치를 다시 계산합니다. 이 수치는 FPS나 GPU 작업량이 아닙니다.	ラベルや親の幅を変えるとレイアウトを再計算します。この数値は FPS や GPU の負荷を示すものではありません。	更改标签或父容器宽度会重新计算布局。这些计数不表示 FPS 或 GPU 工作量。
+Child measurements: {0} / Value: {1:F2} / Selection: {2} / Link actions: {3}	자식 측정 : {0} / 값 : {1:F2} / 선택 : {2} / 링크 : {3}	子要素の測定：{0} / 値：{1:F2} / 選択：{2} / リンクの操作：{3}	子项测量次数：{0} / 值：{1:F2} / 选择：{2} / 链接操作：{3}
+Form measurements: {0} / Input: {1} / Menu checkbox: {2}	폼 부모 측정 : {0} / 입력 : {1} / 메뉴 체크 : {2}	フォームの測定：{0} / 入力：{1} / メニューのチェック：{2}	表单测量次数：{0} / 输入：{1} / 菜单复选框：{2}
+Natural tab measurements (process): {0} / Selection: {1}	탭 자연 측정(프로세스) : {0} / 선택 : {1}	タブの自然サイズ測定（プロセス）：{0} / 選択：{1}	选项卡自然尺寸测量（进程）：{0} / 选择：{1}
+Delegated parent measurements: {0} / Note length: {1}	위임 부모 측정 : {0} / 메모 길이 : {1}	委譲された親の測定：{0} / メモの長さ：{1}	委托的父容器测量次数：{0} / 备注长度：{1}
+Owned child measurements: {0}	소유 자식 크기 측정 : {0}	所有する子要素の測定：{0}	所拥有的子项测量次数：{0}
+Reuse field	재사용 필드	測定再利用フィールド	复用字段
+Reusing layout measurements still preserves value changes and edit history.	배치 크기를 재사용하더라도 값 변경과 편집 이력은 계속 처리합니다.	レイアウトの測定結果を再利用しても、値の変更と編集履歴は保持されます。	复用布局测量结果时仍会处理值的更改和编辑历史。
+Measurement reuse tabs	재사용 측정 탭	測定再利用タブ	测量复用选项卡
+Measurement tab Alpha	측정 탭 Alpha	測定タブ Alpha	测量选项卡 Alpha
+Measurement tab Beta	측정 탭 Beta	測定タブ Beta	测量选项卡 Beta
+Measurement tab Gamma	측정 탭 Gamma	測定タブ Gamma	测量选项卡 Gamma
+Reuse form input	재사용 폼 입력	測定再利用フォームの入力欄	复用表单输入框
+Reuse divider	재사용 구분선	測定再利用の区切り線	复用分隔线
+Reuse form menu	재사용 폼 메뉴	測定再利用フォームのメニュー	复用表单菜单
+Reuse form checkbox	재사용 폼 체크	測定再利用フォームのチェックボックス	复用表单复选框
+Reuse multiline input	재사용 여러 줄	測定再利用の複数行入力欄	复用多行输入框
+The tooltip still appears after its configured delay when the target reuses its measurement.	대상의 측정 결과를 재사용하더라도, 설정한 지연 시간 뒤에 설명을 표시합니다.	対象の測定結果を再利用しても、設定した遅延時間後にツールチップが表示されます。	即使复用目标的测量结果，工具提示仍会在指定延迟后显示。
+Reuse field input	재사용 필드 입력	測定再利用フィールドの入力欄	复用字段输入框
+Reuse tooltip target	재사용 도구 설명 대상	測定再利用ツールチップの対象	复用工具提示目标

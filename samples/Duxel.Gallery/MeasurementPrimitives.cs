@@ -44,17 +44,17 @@ internal sealed class MeasurementPrimitives : UiWidget
             _body, _checkbox, _slider, _radio, _link, _progress, _badge, _spinner), 420, 420);
         OwnChild("root", _root);
     }
-    internal void ToggleLabel() => CheckboxLabel = CheckboxLabel == "재사용 체크" ? "재사용 체크 : 변경된 라벨" : "재사용 체크";
+    internal void ToggleLabel() => CheckboxLabel = CheckboxLabel == GalleryText.Get("Reuse checkbox") ? GalleryText.Get("Reuse checkbox: changed label") : GalleryText.Get("Reuse checkbox");
     internal void ToggleWidth() => Width = Width == 420 ? 300 : 420;
     internal void ChangeBody()
     {
-        BodyText = BodyText == "재사용 본문" ? "재사용 본문 : 내용이 바뀌었습니다." : "재사용 본문";
+        BodyText = BodyText == GalleryText.Get("Reuse body") ? GalleryText.Get("Reuse body: content changed.") : GalleryText.Get("Reuse body");
         BadgeCount++;
-        SpinnerLabel = SpinnerLabel == "재사용 대기" ? "재사용 대기 : 변경" : "재사용 대기";
+        SpinnerLabel = SpinnerLabel == GalleryText.Get("Reuse spinner") ? GalleryText.Get("Reuse spinner: changed") : GalleryText.Get("Reuse spinner");
     }
     protected override bool CanRetainMeasurement => CanRetainOwnedMeasurement(_root);
     protected override IUiView Build(UiBuildContext context) => context.Child("root", () => _root);
-    private sealed class Checkbox(UiBinding<bool?> value) : UiToggle<bool?, UiNullableToggleValue, UiReleaseButtonBehavior, UiFluentCheckboxPresentation>("재사용 체크", value)
+    private sealed class Checkbox(UiBinding<bool?> value) : UiToggle<bool?, UiNullableToggleValue, UiReleaseButtonBehavior, UiFluentCheckboxPresentation>(GalleryText.Get("Reuse checkbox"), value)
     {
         internal int Measurements;
         protected override UiVector2 MeasureContent(UiControlContext context)
@@ -63,7 +63,7 @@ internal sealed class MeasurementPrimitives : UiWidget
             return base.MeasureContent(context);
         }
     }
-    private sealed class Slider(UiBinding<float> value) : UiSlider<UiFluentSliderBehavior, UiFluentSliderPresentation>("재사용 슬라이더", value, 0, 1, .01f)
+    private sealed class Slider(UiBinding<float> value) : UiSlider<UiFluentSliderBehavior, UiFluentSliderPresentation>(GalleryText.Get("Reuse slider"), value, 0, 1, .01f)
     {
         internal int Measurements;
         protected override UiVector2 MeasureContent(UiControlContext context)
@@ -73,7 +73,7 @@ internal sealed class MeasurementPrimitives : UiWidget
         }
     }
     private sealed class Radio(UiBinding<string?> value) : UiRadioGroup<UiFluentRadioGroupBehavior, UiFluentRadioGroupPresentation<UiRadioVerticalLayout>>(
-        "재사용 선택", value, new UiRadioOption[] { new("a", "재사용 Alpha"), new("b", "재사용 Beta") })
+        GalleryText.Get("Reuse selection"), value, new UiRadioOption[] { new("a", GalleryText.Get("Reuse Alpha")), new("b", GalleryText.Get("Reuse Beta")) })
     {
         internal int Measurements;
         protected override UiVector2 MeasureContent(UiControlContext context)
@@ -82,7 +82,7 @@ internal sealed class MeasurementPrimitives : UiWidget
             return base.MeasureContent(context);
         }
     }
-    private sealed class Body() : UiText<UiFluentWrappedTextPresentation>("재사용 본문")
+    private sealed class Body() : UiText<UiFluentWrappedTextPresentation>(GalleryText.Get("Reuse body"))
     {
         internal int Measurements;
         protected override UiVector2 MeasureContent(UiControlContext context)
@@ -110,7 +110,7 @@ internal sealed class MeasurementPrimitives : UiWidget
         }
     }
     private sealed class Link(Action<Uri> navigate) : UiLink<UiLinkNavigationBehavior, UiFluentLinkPresentation<UiFluentDefaultLinkAppearance, UiStandaloneLinkUnderline>>(
-        "재사용 링크", new("/measurement", UriKind.Relative), navigate)
+        GalleryText.Get("Reuse link"), new("/measurement", UriKind.Relative), navigate)
     {
         internal int Measurements;
         internal UiRect Bounds;
@@ -126,7 +126,7 @@ internal sealed class MeasurementPrimitives : UiWidget
             Bounds = new(position.X, position.Y, size.X, size.Y);
         }
     }
-    private sealed class Spinner() : UiSpinner<UiFluentSpinnerBehavior, UiFluentSpinnerPresentation>("재사용 대기", new() { Paused = true })
+    private sealed class Spinner() : UiSpinner<UiFluentSpinnerBehavior, UiFluentSpinnerPresentation>(GalleryText.Get("Reuse spinner"), new() { Paused = true })
     {
         internal int Measurements;
         protected override UiVector2 MeasureContent(UiControlContext context)
