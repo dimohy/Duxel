@@ -123,7 +123,11 @@ internal sealed class UiSurfaceBody<TPresentation> : UiControlWidget where TPres
         var contentHeight = FillHeight || Content.Stretch ? availableHeight
             : fits ? preferredHeight : MathF.Min(preferredHeight, availableHeight);
         context.MeasureParentDataChild(Content, null, UiBoxConstraints.Tight(new(width, contentHeight)));
-        return new(new(width, header + gaps + contentHeight + actions.Y), title, header, contentHeight, actions);
+        // Filling the available space must report the exact limit. Adding the pieces back can round above it.
+        var bodyHeight = contentHeight == availableHeight
+            ? MathF.Max(heightLimit, header + gaps + actions.Y)
+            : header + gaps + contentHeight + actions.Y;
+        return new(new(width, bodyHeight), title, header, contentHeight, actions);
     }
     protected override UiVector2 MeasureContent(UiControlContext context) => context.LayoutConstraints.Constrain(Layout(context).Size);
     protected override void RenderControl(UiImmediateContext ui) => ui.RenderSurfaceBody(this);
