@@ -864,15 +864,21 @@ internal static class GallerySampleTests
         check(sources[1].Bounds.Y >= inlineBounds.Y + inlineBounds.Height
             && sources[1].Bounds.Y - inlineBounds.Y - inlineBounds.Height <= 24,
             "inline Drawer source immediately follows its settled panel allocation");
-        check(page.Samples[0].Source.Contains("Fluent.Drawer(", StringComparison.Ordinal)
-            && page.Samples[0].Source.Contains("var renderOverlays = (UiImmediateContext ui) => _overlay.Render(ui);", StringComparison.Ordinal),
+        check(page.Samples[0].Source.Contains("Fluent.OverlayDrawer(", StringComparison.Ordinal)
+            && page.Samples[0].Source.Contains("new UiDrawerBody(", StringComparison.Ordinal)
+            && page.Samples[0].Source.Contains("new UiDrawerFooter(", StringComparison.Ordinal)
+            && page.Samples[0].Source.Contains("var renderOverlays = (UiImmediateContext ui) =>", StringComparison.Ordinal)
+            && page.Samples[0].Source.Contains("new UiThemeProvider(_overlay, paintBackground : false)", StringComparison.Ordinal),
             "overlay Drawer code includes the actual captured factory and its required after-body renderer");
+        check(page.Samples[1].Source.Contains("Fluent.InlineDrawer(", StringComparison.Ordinal),
+            "inline Drawer code uses the layout-participating factory");
         Click("패널 위치 변경"); Click("패널 크기 변경"); Click("패널 모달"); Click("패널 오른쪽에서 왼쪽");
         check(page.Samples[0].Source.Contains("UiDrawerPosition.Bottom", StringComparison.Ordinal)
             && page.Samples[0].Source.Contains("UiDrawerSize.Medium", StringComparison.Ordinal)
             && page.Samples[0].Source.Contains("Modal : false", StringComparison.Ordinal)
-            && page.Samples[0].Source.Contains("RightToLeft : true", StringComparison.Ordinal),
-            "Drawer position, extent preset, modal and direction switches synchronize their source options");
+            && page.Samples[0].Source.Contains("RightToLeft : false", StringComparison.Ordinal)
+            && page.Samples[0].Source.Contains("var _overlayRightToLeft = new UiState<bool>(true);", StringComparison.Ordinal),
+            "Drawer position, extent preset, modal and provider direction synchronize their source state");
         Click("보조 패널 열기");
         var memo = Find("패널 메모");
         check(tree.RequestAction(memo.Node.Id, memo.RuntimeId, UiAccessibilityAction.SetValue, "보존 \"D\"", wait : false)
@@ -999,10 +1005,19 @@ internal static class GallerySampleTests
         Click("취소"); Click("경고 열기");
         Frame(idle with { MousePosition = new(1200, 5800), LeftMouseDown = true, LeftMousePressed = true });
         Frame(idle with { MousePosition = new(1200, 5800), LeftMouseReleased = true });
+        Frame(idle with { KeyEvents = [new(UiKey.Escape, true, default)] });
         Frame();
-        check(page.Preview.IsOpen && page.Samples[0].Source.Contains("UiDialogType.Alert", StringComparison.Ordinal),
-            "Alert Dialog retains its actual outside-click policy and corresponding source type");
-        Click("취소"); Click("등장 곡선");
+        check(page.Preview.IsOpen && page.Samples[0].Source.Contains("UiDialogType.Alert", StringComparison.Ordinal)
+            && page.Samples[0].Source.Contains("SuppressEscapeDismissal = true", StringComparison.Ordinal),
+            "Gallery Alert Dialog keeps its footer-only dismissal and emits that policy in source");
+        Click("취소");
+        check(!page.Preview.IsOpen && Find("경고 열기", UiAccessibilityRole.Button).Node.Focused,
+            "Gallery Alert Dialog footer dismissal restores focus to its opener");
+        Click("모달 열기");
+        Frame(idle with { KeyEvents = [new(UiKey.Escape, true, default)] });
+        Frame();
+        check(!page.Preview.IsOpen, "Opening a modal after an Alert restores Escape dismissal");
+        Click("등장 곡선");
         check(context.State.NextScheduledFrameTimeSeconds is not null && page.MotionValue == 0
             && page.Samples[1].Source.Contains("var _target = 1f;", StringComparison.Ordinal)
             && page.Samples[1].Source.Contains("var prepareMotion =", StringComparison.Ordinal),
@@ -2186,6 +2201,7 @@ internal static class GallerySampleTests
     }
     internal static void RunComponentSources(Action<bool, string> check, string? output = null, string? requestedPages = null)
     {
+        CatalogPage.Validate();
         var snapshots = new List<(string Page, string Phase, string Source)>();
         var unchangedBytes = 0L;
         var requested = requestedPages?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
@@ -2200,9 +2216,9 @@ internal static class GallerySampleTests
             context.SetAccessibilityTree(tree);
             using var frame = new GalleryPageFrame(page);
             var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
-            void Frame()
+            void Frame(UiInputState? input = null)
             {
-                context.NewFrame(new(.016f, new(1280, 6000), new(1, 1)), idle, new(0, 0, 1280, 6000), UiTextSettings.Default);
+                context.NewFrame(new(.016f, new(1280, 6000), new(1, 1)), input ?? idle, new(0, 0, 1280, 6000), UiTextSettings.Default);
                 context.Render(new Screen(ui => { ui.EnableRootViewportContentLayout(contentPadding : 0); frame.Render(ui); }));
                 using var data = context.GetDrawData();
             }
@@ -2256,7 +2272,51 @@ internal static class GallerySampleTests
                     break;
                 case "Button":
                     Send("카운터 증가", UiAccessibilityRole.Button, UiAccessibilityAction.Invoke);
-                    expected = "new UiState<int>(1)";
+                    var compound = Find("문서 만들기", UiAccessibilityRole.Button).Node;
+                    check(compound.GetHelpText() == "빈 양식에서 새 문서를 시작합니다." && compound.SupportsInvoke,
+                        "CompoundButton exposes a single invokable button with its description in HelpText");
+                    var clickCount = 1;
+                    foreach (var line in new[] { .28f, .72f })
+                    {
+                        var point = new UiVector2(compound.Bounds.X + 30, compound.Bounds.Y + compound.Bounds.Height * line);
+                        Frame(idle with { MousePosition = point, LeftMouseDown = true, LeftMousePressed = true });
+                        Frame(idle with { MousePosition = point, LeftMouseReleased = true });
+                        Frame(); Frame();
+                        clickCount++;
+                        check(page.Source.Contains($"new UiState<int>({clickCount})", StringComparison.Ordinal),
+                            "the CompoundButton increments once when releasing over line " + (clickCount - 1));
+                    }
+                    Send("문서 만들기", UiAccessibilityRole.Button, UiAccessibilityAction.Invoke);
+                    check(page.Source.Contains("new UiState<int>(4)", StringComparison.Ordinal),
+                        "CompoundButton Invoke uses its one action");
+
+                    var primary = Find("PNG로 저장", UiAccessibilityRole.Button).Node;
+                    var disclosure = Find("다른 형식으로 저장", UiAccessibilityRole.Button).Node;
+                    check(primary.Bounds.X + primary.Bounds.Width == disclosure.Bounds.X
+                        && disclosure.Expansion == UiAccessibilityExpansionState.Collapsed,
+                        "SplitButton publishes adjacent primary and menu controls with the menu collapsed");
+                    var primaryPoint = new UiVector2(primary.Bounds.X + primary.Bounds.Width / 2,
+                        primary.Bounds.Y + primary.Bounds.Height / 2);
+                    Frame(idle with { MousePosition = primaryPoint, LeftMouseDown = true, LeftMousePressed = true });
+                    Frame(idle with { MousePosition = primaryPoint, LeftMouseReleased = true });
+                    Frame(); Frame();
+                    check(page.Source.Contains("new UiState<int>(5)", StringComparison.Ordinal)
+                        && Find("다른 형식으로 저장", UiAccessibilityRole.Button).Node.Expansion == UiAccessibilityExpansionState.Collapsed,
+                        "SplitButton primary pointer release invokes only the primary action");
+                    Send("다른 형식으로 저장", UiAccessibilityRole.Button, UiAccessibilityAction.Focus);
+                    Frame(idle with { KeyEvents = [new(UiKey.DownArrow, true, KeyModifiers.None)] });
+                    Frame();
+                    check(Find("다른 형식으로 저장", UiAccessibilityRole.Button).Node.Expansion == UiAccessibilityExpansionState.Expanded
+                        && page.Source.Contains("new UiState<int>(5)", StringComparison.Ordinal),
+                        "SplitButton menu keyboard activation opens without invoking the primary action");
+                    Frame(idle with { KeyEvents = [new(UiKey.Escape, true, KeyModifiers.None)] });
+                    Frame();
+                    check(Find("다른 형식으로 저장", UiAccessibilityRole.Button).Node is
+                        { Focused: true, Expansion: UiAccessibilityExpansionState.Collapsed },
+                        "SplitButton Escape restores focus to the menu control");
+                    Send("다른 형식으로 저장", UiAccessibilityRole.Button, UiAccessibilityAction.Expand);
+                    Send("PDF로 저장", UiAccessibilityRole.MenuItem, UiAccessibilityAction.Invoke);
+                    expected = "new UiState<int>(15)";
                     break;
                 case "Checkbox":
                     Send("혼합 상태에서 시작", UiAccessibilityRole.Checkbox, UiAccessibilityAction.Toggle);

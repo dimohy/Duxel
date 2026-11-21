@@ -4,6 +4,8 @@ The stepper palette is separate from geometry and pointer handling. With system 
 
 `Fluent.SpinButton` binds a nullable `double` to an editable number with two pointer steppers. The generated class is `UiFluentSpinButton`; custom presentations use `UiSpinButton<TPresentation>`.
 
+Derive from `UiSpinButton<TBehavior, TPresentation>` to select stepper activation, hold repetition, keyboard commands and pressed feedback independently of painting. `IUiSpinButtonBehavior` maps input to numeric commands. Shared code validates the numeric range and publishes the value accepted by the binding to the editor and accessibility tree.
+
 ```csharp
 var quantity = new UiState<double?>(3);
 var input = Fluent.SpinButton("Quantity", quantity.Binding,

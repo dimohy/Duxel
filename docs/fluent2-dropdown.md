@@ -8,6 +8,8 @@ Verification covers 192 system-color GPU contracts, 192 exact ordinary-painter G
 
 `Fluent.Dropdown` provides a readonly field and a real ListBox. Bind `UiBinding<string?>` for single selection or `UiBinding<string[]>` for multiple selection. Single selection closes the popup; multiple selection keeps it open. `UiSelectOption(Value, Text, Enabled)` values must be unique. Unknown or duplicate selected values fail validation. Options are copied; dynamic replacement is not exposed.
 
+Derive from `UiDropdown<TBehavior, TPresentation>` to choose pointer activation for the field and options independently of measurement and painting. Select uses the same `IUiDropdownBehavior`. Painting and accessibility reflect the selection accepted by the binding.
+
 ```csharp
 string? selected = null;
 using var dropdown = Fluent.Dropdown("Location",

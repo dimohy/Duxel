@@ -45,6 +45,12 @@ public sealed class UiPaintGroupContent : IDisposable
     }
 
     public UiPaintGroupContent(UiRect bounds, UiVector2 framebufferScale, IReadOnlyList<UiDrawList> lists, UiPaintGroupTextMode textMode = UiPaintGroupTextMode.PhysicalLcd)
+        : this(bounds, framebufferScale, lists, textMode, takeOwnedBuffers: false)
+    {
+    }
+
+    private UiPaintGroupContent(UiRect bounds, UiVector2 framebufferScale, IReadOnlyList<UiDrawList> lists,
+        UiPaintGroupTextMode textMode, bool takeOwnedBuffers)
     {
         ArgumentNullException.ThrowIfNull(lists);
         if ((uint)textMode > 1)
@@ -82,14 +88,38 @@ public sealed class UiPaintGroupContent : IDisposable
         for (var i = 0; i < lists.Count; i++)
         {
             var list = lists[i];
-            _lists[i] = new(UiPooledList<UiDrawVertex>.RentAndCopy(list.Vertices.AsSpan()),
-                UiPooledList<uint>.RentAndCopy(list.Indices.AsSpan()),
-                UiPooledList<UiDrawCommand>.RentAndCopy(list.Commands.AsSpan()),
-                RectFilledPrimitives: list.RectFilledPrimitives is { } rectangles ? UiPooledList<UiRectFilledPrimitive>.RentAndCopy(rectangles.AsSpan()) : null,
-                CircleFilledPrimitives: list.CircleFilledPrimitives is { } circles ? UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(circles.AsSpan()) : null);
+            _lists[i] = takeOwnedBuffers && list.OwnsBuffers
+                ? new(list.Vertices, list.Indices, list.Commands,
+                    RectFilledPrimitives: list.RectFilledPrimitives, CircleFilledPrimitives: list.CircleFilledPrimitives)
+                : new(UiPooledList<UiDrawVertex>.RentAndCopy(list.Vertices.AsSpan()),
+                    UiPooledList<uint>.RentAndCopy(list.Indices.AsSpan()),
+                    UiPooledList<UiDrawCommand>.RentAndCopy(list.Commands.AsSpan()),
+                    RectFilledPrimitives: list.RectFilledPrimitives is { } rectangles ? UiPooledList<UiRectFilledPrimitive>.RentAndCopy(rectangles.AsSpan()) : null,
+                    CircleFilledPrimitives: list.CircleFilledPrimitives is { } circles ? UiPooledList<UiCircleFilledPrimitive>.RentAndCopy(circles.AsSpan()) : null);
         }
         DrawLists = Array.AsReadOnly(_lists);
         TextureDependencies = Array.AsReadOnly(dependencies.OrderBy(id => id.Value).ToArray());
+    }
+
+    // Build has consumed the builder's pending draw lists. Their owned buffers
+    // can become the snapshot's buffers without exposing borrowed geometry.
+    internal static UiPaintGroupContent ConsumeCapture(UiRect bounds, UiVector2 scale,
+        UiPooledList<UiDrawList> lists, UiPaintGroupTextMode textMode)
+    {
+        var consumed = false;
+        try
+        {
+            var content = new UiPaintGroupContent(bounds, scale, lists, textMode, takeOwnedBuffers: true);
+            consumed = true;
+            return content;
+        }
+        finally
+        {
+            if (!consumed)
+                foreach (var list in lists)
+                    list.ReleasePooled();
+            lists.Return();
+        }
     }
 
     internal static (int Width, int Height) ValidateViewport(UiRect bounds, UiVector2 framebufferScale)

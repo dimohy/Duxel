@@ -187,18 +187,8 @@ public sealed partial class UiImmediateContext
             try
             {
                 paint(new(this));
-                var lists = builder.Build();
-                try
-                {
-                    next = new(bounds, scale, lists, mode);
-                    captured = true;
-                }
-                finally
-                {
-                    foreach (var list in lists)
-                        list.ReleasePooled();
-                    lists.Return();
-                }
+                next = UiPaintGroupContent.ConsumeCapture(bounds, scale, builder.Build(), mode);
+                captured = true;
             }
             finally
             {

@@ -36,6 +36,19 @@ internal static class PaintGroupTests
         }
         catch (ObjectDisposedException) { rejected = true; }
         check(rejected, "returned pooled paint storage cannot be resurrected after its last lease");
+        var captureBuilder = new UiDrawListBuilder(bounds);
+        captureBuilder.AddRectFilled(new(0, 0, 40, 40), new(0, 255, 0), new(2));
+        var captured = captureBuilder.Build();
+        var capturedRectangles = captured[0].RectFilledPrimitives;
+        using var transferred = UiPaintGroupContent.ConsumeCapture(bounds, new(1, 1), captured, UiPaintGroupTextMode.PhysicalLcd);
+        using var transferredLease = transferred.Acquire();
+        transferred.Dispose();
+        captureBuilder._ResetForNewFrame();
+        captureBuilder.AddRectFilled(new(0, 0, 20, 20), new(0, 0, 255), new(2));
+        check(ReferenceEquals(transferredLease.Content.DrawLists[0].RectFilledPrimitives, capturedRectangles)
+            && capturedRectangles![0].Color == new UiColor(0, 255, 0),
+            "internal capture transfers buffer ownership and keeps queued geometry independent of the builder");
+        captureBuilder.DiscardDeferred();
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
         using var group = new UiPaintGroup();
         var callbacks = 0;

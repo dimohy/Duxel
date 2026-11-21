@@ -1,8 +1,18 @@
 # Fluent 2 구현 범위 — 사용자 교정, 2026-11-05
 
+Dialog의 모달·비모달·경고 유형은 `UiDialogType`으로 지정합니다. 디자인 가이드는 경고 대화 상자를 하단 버튼으로 닫도록 안내합니다. 해당 React 참조 구현은 경고 유형에도 Escape로 닫기 요청을 보냅니다. Duxel API는 기존 기본 동작을 유지하며, Gallery 경고 예제는 `SuppressEscapeDismissal`을 사용해 가이드대로 하단 버튼으로 닫습니다. [Dialog 디자인 가이드](https://fluent2.microsoft.design/components/web/react/core/dialog/usage) · [React 소스 c78d223](https://github.com/microsoft/fluentui/blob/c78d22353ba03b9eb744f577332aa400daf10934/packages/react-components/react-dialog/library/src/components/DialogSurface/useDialogSurface.ts)
+
+ProgressIndicator 아래에 Android 공식 원형 유형인 `CircularProgressIndicator`를 연결했습니다. 선형과 원형의 갤러리 예제를 함께 볼 수 있습니다. [원형 동작과 검증](fluent2-progress-indicator.ko.md#원형-진행-표시)
+
 2026-11-16: 현재 컴파일된 요구55개 중 Rating을 포함한39개가 연결되고16개가 미연결입니다. 노출 팩터리는 변형을 포함해68개이며 전체 상태/외관/플랫폼 적합성 분모와 다릅니다. [Rating 범위](fluent2-rating.ko.md)를 따르며 원래 전체 목표와 소스 생성기 첫 선언 삭제 캐시 기준0/2는 유지합니다.
 
 2026-11-13 [목록](fluent2-list.ko.md): 생성형 Fluent.List를 일반·단일·다중 선택과 관찰 샘플에 연결했습니다. 팩터리59개·공식 상위35/55 연결·20개 미연결이며 전체 적합성은 미완료입니다.
+
+2026-11-20 공식 목록을 다시 대조했습니다. React 47개, iOS 12개, Android 5개 링크가 저장소와 일치했습니다. [React 목록](https://fluent2.microsoft.design/components/web/react) · [iOS 목록](https://fluent2.microsoft.design/components/ios) · [Android 목록](https://fluent2.microsoft.design/components/android)
+
+Button 가이드에 따라 `CompoundButton`(제목과 보조 설명), `MenuButton`(메뉴 열기), `SplitButton`(기본 동작과 별도 메뉴)을 Button의 하위 변형으로 등록했습니다. 세 변형 모두 갤러리 예제와 입력·접근성 검사에 연결했습니다. 다른 구성요소의 변형과 상태는 원문 검토를 이어갑니다. [공식 Button 가이드](https://fluent2.microsoft.design/components/web/react/core/button/usage)
+
+Drawer 가이드에 나오는 인라인과 오버레이를 기존 Drawer의 하위 유형 `InlineDrawer`와 `OverlayDrawer`로 등록했습니다. 갤러리의 두 예제에서 각 팩터리를 사용합니다. 패널의 세부 구성요소와 반응형 동작은 원문 검토 범위에 남아 있습니다. [공식 Drawer 가이드](https://fluent2.microsoft.design/components/web/react/core/drawer/usage)
 
 
 2026-11-13 [Popover 열기 방식](fluent2-popover.ko.md): 클릭·호버·우클릭 단일 모드, 500ms 닫기 예약/취소·거부 시 대기, 가상 점 위치와 Menu/Shift+F10을 연결했습니다. 관찰 샘플 → Popover → 팝업 열기 방식.

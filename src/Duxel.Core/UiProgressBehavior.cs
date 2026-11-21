@@ -4,6 +4,7 @@ namespace Duxel.Core;
 public interface IUiProgressBehavior<TSelf> where TSelf : struct, IUiProgressBehavior<TSelf>
 {
     static abstract UiProgressValue Evaluate(ref TSelf state, UiProgressValue target, double timeSeconds, out bool animating);
+    static virtual void OnHidden(ref TSelf state) { }
     static abstract void Release(ref TSelf state);
 }
 
@@ -13,6 +14,8 @@ public struct UiFluentProgressBehavior : IUiProgressBehavior<UiFluentProgressBeh
     private bool _initialized;
     private float _from, _target;
     private double _start;
+    private double? _indeterminateCycleEnd;
+    public static void OnHidden(ref UiFluentProgressBehavior state) => state._indeterminateCycleEnd = null;
     public static void Release(ref UiFluentProgressBehavior state) => state = default;
     public static UiProgressValue Evaluate(ref UiFluentProgressBehavior state, UiProgressValue value, double timeSeconds, out bool animating)
     {
@@ -20,8 +23,18 @@ public struct UiFluentProgressBehavior : IUiProgressBehavior<UiFluentProgressBeh
         if (value.Value is not { } raw)
         {
             state = default;
+            if (!value.ReducedMotion)
+            {
+                var cycle = UiFluentProgressPresentation.IndeterminateCycleSeconds;
+                state._indeterminateCycleEnd = timeSeconds - timeSeconds % cycle + cycle;
+            }
             return value;
         }
+        if (value.FinishIndeterminateCycle && !value.ReducedMotion && value.Color != UiProgressColor.Error
+            && state._indeterminateCycleEnd is { } cycleEnd && timeSeconds < cycleEnd)
+            return value with { Value = null };
+
+        state._indeterminateCycleEnd = null;
         var target = value.Fraction!.Value;
         if (!state._initialized || value.ReducedMotion || Math.Clamp(raw, 0, value.Maximum) <= .01f)
         {

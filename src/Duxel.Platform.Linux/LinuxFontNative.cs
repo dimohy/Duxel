@@ -57,6 +57,7 @@ internal static unsafe partial class LinuxFontNative
     [LibraryImport(Cairo)] internal static partial int cairo_surface_status(nint surface);
     [LibraryImport(Cairo)] internal static partial void cairo_surface_destroy(nint surface);
     [LibraryImport(Cairo)] internal static partial void cairo_surface_flush(nint surface);
+    [LibraryImport(Cairo)] internal static partial void cairo_surface_mark_dirty(nint surface);
     [LibraryImport(Cairo)] internal static partial byte* cairo_image_surface_get_data(nint surface);
     [LibraryImport(Cairo)] internal static partial int cairo_image_surface_get_stride(nint surface);
     [LibraryImport(Cairo)] internal static partial nint cairo_create(nint surface);
@@ -64,6 +65,7 @@ internal static unsafe partial class LinuxFontNative
     [LibraryImport(Cairo)] internal static partial void cairo_destroy(nint context);
     [LibraryImport(Cairo)] internal static partial void cairo_set_source_rgba(nint context, double r, double g, double b, double a);
     [LibraryImport(Cairo)] internal static partial void cairo_set_scaled_font(nint context, nint font);
+    [LibraryImport(Cairo)] internal static partial void cairo_move_to(nint context, double x, double y);
     [LibraryImport(Cairo)] internal static partial void cairo_translate(nint context, double x, double y);
     [LibraryImport(Cairo)] internal static partial void cairo_show_glyphs(nint context, Glyph* glyphs, int count);
 

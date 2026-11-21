@@ -6,14 +6,16 @@ internal sealed class DrawerPage : IObserverPage, IObserverNaturalPage, IGallery
 {
     private readonly UiState<string> _memo = new(GalleryText.Get("Edits are kept when you close and reopen the drawer."));
     private readonly UiState<bool> _inlineOpen = new(true);
-    private readonly UiFluentDrawer _overlay;
-    private readonly UiFluentDrawer _inline;
+    private readonly UiState<bool> _overlayRightToLeft = new(false);
+    private readonly UiFluentOverlayDrawer _overlay;
+    private readonly UiFluentInlineDrawer _inline;
+    private readonly UiThemeProvider _overlayProvider;
     private readonly UiWidget _root;
     private readonly Action<UiImmediateContext> _renderOverlay;
     private int _saves;
     public string Title => "보조 패널";
     public string Description => "Open a panel at the edge of the screen. Change its position or modal behavior, scroll its content, and check that focus returns on close.";
-    internal UiFluentDrawer Overlay => _overlay;
+    internal UiFluentOverlayDrawer Overlay => _overlay;
     internal int Saves => _saves;
     public IReadOnlyList<IGallerySample> Samples { get; }
     internal DrawerPage()
@@ -26,26 +28,34 @@ internal sealed class DrawerPage : IObserverPage, IObserverNaturalPage, IGallery
             Description : GalleryText.Get("A side drawer that keeps your edits"));
         var overlayDefinition = GallerySample.Define("_overlay", () =>
         {
-            UiFluentDrawer? drawer = null;
-            drawer = Fluent.Drawer(GalleryText.Get("Additional tasks"), contents(GalleryText.Get("Drawer note")),
-                [Fluent.Button(GalleryText.Get("Save drawer changes"), () => { _saves++; drawer!.Close(); }), Fluent.Button(GalleryText.Get("Close drawer"), () => drawer!.Close())],
+            UiFluentOverlayDrawer? drawer = null;
+            drawer = Fluent.OverlayDrawer(new UiDrawerHeader(GalleryText.Get("Additional tasks"), Fluent.Button(GalleryText.Get("Clear drawer note"), () => _memo.Value = string.Empty)),
+                new UiDrawerBody(contents(GalleryText.Get("Drawer note")), Scroll : overlayOptions.ScrollBody),
+                new UiDrawerFooter([Fluent.Button(GalleryText.Get("Save drawer changes"), () => { _saves++; drawer!.Close(); }), Fluent.Button(GalleryText.Get("Close drawer"), () => drawer!.Close())]),
                 overlayOptions);
             return drawer;
         });
         _overlay = overlayDefinition.Value;
-        var renderDefinition = GallerySample.Define<Action<UiImmediateContext>>("renderOverlays", () => (UiImmediateContext ui) => _overlay.Render(ui));
+        var providerDefinition = GallerySample.Define("_overlayProvider", () => new UiThemeProvider(_overlay, paintBackground : false));
+        _overlayProvider = providerDefinition.Value;
+        var renderDefinition = GallerySample.Define<Action<UiImmediateContext>>("renderOverlays", () => (UiImmediateContext ui) =>
+        {
+            _overlayProvider.Direction = _overlayRightToLeft.Value ? UiFlowDirection.RightToLeft : UiFlowDirection.Inherit;
+            _overlayProvider.Render(ui);
+        });
         _renderOverlay = renderDefinition.Value;
         var overlaySample = GallerySample.Create(() => Fluent.Button(GalleryText.Get("Open side drawer"), _overlay.Show));
         var overlayFactory = overlaySample.Source;
-        overlaySample.BindSource(() => (Memo : _memo.Value, Saves : _saves, _overlay.Options, _overlay.IsOpen), state =>
+        overlaySample.BindSource(() => (Memo : _memo.Value, Saves : _saves, _overlay.Options, _overlay.IsOpen, RightToLeft : _overlayRightToLeft.Value), state =>
             $"var _memo = new UiState<string>({GallerySample.String(state.Memo)});\nvar _saves = {state.Saves};\n"
+            + $"var _overlayRightToLeft = new UiState<bool>({GallerySample.Boolean(state.RightToLeft)});\n"
             + $"var overlayOptions = {SourceOptions(state.Options)};\n\n" + contentsDefinition.Source + "\n\n" + overlayDefinition.Source + "\n\n"
-            + overlayFactory + (state.IsOpen ? "\n_overlay.Show();" : string.Empty) + "\n\n" + renderDefinition.Source
+            + overlayFactory + (state.IsOpen ? "\n_overlay.Show();" : string.Empty) + "\n\n" + providerDefinition.Source + "\n\n" + renderDefinition.Source
             + "\n// Invoke renderOverlays(ui) after rendering example in each frame.");
-        var inlineOptions = new UiDrawerOptions(Type : UiDrawerType.Inline, InlineCrossExtent : 400, Separator : true, CloseLabel : GalleryText.Get("Close inline drawer"));
+        var inlineOptions = new UiDrawerOptions(InlineCrossExtent : 400, Separator : true, CloseLabel : GalleryText.Get("Close inline drawer"));
         var inlineSample = GallerySample.Create(() =>
         {
-            var drawer = Fluent.Drawer(GalleryText.Get("Inline drawer"), contents(GalleryText.Get("Inline drawer note")),
+            var drawer = Fluent.InlineDrawer(GalleryText.Get("Inline drawer"), contents(GalleryText.Get("Inline drawer note")),
                 [Fluent.Button(GalleryText.Get("Close inline content"), () => _inlineOpen.Value = false)], inlineOptions);
             drawer.Open = _inlineOpen.Binding;
             return drawer;
@@ -66,8 +76,7 @@ internal sealed class DrawerPage : IObserverPage, IObserverNaturalPage, IGallery
                     { Size = (UiDrawerSize)(((int)_overlay.Options.Size + 1) % 4) })),
             Fluent.Switch(GalleryText.Get("Modal drawer"), new UiBinding<bool>(() => _overlay.Options.Modal,
                 value => _overlay.Options = _overlay.Options with { Modal = value })),
-            Fluent.Switch(GalleryText.Get("Right-to-left drawer"), new UiBinding<bool>(() => _overlay.Options.RightToLeft,
-                value => _overlay.Options = _overlay.Options with { RightToLeft = value })),
+            Fluent.Switch(GalleryText.Get("Right-to-left drawer"), _overlayRightToLeft),
             Fluent.Body1(() => GalleryText.Format("Saves: {0}", _saves)),
             Fluent.Caption1(GalleryText.Get("When the window is tall enough, the title and bottom buttons stay in place as the body scrolls. In a shorter window, the whole drawer can scroll.")),
             overlaySample,
@@ -78,7 +87,7 @@ internal sealed class DrawerPage : IObserverPage, IObserverNaturalPage, IGallery
     private static string SourceOptions(UiDrawerOptions value)
     {
         static string Number(float? number) => number is { } n ? n.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "f" : "null";
-        return $"new UiDrawerOptions(Type : UiDrawerType.{value.Type}, Position : UiDrawerPosition.{value.Position}, Size : UiDrawerSize.{value.Size},\n"
+        return $"new UiDrawerOptions(Position : UiDrawerPosition.{value.Position}, Size : UiDrawerSize.{value.Size},\n"
             + $"    Extent : {Number(value.Extent)}, InlineCrossExtent : {Number(value.InlineCrossExtent)}, Modal : {GallerySample.Boolean(value.Modal)},\n"
             + $"    LightDismiss : {GallerySample.Boolean(value.LightDismiss)}, ShowCloseButton : {GallerySample.Boolean(value.ShowCloseButton)}, CloseLabel : {GallerySample.String(value.CloseLabel)},\n"
             + $"    Description : {GallerySample.String(value.Description)}, RightToLeft : {GallerySample.Boolean(value.RightToLeft)},\n"
@@ -87,5 +96,5 @@ internal sealed class DrawerPage : IObserverPage, IObserverNaturalPage, IGallery
     UiWidget IObserverNaturalPage.MeasureRoot => _root;
     void IObserverNaturalPage.RenderOverlays(UiImmediateContext ui) => _renderOverlay(ui);
     public void Render(UiImmediateContext ui) { _root.Render(ui); _renderOverlay(ui); }
-    public void Dispose() { _overlay.Dispose(); _root.Dispose(); }
+    public void Dispose() { _overlayProvider.Dispose(); _root.Dispose(); }
 }

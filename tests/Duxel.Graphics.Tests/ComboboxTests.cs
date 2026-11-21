@@ -295,8 +295,37 @@ internal static class ComboboxTests
         Send("Alpha", UiAccessibilityRole.Option, UiAccessibilityAction.Select);
         check(!single.IsOpen && !desiredOpen && text == "Alpha",
             "Combobox accepted controlled selection dismissal reads the updated model instead of reopening from a stale snapshot");
+
+        var query = new UiState<string>("B");
+        var selectedOption = new UiState<string?>(null);
+        using var custom = new PressCombobox(query.Binding, selectedOption.Binding, items);
+        current = custom;
+        Frame();
+        static UiVector2 Center(UiRect bounds) => new(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
+        var expander = Center(Find("Show options", UiAccessibilityRole.Button).Node.Bounds);
+        Frame(idle with { MousePosition = expander, LeftMousePressed = true, LeftMouseReleased = true });
+        check(custom.IsOpen && query.Value == "B" && !Find("Alpha", UiAccessibilityRole.Option).Node.Offscreen,
+            "Custom Combobox opens the complete list on press without changing the editor's query");
+        var option = Center(Find("Beta", UiAccessibilityRole.Option).Node.Bounds);
+        Frame(idle with { MousePosition = option, LeftMousePressed = true, LeftMouseDown = true });
+        check(!custom.IsOpen && query.Value == "Beta" && selectedOption.Value == "b"
+            && Find("Custom choice", UiAccessibilityRole.ComboBox).Node.Value == "Beta",
+            "Custom Combobox option press commits text and the native selection together");
+        Frame(idle with { MousePosition = option, LeftMouseReleased = true });
+        check(!custom.IsOpen && selectedOption.Value == "b", "Custom Combobox release does not reopen or repeat the choice");
+        query.Value = "";
+        Frame();
+        Send("Custom choice", UiAccessibilityRole.ComboBox, UiAccessibilityAction.Focus);
+        var commitReads = ime.CommitReads;
+        ime.Commit = "a";
+        Frame();
+        check(query.Value == "a" && custom.IsOpen && ime.CommitReads == commitReads + 1,
+            "Custom Combobox still accepts committed text and opens its popup for the new query");
         RunLifetimeBoundaries(check);
     }
+
+    private sealed class PressCombobox(UiBinding<string> text, UiBinding<string?> value, UiSelectOption[] items)
+        : UiCombobox<PressPopupBehavior, UiFluentComboboxPresentation>("Custom choice", text, value, items);
     private static void RunLifetimeBoundaries(Action<bool, string> check)
     {
         using var first = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));

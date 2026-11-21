@@ -1,8 +1,10 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Duxel.Diagnostics;
 
@@ -15,11 +17,13 @@ public static class ErdVirtualMemorySnapshot
     private const uint Image = 0x1000000;
 
     public readonly record struct Allocation(string BaseAddress, ulong CommittedBytes, ulong ReservedBytes);
+    public readonly record struct Mapping(string BaseAddress, ulong CommittedBytes, string? FileName, int? FileNameError);
 
     public readonly record struct Snapshot(ulong PrivateCommitBytes, ulong MappedCommitBytes,
-        ulong ImageCommitBytes, ulong ReservedBytes, int Regions, double QueryMilliseconds, Allocation[] PrivateAllocations);
+        ulong ImageCommitBytes, ulong ReservedBytes, int Regions, double QueryMilliseconds, Allocation[] PrivateAllocations,
+        Mapping[] MappedAllocations);
 
-    public static Snapshot Read(IntPtr process, bool capturePrivateAllocations = false)
+    public static Snapshot Read(IntPtr process, bool capturePrivateAllocations = false, bool captureMappedAllocations = false)
     {
         var clock = Stopwatch.StartNew();
         GetSystemInfo(out var system);
@@ -29,6 +33,8 @@ public static class ErdVirtualMemorySnapshot
         var privateAllocations = capturePrivateAllocations
             ? new Dictionary<nuint, (ulong Committed, ulong Reserved)>()
             : null;
+        var mappedAllocations = captureMappedAllocations ? new Dictionary<nuint, Mapping>() : null;
+        var fileNameBuffer = captureMappedAllocations ? new StringBuilder(32768) : null;
         for (var address = system.MinimumAddress; address <= system.MaximumAddress;)
         {
             var returned = VirtualQueryEx(process, address, out var region, size);
@@ -54,7 +60,15 @@ public static class ErdVirtualMemorySnapshot
                 switch (region.Type)
                 {
                     case Private: privateBytes += region.Size; break;
-                    case Mapped: mappedBytes += region.Size; break;
+                    case Mapped:
+                        mappedBytes += region.Size;
+                        if (mappedAllocations is not null && fileNameBuffer is not null)
+                        {
+                            if (!mappedAllocations.TryGetValue(region.AllocationBase, out var mapping))
+                                mapping = DescribeMapping(process, region, fileNameBuffer);
+                            mappedAllocations[region.AllocationBase] = mapping with { CommittedBytes = mapping.CommittedBytes + region.Size };
+                        }
+                        break;
                     case Image: imageBytes += region.Size; break;
                     default: throw new InvalidOperationException($"Unknown committed region type 0x{region.Type:X}.");
                 }
@@ -69,7 +83,17 @@ public static class ErdVirtualMemorySnapshot
             foreach (var (address, allocation) in privateAllocations)
                 allocations[index++] = new($"0x{address:X}", allocation.Committed, allocation.Reserved);
         }
-        return new(privateBytes, mappedBytes, imageBytes, reservedBytes, regions, clock.Elapsed.TotalMilliseconds, allocations);
+        Mapping[] mappings = mappedAllocations is null ? [] : [.. mappedAllocations.Values];
+        return new(privateBytes, mappedBytes, imageBytes, reservedBytes, regions, clock.Elapsed.TotalMilliseconds, allocations, mappings);
+    }
+
+    private static Mapping DescribeMapping(IntPtr process, MemoryInformation region, StringBuilder buffer)
+    {
+        var length = GetMappedFileNameW(process, region.BaseAddress, buffer, (uint)buffer.Capacity);
+        var address = $"0x{region.AllocationBase:X}";
+        if (length == 0 || length >= buffer.Capacity)
+            return new(address, 0, null, Marshal.GetLastPInvokeError());
+        return new(address, 0, buffer.ToString(0, checked((int)length)), null);
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -96,6 +120,10 @@ public static class ErdVirtualMemorySnapshot
 
     [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
     private static extern nuint VirtualQueryEx(IntPtr process, nuint address, out MemoryInformation information, nuint length);
+
+    // PowerShell Add-Type compiles this observer without SDK source generators.
+    [DllImport("psapi.dll", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint GetMappedFileNameW(IntPtr process, nuint address, [Out] StringBuilder fileName, uint capacity);
 }
 
 public static class ErdObservedWindow

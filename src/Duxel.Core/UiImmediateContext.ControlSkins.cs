@@ -4,6 +4,7 @@ public sealed partial class UiImmediateContext
 {
     private UiControlSkins _controlSkins;
     private readonly Stack<UiButtonSkin> _buttonSkinScopes = [];
+    private UiTextFieldSkin? _textFieldSkinOverride;
     internal void SetControlSkins(UiControlSkins skins)
     {
         _controlSkins = skins;
@@ -13,6 +14,14 @@ public sealed partial class UiImmediateContext
     private UiButtonSkin CurrentButtonSkin => _buttonSkinScopes.Count == 0
         ? _controlSkins.Button : _buttonSkinScopes.Peek();
     internal UiSegmentedSkin SegmentedSkin => _controlSkins.Segmented;
+    private UiTextFieldSkin CurrentTextFieldSkin => _textFieldSkinOverride ?? _controlSkins.TextField;
+
+    internal UiTextFieldSkin? SetTextFieldSkinOverride(UiTextFieldSkin? skin)
+    {
+        var previous = _textFieldSkinOverride;
+        _textFieldSkinOverride = skin;
+        return previous;
+    }
 
     internal bool SegmentedBehavior(string id, UiVector2 size)
     {
@@ -22,7 +31,7 @@ public sealed partial class UiImmediateContext
 
     private UiRect DrawTextFieldFrame(UiRect rect, UiColor border, bool focused, bool multiline = false)
     {
-        var skin = _controlSkins.TextField;
+        var skin = CurrentTextFieldSkin;
         if (multiline && skin == default)
         {
             AddRectFilled(rect, border, _whiteTexture);
@@ -69,6 +78,18 @@ public sealed partial class UiImmediateContext
 
 public static class UiControlSkinExtensions
 {
+    /// <summary>Applies a text field skin while rendering the view and its legacy input fields.</summary>
+    public static IUiView TextFieldStyle(this IUiView view, UiTextFieldSkin skin)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        return new UiView(ui =>
+        {
+            var previous = ui.SetTextFieldSkinOverride(skin);
+            try { view.Render(ui); }
+            finally { ui.SetTextFieldSkinOverride(previous); }
+        });
+    }
+
     public static IUiView ControlStyle(this IUiView view, UiButtonSkin skin)
     {
         ArgumentNullException.ThrowIfNull(view);

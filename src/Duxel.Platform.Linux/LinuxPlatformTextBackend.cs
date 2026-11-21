@@ -192,16 +192,50 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBacke
             }
         }, expandToRgba);
 
-    private static byte[] RasterizeSurface(int width, int height, double left, double top, Action<nint> paint, bool expandToRgba)
+    private delegate T ReadAlphaSurface<T>(byte* data, int stride, int width, int height);
+
+    private static byte[] RasterizeSurface(int width, int height, double left, double top, Action<nint> paint, bool expandToRgba = false)
+        => width == 0 || height == 0 ? [] : RasterizeSurface<byte[]>(width, height, left, top, paint,
+            expandToRgba ? ReadRgbaRows : ReadAlphaRows, previousInk: false);
+
+    private static byte[] ReadAlphaRows(byte* data, int stride, int width, int height)
     {
-        if (width == 0 || height == 0)
-            return [];
-        var pixels = new byte[checked(width * height * (expandToRgba ? 4 : 1))];
+        var alpha = new byte[checked(width * height)];
+        for (var row = 0; row < height; row++)
+            new ReadOnlySpan<byte>(data + row * stride, width).CopyTo(alpha.AsSpan(row * width, width));
+        return alpha;
+    }
+
+    private static byte[] ReadRgbaRows(byte* data, int stride, int width, int height)
+    {
+        var pixels = new byte[checked(width * height * 4)];
+        var rgba = MemoryMarshal.Cast<byte, uint>(pixels.AsSpan());
+        for (var row = 0; row < height; row++)
+        {
+            var coverage = new ReadOnlySpan<byte>(data + row * stride, width);
+            var target = rgba.Slice(row * width, width);
+            for (var x = 0; x < width; x++)
+                target[x] = coverage[x] * 0x01010101u;
+        }
+        return pixels;
+    }
+
+    private static T RasterizeSurface<T>(int width, int height, double left, double top, Action<nint> paint,
+        ReadAlphaSurface<T> read, bool previousInk)
+    {
         var surface = cairo_image_surface_create(2, width, height); // A8, native stride is not necessarily width.
         nint context = 0;
         try
         {
             CheckCairo(cairo_surface_status(surface), "allocate alpha surface");
+            if (previousInk)
+            {
+                // New A8 pixels are zeroed by Cairo. Mark the destination as modified to match the
+                // compositor state of the original run without clearing the entire surface again.
+                cairo_surface_flush(surface);
+                cairo_image_surface_get_data(surface)[0] = 0;
+                cairo_surface_mark_dirty(surface);
+            }
             context = cairo_create(surface);
             cairo_translate(context, -left, -top);
             cairo_set_source_rgba(context, 1, 1, 1, 1);
@@ -209,25 +243,7 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBacke
             CheckCairo(cairo_status(context), "render glyphs");
             cairo_surface_flush(surface);
             CheckCairo(cairo_surface_status(surface), "flush alpha surface");
-            var data = cairo_image_surface_get_data(surface);
-            var stride = cairo_image_surface_get_stride(surface);
-            if (expandToRgba)
-            {
-                var rgba = MemoryMarshal.Cast<byte, uint>(pixels.AsSpan());
-                for (var row = 0; row < height; row++)
-                {
-                    var coverage = new ReadOnlySpan<byte>(data + row * stride, width);
-                    var target = rgba.Slice(row * width, width);
-                    for (var x = 0; x < width; x++)
-                        target[x] = coverage[x] * 0x01010101u;
-                }
-            }
-            else
-            {
-                for (var row = 0; row < height; row++)
-                    new ReadOnlySpan<byte>(data + row * stride, width).CopyTo(pixels.AsSpan(row * width, width));
-            }
-            return pixels;
+            return read(cairo_image_surface_get_data(surface), cairo_image_surface_get_stride(surface), width, height);
         }
         finally
         {

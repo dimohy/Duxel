@@ -2,9 +2,11 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
-    internal bool RenderCombobox<TPresentation>(string id, string label, ref string text, UiOptionSelection selection,
+    internal bool RenderCombobox<TBehavior, TPresentation>(string id, string label, ref string text, UiOptionSelection selection,
         UiFilteredOptionSelection filtered, UiMenuInputState popup, UiMenuInputState logical, UiTextInputOwner owner,
-        UiComboboxOptions options, UiBinding<bool>? controlledOpen, UiComboboxCompletion? completion = null) where TPresentation : IUiComboboxPresentation
+        UiComboboxOptions options, UiBinding<bool>? controlledOpen, UiComboboxCompletion? completion = null)
+        where TBehavior : IUiMenuBehavior
+        where TPresentation : IUiComboboxPresentation
     {
         var initialText = text;
         var selectedBefore = selection.Count;
@@ -52,7 +54,7 @@ public sealed partial class UiImmediateContext
             if (_state.FocusedId == popup.Root)
                 _state.FocusedId = _ownedControlFocus = editorId;
             var arrowBounds = TPresentation.ExpandBounds(bounds, field);
-            var arrow = ProcessButton(arrowName, arrowBounds, UiButtonActivation.Release);
+            var arrow = ProcessButton(arrowName, arrowBounds, TBehavior.TriggerActivation);
             arrow = ApplyAccessibilityInvoke(arrowId, arrowBounds, arrow);
             _currentTabStops.RemoveAll(stop => stop.Id == arrowId);
             if (_state.FocusedId == arrowId)
@@ -183,7 +185,7 @@ public sealed partial class UiImmediateContext
                     {
                         MaximumHeight = field.MaximumPopupHeight ?? MathF.Max(40, _displaySize.Y * .8f)
                     },
-                    popup, anchor, interaction, filtered, controlledOpen?.Value, expansionRequest);
+                    popup, anchor, interaction, filtered, controlledOpen?.Value, expansionRequest, TBehavior.OptionActivation);
             }
             finally { _keyEvents = popupKeys; }
             if (_state.FocusedId == popup.Root || _state.FocusedId == root || editorFocused && popup.Open)

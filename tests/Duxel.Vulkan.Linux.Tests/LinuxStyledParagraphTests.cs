@@ -5,7 +5,7 @@ using Duxel.Platform.Linux;
 
 internal static class LinuxStyledParagraphTests
 {
-    internal static void Run(string output)
+    internal static void Run(string output, bool checkWholeRaster = false)
     {
         Directory.CreateDirectory(output);
         var passed = new List<string>();
@@ -43,9 +43,15 @@ internal static class LinuxStyledParagraphTests
                         start += span.Text.Length;
                     }
                     var expected = oracle.CaptureStyled(spans, width, rtl);
-                    var paragraph = backend.CreateParagraph(new(text, styles.ToArray(), width,
-                        rtl ? PlatformTextParagraphDirection.RightToLeft : PlatformTextParagraphDirection.LeftToRight), false);
+                    var request = new PlatformTextParagraphRequest(text, styles.ToArray(), width,
+                        rtl ? PlatformTextParagraphDirection.RightToLeft : PlatformTextParagraphDirection.LeftToRight);
                     var name = $"{text} / {width} / {rtl}";
+                    if (checkWholeRaster)
+                    {
+                        CompareWholeRaster(output, backend.RasterizeWholeParagraph(request), expected.Pixels, name, Check);
+                        continue;
+                    }
+                    var paragraph = backend.CreateParagraph(request, false);
                     var nativeGlyphs = oracle.CaptureStyled(spans, width, rtl, nativeGlyphPaint: true);
                     Check(nativeGlyphs.Pixels.AsSpan().SequenceEqual(expected.Pixels), "Independent original glyph drawing equals whole native layout : " + name);
                     var expectedGlyphs = oracle.LastNativeGlyphs.OrderBy(glyph => glyph.Index).ThenBy(glyph => glyph.X).ThenBy(glyph => glyph.Y).ToArray();
@@ -89,9 +95,9 @@ internal static class LinuxStyledParagraphTests
                         Check(mesh.Glyphs.Span.ToArray().All(glyph => run.Glyphs.Span.ToArray().Any(source =>
                             glyph.Offset == new UiVector2(source.X, source.Y))), "Vector snapshot positions : " + name);
                     }
-                    var separateVisible = oracle.CaptureStyled(spans, width, rtl, nativeGlyphPaint: true,
-                        runSurface: PangoLineOracle.RunSurface.FullSize, omitInkless: true);
-                    Check(pixels.AsSpan().SequenceEqual(separateVisible.Pixels), "Exact independent native run-mask composition : " + name);
+                    var sequential = oracle.CaptureStyled(spans, width, rtl, nativeGlyphPaint: true,
+                        runSurface: PangoLineOracle.RunSurface.SequentialLine);
+                    Check(pixels.AsSpan().SequenceEqual(sequential.Pixels), "Exact independent native run-mask composition : " + name);
                     var equal = pixels.AsSpan().SequenceEqual(expected.Pixels);
                     Check(equal, "Exact native styled Pango pixels : " + name);
                     if (!equal)
@@ -104,6 +110,8 @@ internal static class LinuxStyledParagraphTests
                         var croppedVisible = oracle.CaptureStyled(spans, width, rtl, nativeGlyphPaint: true, runSurface: PangoLineOracle.RunSurface.Cropped, omitInkless: true);
                         var widerVisible = oracle.CaptureStyled(spans, width, rtl, nativeGlyphPaint: true, runSurface: PangoLineOracle.RunSurface.Cropped, omitInkless: true, cropPadding: 8);
                         var separate = oracle.CaptureStyled(spans, width, rtl, nativeGlyphPaint: true, runSurface: PangoLineOracle.RunSurface.FullSize, traceOffsets: offsets);
+                        var separateVisible = oracle.CaptureStyled(spans, width, rtl, nativeGlyphPaint: true,
+                            runSurface: PangoLineOracle.RunSurface.FullSize, omitInkless: true);
                         var marked = oracle.CaptureStyled(spans, width, rtl, nativeGlyphPaint: true, runSurface: PangoLineOracle.RunSurface.FullSizeMarked);
                         var croppedMarked = oracle.CaptureStyled(spans, width, rtl, nativeGlyphPaint: true,
                             runSurface: PangoLineOracle.RunSurface.CroppedMarked);
@@ -129,11 +137,82 @@ internal static class LinuxStyledParagraphTests
                         File.WriteAllBytes(Path.Combine(output, $"failure-{failed.Count}.actual.a8"), pixels);
                     }
                 }
-        RunCore(backend, oracle, Check);
+        if (!checkWholeRaster)
+        {
+            RunCore(backend, oracle, Check);
+            var glyph = new PlatformTextParagraphGlyph(42, 0, 8, 0, 0, 3, 17);
+            var context = new PlatformTextRunRasterContext(-4, -16, 40, 30, false);
+            PlatformTextParagraphRun Run(UiVector2 origin, PlatformTextParagraphGlyph value, PlatformTextRunRasterContext raster)
+                => new(0, fonts[0], 14, 0, origin, [value], raster);
+            var initial = Run(new(3, 17), glyph, context);
+            Check(initial.RasterEquals(Run(new(13, 37), glyph with { X = 13, Y = 37 }, context)),
+                "Integer relocation with identical line context reuses cached coverage");
+            Check(!initial.RasterEquals(Run(new(3, 17), glyph, context with { Width = 41 })),
+                "Changing line bounds invalidates cached coverage");
+            Check(!initial.RasterEquals(Run(new(3, 17), glyph, context with { PreviousInk = true })),
+                "Changing preceding Cairo ink state invalidates cached coverage");
+
+            const string source = "AV office";
+            PlatformTextParagraphStyle first = new(0, 3, fonts[0], null, 14) { PaintGroup = 1 };
+            PlatformTextParagraphStyle second = new(3, source.Length - 3, fonts[0], null, 14) { PaintGroup = 1 };
+            var joined = backend.CreateParagraph(new(source, [first, second]), false);
+            var split = backend.CreateParagraph(new(source, [first, second with { PaintGroup = 2 }]), false);
+            Check(joined.Runs.Length == 1 && split.Runs.Length == 2
+                && split.Runs.Span[0].StyleIndex == 0 && split.Runs.Span[1].StyleIndex == 1
+                && joined.Runs.Span[0].Glyphs.Span.SequenceEqual(split.Runs.ToArray().SelectMany(run => run.Glyphs.ToArray()).ToArray()),
+                "Native groups retain identical paint and split distinct paint without changing glyphs");
+            var codeLayouts = new UiCodeParagraphLayouts();
+            const string code = "AV office\nAV office";
+            PlatformTextParagraphStyle[] codeStyles = [first, second, first with { Start = 9, Length = 4 },
+                second with { Start = 13 }];
+            var codeLayout = codeLayouts.Prepare(backend, code, codeStyles, float.PositiveInfinity, false, default);
+            Check(codeLayout.Runs.Length == 2 && codeLayout.Runs.ToArray().All(run => run.RasterContext is not null),
+                "Code paragraph snapshots retain run raster context when rebasing lines");
+            var changedStyles = (PlatformTextParagraphStyle[])codeStyles.Clone();
+            changedStyles[3] = changedStyles[3] with { PaintGroup = 2 };
+            var recolored = codeLayouts.Prepare(backend, code, changedStyles, float.PositiveInfinity, false, default);
+            Check(recolored.Runs.Length == 3 && recolored.Runs.Span[^1].StyleIndex == 3 && codeLayouts.NativeBuilds == 3,
+                "An unchanged code string rebuilds only the line whose paint grouping changed");
+            var editedPrefix = (PlatformTextParagraphStyle[])changedStyles.Clone();
+            editedPrefix[1] = editedPrefix[1] with { PaintGroup = 3 };
+            var prefixChanged = codeLayouts.Prepare(backend, code, editedPrefix, float.PositiveInfinity, false, default);
+            Check(prefixChanged.Runs.Length == 4 && codeLayouts.NativeBuilds == 4,
+                "Recoloring an earlier line preserves unchanged native lines after it");
+        }
         File.WriteAllText(Path.Combine(output, "result.json"), JsonSerializer.Serialize(new LinuxStyledResult(passed.Count, failed.ToArray()),
             LinuxStyledJson.Default.LinuxStyledResult));
         if (failed.Count != 0)
             throw new InvalidOperationException("Linux styled paragraph failures : " + failed.Count);
+    }
+
+    private static void CompareWholeRaster(string output, PlatformTextParagraphRaster raster, byte[] expected,
+        string name, Action<bool, string> check)
+    {
+        using var owner = raster.PixelOwner;
+        var pixels = new byte[PangoLineOracle.Width * PangoLineOracle.Height];
+        var left = 20 + checked((int)raster.Origin.X);
+        var top = 20 + checked((int)raster.Origin.Y);
+        if (left < 0 || top < 0 || left + raster.Width > PangoLineOracle.Width || top + raster.Height > PangoLineOracle.Height)
+            throw new InvalidOperationException("Whole paragraph fixture exceeds the reference surface.");
+        var data = raster.RgbaPixels.Span;
+        for (var y = 0; y < raster.Height; y++)
+            for (var x = 0; x < raster.Width; x++)
+            {
+                var at = (y * raster.Width + x) * 4;
+                var alpha = data[at + 3];
+                if (data[at] != alpha || data[at + 1] != alpha || data[at + 2] != alpha)
+                    throw new InvalidOperationException("Whole paragraph texture does not contain grayscale coverage.");
+                pixels[(top + y) * PangoLineOracle.Width + left + x] = alpha;
+            }
+        var equal = pixels.AsSpan().SequenceEqual(expected);
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pixels));
+        Console.WriteLine($"WHOLE {raster.Width} {raster.Height} {hash} {equal}");
+        if (!equal)
+        {
+            File.WriteAllBytes(Path.Combine(output, hash + ".whole.a8"), pixels);
+            File.WriteAllBytes(Path.Combine(output, hash + ".expected.a8"), expected);
+        }
+        check(equal, "Whole native paragraph cropped raster : " + name);
     }
 
     private static void RunCore(LinuxPlatformTextBackend backend, PangoLineOracle oracle, Action<bool, string> check)

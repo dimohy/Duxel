@@ -1,12 +1,16 @@
 # Fluent 2 Button 타이포그래피와 secondary 표현
 
-Last synced: 2026-11-06
+Last synced: 2026-11-20
+
+`Fluent.CompoundButton(label, description, activated)`은 제목과 한 줄 설명을 한 버튼에 표시합니다. 두 줄 모두 같은 동작을 실행하며, 접근성 도구는 제목을 버튼 이름으로, 설명을 도움말로 읽을 수 있습니다. 갤러리의 **동작과 탐색 → Button → 문서 만들기**에서 확인할 수 있습니다.
+
+`Fluent.SplitButton(label, menuLabel, activate, items, invoked, options)`은 기본 동작 버튼과 메뉴 화살표를 한 줄에 배치합니다. 기본 버튼은 `activate`를 실행하고, 화살표는 메뉴를 열며, 메뉴에서 항목을 고르면 `invoked`가 실행됩니다. 두 영역에는 Tab으로 각각 이동할 수 있습니다. 갤러리의 **동작과 탐색 → Button → PNG로 저장**에서 확인할 수 있습니다.
 
 범위 기준은 [공식 Button 지침](https://fluent2.microsoft.design/components/web/react/core/button/usage)이다. 고정 참조 구현과 독립적으로 해석한 색 검사 데이터는 `artifacts/fluent-button-typography-2026-11-05/source-manifest.json`에 기록했다.
 
 생성된 기본 `UiFluentButton`은 `UiFluentButtonPresentation`을 선택한다. Segoe UI Semibold 14px/행높이20px, 최소96×32다. `UiFluentSmallButtonPresentation`은 Regular12/16·최소64×24, `UiFluentLargeButtonPresentation`은 Semibold16/22·최소96×40이다. 갤러리 `--buttons`처럼 `UiButtonStyle`로 기존 동작과 표현을 컴파일 시점에 연결한다. Button 크기 구현이며 카탈로그 컴포넌트를 추가한 것이 아니다.
 
-공통 Button 커널은 측정 전에 값 형식 타이포그래피 범위를 열고, 측정·그리기 예외에도 주변 폰트를 복원한다. 직접 제네릭 호출과 생성 위젯은 같은 구현을 소비한다. 비제네릭 `ui.Button()`은 아직 호환 표현을 사용한다. 텍스트에는 설정된 폰트와 DirectText 폰트 메트릭 백엔드가 필요하며 미지원은 명시적으로 실패한다. 빈 라벨은 텍스트 백엔드가 필요 없다.
+소스 생성기로 만든 위젯, 상속 버튼, 즉시 모드 버튼은 같은 코드로 크기를 재고 입력을 처리하며, 버튼을 그린 뒤 항목 상태를 기록합니다. 비제네릭 `ui.Button()`과 `UiButton`은 현재 설정의 입력 규칙과 호환 스타일을 사용합니다. 공통 코드는 크기를 재기 전에 값 형식으로 글꼴 설정 범위를 열고, 측정이나 그리기에 실패해도 호출부의 글꼴을 복원합니다. 텍스트를 표시하려면 글꼴 설정과 DirectText 글꼴 메트릭 기능이 필요합니다. 라벨이 비어 있으면 이 기능 없이도 버튼을 그릴 수 있습니다.
 
 secondary 라이트/다크의 기본·호버·누름·비활성 표현에 고정 참조의 중립 색을 적용했다. 키보드 포커스에는 안쪽 선을 추가한다. 실제 기본 폰트의 ascent/descent와 선택한 행높이로 글자를 배치하고 버튼·현재 항목/표 셀에 맞춰 자른다. 글자의 둥근 모서리 마스킹은 남아 있다.
 
@@ -30,7 +34,9 @@ GPU 상태 행렬은 명시적 검사 동작 정책을 사용한다. 표현·생
 public partial class SaveButton;
 ```
 
-Build에서 `context.Child("save", () => new SaveButton("Save", Save))`로 생성 위젯을 유지한다. 직접 호출은 `ui.Button<UiReleaseButtonBehavior, UiFluentSmallButtonPresentation<UiFluentPrimaryButtonAppearance>>("Save")`다. 동작·폰트 범위·렌더링이 생성 위젯과 같다. 크기·appearance를 상위 카탈로그 이름으로 추가하지 않는다. 비제네릭 호환 API 전환은 남아 있다.
+`Build`에서 `context.Child("save", () => new SaveButton("Save", Save))`를 호출하면 생성 위젯을 유지할 수 있습니다. 즉시 모드에서는 `ui.Button<UiReleaseButtonBehavior, UiFluentSmallButtonPresentation<UiFluentPrimaryButtonAppearance>>("Save")`를 호출합니다. 두 경로는 입력 동작, 글꼴 설정 범위, 그리기 코드를 공유합니다. 두 방식 모두 직접 구현한 `IUiButtonPresentation`으로 크기 측정과 그리기를 바꿀 수 있습니다. 크기와 모양에 따른 변형은 상위 카탈로그에 별도 구성요소로 등록하지 않습니다.
+
+.NET 11에서 Fluent 모양 4종, `UiButton`을 상속한 버튼, `ui.Button()`의 포인터·키보드 입력과 비활성 상태를 검사했습니다. 사용자 정의 원형 버튼을 상속과 즉시 호출로 각각 그렸을 때 같은 그리기 명령이 나오는 것도 확인했습니다. [검증 결과](../artifacts/button-shared-contract-2026-11-20/verification.json)
 
 독립 검사 데이터 `ButtonAppearances.json`은 실제 brandWeb·grey 토큰과 비활성 덮어쓰기·투명 표면을 해석한다. 토큰 주석에는 과거 브랜드 색이 있으므로 색 기준으로 쓰지 않는다. 소스 해시·해석 스크립트·검증 결과는 `artifacts/fluent-button-appearance-2026-11-05`에 있다. GPU 비교는5표현·3크기·4상태·라이트/다크·MSAA1/4이며 별도 실제 입력 검사는 포인터 유지·해제·경계 밖 취소, Tab·Enter·Space 반복·비활성을 확인한다. 표현 상태 주입은 검사 전용이다. UIA·강제 색상·공식 브라우저 래스터 일치·모션·나머지 Button 변형의 완료 근거는 아니다.
 

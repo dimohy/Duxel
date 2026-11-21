@@ -5,7 +5,7 @@ using Duxel.Core;
 
 internal static unsafe partial class AtSpiProbe
 {
-    internal enum GalleryProbe { TimePicker, DatePickers, Holidays, ProviderDirection, Tree, ScrollView, VirtualList, VirtualHorizontal, VirtualRtl, VirtualGrid, SearchInput, Rating, NavigationBar, RangeCalendar, RadioGroup, SvgPixels, SvgThumb, SvgLayerMix, Tooltip, Carousel, NavigationRepaint, Fps, Drawer }
+    internal enum GalleryProbe { TimePicker, DatePickers, Holidays, ProviderDirection, Tree, ScrollView, VirtualList, VirtualHorizontal, VirtualRtl, VirtualGrid, SearchInput, Rating, NavigationBar, RangeCalendar, RadioGroup, SvgPixels, SvgThumb, SvgLayerMix, Tooltip, Carousel, NavigationRepaint, Fps, Drawer, Dialog }
 
     internal static void RunGalleryControls(uint parentPid, string output, GalleryProbe probe = GalleryProbe.TimePicker,
         nuint? nativeWindow = null, bool profileScroll = false, bool capturePixels = false)
@@ -127,8 +127,14 @@ internal static unsafe partial class AtSpiProbe
             else if (probe == GalleryProbe.Drawer)
             {
                 Navigate("Drawer", "알림과 진행 상태");
-                VerifyGalleryDrawer(window.Value, Required, checks,
+                VerifyGalleryDrawer(window.Value, Required, checks, output,
                     nativeWindow ?? throw new InvalidOperationException("The Drawer probe requires an owned X11 window."));
+            }
+            else if (probe == GalleryProbe.Dialog)
+            {
+                Navigate("Dialog", "알림과 진행 상태");
+                VerifyGalleryDialog(window.Value, Required, checks,
+                    nativeWindow ?? throw new InvalidOperationException("The Dialog probe requires an owned X11 window."));
             }
             else if (probe == GalleryProbe.SvgPixels)
             {

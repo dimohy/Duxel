@@ -56,12 +56,23 @@ public sealed partial class UiImmediateContext
         if(constrainLayout)measured=ConstrainToLayout(measured);
         var position = AdvanceCursor(measured);
         var bounds = new UiRect(position.X, position.Y, measured.X, measured.Y);
-        var interaction = TBehavior.Process(context, id, bounds);
-        var resolvedId=ResolveId(id);
-        ClaimAccessibilityField(resolvedId);
-        interaction=ApplyAccessibilityInvoke(resolvedId,bounds,interaction);
+        var interaction = ProcessPlacedButton<TBehavior>(context, id, bounds, out var resolvedId);
         TPresentation.Paint(context, text, textSize, bounds, interaction);
-        ExposeAccessibility(resolvedId,_accessibilityParent,UiAccessibilityRole.Button,label,bounds,focusable:TBehavior.AccessibilityFocus);
+        PublishPlacedButton<TBehavior>(resolvedId, label, bounds);
         return interaction.Activated;
     }
+
+    internal UiButtonInteraction ProcessPlacedButton<TBehavior>(UiControlContext context, string id, UiRect bounds, out string resolvedId)
+        where TBehavior : IUiButtonBehavior
+    {
+        var interaction = TBehavior.Process(context, id, bounds);
+        resolvedId = ResolveId(id);
+        ClaimAccessibilityField(resolvedId);
+        return ApplyAccessibilityInvoke(resolvedId, bounds, interaction);
+    }
+
+    internal void PublishPlacedButton<TBehavior>(string resolvedId, string label, UiRect bounds, string? description = null)
+        where TBehavior : IUiButtonBehavior =>
+        ExposeAccessibility(resolvedId, _accessibilityParent, UiAccessibilityRole.Button, label, bounds,
+            focusable : TBehavior.AccessibilityFocus, hint : description);
 }

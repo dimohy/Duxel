@@ -49,7 +49,7 @@ public sealed partial class UiImmediateContext
     internal UiVector2 RenderScrollView(string id, UiWidget child, UiScrollLayout layout, UiVector2 requested, UiScrollOwner owner, bool rightToLeft)
     {
         EnsureNotMeasuring();
-        var maximum = new UiVector2(MathF.Max(0, layout.Content.X - layout.Viewport.X), MathF.Max(0, layout.Content.Y - layout.Viewport.Y));
+        var maximum = layout.MaximumOffset;
         var offset = new UiVector2(Math.Clamp(requested.X, 0, maximum.X), Math.Clamp(requested.Y, 0, maximum.Y));
         offset = offset with
         {

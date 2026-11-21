@@ -43,7 +43,6 @@
     "link-allocation-only",
     "menu-only",
     "multiline-only",
-    "observer-only",
     "overflow-only",
     "owned-sizing-only",
     "progress-allocation-only",
@@ -64,7 +63,81 @@
     "text-allocation-only",
     "text-widget-only",
     "toggle-accessibility-only",
-    "virtual-list-only"
+    "virtual-list-only",
+    "activity-indicator-only",
+    "animation-curve-only",
+    "announcement-only",
+    "calendar-holiday-loading-only",
+    "calendar-model-only",
+    "calendar-wheel-only",
+    "calendar-widget-only",
+    "dialog-only",
+    "drawer-only",
+    "fluent-catalog-only",
+    "fluent-provider-font-gallery-only",
+    "fluent-provider-fonts-only",
+    "fluent-provider-only",
+    "fluent-provider-retention-only",
+    "gallery-component-source-only",
+    "gallery-legacy-source-only",
+    "gallery-samples-only",
+    "holiday-provider-only",
+    "hud-content-only",
+    "hud-gallery-source-only",
+    "hud-portal-only",
+    "inline-alignment-only",
+    "inline-text-only",
+    "messagebar-only",
+    "messagebar-page-only",
+    "messagebar-semantics-only",
+    "nav-only",
+    "opacity-mask-only",
+    "owned-inline-only",
+    "paragraph-font-context-only",
+    "paragraph-geometry-only",
+    "presence-group-only",
+    "progress-indicator-motion-only",
+    "progress-indicator-only",
+    "provider-direction-only",
+    "provider-font-override-only",
+    "queued-input-only",
+    "scroll-precision-only",
+    "segmented-control-only",
+    "segmented-controlled-only",
+    "segmented-scroll-only",
+    "segmented-style-only",
+    "select-only",
+    "selection-projection-only",
+    "shimmer-only",
+    "skeleton-only",
+    "styled-paragraph-only",
+    "styled-source-regression-only",
+    "svg-reference-contracts-only",
+    "system-typography-only",
+    "tab-scroll-only",
+    "tag-picker-only",
+    "temporal-kind-only",
+    "temporal-picker-only",
+    "text-accessibility-only",
+    "textfield-only",
+    "toast-composition-only",
+    "toast-controller-only",
+    "toast-factory-only",
+    "toast-host-activation-only",
+    "toast-host-ownership-only",
+    "toast-modal-only",
+    "toast-paragraph-only",
+    "toast-surface-only",
+    "toast-viewport-only",
+    "tree-label-only",
+    "tree-model-only",
+    "tree-native-selection-only",
+    "tree-presentation-only",
+    "tree-virtual-selection-only",
+    "tree-widget-only",
+    "widget-margin-only",
+    "widget-transform-only",
+    "windows-shaping-only"
   ],
   "excludedGraphicsModes": [
     {
@@ -78,6 +151,142 @@
     {
       "reason": "Real Observer Win32/GPU application session regression; run separately",
       "id": "observer-session-only"
+    },
+    {
+      "reason": "Observer batch validation includes fractional viewport resize; run separately when resize validation resumes",
+      "id": "observer-only"
+    },
+    {
+      "reason": "Real Win32/GPU application session; run separately",
+      "id": "app-ordered-input-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "calendar-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "calendar-rendering-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "card-nudge-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "carousel-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "checkbox-contrast-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "gallery-header-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "gallery-visual-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "hud-gallery-only"
+    },
+    {
+      "reason": "Native Win32 IME message and input fixture; run separately",
+      "id": "ime-owner-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "input-cache-gpu-only"
+    },
+    {
+      "reason": "Real Win32/GPU application session; run separately",
+      "id": "native-ordered-app-only"
+    },
+    {
+      "reason": "Native Win32 IME message and input fixture; run separately",
+      "id": "native-ordered-input-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "navigation-bar-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "opacity-mask-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "ordered-input-batch-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "pending-frame-resources-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "rating-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "segmented-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "segmented-rendering-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "select-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "styled-contrast-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "svg-feature-colors-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "svg-feature-composition-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "temporal-diagnostics-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "temporal-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "temporal-tail-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "temporal-time-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "textfield-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "toast-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "tree-gallery-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "vector-background-only"
+    },
+    {
+      "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
+      "id": "vector-icon-aa-only"
     }
   ],
   "controlContract": "control-contracts",

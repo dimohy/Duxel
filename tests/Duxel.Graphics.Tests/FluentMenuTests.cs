@@ -24,12 +24,13 @@ internal static class FluentMenuTests
         ControlFontFixture.Configure(context);
         context.SetAccessibilityTree(tree);
         using var menu = Fluent.Menu("Menu", [new("one", "One"), new("two", "Two"), new("three", "Three")], static _ => { });
-        void Frame()
+        UiWidget current = menu;
+        var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        void Frame(UiInputState? input = null)
         {
-            context.NewFrame(new(1f / 60, new(640, 400), new(1, 1)),
-                new(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default),
+            context.NewFrame(new(1f / 60, new(640, 400), new(1, 1)), input ?? idle,
                 new(0, 0, 640, 400), UiTextSettings.Default);
-            context.Render(new Screen(ui => { ui.EnableRootViewportContentLayout(contentPadding : 0); menu.Render(ui); }));
+            context.Render(new Screen(ui => { ui.EnableRootViewportContentLayout(contentPadding : 0); current.Render(ui); }));
             using var draw = context.GetDrawData();
         }
         Frame();
@@ -58,9 +59,35 @@ internal static class FluentMenuTests
         check(menuButton is UiFluentMenuButton && Fluent.ComponentNames.Contains("MenuButton")
             && !Fluent.RequiredComponentNames.Contains("MenuButton"),
             "the generated MenuButton factory exposes the Fluent trigger as a Button variant");
+
+        var invocations = new List<string>();
+        using var custom = new UiMenu<PressPopupBehavior, UiFluentMenuPresentation>("Custom menu", [new("run", "Run")], invocations.Add);
+        current = custom;
+        Frame();
+        UiAccessibilityElement Find(string name, UiAccessibilityRole role)
+            => tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == name && element.Node.Role == role);
+        UiVector2 Center(UiAccessibilityElement element)
+        {
+            var bounds = element.Node.Bounds;
+            return new(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
+        }
+        var point = Center(Find("Custom menu", UiAccessibilityRole.Button));
+        Frame(idle with { MousePosition = point, LeftMousePressed = true, LeftMouseReleased = true });
+        check(custom.IsOpen && invocations.Count == 0, "Custom Menu opens on a single-frame press and release");
+        var command = Center(Find("Run", UiAccessibilityRole.MenuItem));
+        Frame(idle with { MousePosition = command, LeftMousePressed = true, LeftMouseDown = true });
+        check(!custom.IsOpen && invocations.SequenceEqual(["run"]), "Custom Menu invokes and closes on row press");
+        Frame(idle with { MousePosition = command, LeftMouseReleased = true });
+        check(!custom.IsOpen && invocations.SequenceEqual(["run"]), "Custom Menu does not invoke again on row release");
     }
     private sealed class Screen(Action<UiImmediateContext> render) : UiScreen
     {
         public override void Render(UiImmediateContext ui) => render(ui);
     }
+}
+
+internal readonly struct PressPopupBehavior : IUiMenuBehavior
+{
+    public static UiButtonActivation TriggerActivation => UiButtonActivation.Press;
+    public static UiButtonActivation OptionActivation => UiButtonActivation.Press;
 }

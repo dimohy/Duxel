@@ -231,16 +231,16 @@ public sealed unsafe partial class VulkanRendererBackend
             || regionHeight <= 0
             || update.X < 0
             || update.Y < 0
-            || update.X + regionWidth > update.Width
-            || update.Y + regionHeight > update.Height)
+            || update.X > update.Width - regionWidth
+            || update.Y > update.Height - regionHeight)
         {
             throw new InvalidOperationException("Texture update region is outside texture bounds.");
         }
 
-        var expectedLength = checked(regionWidth * regionHeight * 4);
-        if (update.RgbaPixels.Length != expectedLength)
+        var expectedLength = GetExpectedTextureDataSize(update.Format, regionWidth, regionHeight);
+        if ((nuint)update.RgbaPixels.Length != expectedLength)
         {
-            throw new InvalidOperationException("Texture RGBA payload size does not match update region.");
+            throw new InvalidOperationException("Texture payload size does not match the update format and region.");
         }
     }
 
@@ -266,7 +266,10 @@ public sealed unsafe partial class VulkanRendererBackend
 
         UploadTextureData(image, update, initialLayout);
 
-        var view = CreateImageView(image, format);
+        var components = update.Format == UiTextureFormat.R8CoverageUnorm
+            ? new ComponentMapping(ComponentSwizzle.Red, ComponentSwizzle.Red, ComponentSwizzle.Red, ComponentSwizzle.Red)
+            : default;
+        var view = CreateImageView(image, format, components);
         var isFontTexture = IsFontTextureId(update.TextureId);
         var slotIndex = AllocateBindlessTextureSlot(view, isFontTexture);
 
@@ -511,6 +514,7 @@ public sealed unsafe partial class VulkanRendererBackend
         for (var i = 0; i < updates.Length; i++)
         {
             ValidateTextureUpdateRegion(updates[i]);
+            totalSize = (ulong)AlignStagingUploadOffset(checked((nuint)totalSize));
             totalSize = checked(totalSize + (ulong)GetExpectedTextureDataSize(
                 updates[i].Format,
                 updates[i].EffectiveRegionWidth,
@@ -531,6 +535,7 @@ public sealed unsafe partial class VulkanRendererBackend
             var regionWidth = update.EffectiveRegionWidth;
             var regionHeight = update.EffectiveRegionHeight;
             var expectedBytes = GetExpectedTextureDataSize(update.Format, regionWidth, regionHeight);
+            relativeOffset = (ulong)AlignStagingUploadOffset(checked((nuint)relativeOffset));
             var destination = new Span<byte>((byte*)_stagingMappedPtr + stagingOffset + (nuint)relativeOffset, (int)expectedBytes);
             CopyTexturePixels(update, destination);
 
@@ -628,7 +633,8 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void CopyTexturePixels(in UiTextureUpdate update, Span<byte> destination)
     {
-        if (_colorImageTextures.Contains(update.TextureId) && !update.PreserveColorChannels)
+        if (update.Format != UiTextureFormat.R8CoverageUnorm
+            && _colorImageTextures.Contains(update.TextureId) && !update.PreserveColorChannels)
             UiRgba8.Premultiply(update.RgbaPixels.Span, destination);
         else
             update.RgbaPixels.Span.CopyTo(destination);
@@ -645,10 +651,11 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             UiTextureFormat.Rgba8Unorm => 4,
             UiTextureFormat.Rgba8Srgb => 4,
+            UiTextureFormat.R8CoverageUnorm => 1,
             _ => throw new InvalidOperationException($"Unsupported texture format: {format}.")
         };
 
-        return (nuint)width * (nuint)height * (nuint)bytesPerPixel;
+        return checked((nuint)width * (nuint)height * (nuint)bytesPerPixel);
     }
 
     private uint AllocateBindlessTextureSlot(ImageView view, bool isFontTexture)

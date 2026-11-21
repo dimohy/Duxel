@@ -4,10 +4,19 @@ public sealed record UiProgressIndicatorOptions(string? Label = null, string? De
     float? PercentComplete = null, bool ProgressHidden = false, float BarHeight = 2, float Width = 180,
     bool ReducedMotion = false, string? AccessibleLabel = null, string? ValueText = null)
 {
+    public UiProgressColor Color { get; init; } = UiProgressColor.Brand;
+    public bool FinishIndeterminateCycle { get; init; }
+
+    internal UiProgressValue TrackValue => new(PercentComplete, Shape : UiProgressShape.Square,
+        Color : Color, ReducedMotion : ReducedMotion)
+    {
+        FinishIndeterminateCycle = FinishIndeterminateCycle
+    };
+
     internal void Validate()
     {
-        if (PercentComplete is { } value && !float.IsFinite(value) || !float.IsFinite(BarHeight) || BarHeight <= 0
-            || !float.IsFinite(Width) || Width <= 0)
+        TrackValue.Validate();
+        if (!float.IsFinite(BarHeight) || BarHeight <= 0 || !float.IsFinite(Width) || Width <= 0)
             throw new ArgumentOutOfRangeException(nameof(UiProgressIndicatorOptions));
     }
 }
@@ -38,20 +47,25 @@ public class UiProgressIndicatorWidget : UiArrangedChildrenWidget
         }
     }
     public UiProgressIndicatorWidget(UiProgressIndicatorOptions? options = null,
-        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(CreateChildren(options ?? new()), identity)
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : this(options ?? new(), identity, static options => new IndicatorTrack<UiFluentProgressBehavior, UiFluentProgressPresentation>(options))
     {
-        _options = options ?? new();
+    }
+    private protected UiProgressIndicatorWidget(UiProgressIndicatorOptions options, UiWidgetIdentity identity,
+        Func<UiProgressIndicatorOptions, IndicatorTrack> createTrack) : base(CreateChildren(options, createTrack), identity)
+    {
+        _options = options;
         Track.Owner = this;
     }
-    private static UiWidget[] CreateChildren(UiProgressIndicatorOptions options)
+    private static UiWidget[] CreateChildren(UiProgressIndicatorOptions options, Func<UiProgressIndicatorOptions, IndicatorTrack> createTrack)
     {
         options.Validate();
         return [new UiText<UiFluentTextPresentation>(options.Label ?? string.Empty, identity : UiWidgetIdentity.Instance),
-            new IndicatorTrack(options),
+            createTrack(options),
             new UiText<UiIndicatorDescriptionPresentation>(
                 options.Description ?? string.Empty, identity : UiWidgetIdentity.Instance)];
     }
-    protected override bool CanRetainArrangement => true;
+    protected override bool CanRetainArrangement => _options.ProgressHidden || Track.CanRetainTrackMeasurement;
     protected override bool ShouldRenderChild(int index) => index switch
     {
         0 => !string.IsNullOrEmpty(_options.Label),
@@ -74,39 +88,62 @@ public class UiProgressIndicatorWidget : UiArrangedChildrenWidget
         }
         return context.LayoutConstraints.Constrain(new(width, height));
     }
-    private sealed class IndicatorTrack(UiProgressIndicatorOptions options) : UiControlWidget
+    private protected abstract class IndicatorTrack(UiProgressIndicatorOptions options) : UiControlWidget
     {
         internal UiProgressIndicatorWidget Owner { get; set; } = null!;
-        private UiProgressIndicatorOptions _options = options;
-        private UiFluentProgressBehavior _behavior;
-        internal void Configure(UiProgressIndicatorOptions options)
+        protected UiProgressIndicatorOptions Options { get; private set; } = options;
+        protected UiProgressValue Value => Options.TrackValue;
+        protected UiVector2 Size => new(Options.Width, Options.BarHeight);
+        internal abstract bool CanRetainTrackMeasurement { get; }
+        internal virtual void Configure(UiProgressIndicatorOptions options)
         {
-            _options = options;
+            Options = options;
             RequestRebuild();
         }
-        protected override bool CanRetainMeasurement => true;
-        protected override UiVector2 MeasureContent(UiControlContext context) => context.ConstrainToLayout(new(_options.Width, _options.BarHeight));
-        protected override void RenderControl(UiImmediateContext ui) => ui.RenderProgressIndicatorTrack(
-            PrimaryControlId, ref _behavior, _options, Owner.AccessibleName);
+        protected override bool CanRetainMeasurement => CanRetainTrackMeasurement;
+    }
+    private protected sealed class IndicatorTrack<TBehavior, TPresentation>(UiProgressIndicatorOptions options) : IndicatorTrack(options)
+        where TBehavior : struct, IUiProgressBehavior<TBehavior>
+        where TPresentation : IUiProgressPresentation
+    {
+        private TBehavior _behavior;
+        internal override bool CanRetainTrackMeasurement => TPresentation.CanRetainMeasurement;
+        internal override void Configure(UiProgressIndicatorOptions options)
+        {
+            if (options.ProgressHidden && !Options.ProgressHidden)
+                TBehavior.OnHidden(ref _behavior);
+            base.Configure(options);
+        }
+        protected override UiVector2 MeasureContent(UiControlContext context) => context.MeasureProgress<TPresentation>(Value, Size);
+        protected override void RenderControl(UiImmediateContext ui)
+        {
+            var value = Value;
+            ui.RenderProgress<TBehavior, TPresentation>(ref _behavior, value, Size, constrainLayout : true);
+            ui.PublishProgressIndicatorTrack(PrimaryControlId, Options, Owner.AccessibleName, value);
+        }
         private protected override void ReleaseOwnedResources()
         {
-            UiFluentProgressBehavior.Release(ref _behavior);
-            base.ReleaseOwnedResources();
+            try { TBehavior.Release(ref _behavior); }
+            finally { base.ReleaseOwnedResources(); }
         }
     }
 }
 
-[UiWidgetStyle(typeof(UiProgressIndicatorWidget))]
+/// <summary>Composes an indicator's label and description with a statically selected progress track.</summary>
+public class UiProgressIndicatorWidget<TBehavior, TPresentation>(UiProgressIndicatorOptions? options = null,
+    UiWidgetIdentity identity = UiWidgetIdentity.Instance) : UiProgressIndicatorWidget(options ?? new(), identity,
+    static options => new IndicatorTrack<TBehavior, TPresentation>(options))
+    where TBehavior : struct, IUiProgressBehavior<TBehavior>
+    where TPresentation : IUiProgressPresentation;
+
+[UiWidgetStyle(typeof(UiProgressIndicatorWidget<,>), typeof(UiFluentProgressBehavior), typeof(UiFluentProgressPresentation))]
 [UiComponent("ProgressIndicator", UiComponentExposure.Fluent)]
 public partial class UiFluentProgressIndicator;
 
 public sealed partial class UiImmediateContext
 {
-    internal void RenderProgressIndicatorTrack(string id, ref UiFluentProgressBehavior behavior, UiProgressIndicatorOptions options, string? accessibleName)
+    internal void PublishProgressIndicatorTrack(string id, UiProgressIndicatorOptions options, string? accessibleName, UiProgressValue value)
     {
-        var value = new UiProgressValue(options.PercentComplete, Shape : UiProgressShape.Square, ReducedMotion : options.ReducedMotion);
-        RenderProgress<UiFluentProgressBehavior, UiFluentProgressPresentation>(ref behavior, value,
-            new(options.Width, options.BarHeight), constrainLayout : true);
         if (_accessibility is not { } tree) return;
         var resolved = ResolveId(id);
         ClaimAccessibilityField(resolved);

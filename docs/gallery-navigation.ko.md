@@ -51,6 +51,8 @@ var nav = Fluent.Nav("앱 탐색", selected, new UiNavGroup[]
 
 같은 프레임에서 `nav.Render(ui)` 다음 `nav.RenderPage(ui, "home", render)`를 호출하면 선택한 페이지를 한 번 렌더링하고 접근성 관계를 연결합니다. Nav는 Navigation, 목적지는 Link, 그룹은 펼침 상태를 가진 Button, 본문은 Pane으로 노출합니다. 다른 위젯 안에서 본문을 직접 관리하는 경우 `RenderPage`는 선택 사항입니다. 탭 목록의 Tab/TabPanel 계약은 바꾸지 않습니다.
 
+`UiNav<TBehavior, TPresentation>`에서 `IUiNavBehavior`와 `IUiNavPresentation`을 각각 지정할 수 있습니다. 동작 타입은 그룹과 목적지 행의 입력을 처리합니다. `UiNavInput.Process`를 사용하면 공통 포인터·키보드 처리에 연결하고 누를 때 실행할지, 놓을 때 실행할지 선택할 수 있습니다. 표현 타입은 행의 크기를 재고 그립니다. Nav는 그리기와 접근성 정보를 갱신하기 전에 바인딩에 선택값을 전달합니다. 바인딩이 거절하면 화면과 접근성 정보에 기존 선택이 유지됩니다. `Fluent.Nav`의 기본 동작은 마우스를 놓을 때 실행합니다.
+
 좁은 메뉴에서는 긴 이름과 그룹 설명을 줄바꿈합니다. 측정 결과는 폭·글꼴·배율·펼침 상태에 따라 보관하며, 선택만 바뀌면 다시 측정하지 않습니다. 팩터리 제공은 공식 전체 적합성 완료를 뜻하지 않습니다. 갤러리 너비가 640 UI 단위 이하이면 **탐색 메뉴 열기**로 여는 Drawer를 사용합니다. 다른 메뉴를 선택하면 닫힙니다. 더 넓은 화면에서는 고정 사이드바를 유지합니다. [공식 Nav 사용 지침](https://fluent2.microsoft.design/components/web/react/core/nav/usage).
 
 ## 목적지의 보조 작업

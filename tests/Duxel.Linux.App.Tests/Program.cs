@@ -67,7 +67,7 @@ if (args is ["atspi-gallery-time-picker" or "atspi-gallery-date-pickers" or "ats
     return;
 }
 
-if (args is ["x11-gallery-time-picker-wheel" or "x11-gallery-scroll-view" or "x11-gallery-scroll-profile" or "x11-gallery-search-input" or "x11-gallery-pixels" or "x11-gallery-svg-pixels" or "x11-gallery-svg-thumb" or "x11-gallery-svg-layer-mix" or "x11-gallery-range-calendar" or "x11-gallery-range-calendar-pixels" or "x11-gallery-radio-group" or "x11-gallery-radio-allocation-pixels" or "x11-gallery-tree-actions" or "x11-gallery-tooltip" or "x11-gallery-provider-radio-direction" or "x11-gallery-fps" or "x11-gallery-drawer",
+if (args is ["x11-gallery-time-picker-wheel" or "x11-gallery-scroll-view" or "x11-gallery-scroll-profile" or "x11-gallery-search-input" or "x11-gallery-pixels" or "x11-gallery-svg-pixels" or "x11-gallery-svg-thumb" or "x11-gallery-svg-layer-mix" or "x11-gallery-range-calendar" or "x11-gallery-range-calendar-pixels" or "x11-gallery-radio-group" or "x11-gallery-radio-allocation-pixels" or "x11-gallery-tree-actions" or "x11-gallery-tooltip" or "x11-gallery-provider-radio-direction" or "x11-gallery-fps" or "x11-gallery-drawer" or "x11-gallery-dialog",
     var wheelGalleryPid, var wheelClientOutput, var wheelWindow])
 {
     NativeProbeFailure.Capture(wheelClientOutput, () => AtSpiProbe.RunGalleryControls(
@@ -85,6 +85,7 @@ if (args is ["x11-gallery-time-picker-wheel" or "x11-gallery-scroll-view" or "x1
             "x11-gallery-svg-layer-mix" => AtSpiProbe.GalleryProbe.SvgLayerMix,
             "x11-gallery-fps" => AtSpiProbe.GalleryProbe.Fps,
             "x11-gallery-drawer" => AtSpiProbe.GalleryProbe.Drawer,
+            "x11-gallery-dialog" => AtSpiProbe.GalleryProbe.Dialog,
             "x11-gallery-search-input" or "x11-gallery-pixels" => AtSpiProbe.GalleryProbe.SearchInput,
             _ => AtSpiProbe.GalleryProbe.ScrollView
         },

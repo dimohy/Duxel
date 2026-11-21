@@ -285,12 +285,15 @@ public class UiButton<TBehavior, TPresentation> : UiControlWidget, IUiLabelTarge
     protected override UiVector2 MeasureContent(UiControlContext context) => context.MeasureButton<TPresentation>(Label, Size);
     protected override void RenderControl(UiImmediateContext ui)
     {
-        if (ui.Button<TBehavior, TPresentation>(PrimaryInputId(Label), Label, Size, constrainLayout: true))
+        var id = PrimaryInputId(Label);
+        if (RenderButton(ui, id))
         {
-            using var activation = ui.BeginControlActivation(PrimaryInputId(Label));
+            using var activation = ui.BeginControlActivation(id);
             OnActivated();
         }
     }
+    private protected virtual bool RenderButton(UiImmediateContext ui, string id) =>
+        ui.Button<TBehavior, TPresentation>(id, Label, Size, constrainLayout : true);
     private protected override void ReleaseOwnedResources()
     {
         _label = string.Empty;

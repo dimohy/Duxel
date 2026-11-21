@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 namespace Duxel.Core;
 
 public enum UiFluentIconStyle
@@ -48,13 +50,58 @@ public readonly struct UiFluentRegularIconFont : IUiIconFontFace
 {
     public static float AscentEm => 1;
     public static float DescentEm => 0;
-    public static string Path { get; } = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "FluentIcons", "FluentSystemIcons-Regular.ttf");
+    public static string Path { get; } = UiFluentFontAsset.GetPath("FluentSystemIcons-Regular.ttf");
 }
 public readonly struct UiFluentFilledIconFont : IUiIconFontFace
 {
     public static float AscentEm => 1;
     public static float DescentEm => 0;
-    public static string Path { get; } = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "FluentIcons", "FluentSystemIcons-Filled.ttf");
+    public static string Path { get; } = UiFluentFontAsset.GetPath("FluentSystemIcons-Filled.ttf");
+}
+
+internal static class UiFluentFontAsset
+{
+    internal static string GetPath(string name)
+    {
+        using var font = typeof(UiFluentFontAsset).Assembly.GetManifestResourceStream("Duxel.Core.FluentIcons." + name)
+            ?? throw new InvalidOperationException("Embedded Fluent icon font is missing: " + name);
+        var hash = SHA256.HashData(font);
+        var directory = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify),
+            "Duxel", "Fonts", "FluentIcons", Convert.ToHexString(hash));
+        var path = System.IO.Path.Combine(directory, name);
+        if (Matches(path, hash))
+            return path;
+
+        Directory.CreateDirectory(directory);
+        var staging = System.IO.Path.Combine(directory, Guid.NewGuid().ToString("N") + ".tmp");
+        try
+        {
+            font.Position = 0;
+            using (var output = new FileStream(staging, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                font.CopyTo(output);
+            File.Move(staging, path, overwrite: true);
+        }
+        catch (IOException) when (Matches(path, hash))
+        {
+            // Another process materialized the same embedded font.
+        }
+        finally
+        {
+            File.Delete(staging);
+        }
+
+        return path;
+    }
+
+    private static bool Matches(string path, ReadOnlySpan<byte> expected)
+    {
+        if (!File.Exists(path))
+            return false;
+
+        using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+        return expected.SequenceEqual(SHA256.HashData(file));
+    }
 }
 
 [UiFluentIcon("add")] public readonly partial struct UiFluentAddIcon;

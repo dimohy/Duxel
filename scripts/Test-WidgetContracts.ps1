@@ -59,7 +59,7 @@ foreach ($directory in $binaryRoots) {
     }
 }
 $fontRoot = [Environment]::GetFolderPath([Environment+SpecialFolder]::Fonts)
-$fontPaths = foreach ($name in @('segoeui.ttf','seguisb.ttf','segoeuib.ttf','consola.ttf','malgun.ttf','malgunbd.ttf')) {
+$fontPaths = foreach ($name in @('segoeui.ttf','seguisb.ttf','segoeuib.ttf','consola.ttf','malgun.ttf','malgunbd.ttf','seguiemj.ttf')) {
     $path = Join-Path $fontRoot $name
     if (!(Test-Path -LiteralPath $path -PathType Leaf)) { throw "FONT_FIXTURE_MISSING: $name" }
     $path

@@ -119,6 +119,11 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
     {
         get; set;
     }
+    internal void FreezeDiagnosticsForMeasurement()
+    {
+        FreezeDiagnosticText = true;
+        _rendererStatus = "250.0 FPS · 4.00ms | P 100 · D 1 · U 4.0KB · C 0";
+    }
     private UiFpsCounter? _fps;
     private string _performance = "FPS 측정 중";
     private bool _updateOnlyOnChange = true;

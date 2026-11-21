@@ -2,7 +2,9 @@
 
 증감 버튼의 색상 계산을 배치·포인터 처리와 분리했습니다. 시스템 대비 색상이 활성화되면 일반 화살표는 ButtonText, 비활성·최솟값/최댓값 도달·읽기 전용 화살표는 GrayText를 사용합니다. 호버·누름 배경에는 ButtonFace를 적용하고 기본·비활성 배경은 투명하게 유지합니다. [공식 Fluent의 상태·외관 구조](https://raw.githubusercontent.com/microsoft/fluentui/master/packages/react-components/react-spinbutton/library/src/components/SpinButton/useSpinButtonStyles.styles.ts)와 [시스템 색상 역할](https://www.w3.org/TR/css-color-adjust-1/#forced-colors-properties)을 네이티브 표현에 적용했습니다. GPU 검사 48개로 네 외관·두 크기·양방향 배치·두 화살표·여섯 상태의 192개 조합을 확인하며, 색상 역할을 직접 지정한 별도 기준 표현과 픽셀을 정확히 비교합니다. 일반 밝음·어두움/MSAA 화면 293장은 이전 구현과 모두 일치합니다. 검증과 OS·플랫폼 한계: [시스템 대비 색상](system-forced-colors.ko.md).
 
-`Fluent.SpinButton`은 비어 있을 수 있는 `double` 바인딩에 숫자 편집과 두 증감 버튼을 연결합니다. 생성 타입은 `UiFluentSpinButton`이며 사용자 정의 표현은 `UiSpinButton<TPresentation>`을 사용합니다.
+`Fluent.SpinButton`은 비어 있을 수 있는 `double` 바인딩에 숫자 편집과 두 증감 버튼을 연결합니다. 생성 타입은 `UiFluentSpinButton`이며 기본 동작에 사용자 정의 표현을 적용하려면 `UiSpinButton<TPresentation>`을 사용하세요.
+
+`UiSpinButton<TBehavior, TPresentation>`을 상속하면 증감 버튼의 누름·놓기 시점, 길게 누르기 반복 여부, 키 매핑과 눌림 표시를 그리기와 별도로 바꿀 수 있습니다. `IUiSpinButtonBehavior`가 입력을 숫자 명령에 연결하며, 공통 코드는 숫자 범위와 바인딩의 수락 여부를 확인해 편집 내용과 접근성 정보에 반영합니다.
 
 ```csharp
 var quantity = new UiState<double?>(3);

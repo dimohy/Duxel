@@ -15,6 +15,8 @@ public sealed partial class WindowsPlatformTextBackend : IPlatformTextBackend, I
 
     // Below10 physical pixels, grid fitting can close subpixel counters such as the DND bar.
     // Rasterize at twice the resolution and use the existing downsampler; normal text is unchanged.
+    private static int ResolveRasterFontSize(float fontSize) => Math.Clamp((int)MathF.Round(fontSize), 1, 512);
+
     private static int OversampleForSize(int size) => size < 10 ? 2 : 1;
     public ulong TextLayoutVersion => 0;
 
@@ -169,7 +171,7 @@ public sealed partial class WindowsPlatformTextBackend : IPlatformTextBackend, I
             }
         }
 
-        var size = Math.Clamp((int)MathF.Round(fontSize), 1, 512);
+        var size = ResolveRasterFontSize(fontSize);
         var runs = BuildFontRuns(fontPath, secondaryFontPath, text);
         if (runs.Count == 0)
         {

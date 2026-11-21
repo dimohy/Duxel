@@ -44,7 +44,9 @@ internal static class BreadcrumbTypographyRenderingTests
                 var y = bounds.Y + (height - measured.Y) / 2;
                 if (mode == 1)
                 {
-                    ui.RenderParentDataChild(reference, null, new(x, y, bounds.X + bounds.Width - x, measured.Y), bounds, clipToAllocation: false);
+                    // Honor the same outer clip without clipping the glyph ink to its advance rectangle.
+                    ui.SetCursorScreenPos(new(x, y));
+                    reference.Render(ui);
                     return;
                 }
                 // Reproduce the retired legacy text origin only as a discriminating regression fixture.

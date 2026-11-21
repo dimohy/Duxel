@@ -170,6 +170,8 @@ public sealed partial class UiImmediateContext
             return false;
 
         options.Scene3D?.Validate();
+        if (entry.VectorTextMode != UsesLayerVectorText(options))
+            return false;
         var parentClip = CurrentClipRect;
         var localClip = new UiRect(parentClip.X - options.Translation.X, parentClip.Y - options.Translation.Y,
             parentClip.Width, parentClip.Height);
@@ -180,6 +182,8 @@ public sealed partial class UiImmediateContext
             }, localClip);
         return true;
     }
+
+    private bool UsesLayerVectorText(in UiLayerOptions options) => options.Scene3D.HasValue || IsVectorTextLayer();
 
     private void ReplayLayerCache(UiLayerCacheEntry entry, in UiLayerOptions options, UiRect localClip)
     {
@@ -229,7 +233,7 @@ public sealed partial class UiImmediateContext
             layerCaches[layerId] = entry;
         }
         var retainContent = nextOptions.StaticCache || nextOptions.ContentVersion.HasValue;
-        var vectorTextMode = nextOptions.Scene3D.HasValue || IsVectorTextLayer();
+        var vectorTextMode = UsesLayerVectorText(nextOptions);
         if (entry.VectorTextMode != vectorTextMode || entry.FontAtlasIndependent != nextOptions.FontAtlasIndependent)
             entry.Dirty = true;
         entry.VectorTextMode = vectorTextMode;

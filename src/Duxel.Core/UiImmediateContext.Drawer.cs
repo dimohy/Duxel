@@ -47,7 +47,8 @@ public sealed partial class UiImmediateContext
         }
         var context = new UiControlContext(this);
         var bottom = options.Position == UiDrawerPosition.Bottom;
-        var left = options.Position == UiDrawerPosition.Start != options.RightToLeft;
+        var rightToLeft = options.RightToLeft || context.RightToLeft;
+        var left = options.Position == UiDrawerPosition.Start != rightToLeft;
         UiRect natural;
         if (inline)
         {
@@ -114,7 +115,8 @@ public sealed partial class UiImmediateContext
         var bodyBounds = new UiRect(natural.X + padding, natural.Y + padding, MathF.Max(0, natural.Width - 2 * padding), MathF.Max(0, natural.Height - 2 * padding));
         var shortScreen = options.ScrollBody && (natural.Height <= 359 || !options.StickyHeaderFooter);
         widget.Body.Configure(false, shortScreen, options.ShowCloseButton, options.CloseLabel,
-            bodyBounds.Height, !shortScreen, options.RightToLeft, actionsStart : true, scrollBody : options.ScrollBody, autoStackActions : true);
+            bodyBounds.Height, !shortScreen, rightToLeft, actionsStart : true, scrollBody : options.ScrollBody, autoStackActions : true);
+        widget.Body.ScrollSeparator = !shortScreen && options.ScrollBody ? TPresentation.ScrollSeparator(context) : null;
         using var text = TPresentation.BeginBodyText(context);
         context.MeasureParentDataChild(widget.Viewport, null, UiBoxConstraints.Tight(new(bodyBounds.Width, bodyBounds.Height)));
         if (!inline && opened && input.MotionEnabled) input.EnterStartedAt = _state.TimeSeconds;

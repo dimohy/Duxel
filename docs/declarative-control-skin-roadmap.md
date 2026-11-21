@@ -31,7 +31,7 @@ The missing piece is an official skin layer that can replace rendering strategy 
 5. Skins must be lockable through C# types or source-generated values, not only runtime theme parsing.
 6. Per-view overrides should be possible.
    - Example: `Dux.Button("Save").ControlStyle(MyButtonStyle.PrimaryPill)`
-   - Example: `Dux.TextField("name", name).ControlStyle(MyTextFieldStyle.Underline)`
+   - Example: `Dux.TextField("name", name).TextFieldStyle(MyTextFieldStyle.Underline)`
 7. The default `Windows11` / `Windows11Dark` skin should preserve the current improved appearance.
 
 ## Design Principles
@@ -70,7 +70,7 @@ Dux.Button("Save", Save)
     .ControlStyle(ProductButtonStyle.PrimaryPill);
 
 Dux.TextField("name", name)
-    .ControlStyle(ProductTextFieldStyle.Underline);
+    .TextFieldStyle(ProductTextFieldStyle.Underline);
 ```
 
 ## Candidate Implementation Shape

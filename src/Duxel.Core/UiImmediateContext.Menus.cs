@@ -33,24 +33,26 @@ public sealed partial class UiImmediateContext
         _requestFrame?.Invoke();
     }
 
-    internal string? RenderMenu<TPresentation>(string id, string label, UiMenuOption[] items,
-        UiMenuOptions options, UiMenuInputState state) where TPresentation : IUiMenuPresentation
+    internal string? RenderMenu<TBehavior, TPresentation>(string id, string label, UiMenuOption[] items,
+        UiMenuOptions options, UiMenuInputState state)
+        where TBehavior : IUiMenuBehavior
+        where TPresentation : IUiMenuPresentation
     {
         EnsureNotMeasuring();
         var context = new UiControlContext(this);
         var size = context.ConstrainToLayout(TPresentation.MeasureTrigger(context, label));
         var origin = AllocateLayoutBox(size);
         var trigger = new UiRect(origin.X, origin.Y, size.X, size.Y);
-        var button = ProcessMenuTrigger(id, label, items, state, trigger);
+        var button = ProcessMenuTrigger(id, label, items, state, trigger, activation: TBehavior.TriggerActivation);
         TPresentation.PaintTrigger(context, label, trigger, button);
         FinishLayoutBox(origin, size);
-        return RenderMenuPopup<TPresentation>(id, label, items, options, state, trigger, button);
+        return RenderMenuPopup<TPresentation>(id, label, items, options, state, trigger, button, optionActivation: TBehavior.OptionActivation);
     }
 
     internal UiButtonInteraction ProcessMenuTrigger(string id, string label, UiMenuOption[] items, UiMenuInputState state,
         UiRect trigger, string? parent = null, bool tab = false, bool publish = true, string? focusOwner = null, bool ownerFocused = false,
         UiAccessibilityRole triggerRole = UiAccessibilityRole.Button, string? triggerValue = null, bool multipleSelection = false,
-        bool invalid = false)
+        bool invalid = false, UiButtonActivation activation = UiButtonActivation.Release)
     {
         var triggerId = ResolveId(id);
         var root = ResolveCachedIdentifier(triggerId, "##menu", false);
@@ -69,7 +71,7 @@ public sealed partial class UiImmediateContext
         UiButtonInteraction button;
         try
         {
-            button = ProcessButton(id, trigger, UiButtonActivation.Release);
+            button = ProcessButton(id, trigger, activation);
             button = ApplyAccessibilityInvoke(triggerId, trigger, button);
             if (tab)
             {
@@ -148,7 +150,8 @@ public sealed partial class UiImmediateContext
 
     internal string? RenderMenuPopup<TPresentation>(string id, string label, UiMenuOption[] items,
         UiMenuOptions options, UiMenuInputState state, UiRect trigger, UiButtonInteraction button,
-        IUiOptionSelectionView? selection = null, bool? controlledOpen = null, UiAccessibilityTree.Request? expansionRequest = null)
+        IUiOptionSelectionView? selection = null, bool? controlledOpen = null, UiAccessibilityTree.Request? expansionRequest = null,
+        UiButtonActivation optionActivation = UiButtonActivation.Release)
         where TPresentation : IUiMenuPresentation
     {
         if (RightToLeft)
@@ -424,7 +427,7 @@ public sealed partial class UiImmediateContext
                         if (items[i].Enabled && IsHovering(Row(i)))
                             hit = i;
                     var pressed = ButtonBehavior(id + "##menu", hit < 0 ? default : Row(hit), out var hovered, out held,
-                        UiButtonActivation.Release);
+                        optionActivation);
                     interaction = ProcessControlKeyboard<RangeControlKeys>(bounds, new(pressed, hovered, held));
                     if (_leftMousePressed)
                     {

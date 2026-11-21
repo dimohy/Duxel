@@ -15,10 +15,10 @@ public sealed unsafe partial class VulkanRendererBackend
     private sealed class PaintGroupEntry(UiTextureId black, UiTextureId white, UiPaintGroupLease lease)
     {
         internal readonly UiTextureId Black = black, White = white;
-        internal readonly UiPaintGroupLease Lease = lease;
+        internal UiPaintGroupLease Lease = lease;
         internal readonly StaticGeometryFrameBindings Bindings = new();
         internal byte Visit;
-        internal bool Dirty, Initialized;
+        internal bool Dirty, Initialized, ContentChanged;
         internal ulong[] Revisions = [];
         internal Image Msaa;
         internal ImageView MsaaView;
@@ -45,13 +45,21 @@ public sealed unsafe partial class VulkanRendererBackend
             throw new ArgumentException("Paint-group white output is already owned.");
         if (_paintGroupOutputs.TryGetValue(update.TextureId, out var blackOwner) && !ReferenceEquals(blackOwner, previous))
             throw new ArgumentException("Paint-group black output is already owned.");
+        if (previous is not null && previous.White == white
+            && previous.Lease.Content.PixelWidth == content.PixelWidth
+            && previous.Lease.Content.PixelHeight == content.PixelHeight)
+        {
+            var nextLease = RetainPaintGeometry(content);
+            ReleasePaintGeometry(previous);
+            previous.Lease = nextLease;
+            previous.ContentChanged = true;
+            return;
+        }
         if (previous is not null)
             DestroyTexture(previous.Black);
         if (_textures.ContainsKey(update.TextureId) || _textures.ContainsKey(white))
             throw new ArgumentException("Paint-group outputs must use unoccupied texture identities.");
-        var entry = new PaintGroupEntry(update.TextureId, white, content.Acquire());
-        _paintGeometryUsers.TryGetValue(content.Identity, out var geometryUsers);
-        _paintGeometryUsers[content.Identity] = geometryUsers + 1;
+        var entry = new PaintGroupEntry(update.TextureId, white, RetainPaintGeometry(content));
         _paintGroups.Add(update.TextureId, entry);
         _paintGroupOutputs.Add(update.TextureId, entry);
         _paintGroupOutputs.Add(white, entry);
@@ -89,6 +97,24 @@ public sealed unsafe partial class VulkanRendererBackend
             _paintTextureRevisions.Clear();
         _paintGroupOutputs.Remove(entry.Black);
         _paintGroupOutputs.Remove(entry.White);
+        ReleasePaintGeometry(entry);
+        RetirePaintGroupMsaa(entry);
+        var other = id == entry.Black ? entry.White : entry.Black;
+        DestroyTexture(other);
+        _colorImageTextures.Remove(entry.Black);
+        _colorImageTextures.Remove(entry.White);
+    }
+
+    private UiPaintGroupLease RetainPaintGeometry(UiPaintGroupContent content)
+    {
+        var lease = content.Acquire();
+        _paintGeometryUsers.TryGetValue(content.Identity, out var users);
+        _paintGeometryUsers[content.Identity] = users + 1;
+        return lease;
+    }
+
+    private void ReleasePaintGeometry(PaintGroupEntry entry)
+    {
         var content = entry.Lease.Content;
         var users = _paintGeometryUsers[content.Identity] - 1;
         if (users == 0)
@@ -107,12 +133,8 @@ public sealed unsafe partial class VulkanRendererBackend
         else
             _paintGeometryUsers[content.Identity] = users;
         entry.View?.Dispose();
+        entry.View = null;
         entry.Lease.Dispose();
-        RetirePaintGroupMsaa(entry);
-        var other = id == entry.Black ? entry.White : entry.Black;
-        DestroyTexture(other);
-        _colorImageTextures.Remove(entry.Black);
-        _colorImageTextures.Remove(entry.White);
     }
 
     private void PlanPaintGroupsForFrame(UiDrawData drawData)
@@ -182,7 +204,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private bool IsPaintGroupDirty(PaintGroupEntry entry)
     {
         var dependencies = entry.Lease.Content.TextureDependencies;
-        if (!entry.Initialized || entry.Samples != _msaaSampleCount || entry.Format != _swapchainFormat
+        if (!entry.Initialized || entry.ContentChanged || entry.Samples != _msaaSampleCount || entry.Format != _swapchainFormat
             || entry.Revisions.Length != dependencies.Count)
             return true;
         for (var i = 0; i < dependencies.Count; i++)
@@ -311,9 +333,10 @@ public sealed unsafe partial class VulkanRendererBackend
                     var target = _textures[whitePass == 0 ? entry.Black : entry.White];
                     var barrier = PaintGroupBarrier(target.Image,
                         entry.Initialized ? ImageLayout.ShaderReadOnlyOptimal : ImageLayout.Undefined,
-                        ImageLayout.ColorAttachmentOptimal, entry.Initialized ? AccessFlags.ShaderReadBit : 0,
+                        ImageLayout.ColorAttachmentOptimal, entry.Initialized ? AccessFlags.ShaderReadBit | AccessFlags.ColorAttachmentWriteBit : 0,
                         AccessFlags.ColorAttachmentWriteBit);
-                    _vk.CmdPipelineBarrier(commandBuffer, PipelineStageFlags.FragmentShaderBit,
+                    // The same target may still be read by a parent group or a previous submission.
+                    _vk.CmdPipelineBarrier(commandBuffer, PipelineStageFlags.FragmentShaderBit | PipelineStageFlags.ColorAttachmentOutputBit,
                         PipelineStageFlags.ColorAttachmentOutputBit, 0, 0, null, 0, null, 1, &barrier);
                     if (entry.Msaa.Handle != 0)
                     {
@@ -366,6 +389,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 }
                 entry.Initialized = true;
                 entry.Dirty = false;
+                entry.ContentChanged = false;
             }
         }
         finally { _damagePartial = damagePartial; _projectedPaintCapture = projectedCapture; }

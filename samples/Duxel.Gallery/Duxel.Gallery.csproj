@@ -9,12 +9,23 @@
     <Nullable>enable</Nullable>
     <IsAotCompatible>true</IsAotCompatible>
     <OptimizationPreference>Speed</OptimizationPreference>
+    <IsPackable>true</IsPackable>
+    <PackageId>Duxel.Gallery</PackageId>
+    <Version>0.3.0-preview</Version>
+    <Authors>dimohy</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/dimohy/Duxel</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/dimohy/Duxel</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeGallerySvgAssembly</TargetsForTfmSpecificBuildOutput>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeGalleryAssets</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Duxel.Windows.App/Duxel.Windows.App.csproj" />
-    <ProjectReference Include="../../src/Duxel.Core/Duxel.Core.csproj" />
-    <ProjectReference Include="../../src/Duxel.Svg/Duxel.Svg.csproj" />
-    <ProjectReference Include="../../src/Duxel.Platform.Windows/Duxel.Platform.Windows.csproj" />
+    <ProjectReference Include="../../src/Duxel.Core/Duxel.Core.csproj" PrivateAssets="all" />
+    <ProjectReference Include="../../src/Duxel.Svg/Duxel.Svg.csproj" PrivateAssets="all" />
+    <ProjectReference Include="../../src/Duxel.Platform.Windows/Duxel.Platform.Windows.csproj" PrivateAssets="all" />
     <None Update="Assets/Svg/*.svg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/*.svg;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/*.browser.png;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/*.json;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ATTRIBUTION.md"
           Link="Assets/Svg/Browser/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
@@ -49,4 +60,27 @@
   <ItemGroup>
     <None Update="Assets/Fonts/**/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../docs/nuget-gallery-readme.md" Pack="true" PackagePath="README.md" />
+  </ItemGroup>
+
+  <Target Name="IncludeGallerySvgAssembly" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)"
+                            Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'Duxel.Svg' and '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="IncludeGalleryAssets" DependsOnTargets="AssignTargetPaths">
+    <ItemGroup>
+      <_GalleryAsset Include="@(_NoneWithTargetPath)"
+                     Condition="'%(_NoneWithTargetPath.CopyToPublishDirectory)' == 'PreserveNewest'" />
+      <TfmSpecificPackageFile Include="@(_GalleryAsset)">
+        <PackagePath>contentFiles/any/any/%(_GalleryAsset.TargetPath)</PackagePath>
+        <BuildAction>None</BuildAction>
+        <PackageCopyToOutput>true</PackageCopyToOutput>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
+
 </Project>

@@ -2,6 +2,16 @@ using System.Buffers;
 
 namespace Duxel.Core;
 
+internal readonly record struct PlatformShapedGlyph(ushort Index, int X, int Y, float PhaseX, float PhaseY, float Advance);
+internal sealed record PlatformShapedGlyphRun(int RasterSize, float Baseline, PlatformShapedGlyph[] Glyphs);
+internal readonly record struct PlatformShapedGlyphMask(int X, int Y, int Width, int Height, byte[]? Pixels);
+
+internal interface IPlatformShapedGlyphBackend
+{
+    PlatformShapedGlyphRun? ShapeGlyphs(string font, string? secondaryFont, string text, float fontSize);
+    bool TryRasterizeGlyph(string font, int rasterSize, PlatformShapedGlyph glyph, out PlatformShapedGlyphMask mask);
+}
+
 public enum PlatformFontSimulation
 {
     None, Oblique

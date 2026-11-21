@@ -6,7 +6,7 @@ internal static class AccessibilityTextEditTests
     {
         using var tree = new UiAccessibilityTree();
         using var context = new UiContext(new UiFontAtlas(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
-        ControlFontFixture.Configure(context);
+        ControlFontFixture.ConfigureEmoji(context, korean : true);
         context.SetAccessibilityTree(tree);
         var clipboard = new Clipboard();
         context.SetClipboard(clipboard);
@@ -116,6 +116,8 @@ internal static class AccessibilityTextEditTests
             "A native replacement can exactly fill the declared UTF16 maximum");
         check(Apply(Command(UiAccessibilityTextEditKind.Replace, 0, 0, "z")) == UiAccessibilityResult.InvalidArgument && value == new string('x', 16),
             "Overlong range insertion fails atomically without truncating the payload");
+        // These cases use combining Latin and Korean without supplementary emoji.
+        ControlFontFixture.Configure(context);
         check(Apply(Command(UiAccessibilityTextEditKind.Replace, 0, value.Length, "e\u0301x")) == UiAccessibilityResult.Success,
             "A source edit can publish a combining grapheme");
         var writes = clipboard.Writes;

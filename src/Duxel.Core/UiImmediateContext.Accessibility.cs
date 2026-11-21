@@ -167,7 +167,7 @@ public sealed partial class UiImmediateContext
         bool valuePattern = true, bool multiline = false, bool invalid = false, UiAccessibilityScrollInfo? scroll = null,
         bool virtualItemContainer = false, UiAccessibilityRangeInfo? range = null, UiAccessibilityToggleState? toggleState = null,
         bool selectionRequired = false, bool literalLabel = false, UiVector2? clickablePoint = null, UiAccessibilityTextInfo? textInfo = null,
-        UiAccessibilityTextLayout? textLayout = null, UiAccessibilityImageInfo? imageInfo = null, bool busy = false)
+        UiAccessibilityTextLayout? textLayout = null, UiAccessibilityImageInfo? imageInfo = null, bool busy = false, string? hint = null)
     {
         if (_accessibility is not { } tree)
             return;
@@ -182,7 +182,8 @@ public sealed partial class UiImmediateContext
         var clip = IntersectRect(CurrentClipRect, bounds);
         tree.Add(new(id, parent, role, name, clip, IsControlEnabled && _popupTierDepth >= _blockingKeyboardTier,
             clip.Width <= 0 || clip.Height <= 0, focusable && _state.FocusedId == id, value, readOnly, maxLength,
-            field?.Hint, field?.ValidationMessage, (field?.Required ?? false) || (standalone?.Options.Required ?? false), invalid || (field?.Invalid ?? false),
+            field?.Hint is { Length: > 0 } fieldHint && hint is not null ? hint + " " + fieldHint : hint ?? field?.Hint,
+            field?.ValidationMessage, (field?.Required ?? false) || (standalone?.Options.Required ?? false), invalid || (field?.Invalid ?? false),
             focusable, valuePattern)
         {
             Multiline = multiline,

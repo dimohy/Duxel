@@ -57,7 +57,8 @@ internal sealed class UiSurfaceActionBar : UiMultiChildWidget
     protected override void RenderControl(UiImmediateContext ui) => ui.RenderSurfaceActions(this, _sizes);
 }
 
-internal readonly record struct UiSurfaceBodyLayout(UiVector2 Size, UiVector2 Title, float HeaderHeight, float ContentHeight, UiVector2 Actions);
+internal readonly record struct UiSurfaceBodyLayout(UiVector2 Size, UiVector2 Title, float HeaderHeight, float ContentHeight, UiVector2 Actions,
+    UiVector2 HeaderActions);
 
 internal sealed class UiSurfaceBody<TPresentation> : UiControlWidget where TPresentation : IUiSurfacePresentation
 {
@@ -65,16 +66,21 @@ internal sealed class UiSurfaceBody<TPresentation> : UiControlWidget where TPres
     internal readonly UiSurfaceContent Content;
     internal readonly UiSurfaceActionBar Actions;
     internal readonly UiSurfaceClose<TPresentation> Close;
+    internal readonly UiWidget? HeaderActions;
     internal bool HasClose, FillHeight, RightToLeft, ActionsStart;
+    internal UiColor? ScrollSeparator;
     internal float MaximumHeight = float.PositiveInfinity;
 
-    internal UiSurfaceBody(string title, UiWidget content, UiWidget[] actions, Action close)
+    internal UiSurfaceBody(string title, UiWidget content, UiWidget[] actions, Action close, UiWidget? headerActions = null)
     {
         Title = new(title);
         Content = new(content);
         Actions = new(actions);
         Close = new(close);
+        HeaderActions = headerActions;
         OwnChild("title", Title);
+        if (headerActions is not null)
+            OwnChild("header-actions", headerActions);
         OwnChild("content", Content);
         OwnChild("actions", Actions);
         OwnChild("close", Close);
@@ -111,6 +117,10 @@ internal sealed class UiSurfaceBody<TPresentation> : UiControlWidget where TPres
         if (HasClose)
             context.MeasureParentDataChild(Close, null, UiBoxConstraints.Tight(new(24, 24)));
         var header = MathF.Max(title.Y, HasClose ? 24 : 0);
+        var headerSize = HeaderActions is { } headerActions
+            ? context.MeasureParentDataChild(headerActions, null, new(0, width, 0, float.PositiveInfinity)) : default;
+        if (headerSize.Y > 0)
+            header += metrics.Gap + headerSize.Y;
         var actions = context.MeasureParentDataChild(Actions, null, new(0, width, 0, float.PositiveInfinity));
         var natural = Content.Stretch ? default : context.MeasureParentDataChild(Content.Child, null, new(width, width, 0, float.PositiveInfinity));
         var gaps = metrics.Gap * (Actions.Children.Length == 0 ? 1 : 2);
@@ -127,7 +137,7 @@ internal sealed class UiSurfaceBody<TPresentation> : UiControlWidget where TPres
         var bodyHeight = contentHeight == availableHeight
             ? MathF.Max(heightLimit, header + gaps + actions.Y)
             : header + gaps + contentHeight + actions.Y;
-        return new(new(width, bodyHeight), title, header, contentHeight, actions);
+        return new(new(width, bodyHeight), title, header, contentHeight, actions, headerSize);
     }
     protected override UiVector2 MeasureContent(UiControlContext context) => context.LayoutConstraints.Constrain(Layout(context).Size);
     protected override void RenderControl(UiImmediateContext ui) => ui.RenderSurfaceBody(this);

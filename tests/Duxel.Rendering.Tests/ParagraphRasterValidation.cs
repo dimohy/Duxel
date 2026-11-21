@@ -20,7 +20,7 @@ public sealed partial class UiImmediateContext
 
     partial void ObserveValidationParagraphEviction(in DirectTextCacheKey key, in DirectTextCacheEntry entry)
     {
-        if (key.ParagraphRun is null)
+        if (key.ParagraphRun is null && key.WholeParagraph is null)
             return;
         _validationParagraphEvictions++;
         if (entry.Width == 0 || entry.Height == 0)

@@ -1,5 +1,9 @@
 # Complete Fluent 2 component migration
 
+2026-11-20. The catalog includes `InlineDrawer` and `OverlayDrawer` under Drawer. The Android circular ProgressIndicator variant brings the catalog to 55 top-level components and 36 registered variants. [Circular progress](fluent2-progress-indicator.md#circular-progress) The source scope remains draft while the review of component parts, states and responsive behavior continues. [Official scope and Drawer types](fluent2-scope.md)
+
+Earlier on 2026-11-20, the Microsoft React, iOS, and Android component indexes matched the 64 catalog links. `CompoundButton`, `MenuButton`, and `SplitButton` brought the registered variant count to 33. The Windows .NET 11 generator suite passed 131 checks with each of package Roslyn and SDK Roslyn. The strict build found no missing factories and rejected the draft reference scope. [Official scope and button types](fluent2-scope.md)
+
 2026-11-18. [FluentProvider layout direction](fluent2-provider.md#local-layout-direction) scopes measurement, navigation geometry and popup placement to a subtree. Windows Gallery and targeted regressions pass. The complete direction, brand and typography contracts remain in scope.
 
 2026-11-18. [NavigationBar](fluent2-navigation-bar.md) adds a contextual title, screen actions and an optional secondary control. The generated inventory connects all 55 currently tracked top-level component names. Qualification of the full design, behavior and platform scope remains open.

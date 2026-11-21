@@ -195,7 +195,62 @@ internal static class BreadcrumbTests
         Frame();
         check(Fluent.ComponentNames.Contains("Breadcrumb") && Fluent.RequiredComponentNames.Length == 55,
             "Breadcrumb connects the existing official top-level requirement");
+
+        var customCalls = new List<string>();
+        using var custom = new CustomBreadcrumb(customCalls.Add);
+        current = custom;
+        Frame();
+        var customRoot = Find("Root", UiAccessibilityRole.Button);
+        var customBounds = customRoot.Node.Bounds;
+        check(customBounds.Height == 44, "Custom Breadcrumb presentation supplies the measured height");
+        var point = new UiVector2(customBounds.X + customBounds.Width / 2, customBounds.Y + customBounds.Height / 2);
+        Frame(idle with { MousePosition = point, LeftMouseDown = true, LeftMousePressed = true });
+        check(customCalls.SequenceEqual(["root"]) && CustomBreadcrumbPresentation.SawActivation,
+            "Custom Breadcrumb navigates on pointer press and passes activation to its painter");
+        Frame(idle with { MousePosition = point, LeftMouseReleased = true });
+        check(customCalls.SequenceEqual(["root"]), "Custom Breadcrumb pointer release does not navigate twice");
+        Key(UiKey.DownArrow);
+        var customParent = Find("Parent", UiAccessibilityRole.Button);
+        check(context.State.FocusedId == customParent.Node.Id && customCalls.SequenceEqual(["root"]),
+            "Custom Breadcrumb can use a different focus key without invoking a destination");
+        tree.RequestAction(customParent.Node.Id, customParent.RuntimeId, UiAccessibilityAction.Invoke, wait: false);
+        Frame();
+        Click(Find("Here", UiAccessibilityRole.Label));
+        check(customCalls.SequenceEqual(["root", "parent"]),
+            "Custom Breadcrumb still accepts native Invoke and keeps the current location passive");
     }
+
+    private sealed class CustomBreadcrumb(Action<string> navigated)
+        : UiBreadcrumb<PressBehavior, CustomBreadcrumbPresentation>("Custom path",
+            [new("root", "Root"), new("parent", "Parent"), new("here", "Here")], navigated,
+            new(FocusMode : UiBreadcrumbFocusMode.Arrow));
+
+    private readonly struct PressBehavior : IUiBreadcrumbBehavior
+    {
+        public static UiButtonActivation ItemActivation => UiButtonActivation.Press;
+        public static UiBreadcrumbFocusCommand ResolveFocusCommand(UiKey key, bool rightToLeft)
+            => key == UiKey.DownArrow ? UiBreadcrumbFocusCommand.Next
+                : UiDefaultBreadcrumbBehavior.ResolveFocusCommand(key, rightToLeft);
+    }
+
+    private readonly struct CustomBreadcrumbPresentation : IUiBreadcrumbPresentation
+    {
+        internal static bool SawActivation { get; private set; }
+        public static float Height(UiBreadcrumbOptions options) => 44;
+        public static float DividerWidth(UiBreadcrumbOptions options) => UiFluentBreadcrumbPresentation.DividerWidth(options);
+        public static UiVector2 MeasureItem(UiControlContext context, UiBreadcrumbItemContent item, UiBreadcrumbOptions options)
+            => UiFluentBreadcrumbPresentation.MeasureItem(context, item, options);
+        public static void PaintItem(UiControlContext context, UiBreadcrumbItemContent item, UiRect bounds,
+            UiButtonInteraction interaction, UiBreadcrumbOptions options)
+        {
+            if (item.Text == "Root")
+                SawActivation = interaction.Activated;
+            UiFluentBreadcrumbPresentation.PaintItem(context, item, bounds, interaction, options);
+        }
+        public static void PaintDivider(UiControlContext context, UiRect bounds, UiBreadcrumbOptions options)
+            => UiFluentBreadcrumbPresentation.PaintDivider(context, bounds, options);
+    }
+
     private sealed class Screen(Action<UiImmediateContext> render) : UiScreen
     {
         public override void Render(UiImmediateContext ui) => render(ui);

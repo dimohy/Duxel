@@ -102,5 +102,40 @@ internal static class DrawerRenderingTests
         requests = 0;
         Capture("inline-idle");
         check(requests == 0, "inline Drawer settled state requests no perpetual animation frames");
+        VerifyScrollSeparators(fixture, tree, output, check);
+    }
+
+    private static void VerifyScrollSeparators(PresentationReuseTests.Fixture fixture, UiAccessibilityTree tree,
+        string output, Action<bool, string> check)
+    {
+        using var drawer = Fluent.OverlayDrawer("Scrollable panel",
+            Dux.Column(new(MainAxisSize : UiMainAxisSize.Min),
+                Enumerable.Range(0, 70).Select(i => Fluent.Body1("Row " + i)).ToArray()),
+            [Fluent.Button("Apply")], new(MotionEnabled : false));
+        drawer.Show();
+        byte[] Capture(string state)
+        {
+            var pixels = fixture.Capture(ui => drawer.Render(ui));
+            BrowserPng.Write(Path.Combine(output, "scroll-separator-" + state + ".png"), 640, 640, pixels);
+            return pixels;
+        }
+        var top = Capture("top");
+        var viewport = tree.CaptureSnapshot().Elements.Single(element => element.Node.Scroll is { } scroll
+            && scroll.Content.Y > scroll.Viewport.Y).Node.Bounds;
+        var x = (int)viewport.X + 2;
+        var headerY = (int)viewport.Y - 1;
+        var footerY = (int)(viewport.Y + viewport.Height);
+        bool Stroke(byte[] pixels, int y)
+        {
+            var index = (y * 640 + x) * 4;
+            return pixels[index] == 102 && pixels[index + 1] == 102 && pixels[index + 2] == 102;
+        }
+        check(!Stroke(top, headerY) && Stroke(top, footerY), "Drawer draws only the footer separator at the top of the body");
+        drawer.Body.Content.Offset = new(0, drawer.Body.Content.Scroll.VerticalScrollRange / 2);
+        var middle = Capture("middle");
+        check(Stroke(middle, headerY) && Stroke(middle, footerY), "Drawer draws both separators while scrolling the middle of the body");
+        drawer.Body.Content.Offset = new(0, drawer.Body.Content.Scroll.VerticalScrollRange);
+        var bottom = Capture("bottom");
+        check(Stroke(bottom, headerY) && !Stroke(bottom, footerY), "Drawer draws only the header separator at the end of the body");
     }
 }

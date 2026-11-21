@@ -3,6 +3,15 @@ namespace Duxel.Core;
 public enum UiDrawerType { Overlay, Inline }
 public enum UiDrawerPosition { Start, End, Bottom }
 public enum UiDrawerSize { Small, Medium, Large, Full }
+/// <summary>The title and optional owned action content in a Drawer header.</summary>
+public readonly record struct UiDrawerHeader(string Title, UiWidget? Actions = null);
+
+/// <summary>The owned content and initial scrolling of a Drawer body.</summary>
+public readonly record struct UiDrawerBody(UiWidget Content, bool Scroll = true);
+
+/// <summary>Owned actions laid out in the optional footer of a Drawer.</summary>
+public readonly record struct UiDrawerFooter(UiWidget[] Actions);
+
 public readonly record struct UiDrawerOptions(UiDrawerType Type = UiDrawerType.Overlay,
     UiDrawerPosition Position = UiDrawerPosition.Start, UiDrawerSize Size = UiDrawerSize.Small,
     float? Extent = null, float? InlineCrossExtent = null, bool Modal = true, bool LightDismiss = true,
@@ -30,7 +39,10 @@ public readonly record struct UiDrawerOptions(UiDrawerType Type = UiDrawerType.O
         _ => available
     });
 }
-public interface IUiDrawerPresentation : IUiSurfacePresentation;
+public interface IUiDrawerPresentation : IUiSurfacePresentation
+{
+    static virtual UiColor? ScrollSeparator(UiControlContext context) => null;
+}
 
 internal sealed class UiDrawerInputState : UiOverlayInputState
 {
@@ -65,30 +77,65 @@ public class UiDrawer<TPresentation> : UiControlWidget where TPresentation : IUi
 {
     private string _title;
     private UiDrawerOptions _options;
+    private readonly UiDrawerType? _fixedType;
     private readonly UiSurfaceVisibility _visibility;
     private (object Resources, int Frame, UiDrawerOptions Options, UiVector2 Natural)? _inlineMeasurement;
     internal readonly UiDrawerInputState Input = new();
     internal readonly UiSurfaceBody<TPresentation> Body;
     internal readonly UiScrollView Viewport;
     public UiDrawer(string title, UiWidget content, UiWidget[]? actions = null, UiDrawerOptions? options = null,
-        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(identity)
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : this(title, content, actions, options, identity, null)
     {
-        ValidateTitle(title);
+    }
+
+    private protected UiDrawer(string title, UiWidget content, UiWidget[]? actions, UiDrawerOptions? options,
+        UiWidgetIdentity identity, UiDrawerType? fixedType) : this(new UiDrawerHeader(title), content, actions, options, identity, fixedType)
+    {
+    }
+
+    public UiDrawer(UiDrawerHeader header, UiWidget content, UiWidget[]? actions = null, UiDrawerOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : this(header, content, actions, options, identity, null)
+    {
+    }
+
+    public UiDrawer(UiDrawerHeader header, UiDrawerBody body, UiDrawerFooter? footer = null, UiDrawerOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : this(header, body, footer, options, identity, null)
+    {
+    }
+
+    private protected UiDrawer(UiDrawerHeader header, UiDrawerBody body, UiDrawerFooter? footer, UiDrawerOptions? options,
+        UiWidgetIdentity identity, UiDrawerType? fixedType)
+        : this(header, body.Content, footer?.Actions, (options ?? new UiDrawerOptions()) with { ScrollBody = body.Scroll }, identity, fixedType)
+    {
+    }
+
+    private protected UiDrawer(UiDrawerHeader header, UiWidget content, UiWidget[]? actions, UiDrawerOptions? options,
+        UiWidgetIdentity identity, UiDrawerType? fixedType) : base(identity)
+    {
+        ValidateTitle(header.Title);
         ArgumentNullException.ThrowIfNull(content);
         _options = options ?? new();
         _options.Validate();
+        _fixedType = fixedType;
+        if (fixedType is { } type)
+            _options = _options with { Type = type };
         actions = actions?.ToArray() ?? [];
         var unique = new HashSet<UiWidget>(ReferenceEqualityComparer.Instance) { content };
         ValidateOwnedChild("content", content);
+        if (header.Actions is { } headerActions)
+        {
+            if (!unique.Add(headerActions)) throw new ArgumentException("Drawer slots cannot share a widget instance.", nameof(header));
+            ValidateOwnedChild("header-actions", headerActions);
+        }
         for (var i = 0; i < actions.Length; i++)
         {
             ArgumentNullException.ThrowIfNull(actions[i]);
             if (!unique.Add(actions[i])) throw new ArgumentException("Drawer slots cannot share a widget instance.", nameof(actions));
             ValidateOwnedChild(i.ToString(System.Globalization.CultureInfo.InvariantCulture), actions[i]);
         }
-        _title = title;
+        _title = header.Title;
         _visibility = new(Input, RequestRebuild);
-        Body = new(title, content, actions, () => Close());
+        Body = new(header.Title, content, actions, () => Close(), header.Actions);
         Viewport = Dux.ScrollView(Body);
         OwnChild("surface", Viewport);
     }
@@ -113,6 +160,8 @@ public class UiDrawer<TPresentation> : UiControlWidget where TPresentation : IUi
         {
             ThrowIfDisposed();
             value.Validate();
+            if (_fixedType is { } fixedType && value.Type != fixedType)
+                throw new ArgumentException("This drawer has a fixed hosting type.", nameof(value));
             if (_options == value) return;
             if (Input.Open && _options.Type != value.Type) throw new InvalidOperationException("Close the drawer before changing its hosting type.");
             ThrowIfBuilding();
@@ -128,6 +177,7 @@ public class UiDrawer<TPresentation> : UiControlWidget where TPresentation : IUi
         }
     }
     public UiWidget Content => Body.Content.Child;
+    public UiWidget? HeaderActions => Body.HeaderActions;
     public ReadOnlySpan<UiWidget> Actions => Body.Actions.Children;
     public bool IsOpen => Input.Open;
     public UiBinding<bool>? Open
@@ -187,3 +237,55 @@ public class UiDrawer<TPresentation> : UiControlWidget where TPresentation : IUi
 [UiWidgetStyle(typeof(UiDrawer<>), typeof(UiFluentDrawerPresentation))]
 [UiComponent("Drawer", UiComponentExposure.Fluent)]
 public partial class UiFluentDrawer;
+
+/// <summary>A drawer that participates in its parent's layout and keeps the surrounding content interactive.</summary>
+public class UiInlineDrawer<TPresentation> : UiDrawer<TPresentation> where TPresentation : IUiDrawerPresentation
+{
+    public UiInlineDrawer(string title, UiWidget content, UiWidget[]? actions = null, UiDrawerOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(title, content, actions, options, identity, UiDrawerType.Inline)
+    {
+    }
+
+    public UiInlineDrawer(UiDrawerHeader header, UiWidget content, UiWidget[]? actions = null, UiDrawerOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(header, content, actions, options, identity, UiDrawerType.Inline)
+    {
+    }
+
+    public UiInlineDrawer(UiDrawerHeader header, UiDrawerBody body, UiDrawerFooter? footer = null, UiDrawerOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(header, body, footer, options, identity, UiDrawerType.Inline)
+    {
+    }
+}
+
+/// <summary>A drawer that opens above the page and defaults to modal interaction.</summary>
+public class UiOverlayDrawer<TPresentation> : UiDrawer<TPresentation> where TPresentation : IUiDrawerPresentation
+{
+    public UiOverlayDrawer(string title, UiWidget content, UiWidget[]? actions = null, UiDrawerOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(title, content, actions, options, identity, UiDrawerType.Overlay)
+    {
+    }
+
+    public UiOverlayDrawer(UiDrawerHeader header, UiWidget content, UiWidget[]? actions = null, UiDrawerOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(header, content, actions, options, identity, UiDrawerType.Overlay)
+    {
+    }
+
+    public UiOverlayDrawer(UiDrawerHeader header, UiDrawerBody body, UiDrawerFooter? footer = null, UiDrawerOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(header, body, footer, options, identity, UiDrawerType.Overlay)
+    {
+    }
+}
+
+[UiWidgetStyle(typeof(UiInlineDrawer<>), typeof(UiFluentDrawerPresentation))]
+[UiComponent("InlineDrawer", UiComponentExposure.Fluent)]
+public partial class UiFluentInlineDrawer;
+
+[UiWidgetStyle(typeof(UiOverlayDrawer<>), typeof(UiFluentDrawerPresentation))]
+[UiComponent("OverlayDrawer", UiComponentExposure.Fluent)]
+public partial class UiFluentOverlayDrawer;

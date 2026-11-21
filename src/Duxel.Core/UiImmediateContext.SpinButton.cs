@@ -8,7 +8,8 @@ public sealed partial class UiImmediateContext
             _state.ActiveId = null;
     }
 
-    internal void RenderSpinButton<TPresentation>(UiSpinButton<TPresentation> widget, string id)
+    internal void RenderSpinButton<TBehavior, TPresentation>(UiSpinButton<TBehavior, TPresentation> widget, string id)
+        where TBehavior : IUiSpinButtonBehavior
         where TPresentation : IUiSpinButtonPresentation
     {
         var options = widget.Options;
@@ -90,7 +91,7 @@ public sealed partial class UiImmediateContext
                 BeginDisabled(!enabled);
                 try
                 {
-                    var interaction = ProcessButton(name, rect, UiButtonActivation.Press);
+                    var interaction = ProcessButton(name, rect, TBehavior.StepperActivation);
                     interaction = ApplyAccessibilityInvoke(resolved, rect, interaction);
                     _currentTabStops.RemoveAll(stop => stop.Id == resolved);
                     if (_state.FocusedId == resolved || interaction.Activated)
@@ -105,7 +106,7 @@ public sealed partial class UiImmediateContext
                 state.CancelledHold = false;
             if (_leftMouseDown && (_state.ActiveId == incrementId && !increment.Hovered || _state.ActiveId == decrementId && !decrement.Hovered))
                 state.CancelledHold = true;
-            var heldDirection = state.CancelledHold ? 0 : increment.Held && increment.Hovered && canIncrement ? 1
+            var heldDirection = state.CancelledHold || !TBehavior.RepeatOnHold ? 0 : increment.Held && increment.Hovered && canIncrement ? 1
                 : decrement.Held && decrement.Hovered && canDecrement ? -1 : 0;
             var acceptedStep = true;
             if (increment.Activated || decrement.Activated)
@@ -150,24 +151,25 @@ public sealed partial class UiImmediateContext
                 {
                     if (!key.IsDown)
                         continue;
-                    if (key.Key == UiKey.UpArrow)
-                        Move(1);
-                    else if (key.Key == UiKey.DownArrow)
-                        Move(-1);
-                    else if (key.Key == UiKey.PageUp)
-                        Move(1, true);
-                    else if (key.Key == UiKey.PageDown)
-                        Move(-1, true);
-                    else if (key.Key == UiKey.Home && !key.Modifiers.HasFlag(KeyModifiers.Shift) && options.Minimum is { } min)
-                        widget.Commit(state.Draft, UiSpinButtonChangeReason.Minimum, min, true);
-                    else if (key.Key == UiKey.End && !key.Modifiers.HasFlag(KeyModifiers.Shift) && options.Maximum is { } max)
-                        widget.Commit(state.Draft, UiSpinButtonChangeReason.Maximum, max, true);
-                    else if (key.Key == UiKey.Enter)
-                        CommitText();
-                    else if (key.Key == UiKey.Escape && !_tooltipEscapeConsumed && !_focusGroupEscapeConsumed)
+                    switch (TBehavior.ResolveKey(key))
                     {
-                        state.Draft = widget.Format(widget.Value.Value);
-                        state.Editing = false;
+                        case UiSpinButtonKeyAction.Increment: Move(1); break;
+                        case UiSpinButtonKeyAction.Decrement: Move(-1); break;
+                        case UiSpinButtonKeyAction.PageIncrement: Move(1, true); break;
+                        case UiSpinButtonKeyAction.PageDecrement: Move(-1, true); break;
+                        case UiSpinButtonKeyAction.Minimum when options.Minimum is { } min:
+                            widget.Commit(state.Draft, UiSpinButtonChangeReason.Minimum, min, true);
+                            break;
+                        case UiSpinButtonKeyAction.Maximum when options.Maximum is { } max:
+                            widget.Commit(state.Draft, UiSpinButtonChangeReason.Maximum, max, true);
+                            break;
+                        case UiSpinButtonKeyAction.Commit:
+                            CommitText();
+                            break;
+                        case UiSpinButtonKeyAction.Cancel when !_tooltipEscapeConsumed && !_focusGroupEscapeConsumed:
+                            state.Draft = widget.Format(widget.Value.Value);
+                            state.Editing = false;
+                            break;
                     }
                 }
             }
@@ -181,13 +183,14 @@ public sealed partial class UiImmediateContext
             };
             if (_state.FocusedId == root && IsControlEnabled && !options.ReadOnly && _popupTierDepth >= _blockingKeyboardTier)
             {
+                var heldKeys = TBehavior.GetHeldKeys(this);
                 increment = increment with
                 {
-                    Held = increment.Held || IsKeyDown(UiKey.UpArrow) || IsKeyDown(UiKey.PageUp)
+                    Held = increment.Held || heldKeys.Increment
                 };
                 decrement = decrement with
                 {
-                    Held = decrement.Held || IsKeyDown(UiKey.DownArrow) || IsKeyDown(UiKey.PageDown)
+                    Held = decrement.Held || heldKeys.Decrement
                 };
             }
             TPresentation.Paint(context, layout, edit, options, increment, decrement,

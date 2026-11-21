@@ -347,7 +347,15 @@ internal static class GeneratorTestRunner
                 .Select(row => string.Join('\t', row.EnumerateArray().Select(field => field.GetString()))).ToHashSet(StringComparer.Ordinal);
             var actual = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "Fixtures", "FluentComponents.tsv"))
                 .Where(row => row.Length > 0 && !row.StartsWith('#')).ToHashSet(StringComparer.Ordinal);
-            Check(actual.SetEquals(expected), "production requirements exactly match reviewed official-site components and parented variants");
+            const string matchDescription = "production requirements exactly match reviewed official-site components and parented variants";
+            if (!actual.SetEquals(expected))
+            {
+                var missing = expected.Except(actual, StringComparer.Ordinal).Order(StringComparer.Ordinal);
+                var unexpected = actual.Except(expected, StringComparer.Ordinal).Order(StringComparer.Ordinal);
+                throw new InvalidOperationException($"{matchDescription}\nMissing production rows: {string.Join("\n", missing)}"
+                    + $"\nUnreviewed production rows: {string.Join("\n", unexpected)}");
+            }
+            Check(true, matchDescription);
             Check(root.GetProperty("components").GetArrayLength() == 64
                 && root.GetProperty("components").EnumerateArray().Select(row => row[0].GetString()).Distinct().Count() == 55,
                 "reviewed web47/iOS12/Android5 catalog entries have55 distinct top-level names");

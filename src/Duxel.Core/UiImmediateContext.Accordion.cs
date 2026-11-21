@@ -4,7 +4,8 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
-    internal void RenderAccordion<TPresentation>(UiAccordion<TPresentation> accordion)
+    internal void RenderAccordion<TBehavior, TPresentation>(UiAccordion<TBehavior, TPresentation> accordion)
+        where TBehavior : IUiButtonBehavior
         where TPresentation : IUiAccordionPresentation
     {
         EnsureNotMeasuring();
@@ -26,7 +27,7 @@ public sealed partial class UiImmediateContext
             BeginDisabled(!items[i].Enabled);
             try
             {
-                var interaction = ProcessButton(suffix, bounds, UiButtonActivation.Release);
+                var interaction = TBehavior.Process(context, suffix, bounds);
                 interaction = ApplyAccessibilityInvoke(id, bounds, interaction);
                 var expansion = _accessibility?.Take(id, UiAccessibilityAction.Expand)
                     ?? _accessibility?.Take(id, UiAccessibilityAction.Collapse);
@@ -39,7 +40,7 @@ public sealed partial class UiImmediateContext
                             : accordion.SetExpanded(i, request.Action == UiAccessibilityAction.Expand)
                                 ? UiAccessibilityResult.Success : UiAccessibilityResult.InvalidOperation;
                 }
-                else if (interaction.Activated)
+                else if (interaction.Activated && IsControlEnabled)
                     accordion.SetExpanded(i, !accordion.ReadSelection().Contains(items[i].Value, StringComparer.Ordinal));
                 accordion.Interactions[i] = interaction;
                 blockBodyPointer |= interaction.Hovered && _leftMousePressed;

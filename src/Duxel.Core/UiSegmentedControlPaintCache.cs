@@ -22,7 +22,7 @@ public partial class UiSegmentedControlWidget
             theme.Text, theme.TextDisabled, theme.WindowBg, theme.Border, theme.ForcedColors?.Highlight,
             theme.ForcedColors?.HighlightText, thumb, selected, interaction.Control.FocusVisible ? interaction.FocusedIndex : -1,
             IconIndex(interaction.HoveredIndex), IconIndex(interaction.HeldIndex));
-        var changed = _paintKey != key;
+        var changed = !CanRetainPaint || _paintKey != key;
         if (_iconVersions.Length != _items.Length)
         {
             _iconVersions = new ulong[_items.Length];
@@ -43,7 +43,7 @@ public partial class UiSegmentedControlWidget
     {
         var key = _paintKey!.Value;
         PaintCaptureCount++;
-        UiSegmentedControlPainter.Paint(context, this, new(0, 0, ContentWidth, key.Thumb.Height > 0 ? key.Thumb.Height : _size.Y),
+        PaintSegments(context, new(0, 0, ContentWidth, key.Thumb.Height > 0 ? key.Thumb.Height : _size.Y),
             key.Thumb, key.Selected, _paintInteraction);
     }
 }

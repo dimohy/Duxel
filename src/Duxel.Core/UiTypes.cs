@@ -1438,7 +1438,7 @@ public readonly struct UiWindows11Design : IUiDesign
         theme.SliderGrabActive = new UiColor(0, 74, 144);
         theme.SliderBorder = new UiColor(0x00FFFFFF);
         theme.ProgressBarBg = new UiColor(0xFFE6E6E6);
-        theme.ProgressBarFill = new UiColor(0, 95, 184);
+        theme.ProgressBarFill = new UiColor(15, 108, 189);
         theme.ProgressBarBorder = new UiColor(0x00FFFFFF);
         theme.SelectableBgHovered = new UiColor(240, 246, 255);
         theme.SelectableBgActive = new UiColor(220, 238, 255);
@@ -1519,8 +1519,8 @@ public readonly struct UiWindows11Design : IUiDesign
         theme.SliderGrab = new UiColor(96, 205, 255);
         theme.SliderGrabActive = new UiColor(76, 194, 255);
         theme.SliderBorder = new UiColor(0x00202020);
-        theme.ProgressBarBg = new UiColor(0xFF3A3A3A);
-        theme.ProgressBarFill = new UiColor(96, 205, 255);
+        theme.ProgressBarBg = new UiColor(51, 51, 51);
+        theme.ProgressBarFill = new UiColor(71, 158, 245);
         theme.ProgressBarBorder = new UiColor(0x00202020);
         theme.SelectableBgHovered = new UiColor(50, 60, 67);
         theme.SelectableBgActive = new UiColor(20, 56, 77);
@@ -1829,6 +1829,8 @@ public enum UiTextureFormat
 {
     Rgba8Unorm,
     Rgba8Srgb,
+    /// <summary>One linear coverage byte per texel, sampled as (coverage, coverage, coverage, coverage).</summary>
+    R8CoverageUnorm,
 }
 
 public enum UiTextureUpdateKind
@@ -1970,6 +1972,7 @@ public enum UiTableBgTarget
     CellBg,
 }
 
+/// <remarks><c>RgbaPixels</c> contains packed texels in <c>Format</c>. RGBA8 uses four bytes and R8 coverage uses one.</remarks>
 public readonly record struct UiTextureUpdate(
     UiTextureUpdateKind Kind,
     UiTextureId TextureId,
@@ -2228,6 +2231,9 @@ public sealed class UiPooledList<T>(T[] buffer, int count, bool pooled) : IReadO
     private T[]? _buffer = buffer;
     private int _count = count;
     private readonly bool _pooled = pooled;
+
+    // Command buffers share this snapshot across retained draw-list views.
+    internal UiCommandFeaturesSnapshot? CommandFeatures;
 
     private const long UnsealedOpacityRevision = -2;
     private const long WritableOpacityAlias = -1;

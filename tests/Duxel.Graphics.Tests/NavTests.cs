@@ -152,7 +152,85 @@ internal static class NavTests
                 "Nav hidden-navigation page remains named without referencing an absent destination");
         }
 
+        RunCustomPolicies(check);
     }
+
+    private static void RunCustomPolicies(Action<bool, string> check)
+    {
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        ControlFontFixture.Configure(context);
+        using var tree = new UiAccessibilityTree();
+        context.SetAccessibilityTree(tree);
+        var accepted = "a";
+        var allowChange = false;
+        var requests = 0;
+        using var nav = new CustomNav(new UiBinding<string?>(() => accepted, next =>
+        {
+            requests++;
+            if (allowChange)
+                accepted = next!;
+        }));
+        var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+
+        UiRect Frame(UiInputState input)
+        {
+            context.NewFrame(new(.016f, new(480, 240), new(1, 1)), input, new(0, 0, 480, 240), UiTextSettings.Default);
+            context.Render(new Screen(ui =>
+            {
+                ui.EnableRootViewportContentLayout(contentPadding : 0);
+                nav.Render(ui);
+            }));
+            using var draw = context.GetDrawData();
+            return draw.DrawLists.SelectMany(list => list.RectFilledPrimitives?.AsSpan().ToArray() ?? [])
+                .Single(primitive => primitive.Color == CustomPresentation.SelectedFill).Rect;
+        }
+        UiAccessibilityElement Link(string name) => tree.CaptureSnapshot().Elements.Single(element =>
+            element.Node.Name == name && element.Node.Role == UiAccessibilityRole.Link);
+
+        var initialPaint = Frame(idle);
+        var second = Link("Second");
+        check(initialPaint.Height == 24 && initialPaint.Y == Link("First").Node.Bounds.Y,
+            "a derived navigation uses its custom row measurement and paints the accepted destination");
+        tree.RequestAction(second.Node.Id, second.RuntimeId, UiAccessibilityAction.Invoke, wait : false);
+        check(Frame(idle) == initialPaint && requests == 1 && Link("First").Node.IsCurrent && !Link("Second").Node.IsCurrent,
+            "rejected navigation activation never appears selected in the same paint and accessibility frame");
+
+        allowChange = true;
+        var bounds = second.Node.Bounds;
+        var point = new UiVector2(bounds.X + 10, bounds.Y + bounds.Height / 2);
+        var acceptedPaint = Frame(idle with { MousePosition = point, LeftMousePressed = true, LeftMouseDown = true });
+        check(accepted == "b" && requests == 2 && Link("Second").Node.IsCurrent && acceptedPaint.Y == bounds.Y,
+            "a custom pointer-down behavior commits the destination and paints it before pointer release");
+        Frame(idle with { MousePosition = point, LeftMouseReleased = true });
+        check(requests == 2, "releasing a press-configured navigation destination cannot invoke it twice");
+    }
+
+    private sealed class CustomNav(UiBinding<string?> value)
+        : UiNav<PressDestinations, CustomPresentation>("Custom nav", value, new UiNavGroup[]
+        {
+            new("category", "Category", new UiNavItem[] { new("a", "First"), new("b", "Second") })
+        });
+
+    private readonly struct PressDestinations : IUiNavBehavior
+    {
+        public static UiButtonInteraction Process(UiNavInput input) =>
+            input.Process(input.IsCategory ? UiButtonActivation.Release : UiButtonActivation.Press);
+    }
+
+    private readonly struct CustomPresentation : IUiNavPresentation
+    {
+        internal static readonly UiColor SelectedFill = new(222, 71, 128);
+        public static UiNavRowLayout Measure(UiControlContext context, UiNavRowContent content, float width) =>
+            new(new(width, 24), default, default, default);
+
+        public static void Paint(UiControlContext context, UiNavRowContent content, UiNavRowLayout layout,
+            UiRect bounds, bool current, bool expanded, UiButtonInteraction interaction, UiNavOptions options)
+        {
+            if (current)
+                context.Frame(bounds, SelectedFill, default, 3, 0);
+        }
+    }
+
     private sealed class Screen(Action<UiImmediateContext> render) : UiScreen
     {
         public override void Render(UiImmediateContext ui) => render(ui);

@@ -49,6 +49,11 @@ public sealed unsafe partial class VulkanRendererBackend
     private ulong _validationPresentedPixelSequence;
     internal int ValidationLastAcquiredImageIndex => _lastImageIndex;
 
+    internal (int Count, ulong Bytes, long Reuses) ValidationTextTexturePool
+        => (_idleTextTextures.Count, _idleTextTextureBytes, _textTextureReuses);
+
+    internal ulong ValidationTextureAllocationBytes(UiTextureId id) => _textures[id].AllocationBytes;
+
     internal (int Active, ulong ActiveBytes, int Pending, ulong PendingBytes) ValidationSquareTextureAllocations(int firstExtent, int secondExtent)
     {
         var result = (Active: 0, ActiveBytes: 0UL, Pending: 0, PendingBytes: 0UL);
@@ -500,6 +505,20 @@ public sealed unsafe partial class VulkanRendererBackend
             _profileStaticGeometryCreateCount + _profileStaticGeometryReplaceCount,
             _profileStaticGeometryUpdateCount + _profileStaticGeometryReuseCount, _profileStaticGeometryHitCount);
 
+    internal bool ValidationUsesRotatingStaticGeometry => _staticGeometryRotatingUpdateEnabled;
+    internal (int Count, ulong Bytes) ValidationExtendedStaticGeometryReuse
+        => (_extendedStaticGeometryReuseCount, _extendedStaticGeometryReuseBytes);
+
+    internal ulong ValidationStaticVertexBuffer(string layerId)
+        => _staticGeometryBuffers[$"duxel.layer.static:{layerId}:list:0"].VertexBuffer.Handle;
+
+    internal void ValidationPruneRetiredStaticGeometryAfterFrameGrace(bool elapsed)
+    {
+        WaitForAllInFlightFrameFences();
+        var frame = _frameIndex + _frames.Length + StaticGeometryRetiredReuseGraceFrames;
+        PruneRetiredStaticGeometryBuffers(frame, elapsed ? long.MaxValue : 0);
+    }
+
     internal (int Vertices, int Indices, int Primitives, bool Expanded) ValidationResidentShape(UiDrawList list)
     {
         if (!TryGetStaticDrawListTag(list, out var tag, out _))
@@ -509,6 +528,12 @@ public sealed unsafe partial class VulkanRendererBackend
     }
 
     internal int ValidationPaintGeometryEntries => _staticGeometryBuffers.Keys.Count(key => key.StartsWith("duxel.paint:", StringComparison.Ordinal));
+
+    internal (ulong Black, ulong White, ulong Msaa) ValidationPaintTargetHandles(UiTextureId black)
+    {
+        var entry = _paintGroups[black];
+        return (_textures[black].Image.Handle, _textures[entry.White].Image.Handle, entry.Msaa.Handle);
+    }
 
     internal byte[] RenderAndReadback(UiDrawData data)
     {

@@ -286,7 +286,7 @@ public sealed unsafe partial class VulkanRendererBackend
         return memRequirements.Size;
     }
 
-    private ImageView CreateImageView(Image image, Format format)
+    private ImageView CreateImageView(Image image, Format format, ComponentMapping components = default)
     {
         var viewInfo = new ImageViewCreateInfo
         {
@@ -294,6 +294,7 @@ public sealed unsafe partial class VulkanRendererBackend
             Image = image,
             ViewType = ImageViewType.Type2D,
             Format = format,
+            Components = components,
             SubresourceRange = new ImageSubresourceRange
             {
                 AspectMask = ImageAspectFlags.ColorBit,
@@ -345,6 +346,7 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         UiTextureFormat.Rgba8Unorm => Format.R8G8B8A8Unorm,
         UiTextureFormat.Rgba8Srgb => Format.R8G8B8A8Srgb,
+        UiTextureFormat.R8CoverageUnorm => Format.R8Unorm,
         _ => throw new InvalidOperationException($"Unsupported texture format: {format}.")
     };
 

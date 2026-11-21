@@ -9,6 +9,12 @@ internal static unsafe partial class LinuxParagraphNative
     private const string Pango = "libpango-1.0.so.0", PangoCairo = "libpangocairo-1.0.so.0",
         PangoFc = "libpangoft2-1.0.so.0", Fontconfig = "libfontconfig.so.1", GObject = "libgobject-2.0.so.0";
 
+    [LibraryImport(Pango)]
+    internal static partial void pango_layout_get_pixel_extents(nint layout, out Rectangle ink, out Rectangle logical);
+
+    [LibraryImport(PangoCairo)]
+    internal static partial void pango_cairo_show_layout(nint context, nint layout);
+
     [StructLayout(LayoutKind.Sequential)]
     internal struct Rectangle
     {

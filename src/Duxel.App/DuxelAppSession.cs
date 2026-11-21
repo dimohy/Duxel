@@ -244,7 +244,10 @@ public sealed partial class DuxelAppSession
         using var frameWakeSignal = new AutoResetEvent(false);
         Interlocked.Exchange(ref _pendingFrameRequests, 0);
 
-        var uiContext = new UiContext(fontAtlas, fontTextureId, whiteTextureId);
+        var uiContext = new UiContext(fontAtlas, fontTextureId, whiteTextureId)
+        {
+            UseR8ParagraphCoverage = true
+        };
         using var contextLifetime = new UiContextLifetime(uiContext,
             startupLog is null ? null : () => EmitAppTiming("Shutdown", "UiContextDisposed"));
         var frameCounter = 0;

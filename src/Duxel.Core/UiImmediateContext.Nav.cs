@@ -2,10 +2,10 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
-    internal string? RenderNav<TPresentation>(UiNav<TPresentation> nav, string name, out UiNavSecondaryAction? secondaryAction) where TPresentation : IUiNavPresentation
+    internal UiNavSecondaryAction? RenderNav<TPresentation>(UiNav<TPresentation> nav, string name) where TPresentation : IUiNavPresentation
     {
         EnsureNotMeasuring();
-        secondaryAction = null;
+        UiNavSecondaryAction? secondaryAction = null;
         nav.Secondary.Attach(this);
         var frame = GetFrameCount();
         if (_rightMousePressed || !_rightMouseDown && !_rightMouseReleased
@@ -70,12 +70,9 @@ public sealed partial class UiImmediateContext
             try
             {
                 _lastItemId = id;
-                var pointer = ProcessControlPointer(scopedName, primaryBounds, UiButtonActivation.Release);
                 // Arrow navigation can focus an offscreen row before ScrollView reveals its actual bounds.
                 var keyboardBounds = _state.FocusedId == id ? new UiRect(origin.X, origin.Y, layout.Size.X, layout.Size.Y) : bounds;
-                var interaction = category
-                    ? ProcessControlKeyboard<ActionControlKeys>(id, keyboardBounds, pointer)
-                    : ProcessControlKeyboard<LinkControlKeys>(id, keyboardBounds, pointer);
+                var interaction = nav.ProcessRowInput(new(this, scopedName, id, primaryBounds, keyboardBounds, category));
                 interaction = ApplyAccessibilityInvoke(id, bounds, interaction);
                 var expansion = category ? _accessibility?.Take(id, UiAccessibilityAction.Expand)
                     ?? _accessibility?.Take(id, UiAccessibilityAction.Collapse) : null;
@@ -101,6 +98,9 @@ public sealed partial class UiImmediateContext
         }
         _currentTabStops.RemoveRange(tabStart, _currentTabStops.Count - tabStart);
         _focusedControlSeen = focusedSeen;
+        if (invoked is not null)
+            nav.CommitDestination(invoked);
+        var selected = nav.Value.Value;
         for (var g = 0; g < nav.Groups.Length; g++)
             if (!nav.IsGroupExpanded(g) && NavGroupContainsFocus(nav, g))
                 FocusGroupControl(nav.GroupIds[g], true);
@@ -151,7 +151,6 @@ public sealed partial class UiImmediateContext
                 var entry = category ? null : nav.Secondary.Entries[row.Group][row.Item];
                 var primaryBounds = NavPrimaryBounds<TPresentation>(bounds, entry is not null, nav.EffectiveOptions(RightToLeft));
                 var visible = IntersectRect(CurrentClipRect, primaryBounds);
-                var selected = invoked ?? nav.Value.Value;
                 var current = category ? !expanded && ContainsNavValue(group, selected)
                     : group.Items.Span[row.Item].Value == selected;
                 var focused = _state.FocusedId == id;
@@ -206,7 +205,16 @@ public sealed partial class UiImmediateContext
         finally { _accessibilityParent = parent; _accessibilityWidget = widget; }
         secondaryAction = RenderNavSecondaryMenu<TPresentation>(nav, layout, origin) ?? secondaryAction;
         FinishLayoutBox(origin, layout.Size);
-        return invoked;
+        return secondaryAction;
+    }
+
+    internal UiButtonInteraction ProcessNavRowInput(string name, string id, UiRect bounds, UiRect keyboardBounds,
+        bool category, UiButtonActivation activation)
+    {
+        var pointer = ProcessControlPointer(name, bounds, activation);
+        return category
+            ? ProcessControlKeyboard<ActionControlKeys>(id, keyboardBounds, pointer)
+            : ProcessControlKeyboard<LinkControlKeys>(id, keyboardBounds, pointer);
     }
 
     private static bool ContainsNavValue(UiNavGroup group, string? value)

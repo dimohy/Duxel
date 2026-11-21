@@ -14,6 +14,12 @@ internal static class PolygonCoreTests
         var revisedFeatures = featureList with { CommandStateStamp = 2 };
         check(revisedFeatures.GetCommandFeatures() == UiDrawCommandFeatures.Callbacks,
             "command feature cache invalidates when retained command state changes");
+        var replacementCommands = UiPooledList<UiDrawCommand>.FromArray([new(default, default, 0, 3, 0)]);
+        var replacementFeatures = revisedFeatures with { Commands = replacementCommands, OwnsBuffers = false };
+        check(replacementFeatures.GetCommandFeatures() == UiDrawCommandFeatures.None
+            && revisedFeatures.GetCommandFeatures() == UiDrawCommandFeatures.Callbacks,
+            "equal command stamps on different buffers keep independent feature snapshots");
+        replacementCommands.Return();
         var unknownFeatures = featureList with { CommandStateStamp = 0 };
         check(unknownFeatures.GetCommandFeatures() == UiDrawCommandFeatures.Callbacks,
             "unstamped caller-owned command metadata is inspected directly");

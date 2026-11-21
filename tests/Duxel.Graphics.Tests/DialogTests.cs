@@ -171,7 +171,14 @@ internal static class DialogTests
         Click(new(5, 5));
         check(dialog.IsOpen && outside == 1, "Alert backdrop cannot dismiss or activate background content");
         Key(UiKey.Escape);
-        check(!dialog.IsOpen, "Alert Dialog matches the official focused Escape dismissal");
+        check(!dialog.IsOpen, "Alert Dialog defaults to the React implementation's focused Escape dismissal");
+        dialog.Options = dialog.Options with { SuppressEscapeDismissal = true };
+        Open();
+        var beforeEscape = changes.Count;
+        Key(UiKey.Escape);
+        check(dialog.IsOpen && changes.Count == beforeEscape, "Suppressed Escape does not request a close or alter the bound state");
+        check(dialog.Close(), "Suppressed Escape still allows an explicit dismissal");
+        Frame();
 
         var accept = false;
         using var rejected = Fluent.Dialog("Rejected", Fluent.Body1("content"), options: new(MotionEnabled: false));

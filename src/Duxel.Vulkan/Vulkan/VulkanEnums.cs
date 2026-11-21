@@ -325,6 +325,7 @@ public enum CompareOp : int
 public enum ComponentSwizzle : int
 {
     Identity = 0,
+    Red = 3,
 }
 
 [Flags]
@@ -385,6 +386,7 @@ public enum Format : int
     R32G32Sfloat = 103,
     R32G32B32Sfloat = 106,
     R32G32B32A32Sfloat = 109,
+    R8Unorm = 9,
     R8G8B8A8Unorm = 37,
     R8G8B8A8Srgb = 43,
     B8G8R8A8Unorm = 44,

@@ -2,6 +2,13 @@
 
 This document accumulates version-by-version changes for Duxel.
 
+## 0.3.0-preview (2026-11-21)
+
+- **Two UI modes.** Compose C# widget trees that persist across frames, use immediate-mode drawing and input, or combine them in one window. Built-in Fluent 2 light and dark themes support custom palettes, design tokens, and scoped appearance.
+- **Controls and layouts.** Added DataGrid with editing and selection, virtualized layouts, and file and folder pickers. Expanded Fluent controls, text editing, keyboard navigation, and accessibility.
+- **Gallery.** Browse examples in English, Korean, Japanese, or Simplified Chinese and copy the C# for the current example. Run the Windows Gallery from a single C# file with the `Duxel.Gallery` package.
+- **NuGet.** `Duxel.App` and `Duxel.Windows.App` publish .NET 8, 9, and 10 assets. The shared package includes the declarative UI source generator.
+
 ## 0.2.12-preview (2026-07-28)
 
 ### Major Improvements

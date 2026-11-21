@@ -12,7 +12,7 @@ internal sealed unsafe partial class PangoLineOracle
     }
 
     internal readonly record struct RunAlpha(byte[] Destination, byte[] Mask);
-    internal enum RunSurface { Direct, Cropped, FullSize, FullSizeMarked, CroppedMarked }
+    internal enum RunSurface { Direct, Cropped, FullSize, FullSizeMarked, CroppedMarked, SequentialLine }
     internal CairoGlyph[] LastNativeGlyphs { get; private set; } = [];
 
     internal StyledSnapshot CaptureStyled(StyledSpan[] spans, float width, bool rtl, bool nativeGlyphPaint = false, bool translatedGlyphPaint = false,
@@ -140,6 +140,7 @@ internal sealed unsafe partial class PangoLineOracle
         bool omitInkless, int cropPadding, int[]? traceOffsets, List<RunAlpha> trace)
     {
         var captured = new List<CairoGlyph>();
+        var previousInk = false;
         var iterator = pango_layout_get_iter(layout);
         try
         {
@@ -166,10 +167,21 @@ internal sealed unsafe partial class PangoLineOracle
                 cairo_set_scaled_font(cairo, font);
                 var values = omitInkless ? glyphs.Where(glyph => HasInk(font, glyph.Index)).ToArray() : glyphs.ToArray();
                 byte[] mask = [];
-                if (runSurface is RunSurface.Cropped or RunSurface.CroppedMarked)
+                if (runSurface == RunSurface.SequentialLine)
+                {
+                    pango_layout_iter_get_line_extents(iterator, out var ink, out _);
+                    var left = Math.Floor(ink.X / 1024d) - 1;
+                    var top = Math.Floor(ink.Y / 1024d) - 1;
+                    var width = (int)(Math.Ceiling((ink.X + (double)ink.Width) / 1024d) + 1 - left);
+                    var height = (int)(Math.Ceiling((ink.Y + (double)ink.Height) / 1024d) + 1 - top);
+                    CompositeOriginalRun(cairo, font, values, origin + left, origin + top, width, height, out var inkPainted,
+                        dirtyDestination: previousInk);
+                    previousInk |= inkPainted;
+                }
+                else if (runSurface is RunSurface.Cropped or RunSurface.CroppedMarked)
                     DrawCroppedOriginalRun(cairo, font, values, cropPadding, markDestination : runSurface == RunSurface.CroppedMarked);
                 else if (runSurface is RunSurface.FullSize or RunSurface.FullSizeMarked)
-                    mask = CompositeOriginalRun(cairo, font, values, 0, 0, Width, Height, traceOffsets,
+                    mask = CompositeOriginalRun(cairo, font, values, 0, 0, Width, Height, out _, traceOffsets,
                         markDestination : runSurface == RunSurface.FullSizeMarked);
                 else
                     fixed (CairoGlyph* pointer = values)
@@ -209,22 +221,29 @@ internal sealed unsafe partial class PangoLineOracle
         left = Math.Floor(left) - padding;
         top = Math.Floor(top) - padding;
         CompositeOriginalRun(target, font, glyphs, left, top,
-            (int)(Math.Ceiling(right) + padding - left), (int)(Math.Ceiling(bottom) + padding - top), markDestination : markDestination);
+            (int)(Math.Ceiling(right) + padding - left), (int)(Math.Ceiling(bottom) + padding - top), out _, markDestination : markDestination);
     }
 
     private static byte[] CompositeOriginalRun(nint target, nint font, CairoGlyph[] glyphs,
-        double left, double top, int width, int height, int[]? traceOffsets = null, bool markDestination = false)
+        double left, double top, int width, int height, out bool inkPainted, int[]? traceOffsets = null,
+        bool markDestination = false, bool dirtyDestination = false)
     {
         var surface = cairo_image_surface_create(2, width, height);
         var context = cairo_create(surface);
         try
         {
+            if (dirtyDestination)
+            {
+                cairo_surface_flush(surface);
+                new Span<byte>(cairo_image_surface_get_data(surface), checked(cairo_image_surface_get_stride(surface) * height)).Clear();
+                cairo_surface_mark_dirty(surface);
+            }
             cairo_translate(context, -left, -top);
             cairo_set_source_rgba(context, 1, 1, 1, 1);
             if (markDestination)
             {
-                // A pixel outside the paragraph distinguishes a cleared destination from an empty sample.
-                cairo_rectangle(context, width - 1, height - 1, 1, 1);
+                // Place the marker in the last device pixel after translating to the cropped origin.
+                cairo_rectangle(context, left + width - 1, top + height - 1, 1, 1);
                 cairo_fill(context);
             }
             cairo_set_scaled_font(context, font);
@@ -233,12 +252,17 @@ internal sealed unsafe partial class PangoLineOracle
             if (markDestination)
             {
                 cairo_set_operator(context, 0); // CAIRO_OPERATOR_CLEAR
-                cairo_rectangle(context, width - 1, height - 1, 1, 1);
+                cairo_rectangle(context, left + width - 1, top + height - 1, 1, 1);
                 cairo_fill(context);
             }
             cairo_surface_flush(surface);
             if (cairo_status(context) != 0 || cairo_surface_status(surface) != 0)
                 throw new InvalidOperationException("Independent glyph run drawing failed.");
+            var data = cairo_image_surface_get_data(surface);
+            var stride = cairo_image_surface_get_stride(surface);
+            inkPainted = false;
+            for (var y = 0; y < height && !inkPainted; y++)
+                inkPainted = new ReadOnlySpan<byte>(data + y * stride, width).ContainsAnyExcept((byte)0);
             cairo_mask_surface(target, surface, left, top);
             return traceOffsets is null ? [] : ReadAlpha(surface, traceOffsets);
         }
@@ -264,6 +288,7 @@ internal sealed unsafe partial class PangoLineOracle
         internal double X, Y, Width, Height, AdvanceX, AdvanceY;
     }
     [LibraryImport(C)] private static partial void cairo_scaled_font_glyph_extents(nint font, CairoGlyph* glyphs, int count, out CairoBounds bounds);
+    [LibraryImport(C)] private static partial void cairo_surface_mark_dirty(nint surface);
     [LibraryImport(C)] private static partial void cairo_mask_surface(nint target, nint surface, double x, double y);
     [LibraryImport(C)] private static partial void cairo_rectangle(nint cairo, double x, double y, double width, double height);
     [LibraryImport(C)] private static partial void cairo_fill(nint cairo);
@@ -297,6 +322,7 @@ internal sealed unsafe partial class PangoLineOracle
     [LibraryImport(P)] private static partial nint pango_layout_get_iter(nint layout);
     [LibraryImport(P)] private static partial NativeGlyphItem* pango_layout_iter_get_run_readonly(nint iterator);
     [LibraryImport(P)] private static partial void pango_layout_iter_get_run_extents(nint iterator, Rectangle* ink, out Rectangle logical);
+    [LibraryImport(P)] private static partial void pango_layout_iter_get_line_extents(nint iterator, out Rectangle ink, out Rectangle logical);
     [LibraryImport(P)] private static partial int pango_layout_iter_get_baseline(nint iterator);
     [LibraryImport(P)] private static partial int pango_layout_iter_next_run(nint iterator);
     [LibraryImport(P)] private static partial void pango_layout_iter_free(nint iterator);

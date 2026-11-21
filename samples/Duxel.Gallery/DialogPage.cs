@@ -69,7 +69,8 @@ internal sealed class DialogPage : IObserverPage, IObserverNaturalPage, IGallery
             {
                 _dialog.Options = _dialog.Options with
                 {
-                    Type = type
+                    Type = type,
+                    SuppressEscapeDismissal = type == UiDialogType.Alert
                 };
                 _dialog.Show();
             });
@@ -132,7 +133,8 @@ internal sealed class DialogPage : IObserverPage, IObserverNaturalPage, IGallery
         private static string SourceOptions(UiDialogOptions value) => $"new UiDialogOptions(Type : UiDialogType.{value.Type}, Width : {Number(value.Width)}f,\n"
             + $"    MaximumHeight : {(value.MaximumHeight is { } height ? Number(height) + "f" : "null")}, LightDismiss : {GallerySample.Boolean(value.LightDismiss)},\n"
             + $"    ShowCloseButton : {(value.ShowCloseButton is { } close ? GallerySample.Boolean(close) : "null")}, CloseLabel : {GallerySample.String(value.CloseLabel)},\n"
-            + $"    Description : {GallerySample.String(value.Description)}, MotionEnabled : {GallerySample.Boolean(value.MotionEnabled)})";
+            + $"    Description : {GallerySample.String(value.Description)}, MotionEnabled : {GallerySample.Boolean(value.MotionEnabled)})"
+            + $" {{ SuppressEscapeDismissal = {GallerySample.Boolean(value.SuppressEscapeDismissal)} }}";
         public void Dispose() { Dialog.Dispose(); Root.Dispose(); }
     }
 }

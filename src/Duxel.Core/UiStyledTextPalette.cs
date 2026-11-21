@@ -18,10 +18,24 @@ internal readonly record struct UiStyledTextPalette(UiColor Foreground, UiColor 
                 UiDividerAppearance.Default).Line, dark, false, enabled);
     }
 
+    private static (UiCodeToken Token, UiStyledTextFlags Flags) ForegroundRole(UiStyledTextStyle style)
+        => (style.CodeToken, style.Flags & (UiStyledTextFlags.Syntax | UiStyledTextFlags.Link));
+
+    internal static int ForegroundGroup(UiStyledTextStyle style)
+    {
+        var (token, flags) = ForegroundRole(style);
+        var link = (flags & UiStyledTextFlags.Link) != 0 ? 1 : 0;
+        var syntax = (flags & UiStyledTextFlags.Syntax) != 0 ? 2 : 0;
+        return 1 + 4 * (int)token + link + syntax;
+    }
+
     internal UiColor Text(UiStyledTextStyle style)
-        => style.CodeToken != UiCodeToken.None && !Forced && Enabled ? CodeColor(style.CodeToken)
-            : (style.Flags & UiStyledTextFlags.Syntax) != 0 ? Syntax
-            : (style.Flags & UiStyledTextFlags.Link) != 0 ? Link : Foreground;
+    {
+        var (token, flags) = ForegroundRole(style);
+        return token != UiCodeToken.None && !Forced && Enabled ? CodeColor(token)
+            : (flags & UiStyledTextFlags.Syntax) != 0 ? Syntax
+            : (flags & UiStyledTextFlags.Link) != 0 ? Link : Foreground;
+    }
     private UiColor CodeColor(UiCodeToken token) => token switch
     {
         UiCodeToken.Keyword => Dark ? new(86, 156, 214) : new(0, 0, 180),

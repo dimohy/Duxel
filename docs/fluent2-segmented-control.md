@@ -1,6 +1,8 @@
 # Fluent SegmentedControl
 
-`Fluent.SegmentedControl` provides single selection with four official standard styles, keyboard navigation, RTL, icons, unread markers and horizontal scrolling. Its Gallery entry has no unimplemented badge. The current NEW batch belongs to Select. Factory linkage is50/55; this does not claim full Fluent conformance or UIKit pixel equivalence.
+The normal Linux Gallery launch exposed **Fluent Controls → Input and Selection → SegmentedControl**. Both managed and NativeAOT passed seven external AT-SPI and X11 checks in a fixed 1280×900 window. Right Arrow skipped the disabled Week option. Horizontal dragging retained item 1, and a new click after release selected item 2. The two captures differed only in the live status text. The same builds moved and restored the source viewport after releasing and immediately re-grabbing the SVG thumb on the Stroke Bounds and Arc Comparison tabs. [Live verification](L:/Cache/Duxel/linux-gallery-segmented-live-20261121/verification.json)
+
+`Fluent.SegmentedControl` provides single selection with four standard styles, keyboard navigation, RTL, icons, unread markers and horizontal scrolling.
 
 ```csharp
 var value = new UiState<string?>("day");
@@ -14,6 +16,12 @@ var control = Fluent.SegmentedControl("Period", value.Binding, items,
 Stable values preserve selection across reordering. Duplicates fail before mutation; replacing items cancels the current press. Only accepted selection clears unread markers. Rejected controlled changes preserve accepted selection and semantics. Each input invokes the binding once.
 
 EqualWidth uses equal widths; false distributes fitted width proportionally to intrinsic widths. Width0 uses natural width. Fixed-width labels ellipsize to one line while retaining complete accessible names. Items can display20px icons instead. Navigation skips disabled items; RTL mirrors physical placement and horizontal arrow direction.
+
+## Custom behavior and painting
+
+Derive from `UiSegmentedControlWidget<TBehavior, TPresentation>` to select an input policy and a painter at compile time. An `IUiSegmentedControlBehavior` can call `input.Process(UiButtonActivation.Press)` to commit on pointer down. The shared code still publishes the accepted selection and accessibility state. An `IUiSegmentedControlPresentation` receives the measured items, control bounds and selection state and can draw the entire control. The Fluent factory selects `UiSegmentedControlReleaseBehavior` and `UiFluentSegmentedControlPresentation`.
+
+The built-in painter reuses the scrollable paint snapshot. Custom painters refresh it on every rendered frame by default, so they can draw from data outside the widget. Set `CanRetainPaint` only if paint depends on the same layout, palette, interaction and icon inputs as the built-in painter.
 
 ## Horizontal scrolling and GPU cache
 
@@ -33,6 +41,8 @@ Metrics are font15, line20, minimum height32, external horizontal inset16, conte
 
 Run `.\run-gallery.ps1` from the repository root and open **Fluent controls → Input and selection → SegmentedControl**. Four style samples and a fifth horizontal-scroll sample each show source reflecting current options.
 
-[Cache/mask evidence](../artifacts/fluent-segmented-cache-2026-11-18/result.json), [input evidence](../artifacts/fluent-segmented-scroll-2026-11-18/result.json), [shared mask/UV contract](horizontal-opacity-mask.md). Actual Linux execution, pinned RC3 NativeAOT, external assistive technology and UIKit screenshot equivalence remain unverified.
+The normal Windows Gallery launch was verified through its navigation. An external UI Automation client selected Month and verified that Right Arrow skips the disabled Week option. In the fifth sample, a horizontal drag preserved selection and a subsequent click selected a visible option. A separate NativeAOT window on Linux x64 WSLg verified selection transitions for 36 segmented controls. Windows NativeAOT and UIKit screenshot equivalence remain open.
+
+[Cache/mask evidence](../artifacts/fluent-segmented-cache-2026-11-18/result.json), [input evidence](../artifacts/fluent-segmented-scroll-2026-11-18/result.json), [shared mask/UV contract](horizontal-opacity-mask.md).
 
 Official pinned reference: [Microsoft implementation](https://github.com/microsoft/fluentui-apple/blob/03928222b0fde3621fd5b6ea5c7ff1aeefdc1f95/Sources/FluentUI_iOS/Components/SegmentedControl/SegmentedControl.swift), [tokens](https://github.com/microsoft/fluentui-apple/blob/03928222b0fde3621fd5b6ea5c7ff1aeefdc1f95/Sources/FluentUI_iOS/Components/SegmentedControl/SegmentedControlTokenSet.swift). Previously captured official sources were reused.

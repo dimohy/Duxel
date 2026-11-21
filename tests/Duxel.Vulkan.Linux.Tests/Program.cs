@@ -2,7 +2,7 @@ using Duxel.Core;
 
 var glyphReplay = args is [_, _, _, _, _, _, _, "glyph-texture-replay", _, _, _];
 if ((!glyphReplay && args.Length is not (7 or 8)) || !int.TryParse(args[1], out var slots) || slots is not (1 or 3)
-    || args.Length == 8 && args[7] is not ("skeleton" or "text-baseline" or "paragraph-geometry" or "styled-paragraph"
+    || args.Length == 8 && args[7] is not ("skeleton" or "text-baseline" or "paragraph-geometry" or "styled-paragraph" or "styled-paragraph-raster" or "inline-paragraph-cache"
         or "host-pixels" or "tree-gpu" or "tree-label-gpu" or "container-pixels" or "virtual-list-pixels" or "virtual-list-host-pixels"
         or "virtual-list-rtl-pixels" or "virtual-grid-pixels" or "virtual-grid-host-pixels" or "clip-host-pixels"
         or "projected-clip-bench" or "projected-image-clip-bench" or "early-init-cleanup" or "svg-replacement-pressure"
@@ -34,6 +34,10 @@ try
     }
     else if (args.Length == 8 && args[7] == "styled-paragraph")
         LinuxStyledParagraphTests.Run(args[0]);
+    else if (args.Length == 8 && args[7] == "styled-paragraph-raster")
+        LinuxStyledParagraphTests.Run(args[0], checkWholeRaster: true);
+    else if (args.Length == 8 && args[7] == "inline-paragraph-cache")
+        LinuxInlineParagraphCacheTests.Run(args[0], slots);
     else if (args.Length == 8 && args[7] == "paragraph-geometry")
         LinuxParagraphTests.Run(args[0]);
     else if (args.Length == 8 && args[7] == "text-baseline")

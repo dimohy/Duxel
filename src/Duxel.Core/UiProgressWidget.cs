@@ -10,7 +10,7 @@ public enum UiProgressThickness
 }
 public enum UiProgressColor
 {
-    Brand, Success, Warning, Error
+    Brand, Success, Warning, Error, Neutral
 }
 
 public readonly record struct UiProgressValue(float? Value, float Maximum = 1,
@@ -18,6 +18,8 @@ public readonly record struct UiProgressValue(float? Value, float Maximum = 1,
     UiProgressColor Color = UiProgressColor.Brand, bool ReducedMotion = false)
 {
     public bool RightToLeft { get; init; }
+    /// <summary>Keep a moving Fluent bar visible until the end of its current indeterminate cycle.</summary>
+    public bool FinishIndeterminateCycle { get; init; }
     public float? Fraction => Value is { } value ? Math.Clamp(value / Maximum, 0, 1) : null;
     public UiProgressValue Validate()
     {
@@ -29,7 +31,7 @@ public readonly record struct UiProgressValue(float? Value, float Maximum = 1,
             throw new ArgumentOutOfRangeException(nameof(Shape));
         if (Thickness is not (UiProgressThickness.Medium or UiProgressThickness.Large))
             throw new ArgumentOutOfRangeException(nameof(Thickness));
-        if (Color is not (UiProgressColor.Brand or UiProgressColor.Success or UiProgressColor.Warning or UiProgressColor.Error))
+        if (Color is not (UiProgressColor.Brand or UiProgressColor.Success or UiProgressColor.Warning or UiProgressColor.Error or UiProgressColor.Neutral))
             throw new ArgumentOutOfRangeException(nameof(Color));
         return this;
     }
@@ -153,6 +155,10 @@ public class UiProgress<TPresentation> : UiProgress<UiProgressValue, UiStaticPro
     {
         get => Source.ReducedMotion; set => Source = Source with { ReducedMotion = value };
     }
+    public bool FinishIndeterminateCycle
+    {
+        get => Source.FinishIndeterminateCycle; set => Source = Source with { FinishIndeterminateCycle = value };
+    }
 }
 
 public class UiProgress<TBehavior, TPresentation> : UiProgress<TPresentation>
@@ -200,6 +206,7 @@ public class UiProgress<TSource, TSourcePolicy, TBehavior, TPresentation> : UiPr
 
 public readonly struct UiFluentProgressPresentation : IUiProgressPresentation
 {
+    internal const double IndeterminateCycleSeconds = 3;
     public static bool CanRetainMeasurement => true;
     public static UiVector2 Measure(UiControlContext context, UiProgressValue value, UiVector2 size) =>
         new(size.X > 0 ? size.X : context.AvailableWidth, size.Y > 0 ? size.Y : value.Thickness == UiProgressThickness.Large ? 4 : 2);
@@ -219,15 +226,10 @@ public readonly struct UiFluentProgressPresentation : IUiProgressPresentation
     public static void Paint(UiControlContext context, UiProgressValue value, UiRect bounds)
     {
         var radius = value.Shape == UiProgressShape.Rounded ? 4 : 0;
-        var background = context.Theme.ProgressBarBg;
-        var fill = value.Fraction is null ? context.Theme.ProgressBarFill : value.Color switch
-        {
-            UiProgressColor.Brand => context.Theme.ProgressBarFill,
-            UiProgressColor.Success => new UiColor(0x10, 0x7c, 0x10),
-            UiProgressColor.Warning => new UiColor(0xda, 0x3b, 0x01),
-            UiProgressColor.Error => new UiColor(0xd1, 0x34, 0x38),
-            _ => throw new ArgumentOutOfRangeException(nameof(value))
-        };
+        var forced = context.Theme.ForcedColors;
+        var background = forced?.CanvasText ?? context.Theme.ProgressBarBg;
+        var fill = forced?.Highlight
+            ?? (value.Fraction is null ? context.Theme.ProgressBarFill : ResolveColor(context, value.Color));
         if (value.Fraction is { } fraction)
         {
             context.Frame(bounds, background, background, radius, 0);
@@ -240,7 +242,7 @@ public readonly struct UiFluentProgressPresentation : IUiProgressPresentation
             return;
         }
         context.RequestAnimation(bounds);
-        var phase = (float)(context.TimeSeconds % 3 / 3);
+        var phase = (float)(context.TimeSeconds % IndeterminateCycleSeconds / IndeterminateCycleSeconds);
         if (value.ReducedMotion)
         {
             context.Frame(bounds, background, background, radius, 0);
@@ -256,4 +258,21 @@ public readonly struct UiFluentProgressPresentation : IUiProgressPresentation
             context.ProgressGradient(new(x, bounds.Y, width, bounds.Height), bounds, background, fill, radius);
         }
     }
+
+    internal static UiColor ResolveColor(UiControlContext context, UiProgressColor color) => color switch
+    {
+        UiProgressColor.Brand => context.Theme.ProgressBarFill,
+        UiProgressColor.Success => new(0x10, 0x7c, 0x10),
+        UiProgressColor.Warning => new(0xda, 0x3b, 0x01),
+        UiProgressColor.Error => new(0xd1, 0x34, 0x38),
+        UiProgressColor.Neutral => NeutralColor(context),
+        _ => throw new ArgumentOutOfRangeException(nameof(color))
+    };
+
+    private static UiColor NeutralColor(UiControlContext context) => context.FluentColorScheme switch
+    {
+        UiFluentColorScheme.Light => new(143, 143, 143),
+        UiFluentColorScheme.Dark => new(184, 184, 184),
+        _ => throw new ArgumentOutOfRangeException(nameof(context))
+    };
 }

@@ -12,6 +12,8 @@ select.Render(ui);
 
 The constructor proposes the first enabled item once when the binding is initially null. An explicit initial value is preserved. A controlled setter can reject the proposal; rendering does not keep rewriting it. Later external changes, including null, are read from that binding. Unknown values and duplicate item keys fail validation. Items are copied. Empty lists are valid. Rich option icons/descriptions are rejected; there is no multi-selection constructor.
 
+Derive from `UiSelect<TBehavior, TPresentation>` to choose press or release independently for the field and popup options. Select and Dropdown use the same `IUiDropdownBehavior`. Select continues to handle closed-field keyboard navigation and single-selection rules.
+
 Closed Up/Down, Home/End and PageUp/PageDown commit an enabled option while preserving field focus. Typeahead commits a matching name and supports spaces and repeated-character cycling through the shared selection model. Alt+Down, Space or the entire field/chevron open the popup. Expanded keyboard navigation, Enter, Escape, outside dismissal, scrolling, pointer selection and accessibility requests use the existing menu engine. Required selection prevents accessibility Deselect from clearing the last item. Form validation Required and SelectionRequired are separate concepts.
 
 UiSelectOptions supports width, shared UiDropdownSize, four UiInputAppearance values, RTL, maximum popup height, invalid state and a localized expand label. Field chrome shares Fluent input metrics (24/32/40 logical heights); plain rows have no rich-content or checkmark slots and visibly highlight selection. Forced colors use the existing system palette. Disabled controls block edits.

@@ -30,7 +30,9 @@ public interface IUiAccordionPresentation
 }
 
 /// <summary>A controlled, vertically laid out accordion owning persistent panel widgets.</summary>
-public class UiAccordion<TPresentation> : UiMultiChildWidget where TPresentation : IUiAccordionPresentation
+public class UiAccordion<TBehavior, TPresentation> : UiMultiChildWidget
+    where TBehavior : IUiButtonBehavior
+    where TPresentation : IUiAccordionPresentation
 {
     private UiAccordionItem[] _items;
     private UiBinding<ImmutableArray<string>>? _value;
@@ -182,7 +184,7 @@ public class UiAccordion<TPresentation> : UiMultiChildWidget where TPresentation
         return constraints.Constrain(new(width, UiLayoutDistribution.Finite(y)));
     }
     protected override UiVector2 MeasureContent(UiControlContext context) => PrepareLayout(context, ReadSelection());
-    protected override void RenderControl(UiImmediateContext ui) => ui.RenderAccordion<TPresentation>(this);
+    protected override void RenderControl(UiImmediateContext ui) => ui.RenderAccordion(this);
     private protected override void ReleaseOwnedResources()
     {
         _items = []; _value = null; _label = string.Empty;
@@ -191,6 +193,11 @@ public class UiAccordion<TPresentation> : UiMultiChildWidget where TPresentation
         base.ReleaseOwnedResources();
     }
 }
+
+public class UiAccordion<TPresentation>(string label, UiBinding<ImmutableArray<string>> value, ReadOnlyMemory<UiAccordionItem> items,
+    float width = 320, UiAccordionOptions options = default, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+    : UiAccordion<UiReleaseButtonBehavior, TPresentation>(label, value, items, width, options, identity)
+    where TPresentation : IUiAccordionPresentation;
 
 [UiWidgetStyle(typeof(UiAccordion<>), typeof(UiFluentAccordionPresentation))]
 [UiComponent("Accordion", UiComponentExposure.Fluent)]

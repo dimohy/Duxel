@@ -1,12 +1,16 @@
 # Fluent 2 Button typography and secondary appearance
 
-Last synced: 2026-11-06
+Last synced: 2026-11-20
+
+`Fluent.CompoundButton(label, description, activated)` displays a title and a single-line description in one button. Both lines invoke the same action. Assistive technology can read the title as the button name and the description as help text. In the Gallery, open **동작과 탐색 → Button → 문서 만들기**.
+
+`Fluent.SplitButton(label, menuLabel, activate, items, invoked, options)` puts a primary action and a menu chevron side by side. The primary button calls `activate`. The chevron opens a menu, and selecting an item calls `invoked`. Both segments are keyboard tab stops. In the Gallery, open **동작과 탐색 → Button → PNG로 저장**.
 
 The scope authority is the [official Button guidance](https://fluent2.microsoft.design/components/web/react/core/button/usage). The pinned reference implementation and independently resolved color fixture are recorded in `artifacts/fluent-button-typography-2026-11-05/source-manifest.json`.
 
 The generated default `UiFluentButton` selects `UiFluentButtonPresentation`: Segoe UI Semibold 14px with a 20px line box, minimum 96×32. `UiFluentSmallButtonPresentation` uses Regular 12/16 and minimum 64×24; `UiFluentLargeButtonPresentation` uses Semibold 16/22 and minimum 96×40. Use `UiButtonStyle` to bind either presentation to an existing behavior at compile time, as demonstrated by the gallery's `--buttons` page. These are size implementations of Button, not additional catalog components.
 
-The shared Button kernel enters a value-type typography scope before measurement and restores the surrounding font even when measurement or painting throws. Direct generic and generated widgets consume the same implementation. The legacy non-generic `ui.Button()` still uses its compatibility presentation. Text requires configured typography faces and a DirectText font-metrics backend; missing support fails explicitly. Empty captions do not require a text backend.
+The shared Button code measures, handles input, paints and publishes item state for generated widgets, inherited buttons and immediate calls. The non-generic `ui.Button()` and `UiButton` use the configured input policy and compatibility presentation. The common code opens a value-type typography scope before measurement and restores the caller's font even if measurement or painting throws. Text requires configured typography faces and a DirectText font-metrics backend. Empty captions can be drawn without a text backend.
 
 Secondary light/dark rest, hover, pressed and disabled paint comes from the pinned neutral tokens. Keyboard focus adds an inset ring. Text uses actual primary-face ascent/descent and the selected line box, clipped to the Button and current item/table cell. Rounded-corner text masking is still pending.
 
@@ -30,7 +34,9 @@ The five policies are `UiFluentSecondaryButtonAppearance`, `UiFluentPrimaryButto
 public partial class SaveButton;
 ```
 
-A Build method can retain this generated button with `context.Child("save", () => new SaveButton("Save", Save))`. Typed immediate code uses `ui.Button<UiReleaseButtonBehavior, UiFluentSmallButtonPresentation<UiFluentPrimaryButtonAppearance>>("Save")`. These share behavior, font scope and rendering with the generated widget. Size and appearance variants do not add top-level component catalog names. The non-generic compatibility API still needs migration.
+A Build method can retain this generated button with `context.Child("save", () => new SaveButton("Save", Save))`. Typed immediate code uses `ui.Button<UiReleaseButtonBehavior, UiFluentSmallButtonPresentation<UiFluentPrimaryButtonAppearance>>("Save")`. The generated widget and the typed call share behavior, font scope and rendering. You can supply your own `IUiButtonPresentation` to control measurement and painting in either form. Size and appearance variants do not add top-level component catalog names.
+
+The .NET 11 regression suite checks pointer, keyboard and disabled behavior on four Fluent appearances, a subclass of `UiButton` and `ui.Button()`. It also compares the drawing primitive produced by a custom circular presentation through a subclass and a typed immediate call. See [verification results](../artifacts/button-shared-contract-2026-11-20/verification.json).
 
 The independent `ButtonAppearances.json` fixture resolves actual brandWeb and grey tokens, including disabled overrides and transparent surfaces; token comments contain older brand colors and are not color authority. Source hashes, the resolver and qualification results are in `artifacts/fluent-button-appearance-2026-11-05`. GPU comparisons span five appearances, three sizes, four paint states, light/dark and MSAA1/4; separate real-input tests cover held/released/cancelled pointer, Tab, Enter, Space repeat and disabled activation. Paint-state injection is explicitly test-only. These checks do not prove UIA, forced colors, browser raster equivalence, motion or the remaining Button variants.
 

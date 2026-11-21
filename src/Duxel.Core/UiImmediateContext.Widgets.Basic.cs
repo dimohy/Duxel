@@ -113,6 +113,22 @@ public sealed partial class UiImmediateContext
         RenderText(text, _theme.Text);
     }
 
+    /// <summary>Draws frequently changing text with a shorter idle lifetime for its raster cache entries.</summary>
+    /// <remarks>Text retained by a layer or paint group stays available for that owner's lifetime.</remarks>
+    public void TextWithShortCache(string text)
+    {
+        var previous = _useShortDirectTextCache;
+        _useShortDirectTextCache = true;
+        try
+        {
+            RenderText(text, _theme.Text);
+        }
+        finally
+        {
+            _useShortDirectTextCache = previous;
+        }
+    }
+
     public void TextV(string format, params object[] args)
     {
         Text(FormatInvariant(format, args));

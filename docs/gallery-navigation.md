@@ -102,6 +102,8 @@ var nav = Fluent.Nav("App navigation", selected, new UiNavGroup[]
 
 Call `nav.Render(ui)` followed by `nav.RenderPage(ui, "home", render)` in the same frame to render the selected borrowed page once and associate accessibility nodes. Nav exposes Navigation, destinations Link, disclosure categories Button with expansion state, and the body Pane. `RenderPage` is optional when the host manages content independently. Existing TabList Tab/TabPanel contracts are unchanged.
 
+`UiNav<TBehavior, TPresentation>` composes `IUiNavBehavior` and `IUiNavPresentation` for custom navigation. The behavior handles category and destination rows. It can use `UiNavInput.Process` to keep shared pointer and keyboard handling while choosing press or release activation. The presentation measures and draws rows. Nav updates its binding before painting and publishing accessibility state, so a rejected change leaves the accepted destination current. `Fluent.Nav` uses the default release behavior.
+
 Long labels and category descriptions wrap in narrow menus. Measurement is retained by width, typography, scale and expansion; changing selection alone does not remeasure. Providing a factory does not qualify complete official fidelity. At widths of 640 UI units or less, the Gallery uses an overlay Drawer opened by **Open navigation**; choosing a different destination closes it. Wider layouts keep the fixed sidebar. [Official Nav usage](https://fluent2.microsoft.design/components/web/react/core/nav/usage).
 
 ## Destination secondary actions

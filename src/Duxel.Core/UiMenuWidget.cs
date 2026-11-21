@@ -226,8 +226,23 @@ internal sealed class UiMenuInputState
     }
 }
 
+/// <summary>Selects pointer activation for the popup trigger and its items.</summary>
+public interface IUiMenuBehavior
+{
+    static abstract UiButtonActivation TriggerActivation { get; }
+    static abstract UiButtonActivation OptionActivation { get; }
+}
+
+public readonly struct UiDefaultMenuBehavior : IUiMenuBehavior
+{
+    public static UiButtonActivation TriggerActivation => UiButtonActivation.Release;
+    public static UiButtonActivation OptionActivation => UiButtonActivation.Release;
+}
+
 /// <summary>Owns menu data and one trigger; publishes a transient composite popup without a second UI tree.</summary>
-public class UiMenu<TPresentation> : UiControlWidget where TPresentation : IUiMenuPresentation
+public class UiMenu<TBehavior, TPresentation> : UiControlWidget
+    where TBehavior : IUiMenuBehavior
+    where TPresentation : IUiMenuPresentation
 {
     private UiMenuOption[] _items;
     private readonly UiMenuInputState _input = new();
@@ -315,10 +330,13 @@ public class UiMenu<TPresentation> : UiControlWidget where TPresentation : IUiMe
     protected override UiVector2 MeasureContent(UiControlContext context) => TPresentation.MeasureTrigger(context, Label);
     protected override void RenderControl(UiImmediateContext ui)
     {
-        var value = ui.RenderMenu<TPresentation>(PrimaryInputId(Label), Label, _items, _options, _input);
+        var value = RenderMenuControl(ui, _items, _options, _input);
         if (value is not null)
             _invoked?.Invoke(value);
     }
+
+    private protected virtual string? RenderMenuControl(UiImmediateContext ui, UiMenuOption[] items,
+        UiMenuOptions options, UiMenuInputState input) => ui.RenderMenu<TBehavior, TPresentation>(PrimaryInputId(Label), Label, items, options, input);
     private protected override void ReleaseOwnedResources()
     {
         _items = [];
@@ -335,6 +353,10 @@ public class UiMenu<TPresentation> : UiControlWidget where TPresentation : IUiMe
         base.ReleaseOwnedResources();
     }
 }
+
+public class UiMenu<TPresentation>(string label, ReadOnlySpan<UiMenuOption> items, Action<string> invoked, UiMenuOptions? options = null)
+    : UiMenu<UiDefaultMenuBehavior, TPresentation>(label, items, invoked, options)
+    where TPresentation : IUiMenuPresentation;
 
 public static partial class Dux
 {
