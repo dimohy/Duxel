@@ -137,6 +137,7 @@ internal static class GalleryLocalizationTests
             VerifyLoadingExamples(Render, tree, services, check);
             VerifyNoticeExamples(Render, tree, services, check);
             VerifyTemporalExamples(Render, tree, services, check);
+            VerifyVirtualAndFileExamples(Render, tree, services, check);
 
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
             File.WriteAllText(path, "en");
@@ -623,6 +624,89 @@ internal static class GalleryLocalizationTests
                     && (clock is null || changedSource.Contains("15, 5, 5", StringComparison.Ordinal)),
                     $"{page} updates the copied region and value after calendar or wheel actions in {language}");
             }
+        }
+    }
+
+    private static void VerifyVirtualAndFileExamples(Action<UiScreen> render, UiAccessibilityTree tree, ObserverServices services,
+        Action<bool, string> check)
+    {
+        foreach (var (language, listEnd, listStart, rowValue, gridEnd, gridStart, lastCell, firstCell, open, save, folder) in new[]
+        {
+            (GalleryLanguage.English, "Go to end", "Go to start", "Row value: {0}", "Last row and column", "First row and column",
+                "Row 1,000,000,000, column 1,000,000,000", "Row 1, column 1", "Open files", "Save as", "Select folder"),
+            (GalleryLanguage.Korean, "끝", "처음", "행 값 : {0}", "마지막 행·열", "첫 행·첫 열",
+                "1,000,000,000행 1,000,000,000열", "1행 1열", "파일 열기", "다른 이름으로 저장", "폴더 선택"),
+            (GalleryLanguage.Japanese, "末尾へ", "先頭へ", "行の値：{0}", "最後の行と列", "最初の行と列",
+                "1,000,000,000 行 1,000,000,000 列", "1 行 1 列", "ファイルを開く", "名前を付けて保存", "フォルダーを選択"),
+            (GalleryLanguage.SimplifiedChinese, "转到末尾", "转到开头", "行值：{0}", "最后一行和一列", "第一行和第一列",
+                "第 1,000,000,000 行第 1,000,000,000 列", "第 1 行第 1 列", "打开文件", "另存为", "选择文件夹")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            using var screen = new ObserverScreen(services, language : language) { FreezeDiagnosticText = true };
+
+            Navigate("가상 목록");
+            var firstRow = string.Format(rowValue, 0);
+            SetValue(firstRow);
+            Invoke(listEnd);
+            check(Find(string.Format(rowValue, 999_999_999), UiAccessibilityRole.Edit).Node.Name.Length > 0,
+                $"VirtualList localizes the newly scrolled rows in {language}");
+            Invoke(listStart);
+            check(Find(firstRow, UiAccessibilityRole.Edit).Node.Value == "local edit"
+                && HasSource(listEnd, "_source.SetValue(0, \"local edit\");"),
+                $"VirtualList restores a keyed edit and exposes its localized C# in {language}");
+
+            Navigate("가상 그리드");
+            SetValue(firstCell);
+            Invoke(gridEnd);
+            check(Find(lastCell, UiAccessibilityRole.Edit).Node.Name.Length > 0,
+                $"VirtualGrid localizes cells created after horizontal and vertical navigation in {language}");
+            Invoke(gridStart);
+            check(Find(firstCell, UiAccessibilityRole.Edit).Node.Value == "local edit"
+                && HasSource(gridEnd, "IUiVirtualGridSource"),
+                $"VirtualGrid restores an edit and exposes its localized C# in {language}");
+
+            Navigate("파일 대화 상자");
+            check(new[] { open, save, folder }.All(label => Find(label, UiAccessibilityRole.Button).Node.Enabled && HasSource(label, "UiFileDialogRequest")),
+                $"File dialogs expose localized actions and matching C# in {language}");
+
+            void Navigate(string page)
+            {
+                screen.SelectedPage = page;
+                Frame();
+            }
+
+            void Frame()
+            {
+                render(screen);
+                render(screen);
+            }
+
+            UiAccessibilityElement Find(string name, UiAccessibilityRole role) =>
+                tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == name && element.Node.Role == role);
+
+            void Invoke(string name)
+            {
+                var button = Find(name, UiAccessibilityRole.Button);
+                if (tree.RequestAction(button.Node.Id, button.RuntimeId, UiAccessibilityAction.Invoke, wait : false) != UiAccessibilityResult.Success)
+                    throw new InvalidOperationException("Gallery action was rejected: " + name);
+                Frame();
+            }
+
+            void SetValue(string name)
+            {
+                var edit = Find(name, UiAccessibilityRole.Edit);
+                if (tree.RequestAction(edit.Node.Id, edit.RuntimeId, UiAccessibilityAction.SetValue, "local edit", wait : false)
+                    != UiAccessibilityResult.Success)
+                    throw new InvalidOperationException("Gallery edit was rejected: " + name);
+                Frame();
+            }
+
+            bool HasSource(string label, string fragment) => tree.CaptureSnapshot().Elements.Any(element =>
+                element.Node.Role == UiAccessibilityRole.Edit && element.Node.Name == GalleryText.Get("C# example source")
+                && element.Node.Value is { } code && code.Contains(GallerySample.String(label), StringComparison.Ordinal)
+                && code.Contains(fragment, StringComparison.Ordinal) && !code.Contains("GalleryText.", StringComparison.Ordinal)
+                && (language == GalleryLanguage.Korean || !ContainsHangul(code)));
         }
     }
 

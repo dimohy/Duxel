@@ -2,22 +2,29 @@ using Duxel.Core;
 
 namespace Duxel.Gallery;
 
-internal sealed class ObserverRows : IUiVirtualListAutomationSource
+internal sealed class ObserverRows(string rowLabel, string rowName, string valueName, string keyLabel) : IUiVirtualListAutomationSource
 {
     private readonly Dictionary<int, string> _values = [];
+    private readonly string[] _nameParts = rowName.Split("{0}", StringSplitOptions.None);
     internal IReadOnlyDictionary<int, string> Values => _values;
     internal void SetValue(int key, string value) => _values[key] = value;
     internal bool Swapped;
     internal int Created, Disposed;
     private int Key(int index) => Swapped ? index switch { 0 => 999_999_999, 999_999_999 => 0, _ => index } : index;
     public string GetKey(int index) => Key(index).ToString(System.Globalization.CultureInfo.InvariantCulture);
-    public string GetAccessibleItemName(int index) => "행 : " + GetKey(index);
+    public string GetAccessibleItemName(int index) => string.Format(rowName, GetKey(index));
     public int FindAccessibleItem(UiVirtualItemSearchProperty property, string value, int startIndex, int itemCount)
     {
-        const string prefix = "행 : ";
-        if (property == UiVirtualItemSearchProperty.Name && !value.StartsWith(prefix, StringComparison.Ordinal))
-            return -1;
-        var text = property == UiVirtualItemSearchProperty.Name ? value.AsSpan(prefix.Length) : value.AsSpan();
+        var text = value.AsSpan();
+        if (property == UiVirtualItemSearchProperty.Name)
+        {
+            var prefix = _nameParts[0];
+            var suffix = _nameParts[1];
+            if (text.Length <= prefix.Length + suffix.Length || !text.StartsWith(prefix, StringComparison.Ordinal)
+                || !text.EndsWith(suffix, StringComparison.Ordinal))
+                return -1;
+            text = text[prefix.Length..(text.Length - suffix.Length)];
+        }
         if (!int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var key))
             return -1;
         var index = Key(key);
@@ -27,10 +34,12 @@ internal sealed class ObserverRows : IUiVirtualListAutomationSource
     {
         Created++;
         var key = Key(index);
-        var input = Fluent.Input("행", new UiBinding<string>(() => _values.GetValueOrDefault(key, "행 : " + key), value => SetValue(key, value)), 256);
-        input.AccessibleName = "행 값 : " + key;
+        var keyText = GetKey(index);
+        var initial = string.Format(rowName, keyText);
+        var input = Fluent.Input(rowLabel, new UiBinding<string>(() => _values.GetValueOrDefault(key, initial), value => SetValue(key, value)), 256);
+        input.AccessibleName = string.Format(valueName, keyText);
         return new RowLifetime(this, Dux.Row(new(Spacing : 12, CrossAxisAlignment : UiCrossAxisAlignment.Center),
-            Fluent.Caption1("키 : " + key), Dux.Expanded(input)));
+            Fluent.Caption1(string.Format(keyLabel, keyText)), Dux.Expanded(input)));
     }
     public void Bind(UiWidget widget, int index) { }
     private sealed class RowLifetime : UiControlWidget
