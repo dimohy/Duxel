@@ -54,6 +54,10 @@ internal static class FluentMenuTests
         try { menu.Options = menu.Options with { ItemSpacing = -1 }; }
         catch (ArgumentOutOfRangeException) { invalid = true; }
         check(invalid && menu.Options.ItemSpacing == 2, "invalid item spacing fails before replacing valid menu options");
+        using var menuButton = Fluent.MenuButton("Export", [new("pdf", "PDF")], static _ => { });
+        check(menuButton is UiFluentMenuButton && Fluent.ComponentNames.Contains("MenuButton")
+            && !Fluent.RequiredComponentNames.Contains("MenuButton"),
+            "the generated MenuButton factory exposes the Fluent trigger as a Button variant");
     }
     private sealed class Screen(Action<UiImmediateContext> render) : UiScreen
     {

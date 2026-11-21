@@ -2,6 +2,8 @@
 
 Last synced: 2026-11-19
 
+`Fluent.MenuButton`은 아래쪽 화살표가 있는 버튼으로 메뉴를 엽니다. 갤러리의 Menu 페이지에서 **내보내기**를 실행할 수 있습니다. [메뉴 버튼 사용법](fluent2-menu.ko.md)
+
 SVG 갤러리는 `BeginChild`의 문서 스크롤 옵션으로 같은 펼친 코드 블록 안의 휠 입력과 잡고 있는 스크롤 막대의 이동을 묶습니다. [SVG 소스 스크롤 검증](optimization-session-2026-11-19.md#fast-scroll-over-svg-sample-source)
 
 같은 레이어를 갱신할 때 기하 키와 캡처 목록을 유지하고, 같은 위치의 소유 캐시 레코드도 재사용합니다. 이미 제출한 프레임은 각자의 그리기 목록과 자원 사용권을 유지합니다. [할당량과 픽셀 검증](optimization-session-2026-11-19.md#reusing-cache-records-for-versioned-layers)

@@ -7,17 +7,24 @@ internal static class MenuRenderingTests
     {
         Run<UiThemeMenuPresentation>((name, draw) => capture("theme-" + name, draw), setInput, check, width, scheme);
         Run<UiFluentMenuPresentation>((name, draw) => capture("fluent-" + name, draw), setInput, check, width, scheme);
+        Run<UiFluentMenuButtonPresentation>((name, draw) => capture("menu-button-" + name, draw), setInput, check, width, scheme);
     }
     private static void Run<TPresentation>(Func<string, Action<UiImmediateContext>, byte[]> capture, Action<UiInputState> setInput,
         Action<bool, string> check, int width, UiFluentColorScheme scheme) where TPresentation : IUiMenuPresentation
     {
         var calls = new List<string>();
         using var menu = new UiMenu<TPresentation>("Actions", [new("one", "One"), new("disabled", "Disabled", false), new("three", "Three")], calls.Add);
+        var menuButton = typeof(TPresentation) == typeof(UiFluentMenuButtonPresentation);
+        var rightToLeft = false;
+        var triggerWidth = 0f;
         void Render(UiImmediateContext ui)
         {
             ui.EnableRootViewportContentLayout(contentPadding : 0);
+            using var direction = ui.BeginFluentProvider(null, direction : rightToLeft ? UiFlowDirection.RightToLeft : UiFlowDirection.Inherit);
             var paint = new UiControlContext(ui);
             paint.Frame(paint.ClipRect, new(124, 124, 124), default, 0, 0);
+            if (menuButton)
+                triggerWidth = TPresentation.MeasureTrigger(paint, menu.Label).X;
             menu.Render(ui);
         }
         UiInputState Input(UiVector2? point = null, bool down = false, bool pressed = false, bool released = false) =>
@@ -100,5 +107,26 @@ internal static class MenuRenderingTests
         for (var i = 0; i < 3; i++)
             check(capture("dismissed-replay-" + i, Render).AsSpan(width * 40 * 4).SequenceEqual(closed.AsSpan(width * 40 * 4)),
                 "dismissed menu surface remains cleared on acquired-image reuse : " + i);
+        if (menuButton)
+        {
+            rightToLeft = true;
+            var rtl = capture("rtl-trigger", Render);
+            check(ChevronInk(closed, (int)triggerWidth - 20) >= 4 && ChevronInk(rtl, 20) >= 4,
+                "MenuButton paints the dropdown chevron at the logical trailing edge in both directions");
+        }
+
+        int ChevronInk(byte[] pixels, int center)
+        {
+            var background = (5 * width + center) * 4;
+            var inkCount = 0;
+            for (var y = 10; y <= 21; y++)
+                for (var x = center - 5; x <= center + 5; x++)
+                {
+                    var pixel = (y * width + x) * 4;
+                    if (Math.Abs(pixels[pixel] - pixels[background]) > 40)
+                        inkCount++;
+                }
+            return inkCount;
+        }
     }
 }

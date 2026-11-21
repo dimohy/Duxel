@@ -41,6 +41,7 @@
     "Link",
     "List",
     "Menu",
+    "MenuButton",
     "MessageBar",
     "MessageBarActions",
     "MessageBarBody",

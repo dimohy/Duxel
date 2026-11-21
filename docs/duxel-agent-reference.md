@@ -2,6 +2,8 @@
 
 Last synced: 2026-11-21
 
+`Fluent.MenuButton(label, items, invoked, options)` — See **Actions and navigation → Menu** for the open, save, and export commands, including the localized C# example.
+
 The Windows and Linux Gallery hosts share an embedded language catalog for the interface. The reusable `UiLocalization` type lives in `Duxel.Core`. Use **Settings → Gallery language** to select English, Korean, Japanese, or Simplified Chinese. The setting persists across launches. The same destination stays selected while example widgets are recreated. **Start → Feature index** opens the registered examples by category. Applications can pass `UiCodeViewLabels` to a `UiCodeView` constructor to localize the copy tooltip, toolbar, and accessibility name. [Gallery language and navigation](gallery-navigation.md)
 
 The SVG Gallery uses the `BeginChild` document-scrolling option to combine compatible wheel messages over one expanded code block and captured thumb movement. [Fast SVG source scroll](optimization-session-2026-11-19.md#fast-scroll-over-svg-sample-source)
