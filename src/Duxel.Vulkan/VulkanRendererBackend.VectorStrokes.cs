@@ -20,6 +20,7 @@ public sealed unsafe partial class VulkanRendererBackend
         internal uint Count, First;
     }
     private Pipeline _vectorStrokePipeline;
+    private Pipeline _vectorSolidStrokePipeline;
     private PipelineLayout _vectorStrokeLayout;
 
     private void PrepareVectorStrokes(VectorSceneOutput output)
@@ -50,13 +51,14 @@ public sealed unsafe partial class VulkanRendererBackend
                 Capacity = capacity,
                 Offset = (uint)program.Offset
             };
+            output.HasDashedStrokes |= program.HasDashes;
             totalBytes = checked(totalBytes + (long)program.PrimitiveCount * (capacity + 65) * 16);
             if (totalBytes > 64 * 1024 * 1024)
                 throw new InvalidOperationException("GPU stroke geometry exceeds the per-output 64 MiB work budget.");
         }
         if (totalBytes > 0)
         {
-            EnsureVectorStrokePipeline();
+            EnsureVectorStrokePipeline(output.HasDashedStrokes);
             var buffer = AllocateVectorBuffer((nuint)totalBytes);
             output.StrokeBuffers = [buffer];
             ulong offset = 0;
@@ -98,7 +100,8 @@ public sealed unsafe partial class VulkanRendererBackend
             (extent.Y - output.Scene.Size.Y * scale.Y) * .5f);
         if (maximum != 0)
         {
-            _vk.CmdBindPipeline(command, PipelineBindPoint.Compute, _vectorStrokePipeline);
+            _vk.CmdBindPipeline(command, PipelineBindPoint.Compute,
+                output.HasDashedStrokes ? _vectorStrokePipeline : _vectorSolidStrokePipeline);
             for (uint first = 0; first < output.StrokeTargets.Length; first += 65_535)
             {
                 var push = new VectorStrokePush
@@ -118,24 +121,30 @@ public sealed unsafe partial class VulkanRendererBackend
             AccessFlags.TransferWriteBit | AccessFlags.ShaderWriteBit, PipelineStageFlags.ComputeShaderBit, AccessFlags.ShaderReadBit);
     }
 
-    private void EnsureVectorStrokePipeline()
+    private void EnsureVectorStrokePipeline(bool hasDashes)
     {
-        if (_vectorStrokePipeline.Handle != 0)
+        ref var selected = ref (hasDashes ? ref _vectorStrokePipeline : ref _vectorSolidStrokePipeline);
+        if (selected.Handle != 0)
             return;
         if (sizeof(VectorStrokeTarget) != 32 || sizeof(VectorStrokePush) != 40)
             throw new InvalidOperationException("GPU_VECTOR_STROKE_ABI_MISMATCH");
-        var shaderBytes = LoadEmbeddedShader("Duxel.Vulkan.Shaders.vector_stroke.comp.spv");
+        var shaderBytes = LoadEmbeddedShader(hasDashes
+            ? "Duxel.Vulkan.Shaders.vector_stroke.comp.spv"
+            : "Duxel.Vulkan.Shaders.vector_stroke.solid.comp.spv");
         VectorSceneShaderContract.Validate(shaderBytes);
-        var range = new PushConstantRange { StageFlags = ShaderStageFlags.ComputeBit, Size = (uint)sizeof(VectorStrokePush) };
-        var info = new PipelineLayoutCreateInfo
+        if (_vectorStrokeLayout.Handle == 0)
         {
-            SType = StructureType.PipelineLayoutCreateInfo,
-            PushConstantRangeCount = 1,
-            PPushConstantRanges = &range
-        };
-        PipelineLayout layout;
-        Check(_vk.CreatePipelineLayout(_device, &info, null, &layout));
-        _vectorStrokeLayout = layout;
+            var range = new PushConstantRange { StageFlags = ShaderStageFlags.ComputeBit, Size = (uint)sizeof(VectorStrokePush) };
+            var info = new PipelineLayoutCreateInfo
+            {
+                SType = StructureType.PipelineLayoutCreateInfo,
+                PushConstantRangeCount = 1,
+                PPushConstantRanges = &range
+            };
+            PipelineLayout layout;
+            Check(_vk.CreatePipelineLayout(_device, &info, null, &layout));
+            _vectorStrokeLayout = layout;
+        }
         var shader = CreateShaderModule(shaderBytes);
         var entry = VulkanMarshaling.StringToPtr("main");
         try
@@ -143,13 +152,13 @@ public sealed unsafe partial class VulkanRendererBackend
             var pipelineInfo = new ComputePipelineCreateInfo
             {
                 SType = StructureType.ComputePipelineCreateInfo,
-                Layout = layout,
+                Layout = _vectorStrokeLayout,
                 BasePipelineIndex = -1,
                 Stage = new() { SType = StructureType.PipelineShaderStageCreateInfo, Stage = ShaderStageFlags.ComputeBit, Module = shader, PName = entry }
             };
             Pipeline pipeline;
             Check(_vk.CreateComputePipelines(_device, _pipelineCache, 1, &pipelineInfo, null, &pipeline));
-            _vectorStrokePipeline = pipeline;
+            selected = pipeline;
         }
         finally { VulkanMarshaling.Free((nint)entry); _vk.DestroyShaderModule(_device, shader, null); }
     }
@@ -157,9 +166,12 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         if (_vectorStrokePipeline.Handle != 0)
             _vk.DestroyPipeline(_device, _vectorStrokePipeline, null);
+        if (_vectorSolidStrokePipeline.Handle != 0)
+            _vk.DestroyPipeline(_device, _vectorSolidStrokePipeline, null);
         if (_vectorStrokeLayout.Handle != 0)
             _vk.DestroyPipelineLayout(_device, _vectorStrokeLayout, null);
         _vectorStrokePipeline = default;
+        _vectorSolidStrokePipeline = default;
         _vectorStrokeLayout = default;
     }
 }

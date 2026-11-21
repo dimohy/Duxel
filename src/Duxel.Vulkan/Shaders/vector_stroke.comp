@@ -183,8 +183,9 @@ void emitPrimitive(vec4 ab, vec4 cd, uint kind, float rotation, vec4 tangents) {
         }
     }
 }
-#extension GL_GOOGLE_include_directive : require
+#ifndef DUXEL_SOLID_STROKES
 #include "vector_dash.glsl"
+#endif
 void main() {
     if (VectorSceneProtocolVersion != 4u) return;
     uint program = pc.first + gl_GlobalInvocationID.y;
@@ -215,6 +216,9 @@ void main() {
     bandBase = primitiveCount + index * 64u;
     for (uint i = 0u; i < 64u; ++i) destination.data[bandBase + i] = vec4(float(capacity), 0.0, 0.0, 0.0);
     cursor = 0u; overflow = false;
-    if (kind == 6u) emitDashes(ab); else emitPrimitive(ab, cd, kind, operation.y, tangents);
+#ifndef DUXEL_SOLID_STROKES
+    if (kind == 6u) emitDashes(ab); else
+#endif
+        emitPrimitive(ab, cd, kind, operation.y, tangents);
     destination.data[index] = vec4(overflow ? -1.0 : float(cursor), 0.0, 0.0, 0.0);
 }

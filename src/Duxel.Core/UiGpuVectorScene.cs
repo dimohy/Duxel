@@ -8,7 +8,10 @@ public sealed record UiGpuVectorFilter(UiGpuVectorScene Scene, UiRect Bounds,
 public sealed record UiGpuVectorPattern(UiGpuVectorScene Scene, Matrix3x2 Mapping);
 
 public readonly record struct UiGpuVectorStroke(int Offset, int PrimitiveCount, float MaximumDifference, float MaximumRadius, UiRect Bounds,
-    int WorkFactor = 1);
+    int WorkFactor = 1)
+{
+    internal bool HasDashes { get; init; }
+}
 
 /// <summary>A pixel window into a retained scene's virtual camera viewport. No full-size image allocation is required.</summary>
 public readonly record struct UiGpuVectorCamera(UiVector2 FullPixelSize, UiVector2 PixelOrigin, bool Stretch = false)
@@ -159,6 +162,7 @@ public sealed class UiGpuVectorScene
                 if (primitiveCount == 0 || start + 3L + primitiveCount * 5L > data.Length || data[start + 1].Z <= 0
                     || data[start + 2].X < 0 || data[start + 2].Y < 0)
                     throw new ArgumentException("Invalid retained vector stroke program.", nameof(data));
+                var hasDashes = false;
                 for (var primitive = 0; primitive < primitiveCount; primitive++)
                 {
                     var at = start + 3 + primitive * 5;
@@ -169,6 +173,7 @@ public sealed class UiGpuVectorScene
                         throw new ArgumentException("Rational vector strokes require positive homogeneous weights.", nameof(data));
                     if (kind == 6)
                     {
+                        hasDashes = true;
                         if (data[start + 2].W < 1)
                             throw new ArgumentException("Vector dashes require a positive work factor.", nameof(data));
                         var metadata = checked(start + Index(data[at].X));
@@ -216,7 +221,7 @@ public sealed class UiGpuVectorScene
                 var strokeBounds = data[command];
                 var stroke = new UiGpuVectorStroke(start, primitiveCount, data[start + 2].X, data[start + 2].Y,
                     new(strokeBounds.X, strokeBounds.Y, strokeBounds.Z - strokeBounds.X, strokeBounds.W - strokeBounds.Y),
-                    Math.Max(1, (int)workFactor));
+                    Math.Max(1, (int)workFactor)) { HasDashes = hasDashes };
                 if (strokes.TryGetValue(count, out var existing) && existing != stroke)
                     throw new ArgumentException("Conflicting retained vector stroke identity.", nameof(data));
                 strokes[count] = stroke;

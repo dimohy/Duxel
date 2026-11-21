@@ -48,6 +48,7 @@ public sealed unsafe partial class VulkanRendererBackend
         internal VectorBuffer[] StrokeBuffers = [];
         internal VectorStrokeTarget[] StrokeTargets = [];
         internal VectorBuffer StrokeData, StrokeUpload;
+        internal bool HasDashedStrokes;
         internal UiGpuVectorFilter? Filter;
         internal UiGpuVectorCamera? Camera;
         internal UiColor Background;
