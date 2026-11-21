@@ -26,7 +26,7 @@ Markdown translates the editor controls and the example documents. The copied C#
 
 The SVG page translates transform controls, render statistics, comparison descriptions, and the copied C# captions. Each comparison uses the same SVG and browser reference assets in every language.
 
-Layout integration shows translated overflow tabs, panel counters, menus, and source examples. The Fluent combined example localizes its controls and summaries. Rendering and Typography translate the examples and keep the selected clipping and paragraph direction in their copied C#.
+Layout integration shows translated overflow tabs, panel counters, menus, and source examples. The Fluent combined example localizes its controls and summaries. Rendering and Typography translate the examples and keep the selected clipping and paragraph direction in their copied C#. Input and IME and Selection lists translate field labels, validation messages, choices, and the associated C#. Repaint observer and Measurement reuse translate their controls and diagnostic output. The Localization example includes strings in the four supported languages to demonstrate translation and fallback.
 
 Applications can use the same localization API from `Duxel.Core`. Supply a culture, source string, and translation for each entry. Resolve text or format arguments using the application's selected culture.
 

@@ -33,8 +33,8 @@ internal sealed class DropdownPage(ObserverServices services) : IObserverPage, I
         }
         private readonly ObserverServices _services;
         private readonly SvgStore _store = new();
-        private readonly UiFluentAvatar _memberAvatar = Fluent.Avatar("디모이", new(Color : UiAvatarColor.Brand, Presence : new()));
-        private readonly UiFluentAvatar _imageAvatar = Fluent.Avatar("SVG 이미지", new(Presence : new(UiPresenceStatus.Busy)));
+        private readonly UiFluentAvatar _memberAvatar = Fluent.Avatar(GalleryText.Get("Dimohy"), new(Color : UiAvatarColor.Brand, Presence : new()));
+        private readonly UiFluentAvatar _imageAvatar = Fluent.Avatar(GalleryText.Get("SVG image"), new(Presence : new(UiPresenceStatus.Busy)));
         private string[] _members = ["jung", "image"];
         private string[] _emphasizedMembers = [];
         private readonly UiSvgIcon _icon;
@@ -71,14 +71,14 @@ internal sealed class DropdownPage(ObserverServices services) : IObserverPage, I
             _icon = new(_store.Load(Path.Combine(directory, "regular.svg")), _store.Load(Path.Combine(directory, "filled.svg")), UiSvgIconColorMode.MultiplyForeground);
             var country = new UiBinding<string?>(() => _country, value => _country = value);
             var features = new UiBinding<string[]>(() => _features, value => _features = value);
-            var singleOptions = new UiDropdownOptions(Placeholder : "작업 위치를 선택하세요");
-            var singleSample = GallerySample.Create(() => Fluent.Dropdown("작업 위치", country,
-                [new("kr", "한국"), new("us", "United States"), new("jp", "日本"), new("old", "사용 중지된 위치", false)],
+            var singleOptions = new UiDropdownOptions(Placeholder : GalleryText.Get("Choose a work location"), ExpandLabel : GalleryText.Get("Open location choices"));
+            var singleSample = GallerySample.Create(() => Fluent.Dropdown(GalleryText.Get("Work location"), country,
+                [new("kr", GalleryText.Get("South Korea")), new("us", GalleryText.Get("United States")), new("jp", GalleryText.Get("Japan")), new("old", GalleryText.Get("Disabled location"), false)],
                 singleOptions), layout : widget =>
             {
                 var field = Fluent.Field(widget);
                 field.Width = singleOptions.Width;
-                field.Options = new() { Label = "작업 위치", Hint = "하나를 선택하면 목록이 닫힙니다." };
+                field.Options = new() { Label = GalleryText.Get("Work location"), Hint = GalleryText.Get("Select one item to close the list.") };
                 return field;
             });
             Single = singleSample.Preview;
@@ -91,18 +91,19 @@ internal sealed class DropdownPage(ObserverServices services) : IObserverPage, I
 
             var featureDefinition = GallerySample.Define("featureItems", () => new UiSelectOption[]
             {
-                new("image", "이미지"), new("svg", "SVG 아이콘") { Icon = _icon.MenuIcon },
-                new("input", "한글 입력과 편집"), new("layout", "컨테이너와 레이아웃"),
-                new("menu", "메뉴와 키보드"), new("a11y", "접근성")
+                new("image", GalleryText.Get("Image")), new("svg", GalleryText.Get("SVG icon")) { Icon = _icon.MenuIcon },
+                new("input", GalleryText.Get("Text input and editing")), new("layout", GalleryText.Get("Containers and layouts")),
+                new("menu", GalleryText.Get("Menus and keyboard")), new("a11y", GalleryText.Get("Accessibility"))
             });
             var featureItems = featureDefinition.Value;
-            var multipleOptions = new UiDropdownOptions(Placeholder : "여러 기능을 선택하세요", SelectedCountFormat : "{0}개 선택");
-            var multipleSample = GallerySample.Create(() => Fluent.Dropdown("확인할 기능", features, featureItems, multipleOptions),
+            var multipleOptions = new UiDropdownOptions(Placeholder : GalleryText.Get("Choose several features"), SelectedCountFormat : GalleryText.Get("{0} selected"),
+                ExpandLabel : GalleryText.Get("Open feature choices"));
+            var multipleSample = GallerySample.Create(() => Fluent.Dropdown(GalleryText.Get("Features to try"), features, featureItems, multipleOptions),
                 layout : widget =>
                 {
                     var field = Fluent.Field(widget);
                     field.Width = multipleOptions.Width;
-                    field.Options = new() { Label = "확인할 기능", Hint = "여러 항목을 선택한 뒤 Escape로 목록을 닫으세요." };
+                    field.Options = new() { Label = GalleryText.Get("Features to try"), Hint = GalleryText.Get("Select multiple items, then press Escape to close the list.") };
                     return field;
                 });
             Multiple = multipleSample.Preview;
@@ -114,13 +115,13 @@ internal sealed class DropdownPage(ObserverServices services) : IObserverPage, I
             multipleSample.BindSource(() => (_features, Multiple.Options), state => FeatureSetup(state._features)
                 + $"var multipleOptions = {DropdownGallerySource.Options(state.Options)};\n\n" + multipleFactory);
 
-            var editableOptions = new UiComboboxOptions(Field : new(Placeholder : "도시 이름을 입력하세요", ExpandLabel : "도시 목록 열기"),
-                Freeform : true, EmptyText : "검색 결과가 없습니다");
+            var editableOptions = new UiComboboxOptions(Field : new(Placeholder : GalleryText.Get("Enter a city name"), ExpandLabel : GalleryText.Get("Open city list")),
+                Freeform : true, EmptyText : GalleryText.Get("No search results"));
             var editableSample = GallerySample.Create(() =>
             {
-                var editor = Fluent.Combobox("도시 검색", new UiBinding<string>(() => _query, value => _query = value),
+                var editor = Fluent.Combobox(GalleryText.Get("Search for a city"), new UiBinding<string>(() => _query, value => _query = value),
                     new UiBinding<string?>(() => _city, value => _city = value),
-                    [new("seoul", "서울"), new("busan", "부산"), new("new-york", "New York"), new("london", "London")], editableOptions);
+                    [new("seoul", GalleryText.Get("Seoul")), new("busan", GalleryText.Get("Busan")), new("new-york", GalleryText.Get("New York")), new("london", GalleryText.Get("London"))], editableOptions);
                 editor.Open = new(() => _cityOpen, value => _cityOpen = value);
                 editor.OpenChanged = _ => OpenChanges++;
                 return editor;
@@ -130,8 +131,8 @@ internal sealed class DropdownPage(ObserverServices services) : IObserverPage, I
                 field.Width = editableOptions.Field!.Value.Width;
                 field.Options = new()
                 {
-                    Label = "도시 검색",
-                    Hint = "글자를 입력해 검색하거나 방향키와 Enter로 선택하세요. 목록에 없는 내용을 입력해도 지워지지 않습니다."
+                    Label = GalleryText.Get("Search for a city"),
+                    Hint = GalleryText.Get("Type to search, or choose with the arrow keys and Enter. Text outside the list is kept.")
                 };
                 return field;
             });
@@ -143,22 +144,23 @@ internal sealed class DropdownPage(ObserverServices services) : IObserverPage, I
                 + $"var _cityOpen = {GallerySample.Boolean(state._cityOpen)};\nvar OpenChanges = {state.OpenChanges};\n"
                 + $"var editableOptions = {DropdownGallerySource.Options(state.Options)};\n\n" + editableFactory);
 
-            var tagStatus = Fluent.Label("태그 확인 : 없음");
-            var tagOptions = new UiTagOptions(DismissLabel : "해제");
-            var tagsSample = GallerySample.Create(() => new UiFluentTagGroup("선택한 기능 태그", features, featureItems, tagOptions,
-                activated : value => { ActivatedTag = value; tagStatus.Text = "태그 확인 : " + value; },
+            var tagStatus = Fluent.Label(GalleryText.Format("Tag activation: {0}", GalleryText.Get("None")));
+            var tagOptions = new UiTagOptions(DismissLabel : GalleryText.Get("Remove tag"));
+            var tagsSample = GallerySample.Create(() => new UiFluentTagGroup(GalleryText.Get("Selected feature tags"), features, featureItems, tagOptions,
+                activated : value => { ActivatedTag = value; tagStatus.Text = string.Format(GalleryText.Get("Tag activation: {0}"), value); },
                 emphasized : new(() => _emphasizedFeatures, value => _emphasizedFeatures = value)));
             _tags = tagsSample.Preview;
             var tagsFactory = tagsSample.Source;
             tagsSample.BindSource(() => (_features, _emphasizedFeatures, ActivatedTag, _tags.TagOptions), state => FeatureSetup(state._features)
                 + $"string[] _emphasizedFeatures = {DropdownGallerySource.Array(state._emphasizedFeatures)};\n"
                 + $"string? ActivatedTag = {GallerySample.String(state.ActivatedTag)};\n"
-                + "var tagStatus = Fluent.Label(\"태그 확인 : \" + (ActivatedTag ?? \"없음\"));\n"
+                + $"var tagStatus = Fluent.Label(string.Format({GallerySample.String(GalleryText.Get("Tag activation: {0}"))}, "
+                + $"ActivatedTag ?? {GallerySample.String(GalleryText.Get("None"))}));\n"
                 + $"var tagOptions = {DropdownGallerySource.Options(state.TagOptions)};\n\n" + tagsFactory);
             _imageAvatar.Source = new(new SvgImageDecoder(_store, _services.ImageDecoder).Decode(Path.Combine(directory, "artwork.svg")));
-            var memberTagOptions = new UiTagOptions(Shape : UiTagShape.Circular, DismissLabel : "담당자 해제");
-            var memberSample = GallerySample.Create(() => new UiFluentTagGroup("담당자 태그", new(() => _members, value => _members = value),
-                [new("jung", "디모이"), new("image", "SVG 이미지")], memberTagOptions,
+            var memberTagOptions = new UiTagOptions(Shape : UiTagShape.Circular, DismissLabel : GalleryText.Get("Remove assignee"));
+            var memberSample = GallerySample.Create(() => new UiFluentTagGroup(GalleryText.Get("Assignee tags"), new(() => _members, value => _members = value),
+                [new("jung", GalleryText.Get("Dimohy")), new("image", GalleryText.Get("SVG image"))], memberTagOptions,
                 emphasized : new(() => _emphasizedMembers, value => _emphasizedMembers = value),
                 media : item => UiTagMedia.Avatar(item.Value == "jung" ? _memberAvatar : _imageAvatar)));
             var memberTags = memberSample.Preview;
@@ -168,72 +170,76 @@ internal sealed class DropdownPage(ObserverServices services) : IObserverPage, I
                 + $"string[] _members = {DropdownGallerySource.Array(state._members)};\n"
                 + $"string[] _emphasizedMembers = {DropdownGallerySource.Array(state._emphasizedMembers)};\n"
                 + $"var memberTagOptions = {DropdownGallerySource.Options(state.TagOptions)};\n\n" + memberFactory);
-            var emphasisStatus = Fluent.Label("강조 선택 : 꺼짐 / 변경 허용");
-            void UpdateEmphasisStatus() => emphasisStatus.Text = $"강조 선택 : {(_tagSelected ? "켜짐" : "꺼짐")} / {(_allowTagSelection ? "변경 허용" : "변경 거부")}";
+            var emphasisText = GallerySample.Define<Func<string>>("readEmphasis", () => () => string.Format(
+                GalleryText.Get("Emphasis: {0} / {1}"), _tagSelected ? GalleryText.Get("On") : GalleryText.Get("Off"),
+                _allowTagSelection ? GalleryText.Get("Changes allowed") : GalleryText.Get("Changes rejected")));
+            var readEmphasis = emphasisText.Value;
+            var emphasisStatus = Fluent.Label(readEmphasis());
+            void UpdateEmphasisStatus() => emphasisStatus.Text = readEmphasis();
             var emphasisSample = GallerySample.Create(() =>
             {
-                var emphasis = Fluent.InteractionTag("강조 선택", UpdateEmphasisStatus);
+                var emphasis = Fluent.InteractionTag(GalleryText.Get("Emphasis selection"), UpdateEmphasisStatus);
                 emphasis.Selected = new(() => _tagSelected, value => { if (_allowTagSelection) _tagSelected = value; });
                 return emphasis;
             });
             var emphasisFactory = emphasisSample.Source;
             emphasisSample.BindSource(() => (_tagSelected, _allowTagSelection), state =>
                 $"var _tagSelected = {GallerySample.Boolean(state._tagSelected)};\nvar _allowTagSelection = {GallerySample.Boolean(state._allowTagSelection)};\n"
-                + """
-                    var emphasisStatus = Fluent.Label("강조 선택 : " + (_tagSelected ? "켜짐" : "꺼짐") + " / " + (_allowTagSelection ? "변경 허용" : "변경 거부"));
-                    void UpdateEmphasisStatus() => emphasisStatus.Text = $"강조 선택 : {(_tagSelected ? "켜짐" : "꺼짐")} / {(_allowTagSelection ? "변경 허용" : "변경 거부")}";
-                    """ + "\n\n" + emphasisFactory);
-            var basicTagOptions = new UiTagOptions(DismissLabel : "기본 해제");
-            var basicSample = GallerySample.Create(() => new UiFluentTagGroup("기본 선택 태그", features, featureItems, basicTagOptions));
+                + emphasisText.Source + "\nvar emphasisStatus = Fluent.Label(readEmphasis());\n"
+                + "void UpdateEmphasisStatus() => emphasisStatus.Text = readEmphasis();\n\n" + emphasisFactory);
+            var basicTagOptions = new UiTagOptions(DismissLabel : GalleryText.Get("Remove basic tag"));
+            var basicSample = GallerySample.Create(() => new UiFluentTagGroup(GalleryText.Get("Basic selection tags"), features, featureItems, basicTagOptions));
             _basicTags = basicSample.Preview;
             var basicFactory = basicSample.Source;
             basicSample.BindSource(() => (_features, _basicTags.TagOptions), state => FeatureSetup(state._features)
                 + $"var basicTagOptions = {DropdownGallerySource.Options(state.TagOptions)};\n\n" + basicFactory);
             Samples = [singleSample, multipleSample, editableSample, tagsSample, basicSample, emphasisSample, memberSample];
             Root = Dux.ScrollView(Dux.Column(new(Spacing : 16, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Subtitle2("단일 선택과 다중 선택"),
+                Fluent.Subtitle2(GalleryText.Get("Single and multiple selection")),
                 Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
-                    Fluent.Button("선택 표시 크기", () => Update(Single.Options with { Size = (UiDropdownSize)(((int)Single.Options.Size + 1) % 3) })),
-                    Fluent.Button("선택 외관 변경", () => Update(Single.Options with { Appearance = (UiInputAppearance)(((int)Single.Options.Appearance + 1) % 4) })),
-                    Fluent.Button("선택 방향 전환", () => Update(Single.Options with { RightToLeft = !Single.Options.RightToLeft })),
-                    Fluent.Button("선택 폭 변경", () => Update(Single.Options with { Width = Single.Options.Width == 250 ? 140 : 250 })),
-                    Fluent.Button("검증 상태 전환", () => Update(Single.Options with { Invalid = !Single.Options.Invalid })),
-                    Fluent.Button("선택 지우기", () => { country.Value = null; features.Value = []; })),
+                    Fluent.Button(GalleryText.Get("Change selection display size"), () => Update(Single.Options with { Size = (UiDropdownSize)(((int)Single.Options.Size + 1) % 3) })),
+                    Fluent.Button(GalleryText.Get("Change selection appearance"), () => Update(Single.Options with { Appearance = (UiInputAppearance)(((int)Single.Options.Appearance + 1) % 4) })),
+                    Fluent.Button(GalleryText.Get("Reverse selection direction"), () => Update(Single.Options with { RightToLeft = !Single.Options.RightToLeft })),
+                    Fluent.Button(GalleryText.Get("Change selection width"), () => Update(Single.Options with { Width = Single.Options.Width == 250 ? 140 : 250 })),
+                    Fluent.Button(GalleryText.Get("Toggle validation state"), () => Update(Single.Options with { Invalid = !Single.Options.Invalid })),
+                    Fluent.Button(GalleryText.Get("Clear selections"), () => { country.Value = null; features.Value = []; })),
                 singleSample, multipleSample,
-                Fluent.Subtitle2("검색과 직접 입력"),
-                Fluent.Button("도시 목록 열림 전환", () => _cityOpen = !_cityOpen),
-                Fluent.Body1(() => $"도시 값 : {_city ?? "목록 외 입력"} / 입력 : {_query}"),
-                Fluent.Body1(() => $"도시 목록 : {(_cityOpen ? "열림" : "닫힘")} / 상태 전환 : {OpenChanges}"),
+                Fluent.Subtitle2(GalleryText.Get("Search and type a value")),
+                Fluent.Button(GalleryText.Get("Toggle city list"), () => _cityOpen = !_cityOpen),
+                Fluent.Body1(() => GalleryText.Format("City: {0} / Input: {1}",
+                    GalleryText.Get(_city switch { "seoul" => "Seoul", "busan" => "Busan", "new-york" => "New York", "london" => "London", _ => "Text outside the list" }), _query)),
+                Fluent.Body1(() => GalleryText.Format("City list: {0} / State changes: {1}", GalleryText.Get(_cityOpen ? "List open" : "List closed"), OpenChanges)),
                 editableSample,
-                Fluent.Subtitle2("선택한 값을 태그로 표시"),
-                Fluent.Button("태그 크기 전환", () =>
+                Fluent.Subtitle2(GalleryText.Get("Show selections as tags")),
+                Fluent.Button(GalleryText.Get("Change tag size"), () =>
                 {
                     _tags.TagOptions = _tags.TagOptions with { Size = (UiTagSize)(((int)_tags.TagOptions.Size + 1) % 3) };
-                    _basicTags.TagOptions = _tags.TagOptions with { DismissLabel = "기본 해제" };
+                    _basicTags.TagOptions = _tags.TagOptions with { DismissLabel = GalleryText.Get("Remove basic tag") };
                 }),
-                Fluent.Text("확인형 태그는 본문을 눌러 강조하고 ×를 눌러 목록에서 제거할 수 있습니다. 다시 추가해도 강조 여부는 유지됩니다."),
+                Fluent.Text(GalleryText.Get("Select an interactive tag to emphasize it, or select × to remove it. Its emphasis is kept when you add it again.")),
                 tagStatus,
-                Fluent.Body1(() => "강조 값 : " + (_emphasizedFeatures.Length == 0 ? "없음" : string.Join(", ", _emphasizedFeatures))),
+                Fluent.Body1(() => GalleryText.Format("Emphasized values: {0}", _emphasizedFeatures.Length == 0 ? GalleryText.Get("None") : string.Join(", ", _emphasizedFeatures))),
                 tagsSample,
-                Fluent.Text("기본 태그는 어느 곳을 눌러도 선택이 해제됩니다."),
-                Fluent.Body1(() => $"선택 값 : {_country ?? "없음"} / 기능 : {_features.Length}개"),
+                Fluent.Text(GalleryText.Get("Select anywhere on a basic tag to remove it.")),
+                Fluent.Body1(() => GalleryText.Format("Location: {0} / Features: {1}",
+                    GalleryText.Get(_country switch { "kr" => "South Korea", "us" => "United States", "jp" => "Japan", _ => "None" }), _features.Length)),
                 basicSample,
-                Fluent.Button("태그 변경 허용 전환", () => { _allowTagSelection = !_allowTagSelection; UpdateEmphasisStatus(); }),
+                Fluent.Button(GalleryText.Get("Toggle whether tag changes are allowed"), () => { _allowTagSelection = !_allowTagSelection; UpdateEmphasisStatus(); }),
                 emphasisStatus,
                 emphasisSample,
-                Fluent.Subtitle2("아바타가 있는 태그"),
-                Fluent.Text("담당자 아바타에 한글 이름의 첫 글자나 SVG 이미지, 상태 배지를 표시합니다."),
+                Fluent.Subtitle2(GalleryText.Get("Tags with avatars")),
+                Fluent.Text(GalleryText.Get("Assignee avatars show initials or an SVG image, plus a status badge.")),
                 Dux.Wrap(new(Spacing : 8),
-                    Fluent.Button("담당자 태그 크기", () => memberTags.TagOptions = memberTags.TagOptions with
+                    Fluent.Button(GalleryText.Get("Change assignee tag size"), () => memberTags.TagOptions = memberTags.TagOptions with
                     {
                         Size = (UiTagSize)(((int)memberTags.TagOptions.Size + 1) % 3)
                     }),
-                    Fluent.Button("담당자 태그 방향·모양", () => memberTags.TagOptions = memberTags.TagOptions with
+                    Fluent.Button(GalleryText.Get("Change assignee tag direction and shape"), () => memberTags.TagOptions = memberTags.TagOptions with
                     {
                         RightToLeft = !memberTags.TagOptions.RightToLeft,
                         Shape = memberTags.TagOptions.Shape == UiTagShape.Circular ? UiTagShape.Rounded : UiTagShape.Circular
                     }),
-                    Fluent.Button("담당자 비활성 표현", () =>
+                    Fluent.Button(GalleryText.Get("Toggle inactive assignee style"), () =>
                     {
                         _memberAvatar.Options = _memberAvatar.Options with
                         {
@@ -244,9 +250,9 @@ internal sealed class DropdownPage(ObserverServices services) : IObserverPage, I
                             IsInactive = _memberAvatar.Options.IsInactive
                         };
                     }),
-                    Fluent.Button("담당자 태그 복원", () => _members = ["jung", "image"])),
-                Fluent.Text("Tab·위아래 방향키·Home·End·Enter·Space로 조작하세요. 비활성 항목은 건너뜁니다."),
-                Fluent.Text("목록을 연 뒤 이름의 첫 글자부터 입력해 찾을 수 있습니다. 다른 페이지로 이동했다 돌아와도 선택은 유지됩니다."),
+                    Fluent.Button(GalleryText.Get("Restore assignee tags"), () => _members = ["jung", "image"])),
+                Fluent.Text(GalleryText.Get("Use Tab, Up, Down, Home, End, Enter, and Space. Navigation skips disabled items.")),
+                Fluent.Text(GalleryText.Get("Open the list and type the first letters of a name to find it. Selection is kept when you return to this page.")),
                 memberSample));
         }
         private void Update(UiDropdownOptions options)
@@ -257,14 +263,15 @@ internal sealed class DropdownPage(ObserverServices services) : IObserverPage, I
             {
                 Field = options with
                 {
-                    Placeholder = "도시 이름을 입력하세요",
-                    ExpandLabel = "도시 목록 열기"
+                    Placeholder = GalleryText.Get("Enter a city name"),
+                    ExpandLabel = GalleryText.Get("Open city list")
                 }
             };
             Multiple.Options = options with
             {
-                Placeholder = "여러 기능을 선택하세요",
-                SelectedCountFormat = "{0}개 선택"
+                Placeholder = GalleryText.Get("Choose several features"),
+                SelectedCountFormat = GalleryText.Get("{0} selected"),
+                ExpandLabel = GalleryText.Get("Open feature choices")
             };
             _tags.TagOptions = _tags.TagOptions with
             {

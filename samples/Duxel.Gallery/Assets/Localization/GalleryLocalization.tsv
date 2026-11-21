@@ -1474,3 +1474,84 @@ Reuse multiline input	재사용 여러 줄	測定再利用の複数行入力欄	
 The tooltip still appears after its configured delay when the target reuses its measurement.	대상의 측정 결과를 재사용하더라도, 설정한 지연 시간 뒤에 설명을 표시합니다.	対象の測定結果を再利用しても、設定した遅延時間後にツールチップが表示されます。	即使复用目标的测量结果，工具提示仍会在指定延迟后显示。
 Reuse field input	재사용 필드 입력	測定再利用フィールドの入力欄	复用字段输入框
 Reuse tooltip target	재사용 도구 설명 대상	測定再利用ツールチップの対象	复用工具提示目标
+Try typing, selecting, copying, pasting, and undoing text.	한글 입력과 English, 선택·복사·붙여넣기·되돌리기를 확인하세요.	日本語や英語の入力、選択、コピー、貼り付け、元に戻す操作を試してください。	试用中文及英文输入、选择、复制、粘贴和撤销。
+Your input stays when you switch tabs.	탭을 바꿔도 입력 내용은 유지됩니다.	タブを切り替えても入力内容は保持されます。	切换选项卡时仍会保留输入。
+Single-line caret example	한 줄 커서 예제	1 行のカーソル例	单行光标示例
+Sample text	한글	日本語	中文
+Name: {0}	이름 : {0}	名前：{0}	姓名：{0}
+Notes	메모	メモ	备注
+Clear notes	메모 지우기	メモを消去	清空备注
+Kerning and mixed-script example	커닝·혼합 문장 예제	カーニングと複数の文字体系の例	字距调整与混合文字示例
+Sample text and	한글과	日本語と	中文和
+Toggle required label	라벨 필수 전환	必須ラベルを切り替える	切换标签必填状态
+Change label size	라벨 크기 전환	ラベルのサイズを変更	切换标签大小
+Toggle label weight	라벨 굵기 전환	ラベルの文字の太さを切り替える	切换标签字重
+Toggle label availability	라벨 비활성 전환	ラベルの有効状態を切り替える	切换标签启用状态
+Toggle long label	긴 라벨 전환	長いラベルを切り替える	切换长标签
+Enter your notes. This long label wraps within the allotted width. Select it to focus the notes field below.	메모에 남길 내용을 입력하세요. 긴 라벨은 지정한 너비에서 다음 줄로 이어지며, 라벨을 누르면 아래 메모 입력창으로 포커스를 옮깁니다.	メモを入力してください。この長いラベルは指定幅で折り返されます。選択すると、下のメモ入力欄にフォーカスが移動します。	请输入备注。长标签会在指定宽度内换行。选择该标签可将焦点移到下方的备注输入框。
+Note length: {0}	메모 길이 : {0}	メモの長さ：{0}	备注长度：{0}
+Use Tab or Shift+Tab to move and Ctrl+Z to undo. The wrap and read-only buttons change how the notes editor behaves.	Tab / Shift+Tab으로 이동하고 Ctrl+Z로 되돌리세요. 줄바꿈과 읽기 전용 버튼을 누르면 메모 편집 방식이 바뀝니다.	Tab または Shift+Tab で移動し、Ctrl+Z で元に戻します。折り返しと読み取り専用のボタンでメモの編集方法が変わります。	使用 Tab 或 Shift+Tab 移动，按 Ctrl+Z 撤销。换行和只读按钮会改变备注编辑器的行为。
+Name input and validation	이름 입력과 검증	名前の入力と検証	姓名输入与验证
+Notes editor and linked label	메모 편집과 연결 라벨	メモ編集欄と関連付けたラベル	备注编辑器与关联标签
+Select the label to focus its input.	라벨을 눌러 입력창에 포커스를 옮겨 보세요.	ラベルを選ぶと入力欄にフォーカスが移動します。	选择标签可将焦点移到输入框。
+Name entered.	입력되었습니다.	入力されました。	已输入姓名。
+SVG image	SVG 이미지	SVG 画像	SVG 图像
+Choose a work location	작업 위치를 선택하세요	作業場所を選択	选择工作地点
+Disabled location	사용 중지된 위치	無効な場所	已停用的地点
+Select one item to close the list.	하나를 선택하면 목록이 닫힙니다.	項目を一つ選ぶと一覧が閉じます。	选择一项后列表会关闭。
+Image	이미지	画像	图像
+SVG icon	SVG 아이콘	SVG アイコン	SVG 图标
+Text input and editing	한글 입력과 편집	文字入力と編集	文本输入与编辑
+Containers and layouts	컨테이너와 레이아웃	コンテナーとレイアウト	容器与布局
+Menus and keyboard	메뉴와 키보드	メニューとキーボード	菜单与键盘
+Accessibility	접근성	アクセシビリティ	无障碍
+Choose several features	여러 기능을 선택하세요	複数の機能を選択	选择多个功能
+{0} selected	{0}개 선택	{0} 件選択済み	已选 {0} 项
+Features to try	확인할 기능	試す機能	要试用的功能
+Select multiple items, then press Escape to close the list.	여러 항목을 선택한 뒤 Escape로 목록을 닫으세요.	複数の項目を選び、Escape で一覧を閉じます。	选择多项后按 Escape 关闭列表。
+Open location choices	위치 목록 열기	場所の選択肢を開く	打开地点选项
+Open feature choices	기능 목록 열기	機能の選択肢を開く	打开功能选项
+No search results	검색 결과가 없습니다	検索結果がありません	没有搜索结果
+Search for a city	도시 검색	都市を検索	搜索城市
+New York	뉴욕	ニューヨーク	纽约
+Type to search, or choose with the arrow keys and Enter. Text outside the list is kept.	글자를 입력해 검색하거나 방향키와 Enter로 선택하세요. 목록에 없는 내용을 입력해도 지워지지 않습니다.	入力して検索するか、矢印キーと Enter で選択します。一覧にない入力も保持されます。	输入文本进行搜索，或使用方向键和 Enter 选择。列表之外的文本也会保留。
+Tag activation: {0}	태그 확인 : {0}	タグの操作：{0}	标签操作：{0}
+Remove tag	해제	タグを解除	移除标签
+Selected feature tags	선택한 기능 태그	選択した機能のタグ	已选功能标签
+Remove assignee	담당자 해제	担当者を解除	移除负责人
+Assignee tags	담당자 태그	担当者タグ	负责人标签
+Emphasis: {0} / {1}	강조 선택 : {0} / {1}	強調：{0} / {1}	强调：{0} / {1}
+Changes allowed	변경 허용	変更を許可	允许更改
+Changes rejected	변경 거부	変更を拒否	拒绝更改
+Emphasis selection	강조 선택	強調の選択	强调选择
+Remove basic tag	기본 해제	基本タグを解除	移除基本标签
+Basic selection tags	기본 선택 태그	基本の選択タグ	基本选择标签
+Single and multiple selection	단일 선택과 다중 선택	単一選択と複数選択	单选与多选
+Change selection display size	선택 표시 크기	選択表示のサイズを変更	更改选择显示大小
+Change selection appearance	선택 외관 변경	選択欄の外観を変更	更改选择外观
+Reverse selection direction	선택 방향 전환	選択欄の方向を切り替える	反转选择方向
+Change selection width	선택 폭 변경	選択欄の幅を変更	更改选择宽度
+Toggle validation state	검증 상태 전환	検証状態を切り替える	切换验证状态
+Clear selections	선택 지우기	選択を解除	清除选择
+Search and type a value	검색과 직접 입력	検索と直接入力	搜索与直接输入
+Toggle city list	도시 목록 열림 전환	都市一覧の開閉を切り替える	切换城市列表开关
+City: {0} / Input: {1}	도시 값 : {0} / 입력 : {1}	都市：{0} / 入力：{1}	城市：{0} / 输入：{1}
+Text outside the list	목록 외 입력	一覧外の入力	列表外输入
+City list: {0} / State changes: {1}	도시 목록 : {0} / 상태 전환 : {1}	都市一覧：{0} / 状態の変更回数：{1}	城市列表：{0} / 状态更改次数：{1}
+List open	열림	開いている	已打开
+List closed	닫힘	閉じている	已关闭
+Show selections as tags	선택한 값을 태그로 표시	選択した値をタグで表示	以标签显示选中值
+Change tag size	태그 크기 전환	タグのサイズを変更	更改标签大小
+Select an interactive tag to emphasize it, or select × to remove it. Its emphasis is kept when you add it again.	확인형 태그는 본문을 눌러 강조하고 ×를 눌러 목록에서 제거할 수 있습니다. 다시 추가해도 강조 여부는 유지됩니다.	操作可能なタグを選ぶと強調され、× で削除できます。再び追加しても強調状態は保持されます。	选择交互式标签可突出显示，选择 × 可移除标签。重新添加时会保留突出状态。
+Emphasized values: {0}	강조 값 : {0}	強調した値：{0}	强调值：{0}
+Select anywhere on a basic tag to remove it.	기본 태그는 어느 곳을 눌러도 선택이 해제됩니다.	基本タグはどこを選んでも解除できます。	选择基本标签上的任意位置即可移除。
+Location: {0} / Features: {1}	선택 값 : {0} / 기능 : {1}개	場所：{0} / 機能：{1} 件	地点：{0} / 功能：{1} 项
+Toggle whether tag changes are allowed	태그 변경 허용 전환	タグの変更許可を切り替える	切换是否允许更改标签
+Tags with avatars	아바타가 있는 태그	アバター付きのタグ	带头像的标签
+Assignee avatars show initials or an SVG image, plus a status badge.	담당자 아바타에 한글 이름의 첫 글자나 SVG 이미지, 상태 배지를 표시합니다.	担当者のアバターにイニシャルまたは SVG 画像と、状態バッジを表示します。	负责人头像显示姓名首字或 SVG 图像，并显示状态徽标。
+Change assignee tag size	담당자 태그 크기	担当者タグのサイズを変更	更改负责人标签大小
+Change assignee tag direction and shape	담당자 태그 방향·모양	担当者タグの方向と形を変更	更改负责人标签方向和形状
+Toggle inactive assignee style	담당자 비활성 표현	担当者の非アクティブ表示を切り替える	切换负责人非活动样式
+Restore assignee tags	담당자 태그 복원	担当者タグを復元	恢复负责人标签
+Use Tab, Up, Down, Home, End, Enter, and Space. Navigation skips disabled items.	Tab·위아래 방향키·Home·End·Enter·Space로 조작하세요. 비활성 항목은 건너뜁니다.	Tab、上下矢印キー、Home、End、Enter、Space で操作します。無効な項目は飛ばします。	使用 Tab、上下方向键、Home、End、Enter 和空格键操作。导航会跳过禁用项。
+Open the list and type the first letters of a name to find it. Selection is kept when you return to this page.	목록을 연 뒤 이름의 첫 글자부터 입력해 찾을 수 있습니다. 다른 페이지로 이동했다 돌아와도 선택은 유지됩니다.	一覧を開いて名前の先頭の文字を入力すると候補を探せます。このページに戻っても選択は保持されます。	打开列表后，输入名称的前几个字符即可查找。返回此页时会保留选择。
