@@ -114,9 +114,14 @@ internal sealed class UiSurfaceBody<TPresentation> : UiControlWidget where TPres
         var actions = context.MeasureParentDataChild(Actions, null, new(0, width, 0, float.PositiveInfinity));
         var natural = Content.Stretch ? default : context.MeasureParentDataChild(Content.Child, null, new(width, width, 0, float.PositiveInfinity));
         var gaps = metrics.Gap * (Actions.Children.Length == 0 ? 1 : 2);
-        var availableHeight = MathF.Max(0, MathF.Min(MaximumHeight, context.LayoutConstraints.MaxHeight) - header - actions.Y - gaps);
+        var heightLimit = MathF.Min(MaximumHeight, context.LayoutConstraints.MaxHeight);
+        var availableHeight = MathF.Max(0, heightLimit - header - actions.Y - gaps);
         if (Content.Stretch && !float.IsFinite(availableHeight)) throw new InvalidOperationException("A non-scrolling surface body requires a finite height.");
-        var contentHeight = FillHeight || Content.Stretch ? availableHeight : MathF.Min(MathF.Max(metrics.MinimumContentHeight, natural.Y), availableHeight);
+        var preferredHeight = MathF.Max(metrics.MinimumContentHeight, natural.Y);
+        // Use the same sum as the measured body to keep padding arithmetic from creating subpixel overflow.
+        var fits = header + gaps + preferredHeight + actions.Y <= heightLimit;
+        var contentHeight = FillHeight || Content.Stretch ? availableHeight
+            : fits ? preferredHeight : MathF.Min(preferredHeight, availableHeight);
         context.MeasureParentDataChild(Content, null, UiBoxConstraints.Tight(new(width, contentHeight)));
         return new(new(width, header + gaps + contentHeight + actions.Y), title, header, contentHeight, actions);
     }

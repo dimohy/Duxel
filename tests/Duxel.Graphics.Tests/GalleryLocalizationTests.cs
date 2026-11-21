@@ -106,6 +106,8 @@ internal static class GalleryLocalizationTests
                     "Gallery first launch uses the expected language for " + (culture.Length == 0 ? "the invariant culture" : culture));
             }
 
+            VerifyDedicatedExamples(Render, tree, services, check);
+
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
             File.WriteAllText(path, "en");
             using var screen = new GalleryLocalizedScreen(services, new DuxelAppSession(), path);
@@ -150,6 +152,22 @@ internal static class GalleryLocalizationTests
             })
             {
                 Invoke(settings);
+                var dialog = tree.CaptureSnapshot().Elements.Single(element => element.Node is { Role: UiAccessibilityRole.Dialog });
+                var pendingNodes = new Queue<string>();
+                void AddChild(string? child)
+                {
+                    if (child is not null)
+                        pendingNodes.Enqueue(child);
+                }
+                AddChild(dialog.FirstChild);
+                var scrollable = false;
+                while (pendingNodes.TryDequeue(out var id) && tree.TryGet(id, out var element))
+                {
+                    scrollable |= element.Node.Scroll is { VerticallyScrollable: true } or { HorizontallyScrollable: true };
+                    AddChild(element.FirstChild);
+                    AddChild(element.Next);
+                }
+                check(!scrollable, "Settings fits its controls without a scroll range before switching to " + language);
                 var radios = tree.CaptureSnapshot().Elements.Select(element => element.Node)
                     .Where(node => node.Role == UiAccessibilityRole.RadioButton && !node.Offscreen).ToArray();
                 check(radios.Length == 4 && radios.Count(node => node.Selected == true) == 1
@@ -194,6 +212,47 @@ internal static class GalleryLocalizationTests
         {
             CultureInfo.CurrentUICulture = systemLanguage;
             File.Delete(path);
+        }
+    }
+
+    private static void VerifyDedicatedExamples(Action<UiScreen> render, UiAccessibilityTree tree, ObserverServices services,
+        Action<bool,string> check)
+    {
+        foreach (var (language, widthButton, breadcrumb, archive, grid, column, file) in new[]
+        {
+            (GalleryLanguage.English, "Change path width", "Project path", "Document archive", "Design review files", "File name", "Design review 0001.pdf"),
+            (GalleryLanguage.Korean, "경로 폭 변경", "프로젝트 경로", "문서 보관함", "디자인 검토 파일", "파일 이름", "디자인 검토 0001.pdf"),
+            (GalleryLanguage.Japanese, "パスの幅を変更", "プロジェクトのパス", "ドキュメント保管庫", "デザインレビューのファイル", "ファイル名", "デザインレビュー 0001.pdf"),
+            (GalleryLanguage.SimplifiedChinese, "更改路径宽度", "项目路径", "文档归档", "设计评审文件", "文件名", "设计评审 0001.pdf")
+        })
+        {
+            using var locale = GalleryText.Use(language);
+            using var screen = new ObserverScreen(services, language : language);
+            screen.SelectedPage = "경로";
+            render(screen);
+            var nodes = tree.CaptureSnapshot().Elements.Select(element => element.Node).ToArray();
+            check(nodes.Any(node => node.Name == widthButton && node.Role == UiAccessibilityRole.Button)
+                && nodes.Any(node => node.Name == breadcrumb && node.Role == UiAccessibilityRole.Navigation),
+                "Breadcrumb localizes its controls and navigation landmark in " + language);
+            VerifySource(nodes, language, archive, "Breadcrumb");
+            screen.SelectedPage = "DataGrid";
+            render(screen);
+            nodes = tree.CaptureSnapshot().Elements.Select(element => element.Node).ToArray();
+            check(nodes.Any(node => node.Name == grid && node.Role == UiAccessibilityRole.Grid)
+                && nodes.Any(node => node.Name == column && node.Role == UiAccessibilityRole.Button)
+                && nodes.Any(node => node.Value == file || node.Name == file),
+                "DataGrid localizes its name, header and sample file in " + language);
+            VerifySource(nodes, language, column, "DataGrid");
+        }
+
+        void VerifySource(UiAccessibilityNode[] nodes, GalleryLanguage language, string expected, string page)
+        {
+            var editorName = GalleryText.Get("C# 예제 소스");
+            check(nodes.Any(node => node.Name == editorName && node.Role == UiAccessibilityRole.Edit && node.Value is { } code
+                && code.Contains(GallerySample.String(expected), StringComparison.Ordinal)
+                && !code.Contains("GalleryText.Get", StringComparison.Ordinal)
+                && (language == GalleryLanguage.Korean || !ContainsHangul(code))),
+                page + " localizes its copied C# in " + language);
         }
     }
 

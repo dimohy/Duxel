@@ -73,9 +73,10 @@ public sealed partial class UiImmediateContext
         var context = new UiControlContext(this);
         using var text = TPresentation.BeginBodyText(context);
         var natural = context.MeasureParentDataChild(widget.Body, null, new(innerWidth, innerWidth, 0, float.PositiveInfinity));
-        var height = MathF.Min(maximumHeight, natural.Y + 2 * padding);
+        var bodyHeight = MathF.Min(innerMaximumHeight, natural.Y);
+        var height = MathF.Min(maximumHeight, bodyHeight + 2 * padding);
         var bounds = new UiRect((_displaySize.X - width) / 2, (_displaySize.Y - height) / 2, width, height);
-        var bodyBounds = new UiRect(bounds.X + padding, bounds.Y + padding, innerWidth, MathF.Max(0, height - 2 * padding));
+        var bodyBounds = new UiRect(bounds.X + padding, bounds.Y + padding, innerWidth, bodyHeight);
         context.MeasureParentDataChild(widget.Viewport, null, UiBoxConstraints.Tight(new(bodyBounds.Width, bodyBounds.Height)));
         if (opened && options.MotionEnabled && input.EntryFrom != new UiOverlayMotionSample(1, 1, 1))
             input.EnterStartedAt = _state.TimeSeconds;
