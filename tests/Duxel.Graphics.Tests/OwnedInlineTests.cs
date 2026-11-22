@@ -49,6 +49,18 @@ internal static class OwnedInlineTests
         check(initialTitle.Node.Id == title.LastAccessibilityId && initialTitle.Node.Role == UiAccessibilityRole.Label
             && !initialTitle.Node.Focusable && !initialTitle.Node.ValuePattern,
             "The actual title widget publishes its own passive identity through its normal render lifetime");
+        var fittingParagraph = body.VisualLines.NativeParagraph;
+        sized.Options = new(270, 140);
+        Frame(sized.Render);
+        check(fittingParagraph is not null && ReferenceEquals(fittingParagraph, body.VisualLines.NativeParagraph)
+            && Find(title.Text).Node.Bounds == initialTitle.Node.Bounds && Find(body.Text).Node.Bounds == initialBody.Node.Bounds,
+            "A fitting owned paragraph retains its native layout and exact child bounds across widths");
+        sized.Options = new(80, 140);
+        Frame(sized.Render);
+        check(body.VisualLines.Count > 1 && !ReferenceEquals(fittingParagraph, body.VisualLines.NativeParagraph),
+            "Crossing the wrap threshold rebuilds the owned paragraph");
+        sized.Options = new(300, 140);
+        Frame(sized.Render);
         var beforeDirection = body.VisualLines.NativeParagraph;
         body.RightToLeft = true;
         Frame(sized.Render);

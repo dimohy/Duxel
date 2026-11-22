@@ -50,7 +50,10 @@ public sealed partial class UiImmediateContext
             fraction=Math.Clamp(fraction,0,1);if(reversed)fraction=1-fraction;
             next=options.Snap(options.Minimum+(double)fraction*(options.Maximum-options.Minimum));
             if (options.CoalescePointerMoves && _lastItemId is { } captureId)
+            {
                 _state.PointerMoveCoalescing = (captureId, null);
+                _state.SliderPointerMoveCoalescing = captureId;
+            }
         }
         if(control.Focused)
         {

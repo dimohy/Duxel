@@ -434,6 +434,7 @@ public sealed partial class UiState
     public void BeginFrame()
     {
         PointerMoveCoalescing = null;
+        SliderPointerMoveCoalescing = null;
         WheelCoalescing = null;
         DocumentWheelRegion = null;
         _frameCount++;

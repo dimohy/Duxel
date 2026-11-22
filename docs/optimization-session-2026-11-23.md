@@ -74,6 +74,23 @@ UI composition p95 fell 26.9%, app CPU p95 fell 20.1%, and accepted presentation
 
 The Windows solution built in Release. All 52 MessageBar checks and 34 Gallery page checks passed. The baseline failed the new width-only measurement reuse check, and both variants correctly invalidated the cache after a body size change. All 64 Windows MessageBar GPU fixtures matched their reference pixels. The Windows Gallery and the Linux x64 NativeAOT Gallery on WSLg Dozen acknowledged 108 presentations each. The timing comparison uses the managed Windows runtime because Windows NativeAOT tooling remains on hold. Run it with `pwsh -File artifacts/messagebar-width-layout-20261123/isolate.ps1 -Root artifacts/messagebar-width-layout-20261123` after preparing the two profiled Core builds. Raw timing, input and binary hashes are in `artifacts/messagebar-width-layout-20261123/isolated`.
 
+### Fast MessageBar drag follow-up
+
+The native-window CPU trace showed repeated inline paragraph layout during width changes. A captured, opted-in slider also processed the first movement of every host input batch before coalescing the remaining moves. Text-only inline flows now retain their prepared source until content invalidation, and a single native left-to-right paragraph line can keep its geometry as long as its full advance fits. Width changes below that threshold still reflow the body. An already captured slider now starts a move-only batch at its last position. Mixed batches preserve button transitions, keyboard events, wheel input and native dispatch.
+
+The same Windows managed .NET 11.0.0 Gallery and App binaries ran on an RTX 5070 Ti, exchanging only the Core DLL. Each version ran in three independent foreground processes with two 68-move bursts per process and 2.09–2.11 ms median event spacing. V-Sync, event-driven mode and detailed Vulkan profiling were disabled during the paired timing runs.
+
+| Metric | Before | After | Reduction |
+| --- | ---: | ---: | ---: |
+| UI composition p95 | 6.27 ms | 3.44 ms | 45.1% |
+| App CPU frame time p95 | 11.75 ms | 9.10 ms | 22.5% |
+| Accepted presentation interval p95 | 11.93 ms | 9.30 ms | 22.1% |
+| Accepted presentation interval p99 | 15.45 ms | 11.04 ms | 28.6% |
+
+The table reports medians of per-process percentiles. The presentation interval comes from application-side Vulkan acknowledgements. The separate event-driven run reached widths 775 and 385, and the CodeView showed 385 after release. The short timing bursts establish a reduction in application latency under this workload. The severe drop reported by the user did not occur in the baseline replays. Raw timings, binary hashes and the CPU trace are in `artifacts/messagebar-drag-followup-20261123`.
+
+Windows passed 725 focused input, inline flow and MessageBar checks. The 64 MessageBar and 776 additional inline-flow pixel comparisons matched their references. Both the Windows Gallery and the Linux x64 NativeAOT Gallery on WSLg Dozen acknowledged 108 presentations, including the MessageBar option changes and dynamic group interactions.
+
 ## Linux font selection for spaces in mixed text
 
 Linux now retains the preceding explicit face for a space separator when the face contains that glyph. Plain and styled Pango layouts and the reported font ranges use the same rule. A tab is still four spaces in the native layout, and an unsupported space still uses the explicit font selection policy. Pango applies face attributes to the specified text ranges. [Pango text attributes](https://gnome.pages.gitlab.gnome.org/gtk/Pango/pango_markup.html)

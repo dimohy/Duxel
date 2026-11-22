@@ -14,6 +14,7 @@ public class UiInlineFlowWidget : UiMultiChildWidget
     private bool[] _literals;
     private string[] _names;
     private UiRetainedLayout<UiVector2>? _retained;
+    private bool _literalSourcePrepared;
     private UiItemHorizontalAlign _horizontalAlignment;
     private float[] _lineOffsets = [];
     public UiItemHorizontalAlign HorizontalAlignment
@@ -61,10 +62,16 @@ public class UiInlineFlowWidget : UiMultiChildWidget
     }
     protected override bool CanRetainArrangement => true;
     protected override bool CanRetainMeasurement => _retained is { IsValid: true };
-    internal override void InvalidateRetainedMeasurement() => _retained?.Invalidate();
+    internal override void InvalidateRetainedMeasurement()
+    {
+        _retained?.Invalidate();
+        _literalSourcePrepared = false;
+    }
 
     private void PrepareSource(UiControlContext context, float width)
     {
+        if (_literalSourcePrepared)
+            return;
         var text = new StringBuilder();
         var runs = new List<UiStyledSourceRun>(Children.Length);
         var objects = new List<UiStyledTextObject>();
@@ -130,6 +137,7 @@ public class UiInlineFlowWidget : UiMultiChildWidget
             };
         }
         _source.Replace(literal, runs.ToArray(), objects.ToArray());
+        _literalSourcePrepared = objects.Count == 0;
     }
 
     private UiVector2 PrepareLayout(UiControlContext context, bool render = false)

@@ -120,6 +120,20 @@ internal sealed partial class UiVisualTextLines
         var retain = ui.CanRetainControlTextLayout;
         if (same && (_valid && retain || _frame == frame && _valid == retain))
             return;
+        // A left-aligned inline paragraph that already fits has identical line geometry
+        // at any wider allocation, or at a narrower one that still fits its full advance.
+        if (retain && _valid && wrap && _wrap && gutter == 0 && _gutter == 0
+            && horizontalGutter == 0 && _horizontalGutter == 0 && height == _requestedHeight
+            && styled is UiInlineFlowTextSource { RightToLeft: false, Objects.Count: 0 }
+            && _text == text && _key == key && _lineHeight == lineHeight
+            && ReferenceEquals(_styledSource, styled) && _styledRevision == styled.Revision
+            && _nativeParagraph is { Lines.Length: 1 } paragraph
+            && paragraph.Lines.Span[0].Advance * _nativeParagraphScale < MathF.Min(_requestedWidth, width))
+        {
+            _requestedWidth = EffectiveWidth = width;
+            _frame = frame;
+            return;
+        }
         // Plain/code geometry depends on width, not the clipping height. A code
         // view measures its natural height first, then paints that same layout.
         if (retain && _valid && wrap && _wrap && _requestedWidth == width

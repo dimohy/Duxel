@@ -235,6 +235,19 @@ internal static class OrderedInputBatchTests
                 && observed[^3] == (140, 65, true) && observed[^2] == (140, 65, false)
                 && observed[^1] == (160, 65, false) && context.InputProcessingMetrics.BuiltDrawings == 1,
                 $"ordered slider keeps keyboard, final drag position and release, opt-in={coalesce}");
+            context.NewInputBatch(FrameInfo, [Move(30) with { LeftMousePressed = true }],
+                new(0, 0, 400, 300), UiTextSettings.Default);
+            context.Render(screen);
+            using var pressed = context.GetDrawData();
+            observed.Clear();
+            context.NewInputBatch(FrameInfo, [Move(50), Move(70), Move(90), Move(120)],
+                new(0, 0, 400, 300), UiTextSettings.Default);
+            context.Render(screen);
+            using var dragged = context.GetDrawData();
+            expected = coalesce ? [120] : [50, 70, 90, 120];
+            check(observed.Select(item => item.X).SequenceEqual(expected) && observed[^1] == (120, 55, true)
+                && context.InputProcessingMetrics.BuiltDrawings == 1,
+                $"a previously captured slider starts a pure move batch at the final position when opted in, opt-in={coalesce}");
         }
     }
 

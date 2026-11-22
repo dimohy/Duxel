@@ -6,6 +6,7 @@ namespace Duxel.Core;
 public sealed partial class UiState
 {
     internal (string Owner, UiRect? Bounds)? PointerMoveCoalescing { get; set; }
+    internal string? SliderPointerMoveCoalescing { get; set; }
     internal (float Wheel, double Remaining, bool Horizontal)? WheelCoalescing { get; set; }
     internal (string CodeId, UiRect Bounds)? DocumentWheelRegion { get; set; }
 }
@@ -26,14 +27,16 @@ public sealed partial class UiContext
         for (var i = 0; i < inputs.Count; i++)
             ValidateInputMetadata(inputs[i]);
         var initialIndex = 0;
-        if (inputs.Count > 1 && _state.PreciseScrollbarDrag is { CoalesceMoves: true } drag
-            && _state.ActiveId == drag.Id && _state.PreviousPopupBlockingRects.Count == 0
+        var absoluteDragOwner = _state.PreciseScrollbarDrag is { CoalesceMoves: true } drag
+            ? drag.Id : _state.SliderPointerMoveCoalescing;
+        if (inputs.Count > 1 && absoluteDragOwner is not null && _state.ActiveId == absoluteDragOwner
+            && _state.PreviousPopupBlockingRects.Count == 0
             && _queuedMousePos is null && _queuedMouseDown is null && _queuedRightMouseDown is null
             && _queuedMiddleMouseDown is null && _queuedMouseWheel == 0 && _queuedMouseWheelHorizontal == 0
             && _queuedKeyEvents.Count == 0 && _queuedCharEvents.Count == 0
             && IsCapturedMove(inputs[0], _inputState, null))
         {
-            // A thumb already owned by the previous frame uses an absolute pointer offset.
+            // An already captured scrollbar or opted-in slider uses the latest absolute position.
             // Only skip a whole batch of motion; mixed batches retain their usual ordering.
             var next = 1;
             while (next < inputs.Count && IsCapturedMove(inputs[next], inputs[next - 1], null))
