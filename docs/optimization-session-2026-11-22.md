@@ -220,3 +220,23 @@ All five capture poses matched across the six default-renderer runs. Five additi
 On WSLg Dozen, the same Linux ERD executable and 1,200-table motion tour ran for 120 measured seconds per arm, with only the Vulkan DLL exchanged. The physical extent stayed at 1440×940 with MSAA 4 and the RTX 5070 Ti. Each process exited normally with 121 RSS samples. Active static buffer payload peaked at 883.73 → 718.91 MiB. Compiled layer indices peaked at 330.03 MiB in both runs. The last-30-sample RSS median was 1,236.42 → 1,238.71 MiB. These runs show a reduction in static GPU buffer payload while process RSS stayed in the same range. The sampled CPU and GPU records in `live-verification.json` are not a full presentation-interval distribution. [WSLg memory and module receipts](L:/Cache/Duxel/erd-static-ushort-20261122/live-verification.json)
 
 The Release solution built with zero warnings and errors. Windows verification passed 173 DirectText and static geometry checks, 335 Gallery checks, and four scrollbar checks covering the two SVG examples. The WSLg Gallery presented all 108 verification views, including the vector previews.
+
+## Gallery scroll hitch during render-loop recompilation
+
+The live Windows Gallery recorded a recurring pause near frame 4,930 of a new process. A .NET EventPipe trace places a 40.384 ms Tier 1 on-stack replacement of the render-thread loop inside a 40.462 ms gap between completion of one frame and the start of the next. The trace recorded no GC suspension in that interval. Keeping the loop small and calling a separate frame body avoids recompiling the full body on the render thread. The change leaves input collection, frame scheduling, rendering, and the optional render queue on their existing paths. [.NET 11 on-stack replacement](https://devblogs.microsoft.com/dotnet/performance-improvements-in-net-11/)
+
+The replay used the actual Gallery window, RTX 5070 Ti Laptop GPU, SDK 11.0.100, .NET 11.0.0, MSAA 4, V-Sync off, and continuous rendering. It opened the SVG Arcs and curves tab, verified 141% SVG zoom, posted the same Win32 wheel input, and dragged the SVG zoom slider from the lower position to 262% and back to 139%. Each arm ran in three fresh processes with alternating order. The replay used the same executable, assets, instrumentation, and runtime, with only the App module exchanged. Its first scroll moved the document from 0% to 37.96% in every run. Captured intervals measure the time between completions of accepted Vulkan submissions that presented a new image.
+
+| Phase | Longest interval in each run before | Longest interval in each run after |
+| --- | ---: | ---: |
+| First scroll | 11.91–12.44 ms | 3.45–13.81 ms |
+| Repeated wheel scrolling | 41.52–49.22 ms | 12.12–12.42 ms |
+| SVG zoom slider | 12.07–12.25 ms | 12.21–12.40 ms |
+| Programmatic window width changes | 19.35–24.32 ms | 15.84–21.27 ms |
+| Width changes bracketed by Win32 sizing messages | 11.93–12.14 ms | 12.83–15.06 ms |
+
+The median of the three worst repeated-wheel intervals fell from 49.03 ms to 12.29 ms, a 74.9% decrease. The render loop recompile was an isolated hitch in each baseline run. The replay did not reproduce the reported 149 ms Gallery HUD sample. The width-change results vary by input path, and general resize work remains on hold. [Matched replay and trace correlation](L:/Cache/Duxel/svg-native-cadence-20261122/pair-verification.json) · [Runtime event trace](L:/Cache/Duxel/svg-native-cadence-20261122/run-17/runtime.tsv)
+
+The Release solution built without warnings or errors. Windows passed 335 Gallery checks, four SVG scrollbar checks, 76 app input checks, 32 scheduling checks, and 11 shutdown and failure checks. The WSLg Dozen Gallery presented all 108 verification views.
+
+A separate single pair used a copy of the local working source, with only the frame-loop change applied to the second build. The longest repeated-wheel presentation interval was 42.27 → 12.42 ms in that pair.

@@ -411,17 +411,22 @@ public sealed partial class DuxelAppSession
                         platformEventWake?.WakeEvents();
                     })
                     : null;
-                while (!Volatile.Read(ref stopRequested) && !IsExitRequested)
+                // Keep the loop small so an on-stack JIT recompile doesn't interrupt a frame to compile the entire frame body.
+                while (!Volatile.Read(ref stopRequested) && !IsExitRequested && RenderNextFrame())
+                {
+                }
+
+                bool RenderNextFrame()
                 {
                     // Admit before sampling input/building UI, so the producer does
                     // not build a third stale CPU frame behind active and queued work.
                     renderQueue?.WaitForCapacity();
                     if (Volatile.Read(ref stopRequested))
-                        break;
+                        return false;
                     if (IsExitRequested)
                     {
                         Volatile.Write(ref stopRequested, true);
-                        break;
+                        return false;
                     }
 
                     InputSnapshot snapshot;
@@ -441,7 +446,7 @@ public sealed partial class DuxelAppSession
                     if (!snapshotReady)
                     {
                         Thread.Yield();
-                        continue;
+                        return true;
                     }
 
                     var isInteractingResize = platform.IsInteractingResize;
@@ -469,7 +474,7 @@ public sealed partial class DuxelAppSession
                     if (platform.ShouldClose || Volatile.Read(ref stopRequested) || IsExitRequested)
                     {
                         Volatile.Write(ref stopRequested, true);
-                        break;
+                        return false;
                     }
                     if (windowSize.Width <= 0 || windowSize.Height <= 0 || framebufferSize.Width <= 0 || framebufferSize.Height <= 0)
                     {
@@ -477,7 +482,7 @@ public sealed partial class DuxelAppSession
                         Volatile.Write(ref renderThreadWaiting, 1);
                         WaitForRenderWork();
                         Volatile.Write(ref renderThreadWaiting, 0);
-                        continue;
+                        return true;
                     }
 
                     var hasInputInvalidation = AppInputSnapshots.HasInputDrivenInvalidation(snapshot, lastObservedInput);
@@ -520,7 +525,7 @@ public sealed partial class DuxelAppSession
                                 {
                                     Volatile.Write(ref renderThreadWaiting, 1);
                                     WaitForRenderWork(sleepMs);
-                                    continue;
+                                    return true;
                                 }
                             }
                         }
@@ -771,7 +776,7 @@ public sealed partial class DuxelAppSession
                     if (platform.ShouldClose || Volatile.Read(ref stopRequested) || IsExitRequested)
                     {
                         Volatile.Write(ref stopRequested, true);
-                        break;
+                        return false;
                     }
 
                     var drawData = uiContext.GetDrawData();
@@ -814,6 +819,7 @@ public sealed partial class DuxelAppSession
                         pendingGlyphs += missingGlyphsFromRender;
                         pendingGlyphs = Math.Max(pendingGlyphs, frameOptions.FontRebuildBatchSize);
                     }
+                    return true;
                 }
             }
             catch (Exception ex) when ((Volatile.Read(ref stopRequested) || platform.ShouldClose) && DuxelApp.IsShutdownTimeVulkanException(ex))
