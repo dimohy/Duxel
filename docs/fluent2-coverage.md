@@ -106,7 +106,7 @@ After warmup, the .NET10 construction-only check allocated 131,072B for 1,024 ol
 
 ## Remaining completion criteria
 
-The full official component/subcomponent/state mapping and denominator, all component implementations and generated inheritance bindings, complete nonstandard exclusion, and matching reference visuals, input, accessibility and motion remain required. Original common CPU/GPU, Private memory, damage tracking, same-condition performance, Linux/ARM64 and Pi verification also remain active. Sources, plans and logs are under `artifacts/fluent-components-2026-11-05/`.
+The project still needs a complete inventory of official components, parts, and states. It also needs to verify the implementations, generated inheritance bindings, separation of nonstandard components, visuals, input, accessibility, and motion. Current engine acceptance covers Linux x64 and includes CPU and GPU costs, private memory, damage tracking, and equivalent-condition performance comparisons. Earlier ARM64 and Raspberry Pi results are preserved as historical evidence. Sources, plans, and logs are under `artifacts/fluent-components-2026-11-05/`.
 
 
 ## Badge/CounterBadge follow-up
