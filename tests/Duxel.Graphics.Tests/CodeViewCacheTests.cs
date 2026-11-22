@@ -241,9 +241,15 @@ internal static class CodeViewCacheTests
 
     internal static void VerifyParagraphCacheAge(Action<bool, string> check)
     {
+        VerifyCodeTextureAge(check, lineNumbers: false);
+        VerifyCodeTextureAge(check, lineNumbers: true);
+    }
+
+    private static void VerifyCodeTextureAge(Action<bool, string> check, bool lineNumbers)
+    {
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
         using var code = new UiCodeView("var value = \"한글 and English\"; // comment",
-            new(ShowToolbar: false, LineNumbers: false));
+            new(ShowToolbar: false, LineNumbers: lineNumbers));
         ControlFontFixture.Configure(context);
         var input = new UiInputState(default, false, false, false, false, false, false, 0, 0, [], [], default, default);
         var visible = true;
@@ -254,24 +260,26 @@ internal static class CodeViewCacheTests
                 code.Render(ui);
         });
 
-        check(CreatedTextures(), "first display uploads CodeView paragraph runs");
+        var subject = lineNumbers ? "paragraph runs and line numbers" : "paragraph runs";
+        check(UploadedTextures(), $"first display uploads CodeView {subject}");
         visible = false;
         for (var frame = 0; frame < 650; frame++)
-            CreatedTextures();
+            UploadedTextures();
         visible = true;
-        check(!CreatedTextures(), "returning to code after 650 fast frames reuses its textures");
+        check(!UploadedTextures(), $"returning after 650 fast frames reuses CodeView {subject}");
         visible = false;
-        CreatedTextures();
-        CreatedTextures(11);
+        UploadedTextures();
+        UploadedTextures(11);
         visible = true;
-        check(CreatedTextures(), "returning to code after a longer elapsed interval recreates expired textures");
+        check(UploadedTextures(), $"returning after a longer elapsed interval uploads expired CodeView {subject}");
 
-        bool CreatedTextures(float deltaTime = .001f)
+        bool UploadedTextures(float deltaTime = .001f)
         {
             context.NewFrame(new(deltaTime, new(640, 480), new(1, 1)), input, new(0, 0, 640, 480), UiTextSettings.Default);
             context.Render(screen);
             using var draw = context.GetDrawData();
-            return draw.TextureUpdates.Any(update => update.Kind == UiTextureUpdateKind.Create);
+            return draw.TextureUpdates.Any(update => !update.RgbaPixels.IsEmpty
+                && update.Kind is UiTextureUpdateKind.Create or UiTextureUpdateKind.Update);
         }
     }
 

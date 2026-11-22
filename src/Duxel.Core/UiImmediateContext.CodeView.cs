@@ -152,7 +152,11 @@ public sealed partial class UiImmediateContext
                 context.Frame(bounds, palette.Background, context.Theme.ForcedColors?.CanvasText ?? context.Theme.Separator, 6, 1);
                 PaintMultilineInput(layout, edit, new(palette.Text, context.Theme.InputSelectionBg, palette.Text) { Typography = true });
                 if (code.Options.LineNumbers)
-                    PaintCodeLineNumbers(code, context, gutter, bounds, clipBounds, area, edit.ScrollY);
+                {
+                    _retainCodeLineNumbers = true;
+                    try { PaintCodeLineNumbers(code, context, gutter, bounds, clipBounds, area, edit.ScrollY); }
+                    finally { _retainCodeLineNumbers = false; }
+                }
             }
             else if (edit.AccessibilityText is { } info)
             {

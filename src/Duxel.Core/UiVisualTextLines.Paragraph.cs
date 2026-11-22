@@ -386,7 +386,8 @@ public sealed partial class UiImmediateContext
                 || !float.IsFinite(origin.X) || !float.IsFinite(origin.Y))
                 throw new InvalidOperationException("Paragraph paint returned invalid raster bounds or storage.");
             var entry = new DirectTextCacheEntry(null, width, height, 0, -origin.Y, 0, _state.FrameCount,
-                pixels, PixelOwner: pixelOwner, OriginX: origin.X, ParagraphOrigin: referenceOrigin, TextureFormat: format);
+                pixels, PixelOwner: pixelOwner, OriginX: origin.X, ParagraphOrigin: referenceOrigin, TextureFormat: format,
+                KeepAliveUntilSeconds: _state.TimeSeconds + DirectTextDocumentMaxIdleSeconds);
             StoreDirectTextEntry(key, entry);
             transferred = true;
             return entry;
@@ -400,7 +401,7 @@ public sealed partial class UiImmediateContext
 
     private DirectTextCacheEntry UseParagraphRaster(in DirectTextCacheKey key, DirectTextCacheEntry entry)
     {
-        entry = entry with { LastUsedFrame = _state.FrameCount, ParagraphLastUsedSeconds = _state.TimeSeconds };
+        entry = TouchDirectTextEntry(entry);
         StoreDirectTextEntry(key, entry);
         _directTextPaintedKeys.Add(key);
         return EnsureDirectTextTexture(key, entry);

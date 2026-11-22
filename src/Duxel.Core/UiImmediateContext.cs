@@ -90,7 +90,8 @@ public sealed partial class UiImmediateContext
     // The byte budget counts RGBA payload of idle dedicated textures.
     private const long DirectTextCacheMaxIdleTextureBytes = 16 * 1024 * 1024;
     private const int DirectTextCacheMaxIdleFrames = 600;
-    private const double DirectTextParagraphRunMaxIdleSeconds = 10;
+    private const double DirectTextDocumentMaxIdleSeconds = 10;
+    private bool _retainCodeLineNumbers;
     private const int ShortDirectTextCacheMaxIdleFrames = 24;
     private bool _useShortDirectTextCache;
     private const int DirectTextAtlasPageSize = 1024;
@@ -230,7 +231,7 @@ public sealed partial class UiImmediateContext
         UiVector2 ParagraphOrigin = default,
         PlatformShapedGlyphRun? ShapedGlyphs = null,
         UiTextureFormat TextureFormat = UiTextureFormat.Rgba8Unorm,
-        double ParagraphLastUsedSeconds = 0);
+        double KeepAliveUntilSeconds = 0);
     private readonly record struct UiWindowCanvasState(UiDrawListBuilder DrawList, UiVector2 Origin, UiRect Rect, bool HasClipRect);
     private readonly record struct StyleColorEntry(UiStyleColor Color, UiColor Previous);
     private readonly record struct StyleVarEntry(UiStyleVar Var, float PrevX, float PrevY, bool IsVector);
@@ -927,8 +928,8 @@ public sealed partial class UiImmediateContext
         }
 
         // A fast render loop should not evict recently viewed source lines in less than a second.
-        bool IsStale(in DirectTextCacheKey key, in DirectTextCacheEntry entry) => key.ParagraphRun is not null
-            ? currentTime - entry.ParagraphLastUsedSeconds > DirectTextParagraphRunMaxIdleSeconds
+        bool IsStale(in DirectTextCacheKey key, in DirectTextCacheEntry entry) => entry.KeepAliveUntilSeconds > 0
+            ? currentTime > entry.KeepAliveUntilSeconds
             : currentFrame - entry.LastUsedFrame > key.MaxIdleFrames;
 
         var entryLimit = DirectTextCacheMaxEntriesWithParagraphs;
@@ -1280,10 +1281,7 @@ public sealed partial class UiImmediateContext
             ref var lastCachedEntry = ref CollectionsMarshal.GetValueRefOrNullRef(_directTextCache, key);
             if (!Unsafe.IsNullRef(ref lastCachedEntry))
             {
-                lastCachedEntry = lastCachedEntry with
-                {
-                    LastUsedFrame = _state.FrameCount
-                };
+                lastCachedEntry = TouchDirectTextEntry(lastCachedEntry);
                 entry = lastCachedEntry;
                 _lastDirectTextCacheEntry = entry;
                 return true;
@@ -1295,10 +1293,7 @@ public sealed partial class UiImmediateContext
         ref var cachedEntry = ref CollectionsMarshal.GetValueRefOrNullRef(_directTextCache, key);
         if (!Unsafe.IsNullRef(ref cachedEntry))
         {
-            cachedEntry = cachedEntry with
-            {
-                LastUsedFrame = _state.FrameCount
-            };
+            cachedEntry = TouchDirectTextEntry(cachedEntry);
             entry = cachedEntry;
             _lastDirectTextCacheKey = key;
             _lastDirectTextCacheEntry = entry;
@@ -1527,6 +1522,8 @@ public sealed partial class UiImmediateContext
 
         if (entry.TextureId is { } texId && entry.Width > 0 && entry.Height > 0)
         {
+            if (_retainCodeLineNumbers && !renderKey.ShortLived && entry.KeepAliveUntilSeconds == 0)
+                StoreDirectTextEntry(renderKey, entry with { KeepAliveUntilSeconds = _state.TimeSeconds + DirectTextDocumentMaxIdleSeconds });
             _directTextPaintedKeys.Add(renderKey);
             drawList.AddTextImage(
                 texId,
@@ -1540,6 +1537,13 @@ public sealed partial class UiImmediateContext
 
         return true;
     }
+
+    private DirectTextCacheEntry TouchDirectTextEntry(in DirectTextCacheEntry entry) => entry with
+    {
+        LastUsedFrame = _state.FrameCount,
+        KeepAliveUntilSeconds = entry.KeepAliveUntilSeconds > 0
+            ? _state.TimeSeconds + DirectTextDocumentMaxIdleSeconds : 0
+    };
 
     private DirectTextCacheKey CreateDirectTextCacheKey(string text, float fontSize) =>
         new(_directTextPrimaryFontPath!, _directTextSecondaryFontPath, text, fontSize, _directTextBackendGeneration);

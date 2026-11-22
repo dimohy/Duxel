@@ -436,3 +436,21 @@ In three alternating .NET 11.0.0 Linux x64 NativeAOT runs per version using SDK 
 The same motion tour ran once per version for 180 measured seconds, with the changed version first. Last-30-second median RSS was 1,182.70 → 1,176.23 MiB. The increase from the first to the last 30-second medians was 14.34 → 14.71 MiB. The lower absolute RSS appeared in this pair and the short-run peak samples. A reduction in ongoing RSS growth remains unverified. [180-second comparison](../artifacts/erd-static-bindings-20261122/long-comparison.json)
 
 The Windows Release solution built without warnings. With the measurement counters removed, Windows .NET 11.0.0 passed 3,858 presentation-reuse and buffer-lifetime checks at each of one and three frame slots. Gallery acknowledged 108 Vulkan presentations on Windows and 108 on the WSLg Linux x64 NativeAOT build. [Windows lifetime checks](../artifacts/erd-static-bindings-20261122/final-net11-presentation-reuse-3/result.json) · [Linux Gallery](../artifacts/erd-static-bindings-20261122/linux-gallery-product/captures/result.json)
+
+## CodeView line number texture lifetime
+
+CodeView line numbers now use the existing ten-second document text idle window after painting. The shared DirectText cache refreshes that deadline on subsequent use and keeps its entry and texture limits. This addresses the short wall-clock lifetime of the 600-frame rule when Gallery composes thousands of frames per second.
+
+Three fresh Windows Gallery processes per version alternated with only the Core DLL exchanged. The replay used SDK 11.0.100, runtime 11.0.0, Vulkan 1483 × 720, no V-Sync, and 141% SVG zoom. Each process traversed the SVG arc document down, up, and down again with 129 offset-changing submissions per phase. Line number coverage bytes fell from 56,232 to 0 on the return to the top and 64,548 to 0 on the second descent in all three pairs. The first descent still requested 2,620,936 bytes for the code body in both versions.
+
+| Second-descent CPU measure | Before | After |
+| --- | ---: | ---: |
+| Median frame time | 1.497 ms | 1.434 ms |
+| p95 frame time | 3.055 ms | 2.834 ms |
+| p99 frame time | 3.593 ms | 3.305 ms |
+| Average frame-rate equivalent | 548.28/s | 597.64/s |
+| Slowest 1% frame-rate equivalent | 268.23/s | 281.97/s |
+
+Independent p95 ranges overlap. The rates above describe sampled CPU frame work. The replay has no visual display latency measurement, and it did not reproduce the reported 6.7 FPS interval. The entry and texture budgets limit retained text. The change can keep part of that budget occupied longer. [Replay comparison](../artifacts/codeview-gutter-retention-20261122/product-comparison.json)
+
+Release solution build, six CodeView lifetime checks, and 178 DirectText checks passed. The previous version reproduced the re-upload after 650 fast frames with line numbers enabled. The changed version reused the pixels and expired them after 11 elapsed seconds. Four fixed-size Gallery scroll captures matched byte for byte. Windows and WSLg Linux x64 NativeAOT each verified 108 Gallery Vulkan presentations. [Cache expiry logs](../artifacts/codeview-gutter-retention-20261122/age-candidate.log) · [Pixel hashes](../artifacts/codeview-gutter-retention-20261122/fixed-pixel-comparison.json) · [Windows Gallery](../artifacts/codeview-gutter-retention-20261122/windows-gallery/captures/result.json) · [WSLg Gallery](../artifacts/codeview-gutter-retention-20261122/linux-gallery/captures/result.json)
