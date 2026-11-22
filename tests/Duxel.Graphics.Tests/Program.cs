@@ -2041,7 +2041,7 @@ if (args.Length >= 2 && args[1] == "paint-group")
         renderer.SetMsaaSamples(samples);
         PaintGroupRenderingTests.Run(context, (name, draw) => Capture($"msaa{samples}-group-{name}", draw),
             Check, Build, renderer.RenderAndReadback, renderer.TryRenderDrawData, () => renderer.ValidationPaintGeometryEntries, size.Width, white,
-            () => renderer.LastFrameMetrics, renderer.ValidationSwapchainImageCount, renderer.ValidationPaintTargetHandles, dualSourceBlend: renderer.ValidationDualSourceBlend);
+            () => renderer.LastFrameMetrics, renderer.ValidationSwapchainImageCount, renderer.ValidationPaintTargetGenerations, dualSourceBlend: renderer.ValidationDualSourceBlend);
     }
     File.WriteAllText(Path.Combine(output, "result.json"), JsonSerializer.Serialize(new GraphicsResult(
         RuntimeInformation.FrameworkDescription, "paint-group", checks.Count, checks.ToArray(), 0, 0, 0, 0), GraphicsJson.Default.GraphicsResult));

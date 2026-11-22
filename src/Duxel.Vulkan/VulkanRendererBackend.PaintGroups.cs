@@ -12,7 +12,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private ulong _paintTextureRevision;
     private int _framePaintGroupPasses, _framePaintGroupDrawCalls, _framePaintGroupCacheHits;
 
-    private sealed class PaintGroupEntry(UiTextureId black, UiTextureId white, UiPaintGroupLease lease)
+    private sealed partial class PaintGroupEntry(UiTextureId black, UiTextureId white, UiPaintGroupLease lease)
     {
         internal readonly UiTextureId Black = black, White = white;
         internal UiPaintGroupLease Lease = lease;
@@ -261,6 +261,9 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
+    partial void OnPaintGroupMatteCreated(PaintGroupEntry entry, UiTextureId id);
+    partial void OnPaintGroupMsaaCreated(PaintGroupEntry entry);
+
     private void EnsurePaintGroupTargets(PaintGroupEntry entry)
     {
         var content = entry.Lease.Content;
@@ -284,6 +287,7 @@ public sealed unsafe partial class VulkanRendererBackend
             var slot = AllocateBindlessTextureSlot(view, false);
             _textures.Add(id, new(image, memory, view, slot, content.PixelWidth, content.PixelHeight, _swapchainFormat,
                 allocationBytes: allocationBytes));
+            OnPaintGroupMatteCreated(entry, id);
         }
         if (_msaaSampleCount != SampleCountFlags.Count1Bit && entry.Msaa.Handle == 0)
         {
@@ -291,6 +295,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 ImageUsageFlags.TransientAttachmentBit | ImageUsageFlags.ColorAttachmentBit,
                 MemoryPropertyFlags.DeviceLocalBit, out entry.Msaa, out entry.MsaaMemory, _msaaSampleCount);
             entry.MsaaView = CreateImageView(entry.Msaa, _swapchainFormat);
+            OnPaintGroupMsaaCreated(entry);
         }
         entry.Format = _swapchainFormat;
         entry.Samples = _msaaSampleCount;

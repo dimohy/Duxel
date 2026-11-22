@@ -427,7 +427,7 @@ internal static class PresentationReuseTests
                     }, Check, fixture.Build, fixture.Render, fixture.RenderSubmit,
                         () => fixture.Renderer.ValidationPaintGeometryEntries, (int)fixture.FrameInfo.DisplaySize.X, new(2),
                         () => fixture.Renderer.LastFrameMetrics, fixture.Renderer.ValidationSwapchainImageCount,
-                        fixture.Renderer.ValidationPaintTargetHandles,
+                        fixture.Renderer.ValidationPaintTargetGenerations,
                         forceFullReference: !compare);
                     Check(fixture.Renderer.ValidationDamageOwnershipIsConsistent(), "paint-group lifetime preserves snapshot reader ownership");
                 }

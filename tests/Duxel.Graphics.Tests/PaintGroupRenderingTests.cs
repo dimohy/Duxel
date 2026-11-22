@@ -4,7 +4,7 @@ internal static class PaintGroupRenderingTests
 {
     internal static void Run(UiContext context, Func<string, Action<UiImmediateContext>, byte[]> capture,
         Action<bool, string> check, Func<Action<UiImmediateContext>, UiDrawData> build, Func<UiDrawData, byte[]> render, Func<UiDrawData, bool> submit, Func<int> geometryEntries, int stride, UiTextureId white, Func<UiRendererFrameMetrics> metrics, int imageCount,
-        Func<UiTextureId, (ulong Black, ulong White, ulong Msaa)> targetHandles, bool forceFullReference = false, bool dualSourceBlend = true)
+        Func<UiTextureId, (ulong Black, ulong White, ulong Msaa)> targetGenerations, bool forceFullReference = false, bool dualSourceBlend = true)
     {
         var black = new UiTextureId(91001);
         var whiteOutput = new UiTextureId(91002);
@@ -259,7 +259,7 @@ internal static class PaintGroupRenderingTests
             using var submitted = build(Asynchronous);
             asynchronousTexture = submitted.TextureUpdates.Single(update => update.Kind == UiTextureUpdateKind.RenderPaintGroup).TextureId;
             check(submit(submitted), "GPU paint replacement submits through the ordinary path without per-frame readback : " + frame);
-            var targets = targetHandles(asynchronousTexture);
+            var targets = targetGenerations(asynchronousTexture);
             if (frame == 0)
                 originalTargets = targets;
             else
@@ -275,9 +275,10 @@ internal static class PaintGroupRenderingTests
         asynchronousBounds = asynchronousBounds with { Width = 48 };
         asynchronousVersion++;
         var differentExtent = capture("asynchronous-new-extent", Asynchronous);
-        var newTargets = targetHandles(asynchronousTexture);
-        check(newTargets.Black != originalTargets.Black && newTargets.White != originalTargets.White
-            && (originalTargets.Msaa == 0 || newTargets.Msaa != originalTargets.Msaa)
+        // A driver may reuse the same opaque image handle after destroying its previous object.
+        var newTargets = targetGenerations(asynchronousTexture);
+        check(newTargets.Black > originalTargets.Black && newTargets.White > originalTargets.White
+            && (originalTargets.Msaa == 0 ? newTargets.Msaa == 0 : newTargets.Msaa > originalTargets.Msaa)
             && differentExtent[At(140, 144) + 1] == 204,
             "GPU changed paint extent replaces attachments and fills the newly visible area");
         asynchronous.Dispose();

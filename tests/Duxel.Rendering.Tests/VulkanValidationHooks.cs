@@ -578,10 +578,29 @@ public sealed unsafe partial class VulkanRendererBackend
 
     internal int ValidationPaintGeometryEntries => _staticGeometryBuffers.Keys.Count(key => key.StartsWith("duxel.paint:", StringComparison.Ordinal));
 
-    internal (ulong Black, ulong White, ulong Msaa) ValidationPaintTargetHandles(UiTextureId black)
+    private ulong _validationPaintImageGeneration;
+
+    private sealed partial class PaintGroupEntry
+    {
+        internal ulong ValidationBlackGeneration, ValidationWhiteGeneration, ValidationMsaaGeneration;
+    }
+
+    partial void OnPaintGroupMatteCreated(PaintGroupEntry entry, UiTextureId id)
+    {
+        if (id == entry.Black)
+            entry.ValidationBlackGeneration = ++_validationPaintImageGeneration;
+        else
+            entry.ValidationWhiteGeneration = ++_validationPaintImageGeneration;
+    }
+
+    partial void OnPaintGroupMsaaCreated(PaintGroupEntry entry)
+        => entry.ValidationMsaaGeneration = ++_validationPaintImageGeneration;
+
+    internal (ulong Black, ulong White, ulong Msaa) ValidationPaintTargetGenerations(UiTextureId black)
     {
         var entry = _paintGroups[black];
-        return (_textures[black].Image.Handle, _textures[entry.White].Image.Handle, entry.Msaa.Handle);
+        return (entry.ValidationBlackGeneration, entry.ValidationWhiteGeneration,
+            entry.Msaa.Handle == 0 ? 0 : entry.ValidationMsaaGeneration);
     }
 
     internal byte[] RenderAndReadback(UiDrawData data)
