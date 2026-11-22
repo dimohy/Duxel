@@ -40,17 +40,20 @@ internal static unsafe partial class DirectWriteLongTextShaper
         var inlineObjects = new Dictionary<nint, InlineSpan>();
         nint format = 0, layout = 0;
         Callback* renderer = null;
+        var defaultSpan = spans[0];
         try
         {
             foreach (var span in spans)
                 if (!fonts.ContainsKey(span.Face))
                     fonts.Add(span.Face, new(factory, span.Face));
-            format = fonts[spans[0].Face].CreateFormat(spans[0].Size, rtl, wrapWidth.HasValue);
+            format = fonts[defaultSpan.Face].CreateFormat(defaultSpan.Size, rtl, wrapWidth.HasValue);
             fixed (char* source = text)
                 Check(((delegate* unmanaged[Stdcall]<nint, char*, uint, nint, float, float, nint*, int>)Method(factory, 18))
                     (factory, source, (uint)text.Length, format, wrapWidth ?? 4096, float.MaxValue, &layout), "CreateTextLayout");
-            if (spans.Length > 1)
-                foreach (var span in spans)
+            // The layout starts with the format's font on every range. Only
+            // typography overrides need setters; paint boundaries are applied below.
+            foreach (var span in spans)
+                if (span.Face != defaultSpan.Face || span.Size != defaultSpan.Size)
                     fonts[span.Face].Apply(layout, span);
             if (spans.Any(span => span.PaintStyle != 0))
                 foreach (var span in spans)

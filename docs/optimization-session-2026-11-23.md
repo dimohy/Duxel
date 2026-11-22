@@ -396,3 +396,25 @@ Across the first, return and repeat passes, 1,161 changed frames matched their V
 DirectWrite keeps positioned glyphs in text layouts. The cold count here points to new layouts, most of them unbounded, and makes the cost of the Windows paragraph backend the next measurement target. The renderer timestamps measure execution separately from CPU-side texture preparation. [DirectWrite layout reuse](https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-and-directwrite) · [Vulkan timestamp queries](https://docs.vulkan.org/samples/latest/samples/api/timestamp_queries/README.html)
 
 Build the diagnostic snapshot with `DuxelValidationHooks=true` and run `artifacts/codeview-live-stages-20261122/replay.ps1 -Runtime <diagnostic-gallery> -Output <run> -Mode Continuous`. The diagnostic patch, raw timing files and analysis are in `artifacts/codeview-first-presentation-20261123`. No product runtime code changed.
+
+### Skip redundant DirectWrite font settings
+
+The initial DirectWrite text format supplies the first span's face and size to the whole layout. Apply explicit font setters only to ranges with a different face or size. Drawing effects still mark every original paint range. The source text, layout width, rounding, caret and range queries, and glyph capture use the same code paths. [CreateTextLayout](https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nf-dwrite-idwritefactory-createtextlayout) · [SetDrawingEffect](https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nf-dwrite-idwritetextlayout-setdrawingeffect)
+
+On Windows managed .NET 11.0.0 with the RTX 5070 Ti Laptop GPU, six independent Gallery processes used one diagnostic executable. Three runs per variant alternated in pairs and replayed the same 444 native wheel messages after opening the SVG page and Arcs and curves tab. Cold navigation used a 1984 × 956 framebuffer and the scroll replay used a fixed 1483 × 720 framebuffer. Cold frame selection joined the first CodeView coverage request to its accepted app submission and Vulkan timestamp.
+
+| First Arcs and curves frame, medians | Before | After |
+| --- | ---: | ---: |
+| Windows paragraph preparation | 2.52 ms | 2.55 ms |
+| DirectWrite layout setup and glyph capture | 4.73 ms | 3.14 ms |
+| Caret, range and line geometry queries | 3.21 ms | 3.17 ms |
+| Managed glyph and paragraph output assembly | 1.07 ms | 1.06 ms |
+| Total Windows paragraph backend | 11.72 ms | 10.18 ms |
+| CodeView layout preparation | 17.38 ms | 15.76 ms |
+| App CPU frame | 58.22 ms | 56.48 ms |
+
+Layout setup and glyph capture decreased 33.7%, with all three candidate results below the baseline range. Total backend and app frame ranges overlap. First-scroll CPU p95 was 4.41 → 4.64 ms and repeat-scroll CPU p95 was 1.74 → 1.76 ms. The first-scroll Vulkan draw p95 was 0.066 ms in both variants. The replay verifies lower cost in the cold layout setup and capture stage. It leaves whole-app speedup, monitor scanout and long-run memory unverified.
+
+The diagnostic source patch, replay results and local analysis are under `artifacts/codeview-directwrite-stages-20261123`. To reproduce the comparison, use the existing `replay.ps1` in `artifacts/codeview-live-stages-20261122` against the diagnostic build with `DuxelValidationHooks=true`. Toggle `DUXEL_PROBE_SKIP_DEFAULT_FONT_SETTINGS` between 0 and 1 in the diagnostic build only.
+
+The clean product solution built in Release with zero warnings and errors. The baseline, diagnostic variant, and clean product passed 424 assertions each across native paragraph geometry, styled paragraph output, and CodeView line-layout caching. The diagnostic variants matched 201 CodeView scroll states and the final Vulkan capture matched byte for byte in all three builds. Windows managed Gallery and WSLg Dozen Linux x64 NativeAOT Gallery each acknowledged 108 presentation scenarios with the product change.
