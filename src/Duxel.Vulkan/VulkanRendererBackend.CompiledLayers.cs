@@ -511,7 +511,7 @@ public sealed unsafe partial class VulkanRendererBackend
         for (var member = 0; opaqueGroup && member < group.MemberCount; member++)
         {
             var list = data.DrawLists[start + member];
-            foreach (var command in list.Commands)
+            foreach (ref readonly var command in list.Commands.AsSpan())
             {
                 if (command.ElementCount != 0 && !HasOpaqueAnalyticMaterial(list, in command))
                 {
