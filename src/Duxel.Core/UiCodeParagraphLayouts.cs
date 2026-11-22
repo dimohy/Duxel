@@ -182,7 +182,7 @@ internal sealed class UiCodeParagraphLayouts
             }
             outputRuns.AddRange(line.PositionedRuns);
         }
-        return new(outputRuns.ToArray(), outputLines.ToArray(), carets, maximum, height);
+        return PlatformTextParagraphLayout.FromOwnedArrays(outputRuns.ToArray(), outputLines.ToArray(), carets, maximum, height);
     }
 
     // Keep the per-character loops at line scope. Accumulating all backedges
@@ -211,12 +211,7 @@ internal sealed class UiCodeParagraphLayouts
             var row = 0;
             while (row + 1 < rows.Length && first >= rows[row + 1].Start)
                 row++;
-            var shift = shifts[row];
-            var glyphs = run.Glyphs.ToArray();
-            for (var i = 0; i < glyphs.Length; i++)
-                glyphs[i] = glyphs[i] with { SourcePosition = line.Start + glyphs[i].SourcePosition, Y = glyphs[i].Y + shift };
-            positioned.Add(new(line.StyleMap[run.StyleIndex], run.FontPath, run.FontSize, run.BidiLevel,
-                run.Origin with { Y = run.Origin.Y + shift }, glyphs, run.RasterContext));
+            positioned.Add(run.Reposition(line.StyleMap[run.StyleIndex], line.Start, shifts[row]));
         }
         return positioned.ToArray();
     }

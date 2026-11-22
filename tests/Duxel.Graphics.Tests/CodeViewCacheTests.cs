@@ -140,6 +140,27 @@ internal static class CodeViewCacheTests
                     pair.First.StyleIndex == pair.Second.StyleIndex && pair.First.Origin == pair.Second.Origin
                     && pair.First.Glyphs.Span.SequenceEqual(pair.Second.Glyphs.Span)),
                 "shared native lines preserve source offsets, paint slots, glyph placement and caret geometry");
+
+            var firstRun = reused.Runs.Span[0];
+            var glyphs = firstRun.Glyphs.ToArray();
+            var runCopy = new PlatformTextParagraphRun(firstRun.StyleIndex, firstRun.FontPath, firstRun.FontSize,
+                firstRun.BidiLevel, firstRun.Origin, glyphs);
+            glyphs[0] = glyphs[0] with { SourcePosition = -1 };
+            check(runCopy.Glyphs.Span.SequenceEqual(firstRun.Glyphs.Span),
+                "public paragraph runs copy caller-owned glyphs");
+
+            var runs = reused.Runs.ToArray();
+            var lines = reused.Lines.ToArray();
+            var carets = reused.Carets.ToArray();
+            var layoutCopy = new PlatformTextParagraphLayout(runs, lines, carets, reused.Width, reused.Height);
+            runs[0] = null!;
+            lines[0] = default;
+            carets[0] = new(float.NaN, float.NaN);
+            check(layoutCopy.Runs.Span.SequenceEqual(reused.Runs.Span)
+                && layoutCopy.Lines.Span.SequenceEqual(reused.Lines.Span)
+                && layoutCopy.Carets.Span.SequenceEqual(reused.Carets.Span),
+                "public paragraph layouts copy caller-owned runs, lines and carets");
+
             second.Prepare(backend, source, styles, 200, false, key, cache);
             check(second.NativeBuilds == 1, "a new width shapes the shared wrapped line once");
             second.Prepare(backend, source, styles, 200, false, key with { BaseFontSize = 18 }, cache);

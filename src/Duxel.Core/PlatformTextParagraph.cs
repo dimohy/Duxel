@@ -156,6 +156,10 @@ public sealed class PlatformTextParagraphRun
 
     internal PlatformTextParagraphRun(int styleIndex, string fontPath, float fontSize, uint bidiLevel,
         UiVector2 origin, ReadOnlySpan<PlatformTextParagraphGlyph> glyphs, PlatformTextRunRasterContext? rasterContext)
+        : this(styleIndex, fontPath, fontSize, bidiLevel, origin, glyphs.ToArray(), rasterContext) { }
+
+    private PlatformTextParagraphRun(int styleIndex, string fontPath, float fontSize, uint bidiLevel,
+        UiVector2 origin, PlatformTextParagraphGlyph[] glyphs, PlatformTextRunRasterContext? rasterContext)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fontPath);
         if (styleIndex < 0 || !float.IsFinite(fontSize) || fontSize <= 0 || !float.IsFinite(origin.X) || !float.IsFinite(origin.Y))
@@ -170,7 +174,7 @@ public sealed class PlatformTextParagraphRun
         FontSize = fontSize;
         BidiLevel = bidiLevel;
         Origin = origin;
-        _glyphs = glyphs.ToArray();
+        _glyphs = glyphs;
         RasterContext = rasterContext;
         // Pixel content follows glyph geometry and subpixel phase, independently
         // of source/style indices and whole-pixel placement after paragraph reflow.
@@ -190,6 +194,18 @@ public sealed class PlatformTextParagraphRun
             hash.Add(glyph.Y - Origin.Y);
         }
         RasterHash = hash.ToHashCode();
+    }
+
+    internal PlatformTextParagraphRun Reposition(int styleIndex, int sourceOffset, float verticalOffset)
+    {
+        var glyphs = new PlatformTextParagraphGlyph[_glyphs.Length];
+        for (var i = 0; i < glyphs.Length; i++)
+        {
+            var glyph = _glyphs[i];
+            glyphs[i] = glyph with { SourcePosition = sourceOffset + glyph.SourcePosition, Y = glyph.Y + verticalOffset };
+        }
+        return new(styleIndex, FontPath, FontSize, BidiLevel, Origin with { Y = Origin.Y + verticalOffset },
+            glyphs, RasterContext);
     }
 }
 
@@ -235,8 +251,20 @@ public sealed class PlatformTextParagraphLayout
     public PlatformTextParagraphLayout(ReadOnlySpan<PlatformTextParagraphRun> runs,
         ReadOnlySpan<PlatformTextParagraphLine> lines, ReadOnlySpan<PlatformTextParagraphCaret> carets, float width, float height,
         ReadOnlySpan<PlatformTextParagraphObjectPlacement> objects)
+        : this(runs.ToArray(), lines.ToArray(), carets.ToArray(), width, height, objects.ToArray())
     {
-        if (lines.IsEmpty || carets.IsEmpty || !float.IsFinite(width) || width < 0 || !float.IsFinite(height) || height < 0)
+    }
+
+    // The caller transfers freshly assembled arrays and must not write to them again.
+    internal static PlatformTextParagraphLayout FromOwnedArrays(PlatformTextParagraphRun[] runs,
+        PlatformTextParagraphLine[] lines, PlatformTextParagraphCaret[] carets, float width, float height)
+        => new(runs, lines, carets, width, height, Array.Empty<PlatformTextParagraphObjectPlacement>());
+
+    private PlatformTextParagraphLayout(PlatformTextParagraphRun[] runs,
+        PlatformTextParagraphLine[] lines, PlatformTextParagraphCaret[] carets, float width, float height,
+        PlatformTextParagraphObjectPlacement[] objects)
+    {
+        if (lines.Length == 0 || carets.Length == 0 || !float.IsFinite(width) || width < 0 || !float.IsFinite(height) || height < 0)
             throw new ArgumentException("Paragraph output requires native lines, all source carets and finite dimensions.");
         var covered = 0;
         var bottom = 0f;
@@ -276,10 +304,10 @@ public sealed class PlatformTextParagraphLayout
                 throw new ArgumentException("Paragraph object allocations require ordered source positions and finite bounds.", nameof(objects));
             previousObject = item.Start;
         }
-        _objects = objects.ToArray();
-        _runs = runs.ToArray();
-        _lines = lines.ToArray();
-        _carets = carets.ToArray();
+        _objects = objects;
+        _runs = runs;
+        _lines = lines;
+        _carets = carets;
         Width = width;
         Height = height;
     }
