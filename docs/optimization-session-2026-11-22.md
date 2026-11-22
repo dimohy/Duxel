@@ -264,3 +264,27 @@ The indirect experiment used a packed index buffer with Vulkan multi-draw indire
 The matched WSLg Dozen replay used 1,200 ERD tables at 1440×940 and MSAA 4, with the RTX 5070 Ti and the same executable. Only the Vulkan module changed. Each run completed 120 measured seconds and 121 process samples. The compiled index payload peaked at 346,056,552 and 173,202,672 bytes. Median elapsed CPU-side frame samples were 8.569 and 8.337 ms, with p95 at 36.725 and 25.928 ms. GPU sample medians were 0.144 and 0.111 ms. Median process RSS over the final 30 seconds was 1,232.58 and 1,235.71 MiB. The measured reduction is in GPU index buffer payload. The app profiler samples a subset of frames. [WSLg matched replay](L:/Cache/Duxel/erd-compiled-u16-20261122/product-live-verification.json)
 
 The Windows Release solution built without warnings or errors. Windows passed 3,183 Rendering checks, 173 DirectText checks, 335 Gallery checks, and four SVG scrollbar checks. WSLg Dozen presented 108 Gallery verification views.
+
+## Faster retained geometry fingerprints on the first ERD view
+
+The Windows .NET thread trace ranked `UiDrawList.ComputeStaticGeometryStamp` first for exclusive stack samples during a launch and five-frame capture (21.29%). The first fitted frame in that trace spent 1,199.55 ms composing the UI and 524.59 ms submitting it. Core previously folded every byte of each vertex, index and primitive through a dependent FNV multiplication. It now hashes the four geometry streams with .NET's XXH3 implementation and feeds each stream's result into the next one. Stream lengths and order contribute to the fingerprint. Tests cover record layout, stable identity, and changes to all four streams. [Microsoft's XXH3 API](https://learn.microsoft.com/en-us/dotnet/api/system.io.hashing.xxhash3.hashtouint64) · [Windows thread trace](L:/Cache/Duxel/erd-first-fit-cpu-20261122/trace-1/fit.nettrace)
+
+The equality contract between retained CPU geometry and its Vulkan copy is unchanged. The hash value is a cache key for the current implementation. The build uses Microsoft's `System.IO.Hashing` package, with the package and xxHash attribution listed in the Core distribution notices.
+
+The Windows before/after ran three fresh processes per arm in alternating order on the RTX 5070 Ti Laptop GPU, using .NET 11.0.0, 1,200 tables, 1440×940 and MSAA 4. The replay used the same executable and swapped only the Core module. Each run replayed 219 fixed poses. Five rendered poses matched byte-for-byte across all six runs. Readback was outside the timed phases.
+
+| Windows metric | Before | After |
+| --- | ---: | ---: |
+| First fitted CPU-side frame | 1,696.56 ms | 1,276.79 ms |
+| First fitted UI composition | 1,176.69 ms | 747.45 ms |
+| First fitted GPU frame | 2.494 ms | 2.495 ms |
+| Fitted motion CPU median | 3.398 ms | 3.546 ms |
+| Continuous zoom CPU median | 1.710 ms | 1.663 ms |
+
+The first fitted CPU-side frame improved in each pair. Repeated motion and zoom show no consistent improvement. [Matched Windows replay](L:/Cache/Duxel/erd-first-fit-cpu-20261122/geometry-stamp-windows.json)
+
+The actual WSLg Dozen application ran the same 1,200-table motion tour for 120 measured seconds, with 121 memory samples per run. Only the Core module changed. In this single pair, the interval after synchronous atlas setup until the first scene presentation was 3,452.00 → 2,618.83 ms. Atlas setup itself took 1,640.91 → 722.01 ms, so it is reported separately. Sampled elapsed CPU-side frame medians were 8.162 and 8.456 ms. GPU sample medians were 0.110 and 0.111 ms, and each run advanced by 38,640 frame IDs in the measurement window. Process RSS over the final 30 seconds was 1,233.98 and 1,238.42 MiB at the median. Static and compiled Vulkan peak buffer payloads were equal. [WSLg startup markers](L:/Cache/Duxel/erd-first-fit-cpu-20261122/startup-wslg.json) · [WSLg sustained replay](L:/Cache/Duxel/erd-first-fit-cpu-20261122/product-live-verification.json)
+
+The Windows Release solution built with zero warnings and errors. Windows passed 3,183 Rendering checks, 176 DirectText and retained geometry checks, 335 Gallery checks, and four SVG scrollbar checks. The follow-up CPU trace shows glyph command merging as the most frequent caller stack for the sampled reference-copy helper. [Follow-up trace caller stacks](L:/Cache/Duxel/erd-first-fit-cpu-20261122/bulk-move-stacks.log)
+
+WSLg Dozen presented all 108 Gallery verification views.

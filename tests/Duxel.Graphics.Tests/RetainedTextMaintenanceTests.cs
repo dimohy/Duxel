@@ -10,6 +10,26 @@ internal static class RetainedTextMaintenanceTests
 {
     internal static void VerifyStaticMemoryPages(int frameSlots, Action<bool, string> check)
     {
+        var vertex = new UiDrawVertex(new(20, 30), new(.25f, .5f), new(0xFF102030));
+        var rect = new UiRectFilledPrimitive(new(20, 30, 4, 5), vertex.Color, 2, 1, new(0xFFFFFFFF));
+        var circle = new UiCircleFilledPrimitive(new(20, 30), 2, vertex.Color, 12);
+        static ulong Stamp(UiDrawVertex vertex, uint index, UiRectFilledPrimitive rect, UiCircleFilledPrimitive circle)
+            => UiDrawList.ComputeStaticGeometryStamp([vertex], [index], [rect], [circle]);
+        var stamp = Stamp(vertex, 0, rect, circle);
+        check(stamp != 0 && stamp == Stamp(vertex, 0, rect, circle),
+            "identical geometry receives the same nonzero stamp");
+        check(stamp != Stamp(vertex with { Position = new(30, 20) }, 0, rect, circle)
+            && stamp != Stamp(vertex with { UV = new(.5f, .25f) }, 0, rect, circle)
+            && stamp != Stamp(vertex with { Color = default }, 0, rect, circle)
+            && stamp != Stamp(vertex, 1, rect, circle)
+            && stamp != Stamp(vertex, 0, rect with { BorderColor = default }, circle)
+            && stamp != Stamp(vertex, 0, rect, circle with { Segments = 16 }),
+            "cached geometry stamps cover vertices, indices, rounded rectangles, and circles");
+        check(Marshal.SizeOf<UiDrawVertex>() == 20
+            && Marshal.SizeOf<UiRectFilledPrimitive>() == 32
+            && Marshal.SizeOf<UiCircleFilledPrimitive>() == 20,
+            "hashed geometry records contain only their packed 32-bit fields");
+
         uint[] indices = Enumerable.Range(0, 65).Select(i => i == 64 ? 65535u : (uint)(i * 977)).ToArray();
         var compact = Duxel.Vulkan.VulkanRendererBackend.ValidationStaticIndexStorage(indices, 65_536);
         check(compact.Type == Duxel.Vulkan.IndexType.Uint16 && compact.Bytes == 132

@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.IO.Hashing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Numerics;
@@ -2577,48 +2578,12 @@ public sealed partial record class UiDrawList(
         ReadOnlySpan<UiRectFilledPrimitive> rectFilledPrimitives,
         ReadOnlySpan<UiCircleFilledPrimitive> circleFilledPrimitives)
     {
-        var hash = HashStaticGeometryValue(14695981039346656037UL, (uint)vertices.Length);
-        hash = HashStaticGeometryValue(hash, (uint)indices.Length);
-        hash = HashStaticGeometryValue(hash, (uint)rectFilledPrimitives.Length);
-        hash = HashStaticGeometryValue(hash, (uint)circleFilledPrimitives.Length);
-
-        for (var i = 0; i < vertices.Length; i++)
-        {
-            ref readonly var vertex = ref vertices[i];
-            hash = HashStaticGeometryValue(hash, vertex.Position.X);
-            hash = HashStaticGeometryValue(hash, vertex.Position.Y);
-            hash = HashStaticGeometryValue(hash, vertex.UV.X);
-            hash = HashStaticGeometryValue(hash, vertex.UV.Y);
-            hash = HashStaticGeometryValue(hash, vertex.Color.Rgba);
-        }
-
-        for (var i = 0; i < indices.Length; i++)
-        {
-            hash = HashStaticGeometryValue(hash, indices[i]);
-        }
-
-        for (var i = 0; i < rectFilledPrimitives.Length; i++)
-        {
-            ref readonly var primitive = ref rectFilledPrimitives[i];
-            hash = HashStaticGeometryValue(hash, primitive.Rect.X);
-            hash = HashStaticGeometryValue(hash, primitive.Rect.Y);
-            hash = HashStaticGeometryValue(hash, primitive.Rect.Width);
-            hash = HashStaticGeometryValue(hash, primitive.Rect.Height);
-            hash = HashStaticGeometryValue(hash, primitive.Color.Rgba);
-            hash = HashStaticGeometryValue(hash, primitive.CornerRadius);
-            hash = HashStaticGeometryValue(hash, primitive.BorderThickness);
-            hash = HashStaticGeometryValue(hash, primitive.BorderColor.Rgba);
-        }
-
-        for (var i = 0; i < circleFilledPrimitives.Length; i++)
-        {
-            ref readonly var primitive = ref circleFilledPrimitives[i];
-            hash = HashStaticGeometryValue(hash, primitive.Center.X);
-            hash = HashStaticGeometryValue(hash, primitive.Center.Y);
-            hash = HashStaticGeometryValue(hash, primitive.Radius);
-            hash = HashStaticGeometryValue(hash, primitive.Color.Rgba);
-            hash = HashStaticGeometryValue(hash, (uint)primitive.Segments);
-        }
+        // These geometry structs are packed sequences of 32-bit fields. Hash
+        // each stream in order, including its length through the span hash.
+        var hash = XxHash3.HashToUInt64(MemoryMarshal.AsBytes(vertices));
+        hash = XxHash3.HashToUInt64(MemoryMarshal.AsBytes(indices), unchecked((long)hash));
+        hash = XxHash3.HashToUInt64(MemoryMarshal.AsBytes(rectFilledPrimitives), unchecked((long)hash));
+        hash = XxHash3.HashToUInt64(MemoryMarshal.AsBytes(circleFilledPrimitives), unchecked((long)hash));
 
         return hash is 0 ? 1UL : hash;
     }
