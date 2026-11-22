@@ -121,6 +121,29 @@ internal static class LinuxParagraphTests
             independent.TryLayout(new(fonts[0], fonts[2], "abc אב 123", 14), out _);
         Check(backend.TryLayout(new(fonts[0], fonts[2], "abc אב 123", 14), out var afterDisposal) && afterDisposal.Advance > 0,
             "Disposing an independent font map does not invalidate another backend");
+        const string measuredSource = "A정 AV 123";
+        backend.TryLayout(new(fonts[0], fonts[2], measuredSource, 14), out var measured);
+        for (var size = 40; size < 80; size++)
+            backend.TryGetFontMetrics(fonts[0], size, out _);
+        backend.TryRasterize(new(fonts[0], fonts[2], measuredSource, 14), out var measuredThenEvicted);
+        using (var independent = new LinuxPlatformTextBackend())
+        {
+            independent.TryRasterize(new(fonts[0], fonts[2], measuredSource, 14), out var direct);
+            try
+            {
+                Check(measured.Width == measuredThenEvicted.Width && measured.Height == measuredThenEvicted.Height
+                    && measured.Baseline == measuredThenEvicted.Baseline && measured.Advance == measuredThenEvicted.Advance
+                    && measured.OriginX == measuredThenEvicted.OriginX && measured.FontAscent == measuredThenEvicted.FontAscent
+                    && measuredThenEvicted.RgbaPixels.Span.SequenceEqual(direct.RgbaPixels.Span),
+                    "Measurement followed by font eviction retains exact metrics and drawing");
+            }
+            finally
+            {
+                direct.PixelOwner?.Dispose();
+                measuredThenEvicted.PixelOwner?.Dispose();
+            }
+        }
+
         var rejectsUnknown = false;
         try
         {

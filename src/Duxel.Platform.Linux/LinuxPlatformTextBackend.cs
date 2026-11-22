@@ -86,6 +86,9 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBacke
         lock (_sync)
         {
             var run = Layout(request);
+            _lastMeasured = request.Text.Length <= 256 && Path.IsPathFullyQualified(request.FontPath)
+                && (request.SecondaryFontPath is null || Path.IsPathFullyQualified(request.SecondaryFontPath))
+                ? (request, run) : null;
             result = run.Metrics;
             return true;
         }
@@ -95,7 +98,11 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBacke
     {
         lock (_sync)
         {
-            var run = Layout(new(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize));
+            var key = new PlatformTextMeasureRequest(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize);
+            var measured = _lastMeasured;
+            _lastMeasured = null;
+            var run = measured is { } previous && previous.Key == key && HasLiveFonts(previous.Layout)
+                ? previous.Layout : Layout(key);
             var metrics = run.Metrics;
             var rgba = Rasterize(run.Runs, metrics.Width, metrics.Height, metrics.OriginX, -metrics.Baseline,
                 expandToRgba: true);
@@ -105,6 +112,18 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBacke
             };
             return true;
         }
+    }
+
+    // Keep a single short measurement for the immediately following paint.
+    // Font eviction may occur between the two calls, even with the same request.
+    private (PlatformTextMeasureRequest Key, TextLayout Layout)? _lastMeasured;
+
+    private static bool HasLiveFonts(TextLayout layout)
+    {
+        foreach (var run in layout.Runs)
+            if (run.Font.Scaled == 0)
+                return false;
+        return true;
     }
 
     private sealed record Run(LinuxFontResource Font, Glyph[] Glyphs);
@@ -300,6 +319,7 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBacke
             if (_disposed)
                 return;
             _disposed = true;
+            _lastMeasured = null;
             foreach (var fonts in _paragraphFonts.Values)
                 fonts.Dispose();
             _paragraphFonts.Clear();
