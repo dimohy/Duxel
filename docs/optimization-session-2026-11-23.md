@@ -219,3 +219,23 @@ The 300–800 px slider could emit 499 decorative rectangles at each traversal. 
 | Submission interval 1% low FPS | 63.05 | 91.75 |
 
 The observed median submission p99 fell 31.3%, with overlapping per-run ranges and too few burst frames per run for a robust tail speedup estimate. The reported severe stutter did not reproduce in the control. In event-driven mode the width reached 775 px, returned to 385 px, and the example code showed 385 px after release. Gallery verified 108 presentation scenarios. The local command was `replay.ps1 -Runtime <gallery-runtime> -Output <run> -DesktopSlider` with the fixture and raw results in `artifacts/messagebar-width-ticks-20261123`. This comparison does not measure monitor scanout or GPU execution time.
+
+### Constant UV in resident ERD vertex streams
+
+The ERD upload trace found identical UV pairs within each of 1,200 static vertex streams. An isolated Vulkan prototype stores a pair once per stream and packs each vertex into 12 bytes of position and color. It selects the layout through an unused address bit and removes that bit before the shader dereferences the aligned address. Streams with varying UVs and expanded primitive triangles retain the 20-byte layout. All six temporary vertex entry points compiled and passed Vulkan 1.2 SPIR-V validation. [Vulkan buffer device address alignment](https://docs.vulkan.org/guide/latest/buffer_device_address_alignment.html)
+
+The same Linux x64 NativeAOT .NET 11.0.0 executable showed the 1,200-table window on WSLg Dozen with an RTX 5070 Ti Laptop GPU, 1440×940 and 4× MSAA. Three processes per format ran in alternating pairs using the same device, fonts and motion tour. Both formats used the experimental shader. The Linux SDK was 11.0.100.
+
+| First frame, median of three processes | 20-byte vertices | Shared UV | Observed reduction |
+| --- | ---: | ---: | ---: |
+| Staging bytes | 758,308,276 | 526,130,836 | 30.62% |
+| Upload submissions | 200 | 132 | 34.00% |
+| Buffer copies | 3,608 | 3,608 | 0% |
+| Host upload call | 432.75 ms | 410.48 ms | 5.15% |
+| Renderer CPU | 886.38 ms | 885.55 ms | 0.09% |
+| App CPU | 1,522.25 ms | 1,398.08 ms | 8.16% |
+| GPU draw | 7.65 ms | 7.12 ms | 7.03% |
+
+The host timing ranges overlap. The whole GPU measurement isolates the draw submission, while the upload timings measure host calls. For moving 8-second runs after frame 96, the joined whole-frame GPU p95 median was 0.67→0.75 ms with overlapping ranges. A separate 219-step replay compared identical camera and table states for both formats and a control repeat. The fixed-fit GPU median was 7.73 ms in the control, 7.44 ms with shared UV, and 8.09 ms in the control repeat. Three of six screen captures matched exactly. The rest differed by at most one channel level on 5–55 pixels, and the control repeat showed up to 57 such pixels. Three visible captures of a texture layer switching between varying UV, shared UV and varying UV again matched exactly across the cropped 64×64 region. The middle update used 24 fewer staging bytes for its four vertices.
+
+The format stays in the prototype pending a direct comparison with the unmodified shader, Windows RGB subpixel output, and long-run memory. The live command is `wsl bash /mnt/w/MyWorks/Duxel/artifacts/erd-constant-uv-20261123/run.sh` from a fresh isolated build. Logs, input hashes, fixed-pose captures and validation results are in `artifacts/erd-constant-uv-20261123`.
