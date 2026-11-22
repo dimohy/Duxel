@@ -264,3 +264,27 @@ The same instrumented Linux executable ran the original format and the shared-UV
 A second prototype shares the attribute fetches and uses SPIR-V `OpSelect` for the UV word index. All six vertex entry points passed Vulkan 1.2 validation. Three real runs per mode presented the same 219-step replay for the original shader, the packed shader with a branch, and the packed shader using selection. At the fixed full view, median per-run GPU p95 was 8.15, 8.13 and 7.81 ms. Across the same 93 zoom poses it was 7.50, 7.13 and 6.95 ms. The original and the selection variant ranges did not overlap in either phase. Three of each run's six readbacks exercised a visible texture control and all texture crops matched exactly. Of 18 full-frame comparisons against the original reference process per mode, 12 original repeats, nine packed branch captures and eight selector captures matched exactly. The maximum channel delta was one in each mode. The two additional Windows selector captures matched the original at 1× and 4× MSAA, including the 4,401 ClearType text pixels.
 
 With the same live executable and nine new independent processes, the selection variant with shared UV reduced the first renderer CPU median from 899.49 to 831.97 ms (7.5%) and the host upload call from 442.52 to 382.06 ms (13.7%). Those ranges did not overlap. The first app CPU range overlapped and the transfer reduction stayed at 30.62%. After frame 96, the live motion GPU p95 median was 0.67, 0.71 and 0.78 ms for original, normal-selection and packed-selection conditions, with overlapping ranges. The fixed and live workloads yielded different tail directions. The format remains experimental pending matched real interaction replay and a check of dynamic CodeView and Gallery rendering on the uncompressed path.
+
+### CodeView and ERD window input replay
+
+The Windows managed Gallery used the same five library binaries across six runs. Each run opened SVG Arcs and Curves and sent the same 444 wheel messages to the same viewport in three passes. UI Automation confirmed scrolling from 0% to 100%, back to 0%, and to 100% again. The loaded vertex shader hashes matched the intended shader directory for each run. Compression was disabled for the selector variant to isolate its effect on the ordinary draw path. Each shader condition passed 108 Gallery presentation scenarios.
+
+| Median of three runs, p95 | Original | Selector, normal vertices |
+| --- | ---: | ---: |
+| First scroll app CPU | 2.691 ms | 2.703 ms |
+| First scroll GPU draw | 0.06166 ms | 0.06115 ms |
+| Repeat scroll app CPU | 1.545 ms | 1.561 ms |
+| Repeat scroll GPU draw | 0.06083 ms | 0.06058 ms |
+
+The per-run ranges overlap for all four comparisons. The frame timings come from accepted presentations and delayed Vulkan timestamp queries joined by submission ID. The replay uses a fixed measured viewport and leaves general resize performance outside the test. The same GPU and unchanged library hashes isolate the vertex shader choice. The native window replay site and logs are in `artifacts/erd-uv-input-replay-20261123`.
+
+On WSLg Dozen RTX 5070 Ti, three runs per condition used one Linux x64 NativeAOT .NET 11 executable at 1440×940, 4× MSAA. The harness sent X11 pointer messages to the ERD window with automatic tour and motion disabled. Each run acknowledged 60 moves of the same table and 72 zoom-wheel steps, with the same client coordinates, table positions and zoom targets. Each acknowledged input was joined to its own UI frame, presentation and delayed GPU timestamp. Zoom interpolation ran normally between events.
+
+| Median of three runs, p95 | Original | Selector, shared UV |
+| --- | ---: | ---: |
+| Drag app CPU | 28.53 ms | 29.40 ms |
+| Drag GPU draw | 8.22 ms | 8.16 ms |
+| Zoom app CPU | 24.16 ms | 25.21 ms |
+| Zoom GPU draw | 6.98 ms | 7.05 ms |
+
+App CPU p95 increased 3.1% on drag and 4.3% on zoom, with disjoint per-run ranges. GPU p95 ranges overlap in both phases. The app profile's interval between UI render completion and renderer entry increased from 13.67 to 14.21 ms on drag and 11.53 to 11.99 ms on zoom. That interval includes draw-data extraction and render-queue handoff, so the measurements do not localize the delay to either operation. The Vulkan upload-call p95 changed from 1.28 to 1.31 ms on drag and from 0.88 to 0.88 ms on zoom. The product retains its original shader and static vertex layout.
