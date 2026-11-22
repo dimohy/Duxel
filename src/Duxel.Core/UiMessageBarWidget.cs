@@ -79,6 +79,7 @@ public class UiMessageBar<TPresentation> : UiMultiChildWidget, IUiMessageBarCont
     private string _label;
     private UiMessageBarOptions _options;
     private UiRetainedLayout<UiMessageBarLayout>? _retained;
+    private UiRetainedLayout<UiVector2>? _intrinsicBody;
     internal UiMessageBarLayout LastLayout
     {
         get; private set;
@@ -165,7 +166,31 @@ public class UiMessageBar<TPresentation> : UiMultiChildWidget, IUiMessageBarCont
 
     protected override bool CanRetainArrangement => TPresentation.CanRetainMeasurement;
     protected override bool CanRetainMeasurement => _retained is { IsValid: true };
-    internal override void InvalidateRetainedMeasurement() => _retained?.Invalidate();
+    internal override void InvalidateRetainedMeasurement()
+    {
+        _retained?.Invalidate();
+        _intrinsicBody?.Invalidate();
+    }
+
+    private UiVector2 MeasureIntrinsicBody(UiControlContext context, bool allowReuse)
+    {
+        var body = Body;
+        var constraints = new UiBoxConstraints(0, float.PositiveInfinity, 0, float.PositiveInfinity);
+        if (!allowReuse)
+            return context.MeasureConstrained(body, constraints);
+
+        // Intrinsic and wrapped measurement use different text widths. Reuse the
+        // intrinsic size without replacing the body's prepared wrapped layout.
+        var cache = _intrinsicBody ??= new();
+        if (cache.TryGet(context, constraints, render : false, out var size,
+            allowMeasurementReuse : body.RetainsMeasurement, allowPreparedArrangement : false))
+            return size;
+
+        var attempt = cache.Begin(context, constraints);
+        size = context.MeasureConstrained(body, constraints);
+        cache.Commit(context, attempt, size, size, body.RetainsMeasurement);
+        return size;
+    }
 
     private static UiWidget[] Combine(string label, UiWidget body, UiWidget? actions, UiWidget? containerAction,
         UiMessageBarOptions options)
@@ -195,7 +220,7 @@ public class UiMessageBar<TPresentation> : UiMultiChildWidget, IUiMessageBarCont
         var constraints = context.LayoutConstraints.Validate();
         UiVector2 Measure(UiWidget? child, float width) => child is null ? default
             : context.MeasureConstrained(child, new(0, width, 0, float.PositiveInfinity));
-        var bodyNatural = Measure(Body, float.PositiveInfinity);
+        var bodyNatural = MeasureIntrinsicBody(context, allowed);
         var actionsNatural = Measure(Actions, float.PositiveInfinity);
         var hasActions = Actions is not null && actionsNatural != default;
         var container = Measure(ContainerAction, float.PositiveInfinity);
@@ -264,6 +289,7 @@ public class UiMessageBar<TPresentation> : UiMultiChildWidget, IUiMessageBarCont
     private protected override void ReleaseOwnedResources()
     {
         _retained = null;
+        _intrinsicBody = null;
         _label = string.Empty;
         base.ReleaseOwnedResources();
     }

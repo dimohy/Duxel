@@ -496,3 +496,22 @@ Contextual shaping took 74–75% less time across 1,323 calls. The first frame r
 Both diagnostic matrices matched pixels for all 30 capture pairs. The product build replayed all 219 positions with five additional exact captures. Windows passed 650 text and CodeView checks. Windows and Linux x64 NativeAOT under WSLg Dozen each presented all 108 Gallery verification screens on the RTX 5070 Ti. This experiment exercised the ERD vector text cache. The reported SVG slowdown during scaling and scrolling remains open.
 
 [219-pose comparison](../artifacts/erd-vector-font-batch-20261122/comparison.json) · [Warm comparison](../artifacts/erd-vector-font-batch-20261122/warm-comparison.json) · [Product pixel verification](../artifacts/erd-vector-font-batch-20261122/product-replay/result.json)
+
+## MessageBar intrinsic measurement and CodeView selection viewport
+
+A Windows sample of the MessageBar Gallery page found repeated DirectWrite paragraph shaping under MessageBar measurement. Measuring the same body without a width limit replaced its prepared wrapped layout. The next constrained measurement then reshaped it. MessageBar now keeps the intrinsic size separately when the body opts into measurement retention. Body changes, layout context and measurement keys still invalidate reuse.
+
+The Windows replay ran three processes per version in alternating order on the RTX 5070 Ti at 1984 × 956, MSAA 4 and V-Sync off. Each process paused on MessageBar and applied 16 identical width changes. The same timestamped Gallery runtime loaded a different Core DLL.
+
+| Measurement | Before | After |
+| --- | ---: | ---: |
+| Settled UI composition, median of run medians | 3.579 ms | 0.290 ms |
+| Width interaction UI composition, median of run medians | 4.081 ms | 0.664 ms |
+| Width interaction total CPU, median of run p95 | 10.135 ms | 5.826 ms |
+| Width interaction GPU draw, median of run p95 | 0.092 ms | 0.081 ms |
+
+The UI composition ranges were disjoint. Vulkan GPU timestamps and app composition counts do not measure monitor scan-out. MessageBar dismissal, reflow, accessibility and GPU pixel comparisons passed.
+
+CodeView now tests drag overshoot against the visible editor viewport and clamps caret hit testing to the text bounds separately. The previous build failed the upper and lower padding checks and the horizontal line-number gutter check. The fixed build keeps both scroll positions stable inside the viewport, scrolls beyond the actual top and bottom edges, and preserves the existing enclosing-document drag behavior.
+
+[Windows replay](../artifacts/gallery-messagebar-fps-44bd4f89-20261122/repeat-summary.json) · [MessageBar GPU checks](../artifacts/gallery-messagebar-fps-44bd4f89-20261122/messagebar-gpu/result.json)

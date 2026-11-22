@@ -58,6 +58,15 @@ internal static class TextDragScrollTests
         var right = Editor().Scroll!.Value.HorizontalOffset;
         var rightCaret = Editor().TextInfo!.CaretUtf16;
         check(right > 30, "unwrapped CodeView selection scrolls right within the editor");
+        var gutterEditor = Editor();
+        var gutterClip = gutterEditor.TextLayout!.ClipBounds;
+        var gutter = new UiVector2((gutterEditor.Bounds.X + gutterClip.X) / 2, middleY);
+        var gutterWakeups = wakeups;
+        var visibleOffset = document.Offset;
+        Hold(gutter, 4);
+        check(Editor().Scroll!.Value.HorizontalOffset == right && document.Offset == visibleOffset
+            && wakeups == gutterWakeups && Editor().TextInfo!.AnchorUtf16 == selection.AnchorUtf16,
+            "CodeView drag inside the visible line-number gutter selects without scrolling either viewport");
         Hold(new(clip.X - 54, middleY), 6);
         check(Editor().Scroll!.Value.HorizontalOffset < right && Editor().TextInfo!.CaretUtf16 < rightCaret,
             "unwrapped CodeView selection scrolls back left");
@@ -83,6 +92,33 @@ internal static class TextDragScrollTests
         Frame(idle with { MousePosition = new(start.X, clip.Y + clip.Height + 60) });
         check(document.Offset == stop && Editor().TextInfo!.CaretUtf16 == caret,
             "releasing CodeView selection stops automatic scrolling and keeps the selected endpoint");
+
+        var shortLines = string.Join('\n', Enumerable.Range(0, 80).Select(i => $"var row{i} = {i};"));
+        using var verticalCode = new UiCodeView(shortLines, new(Wrap : false, MaximumVisibleLines : 6, ShowToolbar : false));
+        draw.Widget = verticalCode;
+        Frame(idle);
+        var vertical = Editor();
+        var verticalClip = vertical.TextLayout!.ClipBounds;
+        var point = new UiVector2(verticalClip.X + 45, verticalClip.Y + verticalClip.Height / 2);
+        var lowerPadding = new UiVector2(point.X, (verticalClip.Y + verticalClip.Height + vertical.Bounds.Y + vertical.Bounds.Height) / 2);
+        var upperPadding = new UiVector2(point.X, (verticalClip.Y + vertical.Bounds.Y) / 2);
+        var outside = new UiVector2(point.X, vertical.Bounds.Y + vertical.Bounds.Height + 50);
+        Frame(idle with { MousePosition = point, LeftMouseDown = true, LeftMousePressed = true });
+        var verticalAnchor = Editor().TextInfo!.AnchorUtf16;
+        Hold(lowerPadding, 4);
+        check(Editor().Scroll!.Value.VerticalOffset == 0 && Editor().TextInfo!.CaretUtf16 > verticalAnchor,
+            "CodeView selects downward in the visible bottom padding without scrolling");
+        Hold(outside, 8);
+        var verticalOffset = Editor().Scroll!.Value.VerticalOffset;
+        check(verticalOffset > 0 && Editor().TextInfo!.AnchorUtf16 == verticalAnchor,
+            "CodeView scrolls vertically after the pointer crosses the actual bottom edge");
+        Hold(upperPadding, 4);
+        check(Editor().Scroll!.Value.VerticalOffset == verticalOffset && Editor().TextInfo!.AnchorUtf16 == verticalAnchor,
+            "CodeView selects upward in visible top padding without scrolling");
+        Hold(new(point.X, vertical.Bounds.Y - 50), 4);
+        check(Editor().Scroll!.Value.VerticalOffset < verticalOffset,
+            "CodeView scrolls back only after the pointer crosses the actual top edge");
+        Frame(idle with { MousePosition = point, LeftMouseReleased = true });
 
         var value = new UiState<string>(new('w', 130));
         using var single = Fluent.Input("One line", value.Binding, 200, 180);

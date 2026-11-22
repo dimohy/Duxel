@@ -221,7 +221,11 @@ public sealed partial class UiImmediateContext
                 dragSelecting = true;
                 var visibleContent = IntersectRect(visibleText, content);
                 var viewport = visibleContent is { Width: > 0, Height: > 0 } ? visibleContent : visibleText;
-                var offset = ApplyTextDragScroll(viewport, new(scrollX, scrollY), new(maxScrollX, maxScroll), deltaTime, out var pointer);
+                // The CodeView gutter and padding are within its scroll viewport.
+                // Clamp the caret to the text separately from detecting pointer overshoot.
+                var dragViewport = layout.StyledSource is UiCodeDocument ? visibleText : viewport;
+                var offset = ApplyTextDragScroll(dragViewport, new(scrollX, scrollY), new(maxScrollX, maxScroll), deltaTime, out var pointer);
+                pointer = ClampTextDragHit(viewport, pointer);
                 var autoScrolled = offset.X != scrollX || offset.Y != scrollY;
                 (scrollX, scrollY) = (offset.X, offset.Y);
 
