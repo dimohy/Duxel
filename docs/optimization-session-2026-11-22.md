@@ -76,3 +76,23 @@ All six final scroll captures matched each other, as did all six final width-cha
 Validation commands use the test runtime built with `dotnet build tests/Duxel.Graphics.Tests/Duxel.Graphics.Tests.csproj -c Release`. Set `DUXEL_TEST_CODE_GALLERY_VIEWPORT=1` and `DUXEL_TEST_CODE_RESIZE=1` for `gallery-svg-code-stages`. The focused test modes are `codeview-layout-cache`, `codeview-scrollbars`, `gallery-svg-code-scroll`, `gallery-svg-arc-scroll`, `directtext-cache`, `multiline`, `observer-gallery`, and `gallery-svg-pointer arc win32 burst`. Local run data in `L:/Cache/Duxel/svg-code-frame-20261122/verification.json` includes per-run frame distributions, GPU samples, and capture hashes.
 
 The live Windows Gallery test sent wheel messages and 20 width changes to the selected tab. Three runs per build with the same executable and freshly built Core control showed overlapping app timing ranges. The controlled wheel medians were approximately 0.71 ms on both builds. An earlier cached local Core assembly gave higher wheel timings, so that comparison was excluded from the patch's performance results. These are sampled application timings, with idle frames also present in the resize interval. They do not measure the delay from the physical mouse to the displayed frame. The reported 149 ms scroll frame did not recur in the isolated comparison. Raw logs are indexed in `L:/Cache/Duxel/svg-code-frame-20261122/live-summary.json`.
+
+## Staging space for bursts of small texture uploads
+
+On the same Windows SVG tab, one width-change frame uploaded 316 glyph coverage textures and 462,724 bytes. Three instrumented runs showed that all 316 textures were newly allocated. Vulkan device memory allocation took 10.08–20.95 ms. The staging buffer also filled seven times before its final submission, and upload wait time was 6.50–11.20 ms. The backend now reserves the aligned payload size before recording a top-level texture batch, up to 512 KiB. Larger payloads still grow the staging buffer through the existing path. The fence, layouts, and retirement rules are shared with the existing upload path.
+
+The comparison used three separate processes per arm in A/B, B/A, A/B order, at 1500×960 with MSAA 4 on the RTX 5070 Ti Laptop GPU. It switched only the Vulkan assembly and ran on managed .NET 11.0.0 with SDK 11.0.100. The CPU timings exclude the Win32 size call and captures.
+
+| Metric | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Burst texture processing | 23.51 ms | 14.03 ms | −40.3% |
+| Burst upload submissions | 8 | 1 | −87.5% |
+| Burst upload wait | 9.501 ms | 0.0034 ms | −99.96% |
+| Burst CPU frame | 48.64 ms | 42.23 ms | −13.2% |
+| Width-change CPU median | 20.46 ms | 17.07 ms | −16.6% |
+| Width-change CPU p95 and p99 | 48.64 ms | 42.23 ms | −13.2% |
+| Width-change GPU median | 0.0523 ms | 0.0518 ms | Run ranges overlap |
+
+The aligned reservation does not reduce the number of new images or uploaded bytes. Each phase's final PNG was byte-identical across all six runs. The change preserves RGB coverage and single-channel coverage through the existing upload functions. The memory reservation can grow the retained staging buffer earlier than before and remains subject to the existing idle trim. Native image allocation and long-session private and working-set measurements remain open. The first-scroll CPU ranges overlap. Repeat-scroll CPU composition varied even when no texture upload occurred, so the repeat timings are not attributed to the reservation.
+
+Use the same Release `gallery-svg-code-stages` invocation and viewport flags described above. Windows `directtext-cache`, `gallery-svg-code-scroll`, `observer-gallery` (335 checks), and `gpu-stroke-pixels` (46 checks) passed. `presentation-reuse` reached the same failure in both arms when checking the newly visible area of a resized paint group. Linux Gallery passed 108 of 108 present checks with RTX 5070 Ti on WSLg Dozen, including the SVG arc. That execution used a Linux build to resolve the Linux HarfBuzz native asset. The earlier Windows-built Linux probe stopped at the missing asset. The per-run frame distributions, upload waits, exact captures, instrumentation, and binary receipts are available in `L:/Cache/Duxel/svg-texture-stages-20261122/verification.json` and the adjacent logs.

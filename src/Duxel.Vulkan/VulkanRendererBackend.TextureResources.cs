@@ -23,6 +23,7 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
+        ReserveTextureUploadStaging(updates);
         BeginUploadBatch();
         try
         {
@@ -150,6 +151,36 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             EndUploadBatch();
         }
+    }
+
+    private void ReserveTextureUploadStaging(ReadOnlySpan<UiTextureUpdate> updates)
+    {
+        // Small uploads must share staging space to avoid submitting and waiting
+        // each time a burst of glyph textures fills the buffer.
+        const nuint reservationLimit = 512 * 1024;
+        if (!_uploadBatchingEnabled || _uploadBatchDepth != 0 || updates.Length < 2
+            || _stagingBufferSize >= reservationLimit)
+            return;
+
+        nuint size = 0;
+        foreach (ref readonly var update in updates)
+        {
+            if (update.Kind is not (UiTextureUpdateKind.Create or UiTextureUpdateKind.Update))
+                continue;
+            var bytes = (nuint)update.RgbaPixels.Length;
+            // A larger upload will size the buffer itself. A bounded reservation
+            // keeps startup and mixed image batches from inflating staging memory.
+            if (bytes > reservationLimit)
+                return;
+            size = AlignStagingUploadOffset(size) + bytes;
+            if (size >= reservationLimit)
+            {
+                size = reservationLimit;
+                break;
+            }
+        }
+        if (size > _stagingBufferSize)
+            EnsureStagingBuffer(size);
     }
 
     private void CreateOrUpdateTexture(UiTextureUpdate update, bool isCreate)
