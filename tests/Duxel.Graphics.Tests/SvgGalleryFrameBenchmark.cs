@@ -175,8 +175,10 @@ internal static class SvgGalleryFrameBenchmark
         Environment.SetEnvironmentVariable("DUXEL_VK_PROFILE_EVERY", "1");
         Environment.SetEnvironmentVariable("DUXEL_VK_PROFILE_OUT", Path.Combine(output, "vulkan.log"));
         using var tree = new UiAccessibilityTree();
-        var platform = PresentationTestPlatform.Create(1280, 900);
-        using var fixture = new PresentationReuseTests.Fixture(3, true, platform);
+        var galleryViewport = Environment.GetEnvironmentVariable("DUXEL_TEST_CODE_GALLERY_VIEWPORT") == "1";
+        var (width, height, samples) = galleryViewport ? (1500, 960, 4) : (1280, 900, 1);
+        var platform = PresentationTestPlatform.Create(width, height);
+        using var fixture = new PresentationReuseTests.Fixture(3, true, platform, msaaSamples: samples);
         fixture.Context.SetDesign(UiCompiledDesign.Windows11);
         fixture.Context.SetAccessibilityTree(tree);
         using var gallery = new ObserverScreen(ObserverServices.CreateWindows())
@@ -210,7 +212,7 @@ internal static class SvgGalleryFrameBenchmark
             {
                 var previous = platform.FramebufferSize;
                 const uint noMoveActivateOrZOrder = 0x0016;
-                if (!PresentationTestPlatform.SetWindowPos(platform.WindowHandle, 0, 0, 0, 1280 + 18 * i, 900, noMoveActivateOrZOrder))
+                if (!PresentationTestPlatform.SetWindowPos(platform.WindowHandle, 0, 0, 0, width + 18 * i, height, noMoveActivateOrZOrder))
                     throw new Win32Exception(Marshal.GetLastPInvokeError());
                 platform.PollEvents();
                 if (platform.FramebufferSize.Width == previous.Width && i > 0)

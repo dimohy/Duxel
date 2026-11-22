@@ -143,6 +143,20 @@ internal static class CodeViewCacheTests
             check(second.NativeBuilds == 1, "a new width shapes the shared wrapped line once");
             second.Prepare(backend, source, styles, 200, false, key with { BaseFontSize = 18 }, cache);
             check(second.NativeBuilds == 3, "changing layout resources invalidates shared natural and wrapped lines");
+
+            var reflowSource = "int x = 1;\n" + new string('W', 120) + "\nreturn x;";
+            PlatformTextParagraphStyle[] reflowStyle = [style with { Length = reflowSource.Length }];
+            var reflow = new UiCodeParagraphLayouts();
+            var narrow = reflow.Prepare(backend, reflowSource, reflowStyle, 220, false, key);
+            var wide = reflow.Prepare(backend, reflowSource, reflowStyle, 500, false, key);
+            var freshWide = new UiCodeParagraphLayouts().Prepare(backend, reflowSource, reflowStyle, 500, false, key);
+            check(ReferenceEquals(narrow.Runs.Span[0], wide.Runs.Span[0]),
+                "width reflow keeps the positioned runs of unchanged lines");
+            var wideTail = wide.Runs.Span[^1];
+            var freshTail = freshWide.Runs.Span[^1];
+            check(narrow.Runs.Span[^1].Origin != wideTail.Origin && wideTail.Origin == freshTail.Origin
+                && wideTail.Glyphs.Span.SequenceEqual(freshTail.Glyphs.Span),
+                "width reflow recalculates the positions of unchanged lines moved by wrapping above");
         }));
         using var drawing = context.GetDrawData();
     }

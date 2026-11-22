@@ -12,6 +12,9 @@ internal sealed class UiCodeParagraphLayouts
         internal readonly int[] StyleMap = styleMap;
         internal PlatformTextParagraphLayout? Natural, Wrapped;
         internal float WrappedWidth;
+        internal PlatformTextParagraphLayout? PositionedLayout;
+        internal float PositionedTop;
+        internal PlatformTextParagraphRun[] PositionedRuns = [];
 
         internal bool TryReuseLayouts(Line previous)
         {
@@ -98,6 +101,7 @@ internal sealed class UiCodeParagraphLayouts
             }
             maximum = MathF.Max(maximum, layout.Width);
             var rows = layout.Lines.Span;
+            var top = height;
             var shifts = new float[rows.Length];
             for (var row = 0; row < rows.Length; row++)
             {
@@ -118,19 +122,29 @@ internal sealed class UiCodeParagraphLayouts
                 var caret = layout.Carets.Span[i];
                 carets[line.Start + i] = caret with { Y = caret.Y + shifts[rowIndex] };
             }
-            foreach (var run in layout.Runs.Span)
+            // Width changes often leave the earlier hard lines and their origins intact.
+            // Reuse their positioned runs, including the raster cache identities.
+            if (!ReferenceEquals(line.PositionedLayout, layout) || line.PositionedTop != top)
             {
-                if (run.Glyphs.IsEmpty) continue;
-                var first = run.Glyphs.Span[0].SourcePosition;
-                var row = 0;
-                while (row + 1 < rows.Length && first >= rows[row + 1].Start) row++;
-                var shift = shifts[row];
-                var glyphs = run.Glyphs.ToArray();
-                for (var i = 0; i < glyphs.Length; i++)
-                    glyphs[i] = glyphs[i] with { SourcePosition = line.Start + glyphs[i].SourcePosition, Y = glyphs[i].Y + shift };
-                outputRuns.Add(new(line.StyleMap[run.StyleIndex], run.FontPath, run.FontSize, run.BidiLevel,
-                    run.Origin with { Y = run.Origin.Y + shift }, glyphs, run.RasterContext));
+                var positioned = new List<PlatformTextParagraphRun>(layout.Runs.Length);
+                foreach (var run in layout.Runs.Span)
+                {
+                    if (run.Glyphs.IsEmpty) continue;
+                    var first = run.Glyphs.Span[0].SourcePosition;
+                    var row = 0;
+                    while (row + 1 < rows.Length && first >= rows[row + 1].Start) row++;
+                    var shift = shifts[row];
+                    var glyphs = run.Glyphs.ToArray();
+                    for (var i = 0; i < glyphs.Length; i++)
+                        glyphs[i] = glyphs[i] with { SourcePosition = line.Start + glyphs[i].SourcePosition, Y = glyphs[i].Y + shift };
+                    positioned.Add(new(line.StyleMap[run.StyleIndex], run.FontPath, run.FontSize, run.BidiLevel,
+                        run.Origin with { Y = run.Origin.Y + shift }, glyphs, run.RasterContext));
+                }
+                line.PositionedRuns = positioned.ToArray();
+                line.PositionedLayout = layout;
+                line.PositionedTop = top;
             }
+            outputRuns.AddRange(line.PositionedRuns);
         }
         return new(outputRuns.ToArray(), outputLines.ToArray(), carets, maximum, height);
 
