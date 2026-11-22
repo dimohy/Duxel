@@ -324,3 +324,16 @@ One isolated Linux x64 NativeAOT executable recorded accepted presentation IDs a
 The single-thread arm reduced zoom p95 by 26.0% and reduced full-view submission throughput by 8.8% versus the stock queue. The run ranges did not overlap for these measures. Drag latency and the selector comparison overlapped. The test retained the shipping queue and geometry format because the single-thread result trades latency for throughput and the selector still lacks a consistent interaction gain. Zoom input was paced by app consumption, so only the fixed full-view window measured a common elapsed duration. The endpoint is the app's acknowledgement after the Vulkan presentation call. Monitor scanout is outside the measurement. The Vulkan contract queues the image for presentation. [Vulkan presentation call](https://docs.vulkan.org/refpages/latest/refpages/source/vkQueuePresentKHR.html)
 
 All 1,188 matched input frames and nine normal exits are recorded in `artifacts/erd-input-present-latency-20261123/verification.json`.
+
+### Event-driven input admission
+
+The same deferred-recording method compared the stock queue, a candidate that waits for the render queue to become idle before draining fresh input, and a single-thread control. All three used the original shaders and the event-driven platform loop on WSLg Dozen. Three rotated runs per condition presented all 1,188 targeted drag and wheel inputs with identical table positions and zoom targets. The candidate checked pending input under the input lock and released that lock before waiting. It kept the existing queued work and never discarded a frame.
+
+| Median of three runs | Stock queue | Wait for idle before input | Single thread |
+| --- | ---: | ---: | ---: |
+| Drag input to accepted presentation p95 | 15.27 ms | 16.15 ms | 14.23 ms |
+| Zoom input to accepted presentation p95 | 25.30 ms | 29.12 ms | 17.69 ms |
+| Full-view accepted presentations/s | 71.19 | 70.70 | 64.40 |
+| Accepted presentations/s during zoom replay | 195.99 | 177.03 | 154.94 |
+
+Waiting for idle increased zoom input latency p95 by 15.1% and reduced zoom replay throughput by 9.7%. Both run ranges were disjoint. The app's frame-start-to-accept p95 nevertheless fell from 20.85 to 13.19 ms because the candidate waited before the frame timing started. The stock render policy is retained. The zoom replay waited for the app to consume each input, so the throughput describes this replay. Full-view throughput uses the same 1.25-second window in every run. Raw timestamps and comparison logic are in `artifacts/erd-event-admission-20261123`.
