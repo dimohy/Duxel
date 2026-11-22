@@ -234,18 +234,21 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         // All buffers share one fence deadline. The last live buffer returns the page range.
         var hasPrimitive = staticBuffer.PrimitiveBuffer.Handle != 0;
-        var hasIndex = staticBuffer.IndexBuffer.Handle != 0;
+        var hasIndex = staticBuffer.IndexBuffer.Handle != 0
+            && staticBuffer.IndexBuffer.Handle != staticBuffer.VertexBuffer.Handle;
         QueueBufferDestroy(staticBuffer.VertexBuffer, staticBuffer.VertexMemory,
             hasPrimitive || hasIndex ? default : staticBuffer.StaticMemory);
-        QueueBufferDestroy(staticBuffer.IndexBuffer, staticBuffer.IndexMemory,
-            hasPrimitive ? default : staticBuffer.StaticMemory);
+        if (hasIndex)
+            QueueBufferDestroy(staticBuffer.IndexBuffer, staticBuffer.IndexMemory,
+                hasPrimitive ? default : staticBuffer.StaticMemory);
         QueueBufferDestroy(staticBuffer.PrimitiveBuffer, staticBuffer.PrimitiveMemory, staticBuffer.StaticMemory);
     }
 
     private void DestroyStaticGeometryBufferImmediate(StaticGeometryBuffer staticBuffer)
     {
         DestroyBufferResource(new BufferResource(staticBuffer.VertexBuffer, staticBuffer.VertexMemory));
-        DestroyBufferResource(new BufferResource(staticBuffer.IndexBuffer, staticBuffer.IndexMemory));
+        if (staticBuffer.IndexBuffer.Handle != staticBuffer.VertexBuffer.Handle)
+            DestroyBufferResource(new BufferResource(staticBuffer.IndexBuffer, staticBuffer.IndexMemory));
         DestroyBufferResource(new BufferResource(staticBuffer.PrimitiveBuffer, staticBuffer.PrimitiveMemory), staticBuffer.StaticMemory);
     }
 

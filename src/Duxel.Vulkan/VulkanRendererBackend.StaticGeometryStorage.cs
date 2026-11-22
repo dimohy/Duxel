@@ -26,10 +26,17 @@ public sealed unsafe partial class VulkanRendererBackend
         ranges.Clear();
         var slice = default(StaticMemorySlice);
         StaticGeometryBuffer created;
+        var vertexBytes = (ulong)shape.CombinedVertexCount * (ulong)sizeof(UiVertex);
+        var indexBytes = StaticIndexBufferBytes(shape.CombinedIndexCount, shape.StaticIndexType);
+        var combined = vertexBytes != 0 && indexBytes != 0;
+        // The index region starts at zero. Its padded size also meets the vertex shader's four-byte alignment.
+        var vertexDataOffset = combined ? indexBytes : 0;
         try
         {
-            CreateStaticBufferRange(ref ranges[0], (ulong)shape.CombinedVertexCount * (ulong)sizeof(UiVertex), shaderUsage);
-            CreateStaticBufferRange(ref ranges[1], StaticIndexBufferBytes(shape.CombinedIndexCount, shape.StaticIndexType), indexUsage);
+            CreateStaticBufferRange(ref ranges[0], checked(vertexBytes + vertexDataOffset),
+                combined ? shaderUsage | indexUsage : shaderUsage);
+            if (!combined)
+                CreateStaticBufferRange(ref ranges[1], indexBytes, indexUsage);
             CreateStaticBufferRange(ref ranges[2], (ulong)shape.PrimitiveCount * (ulong)sizeof(PrimitiveInstance), shaderUsage);
             BindStaticBufferRanges(ranges, ref slice);
 
@@ -41,9 +48,9 @@ public sealed unsafe partial class VulkanRendererBackend
                 contentHash,
                 vertex.Buffer,
                 vertex.Memory,
-                vertex.Buffer.Handle != 0 ? GetBufferDeviceAddress(vertex.Buffer) : 0,
+                vertex.Buffer.Handle != 0 ? GetBufferDeviceAddress(vertex.Buffer) + vertexDataOffset : 0,
                 shape.VertexCount,
-                index.Buffer,
+                combined ? vertex.Buffer : index.Buffer,
                 index.Memory,
                 shape.IndexCount,
                 primitive.Buffer,
@@ -56,7 +63,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 shape.HasExpandedPrimitiveGeometry,
                 shape.PrimitiveTriangleLayout.RectExpandedIndexBase,
                 shape.PrimitiveTriangleLayout.CircleExpandedIndexOffsets
-            ) { StaticIndexType = shape.StaticIndexType, IndexTopologyHash = HashIndexTopology(indices), StaticMemory = slice };
+            ) { StaticIndexType = shape.StaticIndexType, IndexTopologyHash = HashIndexTopology(indices), VertexDataOffset = vertexDataOffset, StaticMemory = slice };
         }
         catch
         {
@@ -178,6 +185,7 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             UploadStaticVertexBufferData(
                 target.VertexBuffer,
+                target.VertexDataOffset,
                 vertices,
                 rects,
                 circles,
@@ -216,6 +224,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void UploadStaticVertexBufferData(
         VkBuffer destinationBuffer,
+        ulong destinationOffset,
         ReadOnlySpan<UiDrawVertex> vertices,
         ReadOnlySpan<UiRectFilledPrimitive> rectPrimitives,
         ReadOnlySpan<UiCircleFilledPrimitive> circlePrimitives,
@@ -246,7 +255,7 @@ public sealed unsafe partial class VulkanRendererBackend
             var region = new BufferCopy
             {
                 SrcOffset = stagingOffset,
-                DstOffset = 0,
+                DstOffset = destinationOffset,
                 Size = sourceSize,
             };
 

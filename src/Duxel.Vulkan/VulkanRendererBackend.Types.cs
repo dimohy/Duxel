@@ -32,6 +32,7 @@ public sealed unsafe partial class VulkanRendererBackend
         public static StaticGeometryBuffer Empty { get; } = new(
             string.Empty, 0, default, default, 0, 0, default, default, 0,
             default, default, 0, 0, 0, 0, 0, false, 0, null);
+        public ulong VertexDataOffset { get; init; }
         public StaticMemorySlice StaticMemory { get; init; }
         public IndexType StaticIndexType { get; init; } = IndexType.Uint32;
         public ulong IndexTopologyHash { get; init; }
