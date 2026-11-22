@@ -130,6 +130,14 @@ The first 300 s show 23.98 MiB of RSS growth on the same Dozen binary as the thr
 
 The replay, source and runtime hashes, process samples, raw mappings, Vulkan profiles and window captures are under `artifacts/dozen-erd-endurance-600s-20261123`. The workload and product source are unchanged.
 
+### ERD status text attribution on WSLg
+
+The 1,200-table motion tour ran at 1440 × 940, 4× MSAA and V-Sync off on WSLg Dozen 26.3.1 with an RTX 5070 Ti. One Linux x64 NativeAOT .NET 11.0.0 diagnostic executable ran three times per condition. The control kept the normal status text refresh, while the other condition kept the initially drawn text at its normal position and stopped only its updates. The tour and table animation ran in both conditions. Each process displayed an X11 window and exited successfully.
+
+All runs built 1,323 vector text meshes in the first composition and none in the sampled steady window. First-composition vector mesh work had a 62.78 ms median. That measurement includes 41.20 ms of shaping and 18.42 ms of outline work, reported as separate medians. After warmup, normal status refresh produced a median of 23.91 bitmap layout calls, 20.01 raster calls and 177,895 requested text texture bytes per second. With the status refresh frozen, all three counters stayed at zero in every run. Normal refresh used a median of 1.60 ms of bitmap layout time and 0.38 ms of bitmap raster time per second.
+
+Per-run app CPU p95 ranges overlapped at 18.26–18.88 ms with normal refresh and 18.19–23.88 ms with frozen status. Whole-frame GPU timestamp p95 ranges also overlapped, at 4.72–6.01 ms and 4.55–7.32 ms respectively. The comparison identifies the source of the recurring bitmap work. It does not establish a frame-speed change or a memory bound. Texture bytes are application upload requests, and the Vulkan timestamps include the complete render pass. The steady samples span 8.61–10.68 seconds per process. Raw data, binary and driver hashes, and the verification result are in `artifacts/erd-hud-text-stages-20261123`. [Vulkan timestamp queries](https://docs.vulkan.org/samples/latest/samples/api/timestamp_queries/README.html)
+
 ### Paired run with the isolated Dozen correction
 
 Rebuilding `0173f62c` reproduced the stock run's NativeAOT executable SHA-256 exactly. The same ERD executable then ran with a separately built Mesa Dozen 26.3.1 ICD containing the enhanced-barrier allocation-base correction. The patch bytes match the earlier isolated driver's patch. The installed ICD and library hashes were rechecked, and the live process mapped the isolated ICD's library. The unmodified driver rebuilt for this experiment has a different `.text` hash from the installed library. This pair compares the installed driver with the corrected build. The earlier allocation tracing and three 300-second pairs provide separate attribution evidence.
