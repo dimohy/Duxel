@@ -93,8 +93,8 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextWhole
                     var characterSource = style.Start;
                     foreach (var rune in request.Text.AsSpan(style.Start, style.Length).EnumerateRunes())
                     {
-                        var font = objectPositions.Contains(characterSource) || Rune.GetUnicodeCategory(rune) == UnicodeCategory.Format || rune.Value is '\r' or '\n' or '\t'
-                            ? selected ?? primary : SelectFont(primary, secondary, rune);
+                        var font = objectPositions.Contains(characterSource) || Rune.GetUnicodeCategory(rune) == UnicodeCategory.Format || rune.Value is '\r' or '\n'
+                            ? selected ?? primary : SelectFont(primary, secondary, rune.Value == '\t' ? new Rune(' ') : rune, selected);
                         if (selected is not null && !ReferenceEquals(selected, font))
                         {
                             AddSelection(selectedStart, start, selected);

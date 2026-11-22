@@ -42,6 +42,20 @@ internal static unsafe partial class Program
         Throws<ArgumentOutOfRangeException>(() => backend.GetFontVariantResource(latinPath, (PlatformFontSimulation)99), "Unknown font simulations fail explicitly");
         Throws<ArgumentOutOfRangeException>(() => backend.CreateTextMesh(new(latinPath, null, "O", 24, 0)), "Invalid flattening tolerance fails explicitly");
 
+        var precedingFace = backend.GetFontRuns(new(latinPath, cjkPath, "정", 32), "en")[0].Font;
+        foreach (var (space, expanded) in new[] { (" ", " "), ("\t", "    ") })
+        {
+            var text = "정" + space + "A";
+            var expectedPrefixWidth = backend.CreateTextMesh(new(cjkPath, null, "정" + expanded, 32)).Width;
+            var mesh = backend.CreateTextMesh(new(latinPath, cjkPath, text, 32));
+            var geometry = backend.CreateLineGeometry(new(latinPath, cjkPath, text, 32), vectorMetrics : true);
+            var fontRuns = backend.GetFontRuns(new(latinPath, cjkPath, text, 32), "en");
+            Check(fontRuns[0].EndUtf16 >= 2 && Equals(fontRuns[0].Font, precedingFace)
+                && MathF.Abs(geometry.CaretX(2) - expectedPrefixWidth) < .01f
+                && MathF.Abs(mesh.Width - geometry.Advance) < .01f,
+                $"Contextual {(space == "\t" ? "tab" : "space")} keeps the preceding Hangul face in native runs, mesh and caret geometry");
+        }
+
         var cases = new[]
         {
             (latinPath, cjkPath, "O8B"),

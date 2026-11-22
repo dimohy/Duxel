@@ -170,7 +170,7 @@ internal sealed unsafe partial class LinuxParagraphFontSet : IDisposable
             foreach (var rune in text.EnumerateRunes())
             {
                 var font = Rune.GetUnicodeCategory(rune) == UnicodeCategory.Format ? selected ?? primary
-                    : LinuxPlatformTextBackend.SelectFont(primary, secondary, rune);
+                    : LinuxPlatformTextBackend.SelectFont(primary, secondary, rune, selected);
                 if (selected is not null && !ReferenceEquals(selected, font))
                 {
                     AddRange(selected, runStart, byteOffset);
