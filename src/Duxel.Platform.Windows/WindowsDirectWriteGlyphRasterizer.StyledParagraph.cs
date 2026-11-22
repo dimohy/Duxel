@@ -37,7 +37,7 @@ internal sealed unsafe partial class WindowsDirectWriteGlyphRasterizer
         lock (Sync)
         {
             var text = new StringBuilder();
-            var original = new List<int>();
+            var original = new List<int>(request.Text.Length + 1);
             var spans = new List<DirectWriteLongTextShaper.FontSpan>();
             var resources = new List<string>();
             var styles = request.Styles.ToArray();
@@ -45,18 +45,28 @@ internal sealed unsafe partial class WindowsDirectWriteGlyphRasterizer
             for (var styleIndex = 0; styleIndex < styles.Length; styleIndex++)
             {
                 var style = styles[styleIndex];
-                var expanded = new StringBuilder();
-                var expandedSource = new List<int>();
-                for (var index = style.Start; index < style.Start + style.Length; index++)
+                var styleText = request.Text.Substring(style.Start, style.Length);
+                List<int>? expandedSource = null;
+                if (styleText.Contains('\t'))
                 {
-                    var count = request.Text[index] == '\t' ? 4 : 1;
-                    expanded.Append(request.Text[index] == '\t' ? ' ' : request.Text[index], count);
-                    for (var at = 0; at < count; at++)
-                        expandedSource.Add(index);
+                    var expanded = new StringBuilder(style.Length);
+                    expandedSource = new(style.Length);
+                    for (var index = 0; index < styleText.Length; index++)
+                    {
+                        var c = styleText[index];
+                        var count = c == '\t' ? 4 : 1;
+                        expanded.Append(c == '\t' ? ' ' : c, count);
+                        for (var repeat = 0; repeat < count; repeat++)
+                            expandedSource.Add(style.Start + index);
+                    }
+                    styleText = expanded.ToString();
                 }
-                var prepared = DirectWriteHangulInput.Prepare(expanded.ToString());
+                var prepared = DirectWriteHangulInput.Prepare(styleText);
                 for (var index = 0; index < prepared.Text.Length; index++)
-                    original.Add(expandedSource[prepared.OriginalPositions is { } positions ? (int)positions[index] : index]);
+                {
+                    var expandedPosition = prepared.OriginalPositions is { } positions ? (int)positions[index] : index;
+                    original.Add(expandedSource is null ? style.Start + expandedPosition : expandedSource[expandedPosition]);
+                }
                 var start = text.Length;
                 text.Append(prepared.Text);
                 var size = vectorMetrics ? style.FontSize : Math.Clamp(MathF.Round(style.FontSize), 1, 512);
@@ -184,8 +194,12 @@ internal sealed unsafe partial class WindowsDirectWriteGlyphRasterizer
                         var extents = Regions(preparedStart, preparedStop - preparedStart);
                         var advance = extents.Length == 0 ? 0 : extents.Max(region => region.Left + region.Width) - extents.Min(region => region.Left);
                         var visibleStop = checked(preparedEnd - (int)line.TrailingWhitespaceLength);
-                        var visible = Regions(preparedStart, visibleStop - preparedStart);
-                        var visibleWidth = visible.Length == 0 ? 0 : visible.Max(region => region.Left + region.Width) - visible.Min(region => region.Left);
+                        var visibleWidth = advance;
+                        if (visibleStop != preparedStop)
+                        {
+                            var visible = Regions(preparedStart, visibleStop - preparedStart);
+                            visibleWidth = visible.Length == 0 ? 0 : visible.Max(region => region.Left + region.Width) - visible.Min(region => region.Left);
+                        }
                         lines.Add(new(from, stop - from, end - stop, top, line.Height, line.Baseline, new(advance, carets, characters.ToArray()))
                         {
                             WidthWithoutTrailingWhitespace = visibleWidth

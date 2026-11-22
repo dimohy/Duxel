@@ -118,6 +118,36 @@ internal static unsafe partial class StyledParagraphTests
         RunDirection(check);
         RunMarkdown(check);
         RunObjects(check);
+        CheckTabAndHangulSourcePositions(backend, fonts, check);
+    }
+
+    private static void CheckTabAndHangulSourcePositions(IPlatformTextParagraphBackend backend, string fonts,
+        Action<bool, string> check)
+    {
+        var font = Path.Combine(fonts, "malgun.ttf");
+        const string tab = "A\t한Z";
+        const string spaces = "A    한Z";
+        const string composed = "A    한Z";
+        var tabLayout = Layout(tab);
+        var spacesLayout = Layout(spaces);
+        var composedLayout = Layout(composed);
+        int[] tabToSpaces = [0, 1, 5, 6, 7, 8, 9];
+        int[] spacesToTab = [0, 1, 1, 1, 1, 2, 3, 4, 5];
+        var tabGlyphs = Glyphs(tabLayout);
+        var spacesGlyphs = Glyphs(spacesLayout);
+        check(tabLayout.Carets.Span.SequenceEqual(tabToSpaces.Select(i => spacesLayout.Carets.Span[i]).ToArray())
+            && spacesGlyphs.Select(glyph => glyph with { SourcePosition = spacesToTab[glyph.SourcePosition] }).SequenceEqual(tabGlyphs),
+            "Styled DirectWrite tab expansion preserves original caret and glyph offsets after decomposed Hangul");
+        check(spacesGlyphs.Any(glyph => glyph.SourcePosition == spaces.IndexOf('ᄒ'))
+            && spacesGlyphs.Any(glyph => glyph.SourcePosition == spaces.IndexOf('Z'))
+            && spacesGlyphs.Select(glyph => glyph with { SourcePosition = 0 })
+                .SequenceEqual(Glyphs(composedLayout).Select(glyph => glyph with { SourcePosition = 0 })),
+            "Styled DirectWrite composes decomposed Hangul and preserves later source offsets without tab expansion");
+
+        PlatformTextParagraphLayout Layout(string text) => backend.CreateParagraph(new(text, [new(0, text.Length, font, null, 14)]), false);
+
+        static PlatformTextParagraphGlyph[] Glyphs(PlatformTextParagraphLayout layout)
+            => layout.Runs.ToArray().SelectMany(run => run.Glyphs.ToArray()).ToArray();
     }
 
     private static void RunCore(Action<bool, string> check, bool owned = false)

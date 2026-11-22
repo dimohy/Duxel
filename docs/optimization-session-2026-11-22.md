@@ -134,3 +134,23 @@ The actual Windows Gallery opened SVG → Arcs and curves on RTX 5070 Ti Laptop 
 | Slowest 1% CPU-frame rate equivalent | 317.3/s | 359.7/s | +13.4% |
 
 CPU timings include the render callback and renderer call. They exclude time between calls, so the rate equivalent gives a CPU timing comparison. The reported 149 ms frame cadence did not occur in this replay. New wrap widths can still generate new layout and textures, and native window resizing needs separate verification. The longer retention interval may keep more of the existing bounded cache occupied. In the `gallery-svg-code-stages` replay, the final SVG captures matched byte-for-byte. `codeview-paragraph-cache-age` checks initial upload, reuse after 650 short frames, and expiry after more than 10 seconds. Raw logs, input replay, binary receipts and metrics are in `L:/Cache/Duxel/svg-live-spike-20261122/verification.json` and its parent directory.
+
+## Avoid redundant DirectWrite paragraph preparation
+
+The SVG arc page rebuilt nine CodeView paragraph layouts per width on the measured path. An instrumented control measured 12.86 ms of UI composition, including 3.37 ms assembling native CodeView layouts, 0.86 ms resolving styles, and 0.40 ms assembling visual row heights. A separate candidate reused CodeView typography and scanned ordered style runs once. Its 18 matching captures preserved pixels, but width-change p95 increased from 27.18 to 30.89 ms. The candidate was dropped.
+
+The Windows backend prepares style spans without expansion buffers when they contain no tabs. It still composes Hangul and maps glyphs and carets back to the original UTF-16 positions. Lines without trailing whitespace reuse the full line's hit-test extents for its visible width. The backend continues to take shaping and hit-test geometry from DirectWrite. [DirectWrite glyph positions and the draw callback](https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nf-dwrite-idwritetextrenderer-drawglyphrun)
+
+The A/B fixture ran the Windows SVG arc page at 1500×960 and MSAA 4 on RTX 5070 Ti Laptop GPU using SDK 11.0.100 and managed runtime 11.0.0. Both arms used the same instrumented Core and graphics fixture. Only `Duxel.Platform.Windows.dll` changed. Three fresh processes per arm alternated order. Each opened the page and ran the 64-input first and repeat scroll phases before the 16 width samples. The captures ran separately. The table uses medians across runs.
+
+| Metric | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Per-width managed composition allocation | 3,208,260 B | 3,155,044 B | −1.7% |
+| Per-width CPU for native CodeView layout assembly | 3.371 ms | 3.192 ms | −5.3% |
+| Width-change CPU median | 20.16 ms | 19.16 ms | −5.0% |
+| Width-change CPU p95 and p99 | 27.93 ms | 27.13 ms | −2.8% |
+| Slowest 1% CPU-frame rate equivalent | 35.81/s | 36.85/s | +2.9% |
+| Width-change GPU median | 0.0521 ms | 0.0543 ms | +4.3% |
+| First arc tab CPU frame | 88.02 ms | 85.86 ms | −2.4% |
+
+Allocation decreased in all three matched comparisons. CPU ranges overlap. Repeat-scroll CPU p99 increased from 7.73 to 11.22 ms even though uploads stayed at zero, and all 18 matching screenshot pairs were byte-identical. Width changes still submitted 462,724 coverage bytes across the phase. These timings exclude the window size call and the capture, and they do not establish app FPS or resolve the reported 149 ms stall. `gallery-svg-code-stages` with `DUXEL_TEST_CODE_GALLERY_VIEWPORT=1` and `DUXEL_TEST_CODE_RESIZE=1` replays the input. Measurements and hashes are in `L:/Cache/Duxel/codeview-reflow-style-20261122/direct-verification.json`, with allocation and layout stages in `direct-probe.json` in the same directory.
