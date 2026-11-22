@@ -207,6 +207,23 @@ internal static class MessageBarSemanticsTests
             catch (ObjectDisposedException) { rejected = true; }
             check(rejected, "Actual removed MessageBar ends its owned lifetime after the exit fade : " + key);
         }
+        using var close = Fluent.Button("Pointer close");
+        using var nextAction = Fluent.Button("Next message action");
+        using var pointerFirst = Fluent.MessageBar("Pointer-dismissable", Fluent.MessageBarBody("Remove me"), containerAction: close);
+        using var pointerSecond = Fluent.MessageBar("Pointer survivor", Fluent.MessageBarBody("Keep me"), Fluent.MessageBarActions([nextAction]));
+        using var pointerGroup = Fluent.MessageBarGroup([pointerFirst, pointerSecond]);
+        close.Activated = () => pointerGroup.SetVisible(0, false);
+        Frame(pointerGroup.Render);
+        var closeBounds = Find("Pointer close").Node.Bounds;
+        var pointer = idle with { MousePosition = new(closeBounds.X + closeBounds.Width / 2, closeBounds.Y + closeBounds.Height / 2) };
+        Frame(pointerGroup.Render, pointer with { LeftMouseDown = true, LeftMousePressed = true });
+        Frame(pointerGroup.Render, pointer with { LeftMouseReleased = true });
+        Frame(pointerGroup.Render);
+        check(!pointerGroup.IsVisible(0) && context.State.FocusedId is null && !context.State.NavCursorVisible,
+            "Mouse dismissal clears the removed MessageBar action focus without focusing the next message");
+        Frame(pointerGroup.Render, idle with { KeyEvents = [new(UiKey.Tab, true, default)] });
+        check(context.State.FocusedId == Find("Next message action").Node.Id && context.State.NavCursorVisible,
+            "Tab can focus the surviving MessageBar action after mouse dismissal");
     }
     private sealed class Screen(Action<UiImmediateContext> draw) : UiScreen
     {

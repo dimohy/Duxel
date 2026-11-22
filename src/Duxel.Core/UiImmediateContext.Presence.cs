@@ -58,7 +58,8 @@ public sealed partial class UiImmediateContext
         _presenceRemovedFocus = null;
         if (removed is null || _state.FocusedId != removed)
             return;
-        var previous = _previousTabStops.FindIndex(x => x.Id == removed);
+        var pointerDismissal = removed == _pointerActivatedFocus && !_state.NavCursorVisible;
+        var previous = pointerDismissal ? -1 : _previousTabStops.FindIndex(x => x.Id == removed);
         var candidate = -1;
         if (previous >= 0)
         {

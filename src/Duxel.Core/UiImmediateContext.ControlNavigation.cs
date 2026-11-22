@@ -30,6 +30,7 @@ public sealed partial class UiImmediateContext
     private List<ControlTabStop> _previousTabStops = [];
     private List<ControlTabStop> _currentTabStops = [];
     private string? _ownedControlFocus;
+    private string? _pointerActivatedFocus;
     private string? _ownedPointerControl;
     private bool _ownedPointerControlSeen;
     private string? _spacePressOwner;
@@ -68,6 +69,7 @@ public sealed partial class UiImmediateContext
             _state.NavCursorVisible = false;
         if (_leftMousePressed)
         {
+            _pointerActivatedFocus = null;
             if (_state.FocusedId == _ownedControlFocus)
                 _state.ClearControlFocusForPointer();
             _ownedControlFocus = null;
@@ -158,6 +160,8 @@ public sealed partial class UiImmediateContext
             CancelControlSpace();
             _requestFrame?.Invoke();
         }
+        if (_pointerActivatedFocus != _state.FocusedId || _state.NavCursorVisible)
+            _pointerActivatedFocus = null;
         _state.CompleteControlPointerFocus();
         (_previousTabStops, _currentTabStops) = (_currentTabStops, _previousTabStops);
         _currentTabStops.Clear();
@@ -200,6 +204,7 @@ public sealed partial class UiImmediateContext
         _currentTabStops.Clear();
         _currentTabStops.Capacity = 0;
         _ownedControlFocus = null;
+        _pointerActivatedFocus = null;
         _spacePressOwner = null;
         _ownedPointerControl = null;
         _ownedPointerControlSeen = false;
@@ -290,6 +295,8 @@ public sealed partial class UiImmediateContext
             else if (input.Key == UiKey.Escape && input.IsDown)
                 CancelControlSpace();
         }
+        if (activated)
+            _pointerActivatedFocus = pointer.Activated ? id : null;
         if (activated && !pointer.Activated)
         {
             _lastItemEdited = true;
