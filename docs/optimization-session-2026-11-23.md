@@ -56,3 +56,20 @@ On WSLg NativeAOT with Dozen and RTX 5070 Ti at 1280 × 900, three processes per
 In a separate GPU profile, the baseline created a capacity-four pipeline in all three SVG entries. The shared policy created it during Overview and performed no new vector-scene pipeline creation on SVG entry. First wheel GPU peak ranges overlapped. Five actual WSLg viewport pairs matched exactly, and the comparison builds passed 108 Gallery presentation checks each. A diagnostic build of the driver-gated product verified ID 23 on Dozen and ID 13 on llvmpipe. Dozen selected capacity four at startup and reused it on SVG entry. llvmpipe created capacities one and four at their original stages. Results are under `artifacts/wslg-svg-stack-pipeline-20261123` in the local workspace.
 
 The driver-gated build passed all 108 Gallery presentation checks on Dozen. The Windows Release solution build completed with zero warnings or errors, and the Windows Gallery passed all 108 presentation checks.
+
+## MessageBar width changes
+
+Each width-only option update invalidated the MessageBar arrangement and the cached unconstrained size of its body. This repeated natural measurement during rapid dragging, even though the body content and its measurement context had not changed. The arrangement and ancestor measurements still invalidate on width changes. The body's natural size remains reusable until a child or other measurement input changes.
+
+The Windows Gallery comparison used the same process image, assets, and diagnostic profiler with only `Duxel.Core.dll` exchanged between versions. Each arm ran in three independent managed .NET 11.0.0 processes (SDK 11.0.100) on an RTX 5070 Ti. After warming the page, each foreground window received two bursts of 68 desktop mouse moves at a median spacing of 2.08–2.13 ms. V-Sync and detailed Vulkan profiling were disabled. App-side CPU time and accepted presentation intervals were measured during active input.
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| UI composition p95 | 8.21 ms | 6.00 ms |
+| App CPU frame time, median / p95 / p99 | 12.38 / 14.28 / 16.55 ms | 10.21 / 11.41 / 13.28 ms |
+| Accepted presentation interval, median / p95 / p99 | 12.58 / 14.46 / 16.73 ms | 10.41 / 12.79 / 18.61 ms |
+| Accepted presentation rate, mean / 1% low | 90.68 / 59.78 FPS | 102.41 / 53.74 FPS |
+
+UI composition p95 fell 26.9%, app CPU p95 fell 20.1%, and accepted presentation interval p95 fell 11.6%. Per-process p95 ranges were disjoint for all three metrics. The worst 1% of presentation intervals did not improve, and these intervals measure app-side acknowledgements. The separate comparison with slider markers hidden did not improve p95, so the product retains the original slider. The event-driven drag reached both ends of the tested sweep and published the final CodeView width after button release.
+
+The Windows solution built in Release. All 52 MessageBar checks and 34 Gallery page checks passed. The baseline failed the new width-only measurement reuse check, and both variants correctly invalidated the cache after a body size change. All 64 Windows MessageBar GPU fixtures matched their reference pixels. The Windows Gallery and the Linux x64 NativeAOT Gallery on WSLg Dozen acknowledged 108 presentations each. The timing comparison uses the managed Windows runtime because Windows NativeAOT tooling remains on hold. Run it with `pwsh -File artifacts/messagebar-width-layout-20261123/isolate.ps1 -Root artifacts/messagebar-width-layout-20261123` after preparing the two profiled Core builds. Raw timing, input and binary hashes are in `artifacts/messagebar-width-layout-20261123/isolated`.

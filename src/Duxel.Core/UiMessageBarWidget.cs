@@ -144,9 +144,19 @@ public class UiMessageBar<TPresentation> : UiMultiChildWidget, IUiMessageBarCont
             if (_options == value)
                 return;
             ThrowIfBuilding();
+            var widthOnly = (_options with { Width = value.Width }) == value;
             ApplyChildDirection(value.RightToLeft);
             _options = value;
-            RequestRebuild();
+            if (widthOnly)
+            {
+                // Width changes the arrangement, but the body's unconstrained size is still valid.
+                _retained?.Invalidate();
+                RequestRebuild(invalidateOwnMeasurement : false);
+            }
+            else
+            {
+                RequestRebuild();
+            }
         }
     }
 

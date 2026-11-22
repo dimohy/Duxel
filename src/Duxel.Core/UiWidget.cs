@@ -116,11 +116,17 @@ public abstract partial class UiWidget : IUiView, IDisposable
     }
 
     public void RequestRebuild()
+        => RequestRebuild(invalidateOwnMeasurement : true);
+
+    private protected void RequestRebuild(bool invalidateOwnMeasurement)
     {
         ThrowIfDisposed();
         ThrowIfBuilding();
         _invalidated = true;
-        InvalidateMeasurementChain();
+        if (invalidateOwnMeasurement)
+            InvalidateMeasurementChain();
+        else
+            _ownerContext?.Owner.InvalidateMeasurementChain();
         RequestFrame();
     }
 

@@ -77,6 +77,20 @@ internal static class MessageBarTests
         Frame(ui => check(Throws<InvalidOperationException>(() => bar.Measure(ui, new(300, 20))),
             "Insufficient height is rejected rather than clipping required content"));
 
+        var changingBody = new Probe(new(200, 20));
+        using var changingWidth = Fluent.MessageBar("Changing width", changingBody, options : new(Width : 270));
+        Frame(changingWidth.Render);
+        var intrinsicMeasures = changingBody.IntrinsicMeasures;
+        changingWidth.Options = changingWidth.Options with { Width = 245 };
+        Frame(changingWidth.Render);
+        check(intrinsicMeasures > 0 && changingBody.IntrinsicMeasures == intrinsicMeasures
+            && changingWidth.LastLayout.Size.X == 245 && changingWidth.LastLayout.Multiline,
+            "Changing MessageBar width rearranges the body without repeating intrinsic measurement");
+        changingBody.Resize(new(120, 20));
+        Frame(changingWidth.Render);
+        check(changingBody.IntrinsicMeasures > intrinsicMeasures && !changingWidth.LastLayout.Multiline,
+            "Changing the owned body invalidates the retained intrinsic measurement and updates wrapping");
+
         using var shortBody = new UiInlineText([new("Title ", UiInlineTextWeight.Semibold), new("body")]);
         using var noActions = Fluent.MessageBar("No actions", shortBody);
         Frame(ui => check(noActions.Measure(ui, new(300, 300)).Y == 36, "A short literal body needs no phantom action row"));
@@ -224,7 +238,7 @@ internal static class MessageBarTests
     {
         private UiVector2 _size = size;
         internal UiRect Bounds;
-        internal int Measures, Paints;
+        internal int Measures, Paints, IntrinsicMeasures;
         internal bool Released;
         internal void Resize(UiVector2 value)
         {
@@ -235,6 +249,8 @@ internal static class MessageBarTests
         protected override UiVector2 MeasureContent(UiControlContext context)
         {
             Measures++;
+            if (float.IsPositiveInfinity(context.LayoutConstraints.MaxWidth))
+                IntrinsicMeasures++;
             return context.LayoutConstraints.Constrain(_size);
         }
         protected override void RenderControl(UiImmediateContext ui)
