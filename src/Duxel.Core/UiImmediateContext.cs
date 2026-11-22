@@ -90,6 +90,7 @@ public sealed partial class UiImmediateContext
     // The byte budget counts RGBA payload of idle dedicated textures.
     private const long DirectTextCacheMaxIdleTextureBytes = 16 * 1024 * 1024;
     private const int DirectTextCacheMaxIdleFrames = 600;
+    private const double DirectTextParagraphRunMaxIdleSeconds = 10;
     private const int ShortDirectTextCacheMaxIdleFrames = 24;
     private bool _useShortDirectTextCache;
     private const int DirectTextAtlasPageSize = 1024;
@@ -228,7 +229,8 @@ public sealed partial class UiImmediateContext
         float OriginX = 0,
         UiVector2 ParagraphOrigin = default,
         PlatformShapedGlyphRun? ShapedGlyphs = null,
-        UiTextureFormat TextureFormat = UiTextureFormat.Rgba8Unorm);
+        UiTextureFormat TextureFormat = UiTextureFormat.Rgba8Unorm,
+        double ParagraphLastUsedSeconds = 0);
     private readonly record struct UiWindowCanvasState(UiDrawListBuilder DrawList, UiVector2 Origin, UiRect Rect, bool HasClipRect);
     private readonly record struct StyleColorEntry(UiStyleColor Color, UiColor Previous);
     private readonly record struct StyleVarEntry(UiStyleVar Var, float PrevX, float PrevY, bool IsVector);
@@ -867,6 +869,7 @@ public sealed partial class UiImmediateContext
             return;
 
         var currentFrame = _state.FrameCount;
+        var currentTime = _state.TimeSeconds;
         var eligibleCount = 0;
         var layerUnretainedCount = 0;
         var staleCount = 0;
@@ -883,7 +886,7 @@ public sealed partial class UiImmediateContext
                 continue;
             eligibleCount++;
             idleTextureBytes += GetDedicatedTextTexturePayloadBytes(pair.Value);
-            if (currentFrame - pair.Value.LastUsedFrame > pair.Key.MaxIdleFrames)
+            if (IsStale(pair.Key, pair.Value))
                 staleCount++;
         }
         // Counts alone cannot prove this: retained layout keys may live outside this cache.
@@ -899,7 +902,7 @@ public sealed partial class UiImmediateContext
 
             foreach (var pair in _directTextCache)
             {
-                if (currentFrame - pair.Value.LastUsedFrame > pair.Key.MaxIdleFrames
+                if (IsStale(pair.Key, pair.Value)
                     && !(_layerCacheStore?.RetainedTextKeys.ContainsKey(pair.Key) ?? false)
                     && !_directTextPaintedKeys.Contains(pair.Key))
                 {
@@ -916,6 +919,11 @@ public sealed partial class UiImmediateContext
                 RemoveDirectTextCacheEntry(key);
             }
         }
+
+        // A fast render loop should not evict recently viewed source lines in less than a second.
+        bool IsStale(in DirectTextCacheKey key, in DirectTextCacheEntry entry) => key.ParagraphRun is not null
+            ? currentTime - entry.ParagraphLastUsedSeconds > DirectTextParagraphRunMaxIdleSeconds
+            : currentFrame - entry.LastUsedFrame > key.MaxIdleFrames;
 
         var entryLimit = DirectTextCacheMaxEntriesWithParagraphs;
         SelectValidationDirectTextCacheLimit(ref entryLimit);

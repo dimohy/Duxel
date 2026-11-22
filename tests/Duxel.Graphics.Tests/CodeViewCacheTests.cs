@@ -7,6 +7,7 @@ internal static class CodeViewCacheTests
         CodeHighlightTests.Run(check);
         ParagraphRasterKeyTests.Run(check);
         VerifyVisibleWorkingSet(check);
+        VerifyParagraphCacheAge(check);
         VerifyClippedAccessibilityGeometry(check);
         VerifyScrollbarDragging(check);
         VerifySharedLineLayouts(check);
@@ -221,6 +222,42 @@ internal static class CodeViewCacheTests
                     ? new(node.Bounds.X + center, node.Bounds.Y + node.Bounds.Height - thickness / 2)
                     : new(node.Bounds.X + node.Bounds.Width - thickness / 2, node.Bounds.Y + center);
             }
+        }
+    }
+
+    internal static void VerifyParagraphCacheAge(Action<bool, string> check)
+    {
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        using var code = new UiCodeView("var value = \"한글 and English\"; // comment",
+            new(ShowToolbar: false, LineNumbers: false));
+        ControlFontFixture.Configure(context);
+        var input = new UiInputState(default, false, false, false, false, false, false, 0, 0, [], [], default, default);
+        var visible = true;
+        var screen = new Screen(ui =>
+        {
+            ui.EnableRootViewportContentLayout(contentPadding: 0);
+            if (visible)
+                code.Render(ui);
+        });
+
+        check(CreatedTextures(), "first display uploads CodeView paragraph runs");
+        visible = false;
+        for (var frame = 0; frame < 650; frame++)
+            CreatedTextures();
+        visible = true;
+        check(!CreatedTextures(), "returning to code after 650 fast frames reuses its textures");
+        visible = false;
+        CreatedTextures();
+        CreatedTextures(11);
+        visible = true;
+        check(CreatedTextures(), "returning to code after a longer elapsed interval recreates expired textures");
+
+        bool CreatedTextures(float deltaTime = .001f)
+        {
+            context.NewFrame(new(deltaTime, new(640, 480), new(1, 1)), input, new(0, 0, 640, 480), UiTextSettings.Default);
+            context.Render(screen);
+            using var draw = context.GetDrawData();
+            return draw.TextureUpdates.Any(update => update.Kind == UiTextureUpdateKind.Create);
         }
     }
 

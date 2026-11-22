@@ -116,3 +116,21 @@ On the matched workload the burst and tail each improved in all three pairs. The
 The new `text-image-memory` mode in `Duxel.Graphics.Tests` and `Duxel.Vulkan.Linux.Tests` exercised one and three in-flight slots, injected an image-view failure, and ran 96 batches of 48 R8 and RGBA images per configuration. Every configuration exercised both reuse and idle eviction. Reserved page memory peaked at 22–24 MiB on Windows and 26–32 MiB on WSLg Dozen. All four returned to zero on renderer shutdown. These figures count Vulkan page capacity in the fixture, not process memory or GPU-wide VRAM. The separate long-running app memory comparisons remain open.
 
 The isolated checkout passed `Duxel.slnx -c Release`, Windows `directtext-cache`, `gallery-svg-code-scroll`, `gpu-stroke-pixels`, and `observer-gallery` (335), plus Linux Gallery (108 presentations) on RTX 5070 Ti via Dozen. Repeat the timing with `gallery-svg-code-stages` and the flags above. Raw distributions and renderer hashes are in `L:/Cache/Duxel/svg-texture-page-product-20261122/review-performance/verification.json` and `run-receipts.json` in the same folder. Lifetime outputs are in `review-text-image-memory` and `review-dozen-lifetime` under the parent folder.
+
+## Keep recently viewed styled text across fast frames
+
+The Gallery's continuous loop can draw more than 1,000 frames per second. The previous 600-frame idle limit could evict CodeView paragraph runs after about half a second, so returning to recently viewed source would rasterize the same runs and upload their textures again. Styled paragraph runs now expire after 10 seconds of UI elapsed time. The existing cache entry and idle texture byte limits still apply, and the ordinary and short-lived text policies are unchanged.
+
+The actual Windows Gallery opened SVG → Arcs and curves on RTX 5070 Ti Laptop GPU, MSAA 4, VSync off and continuous rendering. The managed build used SDK 11.0.100 and runtime 11.0.0. Both versions used the same executable and renderer with only `Duxel.Core.dll` swapped. Each of three independent runs per arm warmed up the tab, scrolled down to the source, then posted six alternating sweeps of 30 wheel events with about 1.8 seconds between sweeps. The table gives medians across runs for the five return sweeps. One candidate run overlapped a compiler invocation and was repeated. The logs preserve the excluded run.
+
+| Metric | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Texture copies | 2,586 | 277 | −89.3% |
+| Bytes submitted with texture copies | 5,898,152 | 398,620 | −93.2% |
+| Total CPU time processing textures across the sweeps | 14.61 ms | 6.87 ms | −53.0% |
+| Per-frame CPU median | 0.656 ms | 0.676 ms | +3.1% |
+| Per-frame CPU p95 | 0.935 ms | 0.975 ms | +4.3% |
+| Per-frame CPU p99 | 2.109 ms | 1.924 ms | −8.8% |
+| Slowest 1% CPU-frame rate equivalent | 317.3/s | 359.7/s | +13.4% |
+
+CPU timings include the render callback and renderer call. They exclude time between calls, so the rate equivalent gives a CPU timing comparison. The reported 149 ms frame cadence did not occur in this replay. New wrap widths can still generate new layout and textures, and native window resizing needs separate verification. The longer retention interval may keep more of the existing bounded cache occupied. In the `gallery-svg-code-stages` replay, the final SVG captures matched byte-for-byte. `codeview-paragraph-cache-age` checks initial upload, reuse after 650 short frames, and expiry after more than 10 seconds. Raw logs, input replay, binary receipts and metrics are in `L:/Cache/Duxel/svg-live-spike-20261122/verification.json` and its parent directory.

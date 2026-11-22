@@ -66,6 +66,17 @@ if (args is [_, "codeview-layout-cache"])
     return;
 }
 
+if (args is [_, "codeview-paragraph-cache-age"])
+{
+    CodeViewCacheTests.VerifyParagraphCacheAge((passed, name) =>
+    {
+        Console.WriteLine((passed ? "PASS " : "FAIL ") + name);
+        if (!passed)
+            Environment.ExitCode = 1;
+    });
+    return;
+}
+
 if (args is [_, "codeview-scrollbars"])
 {
     CodeViewCacheTests.VerifyScrollbarDragging((passed, name) =>

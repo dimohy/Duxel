@@ -356,7 +356,7 @@ public sealed partial class UiImmediateContext
 
     private DirectTextCacheEntry UseParagraphRaster(in DirectTextCacheKey key, DirectTextCacheEntry entry)
     {
-        entry = entry with { LastUsedFrame = _state.FrameCount };
+        entry = entry with { LastUsedFrame = _state.FrameCount, ParagraphLastUsedSeconds = _state.TimeSeconds };
         StoreDirectTextEntry(key, entry);
         _directTextPaintedKeys.Add(key);
         return EnsureDirectTextTexture(key, entry);
