@@ -239,3 +239,28 @@ The same Linux x64 NativeAOT .NET 11.0.0 executable showed the 1,200-table windo
 The host timing ranges overlap. The whole GPU measurement isolates the draw submission, while the upload timings measure host calls. For moving 8-second runs after frame 96, the joined whole-frame GPU p95 median was 0.67→0.75 ms with overlapping ranges. A separate 219-step replay compared identical camera and table states for both formats and a control repeat. The fixed-fit GPU median was 7.73 ms in the control, 7.44 ms with shared UV, and 8.09 ms in the control repeat. Three of six screen captures matched exactly. The rest differed by at most one channel level on 5–55 pixels, and the control repeat showed up to 57 such pixels. Three visible captures of a texture layer switching between varying UV, shared UV and varying UV again matched exactly across the cropped 64×64 region. The middle update used 24 fewer staging bytes for its four vertices.
 
 The format stays in the prototype pending a direct comparison with the unmodified shader, Windows RGB subpixel output, and long-run memory. The live command is `wsl bash /mnt/w/MyWorks/Duxel/artifacts/erd-constant-uv-20261123/run.sh` from a fresh isolated build. Logs, input hashes, fixed-pose captures and validation results are in `artifacts/erd-constant-uv-20261123`.
+
+### Original shader and shared-UV controls
+
+One Linux x64 NativeAOT executable loaded the original vertex shader, the experimental shader with normal vertices, or the experimental shader with shared UV. All loaded SPIR-V files were matched to their expected SHA-256 hashes. Three processes per condition replayed the ERD 1,200-table motion tour on WSLg Dozen and the RTX 5070 Ti at 1440×940 with 4× MSAA, rotating the order.
+
+| Median of three processes | Original | Format branch, normal vertices | Format branch, shared UV |
+| --- | ---: | ---: | ---: |
+| First staging bytes | 758,308,276 | 758,308,276 | 526,130,836 |
+| First upload submissions | 200 | 200 | 132 |
+| First app CPU | 1,428.07 ms | 1,451.35 ms | 1,360.31 ms |
+| First renderer CPU | 905.21 ms | 922.99 ms | 822.66 ms |
+| First host upload call | 463.00 ms | 465.37 ms | 370.44 ms |
+| First GPU draw | 7.64 ms | 7.55 ms | 7.05 ms |
+| Motion app CPU p95 after frame 96 | 11.44 ms | 11.44 ms | 11.98 ms |
+| Motion GPU p95 after frame 96 | 0.75 ms | 0.68 ms | 0.79 ms |
+
+Relative to the original, the shared-UV form reduced first renderer CPU median by 9.1% and increased motion GPU p95 median by 5.9%. The three-process ranges did not overlap for those two comparisons. Motion CPU ranges overlapped, and the elapsed-time tour can submit different poses at different rates. GPU timestamps measure draw submissions. The upload measurements are host call times.
+
+On Windows, the managed .NET 11 fixture exercised stock, normal and shared-UV vertices on the NVIDIA Vulkan driver with dual-source blending enabled. Full 640×420 readbacks matched the stock shader at 1× and 4× MSAA in both candidate modes. The two candidate modes preserved all 4,401 chromatic text pixels in the mixed-script text crop. Forcing dual-source blending off reduced that count to zero. The constant-UV colored quad used 24 fewer logical static geometry bytes, and the varying-UV quad and neutral circle matched. The captures and measurement inputs are in `artifacts/erd-uv-shader-control-20261123`.
+
+The same instrumented Linux executable ran the original format and the shared-UV format for one 180-second sampling interval each. Both processes exited normally after 181 one-second samples. Median process RSS grew by 21.13 MiB and 20.63 MiB between the first and last 30 samples, and the final medians were 1,175.76 MiB in both arms. Logical active static geometry stayed at 718.91 MiB and 497.49 MiB respectively. This accounting and process RSS do not measure operating-system GPU residency. The two runs establish the result for this device and order.
+
+A second prototype shares the attribute fetches and uses SPIR-V `OpSelect` for the UV word index. All six vertex entry points passed Vulkan 1.2 validation. Three real runs per mode presented the same 219-step replay for the original shader, the packed shader with a branch, and the packed shader using selection. At the fixed full view, median per-run GPU p95 was 8.15, 8.13 and 7.81 ms. Across the same 93 zoom poses it was 7.50, 7.13 and 6.95 ms. The original and the selection variant ranges did not overlap in either phase. Three of each run's six readbacks exercised a visible texture control and all texture crops matched exactly. Of 18 full-frame comparisons against the original reference process per mode, 12 original repeats, nine packed branch captures and eight selector captures matched exactly. The maximum channel delta was one in each mode. The two additional Windows selector captures matched the original at 1× and 4× MSAA, including the 4,401 ClearType text pixels.
+
+With the same live executable and nine new independent processes, the selection variant with shared UV reduced the first renderer CPU median from 899.49 to 831.97 ms (7.5%) and the host upload call from 442.52 to 382.06 ms (13.7%). Those ranges did not overlap. The first app CPU range overlapped and the transfer reduction stayed at 30.62%. After frame 96, the live motion GPU p95 median was 0.67, 0.71 and 0.78 ms for original, normal-selection and packed-selection conditions, with overlapping ranges. The fixed and live workloads yielded different tail directions. The format remains experimental pending matched real interaction replay and a check of dynamic CodeView and Gallery rendering on the uncompressed path.
