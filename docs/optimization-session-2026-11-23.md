@@ -337,3 +337,17 @@ The same deferred-recording method compared the stock queue, a candidate that wa
 | Accepted presentations/s during zoom replay | 195.99 | 177.03 | 154.94 |
 
 Waiting for idle increased zoom input latency p95 by 15.1% and reduced zoom replay throughput by 9.7%. Both run ranges were disjoint. The app's frame-start-to-accept p95 nevertheless fell from 20.85 to 13.19 ms because the candidate waited before the frame timing started. The stock render policy is retained. The zoom replay waited for the app to consume each input, so the throughput describes this replay. Full-view throughput uses the same 1.25-second window in every run. Raw timestamps and comparison logic are in `artifacts/erd-event-admission-20261123`.
+
+### Reuse CodeView line-number strings
+
+CodeView now reuses invariant decimal labels for line numbers at and above 300 using a lazily allocated cache of 128 entries per widget. The gutter width label uses the same path. Number formatting below 300 follows the conventional .NET cache. The widget releases its label cache on disposal. [Runtime number formatting](https://raw.githubusercontent.com/dotnet/runtime/main/src/libraries/System.Private.CoreLib/src/System/Number.Formatting.cs)
+
+Six alternating Windows managed .NET 11.0.0 processes rendered a 1,600-line document with mixed scripts, numbers, punctuation and wrapped rows. The same executable replayed 320 deep-scroll frames per process, after 96 warm-up frames at the deep viewport. The scroll positions matched. All 24 captured outputs matched the reference at their respective four positions. The release-form implementation was also rebuilt and verified against the same 320 scroll positions and four reference readbacks.
+
+| Median of three runs | Existing formatting | Bounded label cache | Change |
+| --- | ---: | ---: | ---: |
+| Mean managed allocation per composition | 2,039.25 B | 1,239.55 B | −39.2% |
+| Line number paint allocation p95 | 736 B | 0 B | −100% |
+| UI composition p95 | 0.3879 ms | 0.3931 ms | +1.3% |
+
+This change reduces repeated allocations on deep CodeView scrolling. The fixture showed no frame-time gain. The Windows managed Gallery and Linux x64 NativeAOT Gallery on WSLg Dozen each passed all 108 presentation scenarios. Process memory over a sustained session and the reported SVG slow frame remain separate measurements. The local replay and raw CSVs are in `artifacts/codeview-line-labels-20261123`.

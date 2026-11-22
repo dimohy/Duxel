@@ -62,7 +62,7 @@ public sealed partial class UiImmediateContext
     }
 
     private float CodeGutter(UiCodeView code) => code.Options.LineNumbers
-        ? MeasureTextInternal(code.LineStarts.Length.ToString(System.Globalization.CultureInfo.InvariantCulture), _textSettings, _lineHeight).X + 24
+        ? MeasureTextInternal(code.GetLineNumberText(code.LineStarts.Length), _textSettings, _lineHeight).X + 24
         : 8;
     internal UiVector2 MeasureCodeView(UiCodeView code)
     {
@@ -188,7 +188,7 @@ public sealed partial class UiImmediateContext
             var number = Array.BinarySearch(code.LineStarts, visual[line].Start);
             if (number < 0)
                 continue;
-            var label = (number + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var label = code.GetLineNumberText(number + 1);
             var measured = context.MeasureText(label);
             PaintInputRun(label, new(bounds.X + gutter - 12 - measured.X, y),
                 context.Theme.ForcedColors?.CanvasText ?? context.Theme.TextDisabled, clip, true);

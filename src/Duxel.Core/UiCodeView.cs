@@ -29,6 +29,26 @@ public sealed class UiCodeView : UiWidget
     internal readonly UiVisualTextVariants Measurements = new();
     internal readonly UiVisualTextLines IndependentPaintLines = new();
     internal int[] LineStarts { get; private set; } = [];
+    // Cache a viewport's worth of labels without retaining a string for each source line.
+    private const int LineLabelCapacity = 128;
+    private (int Number, string? Text)[]? _lineLabels;
+
+    internal string GetLineNumberText(int number)
+    {
+        // The runtime already reuses decimal strings below 300 on CoreCLR and NativeAOT.
+        if (number < 300)
+            return number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        var entries = _lineLabels ??= new (int, string?)[LineLabelCapacity];
+        ref var entry = ref entries[number & (LineLabelCapacity - 1)];
+        if (entry.Number == number)
+            return entry.Text!;
+
+        var text = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        entry = (number, text);
+        return text;
+    }
+
     public string Code
     {
         get => _code;
@@ -99,6 +119,7 @@ public sealed class UiCodeView : UiWidget
         Owner.Dispose();
         Measurements.Clear();
         IndependentPaintLines.Clear();
+        _lineLabels = null;
         base.ReleaseOwnedResources();
     }
     private sealed class CopyAction : UiWidget
