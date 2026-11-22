@@ -352,3 +352,27 @@ All scroll positions reached their expected offsets. The final guarded V-Sync-of
 With V-Sync on, the unguarded experiment composed 8,937 frames and submitted 10 in 2.5 s. The disabled control composed and submitted 360. With the final Windows FIFO guard the same window composed and submitted 361.
 
 Windows and WSLg Dozen Gallery each presented all 108 verification views. The Windows scrollbar replay passed four checks. On .NET 11 the presentation reuse suite completed the same 3,853 checks and 643 identical pixel pairs before the same existing paint-group extent assertion stopped both the baseline and candidate. [Timing and native paint replay](L:/Cache/Duxel/svg-win-present-reuse-20261122/result.json) · [Baseline pixels](L:/Cache/Duxel/svg-win-present-reuse-20261122/verify-net11-base/result.json) · [Candidate pixels](L:/Cache/Duxel/svg-win-present-reuse-20261122/verify-net11-product/result.json)
+
+## DirectText layout retention during SVG scrolling and width changes
+
+EventPipe samples from the Windows Gallery showed DirectWrite repeatedly laying out SVG descriptions and tab headings during the slow part of the gesture. These requests reuse the same strings, even when the owning controls are outside the viewport. The idle cache trimmed their metrics to make room for text with raster data, so the next frame could lay out the same hidden text again.
+
+Core now keeps ordinary pixel-free measurements used in the previous frame in the active working set. While active, they do not compete with raster entries for the idle budget. When measurement stops, the existing entry limits and expiry rules apply. The regression test repeats a document whose layout-only working set exceeds the idle limit and verifies its return to that limit after the document leaves the working set.
+
+The Windows Gallery ran on .NET SDK 11.0.100, runtime 11.0.0, and an RTX 5070 Ti Laptop GPU with continuous rendering and V-Sync off. Each arm ran three separate processes with the same executable, working sources, assets, and Win32 input sequence. Only the Core assembly differed. The replay selected Arcs and curves at 141%, scrolled through the source blocks, and changed the window width through 12 values from 1,500 pixels. The table uses the median of the three per-run statistics.
+
+| Windows Gallery measurement | Before | After |
+| --- | ---: | ---: |
+| Deep scroll CPU-side frame p95 | 7.482 ms | 0.781 ms |
+| Deep scroll CPU-side frame p99 | 8.511 ms | 1.333 ms |
+| Deep scroll 1% low, app render cadence | 95.31 FPS | 408.62 FPS |
+| Width change CPU-side frame median | 2.560 ms | 0.462 ms |
+| Width change CPU-side frame p95 | 13.710 ms | 0.870 ms |
+| Width change CPU-side frame p99 | 17.105 ms | 8.671 ms |
+| Width change 1% low, app render cadence | 48.40 FPS | 91.72 FPS |
+
+CPU-side p95 fell by 89.6% in deep scrolling and 93.7% during the width changes. Early wheel p95 was 0.916 → 0.884 ms. The CPU timings include UI composition and the renderer call. App render cadence includes repeated frames and is independent of monitor refresh. The replay did not reproduce sustained 6.7 FPS. These are managed Windows measurements. [Three-run comparison](L:/Cache/Duxel/svg-wheel-live-20261122/comparison-summary.json) · [Frame cadence and 1% lows](L:/Cache/Duxel/svg-wheel-live-20261122/measurements.json)
+
+The Windows Release solution built with zero warnings and errors. On .NET 11.0.0, 178 DirectText checks, four CodeView scrollbar checks, and 335 Gallery checks passed. The new layout-only regression failed with the control Core assembly and passed with the updated one. The two SVG and CodeView captures after scrolling and after a 16-step width change matched byte for byte. The Windows captures used the Gallery code-stage replay with `DUXEL_TEST_CODE_GALLERY_VIEWPORT=1` and `DUXEL_TEST_CODE_RESIZE=1`. [DirectText checks](L:/Cache/Duxel/svg-wheel-live-20261122/check-direct-text/result.json) · [Gallery checks](L:/Cache/Duxel/svg-wheel-live-20261122/check-gallery/result.json)
+
+The settled SVG zoom and rotation capture also matched in the Win32 pointer replay. WSLg Dozen on the RTX 5070 Ti acknowledged all 108 Gallery presentations, including SVG. [Pointer replay](L:/Cache/Duxel/svg-wheel-live-20261122/product-slider/pointer.tsv) · [WSLg Gallery verification](L:/Cache/Duxel/svg-wheel-live-20261122/gallery-verify/result.json)

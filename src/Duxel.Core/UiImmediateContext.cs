@@ -874,6 +874,7 @@ public sealed partial class UiImmediateContext
         var layerUnretainedCount = 0;
         var staleCount = 0;
         var nonParagraphCount = count;
+        var activeLayoutCount = 0;
         long idleTextureBytes = 0;
         foreach (var pair in _directTextCache)
         {
@@ -882,6 +883,11 @@ public sealed partial class UiImmediateContext
             if (_layerCacheStore?.RetainedTextKeys.ContainsKey(pair.Key) ?? false)
                 continue;
             layerUnretainedCount++;
+            if (IsActiveLayout(pair.Key, pair.Value))
+            {
+                activeLayoutCount++;
+                continue;
+            }
             if (_directTextPaintedKeys.Contains(pair.Key))
                 continue;
             eligibleCount++;
@@ -904,7 +910,7 @@ public sealed partial class UiImmediateContext
             {
                 if (IsStale(pair.Key, pair.Value)
                     && !(_layerCacheStore?.RetainedTextKeys.ContainsKey(pair.Key) ?? false)
-                    && !_directTextPaintedKeys.Contains(pair.Key))
+                    && !IsActive(pair.Key, pair.Value))
                 {
                     staleBuffer[staleIndex++] = pair.Key;
                 }
@@ -927,8 +933,8 @@ public sealed partial class UiImmediateContext
 
         var entryLimit = DirectTextCacheMaxEntriesWithParagraphs;
         SelectValidationDirectTextCacheLimit(ref entryLimit);
-        var overflow = _directTextCache.Count - entryLimit;
-        var nonParagraphOverflow = nonParagraphCount - DirectTextCacheMaxEntries;
+        var overflow = _directTextCache.Count - activeLayoutCount - entryLimit;
+        var nonParagraphOverflow = nonParagraphCount - activeLayoutCount - DirectTextCacheMaxEntries;
         var textureOverflow = idleTextureBytes - DirectTextCacheMaxIdleTextureBytes;
         if (overflow <= 0 && nonParagraphOverflow <= 0 && textureOverflow <= 0)
         {
@@ -945,16 +951,13 @@ public sealed partial class UiImmediateContext
         {
             if (_layerCacheStore?.RetainedTextKeys.ContainsKey(pair.Key) ?? false)
                 continue;
-            if (_directTextPaintedKeys.Contains(pair.Key))
+            if (IsActive(pair.Key, pair.Value))
                 continue;
             lruBuffer[lruCount++] = (pair.Key, pair.Value.LastUsedFrame, pair.Value.TextureId is not null);
         }
 
-        // The previous painted frame is the active working set, even when it
-        // exceeds the cold-cache budget. Newly hidden entries become eligible
-        // after one frame; retained layers have independent ownership.
-        // Layout-only/offscreen requests must not crowd the visible text's GPU
-        // texture working set out of this shared, bounded cache.
+        // The previous frame's painted entries and layout results are active.
+        // Layout-only work does not count against the texture working set.
         Array.Sort(lruBuffer, 0, lruCount, DirectTextEvictionComparer);
         for (var i = 0; i < lruCount && (overflow > 0 || nonParagraphOverflow > 0 || textureOverflow > 0); i++)
         {
@@ -970,6 +973,13 @@ public sealed partial class UiImmediateContext
                 nonParagraphOverflow--;
             textureOverflow -= textureBytes;
         }
+
+        // Repeated measurement can cover an entire document while painting only its viewport.
+        // Keep last frame's layout-only results to avoid shaping the same hidden text every frame.
+        bool IsActiveLayout(in DirectTextCacheKey key, in DirectTextCacheEntry entry)
+            => key.ParagraphRun is null && !key.ShortLived && !entry.HasRasterPixels && entry.LastUsedFrame >= currentFrame - 1;
+        bool IsActive(in DirectTextCacheKey key, in DirectTextCacheEntry entry)
+            => _directTextPaintedKeys.Contains(key) || IsActiveLayout(key, entry);
     }
 
     // Atlas entries share their page; removing a single entry does not reclaim a dedicated image.

@@ -100,6 +100,33 @@ internal static class DirectTextLayoutTests
         VerifyDeferredPixels(check);
         VerifyRetainedMetrics(check);
         VerifyLayerAndBackendLifetime(check);
+        VerifyActiveMeasureOnlyWorkingSet(check);
+    }
+
+    private static void VerifyActiveMeasureOnlyWorkingSet(Action<bool, string> check)
+    {
+        var backend = new ObservedBackend();
+        using var context = AdvanceContext(backend);
+        var limit = 0;
+        var labels = Array.Empty<string>();
+        AdvanceFrame(context, ui =>
+        {
+            limit = ui.DirectTextCacheOccupancy.Limit;
+            labels = Enumerable.Range(0, limit + 16).Select(index => $"Document label {index}").ToArray();
+        });
+
+        for (var frame = 0; frame < 3; frame++)
+            AdvanceFrame(context, ui =>
+            {
+                foreach (var label in labels)
+                    ui.CalcTextSize(label);
+            });
+        check(backend.Layouts == labels.Length && backend.Rasters == 0,
+            "Repeated document measurement keeps the active pixel-free working set above the idle cache limit");
+
+        AdvanceFrame(context, _ => { });
+        AdvanceFrame(context, ui => check(ui.DirectTextCacheOccupancy.Entries == limit,
+            "Previously measured document labels return to the idle cache limit after leaving the working set"));
     }
 
     private static void VerifyLayerAndBackendLifetime(Action<bool, string> check)
