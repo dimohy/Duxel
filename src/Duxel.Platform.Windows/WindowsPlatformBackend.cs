@@ -45,7 +45,7 @@ public readonly record struct WindowsPlatformBackendOptions(
 }
 
 [SupportedOSPlatform("windows")]
-public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32PlatformBackend
+public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32PlatformBackend, IPlatformPresentationInvalidationBackend
     , IWindowChromeController
     , IWindowThemeController
     , IWindowTitleBarPlatform
@@ -150,6 +150,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WmSysColorChange = 0x0015;
     private const uint WmThemeChanged = 0x031A;
     private const uint WmDpiChanged = 0x02E0;
+    private const uint WmDisplayChange = 0x007E;
     private const uint WmDwmCompositionChanged = 0x031E;
     private const uint WmNcMouseLeave = 0x02A2;
     private const uint WmApp = 0x8000;
@@ -266,6 +267,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private int _sizeMoveActive;
     private int _clientWidth;
     private int _clientHeight;
+    private long _presentationInvalidationSequence;
     private long _interactiveResizeSequence;
     private long _presentedResizeSequence;
     private readonly int _windowThreadId = Environment.CurrentManagedThreadId;
@@ -537,6 +539,8 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private readonly WindowsSystemTextScale? _systemTextScale;
 
     public bool IsInteractingResize => Volatile.Read(ref _sizeMoveActive) == 1;
+
+    long IPlatformPresentationInvalidationBackend.PresentationInvalidationSequence => Volatile.Read(ref _presentationInvalidationSequence);
 
     public long InteractiveResizeSequence => Volatile.Read(ref _interactiveResizeSequence);
 
@@ -1380,6 +1384,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             case WmEraseBkgnd:
                 return 1;
             case WmPaint:
+                Interlocked.Increment(ref _presentationInvalidationSequence);
                 _ = BeginPaint(hwnd, out var ps);
                 _ = EndPaint(hwnd, ref ps);
                 _frameInvalidated?.Invoke();
@@ -1394,6 +1399,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 _frameInvalidated?.Invoke();
                 break;
             case WmSize:
+                Interlocked.Increment(ref _presentationInvalidationSequence);
                 Volatile.Write(ref _clientWidth, unchecked((ushort)(nuint)lParam));
                 Volatile.Write(ref _clientHeight, unchecked((ushort)((nuint)lParam >> 16)));
                 Interlocked.Increment(ref _interactiveResizeSequence);
@@ -1425,6 +1431,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 _frameInvalidated?.Invoke();
                 break;
             case WmWindowPosChanged:
+                Interlocked.Increment(ref _presentationInvalidationSequence);
                 UpdateHostVisibility(hwnd);
                 _frameInvalidated?.Invoke();
                 break;
@@ -1492,6 +1499,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
                 break;
             case WmDpiChanged:
+                Interlocked.Increment(ref _presentationInvalidationSequence);
                 {
                     var newDpi = (int)(wParam & 0xFFFF);
                     _dpiScale = newDpi > 0 ? newDpi / 96f : 1f;
@@ -1516,7 +1524,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                     _frameInvalidated?.Invoke();
                     return 0;
                 }
+            case WmDisplayChange:
+                Interlocked.Increment(ref _presentationInvalidationSequence);
+                _frameInvalidated?.Invoke();
+                break;
             case WmDwmCompositionChanged:
+                Interlocked.Increment(ref _presentationInvalidationSequence);
                 if (_titleBarMode is DuxelTitleBarMode.ExtendedContent)
                 {
                     ApplyExtendedContentFrame();

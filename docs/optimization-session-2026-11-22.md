@@ -332,3 +332,23 @@ The large rectangle spent 96.3% less time producing coverage. The Windows Galler
 Gallery replay used .NET SDK 11.0.100 and runtime 11.0.0, RTX 5070 Ti Laptop GPU, MSAA 4, a fixed 1500×995 Windows window, continuous rendering and VSync off. Each published and candidate build ran three independent replays of the Arc comparison at 141%. The timings are app-side Vulkan presentation intervals. An additional trace exercised the SVG zoom slider up to 262% and back to 139%, with a longest interval of 11.35 ms. It did not exercise native window resizing.
 
 To repeat the CPU comparisons, build the managed SVG tests from each revision and run them with a fresh output directory and with the existing --zoom-profile command. The Windows managed SVG suite passed 316 checks, the SVG API and widget suite passed 138, and the WSLg Dozen Gallery presented all 108 verification views. [Windows replay and CPU comparison](L:/Cache/Duxel/svg-live-drag-20261122/comparisons.json) · [Runtime event evidence](L:/Cache/Duxel/svg-live-drag-20261122/runtime-evidence.json) · [WSLg presentation results](L:/Cache/Duxel/svg-live-drag-20261122/gallery-verify/result.json)
+
+## Windows reuse of unchanged Vulkan presentations
+
+The Windows platform now exposes the native presentation invalidation token already used by the Vulkan renderer. Windows paint, window-position, size, DPI, and display notifications advance the token. Unchanged draw data can reuse the existing presentation until a native invalidation arrives. When V-Sync is on, the Windows renderer continues using FIFO presentation to pace its frame loop. [Win32 update regions](https://learn.microsoft.com/en-us/windows/win32/gdi/the-update-region)
+
+The same instrumented binary ran three alternating comparisons with V-Sync off, with only DUXEL_VK_PRESENT_REUSE switched between runs. The input used the actual Win32 Gallery Arc comparison at 141%, a fixed 2000×995 window, and the RTX 5070 Ti Laptop GPU. Both arms ran SDK 11.0.100 and .NET 11.0.0.
+
+| Windows replay measurement | Reuse disabled | Reuse enabled |
+| --- | ---: | ---: |
+| 2.5 s with no new input, median Vulkan submissions | 5,212 | 12 |
+| Repeated wheel, median Vulkan submissions | 4,728 | 488 |
+| Scrollbar drag, median Vulkan submissions | 6,128 | 773 |
+| First 48 wheel inputs to the changed submission, median of run medians | 2.75 ms | 2.86 ms |
+| First 48 wheel inputs to the changed submission, median of run p95 | 5.19 ms | 4.59 ms |
+
+All scroll positions reached their expected offsets. The final guarded V-Sync-off build submitted 12 frames in the same idle interval and 486 during the repeated wheel. An explicit Win32 InvalidateRect during the three enabled runs was followed by a new submission within 0.80–0.98 ms. The reduction concerns Vulkan submissions. CPU composition continues in continuous mode, and the wheel latency ranges overlap.
+
+With V-Sync on, the unguarded experiment composed 8,937 frames and submitted 10 in 2.5 s. The disabled control composed and submitted 360. With the final Windows FIFO guard the same window composed and submitted 361.
+
+Windows and WSLg Dozen Gallery each presented all 108 verification views. The Windows scrollbar replay passed four checks. On .NET 11 the presentation reuse suite completed the same 3,853 checks and 643 identical pixel pairs before the same existing paint-group extent assertion stopped both the baseline and candidate. [Timing and native paint replay](L:/Cache/Duxel/svg-win-present-reuse-20261122/result.json) · [Baseline pixels](L:/Cache/Duxel/svg-win-present-reuse-20261122/verify-net11-base/result.json) · [Candidate pixels](L:/Cache/Duxel/svg-win-present-reuse-20261122/verify-net11-product/result.json)

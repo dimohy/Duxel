@@ -37,6 +37,9 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private bool TryReusePresentation(UiDrawData data, long? invalidationSequence, long allocatedBefore)
     {
+        // Keep FIFO presentation as the Windows frame loop's pacing point when V-Sync is enabled.
+        if (_options.EnableVSync && _platform is IWin32PlatformBackend)
+            return false;
         if (!_presentationReuseEnabled || invalidationSequence is not { } sequence || !_presentedDamageValid || !_damageEnabled
             || _presentedInvalidationSequence != sequence || _platform.IsInteractingResize
             || HasPendingPresentationWork || data.TextureUpdates.Count != 0
