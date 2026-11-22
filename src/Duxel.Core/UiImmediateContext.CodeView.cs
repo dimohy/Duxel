@@ -2,7 +2,64 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
-    private (string Id, UiAccessibilityTextLayout Layout, int Frame)? _clippedCodeTextLayout;
+    private const int ClippedCodeLayoutCapacity = 4;
+    private readonly record struct ClippedCodeLayout(string Id, UiAccessibilityTextLayout Layout, int Frame);
+    private List<ClippedCodeLayout>? _clippedCodeLayouts;
+
+    private void RetainClippedCodeLayout(string id, UiAccessibilityTextLayout? geometry)
+    {
+        var cache = _clippedCodeLayouts;
+        var index = FindClippedCodeLayout(id);
+        var frame = _state.FrameCount;
+        if (geometry is { CanRetainClippedGeometry: true })
+        {
+            cache ??= _clippedCodeLayouts = new(ClippedCodeLayoutCapacity);
+            // Keep the most recent snapshots of code that has just left the viewport.
+            // Each entry must also meet the geometry byte limit.
+            if (index >= 0)
+                cache.RemoveAt(index);
+            else if (cache.Count == ClippedCodeLayoutCapacity)
+                cache.RemoveAt(0);
+            cache.Add(new(id, geometry, frame));
+        }
+        else if (index >= 0)
+            cache![index] = cache[index] with { Frame = frame };
+    }
+
+    private int FindClippedCodeLayout(string id)
+    {
+        var cache = _clippedCodeLayouts;
+        if (cache is not null)
+            for (var i = cache.Count - 1; i >= 0; i--)
+                if (cache[i].Id == id)
+                    return i;
+        return -1;
+    }
+
+    private UiAccessibilityTextLayout? TakeClippedCodeLayout(string id)
+    {
+        var index = FindClippedCodeLayout(id);
+        if (index < 0)
+            return null;
+        var cache = _clippedCodeLayouts!;
+        var layout = cache[index].Layout;
+        cache.RemoveAt(index);
+        return layout;
+    }
+
+    private void UpdateClippedCodeLayouts(bool sameTree)
+    {
+        if (_clippedCodeLayouts is not { Count: > 0 } cache)
+            return;
+        if (!sameTree)
+        {
+            cache.Clear();
+            return;
+        }
+        for (var i = cache.Count - 1; i >= 0; i--)
+            if (unchecked(_state.FrameCount - cache[i].Frame) > 1)
+                cache.RemoveAt(i);
+    }
 
     private float CodeGutter(UiCodeView code) => code.Options.LineNumbers
         ? MeasureTextInternal(code.LineStarts.Length.ToString(System.Globalization.CultureInfo.InvariantCulture), _textSettings, _lineHeight).X + 24
@@ -47,16 +104,10 @@ public sealed partial class UiImmediateContext
         {
             if (_leftMousePressed && _state.ActiveId == root)
                 _state.ActiveId = null;
-            // Keep at most one small geometry snapshot while its widget is still rendered.
+            // Keep a bounded geometry snapshot while its widget is still rendered.
             // The offscreen node publishes no text geometry.
             if (_accessibility is { } tree)
-            {
-                var frame = _state.FrameCount;
-                if (tree.TryGet(root, out var previous) && previous.Node.TextLayout is { CanRetainClippedGeometry: true } geometry)
-                    _clippedCodeTextLayout = (root, geometry, frame);
-                else if (_clippedCodeTextLayout is { } clipped && clipped.Id == root)
-                    _clippedCodeTextLayout = (root, clipped.Layout, frame);
-            }
+                RetainClippedCodeLayout(root, tree.TryGet(root, out var previous) ? previous.Node.TextLayout : null);
             ExposeAccessibility(root, _accessibilityParent, UiAccessibilityRole.Edit, code.Labels.AccessibleName, bounds,
                 text, readOnly : true, multiline : true, textInfo : CaptureAccessibilityText(root, text, 0, 0));
             FinishLayoutBox(origin, size);

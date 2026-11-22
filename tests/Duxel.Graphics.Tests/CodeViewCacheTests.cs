@@ -280,11 +280,12 @@ internal static class CodeViewCacheTests
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
         using var tree = new UiAccessibilityTree();
         using var code = new UiCodeView("var label = \"한글 abc\";\nvar amount = 42;");
+        using var secondCode = new UiCodeView("var other = 27;");
         ControlFontFixture.Configure(context);
         context.SetAccessibilityTree(tree);
         var input = new UiInputState(default, false, false, false, false, false, false, 0, 0, [], [], default, default);
 
-        UiAccessibilityNode? Frame(bool clipped = false, bool shown = true)
+        UiAccessibilityNode[] Frame(bool clipped = false, bool shown = true)
         {
             context.NewFrame(new(.016f, new(640, 480), new(1, 1)), input, new(0, 0, 640, 480), UiTextSettings.Default);
             context.Render(new Screen(ui =>
@@ -294,28 +295,45 @@ internal static class CodeViewCacheTests
                     return;
                 if (clipped)
                     ui.PushClipRect(new(900, 900, 1, 1), true);
+                ui.PushID("first");
                 code.Render(ui);
+                ui.PopID();
+                ui.PushID("second");
+                secondCode.Render(ui);
+                ui.PopID();
                 if (clipped)
                     ui.PopClipRect();
             }));
             using var drawing = context.GetDrawData();
             return tree.CaptureSnapshot().Elements
                 .Where(element => element.Node.Name == "C# 예제 소스")
-                .Select(element => (UiAccessibilityNode?)element.Node).SingleOrDefault();
+                .Select(element => element.Node).ToArray();
         }
 
-        var original = Frame()?.TextLayout ?? throw new InvalidOperationException("Visible code must publish text geometry.");
+        UiAccessibilityTextLayout? LayoutFor(UiAccessibilityNode[] nodes, UiCodeView view) =>
+            nodes.Select(node => node.TextLayout).SingleOrDefault(layout => layout?.Content.Text == view.Code);
+
+        var initial = Frame();
+        var original = LayoutFor(initial, code) ?? throw new InvalidOperationException("Visible code must publish text geometry.");
+        var secondOriginal = LayoutFor(initial, secondCode) ?? throw new InvalidOperationException("Both code blocks must publish geometry.");
         var hidden = Frame(clipped: true);
         Frame(clipped: true);
-        check(hidden is { Offscreen: true, TextLayout: null }, "fully clipped code publishes no accessible text geometry");
-        check(ReferenceEquals(Frame()?.TextLayout, original), "code returning to the same viewport shares its pre-clip geometry");
+        check(hidden.Length == 2 && hidden.All(node => node is { Offscreen: true, TextLayout: null }),
+            "fully clipped code blocks publish no accessible text geometry");
+        var visible = Frame();
+        check(ReferenceEquals(LayoutFor(visible, code), original) && ReferenceEquals(LayoutFor(visible, secondCode), secondOriginal),
+            "both code blocks returning to their viewports reuse their pre-clip geometry");
         Frame(clipped: true);
         Frame(shown: false);
-        check(Frame()?.TextLayout is { } restored && !ReferenceEquals(restored, original),
-            "removing the code view retires its clipped geometry");
+        visible = Frame();
+        check(LayoutFor(visible, code) is { } restored && !ReferenceEquals(restored, original)
+            && LayoutFor(visible, secondCode) is { } secondRestored && !ReferenceEquals(secondRestored, secondOriginal),
+            "removing both code views retires their clipped geometry");
         Frame(clipped: true);
         code.Code += "\n// revised";
-        check(Frame()?.TextLayout?.Content.Text == code.Code, "changed code discards clipped geometry from the previous source");
+        visible = Frame();
+        check(LayoutFor(visible, code) is { } revised && !ReferenceEquals(revised, original),
+            "changed code discards clipped geometry from the previous source");
     }
 
     internal static void VerifyVisibleWorkingSet(Action<bool, string> check)

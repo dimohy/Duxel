@@ -21,9 +21,7 @@ public sealed partial class UiImmediateContext
     private List<TooltipAccessibilityScope>? _tooltipAccessibilityScopes;
     internal void SetAccessibilityTree(UiAccessibilityTree? tree)
     {
-        if (!ReferenceEquals(_accessibility, tree)
-            || _clippedCodeTextLayout is { } clipped && unchecked(_state.FrameCount - clipped.Frame) > 1)
-            _clippedCodeTextLayout = null;
+        UpdateClippedCodeLayouts(ReferenceEquals(_accessibility, tree));
         _accessibility = tree;
         _accessibilityWidget = null;
         _accessibilityParent = string.Empty;

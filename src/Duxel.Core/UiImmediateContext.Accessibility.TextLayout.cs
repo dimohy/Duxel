@@ -57,10 +57,10 @@ public sealed partial class UiImmediateContext
         var key = LayoutMeasurementKey;
         UiAccessibilityTextVisualKey? visualKey = visual is null ? null : new(visual.EffectiveWidth, visual.Wrap, visual.StyledSource?.Projection);
         var previous = _accessibility!.TryGet(id, out var published) ? published.Node.TextLayout : null;
-        if (reusePositionIndependentGeometry && _clippedCodeTextLayout is { } clipped && clipped.Id == id)
+        if (reusePositionIndependentGeometry)
         {
-            previous ??= clipped.Layout;
-            _clippedCodeTextLayout = null;
+            var clipped = TakeClippedCodeLayout(id);
+            previous ??= clipped;
         }
         if (previous is not null && ReferenceEquals(previous.Content, content) && previous.MeasurementKey == key
             && previous.LineHeight == height
