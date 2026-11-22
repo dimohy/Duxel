@@ -78,45 +78,50 @@ internal sealed record SvgAnalyticRRect(Vector4 Rectangle, Vector2 Radii, Matrix
             Array.Clear(visited);
             foreach (var triangle in triangles)
             {
-                var a = triangle.A.Position;
-                var b = triangle.B.Position;
-                var c = triangle.C.Position;
-                var y = row + .5;
-                if (y < MathF.Min(a.Y, MathF.Min(b.Y, c.Y)) || y > MathF.Max(a.Y, MathF.Max(b.Y, c.Y))) continue;
-                var determinant = ((double)b.Y - c.Y) * (a.X - c.X) + ((double)c.X - b.X) * (a.Y - c.Y);
-                if (determinant == 0) continue;
-                var firstColumn = (int)Math.Clamp(MathF.Floor(MathF.Min(a.X, MathF.Min(b.X, c.X))), 0, width);
-                var lastColumn = (int)Math.Clamp(MathF.Ceiling(MathF.Max(a.X, MathF.Max(b.X, c.X))), 0, width);
-                for (var column = firstColumn; column < lastColumn; column++)
-                {
-                    if (visited[column]) continue;
-                    var x = column + .5;
-                    var w0 = (((double)b.Y - c.Y) * (x - c.X) + ((double)c.X - b.X) * (y - c.Y)) / determinant;
-                    var w1 = (((double)c.Y - a.Y) * (x - c.X) + ((double)a.X - c.X) * (y - c.Y)) / determinant;
-                    var w2 = 1 - w0 - w1;
-                    if (w0 < 0 || w1 < 0 || w2 < 0) continue;
-                    visited[column] = true;
-                    var point = new Vector2((float)(triangle.A.Local.X * w0 + triangle.B.Local.X * w1 + triangle.C.Local.X * w2),
-                        (float)(triangle.A.Local.Y * w0 + triangle.B.Local.Y * w1 + triangle.C.Local.Y * w2));
-                    var outset = (float)(triangle.A.Outset * w0 + triangle.B.Outset * w1 + triangle.C.Outset * w2);
-                    var distance = MathF.Min(MathF.Min(point.X - left, right - point.X) * planeScale.X,
-                        MathF.Min(point.Y - top, bottom - point.Y) * planeScale.Y);
-                    var uv = new Vector2(point.X < left + rx ? point.X - left - rx : point.X > right - rx ? point.X - right + rx : 0,
-                        point.Y < top + ry ? point.Y - top - ry : point.Y > bottom - ry ? point.Y - bottom + ry : 0);
-                    if (uv.X != 0 && uv.Y != 0)
-                    {
-                        var normalized = uv / (Radii * Radii);
-                        var gradient = normalized.X * xGradient + normalized.Y * yGradient;
-                        var curveDistance = .5f * (1 - Vector2.Dot(uv, normalized)) / gradient.Length();
-                        distance = MathF.Min(distance, curveDistance);
-                    }
-                    var value = Math.Clamp(coverageScale * (distance - outset + coverageBias), 0, 1);
-                    if (!float.IsFinite(value)) throw new InvalidDataException("SVG analytic coverage exceeds its numeric range.");
-                    coverage[column] = value * (clip is { } rectangle ? SvgViewport.Coverage(rectangle, column, row) : 1);
-                    paintPoints[column] = Vector2.Transform(point, mapping);
-                }
+                RasterizeTriangleRow(triangle, row);
             }
             consume(row, coverage, [], paintPoints);
+        }
+
+        void RasterizeTriangleRow(Triangle triangle, int row)
+        {
+            var a = triangle.A.Position;
+            var b = triangle.B.Position;
+            var c = triangle.C.Position;
+            var y = row + .5;
+            if (y < MathF.Min(a.Y, MathF.Min(b.Y, c.Y)) || y > MathF.Max(a.Y, MathF.Max(b.Y, c.Y))) return;
+            var determinant = ((double)b.Y - c.Y) * (a.X - c.X) + ((double)c.X - b.X) * (a.Y - c.Y);
+            if (determinant == 0) return;
+            var firstColumn = (int)Math.Clamp(MathF.Floor(MathF.Min(a.X, MathF.Min(b.X, c.X))), 0, width);
+            var lastColumn = (int)Math.Clamp(MathF.Ceiling(MathF.Max(a.X, MathF.Max(b.X, c.X))), 0, width);
+            for (var column = firstColumn; column < lastColumn; column++)
+            {
+                if (visited[column]) continue;
+                var x = column + .5;
+                var w0 = (((double)b.Y - c.Y) * (x - c.X) + ((double)c.X - b.X) * (y - c.Y)) / determinant;
+                var w1 = (((double)c.Y - a.Y) * (x - c.X) + ((double)a.X - c.X) * (y - c.Y)) / determinant;
+                var w2 = 1 - w0 - w1;
+                if (w0 < 0 || w1 < 0 || w2 < 0) continue;
+                visited[column] = true;
+                var point = new Vector2((float)(triangle.A.Local.X * w0 + triangle.B.Local.X * w1 + triangle.C.Local.X * w2),
+                    (float)(triangle.A.Local.Y * w0 + triangle.B.Local.Y * w1 + triangle.C.Local.Y * w2));
+                var outset = (float)(triangle.A.Outset * w0 + triangle.B.Outset * w1 + triangle.C.Outset * w2);
+                var distance = MathF.Min(MathF.Min(point.X - left, right - point.X) * planeScale.X,
+                    MathF.Min(point.Y - top, bottom - point.Y) * planeScale.Y);
+                var uv = new Vector2(point.X < left + rx ? point.X - left - rx : point.X > right - rx ? point.X - right + rx : 0,
+                    point.Y < top + ry ? point.Y - top - ry : point.Y > bottom - ry ? point.Y - bottom + ry : 0);
+                if (uv.X != 0 && uv.Y != 0)
+                {
+                    var normalized = uv / (Radii * Radii);
+                    var gradient = normalized.X * xGradient + normalized.Y * yGradient;
+                    var curveDistance = .5f * (1 - Vector2.Dot(uv, normalized)) / gradient.Length();
+                    distance = MathF.Min(distance, curveDistance);
+                }
+                var value = Math.Clamp(coverageScale * (distance - outset + coverageBias), 0, 1);
+                if (!float.IsFinite(value)) throw new InvalidDataException("SVG analytic coverage exceeds its numeric range.");
+                coverage[column] = value * (clip is { } rectangle ? SvgViewport.Coverage(rectangle, column, row) : 1);
+                paintPoints[column] = Vector2.Transform(point, mapping);
+            }
         }
 
         static Vertex Make(Vector2 localPoint, Vector2 devicePoint, float outset)
