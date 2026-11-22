@@ -288,3 +288,26 @@ The actual WSLg Dozen application ran the same 1,200-table motion tour for 120 m
 The Windows Release solution built with zero warnings and errors. Windows passed 3,183 Rendering checks, 176 DirectText and retained geometry checks, 335 Gallery checks, and four SVG scrollbar checks. The follow-up CPU trace shows glyph command merging as the most frequent caller stack for the sampled reference-copy helper. [Follow-up trace caller stacks](L:/Cache/Duxel/erd-first-fit-cpu-20261122/bulk-move-stacks.log)
 
 WSLg Dozen presented all 108 Gallery verification views.
+
+## Retained Vulkan index topology fingerprints
+
+Vulkan fingerprints the index order for each retained draw list. The compiled group cache reuses its index buffer after vertex-only changes and replaces it when index content changes. It now hashes the full index span with the XXH3 implementation already used by Duxel.Core. The cache rule and index layout stay the same. The rendering regression covers index-only changes with an unchanged count and compares the updated layer to a fresh layer. [Microsoft XXH3 API](https://learn.microsoft.com/en-us/dotnet/api/system.io.hashing.xxhash3.hashtouint64)
+
+The Windows replay used an RTX 5070 Ti Laptop GPU, .NET 11.0.0, 1,200 ERD tables, 1440×940 and MSAA 4. The fixed executable replayed 219 poses, with three alternating runs per version and only the Vulkan module exchanged. Five readback poses in all six runs matched byte-for-byte.
+
+| Windows metric | Before | After |
+| --- | ---: | ---: |
+| First fitted CPU-side render call | 518.13 ms | 448.96 ms |
+| First fitted CPU-side frame including composition | 1,471.80 ms | 1,307.76 ms |
+| First fitted GPU rendering | 2.500 ms | 2.494 ms |
+| Continuous zoom CPU-side median | 1.710 ms | 1.702 ms |
+
+The first render call was shorter in each pair. It includes staging, submission, and any frame waits. The full first-frame elapsed measurements include UI composition, whose run ranges overlap. Later frame timing did not show a consistent gain. [Matched Windows replay](L:/Cache/Duxel/erd-glyph-batch-20261122/submission-verification.json) · [Frame and capture details](L:/Cache/Duxel/erd-glyph-batch-20261122/topology-windows.json)
+
+Two discarded CPU-side experiments changed glyph-run command merging and deferred inspection of vector ink metrics. The glyph-run variant had first-frame medians of 1,319.16 → 1,400.57 ms with detailed profiling and 1,388.81 → 1,403.26 ms with it disabled. The deferred ink variant measured 1,267.35 → 1,395.50 ms. Each experiment retained the existing capture pixels. [Glyph-run replay](L:/Cache/Duxel/erd-glyph-batch-20261122/glyph-batch-windows.json) · [Glyph run without profiling](L:/Cache/Duxel/erd-glyph-batch-20261122/quiet-verification.json) · [Deferred ink replay](L:/Cache/Duxel/erd-glyph-batch-20261122/ink-windows.json)
+
+The WSLg Dozen application ran the 1,200-table motion tour for 120 measured seconds per arm, with 121 memory samples each. The same executable and assets ran with only the Vulkan module exchanged. Sampled CPU-side elapsed time medians were 8.571 and 8.273 ms, and GPU sample medians were 0.109 and 0.110 ms. Compiled index buffer peak payload remained 173,202,672 bytes. Final-30-sample RSS medians were 1,235.93 and 1,238.13 MiB. In the single startup pair, the interval from full atlas readiness to first scene presentation was 3,130.70 → 2,575.93 ms. The atlas preparation times also differed. These observations do not establish a sustained frame-time or process-memory improvement. [WSLg sustained replay](L:/Cache/Duxel/erd-glyph-batch-20261122/product-live-verification.json) · [Startup markers](L:/Cache/Duxel/erd-glyph-batch-20261122/startup-wslg.json)
+
+Windows Release built without warnings or errors. Rendering passed 3,185 checks, including both index-only revision checks. DirectText 176, Gallery 335, and four SVG scrollbar checks passed.
+
+WSLg Dozen presented all 108 Gallery verification views.

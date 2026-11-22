@@ -1523,6 +1523,34 @@ Check(!topologyA.AsSpan().SequenceEqual(topologyB) && renderer.LastFrameMetrics.
     && renderer.ValidationUploads.StagingBytes > 0,
     "vertex-only content revision uploads changed geometry while reusing compiled index topology");
 
+void RetainedIndexPattern(UiImmediateContext c, string key, int revision, bool flipped)
+{
+    if (c.BeginLayer(key, new(false, 1, default) { Scene3D = new(front), ContentVersion = revision }))
+    {
+        var input = new UiDrawList(
+            UiPooledList<UiDrawVertex>.FromArray([
+                new(new(10, 10), default, Green),
+                new(new(40, 10), default, Green),
+                new(new(10, 40), default, Green),
+                new(new(40, 40), default, Green),
+            ]),
+            UiPooledList<uint>.FromArray(flipped ? [1, 3, 2] : [0, 1, 2]),
+            UiPooledList<UiDrawCommand>.FromArray([new(rect, white, 0, 3, 0)]));
+        try { c.GetWindowDrawList().Append(input); }
+        finally { input.ReleasePooled(); }
+    }
+    c.EndLayer();
+}
+
+var indicesBefore = Capture("compiled-index-pattern-before", c => RetainedIndexPattern(c, "compiled.indices", 0, false));
+var indicesAfter = Capture("compiled-index-pattern-after", c => RetainedIndexPattern(c, "compiled.indices", 1, true));
+var indicesUploaded = renderer.LastFrameMetrics.CompiledIndexUploadBytes;
+var indicesReference = Capture("compiled-index-pattern-reference", c => RetainedIndexPattern(c, "compiled.indices.reference", 0, true));
+Check(!indicesAfter.AsSpan().SequenceEqual(indicesBefore) && indicesAfter.AsSpan().SequenceEqual(indicesReference),
+    "same-size index-only changes produce the same pixels as a fresh layer");
+if (compiledLayers)
+    Check(indicesUploaded > 0, "index-only revisions replace the compiled index stream");
+
 void ManyPlanes(UiImmediateContext c, bool resident)
 {
     for (var i = 0; i < 257; i++)

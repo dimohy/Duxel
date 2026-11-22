@@ -164,11 +164,7 @@ public sealed unsafe partial class VulkanRendererBackend
     }
 
     private static ulong HashIndexTopology(ReadOnlySpan<uint> indices)
-    {
-        var hash = 14695981039346656037UL;
-        foreach (var index in indices) hash = (hash ^ index) * 1099511628211UL;
-        return (hash ^ (uint)indices.Length) * 1099511628211UL;
-    }
+        => System.IO.Hashing.XxHash3.HashToUInt64(MemoryMarshal.AsBytes(indices));
 
     private void UploadStaticGeometryBufferContent(
         StaticGeometryBuffer target,
