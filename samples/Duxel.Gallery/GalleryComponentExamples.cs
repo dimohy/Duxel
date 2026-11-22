@@ -13,18 +13,13 @@ internal sealed class ComponentExamplePage : IObserverPage, IObserverNaturalPage
     public IReadOnlyList<IGallerySample> Samples { get; }
     internal ComponentExamplePage(string name, string description, GallerySample<UiWidget> sample,
         params GallerySample<UiWidget>[] additional)
-        : this(name, description, sample, additional, null) { }
-
-    internal ComponentExamplePage(string name, string description, GallerySample<UiWidget> sample,
-        GallerySample<UiWidget>[] additional, UiWidget? introduction)
     {
         Title = name;
         Description = description;
         _sample = sample;
         Samples = [sample, ..additional];
-        var body = additional.Length == 0 && introduction is null ? (UiWidget)sample
-            : Dux.Column(new(Spacing : 24, MainAxisSize : UiMainAxisSize.Min),
-                introduction is null ? [sample, ..additional] : [introduction, sample, ..additional]);
+        var body = additional.Length == 0 ? (UiWidget)sample
+            : Dux.Column(new(Spacing : 24, MainAxisSize : UiMainAxisSize.Min), [sample, ..additional]);
         _content = Dux.ScrollView(body);
     }
     internal UiWidget Body => _content.Child;
@@ -112,7 +107,7 @@ internal static class GalleryComponentExamples
             choices, allocation);
     }
 
-    private static ComponentExamplePage CreateAnimation(Action<string>? navigate)
+    private static ComponentExamplePage CreateAnimation()
     {
         var timing = MotionExample(() => new MotionPreview(), """
             var transition = new UiFloatTransition(0);
@@ -138,25 +133,8 @@ internal static class GalleryComponentExamples
             presence.SetItems(nextItems);
             presence.Options = presence.Options with { ReducedMotion = reducedMotion };
             """);
-        UiWidget? examples = null;
-        if (navigate is not null)
-        {
-            (string Page, string Label)[] destinations =
-            [
-                ("ActivityIndicator", "ActivityIndicator"), ("ProgressIndicator", "ProgressIndicator"), ("ProgressBar", "ProgressBar"),
-                ("Spinner", "Spinner"), ("Shimmer", "Shimmer"), ("스켈레톤", "Skeleton"),
-                ("Toast", "Toast"), ("메시지 표시", "MessageBar"), ("HeadsUpDisplay", "HeadsUpDisplay"), ("Popover", "Popover"), ("Tooltip", "Tooltip"),
-                ("대화 상자", "Dialog"), ("보조 패널", "Drawer"), ("접기·펼치기", "Accordion"),
-                ("Tree", "Tree"), ("Carousel", "Carousel"), ("CardNudge", "CardNudge"),
-                ("SegmentedControl", "SegmentedControl"), ("TabList", "TabList"), ("렌더링", "Rendering")
-            ];
-            examples = Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
-                Fluent.Subtitle2(GalleryText.Get("Motion in other examples")),
-                Dux.Wrap(new(Spacing : 8, RunSpacing : 6), destinations.Select(route =>
-                    (UiWidget)Fluent.Button(GalleryText.Get(route.Label), () => navigate(route.Page))).ToArray()));
-        }
         return new("Animation", "Compare timing, reverse or reset a transition, and try rotation, scrollbar fades, and animated layout changes.",
-            timing, [rotation, scrollbar, presence], examples);
+            timing, rotation, scrollbar, presence);
     }
 
     private static GallerySample<UiWidget> MotionExample<T>(Func<T> create, string excerpt,
@@ -164,7 +142,7 @@ internal static class GalleryComponentExamples
         GallerySample.Create<UiWidget>(() => create(), expression : expression,
             declarations : GallerySample.LocalizeSource(GalleryPageSource.Declaration(typeof(T).Name))).WithExcerpt(excerpt);
 
-    internal static IObserverPage[] Create(Action<string>? navigate = null) =>
+    internal static IObserverPage[] Create() =>
     [
         new IconCatalogPage(),
         Stateful("TagPicker", "Search for a recipient by name, then try removing a selected tag.", new UiState<string>(string.Empty), new UiState<string[]>(["dimoi"]), (query, selected) =>
@@ -289,7 +267,7 @@ internal static class GalleryComponentExamples
                     GalleryText.Get("Line numbers"), GalleryText.Get("Show all"), GalleryText.Get("Copy source"),
                     GalleryText.Get("Copied"), GalleryText.Get("CodeView preview")));
         }),
-        CreateAnimation(navigate),
+        CreateAnimation(),
         Example("Image", "Display a four-pixel image in a 160 × 160 widget.", () =>
         {
             var pixels = new byte[] { 0, 120, 212, 255, 100, 180, 240, 255, 100, 180, 240, 255, 0, 120, 212, 255 };

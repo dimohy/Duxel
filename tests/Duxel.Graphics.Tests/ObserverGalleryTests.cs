@@ -80,6 +80,19 @@ internal static class ObserverGalleryTests
             check(pageHeader.ControlledElementId == panel.Id && panel.LabeledBy == pageHeader.Id,
                 "observer actual page publishes reciprocal navigation and page relationships : " + page);
         }
+        Frame("Animation");
+        var libraryVersion = typeof(Duxel.App.DuxelAppSession).Assembly.GetName().Version!;
+        var versionParts = GalleryNavigation.DisplayVersion.Split('.');
+        check(versionParts is [var major, var minor, var revision]
+            && major == FormattableString.Invariant($"{libraryVersion.Major}")
+            && minor == FormattableString.Invariant($"{libraryVersion.Minor}")
+            && int.TryParse(revision, out var revisionNumber) && revisionNumber > 0
+            && revision == FormattableString.Invariant($"{revisionNumber}"),
+            "Gallery version uses the Duxel major and minor with an unpadded local revision");
+        check(Find(GalleryText.Get("Move or reverse"), UiAccessibilityRole.Button).Bounds.Width > 0
+            && !tree.CaptureSnapshot().Elements.Any(element =>
+                element.Node.Role == UiAccessibilityRole.Button && element.Node.Name is "ActivityIndicator" or "ProgressIndicator"),
+            "Animation presents its demo controls without buttons that navigate to other examples");
         Frame("개요");
         check(Find("V-Sync", UiAccessibilityRole.Switch).ToggleState == UiAccessibilityToggleState.Off
             && Find("이벤트 대기 모드", UiAccessibilityRole.Switch).ToggleState == UiAccessibilityToggleState.On,

@@ -264,7 +264,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             RepaintPage,
             MarkdownPage,
             new LocalizationPage(),
-            .. GalleryComponentExamples.Create(page => SelectedPage = page),
+            .. GalleryComponentExamples.Create(),
             .. Fluent.MissingComponentNames.ToArray().Where(static component => component != "Toast").Select(static component => (IObserverPage)new WidgetPage(component,
                 "Fluent 구성요소 구현 예정",
                 Dux.Column(new(Spacing: 16, MainAxisSize: UiMainAxisSize.Min),

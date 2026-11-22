@@ -21,6 +21,7 @@ Give your assistant the target platform, the screen you want, and the reference 
 
 - Start with the nearest Gallery example. Its copied C# often includes the state and options needed to use the control.
 - Gallery limits inline code to a compact preview. The copy icon in the page header copies the Gallery page's C# implementation files. On **Animation**, the code below each demo shows the relevant API call.
+- The navigation header displays the Duxel major and minor version followed by the Gallery revision without leading zeros, as in `0.3.3`. The revision increases with each delivered fix or feature that affects the Gallery.
 - In Gallery, **CodeView** demonstrates selection, copying, line wrapping, and line numbers. **Animation** covers timing curves, frame scheduling, rotation, scrollbar fading, and animated layout changes. Its links open widget-specific motion examples. On **Icon**, pick a result and hover over the preview to see its filled style. The copied C# uses `UiIcon.HoverIcon` to do the same. For runtime glyph selection, use `UiMenuIcon.FromFontGlyph<TFont>` with a glyph from that font.
 - For a slider with fine increments, set `ShowStepMarkers = false` to keep snapping without painting a tick for each step. The MessageBar width slider uses this option.
 - In the MessageBar example, the thumb follows the pointer while the width preview applies the latest value at up to 60 updates per second. On release, the message layout and the displayed C# use the final width.

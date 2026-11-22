@@ -25,14 +25,15 @@ internal sealed record GalleryDestination(string Key, string Label, string Page,
 /// <summary>Canonical component routes borrow persistent example pages; menu state never owns those pages.</summary>
 internal sealed class GalleryNavigation : IDisposable
 {
-    private const int GalleryRevision = 1;
+    // Increase once for each fix or feature delivered in the Gallery.
+    private const int GalleryRevision = 3;
     internal static string DisplayVersion { get; } = FormatVersion();
 
     private static string FormatVersion()
     {
         var version = typeof(Duxel.App.DuxelAppSession).Assembly.GetName().Version
             ?? throw new InvalidOperationException("The Duxel App assembly must provide its version.");
-        return FormattableString.Invariant($"{version.Major}.{version.Minor}.{GalleryRevision:D4}");
+        return FormattableString.Invariant($"{version.Major}.{version.Minor}.{GalleryRevision}");
     }
 
     private static readonly Dictionary<string, DateOnly> MenuRegistrationDates = new(StringComparer.Ordinal)

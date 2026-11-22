@@ -1580,7 +1580,6 @@ This icon has one style in the bundled font.	기본 제공 글꼴에서 이 아�
 Copy full page C#	페이지 전체 C# 복사	ページの C# 全体をコピー	复制整页 C#
 Timing curves	속도 곡선	タイミング曲線	缓动曲线
 Version {0}	버전 {0}	バージョン {0}	版本 {0}
-Motion in other examples	위젯별 애니메이션 예제	ウィジェット別のアニメーション例	各控件的动画示例
 Reset animations	애니메이션 초기화	アニメーションをリセット	重置动画
 Animation duration (seconds)	애니메이션 재생 시간(초)	アニメーションの再生時間（秒）	动画时长（秒）
 Duration: {0:0.00} s	재생 시간 {0:0.00}초	再生時間：{0:0.00} 秒	时长：{0:0.00} 秒
