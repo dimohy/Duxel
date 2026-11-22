@@ -288,3 +288,24 @@ On WSLg Dozen RTX 5070 Ti, three runs per condition used one Linux x64 NativeAOT
 | Zoom GPU draw | 6.98 ms | 7.05 ms |
 
 App CPU p95 increased 3.1% on drag and 4.3% on zoom, with disjoint per-run ranges. GPU p95 ranges overlap in both phases. The app profile's interval between UI render completion and renderer entry increased from 13.67 to 14.21 ms on drag and 11.53 to 11.99 ms on zoom. That interval includes draw-data extraction and render-queue handoff, so the measurements do not localize the delay to either operation. The Vulkan upload-call p95 changed from 1.28 to 1.31 ms on drag and from 0.88 to 0.88 ms on zoom. The product retains its original shader and static vertex layout.
+
+### Render queue timing during matched ERD input
+
+The app profile's existing `getDraw` field runs from the end of UI rendering to entry into the Vulkan renderer. An isolated diagnostic build measured the actual `GetDrawData()` call, producer-side texture payload capture and command inspection, enqueue, waiting for the consumer, and renderer entry separately. Time blocked before taking the next input snapshot is measured separately from this interval. The components were checked against the existing field for all input frames.
+
+The same Linux x64 NativeAOT executable replayed 60 drag moves and 72 wheel steps per run at 1440×940 with WSLg Dozen and the RTX 5070 Ti. The measured source frames, GPU submissions, table positions and zoom targets were joined and checked. Three rotated runs per condition used the stock shader with the queue, the UV selector with the queue, or the stock shader on a single thread.
+
+| Stock shader and Windows-mounted logs, median of three per-run p95 values | Drag | Zoom |
+| --- | ---: | ---: |
+| `GetDrawData()` call | <0.001 ms | <0.001 ms |
+| Queue preparation | 0.035 ms | 0.032 ms |
+| Wait between enqueue and consumer dequeue | 14.18 ms | 12.84 ms |
+| Capacity wait before input snapshot | 14.28 ms | 13.64 ms |
+| App profile elapsed frame time with queue | 29.85 ms | 27.09 ms |
+| App profile elapsed frame time on one thread | 15.58 ms | 14.63 ms |
+
+The one-thread arm removed queue waiting. These frame intervals include elapsed waiting with the queue enabled, and they do not measure the rate of completed presentations or input-to-display latency. The figures alone do not determine a preferred scheduling policy.
+
+The two queued conditions were also run three times each with both log files written to the WSL Linux filesystem. With the stock shader, queue-wait p95 moved from 14.18 to 11.36 ms on drag and from 12.84 to 9.73 ms on zoom. Profiled elapsed frame p95 moved from 29.85 to 24.30 ms and from 27.09 to 22.24 ms. The phases were grouped by filesystem. This establishes sensitivity to the profiling environment and leaves run-order effects open. Microsoft recommends keeping files on the WSL filesystem for Linux I/O. [WSL filesystem guidance](https://learn.microsoft.com/en-us/windows/wsl/filesystems)
+
+The earlier UV selector CPU regression changed direction under the split timestamps. With native logs, its elapsed frame p95 was 23.95 ms on drag and 21.56 ms on zoom, with ranges overlapping the stock shader in both phases. The selector remains experimental. A timing method with deferred log writes and paired input-to-accepted-presentation timestamps is needed before choosing the queue policy or revisiting the rendering change. All 15 exits, 1,980 matched input frames, and the stage reconstruction checks are recorded in `artifacts/erd-render-queue-stages-20261123/verification.json`.
