@@ -20,6 +20,16 @@ glslangValidator -V --target-env vulkan1.2 -Os -DDUXEL_SOLID_STROKES=1 -o src/Du
 spirv-val --target-env vulkan1.2 src/Duxel.Vulkan/Shaders/vector_stroke.solid.comp.spv
 ```
 
+### Concurrent preparation of the first scene and stroke pipelines
+
+On WSLg Dozen with an RTX 5070 Ti, the remaining startup cost was concentrated in the first vector scene and solid-stroke pipeline creations. Their sequential medians were 332.46 and 263.01 ms. All vector buffer allocations together took a median of 10.00 ms.
+
+When a stroke scene needs a previously unseen scene pipeline, the Vulkan renderer can prepare its scene pipeline and stroke work concurrently. Both operations complete before the scene can register or dispatch. The pipelines own separate layouts and use the same internally synchronized pipeline cache. [Vulkan compute pipeline creation](https://docs.vulkan.org/refpages/latest/refpages/source/vkCreateComputePipelines.html)
+
+Three Linux x64 NativeAOT processes per version used .NET 11.0.0, a warm pipeline cache, a visible 1280 × 900 X11 window, and 4× MSAA. Time from renderer initialization to the first accepted frame fell from a median of 1,363.79 to 1,072.57 ms (21.35%). Time from the initial clear to that frame fell from 779.52 to 485.69 ms (37.69%). The navigation and overview X11 captures matched across all six runs. The live FPS header was outside the pixel comparison.
+
+The Linux Gallery accepted all 108 presentation checks. Windows passed 46 solid-stroke checks, 46 dashed-stroke checks, two blend checks, and two transparent-arc checks per version. All 324 paired Windows captures matched byte for byte after rerunning the solid-stroke fixture at the same framebuffer extent as the control. The Windows Release solution built without warnings or errors.
+
 ## Windows Gallery SVG CodeView
 
 The Arc comparison tab combines six source examples with their SVG previews. The first tab frame spent roughly 84 ms in native CodeView layout. During scrolling, layout stayed cached. The 512-entry DirectText cache evicted the styled runs the next scroll pass needed.

@@ -182,13 +182,23 @@ public sealed unsafe partial class VulkanRendererBackend
                 throw new ArgumentOutOfRangeException(nameof(filter), "GPU vector blur exceeds the shader kernel capacity.");
             EnsureVectorBlurPipeline();
         }
-        EnsureVectorScenePipeline(scene.StackCapacity);
+        var preparePipelinesConcurrently = scene.Strokes.Count != 0 && !_vectorScenePipelines.ContainsKey(scene.StackCapacity);
+        if (!preparePipelinesConcurrently)
+            EnsureVectorScenePipeline(scene.StackCapacity);
         AcquireVectorSceneResource(scene);
         var output = new VectorSceneOutput(scene, width, height, default) { Filter = filter, Camera = camera, Background = background };
         try
         {
             output.Pixels = AllocateVectorBuffer(checked((nuint)width * (nuint)height * 4));
-            PrepareVectorStrokes(output);
+            if (preparePipelinesConcurrently)
+            {
+                // The pipelines own separate layouts and share an internally synchronized Vulkan cache.
+                Parallel.Invoke(
+                    () => EnsureVectorScenePipeline(scene.StackCapacity),
+                    () => PrepareVectorStrokes(output));
+            }
+            else
+                PrepareVectorStrokes(output);
             if (filter is not null)
             {
                 output.BlurA = AllocateVectorBuffer(checked((nuint)width * (nuint)height * 16));
