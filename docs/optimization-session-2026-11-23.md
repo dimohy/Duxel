@@ -457,3 +457,16 @@ The current `296a8c79` Windows managed build used the existing ERD sample with 1
 The median across the last third of the run was 0.40 MiB higher for private bytes and 1.13 MiB higher for the working set than the median across the first third. Managed committed memory increased 2.06 MiB between the first and last GC samples. The process handle count stayed between 590 and 603. This was one Windows motion-tour observation. It does not establish a universal memory bound, display FPS or GPU residency usage.
 
 The local `artifacts/gallery-directwrite-endurance-20261123/run-erd.ps1` builds the current sample as a managed executable and invokes `scripts/measure-erd-resources.ps1` with 600 seconds, 15 seconds of warmup, 1,200 tables, GC sampling and a fixed extent. The verified inputs, Gallery comparison and ERD results are in `artifacts/gallery-directwrite-endurance-20261123/endurance-verification.json`.
+
+### ClearType and WSLg standard-alpha regression
+
+Fresh builds of `6aa7118e` ran the same 320 × 240 Vulkan fixture on the RTX 5070 Ti Laptop GPU. Windows managed .NET 11.0.0 used dual-source blending and then ran a validation control with that feature disabled. WSLg Linux x64 NativeAOT used the installed Mesa Dozen driver's standard-alpha path. The RGB mask tests checked the result against the active blend equation and also rejected the other equation. The DirectWrite mask for mixed Hangul, Latin, digits and punctuation contained unequal RGB coverage on 592 pixels and matched its expected output within one channel value at both MSAA settings. [Vulkan dual-source blending](https://docs.vulkan.org/spec/latest/chapters/framebuffer.html#framebuffer-dsb)
+
+| Vector capture pair | Exact | Within one channel value |
+| --- | ---: | ---: |
+| Windows dual source and Windows standard alpha | 192/192 | 192/192 |
+| Windows dual source and WSLg standard alpha | 191/192 | 192/192 |
+| Windows standard alpha and WSLg standard alpha | 191/192 | 192/192 |
+| WSLg one frame slot and three frame slots | 192/192 | 192/192 |
+
+The tested families cover strokes, fills, dashes and strokes at 4× MSAA. Every capture passed its independent vector reference on each route. WSLg also passed 114 native text-baseline assertions and 36 cropped Pango paragraph raster assertions. Native raster outputs were checked against each platform's reference. The product source matches the previous 108-presentation Windows and 108-presentation WSLg Gallery checks, with documentation as the sole difference between those snapshots. The new captures and comparison are under `artifacts/current-blend-quality-20261123`.
