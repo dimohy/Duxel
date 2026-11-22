@@ -373,3 +373,26 @@ Six alternating Windows managed .NET 11.0.0 processes rendered a 1,600-line docu
 | UI composition p95 | 0.3879 ms | 0.3931 ms | +1.3% |
 
 This change reduces repeated allocations on deep CodeView scrolling. The fixture showed no frame-time gain. The Windows managed Gallery and Linux x64 NativeAOT Gallery on WSLg Dozen each passed all 108 presentation scenarios. Process memory over a sustained session and the reported SVG slow frame remain separate measurements. The local replay and raw CSVs are in `artifacts/codeview-line-labels-20261123`.
+
+### First visible Windows CodeView frame in Gallery
+
+Tested the clean `db0ba84e` snapshot with diagnostic timing enabled on managed .NET 11.0.0 and an RTX 5070 Ti Laptop GPU. Each of three independent processes opened SVG from the Gallery, selected Arcs and curves, set the existing 141% zoom fixture, and replayed 444 wheel messages. The cold table uses the first frame in each navigation interval that requested CodeView coverage and had both a matching app submission acknowledgment and a Vulkan timestamp. Those navigation frames used a 1984 × 956 framebuffer. The wheel phases below used 1483 × 720 at a fixed size.
+
+| Median of three processes | Open SVG | Open Arcs and curves |
+| --- | ---: | ---: |
+| App CPU frame | 163.36 ms | 57.92 ms |
+| UI composition | 158.24 ms | 55.54 ms |
+| CodeView paragraph preparation | 12.44 ms | 17.44 ms |
+| Windows paragraph backend calls within preparation | 7.63 ms | 11.81 ms |
+| Unbounded / finite-width backend layouts | 53 / 0 | 76 / 6 |
+| Paragraph rasterization across the frame | 1.12 ms | 0.50 ms |
+| Renderer CPU for all texture uploads | 3.72 ms | 0.90 ms |
+| GPU draw timestamp interval | 0.181 ms | 0.086 ms |
+
+The SVG image-definition operation took 37.08 ms at the median. The UI composition column includes the full page, beyond the CodeView paragraph timing. The Windows backend timing includes its managed preparation and DirectWrite work. It does not separate native layout, caret and range queries, or the managed assembly of run data.
+
+Across the first, return and repeat passes, 1,161 changed frames matched their Vulkan timestamps. The first pass requested 2,685,088 bytes of CodeView coverage in each run, and the return and repeat passes requested zero. The first and repeat app CPU p95 medians were 4.61 and 1.75 ms. The corresponding GPU p95 medians were 0.066 and 0.063 ms. The first and repeat paths reached the same scroll offsets. These are diagnostic frame measurements on one Windows machine. They do not measure monitor scanout, long-run memory, or a before/after product speedup.
+
+DirectWrite keeps positioned glyphs in text layouts. The cold count here points to new layouts, most of them unbounded, and makes the cost of the Windows paragraph backend the next measurement target. The renderer timestamps measure execution separately from CPU-side texture preparation. [DirectWrite layout reuse](https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-and-directwrite) · [Vulkan timestamp queries](https://docs.vulkan.org/samples/latest/samples/api/timestamp_queries/README.html)
+
+Build the diagnostic snapshot with `DuxelValidationHooks=true` and run `artifacts/codeview-live-stages-20261122/replay.ps1 -Runtime <diagnostic-gallery> -Output <run> -Mode Continuous`. The diagnostic patch, raw timing files and analysis are in `artifacts/codeview-first-presentation-20261123`. No product runtime code changed.
