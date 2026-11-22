@@ -437,3 +437,23 @@ On managed .NET 11.0.0 and the RTX 5070 Ti Laptop GPU, three independent Windows
 Geometry, app frame and fixture processing time ranges overlap. The 1.48% allocation reduction was identical in each run. All six fixture hashes matched for glyph positions, carets and per-character selection fragments. Across all native-window runs, 2,322 changed scroll frames matched GPU timestamps. This experiment leaves the product range-query implementation in place. The allocator figures are short-lived managed allocations and do not establish a sustained process-memory reduction.
 
 The diagnostic patch, probe source and results are under `artifacts/codeview-range-buffer-20261123`. Run the existing `codeview-live-stages-20261122/replay.ps1` for the native Gallery comparison and the local `probe/Probe.csproj` for paragraph geometry and allocation. The diagnostic variants use `DUXEL_PROBE_PARAGRAPH_RANGE_BUFFER=0` and `1`.
+
+### Ten-minute Windows Gallery DirectWrite comparison
+
+Windows managed .NET 11.0.0 ran the same Gallery executable twice at 1483 × 956. The first run used the current product at `296a8c79`. The second swapped the two assemblies that compile the shared DirectWrite paragraph source for builds from before the default-font change. The four other recorded module hashes matched. Both runs disabled detailed frame profiling and completed 100 cycles over 600 seconds. Each cycle set SVG zoom to 265%, returned to 141%, and scrolled down and back. All 200 scroll legs matched within 0.05 percentage points. Both runs collected 101 process samples and exited normally.
+
+| Metric | Product | Control |
+| --- | ---: | ---: |
+| Working set change, minute-two to final-minute median | +5.95 MiB | +5.54 MiB |
+| Private bytes change, minute-two to final-minute median | +4.27 MiB | +3.91 MiB |
+| Handle count change over the same medians | −5 | −8 |
+
+This single serial pair does not establish a process-memory improvement, a leak bound, or frame-time performance. Reproduce with `artifacts/svg-10min-text-batch-20261122/replay.ps1 -Runtime <gallery> -Output <run> -Cycles 100 -WheelOnly`. Both process ledgers and the matched summary are in `artifacts/gallery-directwrite-endurance-20261123/gallery-endurance.json`.
+
+### Ten-minute Windows ERD motion tour
+
+The current `296a8c79` Windows managed build used the existing ERD sample with 1,200 tables, camera motion and one animated table. The RTX 5070 Ti presented a fixed 1440 × 940 surface. After 15 seconds of warmup, the observer recorded 601 samples over 599.996 seconds and confirmed normal window close. The application frame counter advanced throughout the observation.
+
+The median across the last third of the run was 0.40 MiB higher for private bytes and 1.13 MiB higher for the working set than the median across the first third. Managed committed memory increased 2.06 MiB between the first and last GC samples. The process handle count stayed between 590 and 603. This was one Windows motion-tour observation. It does not establish a universal memory bound, display FPS or GPU residency usage.
+
+The local `artifacts/gallery-directwrite-endurance-20261123/run-erd.ps1` builds the current sample as a managed executable and invokes `scripts/measure-erd-resources.ps1` with 600 seconds, 15 seconds of warmup, 1,200 tables, GC sampling and a fixed extent. The verified inputs, Gallery comparison and ERD results are in `artifacts/gallery-directwrite-endurance-20261123/endurance-verification.json`.
