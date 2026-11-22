@@ -311,3 +311,24 @@ The WSLg Dozen application ran the 1,200-table motion tour for 120 measured seco
 Windows Release built without warnings or errors. Rendering passed 3,185 checks, including both index-only revision checks. DirectText 176, Gallery 335, and four SVG scrollbar checks passed.
 
 WSLg Dozen presented all 108 Gallery verification views.
+
+## Windows SVG first view and rectangular coverage
+
+In the actual Windows Gallery, opening SVG initially caused a presentation gap around 161 ms. An independent EventPipe run paired 1,460 JIT compilations on the render thread within its longest frame, accounting for 120.26 ms of that instrumented frame. This includes both first-time compilation and on-stack replacement during software rasterization. Preoptimizing the five raster methods shortened first entry but nearly doubled the second render of the complex Gallardo fixture (71.89 → 136.92 ms). That experiment was discarded.
+
+Axis-aligned rectangle coverage now evaluates the two edge columns and fills the interior with one coverage value per row. Both versions produced identical float coverage in six inputs, including subpixel, single-column, fractional, clipped, offscreen, and 4,096×512 cases. All four complex fixture zoom captures matched byte for byte.
+
+| Measurement | Before | After |
+| --- | ---: | ---: |
+| 4,096×512 rectangle coverage, median | 7.627 ms | 0.279 ms |
+| Gallery SVG first entry, median of longest presentation intervals | 160.71 ms | 154.04 ms |
+| Gallery repeated wheel, median of longest presentation intervals | 11.77 ms | 11.51 ms |
+| Gallery scrollbar drag, median of longest presentation intervals | 12.63 ms | 11.57 ms |
+| Gallardo second render at 101%, median | 71.48 ms | 79.13 ms |
+| Gallardo at 101% after eight warmup renders, median | 48.15 ms | 48.13 ms |
+
+The large rectangle spent 96.3% less time producing coverage. The Windows Gallery first entry gap was 4.2% shorter in the median. Scrolling ranges overlap, and the reported 6.7 FPS during sustained interaction did not reproduce. The second Gallardo render was 10.7% slower in the short, cold sequence. In the separate prewarmed replay with 24 renders per process, the medians were almost equal.
+
+Gallery replay used .NET SDK 11.0.100 and runtime 11.0.0, RTX 5070 Ti Laptop GPU, MSAA 4, a fixed 1500×995 Windows window, continuous rendering and VSync off. Each published and candidate build ran three independent replays of the Arc comparison at 141%. The timings are app-side Vulkan presentation intervals. An additional trace exercised the SVG zoom slider up to 262% and back to 139%, with a longest interval of 11.35 ms. It did not exercise native window resizing.
+
+To repeat the CPU comparisons, build the managed SVG tests from each revision and run them with a fresh output directory and with the existing --zoom-profile command. The Windows managed SVG suite passed 316 checks, the SVG API and widget suite passed 138, and the WSLg Dozen Gallery presented all 108 verification views. [Windows replay and CPU comparison](L:/Cache/Duxel/svg-live-drag-20261122/comparisons.json) · [Runtime event evidence](L:/Cache/Duxel/svg-live-drag-20261122/runtime-evidence.json) · [WSLg presentation results](L:/Cache/Duxel/svg-live-drag-20261122/gallery-verify/result.json)

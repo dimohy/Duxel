@@ -136,8 +136,13 @@ internal static class SvgCoverageRasterizer
 
     private static void Rectangle(SvgEdge[] edges, int width, int height, SvgCoverageRow consume, Vector4? clip)
     {
-        var min = edges.Select(edge => edge.Start).Aggregate(Vector2.Min);
-        var max = edges.Select(edge => edge.Start).Aggregate(Vector2.Max);
+        var min = edges[0].Start;
+        var max = min;
+        foreach (var edge in edges.AsSpan(1))
+        {
+            min = Vector2.Min(min, edge.Start);
+            max = Vector2.Max(max, edge.Start);
+        }
         if (clip is { } rectangle)
         {
             min = Vector2.Max(min, new(rectangle.X, rectangle.Y));
@@ -152,9 +157,17 @@ internal static class SvgCoverageRasterizer
         var coverage = new float[width];
         for (var y = top; y < bottom; y++)
         {
-            for (var x = first; x < last; x++)
+            if (first < last)
             {
-                coverage[x] = RectangleCoverage(min, max, x, y);
+                coverage[first] = RectangleCoverage(min, max, first, y);
+                if (last - first > 1)
+                    coverage[last - 1] = RectangleCoverage(min, max, last - 1, y);
+                if (last - first > 2)
+                {
+                    // The interior columns span a whole pixel horizontally.
+                    var rowCoverage = Math.Clamp(MathF.Min(y + 1, max.Y) - MathF.Max(y, min.Y), 0, 1);
+                    coverage.AsSpan(first + 1, last - first - 2).Fill(rowCoverage);
+                }
             }
             consume(y, coverage, [], []);
         }
