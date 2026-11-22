@@ -106,3 +106,21 @@ The sampled active static geometry and compiled layer cache held at 718.91 MiB a
 The first 300 s show 23.98 MiB of RSS growth on the same Dozen binary as the three previous stock-driver runs, which grew 20.69–21.74 MiB. The earlier fixed-driver runs grew 0.02–0.14 MiB. The ERD executables and the allocator mapping labels differ across sessions, so the older runs provide context for the current observation. This turn uses one run with the installed driver. It does not establish a general memory bound or isolate the owner of every anonymous mapping. The separate earlier allocation trace identifies the enhanced barrier allocation leak corrected by Mesa upstream. The current Mesa release list still showed 26.3.1. [Mesa release notes](https://docs.mesa3d.org/relnotes.html)
 
 The replay, source and runtime hashes, process samples, raw mappings, Vulkan profiles and window captures are under `artifacts/dozen-erd-endurance-600s-20261123`. The workload and product source are unchanged.
+
+### Paired run with the isolated Dozen correction
+
+Rebuilding `0173f62c` reproduced the stock run's NativeAOT executable SHA-256 exactly. The same ERD executable then ran with a separately built Mesa Dozen 26.3.1 ICD containing the enhanced-barrier allocation-base correction. The patch bytes match the earlier isolated driver's patch. The installed ICD and library hashes were rechecked, and the live process mapped the isolated ICD's library. The unmodified driver rebuilt for this experiment has a different `.text` hash from the installed library. This pair compares the installed driver with the corrected build. The earlier allocation tracing and three 300-second pairs provide separate attribution evidence.
+
+| Metric | Installed Dozen | Isolated corrected Dozen |
+| --- | ---: | ---: |
+| RSS change between first and last 30 sample medians | +50.05 MiB | +0.08 MiB |
+| Private resident set change | +50.05 MiB | +0.01 MiB |
+| GC commit change | +0.25 MiB | +0.13 MiB |
+| App CPU sampled p95 | 23.19 ms | 23.54 ms |
+| Delayed GPU sampled p95 | 7.14 ms | 7.17 ms |
+
+Both 600-second runs ended normally with 601 samples each. The renderer tracked the same 718.91 MiB static geometry and 165.18 MiB compiled layer cache in both runs. Each app capture set includes close and zoomed-out views. The wall-clock motion tour yields different frame counts across runs, so the pair establishes the observed RSS difference under this workload. FPS, all-workload memory bounds and OS-level GPU residency remain separate. Raw comparisons and captures are in `artifacts/dozen-erd-corrected-600s-20261123`.
+
+### Bidirectional line endpoints
+
+Reviewing the 72 saved mixed-script layout cases showed that the four remaining cross-platform caret differences all occur at the final source offset of one bidirectional string at four sizes. Every interior caret matches within 0.001 px. At 32 px, DirectWrite reports X = 127.0 at the trailing edge of the final digit while Pango reports the full row advance of 174.390625. The line advance matches. This comparison narrows the compatibility question to endpoint affinity and does not exercise an editor's End key. [DirectWrite hit testing](https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nf-dwrite-idwritetextlayout-hittesttextposition) · [Pango grapheme positions](https://docs.gtk.org/Pango/method.Layout.index_to_pos.html)
