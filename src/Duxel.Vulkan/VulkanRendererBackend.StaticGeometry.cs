@@ -121,7 +121,7 @@ public sealed unsafe partial class VulkanRendererBackend
             : staticBuffer.PrimitiveCount;
         return checked(
             ((ulong)vertexCount * (ulong)sizeof(UiVertex))
-            + ((ulong)indexCount * sizeof(uint))
+            + StaticIndexBufferBytes(indexCount, staticBuffer.StaticIndexType)
             + ((ulong)primitiveCount * (ulong)sizeof(PrimitiveInstance)));
     }
 
@@ -432,7 +432,7 @@ public sealed unsafe partial class VulkanRendererBackend
             : default;
         var shape = CreateStaticGeometryShape(
             source.Vertices.Length,
-            source.Indices.Length,
+            source.Indices,
             source.Rects.Length,
             source.Circles.Length,
             source.PrimitiveInstanceBaseCount,
@@ -685,27 +685,32 @@ public sealed unsafe partial class VulkanRendererBackend
         int RectPrimitiveCount,
         int CirclePrimitiveCount,
         bool HasExpandedPrimitiveGeometry,
+        IndexType StaticIndexType,
         StaticPrimitiveTriangleLayout PrimitiveTriangleLayout);
 
     private static StaticGeometryShape CreateStaticGeometryShape(
         int vertexCount,
-        int indexCount,
+        ReadOnlySpan<uint> indices,
         int rectPrimitiveCount,
         int circlePrimitiveCount,
         int primitiveInstanceBaseCount,
         bool expandPrimitiveGeometry,
         in StaticPrimitiveTriangleLayout primitiveTriangleLayout)
     {
+        var indexType = !expandPrimitiveGeometry && !indices.IsEmpty && vertexCount <= ushort.MaxValue + 1
+            && indices.IndexOfAnyExceptInRange(0u, (uint)ushort.MaxValue) < 0
+            ? IndexType.Uint16 : IndexType.Uint32;
         return new StaticGeometryShape(
             vertexCount,
-            indexCount,
+            indices.Length,
             vertexCount + primitiveTriangleLayout.VertexCount,
-            indexCount + primitiveTriangleLayout.IndexCount,
+            indices.Length + primitiveTriangleLayout.IndexCount,
             primitiveInstanceBaseCount + (expandPrimitiveGeometry ? 0 : rectPrimitiveCount + circlePrimitiveCount),
             primitiveInstanceBaseCount,
             rectPrimitiveCount,
             circlePrimitiveCount,
             expandPrimitiveGeometry,
+            indexType,
             primitiveTriangleLayout);
     }
 
@@ -750,6 +755,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
         if (existing.VertexCount != shape.VertexCount
             || existing.IndexCount != shape.IndexCount
+            || existing.StaticIndexType != shape.StaticIndexType
             || existing.PrimitiveCount != shape.PrimitiveCount
             || existing.PrimitiveInstanceBaseCount != shape.PrimitiveInstanceBaseCount
             || existing.RectPrimitiveCount != shape.RectPrimitiveCount

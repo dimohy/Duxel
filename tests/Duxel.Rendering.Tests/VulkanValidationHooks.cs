@@ -23,6 +23,19 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
     internal bool ValidationDualSourceBlend => _dualSourceBlendEnabled;
+
+    internal static (IndexType Type, ulong Bytes, ushort[] Packed) ValidationStaticIndexStorage(
+        ReadOnlySpan<uint> indices, int vertexCount, bool expanded = false)
+    {
+        var shape = CreateStaticGeometryShape(vertexCount, indices, 0, 0, 0, expanded, default);
+        var bytes = StaticIndexBufferBytes(shape.CombinedIndexCount, shape.StaticIndexType);
+        if (shape.StaticIndexType != IndexType.Uint16)
+            return (shape.StaticIndexType, bytes, []);
+        var packed = new ushort[checked((int)(bytes / sizeof(ushort)))];
+        Array.Fill(packed, ushort.MaxValue);
+        PackStaticIndices(indices, packed);
+        return (shape.StaticIndexType, bytes, packed);
+    }
     internal Action? ValidationBeforeTextureImageView;
     internal long ValidationReusedTextImages => _textTextureReuses;
     partial void BeforeValidationTextureImageView() => ValidationBeforeTextureImageView?.Invoke();

@@ -426,6 +426,7 @@ public enum ImageViewType : int
 
 public enum IndexType : int
 {
+    Uint16 = 0,
     Uint32 = 1,
 }
 

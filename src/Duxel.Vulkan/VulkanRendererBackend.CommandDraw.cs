@@ -91,7 +91,8 @@ public sealed unsafe partial class VulkanRendererBackend
                 vertexAddress,
                 indexBuffer,
                 frameContext.ProfileEnabled,
-                ref bufferBindingState);
+                ref bufferBindingState,
+                hasStaticBinding ? staticBinding.StaticIndexType : IndexType.Uint32);
 
             if (classification.IsTriangleCommand)
             {

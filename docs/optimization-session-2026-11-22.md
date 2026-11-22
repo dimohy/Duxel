@@ -198,3 +198,25 @@ The product replay used SDK 11.0.100, managed runtime 11.0.0, RTX 5070 Ti Laptop
 | Repeated-scroll CPU median | 3.92 ms | 2.71 ms | −30.8% |
 
 First-scroll p99 improved in all three pairs. The width and repeated-scroll samples overlap between independent processes. The fixture did not reproduce the 149 ms interval. All 223 replay steps per run matched on scroll offset, visible code height and uploaded coverage bytes, and 18 screenshot pairs matched byte-for-byte. Re-run with `gallery-svg-code-stages`, `DUXEL_TEST_CODE_GALLERY_VIEWPORT=1`, and `DUXEL_TEST_CODE_RESIZE=1`. Frame, GPU and image evidence is in `L:/Cache/Duxel/codeview-first-scroll-20261122/split-verification.json`. The JIT comparison is in the adjacent `osr-verification.json`.
+
+## Compact retained Vulkan triangle indices
+
+Each ERD table keeps a separate static triangle buffer. Vulkan now stores its indices as 16-bit values when the mesh fits the addressable vertex range, each source index fits, and primitive expansion is unnecessary. Upload converts directly into the staging buffer and clears padding for odd index counts. The static buffer records its format and binds it with the matching Vulkan index type. Rotating reuse and updates require both format and shape to match. Dynamic, expanded and compiled indices keep their existing 32-bit representation. [Vulkan index binding](https://registry.khronos.org/vulkan/specs/latest/man/html/vkCmdBindIndexBuffer.html)
+
+The Windows test used RTX 5070 Ti Laptop GPU, 1440×940, MSAA 4, 1,200 ERD tables, 120 initial fit frames with a moving table, and 93 timed zoom frames. It ran three fresh processes per arm with alternating order, the same .NET SDK 11.0.100 and runtime 11.0.0, and only the Vulkan DLL exchanged. The table shows medians across runs. Five additional readbacks per run were excluded from timing. The physical extent was checked at each step.
+
+| Metric | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Active static geometry bytes | 723,494,016 | 588,533,056 | −18.7% |
+| First-frame staging bytes | 723,494,020 | 588,533,060 | −18.7% |
+| First fit-view CPU frame | 1,878.71 ms | 1,939.89 ms | +3.3%, overlapping ranges |
+| Fit-view motion CPU median | 3.493 ms | 3.443 ms | −1.4% |
+| Fit-view motion CPU p95 | 4.015 ms | 6.062 ms | +51.0%, overlapping ranges |
+| Continuous zoom CPU median | 1.660 ms | 1.673 ms | +0.8% |
+| Continuous zoom GPU median | 0.719 ms | 0.702 ms | −2.3% |
+
+All five capture poses matched across the six default-renderer runs. Five additional capture pairs matched with layer compilation disabled, exercising the direct index-buffer binding. The change saves 128.71 MiB of static buffer payload on this scene. The measurements do not show a consistent frame-time improvement and exclude swapchain creation and capture readback. [Windows fixed replay](L:/Cache/Duxel/erd-static-ushort-20261122/fixed-verification.json) · [Direct draw captures](L:/Cache/Duxel/erd-static-ushort-20261122/native-parity.json)
+
+On WSLg Dozen, the same Linux ERD executable and 1,200-table motion tour ran for 120 measured seconds per arm, with only the Vulkan DLL exchanged. The physical extent stayed at 1440×940 with MSAA 4 and the RTX 5070 Ti. Each process exited normally with 121 RSS samples. Active static buffer payload peaked at 883.73 → 718.91 MiB. Compiled layer indices peaked at 330.03 MiB in both runs. The last-30-sample RSS median was 1,236.42 → 1,238.71 MiB. These runs show a reduction in static GPU buffer payload while process RSS stayed in the same range. The sampled CPU and GPU records in `live-verification.json` are not a full presentation-interval distribution. [WSLg memory and module receipts](L:/Cache/Duxel/erd-static-ushort-20261122/live-verification.json)
+
+The Release solution built with zero warnings and errors. Windows verification passed 173 DirectText and static geometry checks, 335 Gallery checks, and four scrollbar checks covering the two SVG examples. The WSLg Gallery presented all 108 verification views, including the vector previews.

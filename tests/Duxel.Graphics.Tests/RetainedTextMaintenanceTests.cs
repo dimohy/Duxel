@@ -10,6 +10,21 @@ internal static class RetainedTextMaintenanceTests
 {
     internal static void VerifyStaticMemoryPages(int frameSlots, Action<bool, string> check)
     {
+        uint[] indices = Enumerable.Range(0, 65).Select(i => i == 64 ? 65535u : (uint)(i * 977)).ToArray();
+        var compact = Duxel.Vulkan.VulkanRendererBackend.ValidationStaticIndexStorage(indices, 65_536);
+        check(compact.Type == Duxel.Vulkan.IndexType.Uint16 && compact.Bytes == 132
+            && compact.Packed.Take(indices.Length).Select(x => (uint)x).SequenceEqual(indices)
+            && compact.Packed[^1] == 0,
+            "odd static index count preserves the full 16-bit value range and zeroes transfer padding");
+        var large = Duxel.Vulkan.VulkanRendererBackend.ValidationStaticIndexStorage(indices, 65_537);
+        check(large.Type == Duxel.Vulkan.IndexType.Uint32 && large.Bytes == 260,
+            "static geometry above the compact vertex limit preserves 32-bit indices");
+        indices[^1]++;
+        var outOfRange = Duxel.Vulkan.VulkanRendererBackend.ValidationStaticIndexStorage(indices, 65_536);
+        var expanded = Duxel.Vulkan.VulkanRendererBackend.ValidationStaticIndexStorage([0, 1, 2], 3, expanded: true);
+        check(outOfRange.Type == Duxel.Vulkan.IndexType.Uint32 && expanded.Type == Duxel.Vulkan.IndexType.Uint32,
+            "out-of-range and generated primitive indices retain 32-bit storage");
+
         using var fixture = new PresentationReuseTests.Fixture(frameSlots, false);
 
         static void Draw(UiImmediateContext ui, string id, int quads)
@@ -155,9 +170,9 @@ internal static class RetainedTextMaintenanceTests
         }
 
         Verify(66, 1, state => state.Count == 64 && state.Bytes > 0, "the extended reuse cache admits at most 64 buffers");
-        Verify(24, 128, state => state.Count == 19 && state.Bytes is > 240 * 1024 and <= 256 * 1024,
+        Verify(24, 128, state => state.Count == 22 && state.Bytes is > 240 * 1024 and <= 256 * 1024,
             "the extended reuse cache admits only items within the aggregate byte limit");
-        Verify(1, 160, state => state == (0, 0UL), "a buffer over 16 KiB keeps the original frame-based grace");
+        Verify(1, 192, state => state == (0, 0UL), "a buffer over 16 KiB keeps the original frame-based grace");
     }
 
     internal static void VerifyShapedGlyphAtlas(int frameSlots, Action<bool, string> check)

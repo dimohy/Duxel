@@ -33,6 +33,7 @@ public sealed unsafe partial class VulkanRendererBackend
             string.Empty, 0, default, default, 0, 0, default, default, 0,
             default, default, 0, 0, 0, 0, 0, false, 0, null);
         public StaticMemorySlice StaticMemory { get; init; }
+        public IndexType StaticIndexType { get; init; } = IndexType.Uint32;
         public ulong IndexTopologyHash { get; init; }
         public ulong CommandTopologyHash { get; init; }
         public UiPooledList<UiDrawCommand>? TopologyCommands { get; init; }

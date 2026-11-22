@@ -183,6 +183,7 @@ public sealed unsafe partial class VulkanRendererBackend
         public ulong CurrentVertexAddress;
         public bool HasBoundIndexBuffer;
         public VkBuffer BoundIndexBuffer;
+        public IndexType BoundIndexType;
         public bool HasPrimitiveAddress;
         public ulong CurrentPrimitiveAddress;
         public bool HasCircleCutout;
@@ -200,10 +201,11 @@ public sealed unsafe partial class VulkanRendererBackend
         ulong vertexAddress,
         VkBuffer indexBuffer,
         bool profileEnabled,
-        ref CommandBufferBindingState state)
+        ref CommandBufferBindingState state,
+        IndexType indexType = IndexType.Uint32)
     {
         var vertexMatches = state.HasVertexAddress && state.CurrentVertexAddress == vertexAddress;
-        var indexMatches = state.HasBoundIndexBuffer && state.BoundIndexBuffer.Handle == indexBuffer.Handle;
+        var indexMatches = state.HasBoundIndexBuffer && state.BoundIndexBuffer.Handle == indexBuffer.Handle && state.BoundIndexType == indexType;
         if (vertexMatches && indexMatches)
         {
             return;
@@ -225,8 +227,9 @@ public sealed unsafe partial class VulkanRendererBackend
 
         if (!indexMatches)
         {
-            _vk.CmdBindIndexBuffer(commandBuffer, indexBuffer, 0, IndexType.Uint32);
+            _vk.CmdBindIndexBuffer(commandBuffer, indexBuffer, 0, indexType);
             state.BoundIndexBuffer = indexBuffer;
+            state.BoundIndexType = indexType;
             state.HasBoundIndexBuffer = true;
         }
 

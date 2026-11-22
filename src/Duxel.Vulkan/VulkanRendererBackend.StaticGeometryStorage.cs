@@ -1,4 +1,5 @@
 using Duxel.Core;
+using System.Numerics;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -28,7 +29,7 @@ public sealed unsafe partial class VulkanRendererBackend
         try
         {
             CreateStaticBufferRange(ref ranges[0], (ulong)shape.CombinedVertexCount * (ulong)sizeof(UiVertex), shaderUsage);
-            CreateStaticBufferRange(ref ranges[1], (ulong)shape.CombinedIndexCount * sizeof(uint), indexUsage);
+            CreateStaticBufferRange(ref ranges[1], StaticIndexBufferBytes(shape.CombinedIndexCount, shape.StaticIndexType), indexUsage);
             CreateStaticBufferRange(ref ranges[2], (ulong)shape.PrimitiveCount * (ulong)sizeof(PrimitiveInstance), shaderUsage);
             BindStaticBufferRanges(ranges, ref slice);
 
@@ -55,7 +56,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 shape.HasExpandedPrimitiveGeometry,
                 shape.PrimitiveTriangleLayout.RectExpandedIndexBase,
                 shape.PrimitiveTriangleLayout.CircleExpandedIndexOffsets
-            ) { IndexTopologyHash = HashIndexTopology(indices), StaticMemory = slice };
+            ) { StaticIndexType = shape.StaticIndexType, IndexTopologyHash = HashIndexTopology(indices), StaticMemory = slice };
         }
         catch
         {
@@ -191,6 +192,7 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             UploadStaticIndexBufferData(
                 target.IndexBuffer,
+                target.StaticIndexType,
                 indices,
                 shape.VertexCount,
                 rects,
@@ -261,8 +263,29 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
+    private static ulong StaticIndexBufferBytes(int indexCount, IndexType indexType)
+        => indexType == IndexType.Uint16 ? ((ulong)indexCount * sizeof(ushort) + 3) & ~3UL : (ulong)indexCount * sizeof(uint);
+
+    private static void PackStaticIndices(ReadOnlySpan<uint> source, Span<ushort> destination)
+    {
+        var i = 0;
+        var lanes = Vector<uint>.Count;
+        if (Vector.IsHardwareAccelerated)
+        {
+            for (; i <= source.Length - lanes * 2; i += lanes * 2)
+            {
+                Vector.Narrow(new Vector<uint>(source.Slice(i, lanes)), new Vector<uint>(source.Slice(i + lanes, lanes)))
+                    .CopyTo(destination[i..]);
+            }
+        }
+        for (; i < source.Length; i++)
+            destination[i] = (ushort)source[i];
+        destination[source.Length..].Clear();
+    }
+
     private void UploadStaticIndexBufferData(
         VkBuffer destinationBuffer,
+        IndexType indexType,
         ReadOnlySpan<uint> indices,
         int originalVertexCount,
         ReadOnlySpan<UiRectFilledPrimitive> rectPrimitives,
@@ -277,29 +300,22 @@ public sealed unsafe partial class VulkanRendererBackend
             return;
         }
 
-        var sourceSize = (nuint)(indexCount * sizeof(uint));
+        var sourceSize = checked((nuint)StaticIndexBufferBytes(indexCount, indexType));
         var commandBuffer = BeginStagingUpload(sourceSize, out var stagingOffset);
-        var indexDst = (uint*)((byte*)_stagingMappedPtr + stagingOffset);
-
-        if (!indices.IsEmpty)
-        {
-            fixed (uint* indexSrc = indices)
-            {
-                Unsafe.CopyBlockUnaligned(indexDst, indexSrc, (uint)(indices.Length * sizeof(uint)));
-            }
-        }
-
-        if (includeExpandedPrimitives)
-        {
-            WriteExpandedPrimitiveIndices(
-                indexDst + indices.Length,
-                originalVertexCount,
-                rectPrimitives,
-                circlePrimitives);
-        }
-
+        var target = (byte*)_stagingMappedPtr + stagingOffset;
         try
         {
+            if (indexType == IndexType.Uint16)
+            {
+                // Shape selection excludes expanded primitives and validates each source index.
+                PackStaticIndices(indices, new Span<ushort>(target, checked((int)(sourceSize / sizeof(ushort)))));
+            }
+            else
+            {
+                MemoryMarshal.AsBytes(indices).CopyTo(new Span<byte>(target, indices.Length * sizeof(uint)));
+                if (includeExpandedPrimitives)
+                    WriteExpandedPrimitiveIndices((uint*)target + indices.Length, originalVertexCount, rectPrimitives, circlePrimitives);
+            }
             var region = new BufferCopy
             {
                 SrcOffset = stagingOffset,
