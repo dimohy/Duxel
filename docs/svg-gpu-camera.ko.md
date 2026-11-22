@@ -126,4 +126,6 @@ SVG 경로의 표본을 검사할 때 픽셀에 대해 이미 계산한 카메�
 
 `DUXEL_VK_PROFILE=1`, `DUXEL_VK_GPU_PROFILE=1`, `DUXEL_VK_PROFILE_EVERY=1`을 켜면 `gpuSubmission`으로 완료된 프레임의 시간을 찾을 수 있습니다. 첫 블러 시간에 더해 `vectorBlurFilters`에 필터 수, `vectorBlurGpuUs`에 블러 합계, `vectorOutsideBlurGpuUs`에 경로 처리와 복사 등 나머지 벡터 작업 시간을 표시합니다. 한 프레임에 필터가 16개를 넘으면 개수와 첫 블러 시간만 기록하고 두 합계는 미확인으로 표시합니다. [갤러리 필터 시간 측정](archive/performance/optimization-session-2026-11-19.md#svg-filter-timing-by-submission)
 
+스크롤과 줌 반응을 확인할 때는 Vulkan 상세 계측을 끈 상태에서 먼저 입력을 재생하세요. GPU 단계별 시간은 별도 실행에서 수집합니다. 표본만 기록하려면 `DUXEL_VK_PROFILE_EVERY=30`을 설정하고 `DUXEL_VK_PROFILE_TIMING_SAMPLING`은 기본값인 `1`로 둡니다. 개별 제출을 분석할 때는 기록 간격을 `1`로 설정합니다. 매 프레임 시각을 읽고 로그를 쓰는 작업에도 CPU 시간이 듭니다.
+
 `vectorPathGpuUs`는 벡터 이미지를 그리는 연산 시간입니다. `vectorCopyGpuUs`는 장면 데이터, 의존성 테이블, 최종 텍스처를 복사하는 시간입니다. 테두리 준비나 동기화처럼 이 항목에 들지 않는 작업도 있습니다. 두 항목은 각각 64건을 넘기면 개수만 기록하고 시간 합계는 미확인으로 표시합니다. [갤러리 경로와 복사 시간](archive/performance/optimization-session-2026-11-19.md#svg-path-dispatch-and-transfer-timing)
