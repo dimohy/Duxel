@@ -58,6 +58,8 @@ group.Render(ui);
 
 그룹은 명시한 이름을 보존하고 실제 소유 제목을 `LabeledBy`로 연결합니다. 처음 표시할 때 Info는 Polite, 나머지 상태는 Assertive 공지를 요청합니다. 우선순위 변경·다시 표시·사용 중지 후 재사용 때 한 번 요청하며, 표시 중인 본문 편집이나 같은 우선순위의 상태 변경만으로는 반복하지 않습니다.
 
+Duxel의 기본값은 검토 기준으로 삼은 React 버전의 동작을 따릅니다. Fluent 2 설계 가이드에서는 Info와 Success 모두 Polite 공지를 권장합니다. Success에 설계 가이드를 적용하려면 `AnnouncementPriority`를 `UiAnnouncementPriority.Polite`로 설정하세요. [Fluent 2 MessageBar 접근성](https://fluent2.microsoft.design/components/web/react/core/messagebar/usage#accessibility) · [검토한 React 구현](https://github.com/microsoft/fluentui/blob/f9720c35ba893c9630f4c0389d07dc6d6fd6068d/packages/react-components/react-message-bar/library/src/components/MessageBar/useMessageBar.ts#L19-L37)
+
 ```csharp
 message.Options = message.Options with
 {
@@ -72,6 +74,8 @@ message.Options = message.Options with
 상태는 접근성 게시 성공 때만 확정합니다. 중단된 프레임은 공지를 소비하지 않고 제거된 소유자의 상태는 해제합니다. 안정된 프레임은 반복 공지나 렌더링을 요청하지 않습니다. `UiImmediateContext.AccessibilityTree`는 플랫폼이 소유한 트리를 빌려 주므로 구독·스냅샷에 사용하고 Dispose하지 마세요. 구독자는 해제 시 이벤트 연결을 끊어야 합니다. 공지 요청이나 네이티브 수신은 화면 읽기 프로그램의 발화 완료를 뜻하지 않습니다.
 
 ## 실행과 확인 범위
+
+너비 슬라이더를 끌면 미리보기의 메시지가 너비에 맞춰 배치됩니다. 예제 코드는 슬라이더를 놓을 때 최종 너비로 갱신됩니다. 키보드나 접근성 도구에서 너비를 바꿔도 예제 코드에 반영됩니다.
 
 Windows는 `./run-gallery.ps1`, 검증된 Linux 실행본은 `./artifacts/linux-present-path-2026-11-15/run-observer.ps1`로 실행하고 **메시지 표시**를 여세요. 너비·여러 행·모서리·좌우 배치·닫기·다시 열기·동작 줄이기·자동 공지·차분한 공지 고정을 확인할 수 있습니다. **키를 가진 동적 메시지**에서 추가·삭제·순서 변경을 조작합니다. 페이지와 옵션은 작은 화면에서 스크롤·줄바꿈하며, 공지 진단은 실제 요청 후 한 번만 갱신합니다.
 

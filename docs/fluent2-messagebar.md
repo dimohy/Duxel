@@ -58,6 +58,8 @@ Input and accessibility retire immediately while the last GPU paint fades linear
 
 The group preserves its explicit name and links `LabeledBy` to its actual owned title. Mounts request Polite for Info and Assertive for other intents. Computed priority changes, remounts and re-enabling request once; mounted edits or intent changes with the same priority do not repeat.
 
+Duxel's default follows the pinned React implementation. The Fluent 2 design guide recommends polite announcements for both Info and Success. To follow the design guide for a Success bar, set `AnnouncementPriority` to `UiAnnouncementPriority.Polite`. [Fluent 2 MessageBar accessibility](https://fluent2.microsoft.design/components/web/react/core/messagebar/usage#accessibility) · [Pinned React implementation](https://github.com/microsoft/fluentui/blob/f9720c35ba893c9630f4c0389d07dc6d6fd6068d/packages/react-components/react-message-bar/library/src/components/MessageBar/useMessageBar.ts#L19-L37)
+
 ```csharp
 message.Options = message.Options with
 {
@@ -74,6 +76,8 @@ State commits only after successful accessibility publication. Aborted frames do
 ## Running and evidence
 
 Run `./run-gallery.ps1` on Windows or `./artifacts/linux-present-path-2026-11-15/run-observer.ps1` for the qualified Linux executable, then select **MessageBar**. Controls expose width, multiline, shape, direction, dismissal/reopening, reduced motion and automatic/polite announcements. **Dynamic messages with keys** exposes insertion, removal and reordering. The page scrolls and controls wrap at constrained sizes; announcement diagnostics refresh once after a real request.
+
+Drag the width slider to see the bars reflow. The previews update while you drag, and the displayed sample code takes the final width when you release the slider. Keyboard and accessibility value changes also update the sample code.
 
 See the [plan](../artifacts/fluent-messagebar-2026-11-15/plan.json) and [native evidence](../artifacts/fluent-messagebar-2026-11-15/native-messagebar-verification.json). Windows managed .NET 11 UIA passed 8 client/1 host checks; pinned Linux RC3 NativeAOT AT-SPI passed 9 client/3 host checks. Actual title target identity, Korean/emoji payloads, mount/priority/edit/disable/enable/remount/quiet behavior were verified. Existing explicit announcements passed focused regressions on both platforms; Linux registry retirement was verified. Native frame acknowledgements use a finite test clock, not a throughput benchmark.
 
