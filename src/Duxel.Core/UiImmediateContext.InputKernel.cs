@@ -317,7 +317,7 @@ public sealed partial class UiImmediateContext
 
                 var ctrl = (keyEvent.Modifiers & KeyModifiers.Ctrl) != 0;
                 var shift = (keyEvent.Modifiers & KeyModifiers.Shift) != 0;
-                if (keyEvent.Key is UiKey.Home or UiKey.End or UiKey.PageUp or UiKey.PageDown)
+                if (keyEvent.Key is UiKey.Home or UiKey.PageUp or UiKey.PageDown)
                     buffer.SingleLine.ClearAffinity();
                 NormalizeSingleLineElements(buffer, ref caretIndex, ref selection, forward: changed);
                 if (keyEvent.Key is UiKey.LeftArrow or UiKey.RightArrow or UiKey.Home or UiKey.End or UiKey.PageUp or UiKey.PageDown)
@@ -453,8 +453,7 @@ public sealed partial class UiImmediateContext
                 }
                 else if (keyEvent.Key == UiKey.End)
                 {
-                    var next = ctrl ? text.Length : buffer.SnapTextElement(GetLineEndIndex(text, caretIndex));
-                    ApplyCaretMove(ref caretIndex, ref selection, next, shift);
+                    MoveSingleLineEnd(buffer, text, ref caretIndex, ref selection, ctrl, shift);
                 }
                 else if (keyEvent.Key == UiKey.PageUp)
                 {
@@ -586,6 +585,16 @@ public sealed partial class UiImmediateContext
             AccessibilityText = CaptureAccessibilityText(id, text, caretIndex, selection.Start)
         });
     }
+    private void MoveSingleLineEnd(UiTextEditBuffer buffer, string text, ref int caretIndex,
+        ref UiTextSelection selection, bool ctrl, bool shift)
+    {
+        var next = ctrl ? text.Length : buffer.SnapTextElement(GetLineEndIndex(text, caretIndex));
+        ApplyCaretMove(ref caretIndex, ref selection, next, shift);
+        // The logical end follows the last text element, which can lie inside the visual line.
+        buffer.SingleLine.Prepare(this, text);
+        buffer.SingleLine.RememberTrailingCaret(caretIndex);
+    }
+
     private void CompleteSingleLineInsertion(UiTextEditBuffer buffer, string text, ref int caretIndex, ref UiTextSelection selection)
     {
         NormalizeSingleLineElements(buffer, ref caretIndex, ref selection, forward: true);

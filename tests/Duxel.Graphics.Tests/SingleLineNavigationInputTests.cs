@@ -66,6 +66,35 @@ internal static class SingleLineNavigationInputTests
         Reset(2);
         Key(UiKey.Backspace);
         check(text == "אגד", "Single-line Backspace retains logical source order");
+        foreach (var source in new[] { "abc אב 123", "ABC 123 אב" })
+        {
+            var trailing = DirectWriteLayoutOracle.TrailingCaretPosition(source, source.Length);
+            bool AtEnd() => Presentation.Last.CaretIndex == source.Length
+                && MathF.Abs(Presentation.Last.LineLayout!.X(source.Length) - trailing) < .002f;
+
+            Reset(0, source: source);
+            Key(UiKey.End);
+            check(AtEnd(), "Single-line End uses the trailing edge of the last logical character : " + source);
+            Key(UiKey.LeftArrow);
+            check(Presentation.Last.LineLayout!.X(Presentation.Last.CaretIndex) < trailing,
+                "Single-line Left resumes visual navigation from the logical end : " + source);
+            Key(UiKey.End, KeyModifiers.Ctrl);
+            check(AtEnd(), "Single-line Ctrl+End reaches the same trailing edge : " + source);
+            Reset(0, source: source);
+            Key(UiKey.End, KeyModifiers.Shift);
+            check(AtEnd() && Presentation.Last.Selection == new UiTextSelection(0, source.Length),
+                "Single-line Shift+End retains the source anchor and trailing edge : " + source);
+
+            Reset(0, source: source);
+            Frame(idle with { KeyEvents = [new(UiKey.End, true, default)] });
+            // Force cursor navigation to exercise the held End path independently of its press.
+            context.State.SetCursor(id, 0);
+            context.State.SetSelection(id, new(0, 0));
+            context.State.SetRepeatTime(UiKey.End, context.State.TimeSeconds - 1);
+            Frame();
+            check(AtEnd(), "Single-line held End uses the same trailing edge : " + source);
+            Frame(idle with { KeyEvents = [new(UiKey.End, false, default)] });
+        }
         foreach (var source in new[] { "אבגד", "abc אבגד 123", "AV e\u0301 office" })
         {
             Reset(0, source: source);

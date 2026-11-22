@@ -3810,9 +3810,7 @@ public sealed partial class UiImmediateContext
         if (IsRepeatTriggered(UiKey.End))
         {
             navigated = true;
-            buffer.SingleLine.ClearAffinity();
-            var next = ctrl ? text.Length : buffer.SnapTextElement(GetLineEndIndex(text, caretIndex));
-            ApplyCaretMove(ref caretIndex, ref selection, next, shift);
+            MoveSingleLineEnd(buffer, text, ref caretIndex, ref selection, ctrl, shift);
         }
 
         return changed;
