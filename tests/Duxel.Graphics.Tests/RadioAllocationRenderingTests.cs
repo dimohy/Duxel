@@ -1,29 +1,7 @@
 using Duxel.Core;
 
-internal static class RadioAllocationRenderingTests
+internal static partial class RadioAllocationRenderingTests
 {
-    internal static void RunMode(string output, int slots)
-    {
-        Directory.CreateDirectory(output);
-        using var fixture = new PresentationReuseTests.Fixture(slots, reuse: true);
-        foreach (var samples in new[] { 1, 4 })
-        {
-            fixture.Renderer.SetMsaaSamples(samples);
-            Run((name, draw) =>
-            {
-                var pixels = fixture.Capture(draw);
-                fixture.WriteCapturePng(Path.Combine(output, $"msaa{samples}-{name}.png"), pixels);
-                return pixels;
-            }, (condition, name) =>
-            {
-                if (!condition)
-                    throw new InvalidOperationException($"MSAA {samples}: {name}");
-                Console.WriteLine($"PASS MSAA {samples}: {name}");
-            });
-        }
-        Console.WriteLine(System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
-    }
-
     private static readonly UiRadioOption[] Options=[new("a","Alpha option wraps with words",Description:"More context belongs to this choice."),new("b","Beta")];
     internal static void Run(Func<string,Action<UiImmediateContext>,byte[]> capture,Action<bool,string> check)
     {

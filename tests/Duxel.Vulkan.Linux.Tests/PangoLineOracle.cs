@@ -115,13 +115,17 @@ internal sealed unsafe partial class PangoLineOracle : IDisposable
                 attribute->End = (uint)end;
                 pango_attr_list_insert(attributes, attribute);
             }
-            // The input contract chooses primary coverage first. Fontconfig charsets
-            // independently establish the reference; the product queries its FT face.
+            // Establish the expected face ranges from Fontconfig coverage independently
+            // of the product's FreeType selection.
             foreach (var rune in normalized.ToString().EnumerateRunes())
             {
-                if (Rune.GetUnicodeCategory(rune) != UnicodeCategory.Format)
-                    description = FcCharSetHasChar(_primaryCharset, (uint)rune.Value) != 0 ? _description
-                        : FcCharSetHasChar(_secondaryCharset, (uint)rune.Value) != 0 ? _secondaryDescription
+                var category = Rune.GetUnicodeCategory(rune);
+                var codePoint = (uint)rune.Value;
+                var currentCharset = current == _description ? _primaryCharset : _secondaryCharset;
+                var keepSpaceFace = category == UnicodeCategory.SpaceSeparator && FcCharSetHasChar(currentCharset, codePoint) != 0;
+                if (category != UnicodeCategory.Format && !keepSpaceFace)
+                    description = FcCharSetHasChar(_primaryCharset, codePoint) != 0 ? _description
+                        : FcCharSetHasChar(_secondaryCharset, codePoint) != 0 ? _secondaryDescription
                         : throw new NotSupportedException("Oracle explicit-font coverage absent.");
                 if (description != current)
                 {
