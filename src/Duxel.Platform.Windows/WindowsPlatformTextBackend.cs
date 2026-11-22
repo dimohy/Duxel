@@ -343,14 +343,15 @@ public sealed partial class WindowsPlatformTextBackend : IPlatformTextBackend, I
         foreach (var rune in text.EnumerateRunes())
         {
             // Unicode17 PropList Variation_Selector values remain in the preceding font span for native shaping.
-            if (rune.Value < 0x20 || Rune.IsWhiteSpace(rune) || Rune.GetUnicodeCategory(rune) == System.Globalization.UnicodeCategory.Format
-                || rune.Value is >= 0x180B and <= 0x180D or 0x180F or >= 0xFE00 and <= 0xFE0F or >= 0xE0100 and <= 0xE01EF)
+            var category = Rune.GetUnicodeCategory(rune);
+            // Keep a space in its preceding face when available. An unsupported space
+            // needs an explicit font range, just like any other missing glyph.
+            if (rune.Value < 0x20 || category == System.Globalization.UnicodeCategory.Format
+                || rune.Value is >= 0x180B and <= 0x180D or 0x180F or >= 0xFE00 and <= 0xFE0F or >= 0xE0100 and <= 0xE01EF
+                || Rune.IsWhiteSpace(rune) && (category != System.Globalization.UnicodeCategory.SpaceSeparator
+                    || WindowsDirectWriteGlyphRasterizer.Instance.HasGlyph(currentFontPath ?? primaryFontPath, rune.Value)))
             {
-                if (currentFontPath is null)
-                {
-                    currentFontPath = primaryFontPath;
-                }
-
+                currentFontPath ??= primaryFontPath;
                 builder.Append(utf16[..rune.EncodeToUtf16(utf16)]);
                 continue;
             }

@@ -1,11 +1,34 @@
 using System.Globalization;
 using Duxel.Core;
+using Duxel.Platform.Windows;
 
 internal static partial class ParagraphGeometryTests
 {
+    private static void ExplicitSpaceGeometry(Action<bool, string> check)
+    {
+        var fonts = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+        var primary = Path.Combine(fonts, "segoeui.ttf");
+        var secondary = Path.Combine(fonts, "malgun.ttf");
+        var backend = WindowsPlatformTextBackend.Instance;
+        const string source = "한글\u2003Abg";
+        foreach (var size in new[] { 16f, 18f, 32f, 64f })
+        {
+            var standalone = backend.CreateLineGeometry(new(primary, null, "\u2003", size), vectorMetrics : true);
+            var geometry = backend.CreateLineGeometry(new(primary, secondary, source, size), vectorMetrics : true);
+            var mesh = backend.CreateTextMesh(new(primary, secondary, source, size));
+            var paragraph = backend.CreateParagraph(new(source, [new(0, source.Length, primary, secondary, size)]), vectorMetrics : true);
+            var advance = geometry.CaretX(3) - geometry.CaretX(2);
+            var paragraphAdvance = paragraph.Carets.Span[3].X - paragraph.Carets.Span[2].X;
+            check(MathF.Abs(advance - standalone.Advance) < .002f && MathF.Abs(paragraphAdvance - standalone.Advance) < .002f
+                  && MathF.Abs(mesh.Width - geometry.Advance) < .002f,
+                $"DirectWrite uses the explicitly configured face for an em space missing from the preceding face : {size}px");
+        }
+    }
+
     internal static void Run(Action<bool, string> check)
     {
         Navigation(check);
+        ExplicitSpaceGeometry(check);
         foreach (var source in new[] { "AV", "office", "abc אב 123" })
         {
             var expected = DirectWriteLayoutOracle.CaretPositions("Segoe UI", source, 14);
