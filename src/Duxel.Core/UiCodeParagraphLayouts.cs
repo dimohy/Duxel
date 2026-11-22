@@ -164,39 +164,54 @@ internal sealed class UiCodeParagraphLayouts
                 });
                 height += rows[row].Height;
             }
-            var rowIndex = 0;
-            for (var i = 0; i < layout.Carets.Length; i++)
-            {
-                while (rowIndex + 1 < rows.Length && i >= rows[rowIndex + 1].Start)
-                    rowIndex++;
-                var caret = layout.Carets.Span[i];
-                carets[line.Start + i] = caret with { Y = caret.Y + shifts[rowIndex] };
-            }
+            PositionLineCarets(layout.Carets.Span, rows, shifts, carets.AsSpan(line.Start, layout.Carets.Length));
             // Width changes often leave the earlier hard lines and their origins intact.
             // Reuse their positioned runs, including the raster cache identities.
             if (!ReferenceEquals(line.PositionedLayout, layout) || line.PositionedTop != top)
             {
-                var positioned = new List<PlatformTextParagraphRun>(layout.Runs.Length);
-                foreach (var run in layout.Runs.Span)
-                {
-                    if (run.Glyphs.IsEmpty) continue;
-                    var first = run.Glyphs.Span[0].SourcePosition;
-                    var row = 0;
-                    while (row + 1 < rows.Length && first >= rows[row + 1].Start) row++;
-                    var shift = shifts[row];
-                    var glyphs = run.Glyphs.ToArray();
-                    for (var i = 0; i < glyphs.Length; i++)
-                        glyphs[i] = glyphs[i] with { SourcePosition = line.Start + glyphs[i].SourcePosition, Y = glyphs[i].Y + shift };
-                    positioned.Add(new(line.StyleMap[run.StyleIndex], run.FontPath, run.FontSize, run.BidiLevel,
-                        run.Origin with { Y = run.Origin.Y + shift }, glyphs, run.RasterContext));
-                }
-                line.PositionedRuns = positioned.ToArray();
+                line.PositionedRuns = PositionLineRuns(line, layout, rows, shifts);
                 line.PositionedLayout = layout;
                 line.PositionedTop = top;
             }
             outputRuns.AddRange(line.PositionedRuns);
         }
         return new(outputRuns.ToArray(), outputLines.ToArray(), carets, maximum, height);
+    }
+
+    // Keep the per-character loops at line scope. Accumulating all backedges
+    // in the outer method can trigger synchronous JIT compilation on first scroll.
+    private static void PositionLineCarets(ReadOnlySpan<PlatformTextParagraphCaret> local,
+        ReadOnlySpan<PlatformTextParagraphLine> rows, ReadOnlySpan<float> shifts, Span<PlatformTextParagraphCaret> document)
+    {
+        var row = 0;
+        for (var i = 0; i < local.Length; i++)
+        {
+            while (row + 1 < rows.Length && i >= rows[row + 1].Start)
+                row++;
+            var caret = local[i];
+            document[i] = caret with { Y = caret.Y + shifts[row] };
+        }
+    }
+
+    private static PlatformTextParagraphRun[] PositionLineRuns(Line line, PlatformTextParagraphLayout layout,
+        ReadOnlySpan<PlatformTextParagraphLine> rows, ReadOnlySpan<float> shifts)
+    {
+        var positioned = new List<PlatformTextParagraphRun>(layout.Runs.Length);
+        foreach (var run in layout.Runs.Span)
+        {
+            if (run.Glyphs.IsEmpty) continue;
+            var first = run.Glyphs.Span[0].SourcePosition;
+            var row = 0;
+            while (row + 1 < rows.Length && first >= rows[row + 1].Start)
+                row++;
+            var shift = shifts[row];
+            var glyphs = run.Glyphs.ToArray();
+            for (var i = 0; i < glyphs.Length; i++)
+                glyphs[i] = glyphs[i] with { SourcePosition = line.Start + glyphs[i].SourcePosition, Y = glyphs[i].Y + shift };
+            positioned.Add(new(line.StyleMap[run.StyleIndex], run.FontPath, run.FontSize, run.BidiLevel,
+                run.Origin with { Y = run.Origin.Y + shift }, glyphs, run.RasterContext));
+        }
+        return positioned.ToArray();
     }
 
     private void ReuseUnchangedLines(List<Line> previous)

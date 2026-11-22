@@ -177,3 +177,24 @@ Width-change CPU median and p95 improved in all three pairs. First traversal ste
 All 18 screenshot pairs were byte-identical and the mixed-source test produced identical measured and fully laid-out heights at three widths, covering a blank line in a comment, tabs, decomposed Hangul, numbers and punctuation. Reproduce the Windows run with `gallery-svg-code-stages` and the viewport and width flags above. Raw frame times, GPU submission matches, input, and screenshot hashes are in `L:/Cache/Duxel/codeview-height-only-20261122/verification.json` and its parent directory.
 
 All 223 replay steps per process agreed on scroll offset, visible code height and coverage upload bytes. The Windows observer suite passed 2,374 checks after its scroll assertion was pointed at the SVG document's own scroll pane. The old fixture could not find a common page pane on either version. Windows GPU Gallery, multiline selection and scrollbar checks and WSLg Dozen Gallery passed, including 108 verified Linux presentations.
+
+## Keep CodeView positioning loops at line scope
+
+The first-scroll spike at input 20 reused the native layouts for the entire 4,335-character block. Three instrumented runs found zero new native builds on that input. The disassembly showed CoreCLR compiling `UiCodeParagraphLayouts.Prepare` on stack while it was active. With the same instrumented binaries and three fresh processes per group, toggling `DOTNET_TC_OnStackReplacement` changed the median assembly time from 7.7204 to 0.6442 ms and the input's CPU frame from 19.4453 to 6.1151 ms. Disassembly confirmed Tier1-OSR only in the enabled group. This is a diagnostic comparison with a runtime-wide switch. [CoreCLR OSR design and diagnostics](https://github.com/dotnet/runtime/blob/main/docs/design/features/OsrDetailsAndDebugging.md)
+
+The product change moves caret and glyph placement loops into line-scoped methods. The source offsets, float operations, coverage textures and runtime options use the same inputs. The first candidate, which reduced glyph copies and reused accessibility style heights, did not consistently improve the target frame. An `AggressiveOptimization` attribute improved the first-scroll tail but increased median width-change CPU time in its comparison. A separate style scan on top of the line-scoped loops increased the first-scroll tail. These three trials were excluded from the product patch.
+
+The product replay used SDK 11.0.100, managed runtime 11.0.0, RTX 5070 Ti Laptop GPU, 1500×960 and MSAA 4. The two Duxel.Core DLLs ran three fresh processes each in alternating pairs, with the same executable and Vulkan renderer. Timing excludes capture readback and the window resize call. The table shows medians across runs.
+
+| Metric | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| First SVG tab CPU frame | 72.85 ms | 72.16 ms | −0.9% |
+| First-scroll CPU median | 3.48 ms | 3.40 ms | −2.3% |
+| First-scroll CPU p95 | 6.15 ms | 6.13 ms | −0.3% |
+| First-scroll CPU p99 | 18.82 ms | 14.03 ms | −25.4% |
+| Slowest 1% first-scroll CPU-frame rate equivalent | 53.14/s | 71.26/s | +34.1% |
+| First-scroll GPU median | 0.0422 ms | 0.0417 ms | Within run variation |
+| Width-change CPU median | 17.25 ms | 14.09 ms | −18.3% |
+| Repeated-scroll CPU median | 3.92 ms | 2.71 ms | −30.8% |
+
+First-scroll p99 improved in all three pairs. The width and repeated-scroll samples overlap between independent processes. The fixture did not reproduce the 149 ms interval. All 223 replay steps per run matched on scroll offset, visible code height and uploaded coverage bytes, and 18 screenshot pairs matched byte-for-byte. Re-run with `gallery-svg-code-stages`, `DUXEL_TEST_CODE_GALLERY_VIEWPORT=1`, and `DUXEL_TEST_CODE_RESIZE=1`. Frame, GPU and image evidence is in `L:/Cache/Duxel/codeview-first-scroll-20261122/split-verification.json`. The JIT comparison is in the adjacent `osr-verification.json`.
