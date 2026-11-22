@@ -163,6 +163,14 @@ Three additional WSLg runs used a byte-identical rebuild of the diagnostic execu
 
 All three first frames recorded 758,308,276 staging bytes through 200 upload submissions, 3,608 buffer copies and 27 texture regions. Direct-text texture requests totalled 278,236 bytes, and active static geometry occupied 753,835,732 bytes. The separate GPU render interval excludes host upload processing and does not measure display cadence. Renderer upload processing and command recording took longer than text preparation in this workload. The replay data is in `artifacts/erd-wslg-first-frame-20261123`.
 
+### Coalescing static vertex and index copies
+
+A diagnostic renderer staged the index and vertex ranges together when they shared a destination buffer and both fitted in the existing staging allocation. Expanded primitives kept their original upload path. Three alternating processes per condition used the same Linux x64 NativeAOT binary, normal status updates, the 1,200-table motion tour and the same WSLg Dozen RTX 5070 Ti setup.
+
+The first frame recorded 3,608 versus 2,408 buffer copies in every run, with 758,308,276 bytes on both paths. The larger contiguous ranges raised upload submissions from 200 to 203. The median app CPU time was 1,462.65 versus 1,404.30 ms, upload processing 480.64 versus 447.41 ms, and full-frame GPU render time 7.47 versus 7.11 ms. All three per-run ranges overlapped. Command-recording ranges also overlapped.
+
+The fixed replay matched 219 scene states. Of six Vulkan readback pairs, three were pixel-identical and the other three differed in 17 to 50 pixels by at most one channel level. Repeating the control produced up to 55 differing pixels and the same maximum channel delta. The measurements did not justify adopting the diagnostic path. Live frames, fixed poses, raw captures and hashes are in `artifacts/erd-static-copy-coalescing-20261123`.
+
 ### Paired run with the isolated Dozen correction
 
 Rebuilding `0173f62c` reproduced the stock run's NativeAOT executable SHA-256 exactly. The same ERD executable then ran with a separately built Mesa Dozen 26.3.1 ICD containing the enhanced-barrier allocation-base correction. The patch bytes match the earlier isolated driver's patch. The installed ICD and library hashes were rechecked, and the live process mapped the isolated ICD's library. The unmodified driver rebuilt for this experiment has a different `.text` hash from the installed library. This pair compares the installed driver with the corrected build. The earlier allocation tracing and three 300-second pairs provide separate attribution evidence.
