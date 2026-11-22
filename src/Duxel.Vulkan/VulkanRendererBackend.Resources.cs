@@ -245,6 +245,13 @@ public sealed unsafe partial class VulkanRendererBackend
         out DeviceMemory memory,
         SampleCountFlags samples = SampleCountFlags.Count1Bit
     )
+        => CreateBoundImage(width, height, format, tiling, usage, properties,
+            samples, false, out image, out memory, out _);
+
+    private ulong CreateBoundImage(
+        int width, int height, Format format, ImageTiling tiling, ImageUsageFlags usage,
+        MemoryPropertyFlags properties, SampleCountFlags samples, bool shareTextMemory,
+        out Image image, out DeviceMemory memory, out StaticMemorySlice slice)
     {
         var queueFamilies = stackalloc uint[2];
         uint queueFamilyIndexCount = 0;
@@ -280,22 +287,40 @@ public sealed unsafe partial class VulkanRendererBackend
         var localImage = default(Image);
         Check(_vk.CreateImage(_device, imageInfo, null, &localImage));
         image = localImage;
-
-        _vk.GetImageMemoryRequirements(_device, image, out var memRequirements);
-
-        var allocInfo = stackalloc MemoryAllocateInfo[1];
-        allocInfo[0] = new MemoryAllocateInfo
+        memory = default;
+        slice = default;
+        try
         {
-            SType = StructureType.MemoryAllocateInfo,
-            AllocationSize = memRequirements.Size,
-            MemoryTypeIndex = FindMemoryType(memRequirements.MemoryTypeBits, properties),
-        };
+            _vk.GetImageMemoryRequirements(_device, image, out var requirements);
+            var type = FindMemoryType(requirements.MemoryTypeBits, properties);
+            if (shareTextMemory && requirements.Size <= TextImageMemoryPageBytes)
+            {
+                // These are ordinary optimal-tiled images with no external memory.
+                // Use image-only pages to keep them separate from linear buffers.
+                slice = RentTextImageMemory(type, requirements.Size, requirements.Alignment);
+                Check(_vk.BindImageMemory(_device, image, slice.Page!.Memory, slice.Offset));
+            }
+            else
+            {
+                memory = AllocateBufferMemory(requirements.Size, type, deviceAddress: false);
+                Check(_vk.BindImageMemory(_device, image, memory, 0));
+            }
+            return requirements.Size;
+        }
+        catch
+        {
+            DestroyBoundImage(image, memory, slice);
+            throw;
+        }
+    }
 
-        var localMemory = default(DeviceMemory);
-        Check(_vk.AllocateMemory(_device, allocInfo, null, &localMemory));
-        memory = localMemory;
-        Check(_vk.BindImageMemory(_device, image, localMemory, 0));
-        return memRequirements.Size;
+    private void DestroyBoundImage(Image image, DeviceMemory memory, in StaticMemorySlice slice)
+    {
+        _vk.DestroyImage(_device, image, null);
+        if (slice.Page is not null)
+            ReleaseTextImageMemory(slice);
+        else if (memory.Handle != 0)
+            _vk.FreeMemory(_device, memory, null);
     }
 
     private ImageView CreateImageView(Image image, Format format, ComponentMapping components = default)

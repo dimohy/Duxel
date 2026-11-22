@@ -7,6 +7,12 @@ using Duxel.Vulkan;
 
 Console.OutputEncoding = new System.Text.UTF8Encoding(false);
 
+if (args is [var textImageMemoryOutput, "text-image-memory"])
+{
+    TextImageMemoryTests.Run(textImageMemoryOutput);
+    return;
+}
+
 if (args is [var svgReplacementOutput, "svg-replacement-pressure", "1" or "3"])
 {
     SvgReplacementPressureTests.Run(svgReplacementOutput, int.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture));

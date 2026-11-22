@@ -96,3 +96,23 @@ The comparison used three separate processes per arm in A/B, B/A, A/B order, at 
 The aligned reservation does not reduce the number of new images or uploaded bytes. Each phase's final PNG was byte-identical across all six runs. The change preserves RGB coverage and single-channel coverage through the existing upload functions. The memory reservation can grow the retained staging buffer earlier than before and remains subject to the existing idle trim. Native image allocation and long-session private and working-set measurements remain open. The first-scroll CPU ranges overlap. Repeat-scroll CPU composition varied even when no texture upload occurred, so the repeat timings are not attributed to the reservation.
 
 Use the same Release `gallery-svg-code-stages` invocation and viewport flags described above. Windows `directtext-cache`, `gallery-svg-code-scroll`, `observer-gallery` (335 checks), and `gpu-stroke-pixels` (46 checks) passed. `presentation-reuse` reached the same failure in both arms when checking the newly visible area of a resized paint group. Linux Gallery passed 108 of 108 present checks with RTX 5070 Ti on WSLg Dozen, including the SVG arc. That execution used a Linux build to resolve the Linux HarfBuzz native asset. The earlier Windows-built Linux probe stopped at the missing asset. The per-run frame distributions, upload waits, exact captures, instrumentation, and binary receipts are available in `L:/Cache/Duxel/svg-texture-stages-20261122/verification.json` and the adjacent logs.
+
+## Shared device memory for small text images
+
+The staging change removed repeated transfer waits. The remaining burst made hundreds of Vulkan device memory allocations for individual glyph coverage images. Reusable text images now own aligned ranges in 2 MiB pages dedicated to optimal-tiled text images. The renderer keeps each range with its image through frame-fence retirement and idle image reuse. Eviction returns the range, and a page is freed when its last range is released. Image creation failures release their bound memory before a texture can be registered. The renderer registers the resource before recording its upload so normal device teardown can find it if recording fails.
+
+The Windows comparison used the same 1500×960 SVG tab, MSAA 4, RTX 5070 Ti Laptop GPU, SDK 11.0.100, and managed runtime 11.0.0. A separate checkout contained only these changes. The test ran three processes per arm in B/A, A/B, B/A order and switched only `Duxel.Vulkan.dll` in the fixture. CPU measurements exclude the Win32 size call and captures.
+
+| Metric | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Processing the 316-texture burst | 11.31 ms | 2.32 ms | −79.5% |
+| Width-change CPU p95 and p99 | 43.81 ms | 27.71 ms | −36.8% |
+| Cold tab CPU time | 91.60 ms | 88.39 ms | −3.5% |
+| Width-change CPU median | 19.27 ms | 20.67 ms | +7.3%, overlapping run ranges |
+| Repeat scroll CPU median | 2.95 ms | 3.85 ms | +30.4%, overlapping run ranges |
+
+On the matched workload the burst and tail each improved in all three pairs. The first independent comparison also had a higher width-change median. The median increase was concentrated in UI composition, with renderer CPU medians about the same. The measurements do not establish a general scroll or resize speedup. All final scroll PNGs matched and all final width-change PNGs matched.
+
+The new `text-image-memory` mode in `Duxel.Graphics.Tests` and `Duxel.Vulkan.Linux.Tests` exercised one and three in-flight slots, injected an image-view failure, and ran 96 batches of 48 R8 and RGBA images per configuration. Every configuration exercised both reuse and idle eviction. Reserved page memory peaked at 22–24 MiB on Windows and 26–32 MiB on WSLg Dozen. All four returned to zero on renderer shutdown. These figures count Vulkan page capacity in the fixture, not process memory or GPU-wide VRAM. The separate long-running app memory comparisons remain open.
+
+The isolated checkout passed `Duxel.slnx -c Release`, Windows `directtext-cache`, `gallery-svg-code-scroll`, `gpu-stroke-pixels`, and `observer-gallery` (335), plus Linux Gallery (108 presentations) on RTX 5070 Ti via Dozen. Repeat the timing with `gallery-svg-code-stages` and the flags above. Raw distributions and renderer hashes are in `L:/Cache/Duxel/svg-texture-page-product-20261122/review-performance/verification.json` and `run-receipts.json` in the same folder. Lifetime outputs are in `review-text-image-memory` and `review-dozen-lifetime` under the parent folder.

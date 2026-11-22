@@ -61,6 +61,7 @@ public sealed unsafe partial class VulkanRendererBackend
         public readonly Format Format;
         public readonly bool ReusableText;
         public readonly ulong AllocationBytes;
+        public readonly StaticMemorySlice TextMemory;
 
         public TextureResource(
             Image image,
@@ -71,7 +72,8 @@ public sealed unsafe partial class VulkanRendererBackend
             int height,
             Format format,
             ulong allocationBytes,
-            bool reusableText = false
+            bool reusableText = false,
+            StaticMemorySlice textMemory = default
         )
         {
             Image = image;
@@ -83,6 +85,7 @@ public sealed unsafe partial class VulkanRendererBackend
             Format = format;
             ReusableText = reusableText;
             AllocationBytes = allocationBytes;
+            TextMemory = textMemory;
         }
     }
 

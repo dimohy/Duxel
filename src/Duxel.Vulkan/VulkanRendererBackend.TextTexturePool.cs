@@ -7,6 +7,35 @@ public sealed unsafe partial class VulkanRendererBackend
     private readonly List<TextureResource> _idleTextTextures = new(TextTexturePoolLimit);
     private ulong _idleTextTextureBytes;
     private long _textTextureReuses;
+    private const ulong TextImageMemoryPageBytes = 2 * 1024 * 1024;
+    private readonly List<StaticMemoryPage> _textImageMemoryPages = [];
+
+    private StaticMemorySlice RentTextImageMemory(uint memoryType, ulong size, ulong alignment)
+    {
+        var slice = TryRentMemoryRange(_textImageMemoryPages, memoryType, size, alignment);
+        if (slice.Page is not null)
+            return slice;
+
+        var memory = AllocateBufferMemory(TextImageMemoryPageBytes, memoryType, deviceAddress: false);
+        var page = new StaticMemoryPage(memory, memoryType, TextImageMemoryPageBytes);
+        _textImageMemoryPages.Add(page);
+        return ClaimStaticMemoryRange(page, 0, 0, size);
+    }
+
+    // The image owns its slice through normal fence retirement and idle texture reuse.
+    private void ReleaseTextImageMemory(in StaticMemorySlice slice)
+    {
+        var page = slice.Page!;
+        if (--page.LiveRanges == 0)
+        {
+            _textImageMemoryPages.Remove(page);
+            _vk.FreeMemory(_device, page.Memory, null);
+        }
+        else
+        {
+            ReturnMemoryRange(slice);
+        }
+    }
 
     private bool TryReuseTextTexture(int width, int height, Format format, out TextureResource resource)
     {

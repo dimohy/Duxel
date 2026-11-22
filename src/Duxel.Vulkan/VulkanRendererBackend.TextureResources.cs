@@ -194,8 +194,9 @@ public sealed unsafe partial class VulkanRendererBackend
                 throw new InvalidOperationException("Texture already exists.");
             }
 
-            var resource = CreateTextureResource(update, ImageLayout.Undefined);
-            _textures[update.TextureId] = resource;
+            var resource = AcquireTextureResource(update, out var layout);
+            _textures.Add(update.TextureId, resource);
+            UploadTextureData(resource.Image, update, layout);
             RecordOpaqueMaterialTexture(in update);
             return;
         }
@@ -275,37 +276,53 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
-    private TextureResource CreateTextureResource(UiTextureUpdate update, ImageLayout initialLayout)
+    private TextureResource AcquireTextureResource(UiTextureUpdate update, out ImageLayout uploadLayout)
     {
         var format = ToVkFormat(update.Format);
-        var reusableText = IsFontTextureId(update.TextureId) && update.Width <= 1024 && update.Height <= 128;
+        var isFontTexture = IsFontTextureId(update.TextureId);
+        var reusableText = isFontTexture && update.Width <= 1024 && update.Height <= 128;
         if (reusableText && update.CoversEntireTexture && TryReuseTextTexture(update.Width, update.Height, format, out var recycled))
         {
-            UploadTextureData(recycled.Image, update, ImageLayout.ShaderReadOnlyOptimal);
+            uploadLayout = ImageLayout.ShaderReadOnlyOptimal;
             return recycled;
         }
-        var allocationBytes = CreateImage(
+        uploadLayout = ImageLayout.Undefined;
+        var allocationBytes = CreateBoundImage(
             update.Width,
             update.Height,
             format,
             ImageTiling.Optimal,
             ImageUsageFlags.SampledBit | ImageUsageFlags.TransferDstBit,
             MemoryPropertyFlags.DeviceLocalBit,
+            SampleCountFlags.Count1Bit,
+            reusableText,
             out var image,
-            out var memory
+            out var memory,
+            out var textMemory
         );
 
-        UploadTextureData(image, update, initialLayout);
-
-        var components = update.Format == UiTextureFormat.R8CoverageUnorm
-            ? new ComponentMapping(ComponentSwizzle.Red, ComponentSwizzle.Red, ComponentSwizzle.Red, ComponentSwizzle.Red)
-            : default;
-        var view = CreateImageView(image, format, components);
-        var isFontTexture = IsFontTextureId(update.TextureId);
-        var slotIndex = AllocateBindlessTextureSlot(view, isFontTexture);
-
-        return new TextureResource(image, memory, view, slotIndex, update.Width, update.Height, format, allocationBytes, reusableText);
+        var view = default(ImageView);
+        try
+        {
+            BeforeValidationTextureImageView();
+            var components = update.Format == UiTextureFormat.R8CoverageUnorm
+                ? new ComponentMapping(ComponentSwizzle.Red, ComponentSwizzle.Red, ComponentSwizzle.Red, ComponentSwizzle.Red)
+                : default;
+            view = CreateImageView(image, format, components);
+            var slotIndex = AllocateBindlessTextureSlot(view, isFontTexture);
+            return new TextureResource(image, memory, view, slotIndex, update.Width, update.Height,
+                format, allocationBytes, reusableText, textMemory);
+        }
+        catch
+        {
+            if (view.Handle != 0)
+                _vk.DestroyImageView(_device, view, null);
+            DestroyBoundImage(image, memory, textMemory);
+            throw;
+        }
     }
+
+    partial void BeforeValidationTextureImageView();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsFontTextureId(UiTextureId textureId)
@@ -387,12 +404,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
         if (resource.Image.Handle is not 0)
         {
-            _vk.DestroyImage(_device, resource.Image, null);
-        }
-
-        if (resource.Memory.Handle is not 0)
-        {
-            _vk.FreeMemory(_device, resource.Memory, null);
+            DestroyBoundImage(resource.Image, resource.Memory, resource.TextMemory);
         }
     }
 

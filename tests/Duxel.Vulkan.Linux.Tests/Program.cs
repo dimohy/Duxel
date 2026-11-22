@@ -6,7 +6,7 @@ if ((!glyphReplay && args.Length is not (7 or 8)) || !int.TryParse(args[1], out 
         or "host-pixels" or "tree-gpu" or "tree-label-gpu" or "container-pixels" or "virtual-list-pixels" or "virtual-list-host-pixels"
         or "virtual-list-rtl-pixels" or "virtual-grid-pixels" or "virtual-grid-host-pixels" or "clip-host-pixels"
         or "projected-clip-bench" or "projected-image-clip-bench" or "early-init-cleanup" or "svg-replacement-pressure"
-        or "radio-parent-pixels" or "viewport-clipping"))
+        or "radio-parent-pixels" or "viewport-clipping" or "text-image-memory"))
     throw new ArgumentException("Specify a fresh output directory, frame slots1/3, Latin regular/bold, Korean regular/bold and monospace font paths.");
 if (Directory.Exists(args[0]))
     throw new IOException("Linux GPU validation requires a fresh output directory.");
@@ -17,7 +17,9 @@ Environment.SetEnvironmentVariable("DUXEL_VK_PROFILE", "1");
 Environment.SetEnvironmentVariable("DUXEL_VK_PROFILE_EVERY", "100000");
 try
 {
-    if (glyphReplay)
+    if (args.Length == 8 && args[7] == "text-image-memory")
+        TextImageMemoryTests.Run(args[0]);
+    else if (glyphReplay)
         GlyphTextureReplayTests.Run(args[0], slots, args[8], args[9], args[10]);
     else if (args.Length == 8 && args[7] == "svg-replacement-pressure")
         SvgReplacementPressureTests.Run(args[0], slots);

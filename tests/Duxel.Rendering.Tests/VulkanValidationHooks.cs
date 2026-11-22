@@ -23,6 +23,26 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
     internal bool ValidationDualSourceBlend => _dualSourceBlendEnabled;
+    internal Action? ValidationBeforeTextureImageView;
+    internal long ValidationReusedTextImages => _textTextureReuses;
+    partial void BeforeValidationTextureImageView() => ValidationBeforeTextureImageView?.Invoke();
+
+    internal (int Pages, int Ranges, ulong Bytes, int Idle, int Pending) ValidationTextImageStorage()
+    {
+        var ranges = 0;
+        var bytes = 0UL;
+        foreach (var page in _textImageMemoryPages)
+        {
+            ranges += page.LiveRanges;
+            bytes += page.Capacity;
+        }
+        var pending = 0;
+        foreach (var frame in _frames)
+            foreach (var entry in frame.PendingTextureDestroys)
+                if (entry.Resource.TextMemory.Page is not null)
+                    pending++;
+        return (_textImageMemoryPages.Count, ranges, bytes, _idleTextTextures.Count, pending);
+    }
 
     partial void SelectValidationDualSourceBlend(ref bool enabled)
         => enabled &= Environment.GetEnvironmentVariable("DUXEL_TEST_DISABLE_DUAL_SOURCE_BLEND") != "1";
