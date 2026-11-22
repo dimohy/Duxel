@@ -470,3 +470,18 @@ Fresh builds of `6aa7118e` ran the same 320 × 240 Vulkan fixture on the RTX 507
 | WSLg one frame slot and three frame slots | 192/192 | 192/192 |
 
 The tested families cover strokes, fills, dashes and strokes at 4× MSAA. Every capture passed its independent vector reference on each route. WSLg also passed 114 native text-baseline assertions and 36 cropped Pango paragraph raster assertions. Native raster outputs were checked against each platform's reference. The product source matches the previous 108-presentation Windows and 108-presentation WSLg Gallery checks, with documentation as the sole difference between those snapshots. The new captures and comparison are under `artifacts/current-blend-quality-20261123`.
+
+### Current perspective text, depth and zoom round trip
+
+Built the unchanged product at `d28e48ac` with the perspective fixture on Windows managed .NET 11.0.0 and WSLg Dozen Linux x64 NativeAOT. The RTX 5070 Ti used a fixed 320 × 240 framebuffer with standard-alpha blending. Each platform captured its native outline meshes and replayed the other platform's meshes at one and three frame slots. The fixture covered Hangul, Latin, digits, punctuation and mixed text, with both 1× and 4× MSAA.
+
+All eight runs passed 656 assertions and saved 240 Vulkan captures. The fixture checked depth occlusion in both submission orders, rejected text behind the camera, and verified that retained text changed when zooming out. In all 16 round trips the original pixels returned after restoring the camera.
+
+| Comparison | Exact pixels | Exact recorded draw-list geometry |
+| --- | ---: | ---: |
+| Windows mesh on Windows and WSLg | 60/60 | 60/60 |
+| WSLg mesh on WSLg and Windows | 60/60 | 60/60 |
+| One frame slot and three frame slots | 120/120 | 120/120 |
+| Each platform builds its own mesh | 10/60 | 4/60 |
+
+The two native backends reported the same advance, 233.578125 px, and baseline, 34.828125 px, for the mixed line. Native captures still differed by up to 210 pixels in one 320 × 240 frame. Five saved mesh inputs per platform matched that platform's previous verified inputs. The shared-input comparison establishes parity for the tested Vulkan projection and occlusion paths. Native outline and placement parity, and performance, remain separate findings. The fixture, layout data and raw readbacks are in `artifacts/current-perspective-20261123`.
