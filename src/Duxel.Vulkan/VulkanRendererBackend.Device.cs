@@ -145,6 +145,7 @@ public sealed unsafe partial class VulkanRendererBackend
                     properties.Limits.MinViewportCoordinate, properties.Limits.MaxViewportCoordinate);
                 _devicePolicy = CreateDevicePolicy(
                     properties,
+                    GetDriverId(device, properties.ApiVersion),
                     graphicsQueueTimestampValidBits,
                     _graphicsQueueFamily,
                     _dedicatedTransferQueueFamily);
@@ -157,6 +158,16 @@ public sealed unsafe partial class VulkanRendererBackend
         }
 
         throw new InvalidOperationException("No suitable Vulkan physical device found.");
+    }
+
+    private DriverId GetDriverId(PhysicalDevice device, uint apiVersion)
+    {
+        if (!OperatingSystem.IsLinux() || apiVersion < Vk.Version12)
+            return DriverId.Unknown;
+        var driver = new PhysicalDeviceDriverProperties { SType = StructureType.PhysicalDeviceDriverProperties };
+        var properties = new PhysicalDeviceProperties2 { SType = StructureType.PhysicalDeviceProperties2, PNext = &driver };
+        _vk.GetPhysicalDeviceProperties2(device, &properties);
+        return driver.DriverId;
     }
 
     private unsafe bool TryFindGraphicsQueue(
@@ -438,6 +449,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private readonly record struct VulkanDevicePolicy(
         VulkanGpuVendor Vendor,
+        DriverId DriverId,
         uint VendorId,
         uint DeviceId,
         PhysicalDeviceType DeviceType,
@@ -456,6 +468,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private static VulkanDevicePolicy CreateDevicePolicy(
         PhysicalDeviceProperties properties,
+        DriverId driverId,
         uint graphicsQueueTimestampValidBits,
         uint graphicsQueueFamily,
         uint transferQueueFamily)
@@ -464,6 +477,7 @@ public sealed unsafe partial class VulkanRendererBackend
         var uploadQueueMode = ParseUploadQueueMode();
         return new VulkanDevicePolicy(
             vendor,
+            driverId,
             properties.VendorID,
             properties.DeviceID,
             properties.DeviceType,

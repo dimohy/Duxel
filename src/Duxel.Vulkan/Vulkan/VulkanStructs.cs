@@ -163,6 +163,31 @@ public unsafe struct PhysicalDeviceProperties
 }
 
 [StructLayout(LayoutKind.Sequential)]
+internal unsafe struct PhysicalDeviceProperties2
+{
+    public StructureType SType;
+    public void* PNext;
+    public PhysicalDeviceProperties Properties;
+}
+
+internal enum DriverId : uint
+{
+    Unknown = 0,
+    MesaDozen = 23,
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct PhysicalDeviceDriverProperties
+{
+    public StructureType SType;
+    public void* PNext;
+    public DriverId DriverId;
+    public fixed byte DriverName[256];
+    public fixed byte DriverInfo[256];
+    public fixed byte ConformanceVersion[4];
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct SurfaceCapabilitiesKHR
 {
     public uint MinImageCount;

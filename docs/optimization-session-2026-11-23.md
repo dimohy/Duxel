@@ -46,3 +46,13 @@ A separate NativeAOT replay at the same viewport matched all 593 accepted submis
 During first SVG entry, peak-frame vector output preparation took a median of 316.06 ms before and 314.45 ms after. Two separate diagnostic runs timed the native call directly. `vkCreateComputePipelines` took 286.29 and 296.41 ms for the vector scene with stack capacity four. The Overview had already created the stack-capacity-one scene pipeline. Neither diagnostic recorded pipeline creation during the first wheel burst.
 
 With app and Vulkan profiling disabled, the builds received 178 and 172 wheel cycles over 185 and 180 seconds. Median process RSS from seconds 20–45 to 155–180 went from 432.57 to 432.39 MiB before and from 434.81 to 433.35 MiB after. These are single-process observations per build over the stated interval. A longer-run memory bound and display cadence remain unverified. The raw measurements and temporary instrumentation patch are under `artifacts/codeview-wslg-gpu-20261123`.
+
+### Dozen uses one pipeline for shallow vector scenes
+
+The Linux device policy reads the standard Vulkan driver ID. For Mesa Dozen, scenes requiring stack capacities one, two, or four share the capacity-four compute pipeline. Larger scenes and other drivers use the scene's required capacity. The shader and scene data are unchanged. [Vulkan driver identification](https://docs.vulkan.org/refpages/latest/refpages/source/VkPhysicalDeviceDriverProperties.html)
+
+On WSLg NativeAOT with Dozen and RTX 5070 Ti at 1280 × 900, three processes per policy measured the first app log and app-side CPU time with detailed Vulkan profiling disabled. Median time from launch to the first app log was 1,077.66 versus 1,077.16 ms. Median peak app CPU time on first SVG entry was 449.77 versus 145.85 ms, a 67.6% reduction. The first wheel CPU peak was 6.34 versus 5.70 ms.
+
+In a separate GPU profile, the baseline created a capacity-four pipeline in all three SVG entries. The shared policy created it during Overview and performed no new vector-scene pipeline creation on SVG entry. First wheel GPU peak ranges overlapped. Five actual WSLg viewport pairs matched exactly, and the comparison builds passed 108 Gallery presentation checks each. A diagnostic build of the driver-gated product verified ID 23 on Dozen and ID 13 on llvmpipe. Dozen selected capacity four at startup and reused it on SVG entry. llvmpipe created capacities one and four at their original stages. Results are under `artifacts/wslg-svg-stack-pipeline-20261123` in the local workspace.
+
+The driver-gated build passed all 108 Gallery presentation checks on Dozen. The Windows Release solution build completed with zero warnings or errors, and the Windows Gallery passed all 108 presentation checks.

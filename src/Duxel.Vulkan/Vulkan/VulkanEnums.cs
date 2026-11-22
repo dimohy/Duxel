@@ -70,6 +70,8 @@ public enum StructureType : int
     PipelineRenderingCreateInfo = 1000044002,
     PhysicalDeviceDynamicRenderingFeatures = 1000044003,
     PhysicalDeviceFeatures2 = 1000059000,
+    PhysicalDeviceProperties2 = 1000059001,
+    PhysicalDeviceDriverProperties = 1000196000,
     MemoryAllocateFlagsInfo = 1000060000,
     DescriptorSetLayoutBindingFlagsCreateInfo = 1000161000,
     PhysicalDeviceDescriptorIndexingFeatures = 1000161001,

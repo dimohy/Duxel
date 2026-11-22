@@ -182,9 +182,10 @@ public sealed unsafe partial class VulkanRendererBackend
                 throw new ArgumentOutOfRangeException(nameof(filter), "GPU vector blur exceeds the shader kernel capacity.");
             EnsureVectorBlurPipeline();
         }
-        var preparePipelinesConcurrently = scene.Strokes.Count != 0 && !_vectorScenePipelines.ContainsKey(scene.StackCapacity);
+        var stackCapacity = VectorScenePipelineCapacity(scene);
+        var preparePipelinesConcurrently = scene.Strokes.Count != 0 && !_vectorScenePipelines.ContainsKey(stackCapacity);
         if (!preparePipelinesConcurrently)
-            EnsureVectorScenePipeline(scene.StackCapacity);
+            EnsureVectorScenePipeline(stackCapacity);
         AcquireVectorSceneResource(scene);
         var output = new VectorSceneOutput(scene, width, height, default) { Filter = filter, Camera = camera, Background = background };
         try
@@ -194,7 +195,7 @@ public sealed unsafe partial class VulkanRendererBackend
             {
                 // The pipelines own separate layouts and share an internally synchronized Vulkan cache.
                 Parallel.Invoke(
-                    () => EnsureVectorScenePipeline(scene.StackCapacity),
+                    () => EnsureVectorScenePipeline(stackCapacity),
                     () => PrepareVectorStrokes(output));
             }
             else
@@ -320,6 +321,11 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
+    // Dozen recompiles the compute shader for each specialization. Share one
+    // variant among shallow scenes to avoid compilation when they first appear.
+    private int VectorScenePipelineCapacity(UiGpuVectorScene scene) =>
+        _devicePolicy.DriverId == DriverId.MesaDozen ? Math.Max(4, scene.StackCapacity) : scene.StackCapacity;
+
     private void EnsureVectorScenePipeline(int stackCapacity)
     {
         if (_vectorScenePipelines.ContainsKey(stackCapacity))
@@ -436,7 +442,7 @@ public sealed unsafe partial class VulkanRendererBackend
         VectorSceneBarrier(command, PipelineStageFlags.TransferBit | PipelineStageFlags.ComputeShaderBit,
             AccessFlags.TransferWriteBit | AccessFlags.ShaderWriteBit, PipelineStageFlags.ComputeShaderBit, AccessFlags.ShaderReadBit);
         RecordVectorStrokes(command, output, resource.Data.Address);
-        _vk.CmdBindPipeline(command, PipelineBindPoint.Compute, _vectorScenePipelines[output.Scene.StackCapacity]);
+        _vk.CmdBindPipeline(command, PipelineBindPoint.Compute, _vectorScenePipelines[VectorScenePipelineCapacity(output.Scene)]);
         var push = new VectorScenePush
         {
             Scene = resource.Data.Address,

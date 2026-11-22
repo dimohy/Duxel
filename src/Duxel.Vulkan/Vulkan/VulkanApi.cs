@@ -108,6 +108,8 @@ public sealed unsafe partial class Vk
     public Result EnumeratePhysicalDevices(Instance instance, uint* physicalDeviceCount, PhysicalDevice* physicalDevices) => vkEnumeratePhysicalDevices(instance, physicalDeviceCount, physicalDevices);
     public void GetPhysicalDeviceQueueFamilyProperties(PhysicalDevice physicalDevice, uint* queueFamilyPropertyCount, QueueFamilyProperties* queueFamilyProperties) => vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, queueFamilyPropertyCount, queueFamilyProperties);
     public void GetPhysicalDeviceProperties(PhysicalDevice physicalDevice, out PhysicalDeviceProperties properties) => vkGetPhysicalDeviceProperties(physicalDevice, out properties);
+    internal void GetPhysicalDeviceProperties2(PhysicalDevice physicalDevice, PhysicalDeviceProperties2* properties) =>
+        vkGetPhysicalDeviceProperties2(physicalDevice, properties);
     public void GetPhysicalDeviceFeatures2(PhysicalDevice physicalDevice, PhysicalDeviceFeatures2* features) => vkGetPhysicalDeviceFeatures2(physicalDevice, features);
     public ulong GetBufferDeviceAddress(Device device, BufferDeviceAddressInfo* info) => vkGetBufferDeviceAddress(device, info);
     public void GetPhysicalDeviceMemoryProperties(PhysicalDevice physicalDevice, out PhysicalDeviceMemoryProperties properties) => vkGetPhysicalDeviceMemoryProperties(physicalDevice, out properties);
@@ -209,6 +211,9 @@ public sealed unsafe partial class Vk
     private static partial void vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice physicalDevice, uint* queueFamilyPropertyCount, QueueFamilyProperties* queueFamilyProperties);
     [LibraryImport(LibraryName, EntryPoint = "vkGetPhysicalDeviceProperties")]
     private static partial void vkGetPhysicalDeviceProperties(PhysicalDevice physicalDevice, out PhysicalDeviceProperties properties);
+
+    [LibraryImport(LibraryName, EntryPoint = "vkGetPhysicalDeviceProperties2")]
+    private static partial void vkGetPhysicalDeviceProperties2(PhysicalDevice physicalDevice, PhysicalDeviceProperties2* properties);
     [LibraryImport(LibraryName, EntryPoint = "vkGetPhysicalDeviceFeatures2")]
     private static partial void vkGetPhysicalDeviceFeatures2(PhysicalDevice physicalDevice, PhysicalDeviceFeatures2* features);
     [LibraryImport(LibraryName, EntryPoint = "vkGetBufferDeviceAddress")]
