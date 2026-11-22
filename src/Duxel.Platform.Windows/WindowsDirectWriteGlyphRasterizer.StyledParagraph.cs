@@ -8,6 +8,27 @@ namespace Duxel.Platform.Windows;
 
 internal sealed unsafe partial class WindowsDirectWriteGlyphRasterizer
 {
+    [ThreadStatic] private static ParagraphBatch? _paragraphBatch;
+
+    // The synchronous caller owns the batch. DirectWrite layouts and renderer callbacks
+    // are released for each paragraph before the font collections are released.
+    internal sealed class ParagraphBatch : IDisposable
+    {
+        private readonly ParagraphBatch? _previous = _paragraphBatch;
+        internal readonly Dictionary<nint, DirectWriteLongTextShaper.ExplicitFontScope> Fonts = [];
+
+        internal ParagraphBatch() => _paragraphBatch = this;
+
+        public void Dispose()
+        {
+            if (!ReferenceEquals(_paragraphBatch, this))
+                throw new InvalidOperationException("DirectWrite paragraph batches must be disposed on the owning thread in order.");
+            _paragraphBatch = _previous;
+            lock (Sync)
+                foreach (var font in Fonts.Values)
+                    font.Dispose();
+        }
+    }
     [StructLayout(LayoutKind.Sequential)]
     private struct ParagraphLineMetrics
     {
@@ -212,7 +233,7 @@ internal sealed unsafe partial class WindowsDirectWriteGlyphRasterizer
                     metrics = measured;
                 }, float.IsFinite(request.Width) ? request.Width : null,
                 request.Objects.ToArray().Select(item => new DirectWriteLongTextShaper.InlineSpan(
-                    PreparedPosition(item.Start), item.Width, item.Height, item.Baseline)).ToArray());
+                    PreparedPosition(item.Start), item.Width, item.Height, item.Baseline)).ToArray(), _paragraphBatch?.Fonts);
             var runs = new List<PlatformTextParagraphRun>();
             foreach (var run in paragraph.Runs)
             {

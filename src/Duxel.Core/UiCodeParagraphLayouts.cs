@@ -78,28 +78,35 @@ internal sealed class UiCodeParagraphLayouts
             if (previous is not null)
                 ReuseUnchangedLines(previous);
         }
-        foreach (var line in _lines)
+        IDisposable? paragraphBatch = null;
+        try
         {
-            if (line.Natural is null)
+            foreach (var line in _lines)
             {
-                line.Natural = CreateLineLayout(line, float.PositiveInfinity);
-            }
-            var natural = line.Natural;
-            var layout = natural;
-            if (float.IsFinite(width) && natural.Width > width)
-            {
-                if (line.Wrapped is null || line.WrappedWidth != width)
+                if (line.Natural is null)
+                    line.Natural = CreateLineLayout(line, float.PositiveInfinity);
+                var natural = line.Natural;
+                var layout = natural;
+                if (float.IsFinite(width) && natural.Width > width)
                 {
-                    line.Wrapped = CreateLineLayout(line, width);
-                    line.WrappedWidth = width;
+                    if (line.Wrapped is null || line.WrappedWidth != width)
+                    {
+                        line.Wrapped = CreateLineLayout(line, width);
+                        line.WrappedWidth = width;
+                    }
+                    layout = line.Wrapped;
                 }
-                layout = line.Wrapped;
+                line.Layout = layout;
             }
-            line.Layout = layout;
+        }
+        finally
+        {
+            paragraphBatch?.Dispose();
         }
 
         PlatformTextParagraphLayout CreateLineLayout(Line line, float layoutWidth)
         {
+            paragraphBatch ??= (backend as IPlatformTextParagraphBatchBackend)?.BeginParagraphBatch();
             if (shared is null)
             {
                 NativeBuilds++;

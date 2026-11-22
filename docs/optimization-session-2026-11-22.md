@@ -454,3 +454,24 @@ Three fresh Windows Gallery processes per version alternated with only the Core 
 Independent p95 ranges overlap. The rates above describe sampled CPU frame work. The replay has no visual display latency measurement, and it did not reproduce the reported 6.7 FPS interval. The entry and texture budgets limit retained text. The change can keep part of that budget occupied longer. [Replay comparison](../artifacts/codeview-gutter-retention-20261122/product-comparison.json)
 
 Release solution build, six CodeView lifetime checks, and 178 DirectText checks passed. The previous version reproduced the re-upload after 650 fast frames with line numbers enabled. The changed version reused the pixels and expired them after 11 elapsed seconds. Four fixed-size Gallery scroll captures matched byte for byte. Windows and WSLg Linux x64 NativeAOT each verified 108 Gallery Vulkan presentations. [Cache expiry logs](../artifacts/codeview-gutter-retention-20261122/age-candidate.log) · [Pixel hashes](../artifacts/codeview-gutter-retention-20261122/fixed-pixel-comparison.json) · [Windows Gallery](../artifacts/codeview-gutter-retention-20261122/windows-gallery/captures/result.json) · [WSLg Gallery](../artifacts/codeview-gutter-retention-20261122/linux-gallery/captures/result.json)
+
+
+## DirectWrite font collections shared within a CodeView layout pass
+
+The Windows paragraph backend now reuses DirectWrite font collections while CodeView shapes the lines in a layout pass. Each paragraph still owns its text layout, paint effects and glyph callbacks. The batch releases its font collections before returning. This removes repeated collection registration for the same font without retaining a new cache across frames.
+
+The Windows GPU fixture replaced every line in a 300-line mixed-script document in each composition. Three independent processes on each side used .NET SDK 11.0.100 and runtime 11.0.0. Each recorded 30 compositions and excluded the first ten for warm timing. Per-run ranges were 58.49–59.49 ms before and 20.03–26.58 ms after for paragraph layout. The instrumentation measured UI CPU work at a 950 × 640 viewport.
+
+| UI CPU work | Baseline median | Reused collections median |
+| --- | ---: | ---: |
+| Composition | 61.77 ms | 29.33 ms |
+| Native paragraph layout path | 58.94 ms | 26.42 ms |
+| Font collection construction | 40.89 ms | 0.28 ms |
+| Paragraph rasterization | 0.059 ms | 0.169 ms |
+| Texture update request per composition | 27,500 B | 27,500 B |
+
+Native paragraph time fell by 55.2% on this replacement workload. The application replay swapped the Core and Windows platform DLLs and used the same 1483 × 956 framebuffer, RTX 5070 Ti, and no V-Sync. First SVG display CPU medians were 151.19 ms and 148.97 ms. The execution ranges overlapped. The replacement workload represents code changes across the whole document and does not establish a scroll performance gain. Monitor display timing and long-duration memory were outside this comparison.
+
+Seven captured cases included mixed scripts, tabs and decomposed Hangul, bidirectional text, supplementary-plane text, wrapping, empty source and long code. The 21 pixel pairs and 21 glyph, caret and selection geometry pairs all matched. Windows checks passed for DirectWrite shaping, paragraph geometry, font context, DirectText caching and CodeView. Four added cases verify that reused font collections preserve the same glyphs and carets. Windows and WSLg Dozen Gallery each verified 108 Vulkan presentations.
+
+Use `replay-product.ps1` for the first-display A/B, `verify-windows.ps1` for Windows verification and `verify-linux.sh` for the WSLg build and verification in the evidence directory. [Layout and captures](../artifacts/directwrite-paragraph-stages-20261122/comparison.json) · [Gallery timing](../artifacts/directwrite-paragraph-stages-20261122/first-display-comparison.json) · [Windows verification](../artifacts/directwrite-paragraph-stages-20261122/verification/result.json) · [WSLg verification](../artifacts/directwrite-paragraph-stages-20261122/linux-gallery/captures/result.json)

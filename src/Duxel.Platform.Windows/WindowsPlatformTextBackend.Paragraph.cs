@@ -2,8 +2,11 @@ using Duxel.Core;
 
 namespace Duxel.Platform.Windows;
 
-public sealed partial class WindowsPlatformTextBackend
+public sealed partial class WindowsPlatformTextBackend : IPlatformTextParagraphBatchBackend
 {
+    IDisposable IPlatformTextParagraphBatchBackend.BeginParagraphBatch()
+        => new WindowsDirectWriteGlyphRasterizer.ParagraphBatch();
+
     public PlatformTextParagraphLayout CreateParagraph(PlatformTextParagraphRequest request, bool vectorMetrics)
         => WindowsDirectWriteGlyphRasterizer.CreateStyledParagraph(request, vectorMetrics);
 

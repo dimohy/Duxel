@@ -8,7 +8,7 @@ internal static unsafe partial class DirectWriteLongTextShaper
     private readonly record struct TextRange(uint Start, uint Length);
 
     /// <summary>A registered, single-file collection whose lifetime encloses its layout.</summary>
-    private sealed class ExplicitFontScope : IDisposable
+    internal sealed class ExplicitFontScope : IDisposable
     {
         private readonly nint _factory;
         private nint _file, _collection, _font, _family, _names;

@@ -93,7 +93,7 @@ internal static unsafe partial class DirectWriteLongTextShaper
         return file;
     }
 
-    private sealed class FontIdentity : IDisposable
+    internal sealed class FontIdentity : IDisposable
     {
         private nint _loader;
         internal required byte[] Key;

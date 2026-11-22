@@ -343,3 +343,8 @@ public interface IPlatformTextParagraphBackend
     PlatformTextParagraphRaster RasterizeParagraphRun(PlatformTextParagraphRun run);
     PlatformTextMeshResult CreateParagraphRunMesh(PlatformTextParagraphRun run, float flatteningTolerance = .001f);
 }
+
+internal interface IPlatformTextParagraphBatchBackend
+{
+    IDisposable BeginParagraphBatch();
+}

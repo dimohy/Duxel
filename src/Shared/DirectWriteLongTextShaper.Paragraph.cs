@@ -18,7 +18,8 @@ internal static unsafe partial class DirectWriteLongTextShaper
     }
 
     internal static Paragraph ShapeParagraph(nint factory, string text, FontSpan[] spans, bool rtl = false,
-        Action<nint>? inspectLayout = null, float? wrapWidth = null, InlineSpan[]? objects = null)
+        Action<nint>? inspectLayout = null, float? wrapWidth = null, InlineSpan[]? objects = null,
+        Dictionary<nint, ExplicitFontScope>? sharedFonts = null)
     {
         if (spans.Length == 0)
             throw new ArgumentException("A paragraph requires a declared explicit font.");
@@ -34,7 +35,7 @@ internal static unsafe partial class DirectWriteLongTextShaper
         }
         if (covered != text.Length)
             throw new ArgumentException("Explicit font intervals omit paragraph source text.");
-        var fonts = new Dictionary<nint, ExplicitFontScope>();
+        var fonts = sharedFonts ?? new Dictionary<nint, ExplicitFontScope>();
         var effects = new Dictionary<int, nint>();
         var inlineObjects = new Dictionary<nint, InlineSpan>();
         nint format = 0, layout = 0;
@@ -107,8 +108,9 @@ internal static unsafe partial class DirectWriteLongTextShaper
             var retainedObjects = 0u;
             foreach (var item in inlineObjects.Keys)
                 retainedObjects |= ReleaseOwned((Callback*)item);
-            foreach (var font in fonts.Values)
-                font.Dispose();
+            if (sharedFonts is null)
+                foreach (var font in fonts.Values)
+                    font.Dispose();
             if (references != 0)
                 throw new InvalidOperationException("DirectWrite retained a paragraph renderer after layout disposal.");
             if (retainedEffects != 0)

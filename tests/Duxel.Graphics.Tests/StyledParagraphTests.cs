@@ -72,6 +72,19 @@ internal static unsafe partial class StyledParagraphTests
                 }
             }, nativePixels, absoluteParagraphPositions: true);
             var paragraph = backend.CreateParagraph(request, vectorMetrics: false);
+            using (((IPlatformTextParagraphBatchBackend)backend).BeginParagraphBatch())
+            {
+                backend.CreateParagraph(request, vectorMetrics: false);
+                var reused = backend.CreateParagraph(request, vectorMetrics: false);
+                check(reused.Carets.Span.SequenceEqual(paragraph.Carets.Span)
+                    && reused.Runs.Length == paragraph.Runs.Length
+                    && reused.Runs.ToArray().Zip(paragraph.Runs.ToArray()).All(pair =>
+                        pair.First.StyleIndex == pair.Second.StyleIndex
+                        && pair.First.FontPath == pair.Second.FontPath
+                        && pair.First.Origin == pair.Second.Origin
+                        && pair.First.Glyphs.Span.SequenceEqual(pair.Second.Glyphs.Span)),
+                    "Reused DirectWrite font collections preserve glyph runs and caret positions : " + text);
+            }
             var actualGlyphs = paragraph.Runs.ToArray().SelectMany(run => run.Glyphs.ToArray()).OrderBy(glyph => glyph.Y).ThenBy(glyph => glyph.X).ThenBy(glyph => glyph.Index).ToArray();
             var nativeGlyphs = expected.OrderBy(glyph => glyph.Y).ThenBy(glyph => glyph.X).ThenBy(glyph => glyph.Index).ToArray();
             check(actualGlyphs.Length == nativeGlyphs.Length && actualGlyphs.Zip(nativeGlyphs).All(pair => pair.First.Index == pair.Second.Index
