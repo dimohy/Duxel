@@ -515,3 +515,19 @@ The UI composition ranges were disjoint. Vulkan GPU timestamps and app compositi
 CodeView now tests drag overshoot against the visible editor viewport and clamps caret hit testing to the text bounds separately. The previous build failed the upper and lower padding checks and the horizontal line-number gutter check. The fixed build keeps both scroll positions stable inside the viewport, scrolls beyond the actual top and bottom edges, and preserves the existing enclosing-document drag behavior.
 
 [Windows replay](../artifacts/gallery-messagebar-fps-44bd4f89-20261122/repeat-summary.json) · [MessageBar GPU checks](../artifacts/gallery-messagebar-fps-44bd4f89-20261122/messagebar-gpu/result.json)
+
+## MessageBar fast slider drag
+
+A native Windows drag exposed a bottleneck after the intrinsic layout fix. A burst could present many intermediate slider widths. Each width also rebuilt the two Gallery CodeView sources. The width slider now coalesces captured pointer moves, and the source examples keep their width during a held drag. Releasing the pointer synchronizes the final value. The live MessageBars continue following the slider. Keyboard and automation width changes still synchronize without waiting for a drag.
+
+Three new processes per version replayed a full out-and-back drag using native pointer input. Each issued 136 moves, at a median interval of 2.10–2.13 ms, on the RTX 5070 Ti at 1984 × 956 with V-Sync off. Only the Gallery assembly was exchanged.
+
+| Active drag measurement, median of run p95 | Before | After |
+| --- | ---: | ---: |
+| App UI composition | 52.874 ms | 8.662 ms |
+| App CPU frame time | 58.995 ms | 14.689 ms |
+| Time between accepted Vulkan submissions | 39.668 ms | 14.703 ms |
+
+The three execution ranges did not overlap. All release checks matched the example source width to the final slider value. An event-driven replay verified the same behavior. The Vulkan submission interval measures the application path. The monitor scan-out rate was not recorded.
+
+[Replay summary](../artifacts/messagebar-native-drag-a5ef45bc-20261122/summary.json) · [Raw replay](../artifacts/messagebar-native-drag-a5ef45bc-20261122/comparison.json)

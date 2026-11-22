@@ -5,6 +5,8 @@ namespace Duxel.Gallery;
 internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGallerySourcePage
 {
     private readonly UiState<float> _width = new(560);
+    private readonly UiSlider<UiFluentSliderBehavior, UiFluentSliderPresentation> _widthSlider;
+    private float _sourceWidth;
     private readonly UiState<bool> _multiline = new(false);
     private readonly UiState<bool> _square = new(false);
     private readonly UiState<bool> _rightToLeft = new(false);
@@ -31,6 +33,9 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
     internal MessageBarPage()
     {
         _resolvedOptions = ResolveOptions(new());
+        _sourceWidth = _width.Value;
+        _widthSlider = Fluent.Slider(GalleryText.Get("MessageBar width"), _width.Binding, 300, 800, 1);
+        _widthSlider.Options = _widthSlider.Options with { CoalescePointerMoves = true };
         var intentDefinition = GallerySample.Define<Func<UiMessageBarIntent, string>>("intentLabel",
             () => (UiMessageBarIntent intent) => intent switch
             {
@@ -55,10 +60,10 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
         _group = fixedSample.Preview;
         _messages = _group.Children.ToArray().Cast<UiFluentMessageBar>().ToArray();
         var fixedFactory = fixedSample.Source;
-        fixedSample.BindSource(() => (_resolvedOptions, Actions : _actions.Value, Reduced : _reducedMotion.Value,
+        fixedSample.BindSource(() => (Options : _resolvedOptions with { Width = _sourceWidth }, Actions : _actions.Value, Reduced : _reducedMotion.Value,
             Hidden : string.Join(",", Enumerable.Range(0, _messages.Length).Where(index => !_group.IsVisible(index)))), state =>
             $"var _actions = new UiState<int>({state.Actions});\n"
-            + $"var _resolvedOptions = {OptionsSource(state._resolvedOptions)};\n\n" + intentDefinition.Source + "\n\n" + fixedFactory
+            + $"var _resolvedOptions = {OptionsSource(state.Options)};\n\n" + intentDefinition.Source + "\n\n" + fixedFactory
             + $"\n((UiFluentMessageBarGroup)example).Options = ((UiFluentMessageBarGroup)example).Options with {{ ReducedMotion = {GallerySample.Boolean(state.Reduced)} }};"
             + string.Concat(state.Hidden.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(index =>
                 $"\n((UiFluentMessageBarGroup)example).SetVisible({index}, false);")));
@@ -100,9 +105,9 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
             Dux.Wrap(new(Spacing : 12, RunSpacing : 8), Fluent.Button(GalleryText.Get("Add message"), addDynamic),
                 Fluent.Button(GalleryText.Get("Delete first message"), removeFirstDynamic), Fluent.Button(GalleryText.Get("Reverse order"), reverseDynamic)), _dynamicGroup));
         var dynamicFactory = dynamicSample.Source;
-        dynamicSample.BindSource(() => (_resolvedOptions, Next : _nextMessage, Reduced : _reducedMotion.Value,
+        dynamicSample.BindSource(() => (Options : _resolvedOptions with { Width = _sourceWidth }, Next : _nextMessage, Reduced : _reducedMotion.Value,
             Keys : string.Join(",", _dynamicItems.Select(item => GallerySample.String(item.Key)))), state =>
-            $"var _resolvedOptions = {OptionsSource(state._resolvedOptions)};\n"
+            $"var _resolvedOptions = {OptionsSource(state.Options)};\n"
             + $"var _nextMessage = {state.Next}L;\nvar _dynamicItems = new List<UiKeyedWidget>();\n"
             + groupDefinition.Source + $"\n_dynamicGroup.Options = _dynamicGroup.Options with {{ ReducedMotion = {GallerySample.Boolean(state.Reduced)} }};\n\n"
             + remove.Source + "\n\n" + messageDefinition.Source + "\n\n" + add.Source + "\n\n" + first.Source + "\n\n" + reverse.Source
@@ -112,7 +117,7 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
         Samples = [fixedSample, dynamicSample];
         _root = new UiScrollView(Dux.Column(new(Spacing: 12, MainAxisSize: UiMainAxisSize.Min),
         [
-            Fluent.Slider(GalleryText.Get("MessageBar width"), _width.Binding, 300, 800, 1),
+            _widthSlider,
             Dux.Wrap(new(Spacing: 16, RunSpacing: 8), Fluent.Switch(GalleryText.Get("Multi-line layout"), _multiline.Binding),
                 Fluent.Switch(GalleryText.Get("Square corners"), _square.Binding), Fluent.Switch(GalleryText.Get("Right-to-left layout"), _rightToLeft.Binding)),
             Fluent.Body1(() => GalleryText.Format("Width: {0:F0} / Actions: {1}", _width.Value, _actions.Value)),
@@ -215,6 +220,8 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
     private void PrepareContent(UiImmediateContext ui)
     {
         ObserveAnnouncements(ui);
+        if (!_widthSlider.IsPointerDragging)
+            _sourceWidth = _width.Value;
         _resolvedOptions = ResolveOptions(new());
         _group.Options = _group.Options with
         {
@@ -232,6 +239,13 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
             message.Options = ResolveOptions(message.Options);
         }
     }
+    void IObserverNaturalPage.RenderOverlays(UiImmediateContext ui)
+    {
+        // Release is observed after the frame's source synchronization.
+        if (!_widthSlider.IsPointerDragging && _sourceWidth != _width.Value)
+            ui.RequestFrameAt(ui.GetTime());
+    }
+
     public void Render(UiImmediateContext ui) { PrepareContent(ui); _root.Render(ui); }
     private UiMessageBarOptions ResolveOptions(UiMessageBarOptions options) => options with
     {
