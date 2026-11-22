@@ -11,6 +11,7 @@ public sealed partial class UiImmediateContext
     private readonly Dictionary<VectorTextCacheKey, VectorTextCacheEntry> _vectorTextMeshes = [];
     private readonly Queue<VectorTextCacheKey> _vectorTextMeshOrder = [];
     private bool _fontIconVectorPaint;
+    private IDisposable? _vectorTextParagraphBatch;
     private UiRasterTextureCache<UiGpuVectorScene, UiVectorSceneTextureProvider>? _fontIconTextureCache;
     internal UiRasterTextureStatistics FontIconTextureStatistics => _fontIconTextureCache?.Statistics ?? default;
     private VectorTextCacheKey CreateVectorTextCacheKey(string text, float fontSize)
@@ -43,6 +44,8 @@ public sealed partial class UiImmediateContext
         }
         if (_platformTextBackend is not IPlatformVectorTextBackend backend)
             throw new NotSupportedException("The selected text backend does not provide vector glyphs required by this drawing scope.");
+        // Start only on a cache miss. Retained scenes can render without a font batch.
+        _vectorTextParagraphBatch ??= (_platformTextBackend as IPlatformTextParagraphBatchBackend)?.BeginParagraphBatch();
         var mesh = backend.CreateTextMesh(new(_directTextPrimaryFontPath!, _directTextSecondaryFontPath, text, fontSize, tolerance));
         if (mesh.TriangleVertices.Length % 3 != 0 || (!mesh.Glyphs.IsEmpty && !mesh.TriangleVertices.IsEmpty))
             throw new InvalidOperationException("Vector text must contain complete triangles.");
@@ -66,6 +69,13 @@ public sealed partial class UiImmediateContext
         _vectorTextMeshes.Add(key, entry);
         _vectorTextMeshOrder.Enqueue(key);
         return entry;
+    }
+
+    internal void EndVectorTextParagraphBatch()
+    {
+        var batch = _vectorTextParagraphBatch;
+        _vectorTextParagraphBatch = null;
+        batch?.Dispose();
     }
 
     private (float Top, float Height, float Baseline) GetVectorTextInk(string text, float fontSize)

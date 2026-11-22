@@ -1047,7 +1047,8 @@ public sealed partial class UiContext(
         var compositionStart = measurement.StartStage();
         try
         {
-            screen.Render(ui);
+            try { screen.Render(ui); }
+            finally { ui.EndVectorTextParagraphBatch(); }
             ui.EndControlNavigation();
             ui.EndTooltipTargets();
             _state.EndFrame();

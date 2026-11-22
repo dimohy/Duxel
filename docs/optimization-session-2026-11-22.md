@@ -475,3 +475,24 @@ Native paragraph time fell by 55.2% on this replacement workload. The applicatio
 Seven captured cases included mixed scripts, tabs and decomposed Hangul, bidirectional text, supplementary-plane text, wrapping, empty source and long code. The 21 pixel pairs and 21 glyph, caret and selection geometry pairs all matched. Windows checks passed for DirectWrite shaping, paragraph geometry, font context, DirectText caching and CodeView. Four added cases verify that reused font collections preserve the same glyphs and carets. Windows and WSLg Dozen Gallery each verified 108 Vulkan presentations.
 
 Use `replay-product.ps1` for the first-display A/B, `verify-windows.ps1` for Windows verification and `verify-linux.sh` for the WSLg build and verification in the evidence directory. [Layout and captures](../artifacts/directwrite-paragraph-stages-20261122/comparison.json) · [Gallery timing](../artifacts/directwrite-paragraph-stages-20261122/first-display-comparison.json) · [Windows verification](../artifacts/directwrite-paragraph-stages-20261122/verification/result.json) · [WSLg verification](../artifacts/directwrite-paragraph-stages-20261122/linux-gallery/captures/result.json)
+
+## DirectWrite font reuse for vector text
+
+The first ERD view builds vector meshes for 1,200 tables. Contextual text used to create a DirectWrite font collection for each text request. Duxel now reuses collections on the first vector-text cache miss through the end of composition. Retained scenes with no misses do not open a batch. Platforms without paragraph batching continue through the optional backend interface.
+
+Windows RTX 5070 Ti, 1440 × 940, MSAA 4, V-Sync off. Each matrix alternated three baseline and three candidate processes using the same diagnostic executable and fixed camera and table positions. Values are medians of the per-run results.
+
+| Measurement | Baseline | Candidate |
+| --- | ---: | ---: |
+| First contextual text shaping, 219-pose replay | 169.961 ms | 44.822 ms |
+| First contextual text shaping, 459-pose replay | 168.310 ms | 42.532 ms |
+| First CPU frame, 219-pose replay | 1,651.622 ms | 1,507.348 ms |
+| First CPU frame, 459-pose replay | 1,658.543 ms | 1,553.126 ms |
+| Full-view drag CPU p95 after 240 warm-up frames | 4.382 ms | 4.356 ms |
+| Repeated zoom CPU p95 after 240 warm-up frames | 3.888 ms | 4.037 ms |
+
+Contextual shaping took 74–75% less time across 1,323 calls. The first frame requested the same 588,533,060 bytes for upload. First-frame CPU times overlapped in the longer replay. CPU p95 for early drag increased from 7.101 ms to 8.959 ms in the shorter replay, with no new shaping in that interval. The warmed drag and zoom CPU and GPU ranges overlapped. Sustained FPS and long-duration memory effects remain unverified.
+
+Both diagnostic matrices matched pixels for all 30 capture pairs. The product build replayed all 219 positions with five additional exact captures. Windows passed 650 text and CodeView checks. Windows and Linux x64 NativeAOT under WSLg Dozen each presented all 108 Gallery verification screens on the RTX 5070 Ti. This experiment exercised the ERD vector text cache. The reported SVG slowdown during scaling and scrolling remains open.
+
+[219-pose comparison](../artifacts/erd-vector-font-batch-20261122/comparison.json) · [Warm comparison](../artifacts/erd-vector-font-batch-20261122/warm-comparison.json) · [Product pixel verification](../artifacts/erd-vector-font-batch-20261122/product-replay/result.json)

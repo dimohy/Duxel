@@ -30,7 +30,8 @@ internal sealed partial class WindowsDirectWriteGlyphRasterizer
                 spans[index] = new(start, run.Text.Length, face, size);
                 start += run.Text.Length;
             }
-            var paragraph = DirectWriteLongTextShaper.ShapeParagraph(_factory, text, spans, inspectLayout: inspectLayout);
+            var paragraph = DirectWriteLongTextShaper.ShapeParagraph(_factory, text, spans,
+                inspectLayout : inspectLayout, sharedFonts : _paragraphBatch?.Fonts);
             return new(paragraph.Runs.Select(run => new ContextualFontRun(selected[run.FontSpan].FontPath, run.Glyphs, run.Raster)).ToArray(),
                 paragraph.Advance, paragraph.Baseline);
         }
