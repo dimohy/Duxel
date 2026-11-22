@@ -91,40 +91,32 @@ public sealed partial class UiImmediateContext
             lineRanges[index] = visual is null ? new(0, content.CharacterCount, content.CharacterCount)
                 : new(content.GetCharacterOffset(Committed(visual[index].Start)), content.GetCharacterOffset(Committed(visual[index].End)), index + 1 < visual.Count
                     ? content.GetCharacterOffset(Committed(visual[index + 1].Start)) : content.CharacterCount);
-        int Line(int index)
+        int LineInOrder(int index, ref int line)
         {
-            if (visual is null)
-                return 0;
-            var low = 0;
-            var high = visual.Count;
-            while (low + 1 < high)
-            {
-                var middle = low + (high - low) / 2;
-                if (index >= visual[middle].Start)
-                    low = middle;
-                else
-                    high = middle;
-            }
-            return low;
+            if (visual is not null)
+                while (line + 1 < visual.Count && index >= visual[line + 1].Start)
+                    line++;
+            return line;
         }
-        UiRect Caret(int index)
-        {
-            var display = Display(index);
-            var line = Line(display);
-            return visual is null ? new(SingleX(index), origin.Y, 0, height)
+        UiRect Caret(int index, int display, int line)
+            => visual is null ? new(SingleX(index), origin.Y, 0, height)
                 : new(origin.X + visual.X(display, line), origin.Y + visual.Y(line), 0, visual.LineHeight(line));
-        }
         var starts = StringInfo.ParseCombiningCharacters(text);
+        var caretLine = 0;
+        var elementLine = 0;
+        var startBoundary = 0;
+        var endBoundary = 0;
         for (var index = 0; index < starts.Length; index++)
         {
             var start = starts[index];
             var end = index + 1 < starts.Length ? starts[index + 1] : text.Length;
             var first = content.GetCharacterOffset(start);
             var last = content.GetCharacterOffset(end);
-            var caret = Caret(start);
-            var displayStart = visual?.Snap(Display(start)) ?? start;
-            var displayEnd = visual?.SnapUp(Display(end, true)) ?? end;
-            var line = Line(displayStart);
+            var display = Display(start);
+            var caret = Caret(start, display, LineInOrder(display, ref caretLine));
+            var displayStart = visual?.SnapInOrder(display, ref startBoundary, forward: false) ?? start;
+            var displayEnd = visual?.SnapInOrder(Display(end, true), ref endBoundary, forward: true) ?? end;
+            var line = LineInOrder(displayStart, ref elementLine);
             var right = text[start] is '\r' or '\n' ? caret.X : visual is null
                 ? SingleX(end, true) : origin.X + visual.X(displayEnd, line);
             var box = caret with
@@ -154,7 +146,8 @@ public sealed partial class UiImmediateContext
                 carets[scalar] = caret;
             }
         }
-        carets[^1] = Caret(text.Length);
+        var lastDisplay = Display(text.Length);
+        carets[^1] = Caret(text.Length, lastDisplay, LineInOrder(lastDisplay, ref caretLine));
         return new(content, key, origin, clip, height, visual?.Version ?? singleLine?.Version ?? 0, characters, carets, lineRanges)
         {
             Composition = composition,

@@ -418,6 +418,17 @@ internal sealed partial class UiVisualTextLines
         var position = Array.BinarySearch(_boundaries, index);
         return position >= 0 ? index : _boundaries[Math.Clamp(~position, 0, _boundaries.Length - 1)];
     }
+
+    // Used when visiting successive graphemes. Each cursor sees nondecreasing offsets.
+    internal int SnapInOrder(int index, ref int boundary, bool forward)
+    {
+        while (boundary + 1 < _boundaries.Length && _boundaries[boundary + 1] <= index)
+            boundary++;
+        if (forward && boundary + 1 < _boundaries.Length && _boundaries[boundary] < index)
+            return _boundaries[boundary + 1];
+        return _boundaries[boundary];
+    }
+
     internal UiTextSelection AlignSelection(UiTextSelection selection) => selection.Start <= selection.End
         ? new(SnapCaret(selection.Start, forward: false), SnapCaret(selection.End, forward: true))
         : new(SnapCaret(selection.Start, forward: true), SnapCaret(selection.End, forward: false));
