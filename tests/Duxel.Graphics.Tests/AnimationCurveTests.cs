@@ -107,8 +107,9 @@ internal static class AnimationCurveTests
         foreach (var label in new[] { "등장 곡선", "퇴장 곡선", "배경 곡선" })
         {
             var button = tree.CaptureSnapshot().Elements.Single(x => x.Node.Role == UiAccessibilityRole.Button && x.Node.Name == label);
-            check(tree.RequestAction(button.Node.Id, button.RuntimeId, UiAccessibilityAction.ScrollIntoView, wait : false) == UiAccessibilityResult.Success,
-                "Observer motion sample can be revealed below its source blocks : " + label);
+            check(!button.Node.Offscreen
+                || tree.RequestAction(button.Node.Id, button.RuntimeId, UiAccessibilityAction.ScrollIntoView, wait : false) == UiAccessibilityResult.Success,
+                "Observer motion sample is visible or can be revealed below its compact source blocks : " + label);
             for (var revealFrame = 0; revealFrame < 3; revealFrame++) Frame();
             var scrollbarMotion = new UiScrollbarMotionOptions();
             context.State.AdvanceTime((float)(scrollbarMotion.Enter.DurationSeconds + scrollbarMotion.HoldSeconds + scrollbarMotion.Exit.DurationSeconds));

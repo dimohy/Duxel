@@ -51,6 +51,7 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Assets/Localization/GalleryLocalization.tsv" LogicalName="GalleryLocalization.tsv" />
+    <EmbeddedResource Include="../../src/Duxel.Core/Assets/FluentIcons/*.json" LogicalName="GalleryIcons.%(Filename)%(Extension)" />
     <EmbeddedResource Include="./*.cs" LogicalName="GallerySource.%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>

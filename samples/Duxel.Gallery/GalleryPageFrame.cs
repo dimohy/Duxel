@@ -36,10 +36,14 @@ internal sealed class GalleryPageFrame : IDisposable
     {
         _page = page;
         var title = Fluent.Title2(navigationLabel ?? GalleryText.PageTitle(page.Title));
+        var heading = Dux.Row(new(Spacing : 12, CrossAxisAlignment : UiCrossAxisAlignment.Center),
+            Dux.Expanded(title), new UiCopyButton(() => GalleryPageSource.FullImplementation(page),
+                GalleryText.Get("Copy full page C#"), GalleryText.Get("Copied"),
+                showHoverHint : true, position : UiPopupPosition.BelowEnd));
         var header = string.IsNullOrWhiteSpace(page.Description)
-            ? (UiWidget)title
+            ? (UiWidget)heading
             : Dux.Column(new(Spacing : 6, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
-                title, new UiInlineText([new(GalleryText.Get(page.Description))]));
+                heading, new UiInlineText([new(GalleryText.Get(page.Description))]));
         if (page is IGallerySourcePage { HasInlineSamples: true } inline)
             _samples = inline.Samples;
         if (page is IObserverDocumentPage)
@@ -53,7 +57,7 @@ internal sealed class GalleryPageFrame : IDisposable
         if (_samples is null && HasSource(page.Title))
         {
             _source = GalleryPageSource.For(page);
-            _codeView = new UiCodeView(_source, new(ShowToolbar : false), GalleryText.CodeViewLabels());
+            _codeView = GallerySample.InlineCode(_source);
             body = Dux.Column(new(Spacing : 16, MainAxisSize : UiMainAxisSize.Min,
                 CrossAxisAlignment : UiCrossAxisAlignment.Stretch), _body, _codeView);
         }
@@ -133,13 +137,45 @@ internal static class GalleryPageSource
         return source;
     }
     private static readonly Dictionary<string, string> Cache = new(StringComparer.Ordinal);
+    internal static string FullImplementation(IObserverPage page)
+    {
+        var main = ImplementationFile(page);
+        string[] files = page.Title switch
+        {
+            "Animation" => [main, nameof(MotionPreview), nameof(RotationMotionPreview),
+                nameof(ScrollbarMotionPreview), nameof(PresenceMotionPreview)],
+            "갱신 관찰" => [main, nameof(RepaintExperiment)],
+            "SVG" => [main, nameof(SvgBrowserGallery), nameof(SvgBrowserPair), nameof(SvgExampleSource)],
+            _ => [main]
+        };
+        return files.Length == 1 ? ReadRaw(main) : string.Join("\n\n",
+            files.Select(file => "// " + file + ".cs\n" + ReadRaw(file)));
+    }
+
     internal static string For(IObserverPage page)
     {
         if (page is ComponentExamplePage example) return example.Source;
         if (Fluent.MissingComponentNames.Contains(page.Title)) return "// " + GalleryText.Get("No runnable example is available yet.");
-        var file = page.Title switch
+        var file = page.Title == "갱신 관찰" ? nameof(RepaintExperiment) : ImplementationFile(page);
+        var source = Read(file);
+        if (file is nameof(VirtualGridPage) or nameof(FileDialogsPage))
         {
+            source = GallerySample.LocalizeSource(source);
+            var title = "public string Title => ";
+            source = source.Replace(title + GallerySample.String(page.Title),
+                title + GallerySample.String(GalleryText.PageTitle(page.Title)), StringComparison.Ordinal);
+        }
+        if (file == nameof(FileDialogsPage))
+            source = source.Replace(nameof(GalleryText) + "." + nameof(GalleryText.RegionalCultureName),
+                GallerySample.String(GalleryText.RegionalCultureName), StringComparison.Ordinal);
+        return source;
+    }
+
+    private static string ImplementationFile(IObserverPage page) => page.Title switch
+        {
+            _ when page is ComponentExamplePage => nameof(GalleryComponentExamples),
             "개요" => "ObserverScreen",
+            "기존 API" => "ObserverPage",
             "Fluent" => "ControlsPage",
             "평가" or "타이포그래피" => "FluentPages",
             "입력·IME" => "EditingPage",
@@ -173,24 +209,12 @@ internal static class GalleryPageSource
             "경로" => "BreadcrumbPage",
             "탐색 메뉴" => "NavigationPage",
             "보조 패널" => "DrawerPage",
-            "갱신 관찰" => "RepaintExperiment",
+            "갱신 관찰" => nameof(RepaintPage),
             "Markdown" => "MarkdownPage",
             "Localization" => "LocalizationPage",
-            _ => throw new InvalidOperationException("Gallery source is not registered : " + page.Title)
+            _ when page is WidgetPage => nameof(ObserverScreen),
+            _ => page.GetType().Name
         };
-        var source = Read(file);
-        if (file is nameof(VirtualGridPage) or nameof(FileDialogsPage))
-        {
-            source = GallerySample.LocalizeSource(source);
-            var title = "public string Title => ";
-            source = source.Replace(title + GallerySample.String(page.Title),
-                title + GallerySample.String(GalleryText.PageTitle(page.Title)), StringComparison.Ordinal);
-        }
-        if (file == nameof(FileDialogsPage))
-            source = source.Replace(nameof(GalleryText) + "." + nameof(GalleryText.RegionalCultureName),
-                GallerySample.String(GalleryText.RegionalCultureName), StringComparison.Ordinal);
-        return source;
-    }
 
     internal static string Declaration(string file)
     {
@@ -203,11 +227,16 @@ internal static class GalleryPageSource
     private static string Read(string file)
     {
         if (Cache.TryGetValue(file, out var source)) return source;
+        source = OmitCommonImport(ReadRaw(file));
+        Cache.Add(file, source);
+        return source;
+    }
+
+    private static string ReadRaw(string file)
+    {
         using var stream = typeof(GalleryPageSource).Assembly.GetManifestResourceStream("GallerySource." + file + ".cs")
             ?? throw new InvalidOperationException("Gallery source resource is missing : " + file);
         using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
-        source = OmitCommonImport(reader.ReadToEnd().Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n'));
-        Cache.Add(file, source);
-        return source;
+        return reader.ReadToEnd().Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
     }
 }

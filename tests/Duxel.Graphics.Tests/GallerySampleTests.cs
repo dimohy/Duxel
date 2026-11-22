@@ -2206,14 +2206,21 @@ internal static class GallerySampleTests
         var unchangedBytes = 0L;
         var requested = requestedPages?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
         var completedPages = new List<string>();
-        foreach (var example in GalleryComponentExamples.Create())
+        var examples = GalleryComponentExamples.Create();
+        var expectedTitles = examples.Select(page => page.Title).ToHashSet(StringComparer.Ordinal);
+        foreach (var example in examples)
         {
-            using var page = (ComponentExamplePage)example;
+            using var page = example;
             if (requested is not null && !requested.Contains(page.Title)) continue;
+            var samplePage = (IGallerySourcePage)page;
+            var samples = samplePage.Samples;
+            string Source() => samples[0].Source;
             using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
             ControlFontFixture.Configure(context);
             using var tree = new UiAccessibilityTree();
             context.SetAccessibilityTree(tree);
+            var clipboard = new SampleClipboard();
+            context.SetClipboard(clipboard);
             using var frame = new GalleryPageFrame(page);
             var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
             void Frame(UiInputState? input = null)
@@ -2236,20 +2243,21 @@ internal static class GallerySampleTests
                 var sources = tree.CaptureSnapshot().Elements.Select(element => element.Node)
                     .Where(node => node is { Name: "C# 예제 소스", Role: UiAccessibilityRole.Edit })
                     .OrderBy(node => node.Bounds.Y).ToArray();
-                check(sources.Length == page.Samples.Count, "one code view per example : " + page.Title);
-                for (var index = 0; index < Math.Min(sources.Length, page.Samples.Count); index++)
+                check(sources.Length == samples.Count, "one code view per example : " + page.Title);
+                for (var index = 0; index < Math.Min(sources.Length, samples.Count); index++)
                 {
                     var code = sources[index];
-                    var source = page.Samples[index].Source;
-                    check(code.ReadOnly && code.Value == source
-                        && source.Contains("Fluent." + page.Title + "(", StringComparison.Ordinal)
+                    var source = samples[index].Source;
+                    var shown = page.Title == "Animation" ? ((GallerySample<UiWidget>)samples[index]).CodeView.Code : source;
+                    check(code.ReadOnly && code.Value == shown
+                        && source.Contains(ComponentFactoryMarker(page.Title, index), StringComparison.Ordinal)
                         && !source.Contains("using Duxel.Core;", StringComparison.Ordinal),
                         "component inline code shows its actual factory and current source : " + page.Title + "/" + phase);
                     snapshots.Add((page.Title, index == 0 ? phase : phase + "-" + (index + 1), source));
                 }
             }
             Frame(); Frame();
-            check(page.Samples.Count == (page.Title == "RadioGroup" ? 2 : 1) && ((IGallerySourcePage)page).HasInlineSamples,
+            check(samples.Count == (page.Title == "Animation" ? 4 : page.Title == "RadioGroup" ? 2 : 1) && samplePage.HasInlineSamples,
                 "component owns its inline samples : " + page.Title);
             Snapshot("initial");
             const string text = "디모이 \"Q\" \\path";
@@ -2259,11 +2267,11 @@ internal static class GallerySampleTests
                 case "TagPicker":
                     Send("받는 사람", UiAccessibilityRole.ComboBox, UiAccessibilityAction.Expand);
                     Send("김민수", UiAccessibilityRole.Option, UiAccessibilityAction.AddToSelection);
-                    check(page.Source.Contains("new UiState<string[]>([\"dimoi\", \"kim\"])", StringComparison.Ordinal),
+                    check(Source().Contains("new UiState<string[]>([\"dimoi\", \"kim\"])", StringComparison.Ordinal),
                         "TagPicker source follows actual multi-selection");
                     Snapshot("selected");
                     Send("받는 사람", UiAccessibilityRole.ComboBox, UiAccessibilityAction.SetValue, "박");
-                    check(page.Source.Contains("new UiState<string>(\"박\")", StringComparison.Ordinal),
+                    check(Source().Contains("new UiState<string>(\"박\")", StringComparison.Ordinal),
                         "TagPicker query and selected array both remain current");
                     Send("받는 사람", UiAccessibilityRole.ComboBox, UiAccessibilityAction.SetValue, string.Empty);
                     Send("받는 사람", UiAccessibilityRole.ComboBox, UiAccessibilityAction.Collapse);
@@ -2283,11 +2291,11 @@ internal static class GallerySampleTests
                         Frame(idle with { MousePosition = point, LeftMouseReleased = true });
                         Frame(); Frame();
                         clickCount++;
-                        check(page.Source.Contains($"new UiState<int>({clickCount})", StringComparison.Ordinal),
+                        check(Source().Contains($"new UiState<int>({clickCount})", StringComparison.Ordinal),
                             "the CompoundButton increments once when releasing over line " + (clickCount - 1));
                     }
                     Send("문서 만들기", UiAccessibilityRole.Button, UiAccessibilityAction.Invoke);
-                    check(page.Source.Contains("new UiState<int>(4)", StringComparison.Ordinal),
+                    check(Source().Contains("new UiState<int>(4)", StringComparison.Ordinal),
                         "CompoundButton Invoke uses its one action");
 
                     var primary = Find("PNG로 저장", UiAccessibilityRole.Button).Node;
@@ -2300,14 +2308,14 @@ internal static class GallerySampleTests
                     Frame(idle with { MousePosition = primaryPoint, LeftMouseDown = true, LeftMousePressed = true });
                     Frame(idle with { MousePosition = primaryPoint, LeftMouseReleased = true });
                     Frame(); Frame();
-                    check(page.Source.Contains("new UiState<int>(5)", StringComparison.Ordinal)
+                    check(Source().Contains("new UiState<int>(5)", StringComparison.Ordinal)
                         && Find("다른 형식으로 저장", UiAccessibilityRole.Button).Node.Expansion == UiAccessibilityExpansionState.Collapsed,
                         "SplitButton primary pointer release invokes only the primary action");
                     Send("다른 형식으로 저장", UiAccessibilityRole.Button, UiAccessibilityAction.Focus);
                     Frame(idle with { KeyEvents = [new(UiKey.DownArrow, true, KeyModifiers.None)] });
                     Frame();
                     check(Find("다른 형식으로 저장", UiAccessibilityRole.Button).Node.Expansion == UiAccessibilityExpansionState.Expanded
-                        && page.Source.Contains("new UiState<int>(5)", StringComparison.Ordinal),
+                        && Source().Contains("new UiState<int>(5)", StringComparison.Ordinal),
                         "SplitButton menu keyboard activation opens without invoking the primary action");
                     Frame(idle with { KeyEvents = [new(UiKey.Escape, true, KeyModifiers.None)] });
                     Frame();
@@ -2336,7 +2344,7 @@ internal static class GallerySampleTests
                     var wide = Find(optionLabel, UiAccessibilityRole.RadioButton).Node.Bounds;
                     check(wide.Width > narrow.Width && wide.Height < narrow.Height,
                         "the allocated RadioGroup option uses one line after widening its parent");
-                    var allocationSource = page.Samples[1].Source;
+                    var allocationSource = samples[1].Source;
                     check(allocationSource.Contains("new UiState<float>(360f)", StringComparison.Ordinal)
                         && allocationSource.Contains("new UiState<string?>(\"quality\")", StringComparison.Ordinal),
                         "allocation sample source tracks the width and preserves the selected option");
@@ -2373,17 +2381,46 @@ internal static class GallerySampleTests
                 case "Combobox":
                     Send("도시 검색", UiAccessibilityRole.ComboBox, UiAccessibilityAction.SetValue, "부");
                     Snapshot("query");
-                    check(page.Source.Contains("new UiState<string>(\"부\")", StringComparison.Ordinal),
+                    check(Source().Contains("new UiState<string>(\"부\")", StringComparison.Ordinal),
                         "Combobox source follows free-form query before selection");
                     Send("도시 검색", UiAccessibilityRole.ComboBox, UiAccessibilityAction.Expand);
                     Send("부산", UiAccessibilityRole.Option, UiAccessibilityAction.Select);
-                    check(page.Source.Contains("new UiState<string>(\"부산\")", StringComparison.Ordinal),
+                    check(Source().Contains("new UiState<string>(\"부산\")", StringComparison.Ordinal),
                         "Combobox completion updates its query initializer");
                     expected = "new UiState<string?>(\"busan\")";
                     break;
                 case "TabList":
                     Send("세 번째", UiAccessibilityRole.Tab, UiAccessibilityAction.Select);
                     expected = "new UiState<string?>(\"third\")";
+                    break;
+                case "Icon":
+                    Send("아이콘 검색", UiAccessibilityRole.SearchBox, UiAccessibilityAction.SetValue, "ARROW-circle-left");
+                    Send("arrow_circle_left", UiAccessibilityRole.Button, UiAccessibilityAction.Toggle);
+                    check(Source().Contains("[UiFluentIcon(\"arrow_circle_left\", UiFluentIconStyle.Regular", StringComparison.Ordinal),
+                        "Icon results activate the selected glyph and update the source");
+                    check(Source().Contains("[UiFluentIcon(\"arrow_circle_left\", UiFluentIconStyle.Filled", StringComparison.Ordinal)
+                        && Source().Contains("icon.HoverIcon =", StringComparison.Ordinal),
+                        "Icon preview source pairs the outline with the filled hover state");
+                    Snapshot("paired");
+                    Send("arrow_circle_up_left", UiAccessibilityRole.Button, UiAccessibilityAction.Toggle);
+                    expected = "[UiFluentIcon(\"arrow_circle_up_left\", UiFluentIconStyle.Filled";
+                    var previewSource = Find("C# 예제 소스", UiAccessibilityRole.Edit).Node;
+                    check(previewSource.Scroll is not { VerticallyScrollable: true } and not { HorizontallyScrollable: true },
+                        "the Icon code preview shows all code without an inner scrollbar");
+                    var copyBounds = Find("페이지 전체 C# 복사", UiAccessibilityRole.Button).Node.Bounds;
+                    var hovering = idle with { MousePosition = new(copyBounds.X + copyBounds.Width / 2, copyBounds.Y + copyBounds.Height / 2) };
+                    Frame(hovering);
+                    context.State.AdvanceTime(.7f);
+                    Frame(hovering); Frame(hovering);
+                    check(tree.CaptureSnapshot().Elements.Any(element => element.Node is
+                        { Name : "페이지 전체 C# 복사", Role : UiAccessibilityRole.Tooltip }),
+                        "the page copy icon shows its action as a hover tooltip");
+                    Frame();
+                    break;
+                case "Animation":
+                    check(samples.Cast<GallerySample<UiWidget>>().All(sample =>
+                            sample.CodeView.Code.Split('\n').Length <= 10 && sample.Source.Length > sample.CodeView.Code.Length),
+                        "each motion example has its own short excerpt and separate complete implementation");
                     break;
                 case "Menu":
                     Send("메뉴 열기", UiAccessibilityRole.Button, UiAccessibilityAction.Invoke);
@@ -2393,16 +2430,28 @@ internal static class GallerySampleTests
             }
             if (expected is not null)
             {
-                check(page.Source.Contains(expected, StringComparison.Ordinal),
+                check(Source().Contains(expected, StringComparison.Ordinal),
                     "component source reproduces its actual current value : " + page.Title);
                 Snapshot("changed");
             }
-            var stable = page.Source;
-            var parses = page.Samples[0].Metrics.SyntaxParses;
+            Send("페이지 전체 C# 복사", UiAccessibilityRole.Button, UiAccessibilityAction.Invoke);
+            check(clipboard.Text == GalleryPageSource.FullImplementation(page) && clipboard.Text != Source(),
+                "page header copies the embedded implementation rather than the example : " + page.Title);
+            check(tree.CaptureSnapshot().Elements.Any(element => element.Node is { Name : "복사됨", Role : UiAccessibilityRole.Tooltip }),
+                "page copy icon shows the timed copied tooltip : " + page.Title);
+            if (page.Title == "Icon")
+            {
+                context.State.AdvanceTime(1.3f);
+                Frame();
+                check(!tree.CaptureSnapshot().Elements.Any(element => element.Node is { Name : "복사됨", Role : UiAccessibilityRole.Tooltip }),
+                    "copied tooltip dismisses after its timer");
+            }
+            var stable = Source();
+            var parses = samples[0].Metrics.SyntaxParses;
             Frame(); Frame();
-            check(ReferenceEquals(stable, page.Source) && parses == page.Samples[0].Metrics.SyntaxParses,
+            check(ReferenceEquals(stable, Source()) && parses == samples[0].Metrics.SyntaxParses,
                 "unchanged component source reuses its string and syntax : " + page.Title);
-            var sample = page.Samples[0];
+            var sample = samples[0];
             for (var i = 0; i < 4; i++) sample.SynchronizeSource();
             var before = GC.GetAllocatedBytesForCurrentThread();
             for (var i = 0; i < 128; i++) sample.SynchronizeSource();
@@ -2420,26 +2469,47 @@ internal static class GallerySampleTests
         if (requested is not null && !requested.SetEquals(completedPages))
             throw new ArgumentException("Unknown Gallery component selection : " + requestedPages, nameof(requestedPages));
         check(snapshots.Select(item => item.Page).Distinct().Count() == completedPages.Count
-            && (requested is not null || completedPages.Count == 22),
+            && (requested is not null || expectedTitles.SetEquals(completedPages)),
             "component source audit covers every requested standalone factory");
         check(unchangedBytes == 0, "verified unchanged component source bindings allocate0B across128 repetitions");
         var allBindingsBytes = 0L;
         foreach (var example in GalleryComponentExamples.Create())
         {
-            using var page = (ComponentExamplePage)example;
-            var sample = page.Samples[0];
+            using var page = example;
+            var sample = ((IGallerySourcePage)page).Samples[0];
             for (var i = 0; i < 4; i++) sample.SynchronizeSource();
             var before = GC.GetAllocatedBytesForCurrentThread();
             for (var i = 0; i < 128; i++) sample.SynchronizeSource();
             allBindingsBytes += GC.GetAllocatedBytesForCurrentThread() - before;
         }
-        check(allBindingsBytes == 0, "all22 unchanged source bindings allocate0B without repeating UI actions");
+        check(allBindingsBytes == 0, "all standalone source bindings allocate 0 B when unchanged");
         if (output is not null)
         {
             var folder = Path.Combine(output, "sources");
             Directory.CreateDirectory(folder);
             foreach (var item in snapshots) File.WriteAllText(Path.Combine(folder, item.Page + "-" + item.Phase + ".cs.txt"), item.Source);
         }
+    }
+
+    internal static string ComponentFactoryMarker(string title, int index = 0) => title switch
+    {
+        "CodeView" => "new UiCodeView(",
+        "Animation" => index switch
+        {
+            0 => "new MotionPreview()",
+            1 => "new RotationMotionPreview()",
+            2 => "new ScrollbarMotionPreview()",
+            3 => "new PresenceMotionPreview()",
+            _ => throw new ArgumentOutOfRangeException(nameof(index))
+        },
+        _ => "Fluent." + title + "("
+    };
+
+    private sealed class SampleClipboard : IUiClipboard
+    {
+        internal string Text { get; private set; } = "";
+        public string GetText() => Text;
+        public void SetText(string text) => Text = text;
     }
 
     internal static void RunLegacySources(Action<bool, string> check)
@@ -2570,8 +2640,9 @@ internal static class GallerySampleTests
         check(page.Samples.Count == 1 && page.Samples[0].Source == helloSource,
             "switching legacy tabs restores the original source and caller state");
         check(page.CreatedSources.All(block => !block.Source.Contains("using Duxel.Core;", StringComparison.Ordinal)
-            && !block.Code.Options.ShowToolbar && block.Code.Options.MaximumVisibleLines is null),
-            "every legacy code widget keeps full source,hidden toolbar and omitted common import");
+            && !block.Code.Options.ShowToolbar && block.Code.Options.MaximumVisibleLines == 10
+            && block.Source == block.Code.Code),
+            "legacy examples keep their complete source behind the compact inline viewport");
         var sourceBlocks = page.CreatedSources.ToArray();
         for (var i = 0; i < 2; i++)
             foreach (var block in sourceBlocks) block.SynchronizeSource();

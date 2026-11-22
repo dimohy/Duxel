@@ -12,6 +12,9 @@ internal static class ObserverGalleryTests
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
         using var tree = new UiAccessibilityTree();
         using var screen = new ObserverScreen(ObserverServices.CreateWindows());
+        foreach (var page in screen.PageTitles)
+            check(screen.FullImplementationForPage(page).Contains("namespace Duxel.Gallery;", StringComparison.Ordinal),
+                "every Gallery destination has its actual C# implementation available : " + page);
         ControlFontFixture.Configure(context);
         context.State.VSync = false;
         context.SetAccessibilityTree(tree);
@@ -1134,10 +1137,11 @@ internal static class ObserverGalleryTests
         Click("SVG", "SVG 변환 초기화");
         void SelectSvgTab(string name)
         {
-            var node = Find(name, UiAccessibilityRole.Tab);
-            var pointer = new UiVector2(node.Bounds.X + node.Bounds.Width / 2, node.Bounds.Y + node.Bounds.Height / 2);
-            Frame("SVG", Input(pointer, down: true, pressed: true));
-            Frame("SVG", Input(pointer, released: true));
+            var node = Reveal("SVG", Find(name, UiAccessibilityRole.Tab));
+            if (!tree.TryGet(node.Id, out var tab)
+                || tree.RequestAction(node.Id, tab.RuntimeId, UiAccessibilityAction.Select, wait : false) != UiAccessibilityResult.Success)
+                throw new InvalidOperationException("Could not select SVG tab : " + name);
+            Frame("SVG");
             Frame("SVG");
         }
         var beforeFeatures = screen.SvgPage.Statistics!.Value;
@@ -1190,6 +1194,8 @@ internal static class ObserverGalleryTests
             "observer browser-comparison tab lazily compiles both unmodified complex originals");
         var browserStatistics = screen.SvgPage.Statistics;
         var browserUploads = screen.SvgPage.TextureStatistics.GpuRenderRequests;
+        context.State.AdvanceTime(.7f);
+        Frame("SVG");
         GallerySampleTests.DrainSvgScheduledFrames(context, () => Frame("SVG"));
         Frame("SVG");
         check(screen.SvgPage.Statistics == browserStatistics && screen.SvgPage.TextureStatistics.GpuRenderRequests == browserUploads &&

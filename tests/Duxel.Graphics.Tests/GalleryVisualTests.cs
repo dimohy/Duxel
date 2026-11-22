@@ -41,7 +41,8 @@ internal static class GalleryVisualTests
             var headerBefore = inspectHeader ? fixture.Capture(Draw) : null;
             var headerBounds = inspectHeader ? tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == "갤러리 상태와 옵션" && element.Node.Role == UiAccessibilityRole.Pane).Node.Bounds : default;
             var target = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == name && element.Node.Role == role);
-            if (tree.RequestAction(target.Node.Id, target.RuntimeId, UiAccessibilityAction.ScrollIntoView, wait : false) != UiAccessibilityResult.Success)
+            if (target.Node.Offscreen
+                && tree.RequestAction(target.Node.Id, target.RuntimeId, UiAccessibilityAction.ScrollIntoView, wait : false) != UiAccessibilityResult.Success)
                 throw new InvalidOperationException("Gallery capture could not reveal its body target : " + name);
             for (var revealFrame = 0; revealFrame < 3; revealFrame++) fixture.Capture(Draw);
             check(!tree.CaptureSnapshot().Elements.Single(element => element.Node.Id == target.Node.Id).Node.Offscreen,
@@ -56,7 +57,7 @@ internal static class GalleryVisualTests
                 BrowserPng.Write(Path.Combine(output, "gallery-header-sequence-before.png"), width, height, headerBefore!);
                 BrowserPng.Write(Path.Combine(output, "gallery-header-sequence-after.png"), width, height, headerAfter);
                 var equal = true;
-                for (var y = 0; y < 54; y++)
+                for (var y = 0; y < MathF.Ceiling(headerBounds.Y + headerBounds.Height); y++)
                     equal &= headerBefore!.AsSpan((y * width + 252) * 4, (width - 252) * 4).SequenceEqual(headerAfter.AsSpan((y * width + 252) * 4, (width - 252) * 4));
                 check(headerBounds == afterBounds, "Gallery sequence preserves pinned header bounds during lower-preview reveal");
                 check(equal, "Gallery sequence preserves pinned header pixels during lower-preview reveal");
@@ -88,9 +89,9 @@ internal static class GalleryVisualTests
         {
             using (example)
             {
-                var source = GalleryPageSource.For(example);
-                check(source.Contains("Fluent." + example.Title + "(", StringComparison.Ordinal)
-                    && source.Contains("UiWidget example = create();", StringComparison.Ordinal),
+                var source = ((IGallerySourcePage)example).Samples[0].Source;
+                check(source.Contains(GallerySampleTests.ComponentFactoryMarker(example.Title), StringComparison.Ordinal)
+                    && source.Contains("UiWidget example = ", StringComparison.Ordinal),
                     "standalone Gallery source is captured from its compiled factory : " + example.Title);
             }
         }
@@ -166,8 +167,8 @@ internal static class GalleryVisualTests
         var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(9));
         var newMenus = tree.CaptureSnapshot().Elements.Where(element => element.Node.Role == UiAccessibilityRole.Link
                 && element.Node.ItemStatus == "NEW").Select(element => element.Node.Name).ToHashSet(StringComparer.Ordinal);
-        check(newMenus.SetEquals(new[] { "NavigationBar", "DataGrid", "파일 대화 상자" }
-            .Where(menu => GalleryNavigation.IsNewMenu(menu, today))),
+        check(newMenus.SetEquals(new[] { "NavigationBar", "DataGrid", "파일 대화 상자", "CodeView", "Animation" }
+            .Where(menu => GalleryNavigation.IsNewMenu(menu, today)).Select(GalleryText.Get)),
             "implemented Gallery destinations display NEW during their registration week");
         check(!GalleryNavigation.IsNewMenu("DataGrid", new(2026, 11, 20))
             && GalleryNavigation.IsNewMenu("DataGrid", new(2026, 11, 21))

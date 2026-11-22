@@ -25,9 +25,21 @@ internal sealed record GalleryDestination(string Key, string Label, string Page,
 /// <summary>Canonical component routes borrow persistent example pages; menu state never owns those pages.</summary>
 internal sealed class GalleryNavigation : IDisposable
 {
+    private const int GalleryRevision = 1;
+    internal static string DisplayVersion { get; } = FormatVersion();
+
+    private static string FormatVersion()
+    {
+        var version = typeof(Duxel.App.DuxelAppSession).Assembly.GetName().Version
+            ?? throw new InvalidOperationException("The Duxel App assembly must provide its version.");
+        return FormattableString.Invariant($"{version.Major}.{version.Minor}.{GalleryRevision:D4}");
+    }
+
     private static readonly Dictionary<string, DateOnly> MenuRegistrationDates = new(StringComparer.Ordinal)
     {
         ["NavigationBar"] = new(2026, 11, 20),
+        ["CodeView"] = new(2026, 11, 23),
+        ["Animation"] = new(2026, 11, 23),
         ["DataGrid"] = new(2026, 11, 21),
         ["파일 대화 상자"] = new(2026, 11, 21)
     };
@@ -120,8 +132,11 @@ internal sealed class GalleryNavigation : IDisposable
              new("TimePicker", "TimePicker", "TimePicker"), new("공휴일 제공자", "Holiday provider", "공휴일 제공자")],
             preferredPage: true, kind: GalleryDestinationKind.Duxel);
         AddSection("Documents and graphics", "Duxel document and vector widgets", media,
-            [new("SVG", "SVG", "SVG"), new("Markdown", "Markdown", "Markdown"), new("Localization", "Localization", "Localization")],
+            [new("CodeView", "CodeView", "CodeView"), new("SVG", "SVG", "SVG"), new("Markdown", "Markdown", "Markdown"),
+             new("Localization", "Localization", "Localization")],
             preferredPage: true, kind: GalleryDestinationKind.Duxel);
+        AddSection("Motion", "Transitions and reduced motion", media,
+            [new("Animation", "Animation", "Animation")], preferredPage: true, kind: GalleryDestinationKind.Duxel);
         AddSection("Layout and input", "Layout, transforms, virtualization, and input", content,
             [new("컨테이너", "Layout examples", "컨테이너"), new("위젯 배치", "Widget transforms", "위젯 배치"),
              new("가상 목록", "Virtual list", "가상 목록"), new("가상 그리드", "Virtual grid", "가상 그리드"),
@@ -163,7 +178,8 @@ internal sealed class GalleryNavigation : IDisposable
             Dux.Row(new(Spacing : 10, CrossAxisAlignment : UiCrossAxisAlignment.Center), logo,
                 Dux.Expanded(Dux.Column(new(Spacing : 2, MainAxisSize : UiMainAxisSize.Min),
                     Fluent.Subtitle2(GalleryText.Get("Duxel Gallery")), Fluent.Caption1(GalleryText.Get("Controls · Graphics · Documents"))))),
-            counts), new(8));
+            Dux.Wrap(new(Spacing : 10, RunSpacing : 4, CrossAlignment : UiWrapCrossAlignment.Center),
+                counts, Fluent.Caption1(GalleryText.Format("Version {0}", DisplayVersion)))), new(8));
         _root = Dux.SizedBox(Dux.Column(new(Spacing : 8, CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
             header, Dux.Expanded(scroll)));
     }

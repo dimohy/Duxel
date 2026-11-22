@@ -9,10 +9,10 @@ internal static class StandaloneIconTests
         context.SetRequestFrameCallback(() => requests++);
         var painter = UiMenuIcon.Create<Probe, Probe>();
         using var icon = Fluent.Icon(painter, new(24, 20), new(10, 20, 30));
-        void Frame(Action<UiImmediateContext> action)
+        void Frame(Action<UiImmediateContext> action, UiVector2? pointer = null)
         {
             context.NewFrame(new(1f / 60, new(320, 200), new(1, 1)),
-                new(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default),
+                new(pointer ?? new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default),
                 new(0, 0, 320, 200), UiTextSettings.Default);
             context.Render(new Screen(ui =>
             {
@@ -34,6 +34,18 @@ internal static class StandaloneIconTests
             "compiled icon receives allocated bounds and explicit foreground");
         check(Probe.Interaction == default && Fluent.ComponentNames.Contains("Icon"),
             "decorative icon is exposed without simulated hover or activation");
+        var center = new UiVector2(Probe.Bounds.X + 10, Probe.Bounds.Y + 10);
+        var hoverPaints = HoverProbe.Paints;
+        icon.HoverIcon = UiMenuIcon.Create<HoverProbe, HoverProbe>();
+        Frame(icon.Render, center);
+        check(HoverProbe.Paints == hoverPaints + 1, "pointer inside the icon selects its optional hover painter");
+        var regularPaints = Probe.Paints;
+        Frame(icon.Render);
+        check(Probe.Paints == regularPaints + 1 && HoverProbe.Paints == hoverPaints + 1,
+            "leaving the icon restores its regular painter");
+        icon.HoverIcon = default;
+        Frame(icon.Render, center);
+        check(Probe.Paints == regularPaints + 2, "clearing the hover painter restores a single style");
         var stable = requests;
         Frame(icon.Render);
         Frame(icon.Render);
@@ -95,6 +107,12 @@ internal static class StandaloneIconTests
             Color = color;
             Interaction = interaction;
         }
+    }
+
+    private readonly struct HoverProbe : IUiButtonIcon
+    {
+        internal static int Paints;
+        public static void Paint(UiControlContext context, UiRect bounds, UiColor color, UiButtonInteraction interaction) => Paints++;
     }
 
     private sealed class Document : IUiGpuSvgDocument

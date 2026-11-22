@@ -13,13 +13,18 @@ internal sealed class ComponentExamplePage : IObserverPage, IObserverNaturalPage
     public IReadOnlyList<IGallerySample> Samples { get; }
     internal ComponentExamplePage(string name, string description, GallerySample<UiWidget> sample,
         params GallerySample<UiWidget>[] additional)
+        : this(name, description, sample, additional, null) { }
+
+    internal ComponentExamplePage(string name, string description, GallerySample<UiWidget> sample,
+        GallerySample<UiWidget>[] additional, UiWidget? introduction)
     {
         Title = name;
         Description = description;
         _sample = sample;
         Samples = [sample, ..additional];
-        var body = additional.Length == 0 ? (UiWidget)sample
-            : Dux.Column(new(Spacing : 24, MainAxisSize : UiMainAxisSize.Min), [sample, ..additional]);
+        var body = additional.Length == 0 && introduction is null ? (UiWidget)sample
+            : Dux.Column(new(Spacing : 24, MainAxisSize : UiMainAxisSize.Min),
+                introduction is null ? [sample, ..additional] : [introduction, sample, ..additional]);
         _content = Dux.ScrollView(body);
     }
     internal UiWidget Body => _content.Child;
@@ -32,10 +37,7 @@ internal static class GalleryComponentExamples
 {
     private static ComponentExamplePage Example(string name, string description, Func<UiWidget> create,
         [CallerArgumentExpression(nameof(create))] string source = "")
-        => new(name, description, GallerySample.Create(create, expression : source, declarations : name == "Icon"
-            ? "[UiFluentIcon(\"home\")] readonly partial struct HomeTabIcon;\n"
-                + "[UiFluentIcon(\"home\", UiFluentIconStyle.Filled)] readonly partial struct HomeTabFilledIcon;"
-            : string.Empty));
+        => new(name, description, GallerySample.Create(create, expression : source));
 
     private static string FactoryBody(string source)
     {
@@ -110,8 +112,61 @@ internal static class GalleryComponentExamples
             choices, allocation);
     }
 
-    internal static IObserverPage[] Create() =>
+    private static ComponentExamplePage CreateAnimation(Action<string>? navigate)
+    {
+        var timing = MotionExample(() => new MotionPreview(), """
+            var transition = new UiFloatTransition(0);
+            var options = new UiTransitionOptions(duration, easing, reducedMotion, 1d / frameRate)
+            {
+                Curve = new UiCubicBezier(.25, .1, .25, 1)
+            };
+            float value = ui.AnimateFloat(ref transition, target, options);
+            """);
+        var rotation = MotionExample(() => new RotationMotionPreview(), """
+            float degrees = ui.AnimateToggleRotationDegrees("marker", rotated,
+                expandedDegrees : 180, durationSeconds : reducedMotion ? 0 : .9f);
+            """);
+        var scrollbar = MotionExample(() => new ScrollbarMotionPreview(), """
+            var frame = motion.Update(offset, active, hovered, ui.GetTime(),
+                new(HoldSeconds : .5, ReducedMotion : reducedMotion));
+            if (frame.NextFrameTimeSeconds is { } deadline)
+                ui.RequestFrameAt(deadline);
+            // Paint the thumb with frame.Opacity.
+            """);
+        var presence = MotionExample(() => new PresenceMotionPreview(), """
+            var presence = new UiPresenceGroupWidget(children, new(Gap : 8, AnimateEnter : true));
+            presence.SetItems(nextItems);
+            presence.Options = presence.Options with { ReducedMotion = reducedMotion };
+            """);
+        UiWidget? examples = null;
+        if (navigate is not null)
+        {
+            (string Page, string Label)[] destinations =
+            [
+                ("ActivityIndicator", "ActivityIndicator"), ("ProgressIndicator", "ProgressIndicator"), ("ProgressBar", "ProgressBar"),
+                ("Spinner", "Spinner"), ("Shimmer", "Shimmer"), ("스켈레톤", "Skeleton"),
+                ("Toast", "Toast"), ("메시지 표시", "MessageBar"), ("HeadsUpDisplay", "HeadsUpDisplay"), ("Popover", "Popover"), ("Tooltip", "Tooltip"),
+                ("대화 상자", "Dialog"), ("보조 패널", "Drawer"), ("접기·펼치기", "Accordion"),
+                ("Tree", "Tree"), ("Carousel", "Carousel"), ("CardNudge", "CardNudge"),
+                ("SegmentedControl", "SegmentedControl"), ("TabList", "TabList"), ("렌더링", "Rendering")
+            ];
+            examples = Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
+                Fluent.Subtitle2(GalleryText.Get("Motion in other examples")),
+                Dux.Wrap(new(Spacing : 8, RunSpacing : 6), destinations.Select(route =>
+                    (UiWidget)Fluent.Button(GalleryText.Get(route.Label), () => navigate(route.Page))).ToArray()));
+        }
+        return new("Animation", "Compare timing, reverse or reset a transition, and try rotation, scrollbar fades, and animated layout changes.",
+            timing, [rotation, scrollbar, presence], examples);
+    }
+
+    private static GallerySample<UiWidget> MotionExample<T>(Func<T> create, string excerpt,
+        [CallerArgumentExpression(nameof(create))] string expression = "") where T : UiWidget =>
+        GallerySample.Create<UiWidget>(() => create(), expression : expression,
+            declarations : GallerySample.LocalizeSource(GalleryPageSource.Declaration(typeof(T).Name))).WithExcerpt(excerpt);
+
+    internal static IObserverPage[] Create(Action<string>? navigate = null) =>
     [
+        new IconCatalogPage(),
         Stateful("TagPicker", "Search for a recipient by name, then try removing a selected tag.", new UiState<string>(string.Empty), new UiState<string[]>(["dimoi"]), (query, selected) =>
         {
             UiSelectOption[] people = [new("dimoi", GalleryText.Get("Dimoi")), new("kim", GalleryText.Get("Min-su Kim")), new("park", GalleryText.Get("Ji-yeon Park")), new("guest", GalleryText.Get("Guest"), false)];
@@ -223,10 +278,18 @@ internal static class GalleryComponentExamples
                 Fluent.MenuButton(GalleryText.Get("Export"), [new("pdf", GalleryText.Get("Export as PDF")), new("png", GalleryText.Get("Export as PNG"))], value => chosen.Value = value),
                 Fluent.Body1(() => GalleryText.Get("Command: ") + chosen.Value));
         }, current => TextState("chosen", current)),
-        Example("Icon", "A home icon with a custom size and color.", () =>
+        Example("CodeView", "Try syntax highlighting, selection, copying, line wrapping, and line numbers.", () =>
         {
-            return Fluent.Icon(UiMenuIcon.Create<HomeTabIcon, HomeTabFilledIcon>(), new(48, 48), new UiColor(0, 120, 212));
+            var text = GalleryText.Get("This intentionally long string lets you test horizontal scrolling, line wrapping, text selection, and copying in the code viewer.");
+            var lines = Enumerable.Range(1, 60).Select(index =>
+                $"    public const string Message{index} = \"{text} ({index})\";");
+            var source = "public static class Messages\n{\n" + string.Join("\n", lines) + "\n}";
+            return new UiCodeView(source, new(Wrap : false, MaximumVisibleLines : 10, InitiallyExpanded : false),
+                new(GalleryText.Get("C# source"), GalleryText.Get("{0} lines"), GalleryText.Get("Wrap lines"),
+                    GalleryText.Get("Line numbers"), GalleryText.Get("Show all"), GalleryText.Get("Copy source"),
+                    GalleryText.Get("Copied"), GalleryText.Get("CodeView preview")));
         }),
+        CreateAnimation(navigate),
         Example("Image", "Display a four-pixel image in a 160 × 160 widget.", () =>
         {
             var pixels = new byte[] { 0, 120, 212, 255, 100, 180, 240, 255, 100, 180, 240, 255, 0, 120, 212, 255 };

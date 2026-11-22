@@ -53,6 +53,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             : GalleryPageFrame.HasSource(title) ? 1 : 0;
     }
     internal string DescriptionForPage(string page) => _pages.Single(item => item.Title == page).Description;
+    internal string FullImplementationForPage(string page) => GalleryPageSource.FullImplementation(_pages.Single(item => item.Title == page));
     internal TemporalPickerPage TemporalPickerForPage(string title) =>
         _pages.OfType<TemporalPickerPage>().Single(page => page.Title == title);
     internal string NavigationLabelForPage(string page) => _navigation.LabelForPage(page);
@@ -263,7 +264,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             RepaintPage,
             MarkdownPage,
             new LocalizationPage(),
-            .. GalleryComponentExamples.Create(),
+            .. GalleryComponentExamples.Create(page => SelectedPage = page),
             .. Fluent.MissingComponentNames.ToArray().Where(static component => component != "Toast").Select(static component => (IObserverPage)new WidgetPage(component,
                 "Fluent 구성요소 구현 예정",
                 Dux.Column(new(Spacing: 16, MainAxisSize: UiMainAxisSize.Min),

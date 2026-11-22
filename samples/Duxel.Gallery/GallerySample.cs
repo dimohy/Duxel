@@ -73,6 +73,9 @@ internal static partial class GallerySample
         var delimiter = new string('"', Math.Max(3, longest + 1));
         return delimiter + "\n" + value + "\n" + delimiter;
     }
+    internal static UiCodeView InlineCode(string source) => new(source,
+        new(MaximumVisibleLines : 10, InitiallyExpanded : false, ShowToolbar : false), GalleryText.CodeViewLabels());
+
     internal static GallerySample<T> Create<T>(Func<T> create, string setup = "", string declarations = "",
         Func<UiWidget, UiWidget>? layout = null,
         [CallerArgumentExpression(nameof(create))] string expression = "",
@@ -90,7 +93,7 @@ internal static partial class GallerySample
             source += "\n\nFunc<UiWidget, UiWidget> layout = " + LocalizeSource(layoutExpression) + ";\nUiWidget example = layout(control);";
         if (declarations.Length != 0) source += "\n\n" + declarations;
         var widget = create();
-        return new(widget, new UiCodeView(source, new(MaximumVisibleLines: null, ShowToolbar: false), GalleryText.CodeViewLabels()), layout?.Invoke(widget));
+        return new(widget, InlineCode(source), layout?.Invoke(widget));
     }
 }
 
@@ -104,9 +107,18 @@ internal sealed class GallerySample<T>(T preview, UiCodeView code, UiWidget? pre
         CrossAxisAlignment: UiCrossAxisAlignment.Start)), IGallerySample where T : UiWidget
 {
     private ISourceBinding? _sourceBinding;
+    private string? _fullSource;
     internal T Preview => preview;
     internal UiCodeView CodeView => code;
     internal UiWidget PreviewLayout => previewLayout ?? preview;
+    internal GallerySample<T> WithExcerpt(string excerpt)
+    {
+        if (_sourceBinding is not null || _fullSource is not null)
+            throw new InvalidOperationException("An explicit excerpt requires a static Gallery example.");
+        _fullSource = code.Code;
+        code.Code = GallerySample.LocalizeSource(excerpt);
+        return this;
+    }
     internal GallerySample<T> BindSource<TState>(Func<TState> read, Func<TState, string> format)
     {
         _sourceBinding = new SourceBinding<TState>(read, format);
@@ -131,6 +143,6 @@ internal sealed class GallerySample<T>(T preview, UiCodeView code, UiWidget? pre
             _initialized = true;
         }
     }
-    public string Source => code.Code;
+    public string Source => _fullSource ?? code.Code;
     public UiCodeViewMetrics Metrics => code.Metrics;
 }

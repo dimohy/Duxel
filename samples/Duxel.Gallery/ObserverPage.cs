@@ -63,7 +63,7 @@ internal sealed class LegacyPage : IObserverPage, IGallerySourcePage
     internal sealed class SourceBlock(ImmediateSampleSection section) : IGallerySample, IDisposable
     {
         internal string Title => section.Title;
-        internal UiCodeView Code { get; } = new(section.Source, new(MaximumVisibleLines : null, ShowToolbar : false), GalleryText.CodeViewLabels());
+        internal UiCodeView Code { get; } = GallerySample.InlineCode(section.Source);
         public string Source => Code.Code;
         public UiCodeViewMetrics Metrics => Code.Metrics;
         public void SynchronizeSource() => Code.Code = section.Source;

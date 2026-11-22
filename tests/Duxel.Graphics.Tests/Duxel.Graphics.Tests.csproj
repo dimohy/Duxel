@@ -172,6 +172,12 @@
     <Compile Include="../../samples/Duxel.Gallery/LocalizationPage.cs" Link="Observer/LocalizationPage.cs" />
     <Compile Include="../../samples/Duxel.Gallery/GalleryText.cs" Link="Observer/GalleryText.cs" />
     <EmbeddedResource Include="../../samples/Duxel.Gallery/Assets/Localization/GalleryLocalization.tsv" LogicalName="GalleryLocalization.tsv" />
+    <EmbeddedResource Include="../../src/Duxel.Core/Assets/FluentIcons/*.json" LogicalName="GalleryIcons.%(Filename)%(Extension)" />
+    <Compile Include="../../samples/Duxel.Gallery/IconCatalogPage.cs" Link="Observer/IconCatalogPage.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/MotionPreview.cs" Link="Observer/MotionPreview.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/RotationMotionPreview.cs" Link="Observer/RotationMotionPreview.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/ScrollbarMotionPreview.cs" Link="Observer/ScrollbarMotionPreview.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/PresenceMotionPreview.cs" Link="Observer/PresenceMotionPreview.cs" />
     <Compile Include="../../samples/Duxel.Gallery/ObserverScreen.cs" Link="Observer/ObserverScreen.cs" />
     <Compile Include="../../samples/Duxel.Gallery/GalleryNavigation.cs" Link="Observer/GalleryNavigation.cs" />
     <None Update="Fixtures/MessageBarReference.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

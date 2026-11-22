@@ -24,6 +24,12 @@ public readonly record struct UiMenuIcon
     public bool IsEmpty => _paint is null;
     public static UiMenuIcon Create<TRegular, TFilled>()
         where TRegular : IUiButtonIcon where TFilled : IUiButtonIcon => new(UiCompiledIconPair<TRegular, TFilled>.Cached);
+    /// <summary>Creates an icon from a glyph in a known font when the glyph is selected at runtime.</summary>
+    public static UiMenuIcon FromFontGlyph<TFont>(string glyph) where TFont : IUiIconFontFace
+    {
+        ArgumentException.ThrowIfNullOrEmpty(glyph);
+        return new((context, bounds, color, _, _) => context.FontIcon<TFont>(glyph, bounds, color));
+    }
     public void Paint(UiControlContext context, UiRect bounds, UiColor color, UiButtonInteraction interaction)
     {
         if (_paint is null)

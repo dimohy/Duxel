@@ -40,9 +40,9 @@ internal static class GalleryLocalizationTests
             using var locale = GalleryText.Use(language);
             foreach (var example in GalleryComponentExamples.Create())
             {
-                using var page = (ComponentExamplePage)example;
+                using var page = example;
                 var description = GalleryText.Get(page.Description);
-                var samples = page.Samples.Select(sample => sample.Source).ToArray();
+                var samples = ((IGallerySourcePage)page).Samples.Select(sample => sample.Source).ToArray();
                 check(!string.IsNullOrWhiteSpace(description) && !ContainsHangul(page.Description)
                     && (language == GalleryLanguage.Korean || !ContainsHangul(description))
                     && (language != GalleryLanguage.English || description == page.Description),

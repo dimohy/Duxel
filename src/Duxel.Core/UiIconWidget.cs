@@ -4,6 +4,7 @@ namespace Duxel.Core;
 public class UiIcon : UiControlWidget
 {
     private UiMenuIcon _icon;
+    private UiMenuIcon _hoverIcon;
     private UiVector2 _size;
     private UiColor _color;
 
@@ -45,6 +46,20 @@ public class UiIcon : UiControlWidget
         }
     }
 
+    /// <summary>Optional painter used when the pointer is over the decorative icon.</summary>
+    public UiMenuIcon HoverIcon
+    {
+        get => _hoverIcon;
+        set
+        {
+            ThrowIfDisposed();
+            if (_hoverIcon == value) return;
+            ThrowIfBuilding();
+            _hoverIcon = value;
+            RequestRebuild();
+        }
+    }
+
     public UiColor Color
     {
         get => _color;
@@ -61,11 +76,12 @@ public class UiIcon : UiControlWidget
     protected override bool CanRetainMeasurement => true;
     protected override UiVector2 MeasureContent(UiControlContext context) =>
         context.HasBoxConstraints ? context.LayoutConstraints.Constrain(_size) : _size;
-    protected override void RenderControl(UiImmediateContext ui) => ui.RenderIcon(_icon, _size, _color);
+    protected override void RenderControl(UiImmediateContext ui) => ui.RenderIcon(_icon, _hoverIcon, _size, _color);
 
     private protected override void ReleaseOwnedResources()
     {
         _icon = default;
+        _hoverIcon = default;
         base.ReleaseOwnedResources();
     }
 
@@ -87,13 +103,15 @@ public partial class UiFluentStandaloneIcon;
 
 public sealed partial class UiImmediateContext
 {
-    internal void RenderIcon(UiMenuIcon icon, UiVector2 requested, UiColor color)
+    internal void RenderIcon(UiMenuIcon icon, UiMenuIcon hoverIcon, UiVector2 requested, UiColor color)
     {
         EnsureNotMeasuring();
         var size = ConstrainToLayout(requested);
         var cursor = AdvanceCursor(size);
         if (size.X <= 0 || size.Y <= 0) return;
-        // Decorative icons do not register input, focus or hover animation.
-        icon.Paint(new(this), new(cursor.X, cursor.Y, size.X, size.Y), color, default);
+        var bounds = new UiRect(cursor.X, cursor.Y, size.X, size.Y);
+        var painter = !hoverIcon.IsEmpty && IsControlEnabled
+            && IsMouseHoveringRect(cursor, new(cursor.X + size.X, cursor.Y + size.Y)) ? hoverIcon : icon;
+        painter.Paint(new(this), bounds, color, default);
     }
 }
