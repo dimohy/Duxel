@@ -171,6 +171,20 @@ The first frame recorded 3,608 versus 2,408 buffer copies in every run, with 758
 
 The fixed replay matched 219 scene states. Of six Vulkan readback pairs, three were pixel-identical and the other three differed in 17 to 50 pixels by at most one channel level. Repeating the control produced up to 55 differing pixels and the same maximum channel delta. The measurements did not justify adopting the diagnostic path. Live frames, fixed poses, raw captures and hashes are in `artifacts/erd-static-copy-coalescing-20261123`.
 
+### Static geometry payload on the first ERD frame
+
+Three WSLg runs with one Linux x64 NativeAOT diagnostic binary recorded the exact byte range supplied to each first-frame static geometry copy. The normal 1,200-table view, status refresh and RTX 5070 Ti Dozen setup were used. The static ranges accounted for 753,835,732 of 758,308,276 staged bytes in every run.
+
+| Static payload | Copies | Bytes |
+| --- | ---: | ---: |
+| Vertices | 1,200 | 580,467,600 |
+| Indices | 1,200 | 172,826,276 |
+| Primitive instances | 1,208 | 541,856 |
+
+Within each payload class, every copy had a distinct SHA-256 fingerprint. The fingerprint histograms matched across the three processes. No index range encoded a plain zero-based sequential stream. All 1,200 vertex ranges had one constant UV pair per range. Keeping one pair per range with 12 bytes per vertex would avoid up to 232,187,040 bytes (221.43 MiB) of per-vertex UV data before metadata and alignment. The Vulkan draw contract supports the existing index stream independently of how Duxel's shader reads the vertices. [Vulkan indexed drawing](https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdDrawIndexed.html)
+
+This is a candidate size estimate from observed input. The diagnostic hashes the staging ranges and does not measure performance. A packed representation has yet to be qualified for pixels, upload time, rendering time and shader or binding overhead. Raw range records and the independent comparison are in `artifacts/erd-static-payload-20261123`.
+
 ### Paired run with the isolated Dozen correction
 
 Rebuilding `0173f62c` reproduced the stock run's NativeAOT executable SHA-256 exactly. The same ERD executable then ran with a separately built Mesa Dozen 26.3.1 ICD containing the enhanced-barrier allocation-base correction. The patch bytes match the earlier isolated driver's patch. The installed ICD and library hashes were rechecked, and the live process mapped the isolated ICD's library. The unmodified driver rebuilt for this experiment has a different `.text` hash from the installed library. This pair compares the installed driver with the corrected build. The earlier allocation tracing and three 300-second pairs provide separate attribution evidence.
