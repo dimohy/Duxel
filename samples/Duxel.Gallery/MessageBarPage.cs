@@ -35,7 +35,7 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
         _resolvedOptions = ResolveOptions(new());
         _sourceWidth = _width.Value;
         _widthSlider = Fluent.Slider(GalleryText.Get("MessageBar width"), _width.Binding, 300, 800, 1);
-        _widthSlider.Options = _widthSlider.Options with { CoalescePointerMoves = true };
+        _widthSlider.Options = _widthSlider.Options with { ShowStepMarkers = false, CoalescePointerMoves = true };
         var intentDefinition = GallerySample.Define<Func<UiMessageBarIntent, string>>("intentLabel",
             () => (UiMessageBarIntent intent) => intent switch
             {

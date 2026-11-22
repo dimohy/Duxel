@@ -202,3 +202,20 @@ Both 600-second runs ended normally with 601 samples each. The renderer tracked 
 ### Bidirectional line endpoints
 
 Reviewing the 72 saved mixed-script layout cases showed that the four remaining cross-platform caret differences all occur at the final source offset of one bidirectional string at four sizes. Every interior caret matches within 0.001 px. At 32 px, DirectWrite reports X = 127.0 at the trailing edge of the final digit while Pango reports the full row advance of 174.390625. The line advance matches. This comparison narrows the compatibility question to endpoint affinity and does not exercise an editor's End key. [DirectWrite hit testing](https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nf-dwrite-idwritetextlayout-hittesttextposition) · [Pango grapheme positions](https://docs.gtk.org/Pango/method.Layout.index_to_pos.html)
+
+### MessageBar width slider step markers
+
+The 300–800 px slider could emit 499 decorative rectangles at each traversal. The Gallery now disables step markers for this slider and keeps 1 px increments and live preview. Windows Gallery Release on managed .NET 11.0.0 replayed 136 desktop pointer moves per process at approximately 2.06 ms spacing, with three processes per version in alternating pairs. Only the Gallery DLL was exchanged. The replay used a fixed window, a common QPC logging build, and a minimum 850 ms after opening the page before starting the drag.
+
+| Median of three runs | Markers on | Markers off |
+| --- | ---: | ---: |
+| App CPU median | 7.93 ms | 7.79 ms |
+| App CPU p95 | 9.52 ms | 9.08 ms |
+| App CPU p99 | 11.03 ms | 10.62 ms |
+| App-side submission interval median | 8.07 ms | 7.95 ms |
+| App-side submission interval p95 | 11.02 ms | 10.53 ms |
+| App-side submission interval p99 | 15.86 ms | 10.90 ms |
+| Submission interval mean FPS | 131.02 | 135.70 |
+| Submission interval 1% low FPS | 63.05 | 91.75 |
+
+The observed median submission p99 fell 31.3%, with overlapping per-run ranges and too few burst frames per run for a robust tail speedup estimate. The reported severe stutter did not reproduce in the control. In event-driven mode the width reached 775 px, returned to 385 px, and the example code showed 385 px after release. Gallery verified 108 presentation scenarios. The local command was `replay.ps1 -Runtime <gallery-runtime> -Output <run> -DesktopSlider` with the fixture and raw results in `artifacts/messagebar-width-ticks-20261123`. This comparison does not measure monitor scanout or GPU execution time.
