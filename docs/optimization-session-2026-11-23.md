@@ -130,6 +130,14 @@ The first 300 s show 23.98 MiB of RSS growth on the same Dozen binary as the thr
 
 The replay, source and runtime hashes, process samples, raw mappings, Vulkan profiles and window captures are under `artifacts/dozen-erd-endurance-600s-20261123`. The workload and product source are unchanged.
 
+### Windows ERD small-upload staging memory
+
+The Windows ERD 1,200-table motion tour ran for 180 seconds per condition after a 15-second warmup. The reverse-order replay used the original managed executable, companion binaries and observer by hash. It exchanged only the Vulkan DLL, starting with the control and then enabling the small-texture staging reservation from `85863cfb`. The earlier 120-second replay used the opposite order. Both ran at 1440 × 940 on the RTX 5070 Ti. The new processes each supplied 181 steady samples and exited normally.
+
+Recomputing all runs with the first and last 30 samples, private bytes increased by 37.59 MiB for the control and 37.84 MiB for the reservation build in the 180-second replay. Estimated GC commitment rose by 75.22 and 75.65 MiB, respectively. The reservation build's final private median was 4.44 MiB above the control, versus 33.51 MiB in the earlier 120-second replay. The final working-set difference went from 26.35 MiB above the control to 3.35 MiB below it. Each duration has one process per condition, so duration and run order cannot be separated. The observations do not establish a memory-growth effect from the staging change.
+
+The app CPU p95 samples were 1.693 and 1.635 ms in the new pair. The sampled whole-frame GPU p95 values were 0.429 and 0.430 ms. These independently sampled processor durations do not measure display cadence. The comparison and process receipts are in `artifacts/erd-windows-staging-memory-20261123`.
+
 ### ERD status text attribution on WSLg
 
 The 1,200-table motion tour ran at 1440 × 940, 4× MSAA and V-Sync off on WSLg Dozen 26.3.1 with an RTX 5070 Ti. One Linux x64 NativeAOT .NET 11.0.0 diagnostic executable ran three times per condition. The control kept the normal status text refresh, while the other condition kept the initially drawn text at its normal position and stopped only its updates. The tour and table animation ran in both conditions. Each process displayed an X11 window and exited successfully.
@@ -137,6 +145,23 @@ The 1,200-table motion tour ran at 1440 × 940, 4× MSAA and V-Sync off on WSLg 
 All runs built 1,323 vector text meshes in the first composition and none in the sampled steady window. First-composition vector mesh work had a 62.78 ms median. That measurement includes 41.20 ms of shaping and 18.42 ms of outline work, reported as separate medians. After warmup, normal status refresh produced a median of 23.91 bitmap layout calls, 20.01 raster calls and 177,895 requested text texture bytes per second. With the status refresh frozen, all three counters stayed at zero in every run. Normal refresh used a median of 1.60 ms of bitmap layout time and 0.38 ms of bitmap raster time per second.
 
 Per-run app CPU p95 ranges overlapped at 18.26–18.88 ms with normal refresh and 18.19–23.88 ms with frozen status. Whole-frame GPU timestamp p95 ranges also overlapped, at 4.72–6.01 ms and 4.55–7.32 ms respectively. The comparison identifies the source of the recurring bitmap work. It does not establish a frame-speed change or a memory bound. Texture bytes are application upload requests, and the Vulkan timestamps include the complete render pass. The steady samples span 8.61–10.68 seconds per process. Raw data, binary and driver hashes, and the verification result are in `artifacts/erd-hud-text-stages-20261123`. [Vulkan timestamp queries](https://docs.vulkan.org/samples/latest/samples/api/timestamp_queries/README.html)
+
+### First ERD presentation with normal status refresh
+
+Three additional WSLg runs used a byte-identical rebuild of the diagnostic executable, the same Dozen driver and fonts, and normal status refresh. Per-frame logging matched the first app composition, accepted Vulkan submission and delayed GPU timestamp by frame or submission ID. This measured the first frame inside the app, after process and window initialization.
+
+| First-frame stage | Median |
+| --- | ---: |
+| App CPU total | 1,519.98 ms |
+| UI composition | 619.24 ms |
+| Vector text mesh preparation within composition | 65.35 ms |
+| Bitmap text rasterization within composition | 1.10 ms |
+| Renderer CPU total | 884.29 ms |
+| Renderer upload processing | 444.71 ms |
+| Renderer command recording | 336.91 ms |
+| GPU render interval for submission 1 | 7.28 ms |
+
+All three first frames recorded 758,308,276 staging bytes through 200 upload submissions, 3,608 buffer copies and 27 texture regions. Direct-text texture requests totalled 278,236 bytes, and active static geometry occupied 753,835,732 bytes. The separate GPU render interval excludes host upload processing and does not measure display cadence. Renderer upload processing and command recording took longer than text preparation in this workload. The replay data is in `artifacts/erd-wslg-first-frame-20261123`.
 
 ### Paired run with the isolated Dozen correction
 
