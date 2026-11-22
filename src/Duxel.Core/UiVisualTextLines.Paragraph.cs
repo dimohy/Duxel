@@ -71,13 +71,17 @@ internal sealed partial class UiVisualTextLines
         var nativeLines = paragraph!.Lines.Span;
         _nativeParagraphLineOffsets = new float[nativeLines.Length];
         var styles = projection.Runs;
+        var firstStyle = 0;
         for (var line = 0; line < nativeLines.Length; line++)
         {
             var row = nativeLines[line];
             var height = _lineHeight;
-            for (var style = 0; style < styles.Length; style++)
-                if (styles[style].Start < row.Start + row.Length && styles[style].Start + styles[style].Length > row.Start)
-                    height = MathF.Max(height, heights[style]);
+            // Rows and display styles are ordered by source position. A style can span several rows.
+            var rowEnd = row.Start + row.Length;
+            while (firstStyle < styles.Length && styles[firstStyle].Start + styles[firstStyle].Length <= row.Start)
+                firstStyle++;
+            for (var style = firstStyle; style < styles.Length && styles[style].Start < rowEnd; style++)
+                height = MathF.Max(height, heights[style]);
             // Native font metrics locate the shared baseline; Fluent typography owns the logical line box.
             var firstObject = FindNativeObject(paragraph.Objects.Span, row.Start);
             if (firstObject < paragraph.Objects.Length && paragraph.Objects.Span[firstObject].Start < row.Start + row.Length)

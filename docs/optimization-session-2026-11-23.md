@@ -485,3 +485,11 @@ All eight runs passed 656 assertions and saved 240 Vulkan captures. The fixture 
 | Each platform builds its own mesh | 10/60 | 4/60 |
 
 The two native backends reported the same advance, 233.578125 px, and baseline, 34.828125 px, for the mixed line. Native captures still differed by up to 210 pixels in one 320 × 240 frame. Five saved mesh inputs per platform matched that platform's previous verified inputs. The shared-input comparison establishes parity for the tested Vulkan projection and occlusion paths. Native outline and placement parity, and performance, remain separate findings. The fixture, layout data and raw readbacks are in `artifacts/current-perspective-20261123`.
+
+### CodeView paragraph row style traversal
+
+The visual paragraph assembler now advances through the ordered display styles as it visits rows. It preserves the existing native layout and line-height rules, including styles spanning soft wraps and empty rows. This removes the full style scan for every visual row, in CodeView as well as the shared styled paragraph path.
+
+On Windows .NET 11.0.0 and the RTX 5070 Ti, three control and three candidate Gallery runs opened SVG Arcs and curves and scrolled the source through 0%, 100%, 0% and 100%. The first visible CodeView had 4,358 UTF-16 units, 91 visual rows, and 941 styles, with eight rows painted. The assembler visited 85,631 style entries in the control and 1,880 in the candidate, a 97.8% reduction. The timed row assembly region had medians of 6.586 and 0.049 ms in the instrumented builds, including cold managed execution. Those measurements do not establish an FPS increase. The scroll extent and full text geometry still require all 91 rows. No additional DirectWrite builds occurred inside the paint preparation after measurement on this frame.
+
+An uninstrumented Windows build passed 4,569 checks covering CodeView layout caches and scrollbars, multiline input and selection, styled paragraphs and paragraph geometry. Its final SVG CodeView Vulkan PNG matched the control byte for byte. Windows and WSLg Dozen Linux x64 NativeAOT Gallery each acknowledged all 108 presentations. Both platforms built the same changed Core file, as verified by its SHA-256. The reproducible inputs, control and candidate logs and capture hashes are under `artifacts/codeview-visible-layout-20261123`.
