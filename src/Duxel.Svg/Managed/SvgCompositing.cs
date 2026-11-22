@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.Intrinsics;
 
 namespace Duxel.Svg.Managed;
 
@@ -13,7 +14,16 @@ internal static class SvgCompositing
         foreground = Quantize(foreground);
         return Quantize(foreground + background * (1 - foreground.W));
     }
-    internal static Vector4 Quantize(Vector4 color) => new Vector4(Channel(color.X), Channel(color.Y), Channel(color.Z), Channel(color.W)) / 255;
+    internal static Vector4 Quantize(Vector4 color)
+    {
+#if NET9_0_OR_GREATER
+        var rounded = Vector128.ConvertToInt32(Vector128.Round(color.AsVector128() * 255f));
+        var clamped = Vector128.Clamp(rounded, Vector128<int>.Zero, Vector128.Create(255));
+        return (Vector128.ConvertToSingle(clamped) / 255f).AsVector4();
+#else
+        return new Vector4(Channel(color.X), Channel(color.Y), Channel(color.Z), Channel(color.W)) / 255;
+#endif
+    }
     // A stored layer is sampled first; authored opacity is applied at source precision before the target write.
     internal static Vector4 LayerSource(Vector4 color, float opacity, float coverage = 1) => opacity == 1
         ? color * coverage : SvgShaderColor.Quantize(color * opacity * coverage);
