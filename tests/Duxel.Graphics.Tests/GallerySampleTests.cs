@@ -22,6 +22,9 @@ internal static class GallerySampleTests
             "every Card sample including each size/appearance variant owns a separate source block");
         check(sources.All(source => source.ReadOnly && page.Samples.Any(sample => sample.Source == source.Value)),
             "each Card source block is the unchanged caller-captured factory for its preview");
+        check(sources.Any(source => source.Value!.Count(character => character == '\n') >= 10)
+            && sources.All(source => source.Scroll is not { VerticallyScrollable : true }),
+            "even long Card sources fit their full code without inner vertical scrolling");
         var first = nodes.Single(node => node.Name == "작업 카드");
         var second = nodes.Single(node => node.Name == "떠 있는 동작 카드");
         check(first.Bounds.Width == 320, "attaching source preserves the original preview width");
@@ -2112,12 +2115,13 @@ internal static class GallerySampleTests
         using var page = new SvgPage(ObserverServices.CreateWindows());
         using var frame = new GalleryPageFrame(page);
         var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
-        void Frame()
+        void InputFrame(UiInputState input)
         {
-            context.NewFrame(new(.016f, new(1280, 900), new(1, 1)), idle, new(0, 0, 1280, 900), UiTextSettings.Default);
+            context.NewFrame(new(.016f, new(1280, 900), new(1, 1)), input, new(0, 0, 1280, 900), UiTextSettings.Default);
             context.Render(new Screen(ui => { ui.EnableRootViewportContentLayout(contentPadding : 0); frame.Render(ui); }));
             using var drawing = context.GetDrawData();
         }
+        void Frame() => InputFrame(idle);
         void Select(string name)
         {
             var tab = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == name && element.Node.Role == UiAccessibilityRole.Tab);
@@ -2185,6 +2189,24 @@ internal static class GallerySampleTests
         DrainSvgScheduledFrames(context, Frame);
         check(arcSources.All(sample => sample.Source.Contains("bool _includeBackground = true", StringComparison.Ordinal)),
             "browser source background binding tracks the actual shared toggle");
+        UiAccessibilityElement FindArcCode() => tree.CaptureSnapshot().Elements.Single(element =>
+            element.Node is { Name : "C# 예제 소스", Role : UiAccessibilityRole.Edit } && element.Node.Value == arcSources[0].Source);
+        var arcCode = FindArcCode();
+        if (arcCode.Node.Offscreen)
+        {
+            tree.RequestAction(arcCode.Node.Id, arcCode.RuntimeId, UiAccessibilityAction.ScrollIntoView, wait : false);
+            Frame(); Frame();
+            arcCode = FindArcCode();
+        }
+        var codeBounds = arcCode.Node.Bounds;
+        Console.WriteLine($"SVG inline source : {arcCode.Node.Value!.Count(character => character == '\n') + 1} source lines, box {codeBounds}, scroll {arcCode.Node.Scroll}");
+        check(!arcCode.Node.Offscreen && arcCode.Node.Scroll is not { VerticallyScrollable : true },
+            "the visible SVG browser source expands instead of scrolling vertically inside its code block");
+        var pointer = new UiVector2(codeBounds.X + 50, Math.Clamp(codeBounds.Y + 40, 20, 870));
+        InputFrame(idle with { MousePosition = pointer, MouseWheel = -1 });
+        InputFrame(idle with { MousePosition = pointer });
+        check(FindArcCode().Node.Bounds.Y < codeBounds.Y,
+            "wheel input over an SVG inline source moves the enclosing page");
     }
 
     internal static void DrainSvgScheduledFrames(UiContext context, Action renderFrame)
@@ -2244,6 +2266,8 @@ internal static class GallerySampleTests
                     .Where(node => node is { Name: "C# 예제 소스", Role: UiAccessibilityRole.Edit })
                     .OrderBy(node => node.Bounds.Y).ToArray();
                 check(sources.Length == samples.Count, "one code view per example : " + page.Title);
+                check(sources.All(code => code.Scroll is not { VerticallyScrollable : true }),
+                    "component inline code uses the page's vertical scrolling : " + page.Title + "/" + phase);
                 for (var index = 0; index < Math.Min(sources.Length, samples.Count); index++)
                 {
                     var code = sources[index];
@@ -2640,9 +2664,9 @@ internal static class GallerySampleTests
         check(page.Samples.Count == 1 && page.Samples[0].Source == helloSource,
             "switching legacy tabs restores the original source and caller state");
         check(page.CreatedSources.All(block => !block.Source.Contains("using Duxel.Core;", StringComparison.Ordinal)
-            && !block.Code.Options.ShowToolbar && block.Code.Options.MaximumVisibleLines == 10
+            && !block.Code.Options.ShowToolbar && block.Code.Options.MaximumVisibleLines is null
             && block.Source == block.Code.Code),
-            "legacy examples keep their complete source behind the compact inline viewport");
+            "legacy examples keep their complete source inline without limiting its height");
         var sourceBlocks = page.CreatedSources.ToArray();
         for (var i = 0; i < 2; i++)
             foreach (var block in sourceBlocks) block.SynchronizeSource();

@@ -26,7 +26,7 @@ internal sealed record GalleryDestination(string Key, string Label, string Page,
 internal sealed class GalleryNavigation : IDisposable
 {
     // Increase once for each fix or feature delivered in the Gallery.
-    private const int GalleryRevision = 3;
+    private const int GalleryRevision = 4;
     internal static string DisplayVersion { get; } = FormatVersion();
 
     private static string FormatVersion()

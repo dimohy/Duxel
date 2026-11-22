@@ -74,7 +74,7 @@ internal static partial class GallerySample
         return delimiter + "\n" + value + "\n" + delimiter;
     }
     internal static UiCodeView InlineCode(string source) => new(source,
-        new(MaximumVisibleLines : 10, InitiallyExpanded : false, ShowToolbar : false), GalleryText.CodeViewLabels());
+        new(MaximumVisibleLines : null, ShowToolbar : false), GalleryText.CodeViewLabels());
 
     internal static GallerySample<T> Create<T>(Func<T> create, string setup = "", string declarations = "",
         Func<UiWidget, UiWidget>? layout = null,

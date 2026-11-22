@@ -87,7 +87,6 @@ internal sealed class IconCatalogPage : IObserverPage, IObserverNaturalPage, IGa
                 return icon;
             });
             sample.BindSource(() => _selected, FormatSource);
-            sample.CodeView.Options = sample.CodeView.Options with { MaximumVisibleLines = null };
             Sample = sample;
             _preview = sample.Preview;
             _rows = new(Select, () => _selected);
