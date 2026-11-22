@@ -93,13 +93,13 @@ internal static class CompiledCapacityTests
                 var pixels = renderer.RenderAndReadback(data);
                 pixelsByFrame[frame] = pixels;
                 var metrics = renderer.LastFrameMetrics;
-                var expectedDraws = compiled ? capacity == 1048576 ? 2 : 1 : 0;
+                var expectedDraws = compiled ? 2 : 0;
                 check(metrics.CompiledIndexLimit == capacity && metrics.CompiledLayerDraws == expectedDraws
                     && metrics.PresentationSequence == (ulong)frame + 1,
                     $"capacity boundary keeps presentation identity and expected compiled draws: capacity={capacity} frame={frame}");
-                check(metrics.CompiledIndexUploadBytes == (compiled && frame == 0 ? (ulong)indicesPerSource * 2 * sizeof(uint) : 0)
+                check(metrics.CompiledIndexUploadBytes == (compiled && frame == 0 ? (ulong)indicesPerSource * 2 * sizeof(ushort) : 0)
                     && (frame == 0 || metrics.DynamicUploadBytes == 0 && metrics.ResidentCreates == 0 && metrics.ResidentUpdates == 0),
-                    $"capacity change retains camera-only geometry and compiled index uploads: capacity={capacity} frame={frame}");
+                    $"capacity change preserves compact index uploads and camera-only geometry: capacity={capacity} frame={frame}");
                 if (reference is not null)
                     check(pixels.AsSpan().SequenceEqual(reference[frame]),
                         "larger compiled group preserves exact GPU pixels at camera frame " + frame);

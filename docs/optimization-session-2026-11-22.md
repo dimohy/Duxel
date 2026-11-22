@@ -240,3 +240,27 @@ The median of the three worst repeated-wheel intervals fell from 49.03 ms to 12.
 The Release solution built without warnings or errors. Windows passed 335 Gallery checks, four SVG scrollbar checks, 76 app input checks, 32 scheduling checks, and 11 shutdown and failure checks. The WSLg Dozen Gallery presented all 108 verification views.
 
 A separate single pair used a copy of the local working source, with only the frame-loop change applied to the second build. The longest repeated-wheel presentation interval was 42.27 → 12.42 ms in that pair.
+
+## Compact indices for dense compiled Vulkan layer groups
+
+The compiled shader reads the local vertex index from the low 16 bits and the draw descriptor from the high bits. Dense groups now store the local index as an unsigned 16-bit value. The draw adds the descriptor through Vulkan's base vertex offset. Smaller groups retain the 32-bit representation and one draw per contiguous visible range. A group must contain at least 128 Ki indices and average at least 1,024 indices per descriptor. Each compact group saves at least 256 KiB of index payload. Cache admission and accounting use the stored width. [Vulkan indexed drawing and base vertex](https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdDrawIndexed.html)
+
+The Windows replay used 1,200 ERD tables, RTX 5070 Ti Laptop GPU, 1440×940, MSAA 4, and .NET 11.0.0. Each comparison ran three processes per arm in alternating order, with the same program and only the Vulkan module exchanged. Each run replayed 219 poses. Five readback poses in both comparisons matched the control byte-for-byte. The 32-bit compiled renderer and fully direct renderer also differ at these poses. The compact renderer preserves the existing compiled renderer's image.
+
+| Windows metric | Before | After |
+| --- | ---: | ---: |
+| Compiled index payload, detailed profiling on | 270,330,552 bytes | 135,339,672 bytes |
+| Native compiled draw calls, fitted motion median | 36 | 3,603 |
+| Fitted motion CPU median, detailed profiling off | 3.440 ms | 3.327 ms |
+| Fitted motion CPU p95, detailed profiling off | 4.092 ms | 4.126 ms |
+| Continuous zoom CPU median, detailed profiling off | 1.488 ms | 1.513 ms |
+| Fitted motion GPU median, detailed profiling on | 2.343 ms | 2.332 ms |
+| Fitted motion CPU p95, detailed profiling on | 6.415 ms | 7.054 ms |
+
+The render timings exclude readback from the measured phases. The first fitted CPU frame medians with detailed profiling off were 1,934.82 ms and 1,731.18 ms, with a reduction in all three pairs. With detailed profiling on, the corresponding medians were 1,737.50 ms and 1,909.68 ms, with overlapping run ranges. The Windows pairs show a reduction in compiled index payload and no consistent frame-time benefit across both configurations. The profile-on and profile-off comparisons ran at different Windows DPI settings. Each comparison kept its own physical extent and DPI fixed. [Detailed profiling](L:/Cache/Duxel/erd-compiled-u16-20261122/product-verification.json) · [Profiling disabled](L:/Cache/Duxel/erd-compiled-u16-20261122/quiet-verification.json) · [Existing direct and compiled pixel differences](L:/Cache/Duxel/erd-compiled-u16-20261122/direct-difference.json)
+
+The indirect experiment used a packed index buffer with Vulkan multi-draw indirect commands. Its Windows replay still issued 36 Vulkan calls, with 135,261,552 bytes of compiled index and command data. On WSLg Dozen, the same executable processed 36,480 versus 12,000 profiled frame IDs over the 120-second measurements. Sampled frame duration medians were 8.15 ms and 16.40 ms. The experiment stays out of the product. [Indirect drawing contract](https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdDrawIndexedIndirect.html) · [WSLg indirect experiment](L:/Cache/Duxel/erd-compiled-u16-20261122/indirect-live-verification.json)
+
+The matched WSLg Dozen replay used 1,200 ERD tables at 1440×940 and MSAA 4, with the RTX 5070 Ti and the same executable. Only the Vulkan module changed. Each run completed 120 measured seconds and 121 process samples. The compiled index payload peaked at 346,056,552 and 173,202,672 bytes. Median elapsed CPU-side frame samples were 8.569 and 8.337 ms, with p95 at 36.725 and 25.928 ms. GPU sample medians were 0.144 and 0.111 ms. Median process RSS over the final 30 seconds was 1,232.58 and 1,235.71 MiB. The measured reduction is in GPU index buffer payload. The app profiler samples a subset of frames. [WSLg matched replay](L:/Cache/Duxel/erd-compiled-u16-20261122/product-live-verification.json)
+
+The Windows Release solution built without warnings or errors. Windows passed 3,183 Rendering checks, 173 DirectText checks, 335 Gallery checks, and four SVG scrollbar checks. WSLg Dozen presented 108 Gallery verification views.

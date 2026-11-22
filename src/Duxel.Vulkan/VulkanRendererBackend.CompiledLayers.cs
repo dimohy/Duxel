@@ -7,9 +7,11 @@ namespace Duxel.Vulkan;
 
 public sealed unsafe partial class VulkanRendererBackend
 {
-    // One real indexed draw can contain different transforms, clips and primitive
-    // kinds. The index high byte selects a descriptor, retaining vertex reuse.
+    // The shader selects a draw descriptor from the high bits of the vertex index.
+    // Small groups encode it in the index; dense groups add it as a draw offset.
     private const int CompiledDescriptorLimit = 256;
+    private const int CompactCompiledIndexMinimum = 128 * 1024;
+    private const int CompactCompiledIndicesPerDescriptor = 1024;
     private readonly int _compiledIndexLimit = ParseCompiledIndexLimit();
     private const ulong CompiledCacheByteLimit = 512UL * 1024 * 1024;
     private readonly bool _compiledLayersEnabled = Environment.GetEnvironmentVariable("DUXEL_VK_COMPILED_LAYERS") != "0";
@@ -95,6 +97,7 @@ public sealed unsafe partial class VulkanRendererBackend
         public required CompiledCommandSpan[] CommandSpans;
         public required uint[] IndexStarts;
         public required CompiledDescriptorFrame?[] Frames;
+        public required IndexType IndexType;
         public VkBuffer IndexBuffer;
         public StaticMemorySlice IndexMemorySlice;
         public ulong Bytes;
@@ -257,13 +260,15 @@ public sealed unsafe partial class VulkanRendererBackend
                 }
                 else
                 {
-                    TrimCompiledLayerCache((ulong)indexCount * sizeof(uint));
-                    if (_compiledLayerGroups.Count >= 256 || _compiledCacheBytes + (ulong)indexCount * sizeof(uint) > CompiledCacheByteLimit)
+                    var indexType = SelectCompiledIndexType(indexCount, descriptorCount);
+                    var requiredBytes = (ulong)indexCount * (ulong)(indexType == IndexType.Uint16 ? sizeof(ushort) : sizeof(uint));
+                    TrimCompiledLayerCache(requiredBytes);
+                    if (_compiledLayerGroups.Count >= 256 || _compiledCacheBytes + requiredBytes > CompiledCacheByteLimit)
                     {
                         fitsBudget = false;
                         break;
                     }
-                    group = CreateCompiledLayerGroup(data, _compiledSlices, descriptorCount, indexCount, bindings);
+                    group = CreateCompiledLayerGroup(data, _compiledSlices, descriptorCount, indexType, requiredBytes, bindings);
                     _compiledLayerGroups.Add(hash, group);
                     _compiledCacheBytes += group.Bytes;
                 }
@@ -327,8 +332,16 @@ public sealed unsafe partial class VulkanRendererBackend
         => checked((int)(command.Kind == UiDrawCommandKind.Triangles ? command.ElementCount
             : command.PrimitiveInstanceCount * command.PrimitiveVertexCount));
 
+    // Keep the original single indexed draw for smaller or sparsely populated
+    // groups. Compact groups save at least 256 KiB and have enough indices to
+    // amortize the extra draw per descriptor.
+    private static IndexType SelectCompiledIndexType(int indices, int descriptors)
+        => indices >= CompactCompiledIndexMinimum && indices >= descriptors * CompactCompiledIndicesPerDescriptor
+            ? IndexType.Uint16
+            : IndexType.Uint32;
+
     private CompiledLayerGroup CreateCompiledLayerGroup(UiDrawData data, List<CompiledSourceSlice> slices,
-        int descriptorCount, int indexCount, StaticGeometryFrameBindings bindings)
+        int descriptorCount, IndexType indexType, ulong bytes, StaticGeometryFrameBindings bindings)
     {
         var group = new CompiledLayerGroup
         {
@@ -339,11 +352,14 @@ public sealed unsafe partial class VulkanRendererBackend
             CommandSpans = new CompiledCommandSpan[slices.Count],
             IndexStarts = new uint[descriptorCount + 1],
             Frames = new CompiledDescriptorFrame?[_frames.Length],
-            Bytes = (ulong)indexCount * sizeof(uint),
+            IndexType = indexType,
+            Bytes = bytes,
         };
         CreateCompiledBuffer(group.Bytes, BufferUsageFlags.IndexBufferBit,
             out group.IndexBuffer, out group.IndexMemorySlice, out var mapped);
         var destination = (uint*)mapped;
+        var compactDestination = (ushort*)mapped;
+        var compact = indexType == IndexType.Uint16;
         var descriptor = 0;
         var written = 0;
         try
@@ -378,7 +394,10 @@ public sealed unsafe partial class VulkanRendererBackend
                             var index = checked(list.Indices[checked((int)(command.IndexOffset + k))] + command.VertexOffset);
                             if (index >= list.Vertices.Count || index > 65535)
                                 throw new InvalidOperationException("Compiled layer triangle index is outside its vertex stream.");
-                            destination[written++] = descriptorBits | index;
+                            if (compact)
+                                compactDestination[written++] = checked((ushort)index);
+                            else
+                                destination[written++] = descriptorBits | index;
                         }
                     }
                     else
@@ -388,7 +407,10 @@ public sealed unsafe partial class VulkanRendererBackend
                         {
                             var corner = k % 6;
                             var index = corner == 3 ? k - 3 : corner == 4 ? k - 2 : k;
-                            destination[written++] = descriptorBits | index;
+                            if (compact)
+                                compactDestination[written++] = checked((ushort)index);
+                            else
+                                destination[written++] = descriptorBits | index;
                         }
                     }
                 }
@@ -551,7 +573,8 @@ public sealed unsafe partial class VulkanRendererBackend
                     descriptorFrame.DescriptorContext = descriptorContext;
                     descriptorFrame.HasDescriptorContext = true;
                 }
-                BindTriangleGeometryIfNeeded(context.CommandBuffer, descriptorFrame.Address, group.IndexBuffer, context.ProfileEnabled, ref state.BufferBinding);
+                BindTriangleGeometryIfNeeded(context.CommandBuffer, descriptorFrame.Address, group.IndexBuffer, context.ProfileEnabled, ref state.BufferBinding,
+                    group.IndexType);
                 PushPrimitiveAddressIfNeeded(context.CommandBuffer, descriptorFrame.MatrixAddress, context.ProfileEnabled, ref state.BufferBinding);
                 bound = true;
             }
@@ -606,7 +629,7 @@ public sealed unsafe partial class VulkanRendererBackend
                     var firstIndex = group.IndexStarts[descriptor];
                     if (rangeEnd > rangeStart && firstIndex != rangeEnd)
                     {
-                        DrawCompiledLayerRange(rangeStart, rangeEnd, in context, ref state, sharedBasis, sharedCamera);
+                        DrawCompiledLayerRange(group, rangeStart, rangeEnd, in context, ref state, sharedBasis, sharedCamera);
                         rangeStart = firstIndex;
                     }
                     else if (rangeEnd == rangeStart)
@@ -672,7 +695,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 var endIndex = group.IndexStarts[commandDescriptor + 1];
                 if (rangeEnd > rangeStart && firstIndex != rangeEnd)
                 {
-                    DrawCompiledLayerRange(rangeStart, rangeEnd, in context, ref state, sharedBasis, sharedCamera);
+                    DrawCompiledLayerRange(group, rangeStart, rangeEnd, in context, ref state, sharedBasis, sharedCamera);
                     rangeStart = firstIndex;
                 }
                 else if (rangeEnd == rangeStart)
@@ -687,7 +710,7 @@ public sealed unsafe partial class VulkanRendererBackend
             }
         }
         if (rangeEnd > rangeStart)
-            DrawCompiledLayerRange(rangeStart, rangeEnd, in context, ref state, sharedBasis, sharedCamera);
+            DrawCompiledLayerRange(group, rangeStart, rangeEnd, in context, ref state, sharedBasis, sharedCamera);
         // CPU culling tracks each member independently from the pushed matrix.
         // Keep the common GPU basis valid across adjacent compiled groups.
     }
@@ -705,10 +728,33 @@ public sealed unsafe partial class VulkanRendererBackend
         state.HasLastRecordedKind = true;
     }
 
-    private void DrawCompiledLayerRange(uint first, uint end, in CommandFrameContext context, ref CommandRecordingState state, bool sharedBasis, bool sharedCamera)
+    private void DrawCompiledLayerRange(CompiledLayerGroup group, uint first, uint end, in CommandFrameContext context, ref CommandRecordingState state, bool sharedBasis, bool sharedCamera)
+    {
+        if (group.IndexType == IndexType.Uint16)
+        {
+            var descriptor = Array.BinarySearch(group.IndexStarts, first);
+            if (descriptor < 0)
+                throw new InvalidOperationException("Compiled draw does not start on a descriptor boundary.");
+            // Empty commands can share an index boundary. Only the last one
+            // at that boundary can have a nonzero range.
+            while (group.IndexStarts[descriptor] < end)
+            {
+                var index = group.IndexStarts[descriptor];
+                var count = group.IndexStarts[descriptor + 1] - index;
+                if (count != 0)
+                    SubmitCompiledDraw(index, count, descriptor << 16, in context, ref state, sharedBasis, sharedCamera);
+                descriptor++;
+            }
+            return;
+        }
+        SubmitCompiledDraw(first, end - first, 0, in context, ref state, sharedBasis, sharedCamera);
+    }
+
+    private void SubmitCompiledDraw(uint first, uint count, int vertexOffset, in CommandFrameContext context,
+        ref CommandRecordingState state, bool sharedBasis, bool sharedCamera)
     {
         var timestamp = BeginFrameProfileTiming(context.ProfileEnabled);
-        _vk.CmdDrawIndexed(context.CommandBuffer, end - first, 1, first, 0, 0);
+        _vk.CmdDrawIndexed(context.CommandBuffer, count, 1, first, vertexOffset, 0);
         RecordDrawCallProfile(context.ProfileEnabled, timestamp, ref state.DrawDispatch);
         if (context.ProfileEnabled)
             state.Profile.StaticDrawCallCount++;
