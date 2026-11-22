@@ -30,6 +30,7 @@ internal sealed partial class UiVisualTextLines
     private long _styledRevision;
     private int _activeSourceIndex = -1;
     private bool _preserveStyledBlock;
+    private (UiLayoutMeasurementKey Key, long Revision, float Width, float LineHeight, float Height)? _codeMeasurement;
     internal UiStyledTextSource? StyledSource => _styledSource;
     internal bool HasUnwrappedOverflow
     {
@@ -79,6 +80,30 @@ internal sealed partial class UiVisualTextLines
         _composition?.Clear();
         _composition = null;
     }
+
+    internal bool TryMeasureCodeHeight(UiImmediateContext ui, UiCodeDocument code, string text,
+        float width, float lineHeight, out float height)
+    {
+        height = 0;
+        if (!ui.CanRetainControlTextLayout)
+            return false;
+        code.Prepare(text, -1);
+        var key = ui.LayoutMeasurementKey;
+        if (MatchesCodeMeasurement(key, code, width, lineHeight))
+        {
+            height = _codeMeasurement!.Value.Height;
+            return true;
+        }
+        if (!ui.TryMeasureNativeCodeHeight(code, width, lineHeight, key, out height))
+            return false;
+        _codeMeasurement = (key, code.Revision, width, lineHeight, height);
+        Builds++;
+        return true;
+    }
+
+    private bool MatchesCodeMeasurement(UiLayoutMeasurementKey key, UiCodeDocument code, float width, float lineHeight)
+        => _codeMeasurement is { } measurement && measurement.Key == key && measurement.Revision == code.Revision
+            && measurement.Width == width && measurement.LineHeight == lineHeight;
 
     internal void Prepare(UiImmediateContext ui, string text, float width, float height, float lineHeight,
         float gutter, bool wrap = true, float horizontalGutter = 0, UiStyledTextSource? styled = null, int activeSourceIndex = -1,
@@ -177,7 +202,8 @@ internal sealed partial class UiVisualTextLines
         _wrap = wrap;
         _valid = retain;
         _frame = frame;
-        Builds++;
+        if (styled is not UiCodeDocument code || !wrap || !retain || !MatchesCodeMeasurement(key, code, width, lineHeight))
+            Builds++;
         Version++;
     }
 
@@ -409,6 +435,7 @@ internal sealed partial class UiVisualTextLines
         _styledSource = null;
         ClearStyledTables();
         _styledRevision = 0;
+        _codeMeasurement = null;
         _activeSourceIndex = -1;
         _preserveStyledBlock = false;
         Height = 0;

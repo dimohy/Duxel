@@ -19,9 +19,12 @@ public sealed partial class UiImmediateContext
         {
             var contentWidth = MathF.Max(1, width - CodeGutter(code) - 16);
             var measurement = code.Measurements.ForWidth(contentWidth);
-            measurement.Prepare(this, code.Code, contentWidth,
-                float.MaxValue, type.LineHeight, 0, true, styled : code.Document);
-            height = measurement.Height;
+            if (!measurement.TryMeasureCodeHeight(this, code.Document, code.Code, contentWidth, type.LineHeight, out height))
+            {
+                measurement.Prepare(this, code.Code, contentWidth,
+                    float.MaxValue, type.LineHeight, 0, true, styled : code.Document);
+                height = measurement.Height;
+            }
         }
         if (!code.Expanded && code.Options.MaximumVisibleLines is { } maximum)
             height = MathF.Min(height, maximum * type.LineHeight);

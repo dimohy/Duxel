@@ -75,12 +75,14 @@ internal static class ObserverBatchPresentationTests
                         using var resizedDrawing = context.GetDrawData();
                     }
                     ResizeFrame();
-                    var pane = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == "갤러리 페이지");
+                    // SVG owns its scrolling document rather than using the common page pane.
+                    var paneName = title == "SVG" ? "observer-svg-page" : "갤러리 페이지";
+                    var pane = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == paneName);
                     if (pane.Node.Scroll is { VerticallyScrollable: true })
                         check(tree.RequestScroll(pane.Node.Id, pane.RuntimeId, UiAccessibilityScrollCommand.ByPercent(-1, 100), wait: false)
                             == UiAccessibilityResult.Success, "Gallery accepts end-scroll after fractional resize : " + title + " / " + size.Y);
                     ResizeFrame();
-                    var scrolled = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == "갤러리 페이지").Node.Scroll;
+                    var scrolled = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == paneName).Node.Scroll;
                     check(scrolled is null || scrolled.Value.Offset.Y == MathF.Max(0, scrolled.Value.Content.Y - scrolled.Value.Viewport.Y),
                         "Gallery preserves the complete bottom viewport after fractional resize : " + title + " / " + size.Y);
                 }

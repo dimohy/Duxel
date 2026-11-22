@@ -154,3 +154,26 @@ The A/B fixture ran the Windows SVG arc page at 1500×960 and MSAA 4 on RTX 5070
 | First arc tab CPU frame | 88.02 ms | 85.86 ms | −2.4% |
 
 Allocation decreased in all three matched comparisons. CPU ranges overlap. Repeat-scroll CPU p99 increased from 7.73 to 11.22 ms even though uploads stayed at zero, and all 18 matching screenshot pairs were byte-identical. Width changes still submitted 462,724 coverage bytes across the phase. These timings exclude the window size call and the capture, and they do not establish app FPS or resolve the reported 149 ms stall. `gallery-svg-code-stages` with `DUXEL_TEST_CODE_GALLERY_VIEWPORT=1` and `DUXEL_TEST_CODE_RESIZE=1` replays the input. Measurements and hashes are in `L:/Cache/Duxel/codeview-reflow-style-20261122/direct-verification.json`, with allocation and layout stages in `direct-probe.json` in the same directory.
+
+## Measure CodeView height before composing document geometry
+
+Wrapping a clipped CodeView still changes the scrollable document height. The measurement uses native hard-line layouts and their style heights to compute the exact block height. The visible editor joins those same line layouts into document-wide glyph runs, carets and accessibility geometry when needed. CodeView retains resolved paragraph styles with the source revision and layout resources so width changes and the subsequent first paint can share them. Non-native text takes the existing measurement path.
+
+Three fresh Windows processes per arm replayed the Gallery SVG arc page and 16 width samples with SDK 11.0.100, managed runtime 11.0.0, MSAA 4 and RTX 5070 Ti Laptop GPU, starting at 1500×960. The fixture and renderer were identical. The runs alternated the order of the two Core DLLs in pairs. The table shows medians across runs. Capture readback ran separately from the timed samples.
+
+| Metric | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| First arc tab CPU frame | 84.50 ms | 72.73 ms | −13.9% |
+| Width-change CPU median | 20.80 ms | 16.51 ms | −20.6% |
+| Width-change CPU p95 and p99 | 28.42 ms | 23.53 ms | −17.2% |
+| Slowest 1% width-change CPU-frame rate equivalent | 35.18/s | 42.50/s | +20.8% |
+| Width-change GPU median | 0.0525 ms | 0.0526 ms | Within run variation |
+| First traversal CPU p99 | 11.68 ms | 18.76 ms | +60.7% |
+| Repeated traversal CPU median | 3.79 ms | 3.56 ms | −6.0% |
+| Repeated traversal CPU p99 | 6.36 ms | 6.98 ms | +9.9% |
+
+Width-change CPU median and p95 improved in all three pairs. First traversal step 20 incurred about 7 ms of native paragraph assembly when a previously clipped block became visible. The median of summed first-tab plus first-traversal CPU work was 314.85 → 318.85 ms across three runs. The reordering improves width changes and initial tab display, with a slower first scroll into new content. GPU timing and upload volume remained close. The timed fixture did not reproduce the reported 149 ms cadence.
+
+All 18 screenshot pairs were byte-identical and the mixed-source test produced identical measured and fully laid-out heights at three widths, covering a blank line in a comment, tabs, decomposed Hangul, numbers and punctuation. Reproduce the Windows run with `gallery-svg-code-stages` and the viewport and width flags above. Raw frame times, GPU submission matches, input, and screenshot hashes are in `L:/Cache/Duxel/codeview-height-only-20261122/verification.json` and its parent directory.
+
+All 223 replay steps per process agreed on scroll offset, visible code height and coverage upload bytes. The Windows observer suite passed 2,374 checks after its scroll assertion was pointed at the SVG document's own scroll pane. The old fixture could not find a common page pane on either version. Windows GPU Gallery, multiline selection and scrollbar checks and WSLg Dozen Gallery passed, including 108 verified Linux presentations.

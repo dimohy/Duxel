@@ -158,6 +158,20 @@ internal static class CodeViewCacheTests
             check(narrow.Runs.Span[^1].Origin != wideTail.Origin && wideTail.Origin == freshTail.Origin
                 && wideTail.Glyphs.Span.SequenceEqual(freshTail.Glyphs.Span),
                 "width reflow recalculates the positions of unchanged lines moved by wrapping above");
+
+            using var type = new UiControlContext(ui).BeginTypography<UiMonospaceTypeface, UiFluentType300>();
+            const string mixed = "/* 한글\n\n multiline */\n\tvar value = \"한 and 123 헬로 !?\";\n";
+            var code = new UiCodeDocument();
+            var measurement = new UiVisualTextLines();
+            var geometry = new UiVisualTextLines();
+            foreach (var width in new[] { 96f, 180f, 360f })
+            {
+                check(measurement.TryMeasureCodeHeight(ui, code, mixed, width, type.LineHeight, out var measuredHeight)
+                    && measurement.NativeParagraph is null, "code height measurement leaves document geometry unrealized at width " + width);
+                geometry.Prepare(ui, mixed, width, float.MaxValue, type.LineHeight, 0, true, styled: code);
+                check(geometry.NativeParagraph is { } paragraph && measuredHeight == geometry.Height
+                    && paragraph.Carets.Length == mixed.Length + 1, "height-only code measurement matches full wrapped geometry at width " + width);
+            }
         }));
         using var drawing = context.GetDrawData();
     }

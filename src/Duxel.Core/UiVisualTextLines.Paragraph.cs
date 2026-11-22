@@ -211,6 +211,20 @@ public sealed partial class UiImmediateContext
         if (_platformTextBackend is not IPlatformTextParagraphBackend backend
             || !ShouldUseDirectTextForText(projection.Text, _textSettings))
             return false;
+        var physicalWidth = wrap ? width * _contentScale : float.PositiveInfinity;
+        var vector = IsVectorTextLayer();
+        if (code is not null)
+        {
+            var key = LayoutMeasurementKey;
+            var resolved = ResolveCodeParagraphStyles(code, key);
+            heights = resolved.Heights;
+            long started = 0;
+            BeginValidationParagraphTiming(ref started);
+            paragraph = code.ParagraphLayouts.Prepare(backend, projection.Text, resolved.Styles, physicalWidth,
+                vector, key, CodeLineLayoutCache());
+            EndValidationParagraphTiming(started, raster: false);
+            return true;
+        }
         var styles = projection.Runs;
         var native = new PlatformTextParagraphStyle[Math.Max(1, styles.Length)];
         List<PlatformTextParagraphObject>? objects = null;
@@ -251,31 +265,61 @@ public sealed partial class UiImmediateContext
                     measurement.Baseline + (objectHeight - measurement.Height) / 2));
             }
         }
-        var physicalWidth = wrap ? width * _contentScale : float.PositiveInfinity;
-        var vector = IsVectorTextLayer();
-        if (code is not null)
-        {
-            long started = 0;
-            BeginValidationParagraphTiming(ref started);
-            var cache = _codeLineLayouts ??= new();
-            SelectValidationCodeLineLayoutCache(ref cache);
-            paragraph = code.ParagraphLayouts.Prepare(backend, projection.Text, native, physicalWidth, vector, LayoutMeasurementKey, cache);
-            EndValidationParagraphTiming(started, raster: false);
-        }
-        else
-        {
-            var request = new PlatformTextParagraphRequest(projection.Text, native, objects is null ? [] : objects.ToArray(),
-                physicalWidth, rightToLeft ? PlatformTextParagraphDirection.RightToLeft : PlatformTextParagraphDirection.LeftToRight);
-            paragraph = backend.CreateParagraph(request, vector);
-            if (plainInline && !vector && scale == 1 && objects is null && backend is IPlatformTextWholeParagraphRasterizer
-                && paragraph.Width <= DirectTextAtlasPageSize - 2 && paragraph.Height <= DirectTextAtlasPageSize - 2)
-                wholeRequest = request;
-        }
+        var request = new PlatformTextParagraphRequest(projection.Text, native, objects is null ? [] : objects.ToArray(),
+            physicalWidth, rightToLeft ? PlatformTextParagraphDirection.RightToLeft : PlatformTextParagraphDirection.LeftToRight);
+        paragraph = backend.CreateParagraph(request, vector);
+        if (plainInline && !vector && scale == 1 && objects is null && backend is IPlatformTextWholeParagraphRasterizer
+            && paragraph.Width <= DirectTextAtlasPageSize - 2 && paragraph.Height <= DirectTextAtlasPageSize - 2)
+            wholeRequest = request;
         if (paragraph.Carets.Length != projection.Text.Length + 1)
             throw new InvalidOperationException("A paragraph backend omitted original source caret positions.");
         if (paragraph.Objects.Length != (objects?.Count ?? 0))
             throw new InvalidOperationException("A paragraph backend omitted declared inline objects.");
         return true;
+    }
+
+    private UiCodeLineLayoutCache? CodeLineLayoutCache()
+    {
+        var cache = _codeLineLayouts ??= new();
+        SelectValidationCodeLineLayoutCache(ref cache);
+        return cache;
+    }
+
+    internal bool TryMeasureNativeCodeHeight(UiCodeDocument code, float width, float lineHeight,
+        UiLayoutMeasurementKey key, out float height)
+    {
+        var text = code.Projection.Text;
+        height = 0;
+        if (_platformTextBackend is not IPlatformTextParagraphBackend backend || !ShouldUseDirectTextForText(text, _textSettings))
+            return false;
+        var resolved = ResolveCodeParagraphStyles(code, key);
+        long started = 0;
+        BeginValidationParagraphTiming(ref started);
+        height = code.ParagraphLayouts.MeasureHeight(backend, text, resolved.Styles, width * _contentScale,
+            IsVectorTextLayer(), key, CodeLineLayoutCache(), lineHeight, resolved.Heights);
+        EndValidationParagraphTiming(started, raster: false);
+        return true;
+    }
+
+    private (PlatformTextParagraphStyle[] Styles, float[] Heights) ResolveCodeParagraphStyles(UiCodeDocument code,
+        UiLayoutMeasurementKey key)
+    {
+        if (code.ParagraphStyles is { } cached && cached.Key == key && cached.Revision == code.Revision && CanRetainControlTextLayout)
+            return (cached.Styles, cached.Heights);
+        var runs = code.Projection.Runs;
+        var styles = new PlatformTextParagraphStyle[Math.Max(1, runs.Length)];
+        var heights = new float[styles.Length];
+        for (var index = 0; index < styles.Length; index++)
+        {
+            var run = runs.Length == 0 ? default : runs[index];
+            using var typography = BeginStyledTypography(run.Style);
+            styles[index] = new(run.Start, run.Length, _directTextPrimaryFontPath!, _directTextSecondaryFontPath,
+                ResolveDirectTextFontSize(_textSettings)) { PaintGroup = UiStyledTextPalette.ForegroundGroup(run.Style) };
+            heights[index] = typography.LineHeight;
+        }
+        if (CanRetainControlTextLayout)
+            code.ParagraphStyles = (key, code.Revision, styles, heights);
+        return (styles, heights);
     }
 
     private bool TryPaintWholeInlineParagraph(UiVisualTextLines lines, UiVector2 origin, UiColor color, UiRect clip,

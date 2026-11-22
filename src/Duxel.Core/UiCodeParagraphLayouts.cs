@@ -11,6 +11,7 @@ internal sealed class UiCodeParagraphLayouts
         internal readonly PlatformTextParagraphStyle[] Styles = styles;
         internal readonly int[] StyleMap = styleMap;
         internal PlatformTextParagraphLayout? Natural, Wrapped;
+        internal PlatformTextParagraphLayout Layout = null!;
         internal float WrappedWidth;
         internal PlatformTextParagraphLayout? PositionedLayout;
         internal float PositionedTop;
@@ -33,7 +34,7 @@ internal sealed class UiCodeParagraphLayouts
     private bool _vector;
     private List<Line> _lines = [];
 
-    internal PlatformTextParagraphLayout Prepare(IPlatformTextParagraphBackend backend, string text,
+    private void PrepareLines(IPlatformTextParagraphBackend backend, string text,
         PlatformTextParagraphStyle[] styles, float width, bool vector, UiLayoutMeasurementKey key,
         UiCodeLineLayoutCache? shared = null)
     {
@@ -77,11 +78,6 @@ internal sealed class UiCodeParagraphLayouts
             if (previous is not null)
                 ReuseUnchangedLines(previous);
         }
-        var outputLines = new List<PlatformTextParagraphLine>();
-        var outputRuns = new List<PlatformTextParagraphRun>();
-        var carets = new PlatformTextParagraphCaret[text.Length + 1];
-        var height = 0f;
-        var maximum = 0f;
         foreach (var line in _lines)
         {
             if (line.Natural is null)
@@ -99,6 +95,60 @@ internal sealed class UiCodeParagraphLayouts
                 }
                 layout = line.Wrapped;
             }
+            line.Layout = layout;
+        }
+
+        PlatformTextParagraphLayout CreateLineLayout(Line line, float layoutWidth)
+        {
+            if (shared is null)
+            {
+                NativeBuilds++;
+                return backend.CreateParagraph(new(line.Text, line.Styles, layoutWidth), vector);
+            }
+            var result = shared.Create(backend, line.Text, line.Styles, layoutWidth, vector, key, out var built);
+            if (built)
+                NativeBuilds++;
+            return result;
+        }
+    }
+
+    internal float MeasureHeight(IPlatformTextParagraphBackend backend, string text,
+        PlatformTextParagraphStyle[] styles, float width, bool vector, UiLayoutMeasurementKey key,
+        UiCodeLineLayoutCache? shared, float lineHeight, float[] styleHeights)
+    {
+        PrepareLines(backend, text, styles, width, vector, key, shared);
+        var height = 0f;
+        var firstStyle = 0;
+        // Preserve the row order and the logical typography heights of the full
+        // layout without building document-wide carets or positioned glyph runs.
+        foreach (var line in _lines)
+            foreach (var row in line.Layout.Lines.Span)
+            {
+                var rowHeight = lineHeight;
+                var start = line.Start + row.Start;
+                var end = start + row.Length;
+                while (firstStyle < styles.Length && styles[firstStyle].Start + styles[firstStyle].Length <= start)
+                    firstStyle++;
+                for (var style = firstStyle; style < styles.Length && styles[style].Start < end; style++)
+                    rowHeight = MathF.Max(rowHeight, styleHeights[style]);
+                height += rowHeight;
+            }
+        return height;
+    }
+
+    internal PlatformTextParagraphLayout Prepare(IPlatformTextParagraphBackend backend, string text,
+        PlatformTextParagraphStyle[] styles, float width, bool vector, UiLayoutMeasurementKey key,
+        UiCodeLineLayoutCache? shared = null)
+    {
+        PrepareLines(backend, text, styles, width, vector, key, shared);
+        var outputLines = new List<PlatformTextParagraphLine>();
+        var outputRuns = new List<PlatformTextParagraphRun>();
+        var carets = new PlatformTextParagraphCaret[text.Length + 1];
+        var height = 0f;
+        var maximum = 0f;
+        foreach (var line in _lines)
+        {
+            var layout = line.Layout;
             maximum = MathF.Max(maximum, layout.Width);
             var rows = layout.Lines.Span;
             var top = height;
@@ -147,19 +197,6 @@ internal sealed class UiCodeParagraphLayouts
             outputRuns.AddRange(line.PositionedRuns);
         }
         return new(outputRuns.ToArray(), outputLines.ToArray(), carets, maximum, height);
-
-        PlatformTextParagraphLayout CreateLineLayout(Line line, float layoutWidth)
-        {
-            if (shared is null)
-            {
-                NativeBuilds++;
-                return backend.CreateParagraph(new(line.Text, line.Styles, layoutWidth), vector);
-            }
-            var result = shared.Create(backend, line.Text, line.Styles, layoutWidth, vector, key, out var built);
-            if (built)
-                NativeBuilds++;
-            return result;
-        }
     }
 
     private void ReuseUnchangedLines(List<Line> previous)
