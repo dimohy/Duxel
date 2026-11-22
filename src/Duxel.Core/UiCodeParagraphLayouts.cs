@@ -13,6 +13,7 @@ internal sealed class UiCodeParagraphLayouts
         internal PlatformTextParagraphLayout? Natural, Wrapped;
         internal PlatformTextParagraphLayout Layout = null!;
         internal float WrappedWidth;
+        internal (float Width, PlatformTextParagraphLayout Layout)? AlternateWrap;
         internal PlatformTextParagraphLayout? PositionedLayout;
         internal float PositionedTop;
         internal PlatformTextParagraphRun[] PositionedRuns = [];
@@ -24,6 +25,7 @@ internal sealed class UiCodeParagraphLayouts
             Natural = previous.Natural;
             Wrapped = previous.Wrapped;
             WrappedWidth = previous.WrappedWidth;
+            AlternateWrap = previous.AlternateWrap;
             return true;
         }
     }
@@ -79,10 +81,43 @@ internal sealed class UiCodeParagraphLayouts
                 ReuseUnchangedLines(previous);
         }
         IDisposable? paragraphBatch = null;
+        var reuseWidthFit = backend is IPlatformTextParagraphWidthReuseBackend;
         try
         {
             foreach (var line in _lines)
             {
+                if (reuseWidthFit && line.Natural is null)
+                {
+                    line.Natural = shared?.FindNatural(line.Text, line.Styles, vector, key);
+                    if (line.Natural is null && float.IsFinite(width))
+                    {
+                        // Keep two wrapped snapshots until one fits without wrapping.
+                        // The natural snapshot then takes the second slot.
+                        if (line.Wrapped is { } initial && line.WrappedWidth == width)
+                            line.Layout = initial;
+                        else if (line.AlternateWrap is { } alternate && alternate.Width == width)
+                            line.Layout = alternate.Layout;
+                        else
+                        {
+                            var bounded = CreateLineLayout(line, width);
+                            if (UiCodeLineLayoutCache.FitsWidth(bounded, width))
+                            {
+                                line.Natural = bounded;
+                                line.AlternateWrap = null;
+                            }
+                            else if (line.Wrapped is null)
+                            {
+                                line.Wrapped = bounded;
+                                line.WrappedWidth = width;
+                            }
+                            else
+                                line.AlternateWrap = (width, bounded);
+                            line.Layout = bounded;
+                        }
+                        continue;
+                    }
+                    line.AlternateWrap = null;
+                }
                 if (line.Natural is null)
                     line.Natural = CreateLineLayout(line, float.PositiveInfinity);
                 var natural = line.Natural;
@@ -112,7 +147,7 @@ internal sealed class UiCodeParagraphLayouts
                 NativeBuilds++;
                 return backend.CreateParagraph(new(line.Text, line.Styles, layoutWidth), vector);
             }
-            var result = shared.Create(backend, line.Text, line.Styles, layoutWidth, vector, key, out var built);
+            var result = shared.Create(backend, line.Text, line.Styles, layoutWidth, vector, key, out var built, reuseWidthFit);
             if (built)
                 NativeBuilds++;
             return result;

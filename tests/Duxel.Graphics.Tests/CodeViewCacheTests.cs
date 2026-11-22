@@ -57,12 +57,15 @@ internal static class CodeViewCacheTests
             var key = ui.LayoutMeasurementKey;
             var first = cache.Prepare(Duxel.Platform.Windows.WindowsPlatformTextBackend.Instance, source, styles, 300, false, key);
             var builds = cache.NativeBuilds;
-            check(builds == 4 && first.Lines.Span[^1].Start + first.Lines.Span[^1].Length == source.Length,
-                "code hard-line layout covers the original source with three natural shapes and one wrapped shape");
+            check(builds == 3 && first.Lines.Span[^1].Start + first.Lines.Span[^1].Length == source.Length,
+                "code hard-line layout covers the original source with one shape per hard line");
             cache.Prepare(Duxel.Platform.Windows.WindowsPlatformTextBackend.Instance, source, styles, 280, false, key);
             check(cache.NativeBuilds == builds + 1, "resizing code reshapes only the long line that needs wrapping");
             cache.Prepare(Duxel.Platform.Windows.WindowsPlatformTextBackend.Instance, source, styles, 280, false, key);
             check(cache.NativeBuilds == builds + 1, "repeated code width reuses every native hard-line shape");
+            var returned = cache.Prepare(Duxel.Platform.Windows.WindowsPlatformTextBackend.Instance, source, styles, 300, false, key);
+            check(cache.NativeBuilds == builds + 1 && returned.Carets.Span.SequenceEqual(first.Carets.Span),
+                "returning to the first wrapping width reuses native geometry without the shared cache");
 
             var backend = Duxel.Platform.Windows.WindowsPlatformTextBackend.Instance;
             const int insertion = 6;
@@ -88,7 +91,7 @@ internal static class CodeViewCacheTests
                 "reused code layouts retain fresh source positions, caret geometry and remapped paint styles");
 
             cache.Prepare(Duxel.Platform.Windows.WindowsPlatformTextBackend.Instance, source, styles, 280, false, key with { BaseFontSize = 18 });
-            check(cache.NativeBuilds == builds + 6, "font resource changes invalidate the native hard-line snapshots");
+            check(cache.NativeBuilds == builds + 5, "font resource changes invalidate the native hard-line snapshots");
         });
         var beforeScale = code.Metrics;
         Frame(ui => { Measure(ui, 500); Measure(ui, 404); }, 1.25f);
@@ -132,8 +135,8 @@ internal static class CodeViewCacheTests
             var second = new UiCodeParagraphLayouts();
             var reused = second.Prepare(backend, source, styles, 220, false, key, cache);
             var fresh = new UiCodeParagraphLayouts().Prepare(backend, source, styles, 220, false, key);
-            check(first.NativeBuilds == 2 && second.NativeBuilds == 0,
-                "both wrapped and natural mixed-language lines are shared across documents");
+            check(first.NativeBuilds == 1 && second.NativeBuilds == 0,
+                "the wrapped mixed-language line is shared across documents without measuring its natural width");
             check(reused.Width == fresh.Width && reused.Height == fresh.Height
                 && reused.Carets.Span.SequenceEqual(fresh.Carets.Span) && reused.Runs.Length == fresh.Runs.Length
                 && reused.Runs.ToArray().Zip(fresh.Runs.ToArray()).All(pair =>
@@ -164,7 +167,7 @@ internal static class CodeViewCacheTests
             second.Prepare(backend, source, styles, 200, false, key, cache);
             check(second.NativeBuilds == 1, "a new width shapes the shared wrapped line once");
             second.Prepare(backend, source, styles, 200, false, key with { BaseFontSize = 18 }, cache);
-            check(second.NativeBuilds == 3, "changing layout resources invalidates shared natural and wrapped lines");
+            check(second.NativeBuilds == 2, "changing layout resources invalidates shared native hard-line snapshots");
 
             var reflowSource = "int x = 1;\n" + new string('W', 120) + "\nreturn x;";
             PlatformTextParagraphStyle[] reflowStyle = [style with { Length = reflowSource.Length }];

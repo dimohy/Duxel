@@ -9,7 +9,7 @@ namespace Duxel.Platform.Linux;
 /// <summary>Explicit-file FreeType/HarfBuzz/Cairo text. Instances own a bounded native font cache.</summary>
 public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBackend, IPlatformTextLayoutBackend,
     IPlatformFontMetricsBackend, IPlatformGlyphBitmapRasterizer, IPlatformVectorTextBackend, IPlatformFontVariantBackend,
-    IPlatformTextFontRunBackend, IPlatformTextGeometryBackend, IPlatformTextParagraphBackend, IDisposable
+    IPlatformTextFontRunBackend, IPlatformTextGeometryBackend, IPlatformTextParagraphBackend, IPlatformTextParagraphWidthReuseBackend, IDisposable
 {
     private const int FontCapacity = 32;
     private static readonly UnicodeEncoding StrictUtf16 = new(false, false, true);

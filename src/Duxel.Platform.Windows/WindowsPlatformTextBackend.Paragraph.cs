@@ -2,7 +2,7 @@ using Duxel.Core;
 
 namespace Duxel.Platform.Windows;
 
-public sealed partial class WindowsPlatformTextBackend : IPlatformTextParagraphBatchBackend
+public sealed partial class WindowsPlatformTextBackend : IPlatformTextParagraphBatchBackend, IPlatformTextParagraphWidthReuseBackend
 {
     IDisposable IPlatformTextParagraphBatchBackend.BeginParagraphBatch()
         => new WindowsDirectWriteGlyphRasterizer.ParagraphBatch();

@@ -10,9 +10,14 @@ internal sealed class UiCodeLineLayoutCache
     private readonly Queue<Key> _insertionOrder = new();
     private UiLayoutMeasurementKey _measurementKey;
 
+    internal PlatformTextParagraphLayout? FindNatural(string text, PlatformTextParagraphStyle[] styles,
+        bool vector, UiLayoutMeasurementKey measurementKey)
+        => _measurementKey == measurementKey && _layouts.TryGetValue(new(text, styles, float.PositiveInfinity, vector), out var natural)
+            ? natural : null;
+
     internal PlatformTextParagraphLayout Create(IPlatformTextParagraphBackend backend, string text,
         PlatformTextParagraphStyle[] styles, float width, bool vector, UiLayoutMeasurementKey measurementKey,
-        out bool built)
+        out bool built, bool reuseWidthFit)
     {
         if (text.Length > MaximumCacheableLineLength)
         {
@@ -33,6 +38,15 @@ internal sealed class UiCodeLineLayoutCache
         }
 
         layout = backend.CreateParagraph(new(text, styles, width), vector);
+        if (reuseWidthFit && float.IsFinite(width) && FitsWidth(layout, width))
+        {
+            key = key with { Width = float.PositiveInfinity };
+            if (_layouts.ContainsKey(key))
+            {
+                built = true;
+                return layout;
+            }
+        }
         if (_layouts.Count == Capacity)
             _layouts.Remove(_insertionOrder.Dequeue());
         _layouts.Add(key, layout);
@@ -40,6 +54,9 @@ internal sealed class UiCodeLineLayoutCache
         built = true;
         return layout;
     }
+
+    internal static bool FitsWidth(PlatformTextParagraphLayout layout, float width)
+        => layout.Lines.Length == 1 && layout.Width <= width;
 
     private readonly record struct Key(string Text, PlatformTextParagraphStyle[] Styles, float Width, bool Vector)
     {

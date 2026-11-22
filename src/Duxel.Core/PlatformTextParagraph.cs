@@ -376,3 +376,6 @@ internal interface IPlatformTextParagraphBatchBackend
 {
     IDisposable BeginParagraphBatch();
 }
+
+// An unbroken row that fits the requested width is identical to an unbounded row.
+internal interface IPlatformTextParagraphWidthReuseBackend;
