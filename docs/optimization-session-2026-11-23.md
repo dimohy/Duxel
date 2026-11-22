@@ -309,3 +309,18 @@ The one-thread arm removed queue waiting. These frame intervals include elapsed 
 The two queued conditions were also run three times each with both log files written to the WSL Linux filesystem. With the stock shader, queue-wait p95 moved from 14.18 to 11.36 ms on drag and from 12.84 to 9.73 ms on zoom. Profiled elapsed frame p95 moved from 29.85 to 24.30 ms and from 27.09 to 22.24 ms. The phases were grouped by filesystem. This establishes sensitivity to the profiling environment and leaves run-order effects open. Microsoft recommends keeping files on the WSL filesystem for Linux I/O. [WSL filesystem guidance](https://learn.microsoft.com/en-us/windows/wsl/filesystems)
 
 The earlier UV selector CPU regression changed direction under the split timestamps. With native logs, its elapsed frame p95 was 23.95 ms on drag and 21.56 ms on zoom, with ranges overlapping the stock shader in both phases. The selector remains experimental. A timing method with deferred log writes and paired input-to-accepted-presentation timestamps is needed before choosing the queue policy or revisiting the rendering change. All 15 exits, 1,980 matched input frames, and the stage reconstruction checks are recorded in `artifacts/erd-render-queue-stages-20261123/verification.json`.
+
+### ERD input latency and submission throughput with deferred recording
+
+One isolated Linux x64 NativeAOT executable recorded accepted presentation IDs and monotonic timestamps to a preallocated array, then saved them at shutdown. Per-frame app and Vulkan file profiling were disabled. The X11 replay recorded each issue time and matched it to the submitted frame that consumed it. The input acknowledgement used a pipe, and the replay saved the pipe contents after exit. The clock check linked the two processes' monotonic timestamps. Three rotated runs per condition exercised 60 drag moves and 72 zoom steps with matched table positions and zoom targets. The experiment used continuous frame scheduling at 1440×940 and 4× MSAA on WSLg Dozen, with RTX 5070 Ti and Intel adapters enumerated.
+
+| Median of three runs | Stock queue | UV selector with queue | Stock shader, single thread |
+| --- | ---: | ---: | ---: |
+| Drag input to accepted presentation p95 | 15.16 ms | 14.82 ms | 14.53 ms |
+| Zoom input to accepted presentation p95 | 24.10 ms | 24.82 ms | 17.83 ms |
+| Accepted presentations/s in the 1.25 s full-view window | 71.01 | 73.06 | 64.79 |
+| Accepted presentations/s during the zoom sequence | 193.71 | 194.21 | 157.09 |
+
+The single-thread arm reduced zoom p95 by 26.0% and reduced full-view submission throughput by 8.8% versus the stock queue. The run ranges did not overlap for these measures. Drag latency and the selector comparison overlapped. The test retained the shipping queue and geometry format because the single-thread result trades latency for throughput and the selector still lacks a consistent interaction gain. Zoom input was paced by app consumption, so only the fixed full-view window measured a common elapsed duration. The endpoint is the app's acknowledgement after the Vulkan presentation call. Monitor scanout is outside the measurement. The Vulkan contract queues the image for presentation. [Vulkan presentation call](https://docs.vulkan.org/refpages/latest/refpages/source/vkQueuePresentKHR.html)
+
+All 1,188 matched input frames and nine normal exits are recorded in `artifacts/erd-input-present-latency-20261123/verification.json`.
