@@ -418,3 +418,22 @@ Layout setup and glyph capture decreased 33.7%, with all three candidate results
 The diagnostic source patch, replay results and local analysis are under `artifacts/codeview-directwrite-stages-20261123`. To reproduce the comparison, use the existing `replay.ps1` in `artifacts/codeview-live-stages-20261122` against the diagnostic build with `DuxelValidationHooks=true`. Toggle `DUXEL_PROBE_SKIP_DEFAULT_FONT_SETTINGS` between 0 and 1 in the diagnostic build only.
 
 The clean product solution built in Release with zero warnings and errors. The baseline, diagnostic variant, and clean product passed 424 assertions each across native paragraph geometry, styled paragraph output, and CodeView line-layout caching. The diagnostic variants matched 201 CodeView scroll states and the final Vulkan capture matched byte for byte in all three builds. Windows managed Gallery and WSLg Dozen Linux x64 NativeAOT Gallery each acknowledged 108 presentation scenarios with the product change.
+
+### DirectWrite range-query buffer experiment
+
+The diagnostic candidate gave `HitTestTextRange` an eight-entry stack buffer and retried with the reported capacity when needed. The control queried with an empty buffer and allocated the reported capacity before retrying. Both variants used the same span-based width reduction in this diagnostic build. The comparison isolates the buffer strategy. [DirectWrite range-query contract](https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nf-dwrite-idwritetextlayout-hittesttextrange)
+
+On managed .NET 11.0.0 and the RTX 5070 Ti Laptop GPU, three independent Windows Gallery processes per variant alternated in pairs. They opened SVG and Arcs and curves, verified the same scroll offsets and replayed 444 native wheel messages each. Cold navigation used 1984 × 956 and scrolling used 1483 × 720. A separate process fixture warmed 32 batches before measuring 64 batches. It rendered no frames and created 768 layouts per measurement from 12 horizontal and bidirectional cases with code, Korean text, numbers, punctuation, tabs and three widths.
+
+| Median of three runs | Query count first | Eight-entry buffer |
+| --- | ---: | ---: |
+| First Arcs and curves caret, line and range geometry | 2.900 ms | 2.926 ms |
+| First Arcs and curves app CPU frame | 56.88 ms | 56.47 ms |
+| First-scroll app CPU p95 | 4.522 ms | 4.511 ms |
+| First-scroll Vulkan draw p95 | 0.068 ms | 0.067 ms |
+| Paragraph fixture processing time | 132.46 ms | 131.90 ms |
+| Paragraph fixture managed allocations | 49,149,440 B | 48,421,888 B |
+
+Geometry, app frame and fixture processing time ranges overlap. The 1.48% allocation reduction was identical in each run. All six fixture hashes matched for glyph positions, carets and per-character selection fragments. Across all native-window runs, 2,322 changed scroll frames matched GPU timestamps. This experiment leaves the product range-query implementation in place. The allocator figures are short-lived managed allocations and do not establish a sustained process-memory reduction.
+
+The diagnostic patch, probe source and results are under `artifacts/codeview-range-buffer-20261123`. Run the existing `codeview-live-stages-20261122/replay.ps1` for the native Gallery comparison and the local `probe/Probe.csproj` for paragraph geometry and allocation. The diagnostic variants use `DUXEL_PROBE_PARAGRAPH_RANGE_BUFFER=0` and `1`.
