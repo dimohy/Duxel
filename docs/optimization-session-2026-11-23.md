@@ -220,6 +220,28 @@ The 300–800 px slider could emit 499 decorative rectangles at each traversal. 
 
 The observed median submission p99 fell 31.3%, with overlapping per-run ranges and too few burst frames per run for a robust tail speedup estimate. The reported severe stutter did not reproduce in the control. In event-driven mode the width reached 775 px, returned to 385 px, and the example code showed 385 px after release. Gallery verified 108 presentation scenarios. The local command was `replay.ps1 -Runtime <gallery-runtime> -Output <run> -DesktopSlider` with the fixture and raw results in `artifacts/messagebar-width-ticks-20261123`. This comparison does not measure monitor scanout or GPU execution time.
 
+### MessageBar preview during repeated fast drags
+
+Native Windows sampling found repeated DirectWrite paragraph layout and accessibility geometry notifications during width changes. The thumb still tracks the latest pointer position. The Gallery applies the latest width to the messages and width readout at most 60 times per second while the pointer is held. A pending width schedules one frame at its deadline. Release applies the exact final width on the next frame and refreshes the example source. Keyboard and accessibility adjustments apply without the drag interval.
+
+Paired Windows .NET SDK 11.0.100 and managed runtime 11.0.0 measurements used the same App and Core DLLs, with only the Gallery DLL swapped. For each mode, three independent foreground runs per variant replayed 680 pointer moves at about 2.1 ms spacing after at least 850 ms on the page. The replay covered repeated full-range sweeps, returning to a narrow width and releasing. V-Sync was disabled. The table shows medians of per-run statistics.
+
+| Metric | Event-driven before → after | Continuous before → after |
+| --- | ---: | ---: |
+| UI composition median | 2.58 → 1.20 ms | 2.52 → 1.09 ms |
+| App CPU median | 7.78 → 3.02 ms | 7.66 → 2.74 ms |
+| App CPU p95 | 9.14 → 7.37 ms | 8.75 → 7.41 ms |
+| App CPU p99 | 10.89 → 8.85 ms | 10.69 → 8.19 ms |
+| App submission interval median | 7.97 → 3.20 ms | 7.78 → 2.89 ms |
+| App submission interval p95 | 9.38 → 7.58 ms (−19.2%) | 8.95 → 7.59 ms (−15.2%) |
+| App submission interval p99 | 11.82 → 9.88 ms | 11.78 → 8.47 ms |
+| App submission mean FPS | 125.57 → 260.32 | 130.21 → 278.78 |
+| App submission 1% low FPS | 79.53 → 77.97 | 72.44 → 96.95 |
+
+All 12 replays reached 775 px during the drag and 385 px after release, with the final code showing 385 px. The app submitted more light frames. Accumulated UI composition time per second rose from 334 to 401 ms in event-driven mode and from 331 to 394 ms in continuous mode. The abrupt drop reported by the user did not recur in the control. The measurements cover app-side presentation acknowledgments and leave monitor scanout and GPU time unmeasured. Run `pwsh -File artifacts/messagebar-fast-width-20261123/replay.ps1 -Runtime <profiled-gallery> -Output <run> -DesktopSlider`, adding `-EventDriven` for that mode. The fixture, app timestamps, input and binary hashes are under `artifacts/messagebar-fast-width-20261123`.
+
+The Windows Release solution built with zero warnings and errors. The 40 focused page assertions covered the preview deadline, release before the deadline, and releasing at the original width. Windows managed Gallery and WSLg Dozen Linux x64 NativeAOT Gallery on the RTX 5070 Ti each acknowledged all 108 presentation scenarios. The Linux run verifies Gallery behavior and startup, with drag timing measured on Windows.
+
 ### Constant UV in resident ERD vertex streams
 
 The ERD upload trace found identical UV pairs within each of 1,200 static vertex streams. An isolated Vulkan prototype stores a pair once per stream and packs each vertex into 12 bytes of position and color. It selects the layout through an unused address bit and removes that bit before the shader dereferences the aligned address. Streams with varying UVs and expanded primitive triangles retain the 20-byte layout. All six temporary vertex entry points compiled and passed Vulkan 1.2 SPIR-V validation. [Vulkan buffer device address alignment](https://docs.vulkan.org/guide/latest/buffer_device_address_alignment.html)

@@ -12,10 +12,10 @@ internal static class MessageBarPageInteractionTests
         using var page = new MessageBarPage();
         var announcements = new List<UiAccessibilityAnnouncement>();
         tree.Announcement += announcements.Add;
-        void Frame()
+        void Frame(float elapsed = .1f, UiVector2? pointer = null, bool down = false, bool pressed = false, bool released = false)
         {
-            context.NewFrame(new(.1f, new(1280, 900), new(1, 1)),
-                new(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default),
+            context.NewFrame(new(elapsed, new(1280, 900), new(1, 1)),
+                new(pointer ?? new(-100, -100), down, false, pressed, released, false, false, 0, 0, [], [], default, default),
                 new(0, 0, 1280, 900), UiTextSettings.Default);
             context.Render(new Screen(ui => { ui.EnableRootViewportContentLayout(contentPadding: 0); page.Render(ui); }));
             using var data = context.GetDrawData();
@@ -60,6 +60,42 @@ internal static class MessageBarPageInteractionTests
             && announcements.Count(x => x.Priority == UiAnnouncementPriority.Polite) == 1
             && fixedNames.All(name => Find(name).Node.LabeledBy is not null),
             "Actual Observer exposes all four owned intents with real title relations and initial priority announcements");
+        var slider = Find("MessageBar 너비");
+        var bounds = slider.Node.Bounds;
+        UiVector2 At(float fraction) => new(bounds.X + bounds.Width * fraction, bounds.Y + bounds.Height / 2);
+        Frame(.001f, At(.5f), down : true, pressed : true);
+        Frame(.001f, At(.2f), down : true);
+        Frame(.001f, At(.25f), down : true);
+        var sampledWidth = AllMessages()[0].Options.Width;
+        Frame(.001f, At(.7f), down : true);
+        Frame(.001f, At(.75f), down : true);
+        var pendingWidth = Find("MessageBar 너비").Node.Range!.Value.Value;
+        check(sampledWidth < 600 && pendingWidth > 650 && AllMessages().All(message => message.Options.Width == sampledWidth)
+            && context.State.NextScheduledFrameTimeSeconds is not null,
+            $"Fast slider moves track the pointer immediately and leave one pending preview update ({sampledWidth}, {pendingWidth})");
+        Frame(.020f, At(.75f), down : true);
+        check(AllMessages().All(message => message.Options.Width == pendingWidth),
+            "The preview deadline applies the latest width while held");
+        Frame(.001f, At(.4f), down : true);
+        Frame(.001f, At(.4f), released : true);
+        var finalWidth = Find("MessageBar 너비").Node.Range!.Value.Value;
+        check(finalWidth < pendingWidth && context.State.NextScheduledFrameTimeSeconds is { } releaseAt
+            && releaseAt <= context.State.TimeSeconds,
+            "Releasing the slider schedules the pending width immediately");
+        Frame(.001f);
+        check(AllMessages().All(message => message.Options.Width == finalWidth),
+            "Releasing the slider applies the exact width before the preview interval expires");
+        Frame(.001f, At(.4f), down : true, pressed : true);
+        Frame(.001f, At(.8f), down : true);
+        Frame(.001f, At(.8f), down : true);
+        var movedAway = AllMessages().All(message => message.LastLayout.Size.X > finalWidth);
+        Frame(.001f, At(.4f), down : true);
+        Frame(.001f, At(.4f), released : true);
+        check(movedAway && context.State.NextScheduledFrameTimeSeconds is not null,
+            "Releasing at the original width schedules the preview even when the shown code already matches");
+        Frame(.001f);
+        check(AllMessages().All(message => message.LastLayout.Size.X == finalWidth),
+            "Releasing at the original width restores the preview");
         Toggle("동작 줄이기");
         check(Find("동작 줄이기").Node.Checked == true && page.FixedMessages.Options.ReducedMotion
             && page.DynamicMessages.Options.ReducedMotion, "Actual reduced-motion switch updates both real groups");

@@ -21,6 +21,7 @@ Give your assistant the target platform, the screen you want, and the reference 
 
 - Start with the nearest Gallery example. Its copied C# often includes the state and options needed to use the control.
 - For a slider with fine increments, set `ShowStepMarkers = false` to keep snapping without painting a tick for each step. The MessageBar width slider uses this option.
+- In the MessageBar example, the thumb follows the pointer while the width preview applies the latest value at up to 60 updates per second. On release, the message layout and the displayed C# use the final width.
 - When diagnosing resident geometry memory, distinguish cached draw-list bytes from Vulkan page allocations. See [retained rendering](retained-rendering.md).
 - Review keyboard focus, editing and content overflow for the actual screen. Use [keyboard guidance](widget-keyboard.md) and [accessibility guidance](widget-accessibility.md).
 - For an immediate-mode document viewport that scrolls vertically, pass `horizontalScroll: false` to `BeginChild`. The viewport reserves the scrollbar gutter during layout. A nested code view can still scroll horizontally when a line exceeds its own width.

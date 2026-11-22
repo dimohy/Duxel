@@ -4,8 +4,11 @@ namespace Duxel.Gallery;
 
 internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGallerySourcePage
 {
+    private const double PreviewIntervalSeconds = 1d / 60;
     private readonly UiState<float> _width = new(560);
     private readonly UiSlider<UiFluentSliderBehavior, UiFluentSliderPresentation> _widthSlider;
+    private float _previewWidth;
+    private double _nextPreviewAt;
     private float _sourceWidth;
     private readonly UiState<bool> _multiline = new(false);
     private readonly UiState<bool> _square = new(false);
@@ -32,8 +35,8 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
     public string Description => "Add or reorder messages and inspect how the title and body are linked for accessibility. A new message requests a screen reader announcement. Verify speech with your screen reader.";
     internal MessageBarPage()
     {
+        _sourceWidth = _previewWidth = _width.Value;
         _resolvedOptions = ResolveOptions(new());
-        _sourceWidth = _width.Value;
         _widthSlider = Fluent.Slider(GalleryText.Get("MessageBar width"), _width.Binding, 300, 800, 1);
         _widthSlider.Options = _widthSlider.Options with { ShowStepMarkers = false, CoalescePointerMoves = true };
         var intentDefinition = GallerySample.Define<Func<UiMessageBarIntent, string>>("intentLabel",
@@ -120,7 +123,7 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
             _widthSlider,
             Dux.Wrap(new(Spacing: 16, RunSpacing: 8), Fluent.Switch(GalleryText.Get("Multi-line layout"), _multiline.Binding),
                 Fluent.Switch(GalleryText.Get("Square corners"), _square.Binding), Fluent.Switch(GalleryText.Get("Right-to-left layout"), _rightToLeft.Binding)),
-            Fluent.Body1(() => GalleryText.Format("Width: {0:F0} / Actions: {1}", _width.Value, _actions.Value)),
+            Fluent.Body1(() => GalleryText.Format("Width: {0:F0} / Actions: {1}", _previewWidth, _actions.Value)),
             Dux.Wrap(new(Spacing: 16, RunSpacing: 8), Fluent.Switch(GalleryText.Get("Announce when shown"), _announce.Binding),
                 Fluent.Switch(GalleryText.Get("Always use polite announcements"), _polite.Binding)),
             Fluent.Caption1(() => GalleryText.Format("Announcement requests: {0} / {1}", _announcementCount.Value, _lastAnnouncement.Value)),
@@ -220,8 +223,18 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
     private void PrepareContent(UiImmediateContext ui)
     {
         ObserveAnnouncements(ui);
+        var width = _width.Value;
+        var now = ui.GetTime();
         if (!_widthSlider.IsPointerDragging)
-            _sourceWidth = _width.Value;
+        {
+            _sourceWidth = _previewWidth = width;
+            _nextPreviewAt = 0;
+        }
+        else if (width != _previewWidth && now >= _nextPreviewAt)
+        {
+            _previewWidth = width;
+            _nextPreviewAt = now + PreviewIntervalSeconds;
+        }
         _resolvedOptions = ResolveOptions(new());
         _group.Options = _group.Options with
         {
@@ -239,17 +252,32 @@ internal sealed class MessageBarPage : IObserverPage, IObserverNaturalPage, IGal
             message.Options = ResolveOptions(message.Options);
         }
     }
-    void IObserverNaturalPage.RenderOverlays(UiImmediateContext ui)
+    void IObserverNaturalPage.RenderOverlays(UiImmediateContext ui) => ScheduleWidthUpdate(ui);
+
+    private void ScheduleWidthUpdate(UiImmediateContext ui)
     {
-        // Release is observed after the frame's source synchronization.
-        if (!_widthSlider.IsPointerDragging && _sourceWidth != _width.Value)
+        var width = _width.Value;
+        if (_widthSlider.IsPointerDragging)
+        {
+            if (_previewWidth != width)
+                ui.RequestFrameAt(Math.Max(ui.GetTime(), _nextPreviewAt));
+        }
+        else if (_previewWidth != width || _sourceWidth != width)
+        {
+            // Release is observed after the frame's source synchronization.
             ui.RequestFrameAt(ui.GetTime());
+        }
     }
 
-    public void Render(UiImmediateContext ui) { PrepareContent(ui); _root.Render(ui); }
+    public void Render(UiImmediateContext ui)
+    {
+        PrepareContent(ui);
+        _root.Render(ui);
+        ScheduleWidthUpdate(ui);
+    }
     private UiMessageBarOptions ResolveOptions(UiMessageBarOptions options) => options with
     {
-        Width = _width.Value,
+        Width = _previewWidth,
         Layout = _multiline.Value ? UiMessageBarLayoutMode.MultiLine : UiMessageBarLayoutMode.Auto,
         Shape = _square.Value ? UiMessageBarShape.Square : UiMessageBarShape.Rounded,
         RightToLeft = _rightToLeft.Value,
