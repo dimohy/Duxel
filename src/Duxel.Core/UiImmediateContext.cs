@@ -206,8 +206,11 @@ public sealed partial class UiImmediateContext
                 || ParagraphRun is { } run && other.ParagraphRun is { } otherRun && run.RasterEquals(otherRun)
                 || WholeParagraph is { } paragraph && other.WholeParagraph is { } otherParagraph
                     && paragraph.RasterEquals(otherParagraph));
-        public override int GetHashCode() => HashCode.Combine(FontPath, SecondaryFontPath, Text, FontSize,
-            BackendGeneration, ParagraphRun?.RasterHash ?? WholeParagraph?.RasterHash ?? 0, ShortLived);
+        public override int GetHashCode() => ParagraphRun is { } run
+            // The immutable raster hash already includes the font path and size.
+            ? HashCode.Combine(run.RasterHash, BackendGeneration, ShortLived)
+            : HashCode.Combine(FontPath, SecondaryFontPath, Text, FontSize, BackendGeneration,
+                WholeParagraph?.RasterHash ?? 0, ShortLived);
     }
     private long _directTextBackendGeneration;
     private ulong _directTextBackendRevision;
