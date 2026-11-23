@@ -70,6 +70,7 @@ internal static class GallerySampleTests
         RunRepaintSources(check);
         RunMarkdownSources(check, output);
         RunControlsSources(check);
+        RunSvgTabDrag(check);
         RunPrimarySvgSources(check);
         RunSvgBrowserSources(check);
         RunLegacySources(check);
@@ -2019,6 +2020,48 @@ internal static class GallerySampleTests
             && sample.Source.Contains("partial struct HomeTabIcon", StringComparison.Ordinal)),
             "all appearance snippets reflect shared tab selection and include their real regular/filled generated icon declarations");
     }
+    private static void RunSvgTabDrag(Action<bool, string> check)
+    {
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        ControlFontFixture.Configure(context);
+        using var tree = new UiAccessibilityTree();
+        context.SetAccessibilityTree(tree);
+        using var page = new SvgPage(ObserverServices.CreateWindows());
+        using var frame = new GalleryPageFrame(page);
+        var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        void Frame(UiInputState input)
+        {
+            context.NewFrame(new(.016f, new(680, 900), new(1, 1)), input, new(0, 0, 680, 900), UiTextSettings.Default);
+            context.Render(new Screen(ui => { ui.EnableRootViewportContentLayout(contentPadding : 0); frame.Render(ui); }));
+            using var drawing = context.GetDrawData();
+        }
+        UiAccessibilityNode Find(string name, UiAccessibilityRole role) =>
+            tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == name && element.Node.Role == role).Node;
+        Frame(idle);
+        Frame(idle);
+        var tabs = page.Samples.OfType<GallerySample<UiFluentTabList>>().Single().Preview;
+        var bounds = Find(GalleryText.Get("SVG icon tabs"), UiAccessibilityRole.TabList).Bounds;
+        var down = idle with
+        {
+            MousePosition = new(bounds.X + bounds.Width * .82f, bounds.Y + bounds.Height * .5f),
+            LeftMousePressed = true,
+            LeftMouseDown = true
+        };
+        var end = new UiVector2(bounds.X + bounds.Width * .12f, down.MousePosition.Y);
+        Frame(down);
+        Frame(down with { MousePosition = end, LeftMousePressed = false });
+        Frame(idle with { MousePosition = end, LeftMouseReleased = true });
+        check(tabs.MaximumScrollOffset > 0 && tabs.ScrollOffset > 0 && tabs.Value.Value == "first",
+            "dragging an overflowing SVG tab strip pans it without selecting a different tab");
+        if (tabs.ScrollOffset <= 0) return;
+        var last = Find(GalleryText.Get("Arcs and curves"), UiAccessibilityRole.Tab);
+        check(!last.Offscreen && last.Bounds.Width > 0, "dragging reveals the last SVG tab");
+        var click = new UiVector2(last.Bounds.X + last.Bounds.Width * .5f, last.Bounds.Y + last.Bounds.Height * .5f);
+        Frame(down with { MousePosition = click });
+        Frame(idle with { MousePosition = click, LeftMouseReleased = true });
+        check(tabs.Value.Value == "arcs", "the revealed SVG tab responds to an ordinary click after dragging");
+    }
+
     private static void RunPrimarySvgSources(Action<bool, string> check)
     {
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));

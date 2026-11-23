@@ -196,6 +196,9 @@ internal sealed class SvgPage(ObserverServices services) : IObserverDocumentPage
                 new("layers", GalleryText.Get("Layers and strokes"), Icon : icon.TabIcon),
                 new("domains", GalleryText.Get("Stroke coverage"), Icon : icon.TabIcon),
                 new("arcs", GalleryText.Get("Arcs and curves"), Icon : icon.TabIcon)
+            }, new UiTabListOptions
+            {
+                Scroll = new(GalleryText.Get("Previous tabs"), GalleryText.Get("Next tabs"))
             }));
             _tabs = _tabsSample.Preview;
             var tabsFactory = _tabsSample.Source;

@@ -1209,6 +1209,8 @@ SVG widgets and icons draw paths and effects on the GPU. Zooming, rotating, and 
 No menu command selected	아직 메뉴를 선택하지 않았습니다.	メニュー操作はまだ選ばれていません	尚未选择菜单命令
 Select Reload after the file changes.	파일이 바뀌면 다시 읽기를 누르세요.	ファイルを変更したら再読み込みしてください。	文件更改后请选择重新加载。
 SVG icon tabs	SVG 아이콘 탭	SVG アイコンのタブ	SVG 图标选项卡
+Previous tabs	이전 탭	前のタブ	前面的选项卡
+Next tabs	다음 탭	次のタブ	后面的选项卡
 Images and text	이미지·텍스트	画像とテキスト	图像与文本
 Document features	문서 기능	ドキュメント機能	文档功能
 Browser comparison	브라우저 비교	ブラウザーとの比較	浏览器对比
