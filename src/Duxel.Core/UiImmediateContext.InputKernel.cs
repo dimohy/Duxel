@@ -774,7 +774,7 @@ public sealed partial class UiImmediateContext
             var caretRect = new UiRect(caretLeft, caretTop, caretWidth, caretHeight);
             if (IsCaretBlinkOn())
             {
-                _builder.AddRectFilled(caretRect, paint.Caret, _whiteTexture, inputClip);
+                PaintInputCaret(caretRect, paint.Caret, inputClip);
             }
         }
 

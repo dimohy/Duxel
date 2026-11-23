@@ -757,7 +757,7 @@ public sealed partial class UiImmediateContext
             var visibleCaretRect = IntersectRect(inputClip, caretRect);
             if (visibleCaretRect.Width > 0f && visibleCaretRect.Height > 0f && IsCaretBlinkOn())
             {
-                _builder.AddRectFilled(caretRect, paint.Caret, _whiteTexture, inputClip);
+                PaintInputCaret(caretRect, paint.Caret, inputClip);
             }
         }
 
