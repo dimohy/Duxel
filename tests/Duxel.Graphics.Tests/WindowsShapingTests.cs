@@ -29,6 +29,15 @@ internal static class WindowsShapingTests
         static bool Same(PlatformTextMeshResult a, PlatformTextMeshResult b) => a.Width == b.Width && a.Glyphs.Length == b.Glyphs.Length
             && a.Glyphs.Span.ToArray().Zip(b.Glyphs.Span.ToArray()).All(pair => pair.First.Offset == pair.Second.Offset
                 && pair.First.Vertices.Span.SequenceEqual(pair.Second.Vertices.Span) && pair.First.Indices.Span.SequenceEqual(pair.Second.Indices.Span));
+        Test(() =>
+        {
+            var lf = Mesh(korean, "한글\n\nAbg 907 ·₩\n");
+            var crlf = Mesh(korean, "한글\r\n\r\nAbg 907 ·₩\r\n");
+            var cr = Mesh(korean, "한글\r\rAbg 907 ·₩\r");
+            var joined = Mesh(korean, "한글Abg 907 ·₩");
+            return lf.Height == crlf.Height && lf.Height == cr.Height && lf.Height > joined.Height
+                && Same(lf, crlf) && Same(lf, cr);
+        }, "vector shaping preserves line breaks in LF, CRLF and CR text");
         Test(() => Same(Mesh(korean, "한"), Mesh(korean, "한")), "vector shaping composes Hangul Jamo with the same glyphs and advances as NFC");
         Test(() => Same(Mesh(latin, "é"), Mesh(latin, "e\u0301")), "vector shaping composes Latin base and combining acute without advancing the mark");
         Test(() => Mesh(latin, "AV").Width < Mesh(latin, "A").Width + Mesh(latin, "V").Width,

@@ -62,7 +62,8 @@ internal sealed partial class WindowsDirectWriteGlyphRasterizer
             nint factory = 0;
             try
             {
-                var lines = request.Text.Replace("\r", string.Empty, StringComparison.Ordinal)
+                var lines = request.Text.Replace("\r\n", "\n", StringComparison.Ordinal)
+                    .Replace('\r', '\n')
                     .Replace("\t", "    ", StringComparison.Ordinal).Split('\n');
                 foreach (var line in lines)
                 {
