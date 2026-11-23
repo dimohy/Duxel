@@ -6,6 +6,7 @@ internal static class CodeViewCacheTests
     {
         CodeHighlightTests.Run(check);
         ParagraphRasterKeyTests.Run(check);
+        SharedParagraphTextureTests.Run(check);
         VerifyVisibleWorkingSet(check);
         VerifyParagraphCacheAge(check);
         VerifyClippedAccessibilityGeometry(check);

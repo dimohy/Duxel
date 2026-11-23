@@ -1024,6 +1024,9 @@ public sealed partial class UiImmediateContext
             return;
         }
 
+        if (ReleaseSharedParagraphTexture(texId))
+            return;
+
         QueueTextureUpdate(new UiTextureUpdate(
             UiTextureUpdateKind.Destroy,
             texId,
@@ -1356,6 +1359,13 @@ public sealed partial class UiImmediateContext
             return atlasEntry;
         }
 
+        if (key.ParagraphRun is not null && entry.TextureFormat == UiTextureFormat.Rgba8Unorm)
+        {
+            entry = EnsureSharedParagraphTexture(entry);
+            StoreDirectTextEntry(key, entry);
+            return entry;
+        }
+
         var textureId = AllocateOwnedTextureId();
         QueueTextureUpdate(new UiTextureUpdate(
             UiTextureUpdateKind.Create,
@@ -1390,6 +1400,9 @@ public sealed partial class UiImmediateContext
         _shapedGlyphs?.Clear();
         foreach (var entry in _directTextCache.Values)
             entry.PixelOwner?.Dispose();
+        _sharedParagraphTextures?.Clear();
+        _sharedParagraphTextureIds?.Clear();
+        _sharedParagraphTextureBytes = 0;
         _directTextCache.Clear();
         _directTextPaintedKeys.Clear();
         _directTextCacheAllRetained = false;
