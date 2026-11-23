@@ -1,5 +1,7 @@
 # Fluent 2 구현 범위 — 사용자 교정, 2026-11-05
 
+2026-11-23에 공식 목록을 대조한 결과 React 47개, iOS 12개, Android 5개로 총 64개 링크가 저장소의 목록과 일치했습니다. 빌드한 카탈로그는 팩터리 이름 91개를 제공하며 필수 상위 이름 55개를 모두 포함합니다. 변형, 상태, 외형, 입력과 접근성 검토가 남아 있어 소스 카탈로그는 초안 상태입니다. [React 목록](https://fluent2.microsoft.design/components/web/react) · [iOS 목록](https://fluent2.microsoft.design/components/ios) · [Android 목록](https://fluent2.microsoft.design/components/android)
+
 Dialog의 모달·비모달·경고 유형은 `UiDialogType`으로 지정합니다. 디자인 가이드는 경고 대화 상자를 하단 버튼으로 닫도록 안내합니다. 해당 React 참조 구현은 경고 유형에도 Escape로 닫기 요청을 보냅니다. Duxel API는 기존 기본 동작을 유지하며, Gallery 경고 예제는 `SuppressEscapeDismissal`을 사용해 가이드대로 하단 버튼으로 닫습니다. [Dialog 디자인 가이드](https://fluent2.microsoft.design/components/web/react/core/dialog/usage) · [React 소스 c78d223](https://github.com/microsoft/fluentui/blob/c78d22353ba03b9eb744f577332aa400daf10934/packages/react-components/react-dialog/library/src/components/DialogSurface/useDialogSurface.ts)
 
 ProgressIndicator 아래에 Android 공식 원형 유형인 `CircularProgressIndicator`를 연결했습니다. 선형과 원형의 갤러리 예제를 함께 볼 수 있습니다. [원형 동작과 검증](fluent2-progress-indicator.ko.md#원형-진행-표시)

@@ -1,5 +1,7 @@
 # Fluent 2 implementation scope — user correction, 2026-11-05
 
+On 2026-11-23, the three official indexes matched the source catalog's 64 platform links (47 React, 12 iOS, and five Android). The compiled catalog exposed 91 factory names and contained all 55 required top-level names. The source catalog remains a draft pending variant, state, visual, input, and accessibility review. [React index](https://fluent2.microsoft.design/components/web/react) · [iOS index](https://fluent2.microsoft.design/components/ios) · [Android index](https://fluent2.microsoft.design/components/android)
+
 Dialog uses `UiDialogType` for modal, nonmodal, and alert behavior. The design guide specifies footer buttons for alert dismissal. The pinned React implementation also requests a close on Escape for alerts. Duxel preserves that API default and uses `SuppressEscapeDismissal` in the Gallery alert example to show the guide's footer-only behavior. [Dialog design guide](https://fluent2.microsoft.design/components/web/react/core/dialog/usage) · [React source at c78d223](https://github.com/microsoft/fluentui/blob/c78d22353ba03b9eb744f577332aa400daf10934/packages/react-components/react-dialog/library/src/components/DialogSurface/useDialogSurface.ts)
 
 ProgressIndicator includes the official Android circular variant as `CircularProgressIndicator`. The Gallery's ProgressIndicator page exposes both examples. [Circular behavior and verification](fluent2-progress-indicator.md#circular-progress)
