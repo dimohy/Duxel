@@ -11,6 +11,7 @@ Give your assistant the target platform, the screen you want, and the reference 
 | Retained mode for forms, tools, dashboards and dialogs | [Declarative C# dashboard](../samples/fba/declarative_dashboard_fba.cs), [Gallery](gallery-navigation.md) |
 | Immediate mode for custom drawing and direct input | [Immediate-mode examples](../samples/fba/all_features.cs), [Architecture](design.md) |
 | Layout, theming and custom widgets | [Containers](widget-containers.md), [Theme provider](fluent2-provider.md), [Custom widgets](custom-widgets.md) |
+| Sort, select or edit tabular data | [Fluent DataGrid](fluent2-data-grid.md) |
 | Load or generate a declarative UI | [`.ui` syntax and source generation](ui-dsl.md) |
 
 ## Starting prompt

@@ -69,7 +69,7 @@ public sealed partial class UiImmediateContext
             var selectorWidth = grid.Selectable ? MathF.Min(DataGridSelectionWidth, content.Width / 2) : 0;
             if (selectorWidth > 0)
             {
-                var cell = content with { Width = selectorWidth };
+                var cell = PositionDataGridCell(content, content with { Width = selectorWidth });
                 if (grid.Options.Selection == UiDataGridSelection.Multiple && grid.RowCount > 0)
                 {
                     var id = ResolveId("SelectAll");
@@ -94,7 +94,8 @@ public sealed partial class UiImmediateContext
             for (var c = 0; c < grid.Columns.Length; c++)
             {
                 var column = grid.Columns[c];
-                var cell = DataGridCellBounds(content, c, grid.Columns.Length, remaining, column.Weight, grid.TotalWeight, ref x);
+                var cell = PositionDataGridCell(content,
+                    DataGridCellBounds(content, c, grid.Columns.Length, remaining, column.Weight, grid.TotalWeight, ref x));
                 var key = DataGridColumnKey(c);
                 var cellId = ResolveId(key);
                 var sortable = column.Compare is not null;
@@ -111,10 +112,12 @@ public sealed partial class UiImmediateContext
                     if (grid.SortColumn == c)
                     {
                         label += grid.SortDescending ? ", descending" : ", ascending";
-                        var arrow = new UiRect(cell.X + cell.Width - 26, cell.Y + (cell.Height - 16) / 2, 16, 16);
+                        var arrowX = RightToLeft ? cell.X + 10 : cell.X + cell.Width - 26;
+                        var arrow = new UiRect(arrowX, cell.Y + (cell.Height - 16) / 2, 16, 16);
                         DrawChevronIcon(arrow, grid.SortDescending ? 0 : 180, .85f, 1.5f, theme.Text);
                     }
-                    labelBounds = cell with { Width = MathF.Max(0, cell.Width - 20) };
+                    var labelWidth = MathF.Max(0, cell.Width - 20);
+                    labelBounds = cell with { X = RightToLeft ? cell.X + cell.Width - labelWidth : cell.X, Width = labelWidth };
                     if (interaction.FocusVisible)
                         context.FocusOutline(cell, 4);
                 }
@@ -189,6 +192,7 @@ public sealed partial class UiImmediateContext
                         : DataGridCellBounds(row, c, grid.Columns.Length, remaining, column.Weight, grid.TotalWeight, ref x);
                     if (cell.Width <= 0)
                         continue;
+                    cell = PositionDataGridCell(row, cell);
                     var columnKey = DataGridColumnKey(c);
                     var cellId = ResolveId(columnKey);
                     if (editor is not null && ReferenceEquals(editor, grid.Editor) && editor.Key == key && editor.Column == c)
@@ -305,8 +309,8 @@ public sealed partial class UiImmediateContext
             {
                 case UiKey.UpArrow: row--; break;
                 case UiKey.DownArrow: row++; break;
-                case UiKey.LeftArrow: column--; break;
-                case UiKey.RightArrow: column++; break;
+                case UiKey.LeftArrow: column += RightToLeft ? 1 : -1; break;
+                case UiKey.RightArrow: column += RightToLeft ? -1 : 1; break;
                 case UiKey.Home: column = grid.Selectable ? -1 : 0; break;
                 case UiKey.End: column = grid.Columns.Length - 1; break;
                 case UiKey.PageUp: row -= page; break;
@@ -342,6 +346,9 @@ public sealed partial class UiImmediateContext
             _currentTabStops.RemoveRange(start + 1, _currentTabStops.Count - start - 1);
         }
     }
+
+    private UiRect PositionDataGridCell(UiRect row, UiRect cell) =>
+        RightToLeft ? cell with { X = row.X + (row.Width - (cell.X - row.X) - cell.Width) } : cell;
 
     private static string DataGridColumnKey(int column) =>
         column < 0 ? "Selector" : column.ToString(System.Globalization.CultureInfo.InvariantCulture);

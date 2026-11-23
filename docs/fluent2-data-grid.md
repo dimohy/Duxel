@@ -1,5 +1,7 @@
 # Fluent DataGrid
 
+Use **Right-to-left layout** in the Gallery example to try the direction inherited from `FluentProvider`. The selection column moves to the right, and the arrow keys follow the displayed column positions. Changing direction preserves the selected rows and the focused cell. [WAI grid keyboard guidance](https://www.w3.org/WAI/ARIA/apg/patterns/grid/#keyboardinteractionfordatagrids)
+
 In Gallery, open **Fluent controls → Content and lists → DataGrid**. The example shows 2,048 design files. Column headers stay visible while rows scroll. Activate a sortable header to start in ascending order and activate it again to reverse the order.
 
 `Fluent.DataGrid<T>(rows, getKey, columns, options)` snapshots the rows. Supply a unique string key for each row, a display function for each column, and an optional typed comparison. Column weights share the available width. Numeric columns can align right and sort by their underlying values. Set `AccessibleName` to describe the grid's contents.

@@ -35,7 +35,8 @@ internal static class DataGridTests
         check(duplicateRejected && grid.RowCount == 2_000, "DataGrid rejects duplicate keys without replacing its snapshot");
 
         var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
-        var screen = new Screen(grid);
+        using var provider = Fluent.FluentProvider(grid);
+        var screen = new Screen(provider);
         void Frame(UiInputState? input = null)
         {
             context.NewFrame(new(1f / 60, new(520, 260), new(1, 1)), input ?? idle, new(0, 0, 520, 260), UiTextSettings.Default);
@@ -136,6 +137,27 @@ internal static class DataGridTests
         Key(UiKey.Enter);
         check(!grid.IsEditing && change is { Key: "key-1999", Column: 0, Item.Name: "X" }
             && Find("X").Focused, "DataGrid commits a validated edit, publishes the replacement and restores cell focus");
+        var selectedBeforeDirection = grid.IsSelected(rows[^1].Key);
+        var ltrHeader = Find("Name").Bounds;
+        var ltrCell = Find("X").Bounds;
+        provider.Direction = UiFlowDirection.RightToLeft;
+        Frame();
+        var rtlName = Find("Name");
+        var rtlSize = Find("Size, ascending");
+        var rtlValue = Find("X");
+        check(Find("Select all rows").Bounds.X > rtlName.Bounds.X && rtlName.Bounds.X > rtlSize.Bounds.X
+            && rtlName.Bounds.X == rtlValue.Bounds.X && rtlName.Bounds.Width == rtlValue.Bounds.Width,
+            "DataGrid mirrors the selection column and aligns headers and rows inside an RTL FluentProvider");
+        check(rtlValue.Focused && rtlValue.GridItem?.Column == 1 && grid.IsSelected(rows[^1].Key) == selectedBeforeDirection,
+            "DataGrid preserves the logical column, selected key and focused cell when direction changes");
+        Key(UiKey.LeftArrow);
+        check(Find("1 KB").Focused, "DataGrid Left moves to the displayed cell on the left in RTL");
+        Key(UiKey.RightArrow);
+        check(Find("X").Focused, "DataGrid Right moves to the displayed cell on the right in RTL");
+        provider.Direction = UiFlowDirection.LeftToRight;
+        Frame();
+        check(Find("Name").Bounds == ltrHeader && Find("X").Bounds == ltrCell && Find("X").Focused,
+            "DataGrid restores LTR bounds without losing the focused cell");
         grid.SetSelected(rows[1].Key, true);
         grid.SetRows([rows[1], rows[2]]);
         check(grid.IsSelected(rows[1].Key) && grid.SortColumn == 1 && grid.RowCount == 2, "DataGrid row replacement preserves sorting and surviving selection");

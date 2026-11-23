@@ -17,6 +17,7 @@ internal sealed class DataGridPage : IObserverPage, IObserverNaturalPage, IGalle
             string[] owners = [GalleryText.Get("Hana Kim"), GalleryText.Get("Seo-jun Lee"), GalleryText.Get("Ji-woo Park"), GalleryText.Get("Min-seo Jeong")];
             string[] statuses = [GalleryText.Get("Draft"), GalleryText.Get("In review"), GalleryText.Get("Shared")];
             var fileName = GalleryText.Get("Design review {0:D4}.pdf");
+            var fileCount = GalleryText.Get("{0:N0} files · {1:N0} selected");
             var files = Enumerable.Range(1, 2048).Select(i => new FileRow(
                 $"file-{i}", string.Format(fileName, i), owners[i % owners.Length],
                 statuses[i % statuses.Length], 24 + i * 53 % 4800)).ToArray();
@@ -35,12 +36,17 @@ internal sealed class DataGridPage : IObserverPage, IObserverNaturalPage, IGalle
                     UiItemHorizontalAlign.Right)
             ], new(Width: 820, Height: 360, Selection: UiDataGridSelection.Multiple));
             grid.AccessibleName = GalleryText.Get("Design review files");
-            return grid;
+            var provider = Fluent.FluentProvider(grid);
+            var direction = new UiBinding<bool>(
+                () => provider.Direction == UiFlowDirection.RightToLeft,
+                value => provider.Direction = value ? UiFlowDirection.RightToLeft : UiFlowDirection.Inherit);
+            return Dux.Column(new(Spacing: 12, MainAxisSize: UiMainAxisSize.Min),
+                Fluent.Switch(GalleryText.Get("Right-to-left layout"), direction),
+                Fluent.Body1(() => string.Format(fileCount, grid.RowCount, grid.SelectedCount)),
+                provider);
         }, declarations: "sealed record FileRow(string Id, string Name, string Owner, string Status, int SizeKb);");
         Samples = [sample];
-        var grid = sample.Preview;
-        _root = Dux.Column(new(Spacing: 12, MainAxisSize: UiMainAxisSize.Min),
-            Fluent.Body1(() => GalleryText.Format("{0:N0} files · {1:N0} selected", grid.RowCount, grid.SelectedCount)), sample);
+        _root = sample;
     }
 
     public void Render(UiImmediateContext ui) => _root.Render(ui);

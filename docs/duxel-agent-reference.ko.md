@@ -11,6 +11,7 @@ AI에 대상 플랫폼, 만들 화면, 사용할 Duxel 버전을 알려 주세�
 | 리테인드 모드로 폼·도구·대화 상자 만들기 | [선언형 C# 대시보드](../samples/fba/declarative_dashboard_fba.cs), [갤러리](gallery-navigation.ko.md) |
 | 즉시 모드로 직접 그리기와 입력 처리 | [즉시 모드 예제](../samples/fba/all_features.cs), [설계](design.ko.md) |
 | 레이아웃, 테마, 사용자 정의 위젯 | [컨테이너](widget-containers.ko.md), [테마 공급자](fluent2-provider.ko.md), [사용자 정의 위젯](custom-widgets.ko.md) |
+| 표에서 정렬, 선택, 편집 | [Fluent DataGrid](fluent2-data-grid.ko.md) |
 | 선언형 UI 불러오기 또는 생성 | [`.ui` 문법과 소스 생성](ui-dsl.ko.md) |
 
 ## 처음 사용할 프롬프트

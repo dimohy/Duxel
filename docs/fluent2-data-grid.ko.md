@@ -1,5 +1,7 @@
 # Fluent DataGrid
 
+갤러리에서 **오른쪽에서 왼쪽 배치** 스위치를 켜면 DataGrid가 `FluentProvider`의 방향 설정을 따릅니다. 선택 열은 오른쪽으로 이동하고 좌우 방향키는 화면에 보이는 열의 위치를 따릅니다. 배치 방향을 바꿔도 선택한 행과 포커스가 있는 셀은 유지됩니다. [WAI 그리드 키보드 지침](https://www.w3.org/WAI/ARIA/apg/patterns/grid/#keyboardinteractionfordatagrids)
+
 갤러리에서 **Fluent 컨트롤 → 콘텐츠와 목록 → DataGrid**를 열면 디자인 파일 2,048개가 표시됩니다. 행을 스크롤해도 열 제목은 위에 고정됩니다. 정렬할 수 있는 열 제목을 누르면 오름차순으로 정렬되고 한 번 더 누르면 내림차순으로 바뀝니다.
 
 `Fluent.DataGrid<T>(rows, getKey, columns, options)`는 전달한 행을 복사해 사용합니다. 행마다 고유한 문자열 키를 지정하고, 열마다 화면에 표시할 문자열을 반환하는 함수를 전달합니다. 정렬할 열에는 비교 함수를 지정합니다. 열 너비는 가중치에 따라 나뉘며, 숫자는 오른쪽에 맞추고 실제 값으로 정렬할 수 있습니다. `AccessibleName`에는 표의 내용을 설명하는 이름을 지정합니다.

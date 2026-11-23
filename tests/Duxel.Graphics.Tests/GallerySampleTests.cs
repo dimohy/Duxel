@@ -2271,7 +2271,7 @@ internal static class GallerySampleTests
         var unchangedBytes = 0L;
         var requested = requestedPages?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
         var completedPages = new List<string>();
-        var examples = GalleryComponentExamples.Create();
+        IObserverPage[] examples = [..GalleryComponentExamples.Create(), new DataGridPage()];
         var expectedTitles = examples.Select(page => page.Title).ToHashSet(StringComparer.Ordinal);
         foreach (var example in examples)
         {
@@ -2483,6 +2483,11 @@ internal static class GallerySampleTests
                         { Name : "페이지 전체 C# 복사", Role : UiAccessibilityRole.Tooltip }),
                         "the page copy icon shows its action as a hover tooltip");
                     Frame();
+                    break;
+                case "DataGrid":
+                    check(Source().Contains("Fluent.FluentProvider(", StringComparison.Ordinal)
+                        && !Source().Contains("GalleryText.", StringComparison.Ordinal),
+                        "DataGrid source includes the direction provider and needs no Gallery localization helper");
                     break;
                 case "Animation":
                     check(samples.Cast<GallerySample<UiWidget>>().All(sample =>
