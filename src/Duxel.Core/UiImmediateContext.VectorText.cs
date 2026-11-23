@@ -3,7 +3,7 @@ namespace Duxel.Core;
 public sealed partial class UiImmediateContext
 {
     private readonly record struct VectorTextCacheKey(DirectTextCacheKey Text, float Tolerance, float IconAscent);
-    private readonly record struct VectorTextCacheEntry(PlatformTextMeshResult Mesh, float InkTop, float InkHeight,
+    private readonly record struct VectorTextCacheEntry(PlatformTextMeshResult Mesh, (float Top, float Height)? Ink = null,
         UiVectorGlyphSource? Icon = null)
     {
         internal float Baseline => Mesh.Baseline;
@@ -51,21 +51,8 @@ public sealed partial class UiImmediateContext
             throw new InvalidOperationException("Vector text must contain complete triangles.");
         if (_vectorTextMeshes.Count == DirectTextCacheMaxEntries)
             _vectorTextMeshes.Remove(_vectorTextMeshOrder.Dequeue());
-        var top = float.PositiveInfinity;
-        var bottom = float.NegativeInfinity;
-        foreach (var point in mesh.TriangleVertices.Span)
-        {
-            top = MathF.Min(top, point.Y);
-            bottom = MathF.Max(bottom, point.Y);
-        }
-        foreach (var glyph in mesh.Glyphs.Span)
-            foreach (var point in glyph.Vertices.Span)
-            {
-                top = MathF.Min(top, point.Y + glyph.Offset.Y);
-                bottom = MathF.Max(bottom, point.Y + glyph.Offset.Y);
-            }
-        var entry = new VectorTextCacheEntry(mesh, float.IsFinite(top) ? top : 0, float.IsFinite(top) ? bottom - top : 0,
-            _fontIconVectorPaint ? PrepareIconCoverage(mesh) : null);
+        var entry = new VectorTextCacheEntry(mesh,
+            Icon: _fontIconVectorPaint ? PrepareIconCoverage(mesh) : null);
         _vectorTextMeshes.Add(key, entry);
         _vectorTextMeshOrder.Enqueue(key);
         return entry;
@@ -80,9 +67,31 @@ public sealed partial class UiImmediateContext
 
     private (float Top, float Height, float Baseline) GetVectorTextInk(string text, float fontSize)
     {
-        GetVectorTextMesh(text, (int)MathF.Round(fontSize * 4), fontSize);
-        var entry = _vectorTextMeshes[CreateVectorTextCacheKey(text, fontSize)];
-        return (entry.InkTop, entry.InkHeight, entry.Mesh.Baseline);
+        var entry = GetVectorTextMesh(text, (int)MathF.Round(fontSize * 4), fontSize);
+        if (entry.Ink is not { } ink)
+        {
+            ink = MeasureVectorTextInk(entry.Mesh);
+            _vectorTextMeshes[CreateVectorTextCacheKey(text, fontSize)] = entry with { Ink = ink };
+        }
+        return (ink.Top, ink.Height, entry.Mesh.Baseline);
+    }
+
+    private static (float Top, float Height) MeasureVectorTextInk(in PlatformTextMeshResult mesh)
+    {
+        var top = float.PositiveInfinity;
+        var bottom = float.NegativeInfinity;
+        foreach (var point in mesh.TriangleVertices.Span)
+        {
+            top = MathF.Min(top, point.Y);
+            bottom = MathF.Max(bottom, point.Y);
+        }
+        foreach (var glyph in mesh.Glyphs.Span)
+            foreach (var point in glyph.Vertices.Span)
+            {
+                top = MathF.Min(top, point.Y + glyph.Offset.Y);
+                bottom = MathF.Max(bottom, point.Y + glyph.Offset.Y);
+            }
+        return float.IsFinite(top) ? (top, bottom - top) : (0, 0);
     }
 
     private UiVector2 MeasureVectorText(in VectorTextCacheEntry entry, UiTextSettings settings)
@@ -131,5 +140,5 @@ public sealed partial class UiImmediateContext
     }
     private void RenderVectorText(UiDrawListBuilder draw, in PlatformTextMeshResult mesh,
         UiVector2 position, UiColor color, UiRect clip)
-        => RenderVectorText(draw, new VectorTextCacheEntry(mesh, 0, 0), position, color, clip);
+        => RenderVectorText(draw, new VectorTextCacheEntry(mesh), position, color, clip);
 }
