@@ -26,6 +26,8 @@ Linux의 Bash에서 실행합니다. X11/Xwayland와 Vulkan이 준비된 WSLg에
 curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/v0.4.0/samples/fba/duxel_gallery_linux.cs && dotnet run --file duxel_gallery_linux.cs
 ~~~
 
+![Duxel Gallery에서 SizedBox 레이아웃 예제와 C# 코드를 함께 보는 화면](docs/images/duxel-0.4.0-gallery.png)
+
 ## Fluent 2 앱 예제
 
 계산기, 메모장, 대용량 목록, 움직이는 도형은 각각 C# 파일 하나로 실행합니다. Windows와 Linux에서 같은 소스를 씁니다. [예제별 한 줄 실행 명령](docs/fba-run-samples.ko.md)
@@ -36,6 +38,8 @@ curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/v0.4.0/samples/fba/du
 | [메모장](samples/fba/duxel_notepad.cs) | 로컬 메모를 편집하고 텍스트 파일로 저장합니다. |
 | [대용량 목록](samples/fba/duxel_large_list.cs) | 10만 행을 스크롤하거나 마지막 행으로 바로 이동합니다. 화면에 가까운 행만 위젯으로 만듭니다. |
 | [움직이는 도형](samples/fba/duxel_render_motion.cs) | 원의 수를 바꾸면서 같은 창에서 Fluent 2 컨트롤을 조작해 봅니다. |
+
+![10만 항목 중 행 위젯 12개를 생성한 재고 목록 예제 화면](docs/images/duxel-0.4.0-inventory.png)
 
 ## 앱 만들기
 

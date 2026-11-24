@@ -26,6 +26,8 @@ Use Bash on Linux or WSLg with X11/Xwayland and Vulkan. [Linux setup](docs/linux
 curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/v0.4.0/samples/fba/duxel_gallery_linux.cs && dotnet run --file duxel_gallery_linux.cs
 ~~~
 
+![Duxel Gallery showing the SizedBox layout demo and its C# source](docs/images/duxel-0.4.0-gallery.png)
+
 ## Run a Fluent 2 desktop app
 
 Download and run any of the following as a single C# file. The Calculator, Notepad, Large List, and Motion Canvas run with the same source on Windows and Linux. [One-line commands for every example](docs/fba-run-samples.md)
@@ -36,6 +38,8 @@ Download and run any of the following as a single C# file. The Calculator, Notep
 | [Notepad](samples/fba/duxel_notepad.cs) | Edit a local note and save it as plain text. |
 | [Large List](samples/fba/duxel_large_list.cs) | Scroll or jump through 100,000 rows with a virtualized viewport. |
 | [Motion Canvas](samples/fba/duxel_render_motion.cs) | Adjust the number of animated shapes while the Fluent 2 controls stay interactive. |
+
+![The inventory sample showing 12 row widgets for 100,000 items](docs/images/duxel-0.4.0-inventory.png)
 
 ## Build with Duxel
 
