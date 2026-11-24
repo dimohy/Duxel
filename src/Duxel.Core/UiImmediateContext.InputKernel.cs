@@ -149,7 +149,8 @@ public sealed partial class UiImmediateContext
     internal UiInputEditResult EditSingleLineInput(string id, ref string value, int maxLength, in UiInputLayout layout, bool selectAllOnFocus)
         => EditSingleLineInput(id, ref value, maxLength, layout, selectAllOnFocus, false);
 
-    internal UiInputEditResult EditSingleLineInput(string id, ref string value, int maxLength, in UiInputLayout layout, bool selectAllOnFocus, bool keepFocus)
+    internal UiInputEditResult EditSingleLineInput(string id, ref string value, int maxLength, in UiInputLayout layout,
+        bool selectAllOnFocus, bool keepFocus, bool pointerPressConsumed = false)
     {
         EnsureNotMeasuring();
         if (maxLength <= 0)
@@ -198,7 +199,8 @@ public sealed partial class UiImmediateContext
         var caretMoved = false;
         var scrollX = _state.GetScrollX(id);
         var initialScrollX = scrollX;
-        if (_leftMousePressed)
+        var pointerPressed = _leftMousePressed && !pointerPressConsumed;
+        if (pointerPressed)
         {
             if (hovered)
             {
@@ -551,7 +553,7 @@ public sealed partial class UiImmediateContext
         var nativeComposition = compositionLayout?.Layout.Geometry is not null;
         var keepAccessibilityScroll = _accessibility?.KeepInputTextScroll(id, text, caretIndex, selection.Start,
             visibleWidth, scrollX, LayoutMeasurementKey, active,
-            !string.IsNullOrEmpty(compositionText) || active && (caretMoved || changed || _leftMousePressed || _keyEvents.Any(key => key.IsDown))) == true;
+            !string.IsNullOrEmpty(compositionText) || active && (caretMoved || changed || pointerPressed || _keyEvents.Any(key => key.IsDown))) == true;
         var caretPixel = active && visibleWidth > 0f
             ? nativeComposition ? compositionLayout!.CaretX : (lineLayout.Geometry is not null && string.IsNullOrEmpty(compositionText)
                 ? lineLayout.X(caretIndex) : MeasureTextWidth(text, caretIndex)) + compositionWidth : 0f;
@@ -797,14 +799,15 @@ public sealed partial class UiImmediateContext
             Y = position.Y + leading
         }, color, clip);
     }
-    internal UiInputEditResult EditNavigableInput(string id, ref string value, int maxLength, in UiInputLayout layout, string? retainedPointerOwner = null)
+    internal UiInputEditResult EditNavigableInput(string id, ref string value, int maxLength, in UiInputLayout layout,
+        string? retainedPointerOwner = null, bool pointerPressConsumed = false)
     {
         EnsureNotMeasuring();
         var hovered = ItemHoverable(id, layout.Field);
         _lastItemId = id;
         _lastItemFlags = _currentItemFlags;
         _lastItemEdited = false;
-        var editableHovered = layout.Editing.HasValue ? ItemHoverable(id, layout.EditingBounds) : hovered;
+        var editableHovered = !pointerPressConsumed && (layout.Editing.HasValue ? ItemHoverable(id, layout.EditingBounds) : hovered);
         var nav = ProcessControlKeyboard<RangeControlKeys>(layout.EditingBounds, new(false, editableHovered, false));
         var retainingPointer = retainedPointerOwner is not null && _state.ActiveId == retainedPointerOwner && _leftMouseDown;
         if (!retainingPointer && nav.Focused && (!_leftMousePressed || _fieldFocusedControlId == id || _accessibilityFocus == id) && _state.ActiveId != id)
@@ -824,7 +827,7 @@ public sealed partial class UiImmediateContext
         }
         if (editableHovered && IsControlEnabled)
             SetMouseCursor(UiMouseCursor.TextInput);
-        var edit = EditSingleLineInput(id, ref value, maxLength, layout, false, true);
+        var edit = EditSingleLineInput(id, ref value, maxLength, layout, false, true, pointerPressConsumed);
         _lastItemEdited = edit.Changed;
         return edit with
         {

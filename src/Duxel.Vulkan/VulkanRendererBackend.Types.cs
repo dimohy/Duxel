@@ -103,6 +103,7 @@ public sealed unsafe partial class VulkanRendererBackend
         public readonly List<PendingTextureDestroy> PendingTextureDestroys = new();
         public readonly List<PendingBufferDestroy> PendingBufferDestroys = new();
         public readonly List<RetiredRenderTargets> PendingRenderTargets=[];
+        public List<ProjectedGlyphPage>? ProjectedGlyphBatchPages;
         public ulong SubmittedSequence;
     }
 

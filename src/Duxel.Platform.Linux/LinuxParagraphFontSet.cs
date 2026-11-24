@@ -12,6 +12,7 @@ internal sealed unsafe partial class LinuxParagraphFontSet : IDisposable
     internal readonly record struct Selection(int Start, int End, LinuxFontResource Font);
     private nint _map, _context, _primaryDescription, _secondaryDescription;
     private readonly Dictionary<(string Path, bool Oblique), nint> _descriptions = [];
+    private readonly Dictionary<(string Path, bool Oblique), nint> _projectedDescriptions = [];
 
     internal LinuxParagraphFontSet(LinuxFontResource primary, LinuxFontResource? secondary)
         : this(secondary is null ? [primary] : [primary, secondary]) { }
@@ -73,6 +74,19 @@ internal sealed unsafe partial class LinuxParagraphFontSet : IDisposable
     }
 
     private nint FontDescription(LinuxFontResource font) => _descriptions[(font.Path, font.Oblique)];
+
+    private nint ProjectedDescription(LinuxFontResource font)
+    {
+        if (font.ProjectedVariations.Length == 0)
+            return FontDescription(font);
+        var key = (font.Path, font.Oblique);
+        if (_projectedDescriptions.TryGetValue(key, out var description))
+            return description;
+        description = Require(pango_font_description_copy(FontDescription(font)), "projected font description");
+        pango_font_description_set_variations(description, font.ProjectedVariations);
+        _projectedDescriptions.Add(key, description);
+        return description;
+    }
 
     internal nint CreateStyledLayout(string text, ReadOnlySpan<Selection> selections, LinuxFontResource emptyFont,
         float width, bool rightToLeft, ReadOnlySpan<Shape> shapes = default)
@@ -136,20 +150,23 @@ internal sealed unsafe partial class LinuxParagraphFontSet : IDisposable
 
     internal void RestoreBaseDirection() => pango_context_set_base_dir(_context, 0);
 
-    internal nint CreateLayout(string text, float size, LinuxFontResource primary, LinuxFontResource? secondary, out Selection[] selections)
+    internal nint CreateLayout(string text, float size, LinuxFontResource primary, LinuxFontResource? secondary,
+        out Selection[] selections, bool rightToLeft = false, bool projected = false)
     {
         selections = [];
         ObjectDisposedException.ThrowIf(_context == 0, this);
-        RestoreBaseDirection();
+        pango_context_set_base_dir(_context, rightToLeft ? 1 : 0);
         var bytes = Encoding.UTF8.GetBytes(text + '\0');
         var layout = Require(pango_layout_new(_context), "paragraph layout");
         nint attributes = 0;
         try
         {
-            pango_font_description_set_absolute_size(_primaryDescription, size * Scale);
-            if (_secondaryDescription != 0)
-                pango_font_description_set_absolute_size(_secondaryDescription, size * Scale);
-            pango_layout_set_font_description(layout, _primaryDescription);
+            var primaryDescription = projected ? ProjectedDescription(primary) : _primaryDescription;
+            var secondaryDescription = projected && secondary is not null ? ProjectedDescription(secondary) : _secondaryDescription;
+            pango_font_description_set_absolute_size(primaryDescription, size * Scale);
+            if (secondaryDescription != 0)
+                pango_font_description_set_absolute_size(secondaryDescription, size * Scale);
+            pango_layout_set_font_description(layout, primaryDescription);
             pango_layout_set_auto_dir(layout, 0);
             pango_layout_set_single_paragraph_mode(layout, 1);
             attributes = Require(pango_attr_list_new(), "paragraph attributes");
@@ -160,7 +177,7 @@ internal sealed unsafe partial class LinuxParagraphFontSet : IDisposable
             void AddRange(LinuxFontResource font, int start, int end)
             {
                 selectedRanges.Add(new(start, end, font));
-                var attribute = pango_attr_font_desc_new(ReferenceEquals(font, primary) ? _primaryDescription : _secondaryDescription);
+                var attribute = pango_attr_font_desc_new(ReferenceEquals(font, primary) ? primaryDescription : secondaryDescription);
                 if (attribute == null)
                     throw new OutOfMemoryException("Cannot allocate the explicit paragraph font range.");
                 attribute->Start = (uint)start;
@@ -200,7 +217,7 @@ internal sealed unsafe partial class LinuxParagraphFontSet : IDisposable
         }
     }
 
-    internal static LinuxFontResource VerifyFont(Item* item, ReadOnlySpan<Selection> selections)
+    internal static LinuxFontResource VerifyFont(Item* item, ReadOnlySpan<Selection> selections, bool projected = false)
     {
         var low = 0;
         var high = selections.Length - 1;
@@ -215,19 +232,30 @@ internal sealed unsafe partial class LinuxParagraphFontSet : IDisposable
         if (selections.IsEmpty || item->Offset < selections[low].Start || item->Length > selections[low].End - item->Offset)
             throw new InvalidOperationException("Native shaping crossed an explicit font-selection range.");
         var expected = selections[low].Font;
-        VerifyFontResource(item->Analysis.Font, expected);
+        VerifyFontResource(item->Analysis.Font, expected, projected);
         return expected;
     }
 
-    private static void VerifyFontResource(nint nativeFont, LinuxFontResource expected)
+    private static void VerifyFontResource(nint nativeFont, LinuxFontResource expected, bool projected = false)
     {
         var pattern = pango_fc_font_get_pattern(nativeFont);
         if (pattern == 0 || FcPatternGetString(pattern, "file", 0, out var path) != 0
-            || FcPatternGetInteger(pattern, "index", 0, out var index) != 0 || index != 0)
+            || FcPatternGetInteger(pattern, "index", 0, out var index) != 0 || (index & 0xffff) != 0)
             throw new InvalidOperationException("Paragraph shaping did not identify an explicit index0 font file.");
         var actual = Marshal.PtrToStringUTF8(path) ?? throw new InvalidOperationException("Native font path is absent.");
         if (actual != expected.Path)
             throw new InvalidOperationException("Paragraph shaping substituted the selected font file: " + actual + " / expected: " + expected.Path);
+        if (projected && expected.ProjectedVariations.Length != 0)
+        {
+            // A named-instance pattern may resolve to the default coordinates after applying the description.
+            var shaper = Require(pango_font_get_hb_font(nativeFont), "projected font shaper");
+            var coordinates = hb_font_get_var_coords_normalized(shaper, out var length);
+            for (var axis = 0u; axis < length; axis++)
+                if (coordinates[axis] != 0)
+                    throw new InvalidOperationException("Projected shaping substituted a different font variation.");
+        }
+        else if (index != 0)
+            throw new InvalidOperationException("Paragraph shaping substituted a named font instance.");
     }
 
     private static nint Require(nint value, string operation) => value != 0 ? value
@@ -235,6 +263,9 @@ internal sealed unsafe partial class LinuxParagraphFontSet : IDisposable
 
     public void Dispose()
     {
+        foreach (var description in _projectedDescriptions.Values)
+            pango_font_description_free(description);
+        _projectedDescriptions.Clear();
         foreach (var description in _descriptions.Values)
             pango_font_description_free(description);
         _descriptions.Clear();

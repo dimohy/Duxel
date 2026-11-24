@@ -38,7 +38,7 @@ internal static class GalleryLocalizationTests
         })
         {
             using var locale = GalleryText.Use(language);
-            foreach (var example in GalleryComponentExamples.Create())
+            foreach (var example in GalleryComponentExamples.Create(ObserverServices.CreateWindows().ImageDecoder))
             {
                 using var page = example;
                 var description = GalleryText.Get(page.Description);
@@ -100,7 +100,7 @@ internal static class GalleryLocalizationTests
             check(!context.State.NavCursorVisible, "Focus outlines start hidden until keyboard navigation");
             ControlFontFixture.Configure(context);
             var fonts = GalleryText.ConfigureFonts(new());
-            context.SetDirectTextSecondaryFontPath(fonts.SecondaryFontPath);
+            context.SetDirectTextSecondaryFontPath(fonts.DirectTextSecondaryFontPath);
             context.SetTypographyFonts(fonts.Typography);
             using var tree = new UiAccessibilityTree();
             context.SetAccessibilityTree(tree);
@@ -211,6 +211,12 @@ internal static class GalleryLocalizationTests
                 UiAccessibilityAction action = UiAccessibilityAction.Invoke)
             {
                 var node = Find(name, role) ?? throw new InvalidOperationException("Gallery command is missing: " + name);
+                if (node.Offscreen && tree.TryGet(node.Id, out var hidden)
+                    && tree.RequestAction(node.Id, hidden.RuntimeId, UiAccessibilityAction.ScrollIntoView, wait: false) == UiAccessibilityResult.Success)
+                {
+                    Frame();
+                    node = Find(name, role) ?? throw new InvalidOperationException("Gallery command disappeared after scrolling: " + name);
+                }
                 if (!tree.TryGet(node.Id, out var entry)
                     || tree.RequestAction(node.Id, entry.RuntimeId, action, wait: false) != UiAccessibilityResult.Success)
                     throw new InvalidOperationException("Gallery command was not accepted: " + name);
@@ -937,7 +943,7 @@ internal static class GalleryLocalizationTests
             using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
             ControlFontFixture.Configure(context);
             var fonts = GalleryText.ConfigureFonts(new());
-            context.SetDirectTextSecondaryFontPath(fonts.SecondaryFontPath);
+            context.SetDirectTextSecondaryFontPath(fonts.DirectTextSecondaryFontPath);
             context.SetTypographyFonts(fonts.Typography);
             using var tree = new UiAccessibilityTree();
             context.SetAccessibilityTree(tree);
@@ -993,7 +999,7 @@ internal static class GalleryLocalizationTests
             using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
             ControlFontFixture.Configure(context);
             var fonts = GalleryText.ConfigureFonts(new());
-            context.SetDirectTextSecondaryFontPath(fonts.SecondaryFontPath);
+            context.SetDirectTextSecondaryFontPath(fonts.DirectTextSecondaryFontPath);
             context.SetTypographyFonts(fonts.Typography);
             using var tree = new UiAccessibilityTree();
             context.SetAccessibilityTree(tree);
@@ -1065,7 +1071,12 @@ internal static class GalleryLocalizationTests
         using var screen = new ObserverScreen(ObserverServices.CreateWindows(), language : GalleryLanguage.English,
             requestLanguage : _ => { }) { FreezeDiagnosticText = true };
         var font = GalleryText.ConfigureFonts(new());
-        fixture.Context.SetDirectTextSecondaryFontPath(font.SecondaryFontPath);
+        var incrementalAtlas = DuxelApp.BuildFontAtlas(font, [0x41, 0xD7A3], useStartupSettings: false);
+        check(incrementalAtlas.Glyphs.ContainsKey(0xD7A3)
+            && font.DirectTextSecondaryFontPath == font.Typography.SecondaryRegular
+            && font.DirectTextSecondaryFontPath != font.SecondaryFontPath,
+            "Gallery builds its incremental TrueType atlas while direct text uses the bundled CJK face");
+        fixture.Context.SetDirectTextSecondaryFontPath(font.DirectTextSecondaryFontPath);
         fixture.Context.SetTypographyFonts(font.Typography);
         fixture.Context.SetAccessibilityTree(tree);
         foreach (var (name, theme) in new[]

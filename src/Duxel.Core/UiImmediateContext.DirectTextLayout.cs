@@ -29,7 +29,8 @@ public sealed partial class UiImmediateContext
     {
         if (entry.HasRasterPixels)
             return entry;
-        if (!_platformTextBackend!.TryRasterize(new(key.FontPath, key.SecondaryFontPath, key.Text, fontSize), out var pixels))
+        if (!_platformTextBackend!.TryRasterize(new(key.FontPath, key.SecondaryFontPath, key.Text, fontSize)
+            { RightToLeft = key.RightToLeft }, out var pixels))
             throw new InvalidOperationException("The text backend could lay out visible text but could not rasterize it.");
         var transferred = false;
         try

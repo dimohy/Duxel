@@ -247,13 +247,13 @@ public sealed partial class UiImmediateContext
         var layout = label.Layout(new(this));
         var origin = AllocateLayoutBox(layout.Size);
         var root = new UiRect(origin.X, origin.Y, layout.Size.X, layout.Size.Y);
-        RenderParentDataChild(label.LabelControl, null,
-            new(origin.X + layout.LabelOrigin.X, origin.Y + layout.LabelOrigin.Y, layout.Label.X, layout.Label.Y), root);
+        UiRect ChildBounds(UiVector2 size, UiVector2 offset) =>
+            new(root.X + (RightToLeft ? root.Width - offset.X - size.X : offset.X),
+                root.Y + offset.Y, size.X, size.Y);
+        RenderParentDataChild(label.LabelControl, null, ChildBounds(layout.Label, layout.LabelOrigin), root);
         if (label.InfoControl is { } info)
         {
-            RenderParentDataChild(info, null,
-                new(origin.X + layout.ButtonOrigin.X, origin.Y + layout.ButtonOrigin.Y, layout.Button.X, layout.Button.Y),
-                root);
+            RenderParentDataChild(info, null, ChildBounds(layout.Button, layout.ButtonOrigin), root);
         }
         FinishLayoutBox(origin, layout.Size);
     }

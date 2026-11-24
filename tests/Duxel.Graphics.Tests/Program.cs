@@ -7,6 +7,12 @@ using Duxel.Vulkan;
 
 Console.OutputEncoding = new System.Text.UTF8Encoding(false);
 
+if (args is [var glyphMsaaOutput, "projected-glyph-msaa-switch", "sync" or "queued"])
+{
+    ProjectedGlyphMsaaSwitchTests.Run(glyphMsaaOutput, queued: args[2] == "queued");
+    return;
+}
+
 if (args is [var textImageMemoryOutput, "text-image-memory"])
 {
     TextImageMemoryTests.Run(textImageMemoryOutput);
@@ -58,6 +64,17 @@ if (args is [var svgCodeStagesOutput, "gallery-svg-code-stages"])
 if (args is [_, "codeview-layout-cache"])
 {
     CodeViewCacheTests.VerifySharedLineLayouts((passed, name) =>
+    {
+        Console.WriteLine((passed ? "PASS " : "FAIL ") + name);
+        if (!passed)
+            Environment.ExitCode = 1;
+    });
+    return;
+}
+
+if (args is [_, "codeview-selection-menu"])
+{
+    CodeViewCacheTests.VerifySelectionContextMenu((passed, name) =>
     {
         Console.WriteLine((passed ? "PASS " : "FAIL ") + name);
         if (!passed)
@@ -584,7 +601,8 @@ if (args.Length == 2 && args[1] == "skeleton-gpu")
     return;
 }
 
-if (args.Length == 2 && args[1] is "windows-shaping-only" or "paragraph-geometry-only" or "paragraph-font-context-only" or "styled-paragraph-only")
+if ((args.Length == 2 && args[1] is "windows-shaping-only" or "paragraph-geometry-only" or "paragraph-font-context-only" or "styled-paragraph-only" or "glyph-camera-gpu" or "glyph-depth-material-gpu" or "projected-damage-gpu" or "glyph-residency-gpu")
+    || args is [_, "glyph-outline-projected-gpu", _])
 {
     var destination = Path.GetFullPath(args[0]);
     Directory.CreateDirectory(destination);
@@ -595,7 +613,18 @@ if (args.Length == 2 && args[1] is "windows-shaping-only" or "paragraph-geometry
         Console.WriteLine((condition ? "PASS " : "FAIL ") + name);
         (condition ? passed : failed).Add(name);
     }
-    if (args[1] == "styled-paragraph-only")
+    if (args[1] == "projected-damage-gpu")
+        ProjectedDamageTests.Run(destination, RecordShapingCheck);
+    else if (args[1] == "glyph-residency-gpu")
+        ProjectedGlyphResidencyTests.Run(destination, WindowsPlatformTextBackend.Instance,
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "segoeui.ttf"), RecordShapingCheck);
+    else if (args[1] == "glyph-depth-material-gpu")
+        GpuVectorReadbackTests.RunProjectedGlyphMaterial(destination, RecordShapingCheck);
+    else if (args[1] == "glyph-outline-projected-gpu")
+        GpuVectorReadbackTests.RunProjectedGlyphMaterial(destination, RecordShapingCheck, Path.GetFullPath(args[2]));
+    else if (args[1] == "glyph-camera-gpu")
+        GpuVectorReadbackTests.RunGlyphCamera(destination, RecordShapingCheck);
+    else if (args[1] == "styled-paragraph-only")
         StyledParagraphTests.Run(RecordShapingCheck);
     else if (args[1] == "paragraph-font-context-only")
         ParagraphFontContextTests.Run(RecordShapingCheck);
@@ -642,7 +671,7 @@ if (args.Length == 2 && args[1] == "gallery-icon-assets")
     return;
 }
 
-if ((args.Length == 2 || args is [_, "gallery-component-source-only", _]) && args[1] is "vector-background-only" or "svg-reference-contracts-only" or "svg-feature-composition-only" or "checkbox-contrast-only" or "styled-contrast-only" or "svg-feature-colors-only" or "vector-icon-aa-only" or "popover-only" or "popup-input-only" or "toolbar-only" or "searchbox-only" or "textfield-only" or "persona-only" or "composite-contracts-only" or "form-layout-only" or "tab-measurement-only" or "delegated-layout-only" or "owned-sizing-only" or "legacy-contracts-only" or "standalone-icon-only" or "image-widget-only" or "raster-lifetime-only" or "label-only" or "accordion-only" or "rounded-image-only" or "avatar-only" or "presence-only" or "circle-cutout-only" or "box-shadow-only" or "backdrop-only" or "paint-group-only" or "scroll-precision-only" or "nav-sections-gpu" or "fluent-catalog-only" or "fluent-provider-font-gallery-only" or "progress-indicator-motion-only" or "calendar-holiday-loading-only" or "holiday-provider-only" or "temporal-kind-only" or "temporal-picker-only" or "calendar-wheel-only" or "provider-font-override-only" or "opacity-mask-only" or "segmented-style-only" or "toast-factory-only" or "toast-paragraph-only" or "toast-host-ownership-only" or "toast-viewport-only" or "toast-modal-only" or "toast-host-activation-only" or "toast-composition-only" or "toast-surface-only" or "toast-controller-only" or "segmented-scroll-only" or "tab-scroll-only" or "segmented-controlled-only" or "segmented-control-only" or "calendar-widget-only" or "tree-label-only" or "tree-presentation-only" or "tree-virtual-selection-only" or "tree-native-selection-only" or "selection-projection-only" or "tree-widget-only" or "tree-model-only" or "select-only" or "calendar-model-only" or "hud-gallery-source-only" or "hud-portal-only" or "hud-content-only" or "activity-indicator-only" or "progress-indicator-only" or "shimmer-only" or "fluent-provider-fonts-only" or "fluent-provider-retention-only" or "fluent-provider-only" or "gallery-component-source-only" or "gallery-legacy-source-only" or "gallery-samples-only" or "tag-picker-only" or "card-only" or "breadcrumb-only" or "avatar-group-only" or "dropdown-only" or "combobox-only" or "tag-only" or "dialog-only" or "skeleton-only" or "text-accessibility-only" or "announcement-only" or "inline-text-only" or "messagebar-only" or "owned-inline-only" or "presence-group-only" or "messagebar-page-only" or "messagebar-semantics-only" or "inline-alignment-only" or "styled-source-regression-only" or "rating-only" or "animation-curve-only" or "widget-margin-only" or "widget-transform-only")
+if ((args.Length == 2 || args is [_, "gallery-component-source-only", _]) && args[1] is "vector-background-only" or "svg-reference-contracts-only" or "svg-feature-composition-only" or "checkbox-contrast-only" or "radio-contrast-only" or "toggle-button-contrast-only" or "button-contrast-only" or "styled-contrast-only" or "svg-feature-colors-only" or "vector-icon-aa-only" or "popover-only" or "popup-input-only" or "toolbar-only" or "searchbox-only" or "textfield-only" or "persona-only" or "composite-contracts-only" or "form-layout-only" or "tab-measurement-only" or "delegated-layout-only" or "owned-sizing-only" or "legacy-contracts-only" or "standalone-icon-only" or "image-widget-only" or "raster-lifetime-only" or "label-only" or "accordion-only" or "rounded-image-only" or "avatar-only" or "presence-only" or "circle-cutout-only" or "box-shadow-only" or "backdrop-only" or "paint-group-only" or "scroll-precision-only" or "nav-sections-gpu" or "fluent-catalog-only" or "fluent-provider-font-gallery-only" or "progress-indicator-motion-only" or "calendar-holiday-loading-only" or "holiday-provider-only" or "temporal-kind-only" or "temporal-picker-only" or "calendar-wheel-only" or "provider-font-override-only" or "opacity-mask-only" or "segmented-style-only" or "toast-factory-only" or "toast-paragraph-only" or "toast-host-ownership-only" or "toast-viewport-only" or "toast-modal-only" or "toast-host-activation-only" or "toast-composition-only" or "toast-surface-only" or "toast-controller-only" or "segmented-scroll-only" or "tab-scroll-only" or "segmented-controlled-only" or "segmented-control-only" or "calendar-widget-only" or "tree-label-only" or "tree-presentation-only" or "tree-virtual-selection-only" or "tree-native-selection-only" or "selection-projection-only" or "tree-widget-only" or "tree-model-only" or "select-only" or "calendar-model-only" or "hud-gallery-source-only" or "hud-portal-only" or "hud-content-only" or "activity-indicator-only" or "progress-indicator-only" or "shimmer-only" or "fluent-provider-fonts-only" or "fluent-provider-retention-only" or "fluent-provider-only" or "gallery-component-source-only" or "gallery-legacy-source-only" or "gallery-samples-only" or "tag-picker-only" or "card-only" or "breadcrumb-only" or "avatar-group-only" or "dropdown-only" or "combobox-only" or "tag-only" or "dialog-only" or "skeleton-only" or "text-accessibility-only" or "announcement-only" or "inline-text-only" or "messagebar-only" or "owned-inline-only" or "presence-group-only" or "messagebar-page-only" or "messagebar-semantics-only" or "inline-alignment-only" or "styled-source-regression-only" or "rating-only" or "animation-curve-only" or "widget-margin-only" or "widget-transform-only")
 {
     var destination = Path.GetFullPath(args[0]);
     Directory.CreateDirectory(destination);
@@ -715,6 +744,12 @@ if ((args.Length == 2 || args is [_, "gallery-component-source-only", _]) && arg
         SvgFeatureCompositionTests.Run(destination, CheckComposite);
     else if (args[1] == "checkbox-contrast-only")
         CheckboxContrastTests.Run(destination, CheckComposite);
+    else if (args[1] == "radio-contrast-only")
+        RadioGroupContrastTests.Run(destination, CheckComposite);
+    else if (args[1] == "toggle-button-contrast-only")
+        ToggleButtonContrastTests.Run(destination, CheckComposite);
+    else if (args[1] == "button-contrast-only")
+        ButtonContrastTests.Run(destination, CheckComposite);
     else if (args[1] == "styled-contrast-only")
         StyledContrastTests.Run(CheckComposite);
     else if (args[1] == "rating-only")
@@ -1854,7 +1889,7 @@ if (args.Length == 3 && args[1] is "particle-replay" or "particle-bench")
     return;
 }
 
-if (args.Length is < 1 or > 5 || args.Length >= 2 && args[1] is not ("presentation-reuse" or "gpu-vector-cache" or "gpu-svg-camera-present-bench" or "gpu-svg-camera-bench" or "gpu-stroke-domains" or "gpu-transparent-stroke-domains" or "gpu-transparent-layer-origin-tiled" or "gpu-layer-origin" or "gpu-transparent-layer-origin" or "gpu-clip-storage" or "gpu-transparent-clip-storage" or "gpu-shadow-pixels" or "gpu-transparent-shadow" or "gpu-boundary-hardware-local" or "gpu-boundary-hardware-approx" or "gpu-boundary-hardware" or "gpu-vector-readback" or "gpu-transparent-browser" or "gpu-transparent-gradients" or "gpu-transparent-opacity" or "gpu-transparent-color" or "gpu-color-storage" or "gpu-opacity-pixels" or "gpu-gradient-pixels" or "gpu-blend-backdrops" or "gpu-arc-geometry" or "gpu-transparent-arc-geometry" or "gpu-arc-opaque-target" or "gpu-svg-browser" or "gpu-svg-image-browser" or "gpu-svg-opaque-target-browser" or "gpu-dash-pixels" or "gpu-stroke-pixels" or "svg-font" or "gpu-svg-pixels" or "gpu-svg-camera" or "gpu-svg-zoom" or "gpu-vector" or "tooltip" or "multiline" or "packed-first" or "resize-input" or "resize-coherence" or "resize-capabilities" or "resize-capacity" or "particle-full" or "input-kernel" or "fluent-input" or "input-allocation" or "radio-allocation" or "radio-allocation-matched" or "spinner-allocation" or "progress-allocation" or "text-allocation" or "divider-allocation" or "link-allocation" or "badge-allocation" or "allocation-routing" or "field-allocation" or "field" or "measure" or "spinner" or "animation-visibility" or "containers" or "constrained-leaves" or "leaf-layout" or "content-layout" or "form-layout" or "tab-measurement" or "delegated-layout" or "owned-sizing" or "directtext-cache" or "primitive-commands" or "observer-gallery" or "observer-rendering" or "tablist" or "overflow" or "menu" or "tab-overflow" or "scrollbar-motion" or "fluent-provider-font-gpu" or "progress-indicator-motion-gpu" or "hud-portal-gpu" or "hud-content-gpu" or "activity-indicator-gpu" or "progress-indicator-gpu" or "shimmer-gpu" or "fluent-provider-gpu" or "tab-panel-boundary" or "slider-state" or "svg" or "observer-svg" or "widgets-no-resize" or "raster-lifetime" or "label" or "markdown" or "markdown-table" or "list" or "spinbutton" or "accordion" or "widget-transform" or "repaint" or "rounded-image" or "rounded-image-lifetime" or "image-shader-bench" or "avatar" or "observer-avatar" or "observer-widget-transform" or "observer-repaint" or "observer-measure-bench" or "presence" or "circle-cutout" or "box-shadow" or "backdrop" or "paint-group" or "card" or "breadcrumb" or "avatar-group" or "dropdown" or "combobox" or "tag" or "interaction-tag" or "persona" or "searchbox" or "toolbar" or "popup-input" or "dialog" or "popover"))
+if (args.Length is < 1 or > 5 || args.Length >= 2 && args[1] is not ("presentation-reuse" or "gpu-vector-cache" or "gpu-svg-camera-present-bench" or "gpu-svg-camera-bench" or "gpu-stroke-domains" or "gpu-transparent-stroke-domains" or "gpu-transparent-layer-origin-tiled" or "gpu-layer-origin" or "gpu-transparent-layer-origin" or "gpu-clip-storage" or "gpu-transparent-clip-storage" or "gpu-shadow-pixels" or "gpu-transparent-shadow" or "gpu-boundary-hardware-local" or "gpu-boundary-hardware-approx" or "gpu-boundary-hardware" or "gpu-vector-readback" or "gpu-transparent-browser" or "gpu-transparent-gradients" or "gpu-transparent-opacity" or "gpu-transparent-color" or "gpu-color-storage" or "gpu-opacity-pixels" or "gpu-gradient-pixels" or "gpu-blend-backdrops" or "gpu-arc-geometry" or "gpu-transparent-arc-geometry" or "gpu-arc-opaque-target" or "gpu-svg-browser" or "gpu-svg-image-browser" or "gpu-svg-opaque-target-browser" or "gpu-dash-pixels" or "gpu-stroke-pixels" or "svg-font" or "gpu-svg-pixels" or "gpu-svg-camera" or "gpu-svg-zoom" or "gpu-vector" or "tooltip" or "multiline" or "packed-first" or "resize-input" or "resize-coherence" or "resize-capabilities" or "resize-capacity" or "particle-full" or "input-kernel" or "fluent-input" or "input-allocation" or "radio-allocation" or "radio-allocation-matched" or "spinner-allocation" or "progress-allocation" or "text-allocation" or "divider-allocation" or "link-allocation" or "badge-allocation" or "allocation-routing" or "field-allocation" or "field" or "measure" or "spinner" or "animation-visibility" or "containers" or "constrained-leaves" or "leaf-layout" or "content-layout" or "form-layout" or "tab-measurement" or "delegated-layout" or "owned-sizing" or "directtext-cache" or "primitive-commands" or "observer-gallery" or "observer-rendering" or "tablist" or "overflow" or "menu" or "tab-overflow" or "scrollbar-motion" or "fluent-provider-font-gpu" or "progress-indicator-motion-gpu" or "hud-portal-gpu" or "hud-content-gpu" or "activity-indicator-gpu" or "progress-indicator-gpu" or "shimmer-gpu" or "fluent-provider-gpu" or "tab-panel-boundary" or "slider-state" or "svg" or "observer-svg" or "widgets-no-resize" or "raster-lifetime" or "label" or "markdown" or "markdown-table" or "list" or "spinbutton" or "accordion" or "widget-transform" or "repaint" or "switch-contrast" or "rounded-image" or "rounded-image-lifetime" or "image-shader-bench" or "avatar" or "observer-avatar" or "observer-widget-transform" or "observer-repaint" or "observer-measure-bench" or "presence" or "circle-cutout" or "box-shadow" or "backdrop" or "paint-group" or "card" or "breadcrumb" or "avatar-group" or "dropdown" or "combobox" or "tag" or "interaction-tag" or "persona" or "searchbox" or "toolbar" or "popup-input" or "dialog" or "popover"))
     if (args is not [_, "raster-text-scroll", _])
         throw new ArgumentException("Expected output directory, optional packed-first and optional frame resource count.");
 var frameSlots = args.Length >= 3 ? int.Parse(args[2]) : 2;
@@ -2085,14 +2120,18 @@ if (args.Length >= 2 && args[1] == "raster-text-scroll")
         RuntimeInformation.FrameworkDescription, "raster-text-scroll", checks.Count, checks.ToArray(), 0, 0, 0, 0), GraphicsJson.Default.GraphicsResult));
     return;
 }
-if (args.Length >= 2 && args[1] == "repaint")
+if (args.Length >= 2 && args[1] is "repaint" or "switch-contrast")
 {
-    foreach (var samples in new[] { 1, 4 })
+    var switchContrast = args[1] == "switch-contrast";
+    if (!switchContrast)
     {
-        renderer.SetMsaaSamples(samples);
-        RepaintDiagnosticsTests.Run((name, draw) => Capture($"msaa{samples}-repaint-{name}", draw), Check, white, size,
-            () => renderer.LastFrameMetrics, cleanup => repaintDiagnosticCleanup = cleanup,
-            () => renderer.ValidationFullRepaint = true, () => renderer.ValidationRepaintBorderPixels);
+        foreach (var samples in new[] { 1, 4 })
+        {
+            renderer.SetMsaaSamples(samples);
+            RepaintDiagnosticsTests.Run((name, draw) => Capture($"msaa{samples}-repaint-{name}", draw), Check, white, size,
+                () => renderer.LastFrameMetrics, cleanup => repaintDiagnosticCleanup = cleanup,
+                () => renderer.ValidationFullRepaint = true, () => renderer.ValidationRepaintBorderPixels);
+        }
     }
     renderer.SetMsaaSamples(1);
     var textOptions = new Duxel.App.DuxelAppOptions { Screen = new Screen(static _ => { }) };
@@ -2105,9 +2144,18 @@ if (args.Length >= 2 && args[1] == "repaint")
     context.SetDirectTextFallbackEnabled(false);
     context.SetTheme(UiCompiledDesign.Windows11Dark.Theme);
     SwitchAlignmentRenderingTests.Run(renderer, Capture, Check, size.Width, size.Height);
-    TextUpdateDiagnostic.Run(output, renderer, Build);
+    if (switchContrast)
+    {
+        SwitchAlignmentRenderingTests.RunForced(context, Capture, Check, size.Width, size.Height);
+        SwitchAlignmentRenderingTests.RunPointer(Check);
+        SwitchAlignmentRenderingTests.RunWrappedLabels(Check, output);
+        SwitchAlignmentRenderingTests.RunMotion(Check);
+        SwitchAlignmentRenderingTests.RunSystemMotion(Check);
+    }
+    else
+        TextUpdateDiagnostic.Run(output, renderer, Build);
     File.WriteAllText(Path.Combine(output, "result.json"), JsonSerializer.Serialize(new GraphicsResult(
-        RuntimeInformation.FrameworkDescription, "repaint", checks.Count, checks.ToArray(), 0, 0, 0, 0), GraphicsJson.Default.GraphicsResult));
+        RuntimeInformation.FrameworkDescription, args[1], checks.Count, checks.ToArray(), 0, 0, 0, 0), GraphicsJson.Default.GraphicsResult));
     return;
 }
 if (args.Length >= 2 && args[1] == "svg-font")
@@ -2675,6 +2723,8 @@ if (args.Length >= 2 && args[1] == "slider-state")
             SliderStateRenderingTests.Run((name, draw) => Capture($"msaa{samples}-{scheme}-{name}", draw), value => input = value,
                 Check, size.Width, scheme);
         }
+        SliderStateRenderingTests.RunForced((name, draw) => Capture($"msaa{samples}-forced-{name}", draw),
+            value => input = value, context.SetTheme, Check, size.Width);
         input = input with
         {
             MousePosition = new(-100, -100)
@@ -2897,7 +2947,7 @@ if (args.Length >= 2 && args[1] is "observer-gallery" or "observer-rendering" or
     context.SetTypographyFonts(observerFonts.Typography);
     context.SetTheme(UiCompiledDesign.Windows11Dark.Theme);
     context.SetDirectTextPrimaryFontPath(observerFonts.PrimaryFontPath);
-    context.SetDirectTextSecondaryFontPath(observerFonts.SecondaryFontPath);
+    context.SetDirectTextSecondaryFontPath(observerFonts.DirectTextSecondaryFontPath);
     context.SetDirectTextBaseFontSize(16);
     context.SetDirectTextEnabled(true);
     context.SetDirectTextFallbackEnabled(false);

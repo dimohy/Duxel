@@ -682,8 +682,8 @@ internal static partial class WicNative
     internal static readonly Guid ClsidWicImagingFactory = new("CACAF262-9370-4615-A13B-9F5539DA4C0A");
     internal static readonly Guid IidIwicImagingFactory = new("EC5EC8A9-C395-4314-9C77-54D7A935FF70");
     internal static readonly Guid GuidWicPixelFormat24bppBGR = new("6FDDC324-4E03-4BFE-B185-3D77768DC90C");
-    internal static readonly Guid GuidWicPixelFormat32bppBGR = new("6FDDC324-4E03-4BFE-B185-3D77768DC90F");
-    internal static readonly Guid GuidWicPixelFormat32bppBGRA = new("6FDDC324-4E03-4BFE-B185-3D77768DC900");
+    internal static readonly Guid GuidWicPixelFormat32bppBGR = new("6FDDC324-4E03-4BFE-B185-3D77768DC90E");
+    internal static readonly Guid GuidWicPixelFormat32bppBGRA = new("6FDDC324-4E03-4BFE-B185-3D77768DC90F");
 
     [LibraryImport("windowscodecs.dll", EntryPoint = "IWICImagingFactory_CreateDecoderFromFilename_Proxy", StringMarshalling = StringMarshalling.Utf16)]
     internal static partial int IWICImagingFactory_CreateDecoderFromFilename(

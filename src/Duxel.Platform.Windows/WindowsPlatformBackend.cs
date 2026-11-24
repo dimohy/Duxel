@@ -121,6 +121,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private const uint WmNcLButtonDown = 0x00A1;
     private const uint WmNcLButtonUp = 0x00A2;
     private const uint WmNcRButtonUp = 0x00A5;
+    private const uint WmActivate = 0x0006;
+    private const uint WmCancelMode = 0x001F;
+    private const uint WmCaptureChanged = 0x0215;
     private const uint WmCommand = 0x0111;
     private const uint WmSetCursor = 0x0020;
     private const uint WmKeyDown = 0x0100;
@@ -256,8 +259,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private readonly object _titleBarDragRegionLock = new();
     private UiRect[] _titleBarDragRegions = [];
     private int _titleBarDragRegionCount;
-    private int _hoveredCaptionButtonHitTest;
-    private int _pressedCaptionButtonHitTest;
+    private int _captionButtonHits;
 
     private float _dpiScale;
 
@@ -281,6 +283,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
     private readonly AutoResetEvent _eventWake = new(false);
     private UiSystemColorScheme _colorScheme;
     private UiForcedColorPalette? _forcedColors;
+    private volatile bool _prefersReducedMotion;
     private UiMouseCursor _currentCursor = UiMouseCursor.Arrow;
 
     static WindowsPlatformBackend()
@@ -302,6 +305,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         _frameInvalidated = options.FrameInvalidated;
         _colorScheme = WindowsSystemTheme.GetAppColorScheme();
         _forcedColors = WindowsSystemTheme.GetForcedColors();
+        _prefersReducedMotion = WindowsSystemTheme.GetPrefersReducedMotion();
 
         if (options.Width <= 0)
         {
@@ -557,6 +561,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     public UiSystemColorScheme ColorScheme => _colorScheme;
     public UiForcedColorPalette? ForcedColors => _forcedColors;
+    public bool PrefersReducedMotion => _prefersReducedMotion;
 
     public double TimeSeconds => _stopwatch.Elapsed.TotalSeconds;
 
@@ -570,9 +575,15 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
     public IWindowTitleBarPlatform? WindowTitleBar => this;
 
-    public UiCaptionButtonVisualState CaptionButtonVisualState => new(
-        CaptionButtonKindFromHitTest(Volatile.Read(ref _hoveredCaptionButtonHitTest)),
-        CaptionButtonKindFromHitTest(Volatile.Read(ref _pressedCaptionButtonHitTest)));
+    public UiCaptionButtonVisualState CaptionButtonVisualState
+    {
+        get
+        {
+            var hits = Volatile.Read(ref _captionButtonHits);
+            var pressed = hits >> 8;
+            return new(CaptionButtonKindFromHitTest(hits & 0xff), CaptionButtonKindFromHitTest(pressed));
+        }
+    }
 
     public bool TryGetCaptionButtonBounds(out UiRect bounds)
     {
@@ -1286,7 +1297,9 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
 
         if (_titleBarMode is DuxelTitleBarMode.ExtendedContent)
         {
-            UpdateExtendedCaptionButtonVisualState(hwnd, message, wParam);
+            if (HandleExtendedCaptionButtonClick(hwnd, message, wParam, lParam))
+                return 0;
+            UpdateExtendedCaptionButtonVisualState(hwnd, message, wParam, lParam);
             if (message == WmNcHitTest)
             {
                 if (TryHitTestExtendedCaptionButtons(hwnd, lParam, out var hitTest))
@@ -1400,8 +1413,10 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 break;
             case WmSize:
                 Interlocked.Increment(ref _presentationInvalidationSequence);
-                Volatile.Write(ref _clientWidth, unchecked((ushort)(nuint)lParam));
-                Volatile.Write(ref _clientHeight, unchecked((ushort)((nuint)lParam >> 16)));
+                // An iconic window can have a positive native extent but no drawable client surface.
+                var minimized = wParam == SizeMinimized;
+                Volatile.Write(ref _clientWidth, minimized ? 0 : unchecked((ushort)(nuint)lParam));
+                Volatile.Write(ref _clientHeight, minimized ? 0 : unchecked((ushort)((nuint)lParam >> 16)));
                 Interlocked.Increment(ref _interactiveResizeSequence);
                 if (_trayIcon is not null)
                 {
@@ -1543,15 +1558,14 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             case WmSettingChange:
             case WmSysColorChange:
             case WmThemeChanged:
-                if (RefreshColorSchemeFromSystem())
-                {
-                    if (_followSystemTheme || _followSystemForcedColors)
-                    {
-                        ApplyCurrentSystemChrome();
-                    }
-
+                var colorsChanged = RefreshColorSchemeFromSystem();
+                var reducedMotion = WindowsSystemTheme.GetPrefersReducedMotion();
+                var motionChanged = reducedMotion != _prefersReducedMotion;
+                _prefersReducedMotion = reducedMotion;
+                if (colorsChanged && (_followSystemTheme || _followSystemForcedColors))
+                    ApplyCurrentSystemChrome();
+                if (colorsChanged || motionChanged)
                     _frameInvalidated?.Invoke();
-                }
                 break;
             case WmClose:
                 if (_trayIcon?.TryHandleClose(HideWindowToTray) == true)
@@ -1725,6 +1739,12 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             throw new InvalidOperationException($"ScreenToClient failed: {Marshal.GetLastPInvokeError()}.");
         }
 
+        hitTest = CaptionButtonHitTest(point);
+        return hitTest != 0;
+    }
+
+    private int CaptionButtonHitTest(Point point)
+    {
         var clientWidth = Volatile.Read(ref _clientWidth);
         var buttonCount = 1 + (_showMinimizeButton ? 1 : 0) + (_showMaximizeButton ? 1 : 0);
         var buttonAreaWidth = Math.Max(
@@ -1736,7 +1756,7 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             || point.y < 0
             || point.y >= _duxelTitleBarHeightPx)
         {
-            return false;
+            return 0;
         }
 
         var buttonIndex = Math.Min(
@@ -1744,18 +1764,15 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
             (point.x - buttonAreaLeft) * buttonCount / buttonAreaWidth);
         if (_showMinimizeButton && buttonIndex-- is 0)
         {
-            hitTest = HtMinButton;
-            return true;
+            return HtMinButton;
         }
 
         if (_showMaximizeButton && buttonIndex-- is 0)
         {
-            hitTest = HtMaxButton;
-            return true;
+            return HtMaxButton;
         }
 
-        hitTest = HtClose;
-        return true;
+        return HtClose;
     }
 
     private static Point PointFromLParam(nint lParam)
@@ -1778,15 +1795,60 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
         };
     }
 
-    private void UpdateExtendedCaptionButtonVisualState(nint hwnd, uint message, nuint wParam)
+    private bool HandleExtendedCaptionButtonClick(nint hwnd, uint message, nuint wParam, nint lParam)
     {
-        var hitTest = unchecked((int)wParam);
+        if (message == WmNcLButtonDown && unchecked((int)wParam) is HtMinButton or HtMaxButton or HtClose)
+        {
+            if (!TryHitTestExtendedCaptionButtons(hwnd, lParam, out var hitTest))
+                return false;
+
+            // Native caption tracking uses the system title-bar height on release.
+            // For extended content, both ends of the click use the drawn bounds.
+            var button = (int)hitTest;
+            SetCaptionButtonVisualState(button, button);
+            _ = SetCapture(hwnd);
+            return true;
+        }
+
+        var pressed = Volatile.Read(ref _captionButtonHits) >> 8;
+        if (pressed == 0)
+            return false;
+
+        if (message == WmCancelMode)
+        {
+            SetCaptionButtonVisualState(0, 0);
+            _ = ReleaseCapture();
+            return false;
+        }
+
+        if (message is not (WmLButtonUp or WmNcLButtonUp))
+            return false;
+
+        var released = message == WmLButtonUp
+            ? CaptionButtonHitTest(ClientPointFromLParam(lParam))
+            : TryHitTestExtendedCaptionButtons(hwnd, lParam, out var hit) ? (int)hit : 0;
+        SetCaptionButtonVisualState(released, 0);
+        _ = ReleaseCapture();
+        if (released == pressed)
+        {
+            switch (pressed)
+            {
+                case HtMinButton: MinimizeWindow(); break;
+                case HtMaxButton: ToggleMaximizeWindow(); break;
+                case HtClose: CloseWindow(); break;
+            }
+        }
+        return true;
+    }
+
+    private void UpdateExtendedCaptionButtonVisualState(nint hwnd, uint message, nuint wParam, nint lParam)
+    {
+        var hitTest = unchecked((int)wParam) is HtMinButton or HtMaxButton or HtClose ? (int)wParam : 0;
+        var pressed = Volatile.Read(ref _captionButtonHits) >> 8;
         switch (message)
         {
             case WmNcMouseMove:
-                SetCaptionButtonVisualState(
-                    hitTest is HtMinButton or HtMaxButton or HtClose ? hitTest : 0,
-                    Volatile.Read(ref _pressedCaptionButtonHitTest));
+                SetCaptionButtonVisualState(hitTest, pressed);
                 var tracking = new TrackMouseEventData
                 {
                     cbSize = (uint)Marshal.SizeOf<TrackMouseEventData>(),
@@ -1795,27 +1857,30 @@ public sealed partial class WindowsPlatformBackend : IPlatformBackend, IWin32Pla
                 };
                 _ = TrackMouseEventNative(ref tracking);
                 break;
-            case WmNcLButtonDown:
-                SetCaptionButtonVisualState(
-                    hitTest is HtMinButton or HtMaxButton or HtClose ? hitTest : 0,
-                    hitTest is HtMinButton or HtMaxButton or HtClose ? hitTest : 0);
+            case WmMouseMove:
+                SetCaptionButtonVisualState(pressed != 0 ? CaptionButtonHitTest(ClientPointFromLParam(lParam)) : 0, pressed);
                 break;
-            case WmNcLButtonUp:
-                SetCaptionButtonVisualState(
-                    hitTest is HtMinButton or HtMaxButton or HtClose ? hitTest : 0,
-                    0);
+            case WmCaptureChanged when pressed != 0:
+                SetCaptionButtonVisualState(lParam == 0 ? CaptionButtonAtCursor(hwnd) : 0, 0);
                 break;
             case WmNcMouseLeave:
+                SetCaptionButtonVisualState(pressed != 0 ? CaptionButtonAtCursor(hwnd) : 0, pressed);
+                break;
+            case WmCancelMode:
+            case WmActivate when (wParam & 0xffff) == 0:
+            case WmSize when wParam == SizeMinimized:
                 SetCaptionButtonVisualState(0, 0);
                 break;
         }
     }
 
+    private int CaptionButtonAtCursor(nint hwnd) => GetCursorPos(out var point) && ScreenToClient(hwnd, ref point)
+        ? CaptionButtonHitTest(point) : 0;
+
     private void SetCaptionButtonVisualState(int hoveredHitTest, int pressedHitTest)
     {
-        var previousHovered = Interlocked.Exchange(ref _hoveredCaptionButtonHitTest, hoveredHitTest);
-        var previousPressed = Interlocked.Exchange(ref _pressedCaptionButtonHitTest, pressedHitTest);
-        if (previousHovered != hoveredHitTest || previousPressed != pressedHitTest)
+        var hits = hoveredHitTest | (pressedHitTest << 8);
+        if (Interlocked.Exchange(ref _captionButtonHits, hits) != hits)
         {
             _frameInvalidated?.Invoke();
         }

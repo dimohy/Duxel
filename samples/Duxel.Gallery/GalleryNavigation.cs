@@ -26,7 +26,7 @@ internal sealed record GalleryDestination(string Key, string Label, string Page,
 internal sealed class GalleryNavigation : IDisposable
 {
     // Increase once for each fix or feature delivered in the Gallery.
-    private const int GalleryRevision = 6;
+    private const int GalleryRevision = 90;
     internal static string DisplayVersion { get; } = FormatVersion();
 
     private static string FormatVersion()
@@ -46,7 +46,7 @@ internal sealed class GalleryNavigation : IDisposable
     };
     private sealed record Route(string Key, string Label, string Page);
     private readonly UiSizedBox _root;
-    private readonly SvgStore _logoStore = new();
+    private readonly SvgStore? _logoStore;
     private readonly UiBinding<string?> _selection;
     private readonly Dictionary<string, Route> _routes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _pageKeys = new(StringComparer.Ordinal);
@@ -59,7 +59,8 @@ internal sealed class GalleryNavigation : IDisposable
     internal static bool IsNewMenu(string key, DateOnly today) =>
         MenuRegistrationDates.TryGetValue(key, out var registered) && today.DayNumber - registered.DayNumber is >= 0 and < 7;
 
-    internal GalleryNavigation(IEnumerable<string> pages, string[] planned, UiBinding<string?> selection)
+    internal GalleryNavigation(IEnumerable<string> pages, string[] planned, UiBinding<string?> selection, bool showBrand,
+        IEnumerable<string> layoutComponents)
     {
         _selection = selection;
         var registered = pages.ToArray();
@@ -101,7 +102,7 @@ internal sealed class GalleryNavigation : IDisposable
         }
         void AddSection(string label, string description, UiMenuIcon icon, IEnumerable<Route> routes, bool preferredPage = false, GalleryDestinationKind kind = GalleryDestinationKind.Fluent, bool labelsLocalized = false)
         {
-            var entries = routes.Select(route => route with { Label = labelsLocalized ? route.Label : GalleryText.Get(route.Label) }).ToArray();
+            var entries = routes.Select(route => route with { Label = labelsLocalized || kind == GalleryDestinationKind.Fluent ? route.Label : GalleryText.Get(route.Label) }).ToArray();
             var badge = new UiNavBadge(GalleryText.Get("Planned"), new(UiBadgeSize.Small, Appearance: UiBadgeAppearance.Tint, Color: UiBadgeColor.Severe));
             var newBadge = new UiNavBadge(GalleryText.Get("NEW"), new(UiBadgeSize.Small, Appearance : UiBadgeAppearance.Tint, Color : UiBadgeColor.Success));
             sections.Add(new("group-" + sections.Count, GalleryText.Get(label), entries.Select(route => new UiNavItem(route.Key, route.Label,
@@ -121,6 +122,9 @@ internal sealed class GalleryNavigation : IDisposable
         }
         AddSection("Get started", "Introduction and examples", home,
             [new("개요", "Overview", "개요"), new("관찰 범위", "Feature index", "관찰 범위")], preferredPage: true, kind: GalleryDestinationKind.Overview);
+        AddSection("Layout widgets", "Layout, transforms, virtualization, and input", content,
+            layoutComponents.Select(static name => new Route(name, name, name)),
+            preferredPage: true, kind: GalleryDestinationKind.Duxel, labelsLocalized: true);
         AddHeader("section-fluent", "Fluent controls");
         foreach (var group in groups)
             AddSection(group.Label, group.Description, group.Icon, group.Components.Order(StringComparer.Ordinal).Select(component =>
@@ -130,8 +134,9 @@ internal sealed class GalleryNavigation : IDisposable
         AddSection("Date and time", "Dates, times, ranges, and holidays", UiMenuIcon.Create<GalleryCalendarIcon, GalleryCalendarIcon>(),
             [new("Calendar", "Calendar", "Calendar"), new("DatePicker", "DatePicker", "DatePicker"),
              new("DateTimePicker", "DateTimePicker", "DateTimePicker"), new("RangeCalendar", "RangeCalendar", "RangeCalendar"),
-             new("TimePicker", "TimePicker", "TimePicker"), new("공휴일 제공자", "Holiday provider", "공휴일 제공자")],
-            preferredPage: true, kind: GalleryDestinationKind.Duxel);
+             new("TimePicker", "TimePicker", "TimePicker"),
+             new("공휴일 제공자", GalleryText.Get("Holiday provider"), "공휴일 제공자")],
+            preferredPage: true, kind: GalleryDestinationKind.Duxel, labelsLocalized: true);
         AddSection("Documents and graphics", "Duxel document and vector widgets", media,
             [new("CodeView", "CodeView", "CodeView"), new("SVG", "SVG", "SVG"), new("Markdown", "Markdown", "Markdown"),
              new("Localization", "Localization", "Localization")],
@@ -166,23 +171,27 @@ internal sealed class GalleryNavigation : IDisposable
         _navigation = Fluent.Nav(GalleryText.Get("Gallery navigation"), selection, sections.ToArray());
         var scroll = Dux.ScrollView(_navigation);
         scroll.AccessibleName = GalleryText.Get("Gallery navigation");
-        var logo = new UiSvg(_logoStore.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Brand", "duxel-mark.svg")))
-        {
-            Size = new(36, 36),
-            AccessibleName = GalleryText.Get("Duxel logo")
-        };
         var componentCount = Fluent.Badge(GalleryText.Format("{0} components", components.Length), new(UiBadgeSize.Small, Appearance : UiBadgeAppearance.Ghost, Color : UiBadgeColor.Informative));
         var counts = planned.Length == 0 ? (UiWidget)componentCount : Dux.Wrap(new(Spacing : 8, RunSpacing : 6),
             componentCount,
             Fluent.Badge(GalleryText.Format("{0} planned", planned.Length), new(UiBadgeSize.Small, Appearance : UiBadgeAppearance.Tint, Color : UiBadgeColor.Severe)));
-        var header = Dux.Padding(Dux.Column(new(Spacing : 10, MainAxisSize : UiMainAxisSize.Min),
-            Dux.Row(new(Spacing : 10, CrossAxisAlignment : UiCrossAxisAlignment.Center), logo,
+        UiWidget header = Dux.Wrap(new(Spacing : 10, RunSpacing : 4, CrossAlignment : UiWrapCrossAlignment.Center),
+            counts, Fluent.Caption1(GalleryText.Format("Version {0}", DisplayVersion)));
+        if (showBrand)
+        {
+            _logoStore = new();
+            var logo = new UiSvg(_logoStore.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Brand", "duxel-mark.svg")))
+            {
+                Size = new(36, 36),
+                AccessibleName = GalleryText.Get("Duxel logo")
+            };
+            var brand = Dux.Row(new(Spacing : 10, CrossAxisAlignment : UiCrossAxisAlignment.Center), logo,
                 Dux.Expanded(Dux.Column(new(Spacing : 2, MainAxisSize : UiMainAxisSize.Min),
-                    Fluent.Subtitle2(GalleryText.Get("Duxel Gallery")), Fluent.Caption1(GalleryText.Get("Controls · Graphics · Documents"))))),
-            Dux.Wrap(new(Spacing : 10, RunSpacing : 4, CrossAlignment : UiWrapCrossAlignment.Center),
-                counts, Fluent.Caption1(GalleryText.Format("Version {0}", DisplayVersion)))), new(8));
+                    Fluent.Subtitle2(GalleryText.Get("Duxel Gallery")), Fluent.Caption1(GalleryText.Get("Controls · Graphics · Documents")))));
+            header = Dux.Column(new(Spacing : 10, MainAxisSize : UiMainAxisSize.Min), brand, header);
+        }
         _root = Dux.SizedBox(Dux.Column(new(Spacing : 8, CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
-            header, Dux.Expanded(scroll)));
+            Dux.Padding(header, new(8)), Dux.Expanded(scroll)));
     }
 
     internal GalleryDestinationKind KindForPage(string page) => _pageKinds[page];
@@ -207,5 +216,5 @@ internal sealed class GalleryNavigation : IDisposable
         _navigation.RenderPage(ui, key, render, navigationVisible : navigationVisible);
     }
 
-    public void Dispose() { _root.Dispose(); _logoStore.Dispose(); }
+    public void Dispose() { _root.Dispose(); _logoStore?.Dispose(); }
 }

@@ -530,7 +530,9 @@ public sealed unsafe partial class VulkanRendererBackend
             ref var cachedVisibility = ref GetCachedLayerVisibility(start + member, list, in context);
             var layerView = cachedVisibility.View;
             var visibility = cachedVisibility.Visibility;
-            if (visibility == LayerVisibility.Outside)
+            if (visibility == LayerVisibility.Outside
+                || (_damagePartial && _damageCameras.Count > 0 && cachedVisibility.HasBounds && layerView.PlaneModel.HasValue
+                    && IsOutsideDamageArea(ProjectDamageBounds(cachedVisibility.Bounds, default, in layerView, in context))))
             {
                 descriptor += group.CommandCounts[member];
                 continue;

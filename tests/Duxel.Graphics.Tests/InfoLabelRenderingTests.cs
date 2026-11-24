@@ -11,11 +11,13 @@ internal static class InfoLabelRenderingTests
         label.PopoverOptions = label.PopoverOptions with { MotionEnabled = false };
         var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
         var clip = new UiRect(0, 0, 320, 240);
+        var direction = UiFlowDirection.LeftToRight;
         void Draw(UiImmediateContext ui)
         {
             ui.EnableRootViewportContentLayout(contentPadding: 0);
             var control = new UiControlContext(ui);
             control.Frame(new(0, 0, 320, 240), scheme == UiFluentColorScheme.Light ? new(255, 255, 255) : new(32, 32, 32), default, 0, 0);
+            using var provider = ui.BeginFluentProvider(null, direction : direction);
             var size = label.MeasureConstrained(ui, new(0, 200, 0, 200));
             ui.RenderLayoutChild(label, new(20, 100, size.X, size.Y), clip);
         }
@@ -72,7 +74,37 @@ internal static class InfoLabelRenderingTests
         capture("fully-clipped", Draw);
         check(context.State.MouseCursor == UiMouseCursor.Arrow && Nodes().Where(e => e.Node.Role == UiAccessibilityRole.Button).All(e => e.Node.Offscreen),
             "GPU clipped InfoLabel neither reveals a live hover nor a visible information target");
+        clip = new(0, 0, 320, 240);
+        label.Options = new(Required : true);
+        setInput(idle);
+        var ltr = capture("required-ltr", Draw);
+        var ltrButton = Nodes().Single(e => e.Node.Role == UiAccessibilityRole.Button).Node.Bounds;
+        direction = UiFlowDirection.RightToLeft;
+        var rtl = capture("required-rtl", Draw);
+        var rtlButton = Nodes().Single(e => e.Node.Role == UiAccessibilityRole.Button).Node.Bounds;
+        var ltrMarker = FindRequiredMarker(ltr);
+        var rtlMarker = FindRequiredMarker(rtl);
+        check(ltrMarker is { } left && rtlMarker is { } right
+            && left.Max < ltrButton.X && right.Min >= rtlButton.X + rtlButton.Width,
+            "GPU InfoLabel paints the required marker between its label text and information button in both directions");
         context.SetAccessibilityTree(null);
         setInput(idle);
+    }
+
+    private static (int Min, int Max)? FindRequiredMarker(byte[] pixels)
+    {
+        const int width = 320;
+        var min = width;
+        var max = -1;
+        for (var y = 100; y < 124; y++)
+        for (var x = 20; x < 200; x++)
+        {
+            var index = (y * width + x) * 4;
+            if (pixels[index] <= pixels[index + 1] + 35 || pixels[index] <= pixels[index + 2] + 35)
+                continue;
+            min = Math.Min(min, x);
+            max = Math.Max(max, x);
+        }
+        return max >= min ? (min, max) : null;
     }
 }

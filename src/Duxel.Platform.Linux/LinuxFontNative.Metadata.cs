@@ -5,6 +5,18 @@ namespace Duxel.Platform.Linux;
 internal static unsafe partial class LinuxFontNative
 {
     [LibraryImport(HarfBuzz)] internal static partial nint hb_font_get_face(nint font);
+    [LibraryImport(HarfBuzz)] internal static partial uint hb_face_get_upem(nint face);
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct VariationAxis
+    {
+        internal uint Index, Tag, NameId, Flags;
+        internal float Minimum, Default, Maximum;
+        internal uint Reserved;
+    }
+    [LibraryImport(HarfBuzz)] internal static partial uint hb_ot_var_get_axis_count(nint face);
+    [LibraryImport(HarfBuzz)] internal static partial uint hb_ot_var_get_axis_infos(nint face, uint start,
+        ref uint count, VariationAxis* axes);
+    [LibraryImport(HarfBuzz)] internal static partial int* hb_font_get_var_coords_normalized(nint font, out uint length);
     [LibraryImport(HarfBuzz, StringMarshalling = StringMarshalling.Utf8)] internal static partial nint hb_language_from_string(string language, int length);
     [LibraryImport(HarfBuzz)] internal static partial nint hb_language_to_string(nint language);
     [LibraryImport(HarfBuzz)] internal static partial uint hb_ot_name_get_utf8(nint face, uint id, nint language, uint* size, byte* text);

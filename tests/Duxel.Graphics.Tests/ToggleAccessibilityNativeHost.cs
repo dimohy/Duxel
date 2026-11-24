@@ -21,6 +21,8 @@ internal static unsafe class ToggleAccessibilityNativeHost
         var sharedWrites = 0;
         var legacy = false;
         var legacyWrites = 0;
+        var locked = true;
+        var lockedWrites = 0;
         var disabled = false;
         var visible = true;
         var finish = false;
@@ -30,6 +32,17 @@ internal static unsafe class ToggleAccessibilityNativeHost
         using var checkbox = Fluent.Checkbox("Mixed checkbox", new UiBinding<bool?>(() => mixed, next => { mixed = next; mixedWrites.Add(next); }));
         using var toggle = Fluent.ToggleButton("Shared toggle", binding);
         using var control = Fluent.Switch("Shared switch", binding);
+        var focusOnly = Fluent.Switch(string.Empty, new UiBinding<bool>(() => locked, next =>
+        {
+            locked = next;
+            lockedWrites++;
+        }));
+        focusOnly.DisabledFocusable = true;
+        using var switchField = Fluent.Field(focusOnly, new(210, 36), new()
+        {
+            Label = "Focus-only switch", Required = true, Hint = "Review this setting", ValidationMessage = "A value is required"
+        });
+        using var unlock = Fluent.Button("Unlock switch", () => focusOnly.DisabledFocusable = false);
         using var disabledOption = Fluent.Checkbox("Disabled option", new UiState<bool?>(false));
         using var restore = Fluent.Button("Restore mixed", () => mixed = null);
         using var disable = Fluent.Button("Disable mixed", () => disabled = true);
@@ -42,6 +55,8 @@ internal static unsafe class ToggleAccessibilityNativeHost
             if (visible) checkbox.Render(ui);
             ui.EndDisabled();
             control.Render(ui); toggle.Render(ui);
+            switchField.Render(ui);
+            unlock.Render(ui);
             if (ui.Checkbox("Legacy check", ref legacy)) legacyWrites++;
             ui.BeginDisabled(); disabledOption.Render(ui); ui.EndDisabled();
             restore.Render(ui); disable.Render(ui); remove.Render(ui); done.Render(ui);
@@ -66,7 +81,8 @@ internal static unsafe class ToggleAccessibilityNativeHost
         check(finish && disabled && !visible, "external Toggle client completes disabled-state and removal paths on the actual host");
         check(mixed is null && mixedWrites.SequenceEqual(new bool?[] { true, false }) && !shared && sharedWrites == 2 && legacy && legacyWrites == 1,
             "external Toggle actions preserve exact mixed/shared/legacy callback values and counts");
-        check(changes == 8, "native Toggle host publishes exactly eight real state changes with no idle duplicates");
+        check(!locked && lockedWrites == 1, "only the external Toggle after unlocking writes to the formerly focus-only Switch");
+        check(changes == 9, "native Toggle host publishes exactly nine real state changes with no idle duplicates");
     }
 
     private sealed class Screen(Action<UiImmediateContext> render) : UiScreen

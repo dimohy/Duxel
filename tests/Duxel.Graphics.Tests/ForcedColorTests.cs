@@ -38,7 +38,8 @@ internal static class ForcedColorTests
         check(WindowsSystemTheme.GetAppDesign().Theme.ForcedColors == native,
             "Forced colors / actual read-only Win32 query agrees with the public system design");
         RunRetained(palette, check);
-        RunBadges(palette, check);
+        RunBadges(palette, check, 1);
+        RunBadges(palette, check, 4);
         ForcedInputColorTests.Run(palette, check);
         SelectedTextColorTests.Run(palette, check);
         StyledSelectionColorTests.Run(palette, check);
@@ -50,9 +51,9 @@ internal static class ForcedColorTests
         OptionContrastTests.Run(palette, check);
     }
 
-    private static void RunBadges(UiForcedColorPalette palette, Action<bool, string> check)
+    private static void RunBadges(UiForcedColorPalette palette, Action<bool, string> check, int samples)
     {
-        using var fixture = new PresentationReuseTests.Fixture(1, true);
+        using var fixture = new PresentationReuseTests.Fixture(1, true, msaaSamples: samples);
         var counterText = new UiBadgeTextCache();
         var parentColor = new UiColor(11, 22, 33);
         void Draw(UiImmediateContext ui)
@@ -81,6 +82,8 @@ internal static class ForcedColorTests
             => BitConverter.ToUInt32(dark, (y * width + x) * 4) == color.Rgba;
         for (var row = 0; row < 4; row++)
         {
+            var appearance = (UiBadgeAppearance)row;
+            var expectedBorder = appearance != UiBadgeAppearance.Ghost;
             var correct = true;
             for (var column = 0; column < 8; column++)
             {
@@ -95,14 +98,14 @@ internal static class ForcedColorTests
                         text |= Pixel(x + dx, y + dy, palette.CanvasText);
                 }
                 var background = row is 1 or 2 ? parentColor : palette.Canvas;
-                correct &= border && text && Pixel(x + 2, y + 2, background);
+                correct &= border == expectedBorder && text && Pixel(x + 2, y + 2, background);
             }
-            check(correct, $"Forced colors / Badge {(UiBadgeAppearance)row} preserves system background, text and visible border across all eight semantic colors");
+            check(correct, $"Forced colors / Badge {appearance} matches system background, text and border across eight semantic colors at MSAA {samples}");
         }
         check(dark.AsSpan().SequenceEqual(light),
-            "Forced colors / Badge output depends on the system palette rather than the underlying light or dark design");
-        check(Pixel(10, 172, palette.CanvasText) && Pixel(13, 172, parentColor),
-            "Forced colors / Ghost CounterBadge shares the visible system border and preserves its transparent background");
+            $"Forced colors / Badge output depends on the system palette at MSAA {samples}");
+        check(Pixel(10, 172, parentColor) && Pixel(13, 172, parentColor),
+            $"Forced colors / Ghost CounterBadge keeps its transparent background and border at MSAA {samples}");
     }
 
     private static void RunRetained(UiForcedColorPalette first, Action<bool, string> check)

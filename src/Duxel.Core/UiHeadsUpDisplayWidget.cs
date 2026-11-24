@@ -36,19 +36,35 @@ internal sealed class UiHeadsUpDisplayInputState : UiOverlayInputState
     }
 }
 
-/// <summary>Owns a centered HUD portal, its input lifetime and optional one-second dismissal.</summary>
-public class UiHeadsUpDisplayWidget : UiControlWidget
+public interface IUiHeadsUpDisplayBehavior : IUiPointerActivationBehavior
+{
+    static virtual TimeSpan AutoDismissDelay => TimeSpan.FromSeconds(1);
+}
+
+public readonly struct UiDefaultHeadsUpDisplayBehavior : IUiHeadsUpDisplayBehavior
+{
+    public static UiButtonActivation PointerActivation => UiButtonActivation.Release;
+}
+
+/// <summary>Owns a centered HUD portal with independent input, temporary lifetime, and surface presentation.</summary>
+public class UiHeadsUpDisplayWidget<TBehavior, TPresentation> : UiControlWidget
+    where TBehavior : IUiHeadsUpDisplayBehavior
+    where TPresentation : IUiHeadsUpDisplayPresentation
 {
     private UiHeadsUpDisplayOptions _options;
     private readonly UiSurfaceVisibility _visibility;
     internal readonly UiHeadsUpDisplayInputState Input = new();
+    internal double AutoDismissSeconds { get; }
     public UiHeadsUpDisplayContent Content { get; }
     public UiHeadsUpDisplayWidget(UiHeadsUpDisplayContentOptions? contentOptions = null,
         UiHeadsUpDisplayOptions? options = null, Action? tapped = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(identity)
     {
         _options = options ?? new();
         _options.Validate();
-        Content = new(contentOptions, tapped);
+        AutoDismissSeconds = TBehavior.AutoDismissDelay.TotalSeconds;
+        if (AutoDismissSeconds <= 0)
+            throw new InvalidOperationException("HUD automatic dismissal requires a positive delay.");
+        Content = new(contentOptions, tapped, UiWidgetIdentity.Instance, TBehavior.PointerActivation, TPresentation.PaintSurface);
         OwnChild("content", Content);
         _visibility = new(Input, RequestRebuild);
     }
@@ -108,4 +124,12 @@ public class UiHeadsUpDisplayWidget : UiControlWidget
         _visibility.Dispose();
         base.ReleaseOwnedResources();
     }
+}
+
+/// <summary>HUD with the default Fluent backplate, release activation, and one-second temporary lifetime.</summary>
+public class UiHeadsUpDisplayWidget : UiHeadsUpDisplayWidget<UiDefaultHeadsUpDisplayBehavior, UiFluentHeadsUpDisplayPresentation>
+{
+    public UiHeadsUpDisplayWidget(UiHeadsUpDisplayContentOptions? contentOptions = null,
+        UiHeadsUpDisplayOptions? options = null, Action? tapped = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(contentOptions, options, tapped, identity) { }
 }

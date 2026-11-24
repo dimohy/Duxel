@@ -234,7 +234,7 @@ public sealed partial class UiImmediateContext
         where TKeys : IControlKeys
     {
         ApplyAccessibilityFocus(id, bounds, allowDisabledFocus);
-        ClaimFieldFocus(id, bounds);
+        ClaimFieldFocus(id, bounds, allowDisabledFocus);
         var clipped = IntersectRect(CurrentClipRect, bounds);
         if ((!IsControlEnabled && !allowDisabledFocus) || clipped.Width <= 0 || clipped.Height <= 0 || _popupTierDepth < _blockingKeyboardTier)
         {

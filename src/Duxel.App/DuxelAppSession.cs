@@ -261,7 +261,7 @@ public sealed partial class DuxelAppSession
             uiContext.SetAccessibilityTree(accessibility.AccessibilityTree);
         uiContext.SetTypographyFonts(fontOptions.Typography);
         uiContext.SetDirectTextPrimaryFontPath(fontOptions.PrimaryFontPath);
-        uiContext.SetDirectTextSecondaryFontPath(fontOptions.SecondaryFontPath);
+        uiContext.SetDirectTextSecondaryFontPath(fontOptions.DirectTextSecondaryFontPath ?? fontOptions.SecondaryFontPath);
         uiContext.SetDirectTextBaseFontSize(logicalBaseFontSize * contentScale);
         uiContext.SetDirectTextEnabled(directTextEnabled);
         uiContext.SetDirectTextFallbackEnabled(directTextFallbackEnabled);
@@ -687,6 +687,7 @@ public sealed partial class DuxelAppSession
                     )
                     {
                         IdleWaitSeconds = idleWaitSeconds,
+                        PrefersReducedMotion = platformThemeProvider?.PrefersReducedMotion == true,
                         HostVisibility = hostVisibility,
                         IsWindowInactive = snapshot.IsWindowInactive,
                         RepaintDiagnosticCleanup = !hasInputInvalidation && !hasPendingRenderWork && !hasAnimationWork
@@ -746,7 +747,18 @@ public sealed partial class DuxelAppSession
 
                     var t1 = Stopwatch.GetTimestamp();
                     var renderAllocatedStart = sampleAllocations ? GC.GetAllocatedBytesForCurrentThread() : 0;
+                    var frameMsaaSamples = uiContext.State.MsaaSamples;
+                    var useProjectedGlyphText = renderer.CanUseProjectedGlyphText(frameMsaaSamples);
+                    uiContext.UseProjectedGlyphText = useProjectedGlyphText;
                     uiContext.Render();
+                    var requestedSamples = uiContext.State.MsaaSamples;
+                    if (requestedSamples != frameMsaaSamples)
+                    {
+                        if (renderer.CanUseProjectedGlyphText(requestedSamples) == useProjectedGlyphText)
+                            frameMsaaSamples = requestedSamples;
+                        else
+                            RequestFrame(); // Keep this frame's glyph commands compatible with its render settings.
+                    }
                     if (windowThemeController is not null)
                     {
                         var current = uiContext.GetStyle();
@@ -789,7 +801,7 @@ public sealed partial class DuxelAppSession
                     {
                         DuxelApp.EmitTrace(options.Debug, ref frameCounter, drawData, fps);
                         var work = new DuxelRenderWork(drawData, uiContext.State.VSync,
-                            uiContext.State.MsaaSamples, uiContext.GetStyle().WindowBg, interactiveResizeSequence,
+                            frameMsaaSamples, uiContext.GetStyle().WindowBg, interactiveResizeSequence,
                             ++appProfilingFrameCounter, t0, t1, t2, fps, allocationSample);
                         if (renderQueue is not null)
                         {
@@ -814,6 +826,7 @@ public sealed partial class DuxelAppSession
                     uiContext.State.NewFrameTimeMs = (t1 - t0) / tickFreq;
                     uiContext.State.RenderTimeMs = (t2 - t1) / tickFreq;
                     uiContext.State.SubmitTimeMs = Volatile.Read(ref lastSubmitTimeMs);
+                    uiContext.State.PreviousFrameWorkTimeMs = (float)Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
                     if (missingGlyphsFromRender > 0)
                     {
                         pendingGlyphs += missingGlyphsFromRender;

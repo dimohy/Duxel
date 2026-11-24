@@ -5,6 +5,7 @@ internal static class CarouselTests
 {
     internal static void Run(string output, Action<bool, string> check)
     {
+        CarouselNavigationTests.Run(check);
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
         ControlFontFixture.Configure(context);
         using var tree = new UiAccessibilityTree();
@@ -99,6 +100,19 @@ internal static class CarouselTests
         check(!carousel.IsPlaying && selected == "b" && context.State.NextScheduledFrameTimeSeconds is null,
             "the pause control stops future deadlines");
 
+        foreach (var width in new[] { 320, 600, 601 })
+        {
+            context.NewFrame(new(1f / 60, new(width, 320), new(1, 1)), idle, new(0, 0, width, 320), UiTextSettings.Default);
+            context.Render(screen);
+            using var draw = context.GetDrawData();
+            var bounds = tree.CaptureSnapshot().Elements.Single(e => e.Node.Name == "Places"
+                && e.Node.Role == UiAccessibilityRole.Group).Node.Bounds;
+            check(width <= 600 ? bounds.Width == width : bounds.Width < width,
+                $"carousel reflows at {width}px (actual width {bounds.Width})");
+            check(Find("Second action").Node.Bounds.Width > 0 && Find("Next slide").Node.Bounds.Width > 0,
+                $"carousel content and navigation remain exposed at {width}px");
+        }
+
         using var fixture = new PresentationReuseTests.Fixture(1, true, PresentationTestPlatform.Create(1100, 900));
         using var galleryTree = new UiAccessibilityTree();
         fixture.Context.SetAccessibilityTree(galleryTree);
@@ -144,6 +158,37 @@ internal static class CarouselTests
             File.WriteAllText(Path.Combine(output, $"carousel-example-{index}.cs"),
                 "using System;\nusing Duxel.Core;\nUiImmediateContext ui = null!;\n" + sample.Source);
         }
+
+        using var compact = new PresentationReuseTests.Fixture(1, true, PresentationTestPlatform.Create(320, 320));
+        using var compactPage = new CarouselPage();
+        var compactPixels = compact.Capture(ui =>
+        {
+            ui.EnableRootViewportContentLayout(contentPadding: 0);
+            ((GallerySample<UiFluentCarousel>)compactPage.Samples[0]).Preview.Render(ui);
+        });
+        var (compactWidth, compactHeight) = compact.LastCaptureSize;
+        check(compactWidth == 320, "the compact Vulkan fixture renders at 320px");
+        var imageWidth = 0;
+        var imageHeight = 0;
+        for (var y = 0; y < compactHeight; y++)
+        {
+            var matches = 0;
+            for (var x = 0; x < compactWidth; x++)
+            {
+                var offset = (y * compactWidth + x) * 4;
+                if (compactPixels[offset] < 50 && compactPixels[offset + 1] is > 70 and < 155
+                    && compactPixels[offset + 2] > 155)
+                    matches++;
+            }
+            if (matches >= 300)
+            {
+                imageWidth = Math.Max(imageWidth, matches);
+                imageHeight++;
+            }
+        }
+        check(imageWidth >= 318 && Math.Abs(imageHeight - imageWidth * 6f / 35f) <= 2,
+            $"the compact Gallery image preserves its aspect ratio ({imageWidth}×{imageHeight})");
+        compact.WriteCapturePng(Path.Combine(output, "carousel-compact-320.png"), compactPixels);
     }
 
     private sealed class Screen(Action<UiImmediateContext> render) : UiScreen

@@ -3,7 +3,8 @@ namespace Duxel.Core;
 public sealed partial class UiImmediateContext
 {
     internal void RenderSearchBox<TPresentation>(string id, string label, UiBinding<string> binding, int maxLength,
-        UiTextInputOwner owner, UiSearchBoxOptions options) where TPresentation : IUiSearchBoxPresentation
+        UiTextInputOwner owner, UiSearchBoxOptions options, UiButtonActivation clearPointerActivation)
+        where TPresentation : IUiSearchBoxPresentation
     {
         var text = UiSearchBox<TPresentation>.ValidateText(binding.Value, maxLength);
         var initial = text;
@@ -36,17 +37,21 @@ public sealed partial class UiImmediateContext
             var clear = default(UiButtonInteraction);
             if (showClear && layout.After is { } clearBounds)
             {
-                clear = ProcessButton(clearName, clearBounds, UiButtonActivation.Release);
+                clear = ProcessButton(clearName, clearBounds, clearPointerActivation);
                 clear = ApplyAccessibilityInvoke(clearId, clearBounds, clear);
                 _currentTabStops.RemoveAll(stop => stop.Id == clearId);
                 if (_state.FocusedId == clearId || clear.Activated)
                 {
                     _state.FocusedId = _ownedControlFocus = root;
-                    if (clear.Activated)
+                    // The clear button retains the opening press until release.
+                    if (clear.Activated && !(clearPointerActivation == UiButtonActivation.Press
+                        && _leftMouseDown && _state.ActiveId == clearId))
                         _state.ActiveId = root;
                 }
             }
-            var edit = EditNavigableInput(root, ref text, maxLength, layout, clearId);
+            var clearOwnsPress = clear.Activated && clearPointerActivation == UiButtonActivation.Press
+                && clear.Hovered && _leftMousePressed;
+            var edit = EditNavigableInput(root, ref text, maxLength, layout, clearId, pointerPressConsumed: clearOwnsPress);
             if (clear.Activated)
                 text = string.Empty;
             if (text != initial)

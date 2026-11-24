@@ -86,6 +86,8 @@ public enum UiAccessibilitySelectionEventKind
 public readonly record struct UiAccessibilitySelectionChange(UiAccessibilityElement Element, bool? Previous,
     UiAccessibilitySelectionEventKind? Event)
 {
+    internal bool DismissingMenu { get; init; }
+
     public bool? PreviousRequired
     {
         get; init;
@@ -441,6 +443,7 @@ public sealed partial class UiAccessibilityTree : IDisposable
         internal UiRect? RevealBounds;
         internal ScrollViewport? ScrollViewport;
         internal ulong PaneChildrenChanged;
+        internal ulong MenuDismissalGeneration;
     }
     private readonly Dictionary<string, Entry> _entries = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiAccessibilityElement> _published = new(StringComparer.Ordinal);
@@ -863,6 +866,23 @@ public sealed partial class UiAccessibilityTree : IDisposable
     }
     private static bool ShownTooltip(in UiAccessibilityNode node) => node.Role == UiAccessibilityRole.Tooltip && !node.Offscreen;
 
+    internal void MarkDismissingMenu(string id)
+    {
+        if (_entries.TryGetValue(id, out var menu) && menu.Seen == _generation)
+            menu.MenuDismissalGeneration = _generation;
+    }
+
+    private bool IsDismissingMenuSelection(in UiAccessibilityNode node)
+    {
+        if (node.Role is not (UiAccessibilityRole.MenuGroup or UiAccessibilityRole.MenuItem))
+            return false;
+        var parentId = node.ParentId;
+        if (node.Role == UiAccessibilityRole.MenuItem && _entries.TryGetValue(parentId, out var group)
+            && group.Candidate.Node.Role == UiAccessibilityRole.MenuGroup)
+            parentId = group.Candidate.Node.ParentId;
+        return _entries.TryGetValue(parentId, out var menu) && menu.MenuDismissalGeneration == _generation;
+    }
+
     private void CollectSelectionChanges()
     {
         try
@@ -890,7 +910,8 @@ public sealed partial class UiAccessibilityTree : IDisposable
                 if (entry.HasPublished && current.SupportsSelection && entry.Published.Node.SelectionRequired != current.SelectionRequired)
                     (_selectionChanges ??= []).Add(new(entry.Candidate, null, null)
                     {
-                        PreviousRequired = entry.Published.Node.SelectionRequired
+                        PreviousRequired = entry.Published.Node.SelectionRequired,
+                        DismissingMenu = IsDismissingMenuSelection(current)
                     });
                 if (entry.HasPublished && current.SupportsSelection && entry.Published.Node.CanSelectMultiple != current.CanSelectMultiple)
                     (_selectionChanges ??= []).Add(new(entry.Candidate, null, null)
@@ -912,7 +933,10 @@ public sealed partial class UiAccessibilityTree : IDisposable
                     ? multiple && _selectedCounts![(current.SelectionContainerId ?? current.ParentId)] > 1 ? UiAccessibilitySelectionEventKind.Added : UiAccessibilitySelectionEventKind.Selected
                     : multiple ? UiAccessibilitySelectionEventKind.Removed
                     : _selectedTabs?.ContainsKey((current.SelectionContainerId ?? current.ParentId)) == true ? null : UiAccessibilitySelectionEventKind.Removed;
-                (_selectionChanges ??= []).Add(new(entry.Candidate, previous, kind));
+                (_selectionChanges ??= []).Add(new(entry.Candidate, previous, kind)
+                {
+                    DismissingMenu = IsDismissingMenuSelection(current)
+                });
             }
             foreach (var id in _removed)
             {

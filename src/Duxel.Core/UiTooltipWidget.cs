@@ -34,7 +34,10 @@ public readonly record struct UiTooltipOptions
     }
 }
 
-public readonly record struct UiTooltipInteraction(bool TargetHovered, bool TargetFocused, bool SurfaceHovered);
+public readonly record struct UiTooltipInteraction(bool TargetHovered, bool TargetFocused, bool SurfaceHovered)
+{
+    internal bool ProgrammaticFocusWithoutKeyboard { get; init; }
+}
 
 public enum UiTooltipVisibilityReason
 {
@@ -54,7 +57,8 @@ public interface IUiTooltipBehavior
 public readonly struct UiHoverFocusTooltipBehavior : IUiTooltipBehavior
 {
     public static bool Requested(UiTooltipInteraction interaction) =>
-        interaction.TargetHovered || interaction.TargetFocused || interaction.SurfaceHovered;
+        interaction.TargetHovered || interaction.SurfaceHovered
+        || interaction.TargetFocused && !interaction.ProgrammaticFocusWithoutKeyboard;
 }
 
 /// <summary>Statically selected popup geometry and painting, independent of target measurement.</summary>
@@ -73,6 +77,7 @@ internal interface IUiTooltipTarget
     Action<UiTooltipVisibilityChange>? VisibleChangeRequested { get; }
     bool IsAlive { get; }
     bool IsOpen { get; set; }
+    bool PointerDismissed { get; set; }
     UiPopupLayout Arrange(UiControlContext context, string text, UiRect target, UiRect viewport, UiTooltipOptions options);
     void Paint(UiControlContext context, string text, UiPopupLayout layout);
 }
@@ -113,6 +118,7 @@ public class UiTooltip<TBehavior, TPresentation> : UiWidget, IUiTooltipTarget
     public UiWidget Target => _target ?? throw new ObjectDisposedException(nameof(UiTooltip<TBehavior, TPresentation>));
     public bool IsOpen { get; private set; }
     bool IUiTooltipTarget.IsOpen { get => IsOpen; set => IsOpen = value; }
+    bool IUiTooltipTarget.PointerDismissed { get; set; }
     bool IUiTooltipTarget.IsAlive => _target is not null;
 
     /// <summary>Null selects automatic visibility. A Boolean selects caller-owned visibility.</summary>

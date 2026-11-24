@@ -197,8 +197,11 @@ public sealed partial class UiImmediateContext
             using var rootClip = paintBounds.HasValue || _allocatedTextPlacements >= 0 ? new UiControlContext(this).Clip(bounds) : default;
             var paint = UiFluentBadgePalette.Resolve(_theme.BadgeColorScheme, options.Appearance, options.Color);
             if (_theme.ForcedColors is { } system)
+            {
+                var border = options.Appearance == UiBadgeAppearance.Ghost ? default : system.CanvasText;
                 paint = new(new UiColor((system.Canvas.Rgba & 0x00ffffffu) | (paint.Background.Rgba & 0xff000000u)),
-                    system.CanvasText, system.CanvasText);
+                    system.CanvasText, border);
+            }
             var radius = options.Shape switch
             {
                 UiBadgeShape.Circular => height / 2,
@@ -207,8 +210,7 @@ public sealed partial class UiImmediateContext
                 _ => throw new ArgumentOutOfRangeException(nameof(options))
             };
             if ((paint.Background.Rgba >> 24) != 0 || (paint.Border.Rgba >> 24) != 0)
-                AddDesignedFrame(bounds, paint.Background, paint.Border, radius,
-                    options.Appearance == UiBadgeAppearance.Ghost && _theme.ForcedColors is null ? 0 : scale);
+                AddDesignedFrame(bounds, paint.Background, paint.Border, radius, scale);
             var start = bounds.X + (width - contentWidth) / 2;
             var textX = start;
             if (icon)

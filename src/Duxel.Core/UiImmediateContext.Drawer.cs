@@ -4,8 +4,10 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
-    internal void RenderDrawer<TPresentation>(UiDrawer<TPresentation> widget, string id, bool? controlled, bool? pending,
-        UiControlActivationOrigin? origin) where TPresentation : IUiDrawerPresentation
+    internal void RenderDrawer<TCloseBehavior, TPresentation>(UiDrawer<TCloseBehavior, TPresentation> widget, string id, bool? controlled, bool? pending,
+        UiControlActivationOrigin? origin)
+        where TCloseBehavior : IUiPointerActivationBehavior
+        where TPresentation : IUiDrawerPresentation
     {
         var input = widget.Input;
         var options = widget.Options;
@@ -49,6 +51,7 @@ public sealed partial class UiImmediateContext
         var bottom = options.Position == UiDrawerPosition.Bottom;
         var rightToLeft = options.RightToLeft || context.RightToLeft;
         var left = options.Position == UiDrawerPosition.Start != rightToLeft;
+        var viewport = GetOverlayViewport();
         UiRect natural;
         if (inline)
         {
@@ -57,9 +60,9 @@ public sealed partial class UiImmediateContext
         }
         else
         {
-            var extent = options.ResolveExtent(bottom ? _displaySize.Y : _displaySize.X);
-            natural = bottom ? new(0, _displaySize.Y - extent, _displaySize.X, extent)
-                : new(left ? 0 : _displaySize.X - extent, 0, extent, _displaySize.Y);
+            var extent = options.ResolveExtent(bottom ? viewport.Height : viewport.Width);
+            natural = bottom ? new(viewport.X, viewport.Y + viewport.Height - extent, viewport.Width, extent)
+                : new(left ? viewport.X : viewport.X + viewport.Width - extent, viewport.Y, extent, viewport.Height);
         }
         input.ClosedOffset = bottom ? new(0, natural.Height) : new(left ? -natural.Width : natural.Width, 0);
         var wasOpen = input.Open;
@@ -112,10 +115,18 @@ public sealed partial class UiImmediateContext
         }
         using var screen = inline ? default : BeginWidgetScreenSpace();
         var padding = metrics.Padding + metrics.BorderWidth;
-        var bodyBounds = new UiRect(natural.X + padding, natural.Y + padding, MathF.Max(0, natural.Width - 2 * padding), MathF.Max(0, natural.Height - 2 * padding));
+        var outset = widget.HeaderNavigation is null ? default : TPresentation.HeaderNavigationOutset;
+        if (!float.IsFinite(outset.X) || !float.IsFinite(outset.Y) || outset.X < 0 || outset.Y < 0)
+            throw new InvalidOperationException("Drawer header navigation outsets must be finite and nonnegative.");
+        var sideOutset = MathF.Min(outset.X, metrics.Padding);
+        var topOutset = MathF.Min(outset.Y, metrics.Padding);
+        var sidePadding = padding - sideOutset;
+        var bodyBounds = new UiRect(natural.X + sidePadding, natural.Y + padding - topOutset,
+            MathF.Max(0, natural.Width - 2 * sidePadding), MathF.Max(0, natural.Height - 2 * padding + topOutset));
         var shortScreen = options.ScrollBody && (natural.Height <= 359 || !options.StickyHeaderFooter);
         widget.Body.Configure(false, shortScreen, options.ShowCloseButton, options.CloseLabel,
-            bodyBounds.Height, !shortScreen, rightToLeft, actionsStart : true, scrollBody : options.ScrollBody, autoStackActions : true);
+            bodyBounds.Height, !shortScreen, rightToLeft, actionsStart : true, scrollBody : options.ScrollBody, autoStackActions : true,
+            navigationOutset : sideOutset);
         widget.Body.ScrollSeparator = !shortScreen && options.ScrollBody ? TPresentation.ScrollSeparator(context) : null;
         using var text = TPresentation.BeginBodyText(context);
         context.MeasureParentDataChild(widget.Viewport, null, UiBoxConstraints.Tight(new(bodyBounds.Width, bodyBounds.Height)));
@@ -130,11 +141,11 @@ public sealed partial class UiImmediateContext
         if (!active) input.ResetMotion();
         var exclusive = !inline && options.Modal;
         var focusOnActivation = !inline && (opened || input.AutoFocusPending || exclusive && !input.WasExclusive && !OverlayContains(input, _state.FocusedId));
-        input.AdditionalBlockingBounds = exclusive ? new(0, 0, _displaySize.X, _displaySize.Y) : null;
+        input.AdditionalBlockingBounds = exclusive ? viewport : null;
         if (!inline && !opened && options.LightDismiss)
         {
             var inside = OverlayPointerInside(input);
-            if (_leftMousePressed) input.BackdropPressed = !inside;
+            if (_leftMousePressed) input.BackdropPressed = !inside && IsHovering(viewport);
             var dismiss = _leftMouseReleased && input.BackdropPressed && !inside;
             if (!_leftMouseDown || _leftMouseReleased) input.BackdropPressed = false;
             if (dismiss && RequestOverlayChange(input, false, exclusive)) return;
@@ -146,7 +157,7 @@ public sealed partial class UiImmediateContext
             _blockingKeyboardTier = Math.Max(_state.PreviousPopupKeyboardTier, _state.CurrentPopupKeyboardTier);
             _popupTierDepth = ResolveOverlayTier(input, parentTier, opened) - 1;
             PushPopup();
-            PushClipRect(new(0, 0, _displaySize.X, _displaySize.Y), false);
+            PushClipRect(viewport, false);
         }
         else PushClipRect(inlineAllocation, true);
         var parent = _accessibilityParent;
@@ -173,7 +184,7 @@ public sealed partial class UiImmediateContext
             {
                 var color = input.BackdropColor;
                 color = new((color.Rgba & 0x00ffffff) | ((uint)MathF.Round((color.Rgba >> 24) * motion.BackdropOpacity) << 24));
-                AddRectFilled(new(0, 0, _displaySize.X, _displaySize.Y), color, _whiteTexture);
+                AddRectFilled(viewport, color, _whiteTexture);
             }
             if (inline && input.MotionEnabled && natural.Width > 0 && natural.Height > 0)
                 capture = BeginInteractivePaintGroup(input.SurfacePaint ??= new(), natural);
@@ -182,7 +193,7 @@ public sealed partial class UiImmediateContext
                 var shadow = input.Shadow ??= new(TPresentation.Shadow(context));
                 shadow.Options = TPresentation.Shadow(context);
                 if (input.MotionEnabled) capture = BeginInteractivePaintGroup(input.SurfacePaint ??= new(), shadow.Options.PaintBounds(natural));
-                if (active) coordinates = BeginWidgetAffineSpace(matrix, 1, new(0, 0, _displaySize.X, _displaySize.Y), rasterScale : 1);
+                if (active) coordinates = BeginWidgetAffineSpace(matrix, 1, viewport, rasterScale : 1);
                 context.BoxShadow(shadow, natural, metrics.CornerRadius);
             }
             context.Frame(natural, TPresentation.Background(context), context.Theme.ForcedColors?.CanvasText ?? default,

@@ -8,12 +8,13 @@ namespace Duxel.Platform.Linux;
 
 // HarfBuzz coordinates use the font's independent 26.6 scale. Native callbacks
 // only build immutable contours; exceptions are rethrown after native unwinding.
-internal sealed unsafe class LinuxGlyphOutline(float tolerance)
+internal sealed unsafe class LinuxGlyphOutline(float tolerance, bool outlineOnly)
 {
     private readonly List<List<UiVector2>> _contours = [];
     private readonly List<UiVectorCurve> _curves = [];
     private List<UiVector2> _current = [];
     private readonly double _toleranceSquared = (double)tolerance * tolerance;
+    private readonly bool _outlineOnly = outlineOnly;
     private ExceptionDispatchInfo? _failure;
 
     internal static nint CreateFunctions()
@@ -33,9 +34,9 @@ internal sealed unsafe class LinuxGlyphOutline(float tolerance)
     }
 
     internal readonly record struct Extraction(List<List<UiVector2>> Contours, UiVectorCurve[] Curves);
-    internal static Extraction Extract(nint font, uint glyph, nint functions, float tolerance)
+    internal static Extraction Extract(nint font, uint glyph, nint functions, float tolerance, bool outlineOnly)
     {
-        var outline = new LinuxGlyphOutline(tolerance);
+        var outline = new LinuxGlyphOutline(tolerance, outlineOnly);
         var handle = GCHandle.Alloc(outline);
         try
         {
@@ -73,11 +74,17 @@ internal sealed unsafe class LinuxGlyphOutline(float tolerance)
                     var start = outline._current[^1];
                     outline._curves.Add(new(start, new(start.X + (a.X - start.X) * (2f / 3), start.Y + (a.Y - start.Y) * (2f / 3)),
                         new(b.X + (a.X - b.X) * (2f / 3), b.Y + (a.Y - b.Y) * (2f / 3)), b));
-                    outline.Quadratic(outline._current[^1], a, b, 0);
+                    if (outline._outlineOnly)
+                        outline._current.Add(b);
+                    else
+                        outline.Quadratic(start, a, b, 0);
                     break;
                 case 3:
                     outline._curves.Add(new(outline._current[^1], a, b, c));
-                    outline.Cubic(outline._current[^1], a, b, c, 0);
+                    if (outline._outlineOnly)
+                        outline._current.Add(c);
+                    else
+                        outline.Cubic(outline._current[^1], a, b, c, 0);
                     break;
                 case 4:
                     var contour = outline._current;
@@ -85,7 +92,7 @@ internal sealed unsafe class LinuxGlyphOutline(float tolerance)
                         outline._curves.Add(UiVectorCurve.Line(contour[^1], contour[0]));
                     if (contour.Count > 1 && contour[0] == contour[^1])
                         contour.RemoveAt(contour.Count - 1);
-                    if (contour.Count >= 3)
+                    if (!outline._outlineOnly && contour.Count >= 3)
                         outline._contours.Add(contour);
                     outline._current = [];
                     break;

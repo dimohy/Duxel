@@ -28,6 +28,8 @@ public readonly record struct UiGpuVectorCamera(UiVector2 FullPixelSize, UiVecto
 /// <summary>Immutable vector commands and paint data uploaded once per renderer. Contains no raster pixels.</summary>
 public sealed class UiGpuVectorScene
 {
+    internal const int PlacedCurvePath = 256;
+    internal const int GlyphCoverageBounds = 512;
     public IReadOnlyList<UiGpuVectorStroke> Strokes
     {
         get;
@@ -121,8 +123,11 @@ public sealed class UiGpuVectorScene
             var stride = (flags & 4) != 0 ? 3 : 1;
             var banded = (flags & 2) != 0;
             if (((flags & 32) == 0 && (long)start + (long)count * (banded ? 1 : stride) > data.Length) || specification.Z is < 0 or > 5 || specification.Z != MathF.Truncate(specification.Z)
-                || specification.W < 0 || specification.W > 255 || specification.W != flags)
+                || specification.W < 0 || specification.W > 1023 || specification.W != flags)
                 throw new ArgumentException("Invalid vector path or paint.", nameof(data));
+            if ((flags & (PlacedCurvePath | GlyphCoverageBounds)) != 0 &&
+                ((flags & ~(PlacedCurvePath | GlyphCoverageBounds | 4 | 1)) != 0 || specification.Z != 0 || start < commandCount * 6 || count == 0))
+                throw new ArgumentException("Placed curves require a solid fill and a local curve payload.", nameof(data));
             if ((flags & 128) != 0)
             {
                 if (flags != 128 || count is < 1 or > 2 || start < commandCount * 6 || start + count * 3L > data.Length)

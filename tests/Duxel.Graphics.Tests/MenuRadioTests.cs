@@ -105,7 +105,8 @@ internal static class MenuRadioTests
         check(!menu.IsOpen && sorting == "two" && writes == 1 && calls.SequenceEqual([("two", (string?)"two")])
             && Find("One").Node.Selected == false && Find("Two").Node.Selected == true && Find("Compact").Node.Selected == true,
             "Select replaces only its own group before callback and final publication, then closes the menu");
-        check(changes.Count == 2 && changes.Count(change => change.Event == UiAccessibilitySelectionEventKind.Selected) == 1,
+        check(changes.Count == 2 && changes.TrueForAll(change => change.DismissingMenu)
+            && changes.Count(change => change.Event == UiAccessibilitySelectionEventKind.Selected) == 1,
             "exclusive replacement emits both changed properties and one final selected event");
         Frame();
         check(oneProvider.GetIsSelected(out _) == unchecked((int)0x80040201), "closed radio item provider becomes unavailable");
@@ -126,11 +127,14 @@ internal static class MenuRadioTests
         Key(UiKey.Space, false);
         check(!menu.IsOpen && sorting == "one" && writes == 2, "radio Space release changes selection and dismisses");
         Open();
+        var beforeBindingChange = changes.Count;
         sorting = null;
         Frame();
         check(Find("One").Node.Selected == false && Find("Two").Node.Selected == false
             && !Find("Sort", UiAccessibilityRole.MenuGroup).Node.SelectionRequired && writes == 2,
             "external empty state clears marks and updates the group policy without setter calls");
+        check(changes.Skip(beforeBindingChange).Any() && changes.Skip(beforeBindingChange).All(change => !change.DismissingMenu),
+            "binding changes in an open menu do not defer native selection events");
         var before = changes.Count;
         Frame();
         check(changes.Count == before && context.State.NextScheduledFrameTimeSeconds is null,

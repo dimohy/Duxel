@@ -1,10 +1,14 @@
 namespace Duxel.Core;
 
+internal sealed record UiProjectedGlyphDraw(UiGpuVectorScene Scene, UiVector2 Origin, float Scale, UiColor Color);
+
 public sealed partial class UiImmediateContext
 {
-    private readonly record struct VectorTextCacheKey(DirectTextCacheKey Text, float Tolerance, float IconAscent);
+    internal bool UseProjectedGlyphText { get; set; }
+    private enum ProjectedTextDetail { Detailed, Medium, Coarse }
+    private readonly record struct VectorTextCacheKey(DirectTextCacheKey Text, float Tolerance, float IconAscent, bool OutlineOnly, bool UseProjectedLineMetrics);
     private readonly record struct VectorTextCacheEntry(PlatformTextMeshResult Mesh, (float Top, float Height)? Ink = null,
-        UiVectorGlyphSource? Icon = null)
+        UiVectorGlyphSource? Icon = null, UiVectorGlyphSource? Outline = null)
     {
         internal float Baseline => Mesh.Baseline;
     }
@@ -14,9 +18,77 @@ public sealed partial class UiImmediateContext
     private IDisposable? _vectorTextParagraphBatch;
     private UiRasterTextureCache<UiGpuVectorScene, UiVectorSceneTextureProvider>? _fontIconTextureCache;
     internal UiRasterTextureStatistics FontIconTextureStatistics => _fontIconTextureCache?.Statistics ?? default;
-    private VectorTextCacheKey CreateVectorTextCacheKey(string text, float fontSize)
-        => new(CreateDirectTextCacheKey(text, fontSize), _fontIconVectorPaint ? .001f : .001f / WidgetRasterScale,
-            _fontIconVectorPaint ? _controlTypographyMetrics.Ascent : 0);
+    private VectorTextCacheKey CreateVectorTextCacheKey(string text, float fontSize, ProjectedTextDetail detail = default, bool outlineOnly = false)
+        => new(CreateDirectTextCacheKey(text, fontSize), _fontIconVectorPaint || outlineOnly ? .001f : ProjectedTextTolerance(detail) / WidgetRasterScale,
+            _fontIconVectorPaint ? _controlTypographyMetrics.Ascent : 0, outlineOnly,
+            !_fontIconVectorPaint && HasLayerCameraAboveScreenPortal());
+
+    private static float ProjectedTextTolerance(ProjectedTextDetail detail) => detail switch
+    {
+        ProjectedTextDetail.Coarse => .25f,
+        ProjectedTextDetail.Medium => .0625f,
+        _ => .001f
+    };
+
+    private bool UsesProjectedGlyphScope(in UiLayerOptions options)
+        => UseProjectedGlyphText && options.Opacity >= 1f
+            && options.Scene3D is { WriteDepth: true, IsScreenSpacePresentation: false, WidgetTransform: null };
+
+    private bool CanUseProjectedGlyphs(UiDrawListBuilder draw)
+        => !_fontIconVectorPaint && _widgetTransformDepth == 0 && _capturingPaintGroup is null
+            && _layerFrames.Count == 1 && ReferenceEquals(draw, _builder) && draw.CanAddProjectedGlyphs
+            && _layerFrames.TryPeek(out var frame) && frame.Entry.ProjectedGlyphScope;
+
+    private bool TryRenderProjectedGlyphs(UiDrawListBuilder draw, string text, int sizeQuarter, float fontSize,
+        UiVector2 position, UiColor color, UiRect clip, UiTextSettings settings, out UiVector2 size)
+    {
+        size = default;
+        if (color.Rgba >> 24 != 255 || !CanUseProjectedGlyphs(draw))
+            return false;
+        var entry = GetVectorTextMesh(text, sizeQuarter, fontSize, outlineOnly: true);
+        size = MeasureVectorText(entry, settings);
+        if (entry.Outline is not { Scene: { } scene } outline)
+            return true;
+        var scale = 1f / _contentScale;
+        var bounds = outline.Bounds;
+        var origin = new UiVector2(position.X + bounds.X * scale, position.Y + bounds.Y * scale);
+        draw.AddProjectedGlyphs(new(scene, origin, scale, color),
+            new(origin.X, origin.Y, bounds.Width * scale, bounds.Height * scale), clip);
+        return true;
+    }
+
+    private ProjectedTextDetail SelectProjectedTextDetail(in UiLayerOptions options, ProjectedTextDetail previous)
+    {
+        if (_layerFrames.Count != 0 || _widgetTransformDepth != 0 || _capturingPaintGroup is not null
+            || options.Scene3D is not { IsScreenSpacePresentation: false, WidgetTransform: null } scene)
+            return ProjectedTextDetail.Detailed;
+
+        var transform = scene.Transform;
+        if (transform.M12 != 0f || transform.M21 != 0f || transform.M13 != 0f || transform.M23 != 0f
+            || transform.M14 != 0f || transform.M24 != 0f || transform.M44 != 1f)
+            return ProjectedTextDetail.Detailed;
+
+        // Each reduced detail stays within a 1/16-pixel projection of its curve tolerance.
+        // Separate narrowing and widening limits avoid rebuilding on a small zoom reversal.
+        var scale = MathF.Max(MathF.Abs(transform.M11) * _displayFramebufferScale.X,
+            MathF.Abs(transform.M22) * _displayFramebufferScale.Y) / _contentScale;
+        if (scale > 0f && scale <= (previous == ProjectedTextDetail.Coarse ? .25f : .20f))
+            return ProjectedTextDetail.Coarse;
+        if (scale > 0f && scale <= (previous == ProjectedTextDetail.Detailed ? .80f : 1f))
+            return ProjectedTextDetail.Medium;
+        return ProjectedTextDetail.Detailed;
+    }
+
+    private ProjectedTextDetail TrackProjectedText(UiDrawListBuilder draw)
+    {
+        if (_fontIconVectorPaint || _widgetTransformDepth != 0 || _capturingPaintGroup is not null
+            || _layerFrames.Count != 1 || !ReferenceEquals(draw, _builder)
+            || !_layerFrames.TryPeek(out var frame) || frame.Options.Scene3D is null)
+            return ProjectedTextDetail.Detailed;
+
+        frame.Entry.UsesProjectedText = true;
+        return frame.Entry.ProjectedTextDetail;
+    }
     private UiVectorGlyphSource PrepareIconCoverage(in PlatformTextMeshResult mesh)
         => UiVectorGlyphSource.Create(mesh, 1, new(0, _controlTypographyMetrics.Ascent - mesh.Baseline));
 
@@ -29,9 +101,9 @@ public sealed partial class UiImmediateContext
 
     private bool HasLayerCameraAboveScreenPortal() => _cameraLayerDepth > _screenPortalLayerDepth;
 
-    private VectorTextCacheEntry GetVectorTextMesh(string text, int sizeQuarter, float fontSize)
+    private VectorTextCacheEntry GetVectorTextMesh(string text, int sizeQuarter, float fontSize, ProjectedTextDetail detail = default, bool outlineOnly = false)
     {
-        var key = CreateVectorTextCacheKey(text, fontSize);
+        var key = CreateVectorTextCacheKey(text, fontSize, detail, outlineOnly);
         var tolerance = key.Tolerance;
         if (_vectorTextMeshes.TryGetValue(key, out var cached))
         {
@@ -46,13 +118,19 @@ public sealed partial class UiImmediateContext
             throw new NotSupportedException("The selected text backend does not provide vector glyphs required by this drawing scope.");
         // Start only on a cache miss. Retained scenes can render without a font batch.
         _vectorTextParagraphBatch ??= (_platformTextBackend as IPlatformTextParagraphBatchBackend)?.BeginParagraphBatch();
-        var mesh = backend.CreateTextMesh(new(_directTextPrimaryFontPath!, _directTextSecondaryFontPath, text, fontSize, tolerance));
+        var mesh = backend.CreateTextMesh(new(_directTextPrimaryFontPath!, _directTextSecondaryFontPath, text, fontSize, tolerance)
+        {
+            OutlineOnly = outlineOnly,
+            UseProjectedLineMetrics = key.UseProjectedLineMetrics,
+            RightToLeft = key.Text.RightToLeft
+        });
         if (mesh.TriangleVertices.Length % 3 != 0 || (!mesh.Glyphs.IsEmpty && !mesh.TriangleVertices.IsEmpty))
             throw new InvalidOperationException("Vector text must contain complete triangles.");
         if (_vectorTextMeshes.Count == DirectTextCacheMaxEntries)
             _vectorTextMeshes.Remove(_vectorTextMeshOrder.Dequeue());
         var entry = new VectorTextCacheEntry(mesh,
-            Icon: _fontIconVectorPaint ? PrepareIconCoverage(mesh) : null);
+            Icon: _fontIconVectorPaint ? PrepareIconCoverage(mesh) : null,
+            Outline: outlineOnly ? UiVectorGlyphSource.Create(mesh, 1) : null);
         _vectorTextMeshes.Add(key, entry);
         _vectorTextMeshOrder.Enqueue(key);
         return entry;

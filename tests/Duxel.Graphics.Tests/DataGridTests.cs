@@ -37,11 +37,13 @@ internal static class DataGridTests
         var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
         using var provider = Fluent.FluentProvider(grid);
         var screen = new Screen(provider);
+        Action<UiDrawData>? inspect = null;
         void Frame(UiInputState? input = null)
         {
             context.NewFrame(new(1f / 60, new(520, 260), new(1, 1)), input ?? idle, new(0, 0, 520, 260), UiTextSettings.Default);
             context.Render(screen);
             using var draw = context.GetDrawData();
+            inspect?.Invoke(draw);
         }
         List<UiAccessibilityNode> Nodes()
         {
@@ -161,6 +163,98 @@ internal static class DataGridTests
         grid.SetSelected(rows[1].Key, true);
         grid.SetRows([rows[1], rows[2]]);
         check(grid.IsSelected(rows[1].Key) && grid.SortColumn == 1 && grid.RowCount == 2, "DataGrid row replacement preserves sorting and surviving selection");
+
+        using var pressSort = new UiDataGrid<Row, SortOnPress, CustomPresentation>(rows[..3], row => row.Key, columns,
+            new(Width: 400, Height: 180, Selection: UiDataGridSelection.Multiple));
+        screen = new Screen(pressSort);
+        UiRectFilledPrimitive[] rectangles = [];
+        inspect = data => rectangles = data.DrawLists.SelectMany(list => list.RectFilledPrimitives?.AsSpan().ToArray() ?? []).ToArray();
+        Frame();
+        UiVector2 Center(string label)
+        {
+            var bounds = Find(label).Bounds;
+            return new(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
+        }
+        void Pointer(UiVector2 point, bool down, bool up)
+            => Frame(idle with { MousePosition = point, LeftMouseDown = down && !up, LeftMousePressed = down, LeftMouseReleased = up });
+        var sortable = Center("Size");
+        Pointer(sortable, down: true, up: false);
+        check(pressSort.SortColumn == 1 && !pressSort.SortDescending && Find("File 2").GridItem?.Row == 1,
+            "Custom DataGrid sorts on press and publishes the new first row in the same frame");
+        check(rectangles.Any(rect => rect.Color == CustomPresentation.Header && rect.Rect.Width == 400)
+            && rectangles.Any(rect => rect.Color == CustomPresentation.Sort && rect.Rect.Width == 16),
+            "Custom DataGrid emits its actual header and sort indicator primitives");
+        Pointer(sortable, down: false, up: true);
+        check(!pressSort.SortDescending, "Custom DataGrid sort release does not reverse the sort again");
+        var dataCell = Center("File 2");
+        Pointer(dataCell, down: true, up: false);
+        check(pressSort.SelectedCount == 0, "Custom DataGrid sort policy leaves row selection on release");
+        Pointer(dataCell, down: false, up: true);
+        Frame();
+        check(pressSort.IsSelected("key-2") && rectangles.Any(rect => rect.Color == CustomPresentation.Selection),
+            "Custom DataGrid release selects its row and paints the selected-row primitive");
+        Key(UiKey.F2);
+        check(pressSort.IsEditing && Nodes().Any(node => node is { Role: UiAccessibilityRole.Edit, Focused: true }),
+            "Custom DataGrid retains the editable cell and focuses its existing editor");
+        Key(UiKey.Escape);
+        var sortNode = Find("Size, ascending");
+        check(tree.TryGet(sortNode.Id, out var providerNode)
+            && tree.RequestAction(sortNode.Id, providerNode.RuntimeId, UiAccessibilityAction.Invoke, wait: false) == UiAccessibilityResult.Success,
+            "Custom DataGrid keeps accessible sort Invoke");
+        Frame();
+        check(pressSort.SortDescending && pressSort.IsSelected("key-2"), "Custom DataGrid accessible sort preserves the selected key");
+
+        using var pressSelect = new UiDataGrid<Row, SelectOnPress, UiFluentDataGridPresentation>(rows[..3], row => row.Key, columns,
+            new(Width: 400, Height: 180, Selection: UiDataGridSelection.Multiple));
+        using var rtl = Fluent.FluentProvider(pressSelect);
+        rtl.Direction = UiFlowDirection.RightToLeft;
+        screen = new Screen(rtl);
+        inspect = null;
+        Frame();
+        var selectAll = Center("Select all rows");
+        Pointer(selectAll, down: true, up: false);
+        check(pressSelect.SelectedCount == 3 && Find("Clear selection").Bounds.X > Find("Name").Bounds.X,
+            "Custom DataGrid selects all on press at the mirrored header slot");
+        Pointer(selectAll, down: false, up: true);
+        check(pressSelect.SelectedCount == 3, "Custom DataGrid select-all release does not clear the rows");
+        var firstCell = Center("File 0");
+        Pointer(firstCell, down: true, up: true);
+        check(pressSelect.SelectedCount == 2 && !pressSelect.IsSelected("key-0") && !pressSelect.IsEditing,
+            "Custom DataGrid row selection handles same-frame pointer edges once");
+        sortable = Center("Size");
+        Pointer(sortable, down: true, up: false);
+        check(pressSelect.SortColumn is null, "Custom DataGrid selection policy leaves sorting on release");
+        Pointer(sortable, down: false, up: true);
+        check(pressSelect.SortColumn == 1 && !pressSelect.SortDescending, "Custom DataGrid release sorts independently of press selection");
+    }
+
+    private readonly struct SortOnPress : IUiDataGridBehavior
+    {
+        public static UiButtonActivation SortPointerActivation => UiButtonActivation.Press;
+    }
+
+    private readonly struct SelectOnPress : IUiDataGridBehavior
+    {
+        public static UiButtonActivation SelectionPointerActivation => UiButtonActivation.Press;
+    }
+
+    private readonly struct CustomPresentation : IUiDataGridPresentation
+    {
+        internal static readonly UiColor Header = new(92, 37, 67);
+        internal static readonly UiColor Sort = new(129, 169, 229);
+        internal static readonly UiColor Selection = new(77, 138, 119);
+
+        public static void PaintHeader(UiControlContext context, UiRect bounds)
+            => context.Frame(bounds, Header, default, 0, 0);
+
+        public static void PaintSortIndicator(UiControlContext context, UiRect bounds, bool descending)
+            => context.Frame(bounds, Sort, default, 0, 0);
+
+        public static void PaintRow(UiControlContext context, UiRect bounds, bool selected, bool hovered)
+        {
+            if (selected)
+                context.Frame(bounds, Selection, default, 0, 0);
+        }
     }
 
     private sealed record Row(string Key, string Name, int Size);

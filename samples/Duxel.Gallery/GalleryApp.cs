@@ -16,7 +16,7 @@ public static class GalleryApp
             throw new ArgumentException("Use no arguments, --verify <fresh output directory> or --verify-live-holidays <fresh output directory>.");
         var session = new DuxelAppSession();
         var services = ObserverServices.CreateWindows();
-        using var screen = args.Length == 0 ? new GalleryLocalizedScreen(services, session) : null;
+        using var screen = args.Length == 0 ? new GalleryLocalizedScreen(services, session, controlsInTitleBar: true) : null;
         using var verificationObserver = args.Length == 2 ? new ObserverScreen(services, session) : null;
         var verification = args.Length == 2
             ? new ObserverPresentationVerificationScreen(verificationObserver!, session, args[1], liveHoliday : args[0] == "--verify-live-holidays") : null;
@@ -31,6 +31,8 @@ public static class GalleryApp
                 {
                     MinWidth = 1120,
                     MinHeight = 720,
+                    TitleBarMode = screen is null ? options.Window.TitleBarMode : DuxelTitleBarMode.ExtendedContent,
+                    DuxelTitleBarHeight = screen is null ? options.Window.DuxelTitleBarHeight : ObserverScreen.TitleBarHeight,
                     IconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Brand", "duxel.ico")
                 },
                 Frame = options.Frame with

@@ -5,12 +5,13 @@ public sealed partial class UiImmediateContext
     private UiRadioGroupInteraction ApplyRadioAccessibility<TPresentation>(string id, string label, UiRect bounds,
         UiRadioGroupContent<TPresentation> content, UiRadioGroupInteraction interaction)
         where TPresentation : IUiRadioGroupPresentation
-        => ApplyRadioAccessibility(id, label, bounds, content.Items, content.Layouts, content.Input, interaction);
+        => ApplyRadioAccessibility(id, label, bounds, content.Items, content.Layouts, content.Input, interaction,
+            exposeFieldHelpOnItems: true);
 
     private UiRadioGroupInteraction ApplyRadioAccessibility(string id, string label, UiRect bounds,
         ReadOnlySpan<UiRadioOption> items, ReadOnlySpan<UiRadioOptionLayout> layouts,
         UiRadioGroupInputState state, UiRadioGroupInteraction interaction, bool selectionRequired = true,
-        UiBinding<string?>? valueBinding = null, Action? beforePublication = null)
+        UiBinding<string?>? valueBinding = null, Action? beforePublication = null, bool exposeFieldHelpOnItems = false)
     {
         if (valueBinding is not null)
         {
@@ -75,6 +76,7 @@ public sealed partial class UiImmediateContext
         beforePublication?.Invoke();
         ExposeAccessibility(root, _accessibilityParent, UiAccessibilityRole.RadioGroup, label, bounds,
             focusable: false, valuePattern: false, selectionRequired: selectionRequired);
+        var field = exposeFieldHelpOnItems && _accessibilityFieldTarget == root ? _currentField : null;
         for (var i = 0; i < items.Length; i++)
         {
             var local = layouts[i].Bounds;
@@ -86,9 +88,12 @@ public sealed partial class UiImmediateContext
             var clip = IntersectRect(CurrentClipRect, rect);
             var itemId = state.AccessibilityId(root, i, items);
             var focused = interaction.Control.Focused && interaction.FocusedIndex == i;
+            var hint = items[i].Description;
+            if (field?.Hint is { Length: > 0 } fieldHint)
+                hint = string.IsNullOrEmpty(hint) ? fieldHint : hint + " " + fieldHint;
             tree.Add(new(itemId, root, UiAccessibilityRole.RadioButton, items[i].Label, clip,
                 IsControlEnabled && items[i].Enabled && _popupTierDepth >= _blockingKeyboardTier,
-                clip.Width <= 0 || clip.Height <= 0, focused, Hint: items[i].Description, ValuePattern: false)
+                clip.Width <= 0 || clip.Height <= 0, focused, Hint: hint, ValidationMessage: field?.ValidationMessage, ValuePattern: false)
             {
                 Selected = state.Value == items[i].Value
             }, rect);

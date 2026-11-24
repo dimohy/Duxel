@@ -57,7 +57,11 @@ public readonly record struct PlatformTextMeasureRequest(
     string? SecondaryFontPath,
     string Text,
     float FontSize
-);
+)
+{
+    /// <summary>Use right-to-left paragraph reading order when measuring the source text.</summary>
+    public bool RightToLeft { get; init; }
+}
 
 public readonly record struct PlatformTextMeasureResult(
     float Width,
@@ -70,7 +74,11 @@ public readonly record struct PlatformTextRasterizeRequest(
     string? SecondaryFontPath,
     string Text,
     float FontSize
-);
+)
+{
+    /// <summary>Use right-to-left paragraph reading order when rasterizing the source text.</summary>
+    public bool RightToLeft { get; init; }
+}
 
 /// <summary>Raster coverage with a finite nonnegative logical Advance, including zero independently of ink bounds.</summary>
 public readonly record struct PlatformTextRasterizeResult(
@@ -103,7 +111,16 @@ public interface IPlatformTextBackend
 
 public readonly record struct PlatformTextMeshRequest(
     string FontPath, string? SecondaryFontPath, string Text, float FontSize,
-    float FlatteningTolerance = 0.001f);
+    float FlatteningTolerance = 0.001f)
+{
+    /// <summary>Use right-to-left paragraph reading order when shaping glyph outlines.</summary>
+    public bool RightToLeft { get; init; }
+
+    /// <summary>Request shaped glyphs and native contours without allocating triangle geometry.</summary>
+    public bool OutlineOnly { get; init; }
+
+    internal bool UseProjectedLineMetrics { get; init; }
+}
 
 // Triangle positions are relative to the top-left text origin, in font pixels.
 public readonly record struct PlatformTextMeshResult(

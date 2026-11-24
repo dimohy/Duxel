@@ -30,7 +30,7 @@ internal static unsafe partial class Program
                 context.SetDirectTextPrimaryFontPath(font);
                 context.SetDirectTextSecondaryFontPath(secondary);
                 context.SetDirectTextBaseFontSize(size);
-                var mesh = backend.CreateTextMesh(new(font, secondary, content, size));
+                var mesh = backend.CreateTextMesh(new(font, secondary, content, size) { UseProjectedLineMetrics = true });
 
                 byte[] Capture(bool reference)
                 {

@@ -35,7 +35,9 @@ public interface IUiSearchBoxPresentation
 }
 
 /// <summary>A single-line search editor with a decorative search icon and a non-tab-stop clear action.</summary>
-public class UiSearchBox<TPresentation> : UiControlWidget, IUiLabelTarget where TPresentation : IUiSearchBoxPresentation
+public class UiSearchBox<TBehavior, TPresentation> : UiControlWidget, IUiLabelTarget
+    where TBehavior : IUiPointerActivationBehavior
+    where TPresentation : IUiSearchBoxPresentation
 {
     private UiBinding<string>? _text;
     private readonly UiTextInputOwner _editor = new();
@@ -86,7 +88,7 @@ public class UiSearchBox<TPresentation> : UiControlWidget, IUiLabelTarget where 
         => context.LayoutConstraints.Constrain(TPresentation.Measure(context, _options.WithInheritedDirection(context.RightToLeft)));
     protected override void RenderControl(UiImmediateContext ui)
         => ui.RenderSearchBox<TPresentation>(PrimaryInputId(Label), Label, Text, MaxLength, _editor,
-            _options.WithInheritedDirection(ui.RightToLeft));
+            _options.WithInheritedDirection(ui.RightToLeft), TBehavior.PointerActivation);
     private protected override void ReleaseOwnedResources()
     {
         try
@@ -95,6 +97,15 @@ public class UiSearchBox<TPresentation> : UiControlWidget, IUiLabelTarget where 
         }
         finally { _text = null; base.ReleaseOwnedResources(); }
     }
+}
+
+/// <summary>Search editor whose clear button activates on pointer release.</summary>
+public class UiSearchBox<TPresentation> : UiSearchBox<UiReleaseButtonBehavior, TPresentation>
+    where TPresentation : IUiSearchBoxPresentation
+{
+    public UiSearchBox(string label, UiBinding<string> text, int maxLength = 4096,
+        UiSearchBoxOptions? options = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, text, maxLength, options, identity) { }
 }
 
 [UiWidgetStyle(typeof(UiSearchBox<>), typeof(UiFluentSearchBoxPresentation))]

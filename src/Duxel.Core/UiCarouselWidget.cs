@@ -14,7 +14,9 @@ public sealed record UiCarouselOptions
 }
 
 /// <summary>Owns each slide. A complete set of previews changes the step navigation to image previews.</summary>
-public class UiCarouselWidget : UiControlWidget
+public class UiCarouselWidget<TButtonBehavior, TButtonPresentation> : UiControlWidget
+    where TButtonBehavior : IUiButtonBehavior
+    where TButtonPresentation : IUiButtonPresentation
 {
     private SlideBody _body;
     private UiWidget _layout;
@@ -107,8 +109,14 @@ public class UiCarouselWidget : UiControlWidget
             ui.RequestFrameAt(ui.GetTime());
     }
 
-    protected override UiVector2 MeasureContent(UiControlContext context) =>
-        context.MeasureConstrained(_layout, context.LayoutConstraints);
+    protected override UiVector2 MeasureContent(UiControlContext context)
+    {
+        var constraints = context.LayoutConstraints;
+        var width = Math.Clamp(context.AvailableWidth, constraints.MinWidth, constraints.MaxWidth);
+        if (width is > 0 and <= 600)
+            constraints = constraints with { MinWidth = width, MaxWidth = width };
+        return context.MeasureConstrained(_layout, constraints);
+    }
 
     protected override void RenderControl(UiImmediateContext ui)
     {
@@ -155,7 +163,7 @@ public class UiCarouselWidget : UiControlWidget
         base.ReleaseOwnedResources();
     }
 
-    private sealed class DirectionButton : UiFluentButton
+    private sealed class DirectionButton : UiButton<TButtonBehavior, TButtonPresentation>
     {
         private readonly Func<bool> _enabled;
         private readonly bool _previous, _rightToLeft;
@@ -171,19 +179,15 @@ public class UiCarouselWidget : UiControlWidget
 
         private string Glyph(bool inherited) => _previous != (_rightToLeft || inherited) ? "‹" : "›";
         protected override UiVector2 MeasureContent(UiControlContext context) =>
-            context.MeasureButton<UiFluentButtonPresentation>(Glyph(context.RightToLeft), Size);
+            context.MeasureButton<TButtonPresentation>(Glyph(context.RightToLeft), Size);
 
-        protected override void RenderControl(UiImmediateContext ui)
+        private protected override bool RenderButton(UiImmediateContext ui, string id)
         {
             ui.BeginDisabled(!_enabled());
             try
             {
-                if (ui.Button<UiReleaseButtonBehavior, UiFluentButtonPresentation>(PrimaryControlId, Glyph(ui.RightToLeft), Size,
-                    constrainLayout : true))
-                {
-                    using var activation = ui.BeginControlActivation(PrimaryControlId);
-                    OnActivated();
-                }
+                return ui.Button<TButtonBehavior, TButtonPresentation>(id, Glyph(ui.RightToLeft), Size,
+                    constrainLayout : true);
             }
             finally { ui.EndDisabled(); }
         }
@@ -255,6 +259,14 @@ public class UiCarouselWidget : UiControlWidget
             base.ReleaseOwnedResources();
         }
     }
+}
+
+/// <summary>Carousel with Fluent previous and next buttons that activate on release.</summary>
+public class UiCarouselWidget : UiCarouselWidget<UiReleaseButtonBehavior, UiFluentButtonPresentation>
+{
+    public UiCarouselWidget(string label, UiBinding<string> selected, ReadOnlyMemory<UiCarouselSlide> slides,
+        UiCarouselOptions? options = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, selected, slides, options, identity) { }
 }
 
 [UiWidgetStyle(typeof(UiCarouselWidget))]

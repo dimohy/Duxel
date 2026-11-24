@@ -35,7 +35,8 @@ public sealed partial class WindowsPlatformTextBackend : IPlatformTextBackend, I
     public bool TryLayout(in PlatformTextMeasureRequest request, out PlatformTextLayoutResult result)
     {
         result = default;
-        if (!TryRasterizeInternal(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize, out var line, rasterizePixels: false))
+        if (!TryRasterizeInternal(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize, out var line,
+            request.RightToLeft, rasterizePixels: false))
             return false;
         result = new(line.Width, line.Height, line.Baseline, line.FontAscent, line.Advance)
         {
@@ -47,7 +48,7 @@ public sealed partial class WindowsPlatformTextBackend : IPlatformTextBackend, I
     public bool TryRasterize(in PlatformTextRasterizeRequest request, out PlatformTextRasterizeResult result)
     {
         result = default;
-        if (!TryRasterizeInternal(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize, out var rasterized))
+        if (!TryRasterizeInternal(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize, out var rasterized, request.RightToLeft))
         {
             return false;
         }
@@ -66,7 +67,8 @@ public sealed partial class WindowsPlatformTextBackend : IPlatformTextBackend, I
         return true;
     }
 
-    private static bool TryRasterizeInternal(string fontPath, string? secondaryFontPath, string text, float fontSize, out RasterizedLine line, bool rasterizePixels = true)
+    private static bool TryRasterizeInternal(string fontPath, string? secondaryFontPath, string text, float fontSize,
+        out RasterizedLine line, bool rightToLeft, bool rasterizePixels = true)
     {
         line = default;
         if (string.IsNullOrWhiteSpace(fontPath) || string.IsNullOrEmpty(text) || fontSize <= 0f)
@@ -93,7 +95,7 @@ public sealed partial class WindowsPlatformTextBackend : IPlatformTextBackend, I
                     continue;
                 }
 
-                if (!TryRasterizeInternal(fontPath, secondaryFontPath, segment, fontSize, out var segmentRaster, rasterizePixels))
+                if (!TryRasterizeInternal(fontPath, secondaryFontPath, segment, fontSize, out var segmentRaster, rightToLeft, rasterizePixels))
                 {
                     return false;
                 }
@@ -171,20 +173,21 @@ public sealed partial class WindowsPlatformTextBackend : IPlatformTextBackend, I
             }
         }
 
-        return TryRasterizeContextualLine(fontPath, secondaryFontPath, text, ResolveRasterFontSize(fontSize), out line, rasterizePixels);
+        return TryRasterizeContextualLine(fontPath, secondaryFontPath, text, ResolveRasterFontSize(fontSize), out line, rightToLeft, rasterizePixels);
     }
 
-    private readonly record struct ContextualLineKey(string Primary, string? Secondary, string Text, int Size);
+    private readonly record struct ContextualLineKey(string Primary, string? Secondary, string Text, int Size, bool RightToLeft);
     private readonly record struct ContextualLine(
         ContextualLineKey Key, string Text, string FirstFont, WindowsDirectWriteGlyphRasterizer.ContextualParagraph Paragraph);
 
     [ThreadStatic]
     private static ContextualLine? _lastMeasuredLine;
 
-    private static bool TryRasterizeContextualLine(string primary, string? secondary, string text, int size, out RasterizedLine line, bool rasterizePixels)
+    private static bool TryRasterizeContextualLine(string primary, string? secondary, string text, int size,
+        out RasterizedLine line, bool rightToLeft, bool rasterizePixels)
     {
         line = default;
-        var key = new ContextualLineKey(primary, secondary, text, size);
+        var key = new ContextualLineKey(primary, secondary, text, size, rightToLeft);
         var oversample = OversampleForSize(size);
         ContextualLine shaped;
         if (_lastMeasuredLine is { } measured && measured.Key == key)
@@ -198,7 +201,7 @@ public sealed partial class WindowsPlatformTextBackend : IPlatformTextBackend, I
                 return false;
             var selectedText = string.Concat(runs.Select(run => run.Text));
             var layout = WindowsDirectWriteGlyphRasterizer.ShapeContextualParagraph(primary, secondary,
-                selectedText, size * oversample, selectedFontRuns: runs);
+                selectedText, size * oversample, selectedFontRuns: runs, rightToLeft: rightToLeft);
             shaped = new(key, selectedText, runs[0].FontPath, layout);
         }
 

@@ -8,12 +8,14 @@ internal readonly struct UiSurfaceTitlePresentation<TPresentation> : IUiTextPres
     public static void Render(UiControlContext context, string text, UiColor? color) => TPresentation.PaintTitle(context, text, color);
 }
 
-internal sealed class UiSurfaceClose<TPresentation>(Action close) : UiControlWidget where TPresentation : IUiSurfacePresentation
+internal sealed class UiSurfaceClose<TPresentation>(Action close, UiButtonActivation activation)
+    : UiControlWidget where TPresentation : IUiSurfacePresentation
 {
     internal string Label = "Close";
     protected override bool CanRetainMeasurement => true;
     protected override UiVector2 MeasureContent(UiControlContext context) => context.LayoutConstraints.Constrain(new(24, 24));
-    protected override void RenderControl(UiImmediateContext ui) => ui.RenderSurfaceClose<TPresentation>(PrimaryInputId(Label), Label, close);
+    protected override void RenderControl(UiImmediateContext ui) =>
+        ui.RenderSurfaceClose<TPresentation>(PrimaryInputId(Label), Label, close, activation);
 }
 
 internal sealed class UiSurfaceActionBar : UiMultiChildWidget
@@ -58,7 +60,7 @@ internal sealed class UiSurfaceActionBar : UiMultiChildWidget
 }
 
 internal readonly record struct UiSurfaceBodyLayout(UiVector2 Size, UiVector2 Title, float HeaderHeight, float ContentHeight, UiVector2 Actions,
-    UiVector2 HeaderActions);
+    UiVector2 HeaderActions, float NavigationHeight, float ContentWidth);
 
 internal sealed class UiSurfaceBody<TPresentation> : UiControlWidget where TPresentation : IUiSurfacePresentation
 {
@@ -66,31 +68,37 @@ internal sealed class UiSurfaceBody<TPresentation> : UiControlWidget where TPres
     internal readonly UiSurfaceContent Content;
     internal readonly UiSurfaceActionBar Actions;
     internal readonly UiSurfaceClose<TPresentation> Close;
-    internal readonly UiWidget? HeaderActions;
+    internal readonly UiWidget? HeaderActions, HeaderNavigation;
     internal bool HasClose, FillHeight, RightToLeft, ActionsStart;
     internal UiColor? ScrollSeparator;
     internal float MaximumHeight = float.PositiveInfinity;
+    internal float NavigationOutset;
 
-    internal UiSurfaceBody(string title, UiWidget content, UiWidget[] actions, Action close, UiWidget? headerActions = null)
+    internal UiSurfaceBody(string title, UiWidget content, UiWidget[] actions, Action close, UiWidget? headerActions = null,
+        UiButtonActivation closeActivation = UiButtonActivation.Release, UiWidget? headerNavigation = null)
     {
         Title = new(title);
         Content = new(content);
         Actions = new(actions);
-        Close = new(close);
+        Close = new(close, closeActivation);
         HeaderActions = headerActions;
+        HeaderNavigation = headerNavigation;
         OwnChild("title", Title);
+        if (headerNavigation is not null)
+            OwnChild("header-navigation", headerNavigation);
         if (headerActions is not null)
             OwnChild("header-actions", headerActions);
         OwnChild("content", Content);
         OwnChild("actions", Actions);
         OwnChild("close", Close);
     }
-    internal void Configure(bool narrow, bool shortScreen, bool close, string closeLabel, float maximumHeight, bool fillHeight = false, bool rightToLeft = false, bool actionsStart = false, bool scrollBody = true, bool autoStackActions = false)
+    internal void Configure(bool narrow, bool shortScreen, bool close, string closeLabel, float maximumHeight, bool fillHeight = false, bool rightToLeft = false, bool actionsStart = false, bool scrollBody = true, bool autoStackActions = false, float navigationOutset = 0)
     {
         var gap = TPresentation.Metrics.Gap;
         var height = shortScreen ? float.PositiveInfinity : maximumHeight;
         if (Actions.Narrow == narrow && Actions.Gap == gap && HasClose == close && Close.Label == closeLabel && MaximumHeight == height
-            && FillHeight == fillHeight && RightToLeft == rightToLeft && ActionsStart == actionsStart && Content.Stretch == !scrollBody && Actions.AutoStack == autoStackActions)
+            && FillHeight == fillHeight && RightToLeft == rightToLeft && ActionsStart == actionsStart && Content.Stretch == !scrollBody
+            && Actions.AutoStack == autoStackActions && NavigationOutset == navigationOutset)
             return;
         Actions.Narrow = narrow;
         Actions.AutoStack = autoStackActions;
@@ -101,6 +109,7 @@ internal sealed class UiSurfaceBody<TPresentation> : UiControlWidget where TPres
         FillHeight = fillHeight;
         RightToLeft = rightToLeft;
         ActionsStart = actionsStart;
+        NavigationOutset = navigationOutset;
         Actions.RightToLeft = rightToLeft;
         Content.SetStretch(!scrollBody);
         Actions.RequestRebuild();
@@ -109,14 +118,17 @@ internal sealed class UiSurfaceBody<TPresentation> : UiControlWidget where TPres
     internal UiSurfaceBodyLayout Layout(UiControlContext context)
     {
         var metrics = TPresentation.Metrics;
-        var width = context.LayoutConstraints.MaxWidth;
-        if (!float.IsFinite(width))
+        var surfaceWidth = context.LayoutConstraints.MaxWidth;
+        if (!float.IsFinite(surfaceWidth))
             throw new InvalidOperationException("Dialog body requires a finite width.");
+        var navigationHeight = HeaderNavigation is { } navigation
+            ? context.MeasureParentDataChild(navigation, null, new(surfaceWidth, surfaceWidth, 0, float.PositiveInfinity)).Y : 0;
+        var width = MathF.Max(0, surfaceWidth - 2 * NavigationOutset);
         var titleWidth = MathF.Max(0, width - (HasClose ? 24 + metrics.Gap : 0));
         var title = context.MeasureParentDataChild(Title, null, new(titleWidth, titleWidth, 0, float.PositiveInfinity));
         if (HasClose)
             context.MeasureParentDataChild(Close, null, UiBoxConstraints.Tight(new(24, 24)));
-        var header = MathF.Max(title.Y, HasClose ? 24 : 0);
+        var header = navigationHeight + MathF.Max(title.Y, HasClose ? 24 : 0);
         var headerSize = HeaderActions is { } headerActions
             ? context.MeasureParentDataChild(headerActions, null, new(0, width, 0, float.PositiveInfinity)) : default;
         if (headerSize.Y > 0)
@@ -137,7 +149,7 @@ internal sealed class UiSurfaceBody<TPresentation> : UiControlWidget where TPres
         var bodyHeight = contentHeight == availableHeight
             ? MathF.Max(heightLimit, header + gaps + actions.Y)
             : header + gaps + contentHeight + actions.Y;
-        return new(new(width, bodyHeight), title, header, contentHeight, actions, headerSize);
+        return new(new(surfaceWidth, bodyHeight), title, header, contentHeight, actions, headerSize, navigationHeight, width);
     }
     protected override UiVector2 MeasureContent(UiControlContext context) => context.LayoutConstraints.Constrain(Layout(context).Size);
     protected override void RenderControl(UiImmediateContext ui) => ui.RenderSurfaceBody(this);

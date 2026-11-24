@@ -16,6 +16,7 @@ internal sealed class UiControlTooltip : IUiTooltipTarget, IDisposable
     {
         get; set;
     }
+    public bool PointerDismissed { get; set; }
     public UiPopupLayout Arrange(UiControlContext context, string text, UiRect target, UiRect viewport, UiTooltipOptions options)
         => UiFluentTooltipPresentation.Arrange(context, text, target, viewport, options);
     public void Paint(UiControlContext context, string text, UiPopupLayout layout)

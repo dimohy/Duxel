@@ -215,13 +215,13 @@ internal sealed class TypographyPage : UiWidget, IGallerySourcePage
             + $"\n((UiMessageBarBodyWidget)((UiSizedBox)example).Child!).RightToLeft = {GallerySample.Boolean(rtl)};");
         return
         Dux.Column(new(Spacing: 12, MainAxisSize: UiMainAxisSize.Min),
-            Record(GallerySample.Create(() => Fluent.Display("Display"))), Record(GallerySample.Create(() => Fluent.LargeTitle("LargeTitle"))),
-            Record(GallerySample.Create(() => Fluent.Title1("Title1"))), Record(GallerySample.Create(() => Fluent.Title2("Title2"))), Record(GallerySample.Create(() => Fluent.Title3("Title3"))),
-            Record(GallerySample.Create(() => Fluent.Subtitle1("Subtitle1"))), Record(GallerySample.Create(() => Fluent.Subtitle2("Subtitle2"))), Record(GallerySample.Create(() => Fluent.Subtitle2Stronger("Subtitle2Stronger"))),
-            Record(GallerySample.Create(() => Fluent.Body2(GalleryText.Get("Body2: sample text with English 123")))), Record(GallerySample.Create(() => Fluent.Body1(GalleryText.Get("Body1: sample text with English 123")))),
-            Record(GallerySample.Create(() => Fluent.Body1Strong("Body1Strong"))), Record(GallerySample.Create(() => Fluent.Body1Stronger("Body1Stronger"))),
-            Record(GallerySample.Create(() => Fluent.Caption1("Caption1"))), Record(GallerySample.Create(() => Fluent.Caption1Strong("Caption1Strong"))), Record(GallerySample.Create(() => Fluent.Caption1Stronger("Caption1Stronger"))),
-            Record(GallerySample.Create(() => Fluent.Caption2("Caption2"))), Record(GallerySample.Create(() => Fluent.Caption2Strong("Caption2Strong"))), Record(GallerySample.Create(() => Fluent.Text(GalleryText.Get("Text: default Body1 style")))),
+            Record(GallerySample.Create(() => Fluent.Text(Text.Display, "Display"))), Record(GallerySample.Create(() => Fluent.Text(Text.LargeTitle, "LargeTitle"))),
+            Record(GallerySample.Create(() => Fluent.Text(Text.Title1, "Title1"))), Record(GallerySample.Create(() => Fluent.Text(Text.Title2, "Title2"))), Record(GallerySample.Create(() => Fluent.Text(Text.Title3, "Title3"))),
+            Record(GallerySample.Create(() => Fluent.Text(Text.Subtitle1, "Subtitle1"))), Record(GallerySample.Create(() => Fluent.Text(Text.Subtitle2, "Subtitle2"))), Record(GallerySample.Create(() => Fluent.Text(Text.Subtitle2Stronger, "Subtitle2Stronger"))),
+            Record(GallerySample.Create(() => Fluent.Text(Text.Body2, GalleryText.Get("Body2: sample text with English 123")))), Record(GallerySample.Create(() => Fluent.Text(Text.Body1, GalleryText.Get("Body1: sample text with English 123")))),
+            Record(GallerySample.Create(() => Fluent.Text(Text.Body1Strong, "Body1Strong"))), Record(GallerySample.Create(() => Fluent.Text(Text.Body1Stronger, "Body1Stronger"))),
+            Record(GallerySample.Create(() => Fluent.Text(Text.Caption1, "Caption1"))), Record(GallerySample.Create(() => Fluent.Text(Text.Caption1Strong, "Caption1Strong"))), Record(GallerySample.Create(() => Fluent.Text(Text.Caption1Stronger, "Caption1Stronger"))),
+            Record(GallerySample.Create(() => Fluent.Text(Text.Caption2, "Caption2"))), Record(GallerySample.Create(() => Fluent.Text(Text.Caption2Strong, "Caption2Strong"))), Record(GallerySample.Create(() => Fluent.Text(GalleryText.Get("Text: default Body1 style")))),
             Fluent.Subtitle1(GalleryText.Get("Paragraph with mixed weights")),
             Fluent.Caption1(GalleryText.Get("Change font weight and typeface in a paragraph and see how it wraps. Windows and Linux both use the operating system's typesetting.")),
             Record(GallerySample.Create(() => Dux.SizedBox(new UiInlineText([

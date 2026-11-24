@@ -1,9 +1,26 @@
 using System.Numerics;
 using Duxel.Core;
+using Duxel.Platform.Windows;
 using Duxel.Vulkan;
 
 internal static class GpuVectorReadbackTests
 {
+    internal static void RunProjectedGlyphMaterial(string output, Action<bool, string> check, string? probeShaders = null)
+    {
+        var fonts = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+        var request = new PlatformTextMeshRequest(Path.Combine(fonts, "malgun.ttf"), null, "ㅇㅇ", 32);
+        ProjectedGlyphMaterialTests.Run(output, check, WindowsPlatformTextBackend.Instance, request, 1, probeShaders);
+    }
+
+    internal static void RunGlyphCamera(string output, Action<bool, string> check)
+    {
+        using var fixture = new PresentationReuseTests.Fixture(1, false);
+        var fonts = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+        var request = new PlatformTextMeshRequest(Path.Combine(fonts, "segoeui.ttf"),
+            Path.Combine(fonts, "malgun.ttf"), "한글 Hangul 09 한글 · ₩", 32, .25f);
+        GlyphCameraTests.Run(output, fixture, WindowsPlatformTextBackend.Instance, request, check);
+    }
+
     internal static void Run(UiContext context, VulkanRendererBackend renderer,
         Func<Action<UiImmediateContext>, UiDrawData> build,
         Func<string, Action<UiImmediateContext>, byte[]> capture, Action<bool, string> check, int snapshotWidth)

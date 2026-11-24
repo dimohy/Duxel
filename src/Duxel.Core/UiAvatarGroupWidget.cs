@@ -5,6 +5,15 @@ public enum UiAvatarGroupLayout
     Spread, Stack, Pie
 }
 
+/// <summary>Chooses how Spread and Stack allocate space when only some members can be shown.</summary>
+public enum UiAvatarGroupOverflowMode
+{
+    /// <summary>Show the last members and reserve one slot within the limit for overflow.</summary>
+    KeepLastInFixedSlots,
+    /// <summary>Show the first members up to the limit and append the overflow indicator.</summary>
+    KeepFirstAndAppend
+}
+
 /// <summary>Immutable member description. Image pixels and icon painters are borrowed.</summary>
 public readonly record struct UiAvatarGroupItem(string Value, string Name)
 {
@@ -36,10 +45,15 @@ public readonly record struct UiAvatarGroupOptions(UiAvatarSize Size = UiAvatarS
     bool RightToLeft = false, string OverflowLabel = "More people")
 {
     public UiAvatarGroupOptions() : this(UiAvatarSize.Size32, UiAvatarGroupLayout.Spread, 5, false, "More people") { }
+
+    public UiAvatarGroupOverflowMode OverflowMode { get; init; }
+    /// <summary>Includes members absent from the supplied items in the overflow count.</summary>
+    public int AdditionalOverflowCount { get; init; }
+
     internal void Validate()
     {
         new UiAvatarOptions(Size).Validate();
-        if ((uint)Layout > 2 || MaximumInlineItems < 1)
+        if ((uint)Layout > 2 || MaximumInlineItems < 1 || (uint)OverflowMode > 1 || AdditionalOverflowCount < 0)
             throw new ArgumentOutOfRangeException(nameof(UiAvatarGroupOptions));
         ArgumentException.ThrowIfNullOrWhiteSpace(OverflowLabel);
     }
@@ -59,10 +73,12 @@ public interface IUiAvatarGroupPresentation
 
 internal readonly record struct UiAvatarGroupLayoutResult(UiVector2 Size, int[] Inline,
     UiRect[] Bounds, UiRect[] Bodies, UiRect OverflowBounds, UiMenuOption[] Overflow, string Count,
-    UiAvatarGroupOptions Options, string OverflowName, string[] Identifiers);
+    UiAvatarGroupOptions Options, string OverflowName, string[] Identifiers, bool HasOverflow);
 
 /// <summary>Owns avatar resources and reuses the shared accessible menu for hidden members.</summary>
-public class UiAvatarGroup<TPresentation> : UiControlWidget where TPresentation : IUiAvatarGroupPresentation
+public class UiAvatarGroup<TBehavior, TPresentation> : UiControlWidget
+    where TBehavior : IUiMenuBehavior
+    where TPresentation : IUiAvatarGroupPresentation
 {
     private UiAvatarGroupItem[] _items;
     private UiFluentAvatar[] _avatars;
@@ -150,12 +166,16 @@ public class UiAvatarGroup<TPresentation> : UiControlWidget where TPresentation 
         var options = _options;
         var edge = new UiAvatarOptions(options.Size).PixelSize;
         var pie = options.Layout == UiAvatarGroupLayout.Pie;
-        var count = pie ? Math.Min(3, _items.Length) : Math.Min(_items.Length,
-            options.MaximumInlineItems - (_items.Length > options.MaximumInlineItems ? 1 : 0));
+        var keepLast = options.OverflowMode == UiAvatarGroupOverflowMode.KeepLastInFixedSlots;
+        var reserveSlot = keepLast && (_items.Length > options.MaximumInlineItems
+            || options.AdditionalOverflowCount > 0);
+        var count = Math.Min(_items.Length, pie ? 3 : options.MaximumInlineItems - (reserveSlot ? 1 : 0));
         var hidden = pie ? _items.Length : _items.Length - count;
-        var indices = pie ? Enumerable.Range(0, count).ToArray() : Enumerable.Range(hidden, count).ToArray();
+        var totalHidden = (long)hidden + options.AdditionalOverflowCount;
+        var hasOverflow = totalHidden > 0;
+        var indices = Enumerable.Range(!pie && keepLast ? hidden : 0, count).ToArray();
         var spacing = TPresentation.Spacing(options);
-        var slots = count + (!pie && hidden > 0 ? 1 : 0);
+        var slots = pie ? (count > 0 || hasOverflow ? 1 : 0) : count + (hasOverflow ? 1 : 0);
         var width = slots == 0 ? 0 : pie ? edge : slots * edge + (slots - 1) * spacing;
         var rects = new UiRect[count];
         var bodies = new UiRect[count];
@@ -178,7 +198,7 @@ public class UiAvatarGroup<TPresentation> : UiControlWidget where TPresentation 
         var overflowX = count * (edge + spacing);
         var trigger = pie ? new UiRect(0, 0, edge, edge)
             : new UiRect(options.RightToLeft ? width - overflowX - edge : overflowX, 0, edge, edge);
-        if (!pie && hidden > 0)
+        if (!pie && hasOverflow)
         {
             left = MathF.Min(left, trigger.X - outline);
             top = MathF.Min(top, -outline);
@@ -204,11 +224,11 @@ public class UiAvatarGroup<TPresentation> : UiControlWidget where TPresentation 
             Y = trigger.Y - top
         };
         var size = context.LayoutConstraints.Constrain(new(right - left, bottom - top));
-        var overflow = hidden == 0 ? [] : Enumerable.Range(0, hidden).Select(i =>
+        var overflow = hidden == 0 ? [] : Enumerable.Range(pie || keepLast ? 0 : count, hidden).Select(i =>
             new UiMenuOption(_items[i].Value, _items[i].Name) { Icon = _menuIcons[i] with { SizeHint = edge } }).ToArray();
-        var hiddenText = hidden.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var hiddenText = totalHidden.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var result = new UiAvatarGroupLayoutResult(size, indices, rects, bodies, trigger, overflow,
-            "+" + hiddenText, options, options.OverflowLabel + " (" + hiddenText + ")", _identifiers);
+            "+" + hiddenText, options, options.OverflowLabel + " (" + hiddenText + ")", _identifiers, hasOverflow);
         cache.Commit(context, attempt, result, size, allowed);
         return result;
     }
@@ -217,7 +237,7 @@ public class UiAvatarGroup<TPresentation> : UiControlWidget where TPresentation 
     protected override void RenderControl(UiImmediateContext ui)
     {
         _input.Attach(ui);
-        var value = ui.RenderAvatarGroup<TPresentation>(PrimaryInputId(Label), Label, _avatars,
+        var value = ui.RenderAvatarGroup<TBehavior, TPresentation>(PrimaryInputId(Label), Label, _avatars,
             MeasureLayout(new(ui), true), _input.Menu);
         if (value is not null)
             OnSelected(value);
@@ -232,6 +252,15 @@ public class UiAvatarGroup<TPresentation> : UiControlWidget where TPresentation 
         Array.Clear(_menuIcons);
         base.ReleaseOwnedResources();
     }
+}
+
+/// <summary>Avatar group with the default release activation for its overflow menu.</summary>
+public class UiAvatarGroup<TPresentation> : UiAvatarGroup<UiDefaultMenuBehavior, TPresentation>
+    where TPresentation : IUiAvatarGroupPresentation
+{
+    public UiAvatarGroup(string label, UiAvatarGroupItem[] items, UiAvatarGroupOptions? options = null,
+        Action<string>? selected = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, items, options, selected, identity) { }
 }
 
 [UiWidgetStyle(typeof(UiAvatarGroup<>), typeof(UiFluentAvatarGroupPresentation))]

@@ -15,6 +15,8 @@ internal static unsafe partial class AccessibilityClientTests
         var mixedPattern = TogglePattern("Mixed checkbox");
         var switchPattern = TogglePattern("Shared switch");
         var buttonPattern = TogglePattern("Shared toggle");
+        var focusOnly = found["Focus-only switch"];
+        var focusOnlyPattern = TogglePattern("Focus-only switch");
         var legacyPattern = TogglePattern("Legacy check");
         var disabledPattern = TogglePattern("Disabled option");
         int State(nint pattern)
@@ -69,6 +71,22 @@ internal static unsafe partial class AccessibilityClientTests
         check(State(legacyPattern) == 1, "external Toggle reaches the legacy Checkbox reference value through the common path");
         check(State(disabledPattern) == 0 && Toggle(disabledPattern) == UiaNative.Disabled,
             "external disabled Checkbox remains readable and rejects Toggle with the exact disabled HRESULT");
+        check(!Boolean(focusOnly, 30010) && Boolean(focusOnly, 30009) && State(focusOnlyPattern) == 1,
+            "external UIA reads the focus-only Switch as disabled, keyboard focusable and On");
+        check(Boolean(focusOnly, 30025) && !Boolean(focusOnly, 30103)
+            && Text(focusOnly, 30013) == "Review this setting A value is required",
+            "external UIA reads required, invalid and HelpText from the Switch's Field");
+        Ok(((delegate* unmanaged[Stdcall]<nint, int>)Slot(focusOnly, 3))(focusOnly));
+        WaitForSlider(() => Boolean(focusOnly, 30008));
+        check(Boolean(focusOnly, 30008) && Toggle(focusOnlyPattern) == UiaNative.Disabled && State(focusOnlyPattern) == 1,
+            "external SetFocus reaches the focus-only Switch while Toggle returns element-not-enabled");
+        var focusOnlyIdentity = Text(focusOnly, 30011);
+        Invoke("Unlock switch");
+        WaitForSlider(() => Boolean(focusOnly, 30010));
+        Ok(Toggle(focusOnlyPattern));
+        WaitForSlider(() => State(focusOnlyPattern) == 0);
+        check(Text(focusOnly, 30011) == focusOnlyIdentity && State(focusOnlyPattern) == 0,
+            "external Toggle works on the same Switch element after unlocking");
         Invoke("Disable mixed");
         WaitForSlider(() => !Boolean(mixed, 30010));
         check(State(mixedPattern) == 2 && Toggle(mixedPattern) == UiaNative.Disabled,

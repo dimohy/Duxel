@@ -16,8 +16,19 @@ public sealed record UiDataGridColumn<T>(string Header, Func<T, string> Text,
 public sealed record UiDataGridOptions(float Width = 720, float Height = 320, float RowHeight = 36,
     UiDataGridSelection Selection = UiDataGridSelection.None);
 
+/// <summary>Selects pointer edges independently for sortable headers and row selection.</summary>
+public interface IUiDataGridBehavior
+{
+    static virtual UiButtonActivation SortPointerActivation => UiButtonActivation.Release;
+    static virtual UiButtonActivation SelectionPointerActivation => UiButtonActivation.Release;
+}
+
+public readonly struct UiReleaseDataGridBehavior : IUiDataGridBehavior;
+
 /// <summary>A virtualized data grid with stable row identity, column sorting and optional selection.</summary>
-public sealed class UiDataGrid<T> : UiControlWidget
+public class UiDataGrid<T, TBehavior, TPresentation> : UiControlWidget
+    where TBehavior : IUiDataGridBehavior
+    where TPresentation : IUiDataGridPresentation
 {
     private readonly Func<T, string> _getKey;
     private readonly HashSet<string> _selection = new(StringComparer.Ordinal);
@@ -288,6 +299,13 @@ public sealed class UiDataGrid<T> : UiControlWidget
         _order = [];
         base.ReleaseOwnedResources();
     }
+}
+
+/// <summary>Data grid with the default Fluent presentation and pointer-release activation.</summary>
+public sealed class UiDataGrid<T> : UiDataGrid<T, UiReleaseDataGridBehavior, UiFluentDataGridPresentation>
+{
+    public UiDataGrid(IReadOnlyList<T> rows, Func<T, string> getKey, IReadOnlyList<UiDataGridColumn<T>> columns,
+        UiDataGridOptions? options = null) : base(rows, getKey, columns, options) { }
 }
 
 internal sealed class UiDataGridEditor

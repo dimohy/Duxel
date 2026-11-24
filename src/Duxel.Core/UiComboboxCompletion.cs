@@ -8,4 +8,7 @@ internal sealed class UiComboboxCompletion(UiTagGroupInputState previousGroup)
     internal UiRect Anchor;
     internal string? EditorId;
     internal bool FocusRequested;
+    internal UiWidget? SecondaryAction { get; init; }
+    internal UiRect SecondaryBounds;
+    internal bool SecondaryFocused;
 }

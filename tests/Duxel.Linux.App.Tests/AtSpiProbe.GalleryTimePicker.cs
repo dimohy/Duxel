@@ -5,7 +5,7 @@ using Duxel.Core;
 
 internal static unsafe partial class AtSpiProbe
 {
-    internal enum GalleryProbe { TimePicker, DatePickers, Holidays, ProviderDirection, Tree, ScrollView, VirtualList, VirtualHorizontal, VirtualRtl, VirtualGrid, SearchInput, Rating, NavigationBar, RangeCalendar, RadioGroup, SvgPixels, SvgThumb, SvgLayerMix, Tooltip, Carousel, NavigationRepaint, Fps, Drawer, Dialog }
+    internal enum GalleryProbe { TimePicker, DatePickers, Holidays, ProviderDirection, Tree, ScrollView, VirtualList, VirtualHorizontal, VirtualRtl, VirtualGrid, SearchInput, Rating, NavigationBar, RangeCalendar, RadioGroup, SvgPixels, SvgThumb, SvgLayerMix, Tooltip, Carousel, NavigationRepaint, Fps, Drawer, Dialog, CardNudge, MenuSubText, TagPicker, Select, Combobox, Dropdown }
 
     internal static void RunGalleryControls(uint parentPid, string output, GalleryProbe probe = GalleryProbe.TimePicker,
         nuint? nativeWindow = null, bool profileScroll = false, bool capturePixels = false)
@@ -136,6 +136,30 @@ internal static unsafe partial class AtSpiProbe
                 VerifyGalleryDialog(window.Value, Required, checks,
                     nativeWindow ?? throw new InvalidOperationException("The Dialog probe requires an owned X11 window."));
             }
+            else if (probe == GalleryProbe.TagPicker)
+            {
+                Navigate("TagPicker", "입력과 선택");
+                VerifyGalleryTagPicker(window.Value, Required, WaitForRemoval, checks,
+                    nativeWindow ?? throw new InvalidOperationException("The TagPicker probe requires an owned X11 window."));
+            }
+            else if (probe == GalleryProbe.Select)
+            {
+                Navigate("Select", "Input and selection");
+                VerifyGallerySelect(window.Value, Required, checks,
+                    nativeWindow ?? throw new InvalidOperationException("The Select probe requires an owned X11 window."));
+            }
+            else if (probe == GalleryProbe.Combobox)
+            {
+                Navigate("Combobox", "Input and selection");
+                VerifyGalleryCombobox(window.Value, Required, checks,
+                    nativeWindow ?? throw new InvalidOperationException("The Combobox probe requires an owned X11 window."));
+            }
+            else if (probe == GalleryProbe.Dropdown)
+            {
+                Navigate("Selection lists · combined", "Combined examples");
+                VerifyGalleryDropdown(window.Value, Required, checks,
+                    nativeWindow ?? throw new InvalidOperationException("The Dropdown probe requires an owned X11 window."));
+            }
             else if (probe == GalleryProbe.SvgPixels)
             {
                 Navigate("SVG", "문서와 그래픽");
@@ -156,6 +180,12 @@ internal static unsafe partial class AtSpiProbe
                     nativeWindow ?? throw new InvalidOperationException("The RadioGroup probe requires an owned X11 window."),
                     capturePixels ? output : null);
             }
+            else if (probe == GalleryProbe.MenuSubText)
+            {
+                Navigate("배치 통합 · 종합", "통합 예제");
+                VerifyGalleryMenuSubText(window.Value, Required, WaitForRemoval, checks,
+                    nativeWindow ?? throw new InvalidOperationException("The Menu probe requires an owned X11 window."));
+            }
             else if (probe == GalleryProbe.RangeCalendar)
             {
                 Navigate("RangeCalendar");
@@ -170,6 +200,12 @@ internal static unsafe partial class AtSpiProbe
             {
                 Navigate("Carousel", "콘텐츠와 목록");
                 VerifyGalleryCarousel(window.Value, Required, checks);
+            }
+            else if (probe == GalleryProbe.CardNudge)
+            {
+                Navigate("CardNudge", "콘텐츠와 목록");
+                VerifyGalleryCardNudge(window.Value, Required, WaitForRemoval, checks,
+                    nativeWindow ?? throw new InvalidOperationException("The CardNudge probe requires an owned X11 window."));
             }
             else if (probe is GalleryProbe.NavigationBar or GalleryProbe.NavigationRepaint)
             {

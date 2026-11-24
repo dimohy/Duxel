@@ -496,7 +496,10 @@ public sealed record class DuxelFontOptions
         Monospace = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "consola.ttf")
     };
     public string PrimaryFontPath { get; init; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "segoeui.ttf");
+    /// <summary>Secondary TrueType-outline font used by the bitmap atlas.</summary>
     public string? SecondaryFontPath { get; init; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "malgun.ttf");
+    /// <summary>Secondary font for direct text. When omitted, direct text uses <see cref="SecondaryFontPath"/>.</summary>
+    public string? DirectTextSecondaryFontPath { get; init; }
     public float SecondaryScale { get; init; } = 1f;
     public bool FastStartup { get; init; } = true;
     public bool UseBuiltInAsciiAtStartup { get; init; } = true;

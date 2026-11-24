@@ -102,6 +102,12 @@ public sealed partial class UiImmediateContext
                     tier = Math.Max(tier, checked(owner.Tier + 1));
         return tier;
     }
+    private UiRect GetOverlayViewport()
+    {
+        var viewport = GetMainViewport();
+        return new(viewport.Pos.X, viewport.Pos.Y, viewport.Size.X, viewport.Size.Y);
+    }
+
     private void EndOverlayExitFrame()
     {
         if (_overlayExits is null)
@@ -122,13 +128,15 @@ public sealed partial class UiImmediateContext
             var tier = _popupTierDepth;
             _popupTierDepth = exit.Tier - 1;
             PushPopup();
-            PushClipRect(new(0, 0, _displaySize.X, _displaySize.Y), false);
+            var viewport = exit.Owner is UiDrawerInputState or UiDialogInputState
+                ? GetOverlayViewport() : new UiRect(0, 0, _displaySize.X, _displaySize.Y);
+            PushClipRect(viewport, false);
             try
             {
                 var color = exit.Backdrop;
                 color = new((color.Rgba & 0x00ffffff) | ((uint)MathF.Round((color.Rgba >> 24) * motion.BackdropOpacity) << 24));
                 if (color.Rgba >> 24 != 0)
-                    AddRectFilled(new(0, 0, _displaySize.X, _displaySize.Y), color, _whiteTexture);
+                    AddRectFilled(viewport, color, _whiteTexture);
                 var binding = exit.Paint.For(this);
                 var matrix = Matrix3x2.CreateScale(motion.Scale, new Vector2(exit.Body.X + exit.Body.Width / 2, exit.Body.Y + exit.Body.Height / 2))
                     * Matrix3x2.CreateTranslation(motion.Translation.X, motion.Translation.Y);

@@ -18,6 +18,10 @@ public sealed unsafe partial class VulkanRendererBackend
     private readonly bool _profilingEnabled = ParseProfilingEnabled();
     private readonly int _profilingLogInterval = ParseProfileLogInterval();
     private readonly bool _cpuTimingSamplingEnabled = ParseCpuTimingSampling();
+    private readonly string? _frameTracePath = Environment.GetEnvironmentVariable("DUXEL_VK_FRAME_TRACE");
+    private const int FrameTraceCapacity = 32768;
+    private FrameTraceRow[]? _frameTrace;
+    private int _frameTraceCount, _frameTraceDropped;
     private bool _cpuTimingsThisFrame;
     private static readonly bool _fontCommandDiagEnabled = ParseBooleanEnvironmentFlag("DUXEL_VK_FONT_DIAG");
     private static readonly string? _fontCommandDiagLogPath = Environment.GetEnvironmentVariable("DUXEL_VK_FONT_DIAG_OUT");
@@ -216,6 +220,43 @@ public sealed unsafe partial class VulkanRendererBackend
             && !string.Equals(raw, "off", StringComparison.OrdinalIgnoreCase);
     }
 
+    private readonly record struct FrameTraceRow(ulong Presentation, ulong Source, ulong Submission, ulong GpuSubmission,
+        float RepairArea, long Target, long FrameFence, long Acquire, long ImageFence, long Upload, long Record,
+        long Submit, long Present, long Snapshot, long Repair, long Texture, double GpuUs,
+        int Gen0, int Gen1, int Gen2);
+
+    private void CaptureFrameTrace(ulong source, in FrameProfileState profile)
+    {
+        if (string.IsNullOrWhiteSpace(_frameTracePath))
+            return;
+        var trace = _frameTrace ??= new FrameTraceRow[FrameTraceCapacity];
+        if (_frameTraceCount >= trace.Length)
+        {
+            _frameTraceDropped++;
+            return;
+        }
+        trace[_frameTraceCount++] = new(_presentationSequence, source, _submittedFrameSequence, _profileGpuSubmission,
+            _repaintContentBounds.Width * _repaintContentBounds.Height, profile.TargetTicks, profile.FrameFenceTicks,
+            profile.AcquireTicks, profile.ImageFenceTicks, profile.UploadTicks, profile.RecordTicks, profile.SubmitTicks,
+            profile.PresentTicks, _profileDamageSnapshotTicks, _profileDamageRepairTicks, _profileTextureUpdateTicks,
+            profile.GpuRenderUs, GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
+    }
+
+    private void FlushFrameTrace()
+    {
+        if (_frameTrace is not { } trace)
+            return;
+        _frameTrace = null;
+        var path = Path.GetFullPath(_frameTracePath!);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+        using var writer = new StreamWriter(stream);
+        writer.WriteLine("presentation,source,submission,gpuSubmission,repairPixels,targetUs,frameFenceUs,acquireUs,imageFenceUs,uploadUs,recordUs,submitUs,presentUs,snapshotUs,planUs,textureUs,gpuUs,gen0,gen1,gen2,dropped");
+        foreach (ref readonly var row in trace.AsSpan(0, _frameTraceCount))
+            writer.WriteLine(FormattableString.Invariant(
+                $"{row.Presentation},{row.Source},{row.Submission},{row.GpuSubmission},{row.RepairArea},{TicksToMicroseconds(row.Target)},{TicksToMicroseconds(row.FrameFence)},{TicksToMicroseconds(row.Acquire)},{TicksToMicroseconds(row.ImageFence)},{TicksToMicroseconds(row.Upload)},{TicksToMicroseconds(row.Record)},{TicksToMicroseconds(row.Submit)},{TicksToMicroseconds(row.Present)},{TicksToMicroseconds(row.Snapshot)},{TicksToMicroseconds(row.Repair)},{TicksToMicroseconds(row.Texture)},{row.GpuUs},{row.Gen0},{row.Gen1},{row.Gen2},{_frameTraceDropped}"));
+    }
+
     private static int ParseProfileLogInterval()
     {
         return ParsePositiveIntEnvironment("DUXEL_VK_PROFILE_EVERY", 30);
@@ -330,6 +371,9 @@ public sealed unsafe partial class VulkanRendererBackend
             + $"listWork(staticCmd={recordStats.StaticCommandCount} dynCmd={recordStats.DynamicCommandCount} staticDraw={recordStats.StaticDrawCallCount} dynDraw={recordStats.DynamicDrawCallCount} staticPipe={recordStats.StaticPipelineBindCount} dynPipe={recordStats.DynamicPipelineBindCount} staticClip={recordStats.StaticScissorComputeCount} dynClip={recordStats.DynamicScissorComputeCount} staticScissor={recordStats.StaticScissorSetCount} dynScissor={recordStats.DynamicScissorSetCount} staticPush={recordStats.StaticPushConstantCount} dynPush={recordStats.DynamicPushConstantCount} staticGeom={recordStats.StaticGeometryBindCount} dynGeom={recordStats.DynamicGeometryBindCount} staticPrim={recordStats.StaticPrimitiveBindCount} dynPrim={recordStats.DynamicPrimitiveBindCount}) "
             + $"staticGeom(hit={_profileStaticGeometryHitCount} create={_profileStaticGeometryCreateCount} replace={_profileStaticGeometryReplaceCount} update={_profileStaticGeometryUpdateCount} reuse={_profileStaticGeometryReuseCount} hash={_profileStaticGeometryHashCount}) "
             + $"staticMem(active={staticGeometryMemory.ActiveEntries} activeBytes={staticGeometryMemory.ActiveBytes} retired={staticGeometryMemory.RetiredEntries} retiredBytes={staticGeometryMemory.RetiredBytes}) "
+            + $"projectedGlyphs(draws={_projectedGlyphDraws} uploads={_projectedGlyphUploads} evictions={_projectedGlyphEvictions} scenes={_projectedGlyphBuffers.Count} pages={_projectedGlyphPages.Count} bytes={_projectedGlyphBytes}) "
+            + $"projectedGlyphBatches(draws={_projectedGlyphBatches} runs={_projectedGlyphBatchedRuns}) "
+            + $"projectedGlyphPlaneBatches(draws={_projectedGlyphAcrossPlanes} runs={_projectedGlyphAcrossPlaneRuns}) "
             + $"dynamicUpload(bytes={_profileDynamicGeometryUploadBytes}) depthMem(images={_depthLayerImages.Length} bytes={_depthLayerAllocatedBytes}) layerState(pushes={_frameLayerTransformPushes} culledLists={_frameCulledLayerLists} bytes={_frameLayerStateUploadBytes}) compiled(draws={_frameCompiledDraws} sharedBasis={_frameSharedBasisDraws} sharedCamera={_frameSharedCameraDraws} commands={_frameCompiledCommands} indexUpload={_frameCompiledIndexUploadBytes} cacheBytes={_compiledCacheBytes}) "
             + $"staticPrim(expand={_profileStaticPrimitiveTriangleExpandedListCount} expandPrim={_profileStaticPrimitiveTriangleExpandedPrimitiveCount} layout={_profileStaticPrimitiveTriangleLayoutMaterializationCount} force={_profileStaticPrimitiveTriangleForcedListCount} autoSkip={_profileStaticPrimitiveTriangleAutoSkippedListCount} autoSkipPrim={_profileStaticPrimitiveTriangleAutoSkippedPrimitiveCount} autoSkipMut={_profileStaticPrimitiveTriangleAutoSkippedMutationListCount} expandBytes={_profileStaticPrimitiveTriangleExpandedBytes} autoSkipBytes={_profileStaticPrimitiveTriangleAutoSkippedBytes}) "
             + $"upSched(sub={_profileUploadSubmissionCount} prepSub={_profileUploadPrepareSubmissionCount} wait={_profileUploadWaitCount} flush={_profileUploadBatchFlushCount} bytes={_profileUploadStagingBytes} texRegions={_profileUploadTextureCopyRegionCount} bufCopies={_profileUploadBufferCopyCount} submitUs={uploadSubmitUs:0.000} prepUs={uploadPrepareSubmitUs:0.000} waitUs={uploadWaitUs:0.000} frameWaitUs={TicksToMicroseconds(_profileUploadFrameWaitTicks):0.000}) "

@@ -7,7 +7,7 @@
     <NoWarn>$(NoWarn);CA2255</NoWarn>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.Windows.App</PackageId>
-    <Version>0.3.0-preview</Version>
+    <Version>$(DuxelVersion)</Version>
     <Authors>dimohy</Authors>
     <Description>Windows host for Duxel, a .NET desktop UI library supporting immediate and retained modes with customizable Fluent 2 themes.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

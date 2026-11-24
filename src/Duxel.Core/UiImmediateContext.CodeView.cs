@@ -102,6 +102,11 @@ public sealed partial class UiImmediateContext
         var clipBounds = IntersectRect(CurrentClipRect, bounds);
         if (clipBounds.Width <= 0 || clipBounds.Height <= 0)
         {
+            if (code.SelectionMenu is { } popup)
+            {
+                CancelMenuPopup(popup.Input);
+                popup.Source = null;
+            }
             if (_leftMousePressed && _state.ActiveId == root)
                 _state.ActiveId = null;
             // Keep a bounded geometry snapshot while its widget is still rendered.
@@ -134,6 +139,13 @@ public sealed partial class UiImmediateContext
             _accessibilityParent = root;
             var edit = context.EditNavigableMultiline(root, ref text, 1_048_576, layout);
             edit = ApplyMultilineAccessibilityScroll(root, layout, edit);
+            if (code.SelectionMenu is { Input.Open: true } popup
+                && (!ReferenceEquals(popup.Source, code.Code)
+                    || popup.Selection.HasSelection && !edit.Selection.HasSelection))
+            {
+                CancelMenuPopup(popup.Input, root);
+                popup.Source = null;
+            }
             var area = edit.VisualContent!.Value;
             if (_mouseWheel != 0 && IsHovering(clipBounds) && edit.ContentHeight - area.Height <= .5f
                 && _widgetTransformDepth == _widgetScreenTransformDepth)
@@ -150,7 +162,8 @@ public sealed partial class UiImmediateContext
             {
                 var palette = UiFluentInputPalette.Resolve(context, UiButtonVisualState.Rest, UiInputAppearance.Outline, false);
                 context.Frame(bounds, palette.Background, context.Theme.ForcedColors?.CanvasText ?? context.Theme.Separator, 6, 1);
-                PaintMultilineInput(layout, edit, new(palette.Text, context.Theme.InputSelectionBg, palette.Text) { Typography = true });
+                PaintMultilineInput(layout, edit, new(palette.Text, context.Theme.InputSelectionBg, palette.Text) { Typography = true },
+                    keepSelectionVisible: code.SelectionMenu is { Input.Open: true, Selection.HasSelection: true });
                 if (code.Options.LineNumbers)
                 {
                     _retainCodeLineNumbers = true;
@@ -170,8 +183,58 @@ public sealed partial class UiImmediateContext
                 textInfo : edit.AccessibilityText, textLayout : CaptureMultilineTextLayout(root, edit.AccessibilityText, layout, edit,
                     reusePositionIndependentGeometry: true));
             _accessibility?.CaptureScrollViewport(root, area, CurrentClipRect, scroll);
+            RenderCodeSelectionMenu(code, root, clipBounds, edit);
         }
         finally { _accessibilityParent = parent; FinishLayoutBox(origin, size); }
+    }
+
+    private void RenderCodeSelectionMenu(UiCodeView code, string root, UiRect clip, in UiMultilineEditResult edit)
+    {
+        var popup = code.SelectionMenu;
+        var open = _rightMousePressed && IsControlEnabled && !_layoutPointerBlocked && IsHovering(clip)
+            && _popupTierDepth >= _blockingKeyboardTier && !IsMouseOverAnyOpenMenuPopup()
+            && !IsMouseOverHigherTierPopup(_popupTierDepth);
+        if (open)
+        {
+            popup ??= code.SelectionMenu = new(code.Labels);
+            popup.Anchor = new(_mousePosition.X, _mousePosition.Y, 1, 1);
+            popup.Source = code.Code;
+            popup.Selection = edit.Active ? edit.Selection : default;
+        }
+        else if (popup is not { Input.Open: true })
+            return;
+
+        var menu = popup.Input;
+        var items = popup.Selection.HasSelection ? popup.CopyItems : popup.SelectAllItems;
+        menu.Prepare(ResolveCachedIdentifier(root, "##selection-menu", false), items);
+        menu.TriggerId = root;
+        menu.FocusOwnerId = root;
+        var widget = _accessibilityWidget;
+        _accessibilityWidget = null;
+        try
+        {
+            var invoked = RenderMenuPopup<UiFluentMenuPresentation>(menu.Root!, code.Labels.ContextMenuName, items,
+                UiFluentMenuPresentation.DefaultOptions, menu, popup.Anchor, default, controlledOpen: open ? true : null);
+            if (invoked == "copy")
+            {
+                var (start, end) = GetSelectionRange(popup.Selection);
+                SetClipboardText(code.Code[start..end]);
+            }
+            else if (invoked == "select-all")
+            {
+                code.Owner.Lines.ClearAffinity();
+                _state.SetSelection(root, new(0, code.Code.Length));
+                _state.SetCursor(root, code.Code.Length);
+                _state.ActiveId = root;
+                ResetCaretBlink();
+            }
+        }
+        finally
+        {
+            if (!menu.Open)
+                popup.Source = null;
+            _accessibilityWidget = widget;
+        }
     }
 
     private void PaintCodeLineNumbers(UiCodeView code, UiControlContext context, float gutter, UiRect bounds,

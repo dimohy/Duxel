@@ -17,6 +17,7 @@
     <Compile Remove="VulkanValidationHooks.cs" />
     <Compile Remove="VulkanVectorDiagnostics.cs" />
     <Compile Remove="VulkanVectorReadback.cs" />
+    <Compile Remove="VulkanProjectedGlyphProbe.cs" />
     <Compile Remove="InputLegacyReference.cs" />
     <Compile Remove="ParagraphRasterValidation.cs" />
     <Compile Remove="WindowsValidationHooks.cs" />

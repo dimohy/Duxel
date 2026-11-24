@@ -91,12 +91,100 @@ internal static class TreePresentationTests
             "the public multiple-selection overload retains cascading mixed-state semantics");
         custom.Options = custom.Options with { Size = UiTreeSize.Small }; Frame();
         check(Find("Alpha").Node.Bounds.Height == 36, "custom presentation metrics are remeasured after option changes");
+
+        var pointerExpansion = new UiState<string[]>([]);
+        var pointerSelection = new UiState<string?>(null);
+        var rowInvocations = 0;
+        var childInvocations = 0;
+        using var rowPress = new UiTree<PressRow, UiFluentTreePresentation>("Row press", pointerExpansion.Binding, pointerSelection.Binding,
+        [
+            new("root", null, "Press root", Fluent.Button("Child action", () => childInvocations++), _ => rowInvocations++),
+            new("child", "root", "Press leaf")
+        ], new UiTreeOptions(Width: 340, Navigation: true) { RowActions = true });
+        current = rowPress;
+        Frame();
+        UiVector2 Point(UiRect bounds, float offset) => new(bounds.X + offset, bounds.Y + bounds.Height / 2);
+        void Pointer(UiVector2 point, bool press, bool release) => Frame(idle with
+        {
+            MousePosition = point,
+            LeftMouseDown = press && !release,
+            LeftMousePressed = press,
+            LeftMouseReleased = release
+        });
+        var pressRoot = Find("Press root", UiAccessibilityRole.TreeGridRow);
+        var rowBounds = pressRoot.Node.Bounds;
+        var row = Point(rowBounds, rowBounds.Width - 2);
+        var chevron = Point(rowBounds, rowPress.State.Metrics.ChevronWidth / 2);
+        var selector = Point(rowBounds, rowPress.State.Metrics.ChevronWidth + rowPress.State.Metrics.SelectorWidth / 2);
+        Pointer(row, press: true, release: false);
+        check(rowInvocations == 1 && pointerSelection.Value == "root" && pointerExpansion.Value.Length == 0,
+            "Tree press row selects and invokes on down without changing disclosure");
+        Pointer(chevron, press: false, release: true);
+        check(rowInvocations == 1 && pointerExpansion.Value.Length == 0,
+            "Tree crossing from press row to release disclosure does not activate a second part");
+        Pointer(chevron, press: true, release: false);
+        check(pointerExpansion.Value.Length == 0, "Tree release disclosure waits for pointer release");
+        Pointer(row, press: false, release: true);
+        check(rowInvocations == 1 && pointerExpansion.Value.Length == 0,
+            "Tree crossing from release disclosure to press row does not activate either part");
+        Pointer(chevron, press: true, release: true);
+        Frame();
+        check(pointerExpansion.Value.SequenceEqual(["root"]) && rowInvocations == 1
+            && Find("Press leaf", UiAccessibilityRole.TreeGridRow).Node.ParentId == pressRoot.Node.Id,
+            "Tree release disclosure opens exactly once for same-frame edges and publishes its child row");
+        var childBounds = Find("Child action", UiAccessibilityRole.Button).Node.Bounds;
+        var child = Point(childBounds, childBounds.Width / 2);
+        Pointer(child, press: true, release: true);
+        check(childInvocations == 1 && rowInvocations == 1 && Find("Child action", UiAccessibilityRole.Button).Node.Focused,
+            "Tree child owns its complete pointer click with the press-row policy");
+        Pointer(selector, press: true, release: false);
+        check(pointerSelection.Value == "root", "Tree selector still waits for release");
+        Pointer(selector, press: false, release: true);
+        check(pointerSelection.Value is null && rowInvocations == 1, "Tree selector toggles without invoking the press row");
+        check(accessibility.RequestAction(pressRoot.Node.Id, pressRoot.RuntimeId, UiAccessibilityAction.Collapse, wait: false) == UiAccessibilityResult.Success,
+            "Tree queues native collapse independently of pointer activation");
+        Frame();
+        check(pointerExpansion.Value.Length == 0 && rowInvocations == 1, "Tree applies requested native collapse");
+        Key(UiKey.Enter);
+        check(rowInvocations == 2 && pointerSelection.Value == "root", "Tree Enter still selects and invokes the focused row");
+
+        var rtlExpanded = new UiState<string[]>([]);
+        var rtlInvocations = 0;
+        using var disclosurePress = new UiTree<PressDisclosure, CustomPresentation>("RTL disclosure press", rtlExpanded.Binding,
+        [
+            new("root", null, "RTL root", Fluent.Body1("RTL root"), _ => rtlInvocations++),
+            new("child", "root", "RTL leaf", Fluent.Body1("RTL leaf"))
+        ], new(Width: 300, RightToLeft: true, Navigation: true));
+        current = disclosurePress;
+        Frame();
+        var rtlBounds = Find("RTL root").Node.Bounds;
+        var rtlChevron = Point(rtlBounds, rtlBounds.Width - disclosurePress.State.Metrics.ChevronWidth / 2);
+        var rtlRow = Point(rtlBounds, 2);
+        Pointer(rtlChevron, press: true, release: false);
+        check(rtlExpanded.Value.SequenceEqual(["root"]) && rtlInvocations == 0 && rtlBounds.Height == 44,
+            "Tree disclosure press follows the RTL chevron slot and uses independent custom presentation metrics");
+        Pointer(rtlRow, press: false, release: true);
+        check(rtlExpanded.Value.SequenceEqual(["root"]) && rtlInvocations == 0,
+            "Tree disclosure press cannot invoke a release row when dragged across it");
+        Pointer(rtlRow, press: true, release: false);
+        check(rtlInvocations == 0, "Tree row release waits with the press disclosure policy");
+        Pointer(rtlRow, press: false, release: true);
+        check(rtlInvocations == 1 && rtlExpanded.Value.SequenceEqual(["root"]), "Tree releases the row command independently of disclosure");
+
         using var broken = new UiTree<InvalidPresentation>("Invalid metrics", new UiState<string[]>([]).Binding, Items());
         current = broken; invalid = false;
         try { Frame(); } catch (InvalidOperationException exception) when (exception.Message.StartsWith("Tree presentation metrics", StringComparison.Ordinal)) { invalid = true; }
         check(invalid, "invalid custom metrics fail at the shared layout boundary");
     }
 
+    private readonly struct PressRow : IUiTreeBehavior
+    {
+        public static UiButtonActivation RowPointerActivation => UiButtonActivation.Press;
+    }
+    private readonly struct PressDisclosure : IUiTreeBehavior
+    {
+        public static UiButtonActivation DisclosurePointerActivation => UiButtonActivation.Press;
+    }
     private readonly struct CustomPresentation : IUiTreePresentation
     {
         internal static int Rows, Selectors;

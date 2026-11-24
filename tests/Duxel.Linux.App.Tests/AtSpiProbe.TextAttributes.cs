@@ -44,15 +44,17 @@ internal static unsafe partial class AtSpiProbe
                 "Native default foreground and point size match actual editor paint and its nominal font request");
         }
         finally { if (defaults != 0) g_hash_table_unref(defaults); }
-        check(AttributeRun(text, 2, false) == (0, 4, 3u, null),
-            "Actual Korean font attributes use their scalar source interval and omit foreground defaults");
-        check(AttributeRun(text, 2, true) == (0, 4, 5u, "7967,7967,7967"),
+        var koreanRun = AttributeRun(text, 2, false);
+        check(koreanRun == (0, 5, 3u, null),
+            $"Actual Korean font attributes include the following space and omit foreground defaults; actual={koreanRun}");
+        check(AttributeRun(text, 2, true) == (0, 5, 5u, "7967,7967,7967"),
             "Including defaults merges actual font attributes with source foreground");
         var finalRun = AttributeRun(text, 6, false, legacy: true);
-        check(finalRun == (4, 6, 3u, null),
+        check(finalRun == (5, 6, 3u, null),
             $"Legacy attributes select the actual final font run at document end; actual={finalRun}");
-        check(AttributeValue(text, 0, "family-name") == "Malgun Gothic" && AttributeValue(text, 5, "family-name") == "DejaVu Sans",
-            "Native font family queries follow actual Korean and supplementary-character font selection");
+        check(AttributeValue(text, 0, "family-name") == "Malgun Gothic" && AttributeValue(text, 4, "family-name") == "Malgun Gothic"
+            && AttributeValue(text, 5, "family-name") == "DejaVu Sans",
+            "Native font family queries follow actual Korean, contextual space and supplementary-character font selection");
         check(AttributeValue(text, 0, "weight") == "400" && AttributeValue(text, 5, "style") == "normal",
             "Native weight and style use actual OpenType flags without a guessed font size");
         check(AttributeValue(text, 5, "fg-color") == "7967,7967,7967" && AttributeValue(text, 0, "unknown") == "",

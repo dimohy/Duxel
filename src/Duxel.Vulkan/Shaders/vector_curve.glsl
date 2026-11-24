@@ -21,8 +21,16 @@ vec2 curvePoint(vec4 ab, vec4 cd, uint index, uint count, vec2 scale, vec2 origi
 }
 // Search the camera-dependent uniform polyline in monotone Y intervals. Retained
 // controls stay immutable; zoom requires neither CPU flattening nor buffer uploads.
-int curveWinding(vec2 point, vec2 devicePoint, uint offset, vec2 scale, vec2 origin) {
+vec4 placeCurve(vec4 controls, vec4 placement) {
+    precise vec4 placed = (controls + placement.xyxy) - placement.zwzw;
+    return placed;
+}
+int curveWinding(vec2 point, vec2 devicePoint, uint offset, vec2 scale, vec2 origin, bool placed, vec4 placement) {
     vec4 ab = pc.scene.data[offset], cd = pc.scene.data[offset + 1u];
+    if (placed) {
+        ab = placeCurve(ab, placement);
+        cd = placeCurve(cd, placement);
+    }
     vec4 intervals = pc.scene.data[offset + 2u];
     if (intervals.x == 0.0) {
         // Keep snapped line crossings in device space so a sample on the boundary stays a tie.
@@ -75,10 +83,11 @@ int curveWinding(vec2 point, vec2 devicePoint, uint offset, vec2 scale, vec2 ori
     return winding;
 }
 bool containsStroke(vec2 point, vec4 specification);
-bool containsPoint(vec2 point, vec2 devicePoint, vec4 bounds, vec4 specification, vec2 deviceScale, vec2 deviceOrigin) {
+bool containsPoint(vec2 point, vec2 devicePoint, vec4 bounds, vec4 specification, vec2 deviceScale, vec2 deviceOrigin, vec4 placement) {
     if ((uint(specification.w) & 32u) != 0u) return containsStroke(point, specification);
     uint offset = uint(specification.x), count = uint(specification.y);
     uint flags = uint(specification.w);
+    bool placed = (flags & PlacedCurvePath) != 0u;
     if ((flags & 2u) != 0u) {
         uint band = min(uint((point.y - bounds.y) / (bounds.w - bounds.y) * float(count)), count - 1u);
         vec4 entry = pc.scene.data[offset + band];
@@ -88,10 +97,11 @@ bool containsPoint(vec2 point, vec2 devicePoint, vec4 bounds, vec4 specification
     int winding = 0;
     for (uint i = 0u; i < count; ++i) {
         if ((flags & 4u) != 0u) {
-            winding += curveWinding(point, devicePoint, offset + i * 3u, deviceScale, deviceOrigin);
+            winding += curveWinding(point, devicePoint, offset + i * 3u, deviceScale, deviceOrigin, placed, placement);
             continue;
         }
         vec4 edge = pc.scene.data[offset + i];
+        if (placed) edge = placeCurve(edge, placement);
         edge.xy = (roundEven((edge.xy * deviceScale + deviceOrigin) * 256.0) / 256.0 - deviceOrigin) / deviceScale;
         edge.zw = (roundEven((edge.zw * deviceScale + deviceOrigin) * 256.0) / 256.0 - deviceOrigin) / deviceScale;
         if (point.y < min(edge.y, edge.w) || point.y >= max(edge.y, edge.w)) continue;

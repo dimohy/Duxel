@@ -117,6 +117,82 @@ internal static class RatingTests
         check(Fluent.ComponentNames.Contains("Rating") && !Fluent.MissingComponentNames.Contains("Rating"),
             "Rating / generated compiled factory participates in the official catalog");
         RunGpu(check);
+        RunForcedColors(check);
+    }
+
+    private static void RunForcedColors(Action<bool, string> check)
+    {
+        var colors = new UiForcedColorPalette(new(5, 10, 15), new(240, 230, 220), new(140, 150, 155),
+            new(20, 90, 180), new(250, 240, 230), new(30, 200, 220), new(35, 45, 55), new(210, 220, 230));
+        var background = new UiColor(40, 50, 60);
+        using var fixture = new PresentationReuseTests.Fixture(1, true);
+        fixture.Context.SetTheme(colors.Apply(UiCompiledDesign.Windows11Dark.Theme));
+        foreach (var color in Enum.GetValues<UiRatingColor>())
+        foreach (var rightToLeft in new[] { false, true })
+        foreach (var enabled in new[] { true, false })
+        foreach (var display in new[] { true, false })
+        {
+            using var input = Fluent.Rating("Rating", new UiBinding<float>(() => 1.5f, _ => { }),
+                new() { Step = .5f, Size = UiRatingSize.ExtraLarge, Shape = UiRatingShape.Square, Color = color, RightToLeft = rightToLeft });
+            using var summary = Fluent.RatingDisplay("Rating display", new UiRatingDisplayValue(1.5f), new()
+            {
+                Size = UiRatingSize.ExtraLarge, Shape = UiRatingShape.Square, Color = color, RightToLeft = rightToLeft,
+                ShowValue = false, ShowCount = false
+            });
+            var pixels = fixture.Capture(ui =>
+            {
+                ui.EnableRootViewportContentLayout(contentPadding: 0);
+                var paint = new UiControlContext(ui);
+                paint.Frame(new(0, 0, fixture.FrameInfo.DisplaySize.X, fixture.FrameInfo.DisplaySize.Y), background, default, 0, 0);
+                ui.SetCursorScreenPos(new(25, 30));
+                ui.BeginDisabled(!enabled);
+                if (display)
+                    summary.Render(ui);
+                else
+                    input.Render(ui);
+                ui.EndDisabled();
+            });
+            var foreground = enabled ? colors.CanvasText : colors.GrayText;
+            var empty = display ? colors.Canvas : background;
+            var start = rightToLeft ? 25 + 139 : 25;
+            int X(int offset) => start + (rightToLeft ? -offset : offset);
+            bool Matches(int x, int y, UiColor expected)
+            {
+                var offset = (y * fixture.LastCaptureSize.Width + x) * 4;
+                var rgba = expected.Rgba;
+                return pixels[offset] == (byte)rgba && pixels[offset + 1] == (byte)(rgba >> 8) && pixels[offset + 2] == (byte)(rgba >> 16);
+            }
+            var name = $"Rating forced colors / display={display}, enabled={enabled}, RTL={rightToLeft}, color={color}";
+            check(Matches(X(14), 44, foreground), name + " / full icon uses the system foreground");
+            check(Matches(X(38), 44, foreground) && Matches(X(45), 44, empty), name + " / half icon preserves the selected direction");
+            var emptyIcon = new UiRect(25 + 56, 30, 28, 28);
+            var expectedOutline = fixture.Capture(ui =>
+            {
+                var paint = new UiControlContext(ui);
+                paint.Frame(new(0, 0, fixture.FrameInfo.DisplaySize.X, fixture.FrameInfo.DisplaySize.Y), background, default, 0, 0);
+                if (display)
+                    UiRatingSquareFilled.Paint(paint, emptyIcon, colors.Canvas, default);
+                UiRatingSquareOutline.Paint(paint, emptyIcon, foreground, default);
+            });
+            bool OutlineRowMatches(int y)
+            {
+                var offset = (y * fixture.LastCaptureSize.Width + (int)emptyIcon.X) * 4;
+                return pixels.AsSpan(offset, 28 * 4).SequenceEqual(expectedOutline.AsSpan(offset, 28 * 4));
+            }
+            check(Matches(X(70), 44, empty) && Enumerable.Range(30, 28).All(OutlineRowMatches),
+                name + " / empty icon retains a contrasting outline and distinct interior");
+        }
+
+        var focused = fixture.Capture(ui =>
+        {
+            ui.EnableRootViewportContentLayout(contentPadding: 0);
+            var paint = new UiControlContext(ui);
+            UiFluentRatingPresentation.Paint(paint, new(25, 30, 140, 28), new() { Step = .5f },
+                1.5f, null, new(new() { FocusVisible = true }, -1, -1, 2));
+        });
+        var focusOffset = (32 * fixture.LastCaptureSize.Width + 65) * 4;
+        check(focused[focusOffset] == 20 && focused[focusOffset + 1] == 90 && focused[focusOffset + 2] == 180,
+            "Rating forced colors / focused half-step outlines its icon in the system highlight color");
     }
 
     private static void RunGpu(Action<bool, string> check)

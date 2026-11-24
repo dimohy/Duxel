@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <PackageId>Duxel.Core</PackageId>
-    <Version>0.2.0-preview</Version>
+    <Version>$(DuxelVersion)</Version>
     <Authors>dimohy</Authors>
     <Description>Core types and immediate-mode UI runtime for Duxel.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -28,6 +28,7 @@
     <InternalsVisibleTo Include="Duxel.Control.Tests" />
     <InternalsVisibleTo Include="Duxel.Graphics.Tests" />
     <InternalsVisibleTo Include="Duxel.Vulkan.Linux.Tests" />
+    <InternalsVisibleTo Include="Duxel.Platform.Linux.Tests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,7 +38,7 @@
     <InternalsVisibleTo Include="Duxel.Platform.Windows" />
     <InternalsVisibleTo Include="Duxel.Platform.Linux" />
     <PackageReference Include="Markdig" Version="1.4.0" />
-    <PackageReference Include="System.IO.Hashing" Version="10.0.13" />
+    <PackageReference Include="System.IO.Hashing" Version="$(DuxelHashingVersion)" />
     <ProjectReference Include="../Duxel.Core.Dsl.Generator/Duxel.Core.Dsl.Generator.csproj"
                       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <AdditionalFiles Include="FluentComponents.tsv" />

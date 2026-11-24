@@ -277,6 +277,99 @@ internal static class PopoverTriggerTests
             "Later same-frame close cancels one deadline while preserving another owner");
         Frame(elapsed: 1.1f);
         check(!secondHover.IsOpen && context.State.NextScheduledFrameTimeSeconds is null, "Last hover deadline closes and returns aggregate scheduler to event wait");
+
+        var open = false;
+        var acceptChange = true;
+        var changes = 0;
+        var contentCalls = 0;
+        using var press = new UiPopover<UiPressButtonBehavior, UiFluentPopoverPresentation>("Press target",
+            Fluent.Button("Overlapping action", () => contentCalls++),
+            new UiPopoverOptions(Width: 200, DisableAutoFocus: true, MotionEnabled: false,
+                Positioning: new() { Position = UiPopupPosition.BelowStart, CoverTarget = true, Pinned = true })
+            { ContentPadding = 0 })
+        {
+            Open = new(() => open, value =>
+            {
+                changes++;
+                if (acceptChange)
+                    open = value;
+            })
+        };
+        current = press;
+        Frame();
+        var pressNode = Find("Press target", UiAccessibilityRole.Button);
+        var pressPoint = new UiVector2(pressNode.Node.Bounds.X + 8, pressNode.Node.Bounds.Y + 8);
+        void Left(UiVector2 point, bool down, bool up) => Frame(idle with
+        {
+            MousePosition = point,
+            LeftMouseDown = down && !up,
+            LeftMousePressed = down,
+            LeftMouseReleased = up
+        });
+        Left(pressPoint, down: true, up: false);
+        var action = Find("Overlapping action", UiAccessibilityRole.Button).Node.Bounds;
+        check(press.IsOpen && open && changes == 1 && contentCalls == 0
+            && pressPoint.X >= action.X && pressPoint.X < action.X + action.Width
+            && pressPoint.Y >= action.Y && pressPoint.Y < action.Y + action.Height,
+            "Press Popover opens on down with a real child overlapping the pointer");
+        Left(pressPoint, down: false, up: true);
+        check(press.IsOpen && changes == 1 && contentCalls == 0, "Opening release neither toggles the Popover nor invokes its overlapping child");
+        Left(pressPoint, down: true, up: true);
+        check(contentCalls == 1 && press.IsOpen && changes == 1, "The next click invokes the overlapping child normally");
+        press.Close();
+        Frame();
+        var beforePress = changes;
+        Left(pressPoint, down: true, up: true);
+        check(press.IsOpen && changes == beforePress + 1 && contentCalls == 1,
+            "Same-frame opening edges never invoke the newly exposed child");
+        press.Close();
+        Frame();
+        acceptChange = false;
+        beforePress = changes;
+        Left(pressPoint, down: true, up: false);
+        Left(pressPoint, down: false, up: true);
+        check(!press.IsOpen && !open && changes == beforePress + 1, "Press Popover does not retry a rejected controlled open on release");
+        acceptChange = true;
+        Focus("Press target");
+        Key(UiKey.Enter);
+        check(press.IsOpen && open, "Press Popover still opens by keyboard");
+        Key(UiKey.Escape);
+        check(!press.IsOpen && Find("Press target", UiAccessibilityRole.Button).Node.Focused, "Press Popover Escape closes and restores trigger focus");
+        pressNode = Find("Press target", UiAccessibilityRole.Button);
+        check(tree.RequestAction(pressNode.Node.Id, pressNode.RuntimeId, UiAccessibilityAction.Invoke, wait: false) == UiAccessibilityResult.Success,
+            "Press Popover accepts accessibility Invoke");
+        Frame();
+        check(press.IsOpen && open, "Press Popover opens through accessibility Invoke");
+        press.Close();
+        press.Options = press.Options with { TriggerMode = UiPopoverTriggerMode.Context };
+        Frame();
+        Left(pressPoint, down: true, up: true);
+        check(!press.IsOpen, "Context Popover ignores the custom left-pointer activation");
+        Frame(idle with { MousePosition = pressPoint, RightMouseDown = true, RightMousePressed = true });
+        check(!press.IsOpen, "Context Popover still waits for right release");
+        Frame(idle with { MousePosition = pressPoint, RightMouseReleased = true });
+        check(press.IsOpen, "Context Popover opens on right release with the same custom policy");
+        press.Close();
+        press.Options = press.Options with { TriggerMode = UiPopoverTriggerMode.Hover, MouseLeaveDelaySeconds = 0 };
+        Frame();
+        Frame(idle with { MousePosition = pressPoint });
+        check(press.IsOpen, "Hover Popover still opens on pointer entry with the custom policy");
+        Frame();
+        check(!press.IsOpen, "Hover Popover still closes on pointer leave with zero delay");
+        press.Options = press.Options with
+        {
+            TriggerMode = UiPopoverTriggerMode.Click,
+            Positioning = press.Options.Positioning with { CoverTarget = false }
+        };
+        Frame();
+        Left(pressPoint, down: true, up: true);
+        check(press.IsOpen, "Press Popover opens normally with a nonoverlapping surface");
+        beforePress = changes;
+        Left(pressPoint, down: true, up: false);
+        check(!press.IsOpen && !open && changes == beforePress + 1, "Clicking the exposed trigger closes the Popover on press");
+        Left(pressPoint, down: false, up: true);
+        check(!press.IsOpen && changes == beforePress + 1, "Releasing after a press close does not reopen the Popover");
+
         using var invalidContent = Fluent.Body1("Unused");
         var rejected = 0;
         foreach (var invalid in new[] { new UiPopoverOptions(MouseLeaveDelaySeconds: -1), new UiPopoverOptions(MouseLeaveDelaySeconds: double.NaN), new UiPopoverOptions(TriggerMode: (UiPopoverTriggerMode)99) })

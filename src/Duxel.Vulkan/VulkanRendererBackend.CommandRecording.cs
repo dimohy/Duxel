@@ -282,6 +282,12 @@ public sealed unsafe partial class VulkanRendererBackend
         public CommandScissorState Scissor;
         public CommandDrawDispatchState DrawDispatch;
         public CommandTextureState Texture;
+        public int ProjectedGlyphBatchPage;
+        public nuint ProjectedGlyphBatchOffset;
+        public int ProjectedGlyphPlaneRuns, ProjectedGlyphPlaneFootprints;
+        public uint ProjectedGlyphPlaneInstances;
+        public UiRect ProjectedGlyphPlaneViewport, ProjectedGlyphPlaneClip, ProjectedGlyphPlaneFractionalViewport;
+        public int ProjectedGlyphPlaneDepthScope;
     }
 
     private CommandRecordingState CreateCommandRecordingState()
@@ -493,6 +499,7 @@ public sealed unsafe partial class VulkanRendererBackend
         {
             if (allowCompiled && _compiledFrameGroups.TryGetValue(listIndex, out var compiledSpan))
             {
+                FlushProjectedGlyphPlanes(in frameContext, ref state);
                 foreach (var placement in compiledSpan.Groups)
                     RecordCompiledLayerGroup(placement.Group, drawData, placement.FirstList, staticBindings, imageIndex, in frameContext, ref state);
                 listIndex += compiledSpan.ListCount - 1;
@@ -525,6 +532,10 @@ public sealed unsafe partial class VulkanRendererBackend
                 }
                 continue;
             }
+            var deferGlyphs = allowCompiled && !_damagePartial && _projectedGlyphPlaneBatchingEnabled
+                && TryPrepareProjectedGlyphPlane(drawList, in layerView, in frameContext, ref state);
+            if (!deferGlyphs)
+                FlushProjectedGlyphPlanes(in frameContext, ref state);
             ApplyDepthLayerState(drawList.Scene3D, in frameContext, in layerView, ref state.Pipeline);
             RecordDrawListProfile(frameContext.ProfileEnabled, hasStaticBinding, ref state.Profile);
             var listProfileCommandStart = frameContext.ProfileEnabled ? state.Profile.CommandCount : 0;
@@ -556,9 +567,28 @@ public sealed unsafe partial class VulkanRendererBackend
                     drawList,
                     in commandIterationState,
                     commandOrderIndex,
-                    out var commandStep);
-                commandOrderIndex = commandStep.NextCommandOrderIndex + 1)
+                    out var commandStep);)
             {
+                commandOrderIndex = commandStep.NextCommandOrderIndex + 1;
+                if (deferGlyphs && commandStep.Command.ProjectedGlyphs is { } glyph)
+                {
+                    var command = commandStep.Command;
+                    if (command.ClipRect.Width > 0 && command.ClipRect.Height > 0
+                        && (drawListContext.SkipLayerFrustumChecks || !IsOutsideLayerFrustum(in command, in frameContext, in state.Pipeline)))
+                        QueueProjectedGlyphPlane(in command, glyph, in frameContext, ref state);
+                    continue;
+                }
+                if (_projectedGlyphBatchingEnabled && !commandIterationState.HasScheduledOrder
+                    && commandStep.Command.ProjectedGlyphs is not null)
+                {
+                    var end = RecordConsecutiveProjectedGlyphs(drawList, commandStep.CommandIndex, in frameContext,
+                        in drawListContext, ref state);
+                    if (end > commandOrderIndex)
+                    {
+                        commandOrderIndex = end;
+                        continue;
+                    }
+                }
                 RecordCommandDrawListCommand(
                     drawList,
                     in commandStep,
@@ -600,6 +630,7 @@ public sealed unsafe partial class VulkanRendererBackend
                 globalPrimitiveOffset += (uint)(drawListRectPrimitiveCount + drawListCirclePrimitiveCount);
             }
         }
+        FlushProjectedGlyphPlanes(in frameContext, ref state);
     }
 
     private void RecordCommandDrawListCommand(
@@ -617,10 +648,20 @@ public sealed unsafe partial class VulkanRendererBackend
         var command = commandStep.Command;
         if (command.Callback is { } callback)
         {
-            callback(drawList, command);
+            if (command.ProjectedGlyphs is { } glyphs)
+            {
+                if (!IsOutsideFrameDamage(in command, in frameContext, drawList.Scene3D)
+                    && (drawListContext.SkipLayerFrustumChecks || !IsOutsideLayerFrustum(in command, in frameContext, in state.Pipeline)))
+                    RecordProjectedGlyph(in command, glyphs, in frameContext, ref state);
+                return;
+            }
+            var handled = false;
+            RecordValidationProjectedGlyph(in command, in frameContext, ref state, ref handled);
+            if (!handled)
+                callback(drawList, command);
             return;
         }
-        if (IsOutsideFrameDamage(in command, in frameContext, drawList.Scene3D?.WidgetTransform))
+        if (IsOutsideFrameDamage(in command, in frameContext, drawList.Scene3D))
             return;
         if (state.Pipeline.Layer3DEnabled && !drawListContext.SkipLayerFrustumChecks
             && IsOutsideLayerFrustum(in command, in frameContext, in state.Pipeline))
@@ -713,4 +754,7 @@ public sealed unsafe partial class VulkanRendererBackend
             ref state.PushConstant,
             ref state.DrawDispatch);
     }
+
+    partial void RecordValidationProjectedGlyph(in UiDrawCommand command, in CommandFrameContext context,
+        ref CommandRecordingState state, ref bool handled);
 }

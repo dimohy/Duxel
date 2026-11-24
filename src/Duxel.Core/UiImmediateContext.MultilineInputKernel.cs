@@ -635,7 +635,7 @@ public sealed partial class UiImmediateContext
     }
 
     internal void PaintMultilineInput(in UiMultilineInputLayout layout, in UiMultilineEditResult edit,
-        in UiInputTextPaint paint, UiColor? placeholderColor = null)
+        in UiInputTextPaint paint, UiColor? placeholderColor = null, bool keepSelectionVisible = false)
     {
         EnsureNotMeasuring();
         layout.Validate();
@@ -692,8 +692,9 @@ public sealed partial class UiImmediateContext
         if (styled && displayedLines!.StyledSource is not UiCodeDocument)
             PaintVisualLines(displayedLines!, textPos, textLineHeight, paint.Text, inputClip, paint.Typography,
                 phase: UiStyledTextPaintPhase.Background);
-        var selectedForeground = active && selection.HasSelection ? _theme.ForcedColors?.HighlightText : null;
-        if (active && selection.HasSelection)
+        var showSelection = (active || keepSelectionVisible) && selection.HasSelection;
+        var selectedForeground = showSelection ? _theme.ForcedColors?.HighlightText : null;
+        if (showSelection)
         {
             if (visual is null)
                 DrawSelectionMultiline(displayText, displaySelection, textPos.X, textPos.Y, textLineHeight, inputRect, paint.Selection);
@@ -706,7 +707,7 @@ public sealed partial class UiImmediateContext
             var displayed = edit.CompositionLines ?? visual;
             PaintVisualLines(displayed, textPos, textLineHeight, paint.Text, inputClip, paint.Typography,
                 displaySelection, selectedForeground, styled ? UiStyledTextPaintPhase.Content : UiStyledTextPaintPhase.All);
-            if (active && selection.HasSelection)
+            if (showSelection)
                 PaintMarkdownImageSelection(displayed, selection, textPos, inputClip, paint.Selection,
                     caretIndex, compositionText?.Length ?? 0);
             if (edit.CompositionLines is not null)

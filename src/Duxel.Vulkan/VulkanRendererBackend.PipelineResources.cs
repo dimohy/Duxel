@@ -203,9 +203,11 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
-    private unsafe void CreateGraphicsPipeline(bool createDepthVariants = false, bool compiledLayers = false, bool sharedBasis = false, bool sharedCamera = false, bool circleCutout = false, bool backdropComposite = false, bool projectedCapture = false)
+    private readonly record struct ProjectedGlyphStages(ShaderModule Vertex, ShaderModule Fragment);
+
+    private unsafe void CreateGraphicsPipeline(bool createDepthVariants = false, bool compiledLayers = false, bool sharedBasis = false, bool sharedCamera = false, bool circleCutout = false, bool backdropComposite = false, bool projectedCapture = false, ProjectedGlyphStages? glyphStages = null, Pipeline* glyphPipeline = null)
     {
-        if (!createDepthVariants && !circleCutout && !backdropComposite && !projectedCapture)
+        if (!createDepthVariants && !circleCutout && !backdropComposite && !projectedCapture && glyphStages is null)
         {
             _vertexShaderModule = CreateShaderModule(_viewportClipPlanesEnabled
                 ? LoadEmbeddedShader("Duxel.Vulkan.Shaders.imgui_viewport_clip.vert.spv")
@@ -425,6 +427,26 @@ public sealed unsafe partial class VulkanRendererBackend
                 RenderPass = default,
                 Subpass = 0,
             };
+
+            if (glyphStages is { } glyph)
+            {
+                var sampleCount = (uint)_msaaSampleCount;
+                var glyphSampleEntry = new SpecializationMapEntry { ConstantID = 0, Size = sizeof(uint) };
+                var glyphSpecialization = new SpecializationInfo
+                {
+                    MapEntryCount = 1, PMapEntries = &glyphSampleEntry,
+                    DataSize = sizeof(uint), PData = &sampleCount,
+                };
+                stages[0].Module = glyph.Vertex;
+                stages[0].PSpecializationInfo = null;
+                stages[1].Module = glyph.Fragment;
+                stages[1].PSpecializationInfo = &glyphSpecialization;
+                depthStencil.DepthTestEnable = true;
+                depthStencil.DepthWriteEnable = true;
+                depthStencil.DepthCompareOp = CompareOp.LessOrEqual;
+                Check(_vk.CreateGraphicsPipelines(_device, _pipelineCache, 1, &pipelineInfo, null, glyphPipeline));
+                return;
+            }
 
             if (createDepthVariants)
             {

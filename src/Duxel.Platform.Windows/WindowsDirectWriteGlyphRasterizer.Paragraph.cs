@@ -9,7 +9,8 @@ internal sealed partial class WindowsDirectWriteGlyphRasterizer
     internal readonly record struct ContextualParagraph(ContextualFontRun[] Runs, float Advance, float Baseline);
 
     internal static ContextualParagraph ShapeContextualParagraph(string primary, string? secondary, string text, float size,
-        Action<nint>? inspectLayout = null, List<WindowsPlatformTextBackend.FontRun>? selectedFontRuns = null)
+        Action<nint>? inspectLayout = null, List<WindowsPlatformTextBackend.FontRun>? selectedFontRuns = null,
+        bool rightToLeft = false)
     {
         lock (Sync)
         {
@@ -31,7 +32,7 @@ internal sealed partial class WindowsDirectWriteGlyphRasterizer
                 start += run.Text.Length;
             }
             var paragraph = DirectWriteLongTextShaper.ShapeParagraph(_factory, text, spans,
-                inspectLayout : inspectLayout, sharedFonts : _paragraphBatch?.Fonts);
+                rtl : rightToLeft, inspectLayout : inspectLayout, sharedFonts : _paragraphBatch?.Fonts);
             return new(paragraph.Runs.Select(run => new ContextualFontRun(selected[run.FontSpan].FontPath, run.Glyphs, run.Raster)).ToArray(),
                 paragraph.Advance, paragraph.Baseline);
         }

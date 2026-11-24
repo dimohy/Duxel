@@ -77,7 +77,8 @@ public readonly struct UiCardLayout<TPresentation> : IUiSingleChildLayout<UiCard
 }
 
 /// <summary>Owns persistent content, a named accessibility group and an optional root action.</summary>
-public class UiCard<TPresentation> : UiSingleChildBox<UiCardLayout<TPresentation>, UiCardOptions, UiPlainContainerPresentation>
+public class UiCard<TBehavior, TPresentation> : UiSingleChildBox<UiCardLayout<TPresentation>, UiCardOptions, UiPlainContainerPresentation>
+    where TBehavior : IUiPointerActivationBehavior
     where TPresentation : IUiCardPresentation
 {
     private string _label;
@@ -158,7 +159,7 @@ public class UiCard<TPresentation> : UiSingleChildBox<UiCardLayout<TPresentation
                 ref _floatingMeasurement, render: true);
         }
         var edit = ui.RenderCard<TPresentation>(_label, Child, options, metrics, _shadow, layout,
-            _floatingAction, floatingSize, selection, SwipeDismissal);
+            _floatingAction, floatingSize, selection, SwipeDismissal, TBehavior.PointerActivation);
         if (edit.SelectionChanged) OnSelectionChanged(selection!, edit.Selected);
         else if (edit.ChildSelectionChanged) RequestRebuild();
         if (edit.Activated) OnActivated();
@@ -169,6 +170,16 @@ public class UiCard<TPresentation> : UiSingleChildBox<UiCardLayout<TPresentation
         _floatingAction = null; _floatingMeasurement = null;
         base.ReleaseOwnedResources();
     }
+}
+
+/// <summary>Card whose surface activates on pointer release.</summary>
+public class UiCard<TPresentation> : UiCard<UiReleaseButtonBehavior, TPresentation>
+    where TPresentation : IUiCardPresentation
+{
+    public UiCard(string label, UiWidget content, UiCardOptions options = default,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance, Action? activated = null, UiBinding<bool>? selection = null,
+        UiWidget? floatingAction = null)
+        : base(label, content, options, identity, activated, selection, floatingAction) { }
 }
 
 [UiWidgetStyle(typeof(UiCard<>), typeof(UiFluentCardPresentation))]
@@ -267,7 +278,8 @@ public sealed partial class UiImmediateContext
     internal readonly record struct CardEdit(bool Activated, bool SelectionChanged, bool Selected, bool ChildSelectionChanged);
     internal CardEdit RenderCard<TPresentation>(string label, UiWidget child, UiCardOptions options, UiCardMetrics metrics,
         UiBoxShadow? shadow, UiContainerLayoutResult layout, UiWidget? floatingAction, UiVector2 floatingSize,
-        UiBinding<bool>? selection, UiCardSwipeDismissal? swipeDismissal) where TPresentation : IUiCardPresentation
+        UiBinding<bool>? selection, UiCardSwipeDismissal? swipeDismissal, UiButtonActivation pointerActivation)
+        where TPresentation : IUiCardPresentation
     {
         EnsureNotMeasuring();
         var context = new UiControlContext(this);
@@ -346,7 +358,7 @@ public sealed partial class UiImmediateContext
         {
             var previousBlocked = _layoutPointerBlockedTier;
             if (childClaimedPointer) _layoutPointerBlockedTier = _popupTierDepth;
-            try { interaction = ProcessControlPointer(selectionId is null ? "##card" : "##card-selection", surface, UiButtonActivation.Release); }
+            try { interaction = ProcessControlPointer(selectionId is null ? "##card" : "##card-selection", surface, pointerActivation); }
             finally { _layoutPointerBlockedTier = previousBlocked; }
             interaction = ApplyAccessibilityInvoke(id, surface, interaction);
             if (selectionId is not null && _leftMousePressed && !childClaimedPointer && interaction.Hovered)

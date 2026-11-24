@@ -2,8 +2,10 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
-    internal string? RenderAvatarGroup<TPresentation>(string id, string label, UiFluentAvatar[] avatars,
-        UiAvatarGroupLayoutResult layout, UiMenuInputState menu) where TPresentation : IUiAvatarGroupPresentation
+    internal string? RenderAvatarGroup<TBehavior, TPresentation>(string id, string label, UiFluentAvatar[] avatars,
+        UiAvatarGroupLayoutResult layout, UiMenuInputState menu)
+        where TBehavior : IUiMenuBehavior
+        where TPresentation : IUiAvatarGroupPresentation
     {
         EnsureNotMeasuring();
         var context = new UiControlContext(this);
@@ -81,13 +83,26 @@ public sealed partial class UiImmediateContext
                         UiAccessibilityRole.Image, avatar.ResolvedAccessibilityName, clipped, IsControlEnabled,
                         clipped.Width <= 0 || clipped.Height <= 0, false, Focusable: false, ValuePattern: false), visible);
                 }
-                if (layout.Overflow.Length > 0)
+                if (layout.HasOverflow)
                 {
-                    using (new LayoutPointerBlockScope(this, !ContainsRoundedRect(trigger, trigger.Width * .5f, _mousePosition)))
-                        interaction = ProcessMenuTrigger(overflowId, layout.OverflowName, layout.Overflow, menu, trigger);
+                    if (layout.Overflow.Length > 0)
+                    {
+                        using var pointerClip = new LayoutPointerBlockScope(this, !ContainsRoundedRect(trigger, trigger.Width * .5f, _mousePosition));
+                        interaction = ProcessMenuTrigger(overflowId, layout.OverflowName, layout.Overflow, menu, trigger,
+                            activation : TBehavior.TriggerActivation);
+                    }
+                    else
+                    {
+                        CancelMenuPopup(menu);
+                        ExposeAccessibility(overflowId, root, UiAccessibilityRole.Label, layout.OverflowName,
+                            trigger, focusable : false, valuePattern : false);
+                    }
                     if (!pie && layout.Options.Layout == UiAvatarGroupLayout.Stack)
                         TPresentation.PaintSeparator(context, trigger, layout.Options);
-                    TPresentation.PaintOverflow(context, trigger, layout.Count, interaction, layout.Options);
+                    var paintOptions = pie && layout.Inline.Length == 0
+                        ? layout.Options with { Layout = UiAvatarGroupLayout.Spread }
+                        : layout.Options;
+                    TPresentation.PaintOverflow(context, trigger, layout.Count, interaction, paintOptions);
                 }
                 else
                     CancelMenuPopup(menu);
@@ -97,7 +112,7 @@ public sealed partial class UiImmediateContext
                     layout.Options.RightToLeft, MaximumWidth: 300)
                 {
                     MaximumHeight = 220
-                }, menu, trigger, interaction);
+                }, menu, trigger, interaction, optionActivation: TBehavior.OptionActivation);
         }
         finally
         {

@@ -13,8 +13,11 @@ public sealed partial class UiImmediateContext
         PrepareOverlaySurfaceExit(input, ref input.SurfacePaint, input.NaturalBounds, default,
             input.LastMotion, .2, .8f, HudLinear, HudLinear);
     }
-    internal void RenderHeadsUpDisplay(UiHeadsUpDisplayWidget widget, string id, bool? controlled, bool? pending,
+    internal void RenderHeadsUpDisplay<TBehavior, TPresentation>(UiHeadsUpDisplayWidget<TBehavior, TPresentation> widget,
+        string id, bool? controlled, bool? pending,
         UiControlActivationOrigin? origin)
+        where TBehavior : IUiHeadsUpDisplayBehavior
+        where TPresentation : IUiHeadsUpDisplayPresentation
     {
         var input = widget.Input;
         var options = widget.Options;
@@ -62,7 +65,7 @@ public sealed partial class UiImmediateContext
         if (opened || pending == true || input.Persistent != options.IsPersistent)
         {
             input.Persistent = options.IsPersistent;
-            input.AutoDismissAt = options.IsPersistent ? null : _state.TimeSeconds + 1;
+            input.AutoDismissAt = options.IsPersistent ? null : _state.TimeSeconds + widget.AutoDismissSeconds;
         }
         if (input.AutoDismissAt is { } deadline && _state.TimeSeconds >= deadline)
         {

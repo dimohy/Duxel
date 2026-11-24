@@ -38,35 +38,30 @@ public readonly struct UiFluentPrimaryButtonAppearance:IUiButtonAppearance
 public readonly struct UiFluentSecondaryButtonAppearance<TShape>:IUiButtonAppearance where TShape:IUiButtonShape
 {
     public static UiColor Paint(UiControlContext context,UiRect bounds,UiButtonInteraction interaction)=>
-        UiFluentButtonFrame.Paint<TShape>(context,bounds,interaction,UiFluentButtonPalette.Resolve(context.FluentColorScheme,UiFluentButtonFrame.State(context,interaction)));
+        UiFluentButtonFrame.Paint<TShape>(context, bounds, interaction, UiFluentButtonAppearanceKind.Secondary);
 }
 public readonly struct UiFluentOutlineButtonAppearance<TShape>:IUiButtonAppearance where TShape:IUiButtonShape
 {
     public static UiColor Paint(UiControlContext context,UiRect bounds,UiButtonInteraction interaction)=>
-        UiFluentButtonFrame.Paint<TShape>(context,bounds,interaction,UiFluentButtonPalette.Outline(context.FluentColorScheme,UiFluentButtonFrame.State(context,interaction)));
+        UiFluentButtonFrame.Paint<TShape>(context, bounds, interaction, UiFluentButtonAppearanceKind.Outline);
 }
 public readonly struct UiFluentSubtleButtonAppearance<TShape>:IUiButtonAppearance where TShape:IUiButtonShape
 {
     public static UiColor IconColor(UiControlContext context,UiButtonInteraction interaction,UiColor foreground)=>
-        UiFluentButtonPalette.Transparent(context.FluentColorScheme,UiFluentButtonFrame.State(context,interaction)).Foreground;
+        context.Theme.ForcedColors.HasValue ? foreground
+            : UiFluentButtonPalette.Transparent(context.FluentColorScheme, UiFluentButtonFrame.State(context, interaction)).Foreground;
     public static UiColor Paint(UiControlContext context,UiRect bounds,UiButtonInteraction interaction)=>
-        UiFluentButtonFrame.Paint<TShape>(context,bounds,interaction,UiFluentButtonPalette.Subtle(context.FluentColorScheme,UiFluentButtonFrame.State(context,interaction)));
+        UiFluentButtonFrame.Paint<TShape>(context, bounds, interaction, UiFluentButtonAppearanceKind.Subtle);
 }
 public readonly struct UiFluentTransparentButtonAppearance<TShape>:IUiButtonAppearance where TShape:IUiButtonShape
 {
     public static UiColor Paint(UiControlContext context,UiRect bounds,UiButtonInteraction interaction)=>
-        UiFluentButtonFrame.Paint<TShape>(context,bounds,interaction,UiFluentButtonPalette.Transparent(context.FluentColorScheme,UiFluentButtonFrame.State(context,interaction)));
+        UiFluentButtonFrame.Paint<TShape>(context, bounds, interaction, UiFluentButtonAppearanceKind.Transparent);
 }
 public readonly struct UiFluentPrimaryButtonAppearance<TShape>:IUiButtonAppearance where TShape:IUiButtonShape
 {
     public static UiColor Paint(UiControlContext context,UiRect bounds,UiButtonInteraction interaction)
-    {
-        var paint=UiFluentButtonPalette.Primary(context.FluentColorScheme,UiFluentButtonFrame.State(context,interaction));
-        var color=UiFluentButtonFrame.Paint<TShape>(context,bounds,interaction,paint);
-        if(context.IsEnabled&&interaction.FocusVisible&&!interaction.Hovered)
-            TShape.Paint(context,bounds,default,new(255,255,255),2);
-        return color;
-    }
+        => UiFluentButtonFrame.Paint<TShape>(context, bounds, interaction, UiFluentButtonAppearanceKind.Primary);
 }
 
 internal static class UiFluentButtonFrame
@@ -74,11 +69,22 @@ internal static class UiFluentButtonFrame
     internal static UiButtonVisualState State(UiControlContext context,UiButtonInteraction interaction)=>
         !context.IsEnabled?UiButtonVisualState.Disabled:interaction.Held?UiButtonVisualState.Pressed:
             interaction.Hovered?UiButtonVisualState.Hover:UiButtonVisualState.Rest;
-    internal static UiColor Paint<TShape>(UiControlContext context,UiRect bounds,UiButtonInteraction interaction,UiButtonPaint paint) where TShape:IUiButtonShape
+    internal static UiColor Paint<TShape>(UiControlContext context, UiRect bounds, UiButtonInteraction interaction,
+        UiFluentButtonAppearanceKind appearance) where TShape : IUiButtonShape
     {
-        var focused=context.IsEnabled&&interaction.FocusVisible;
-        TShape.Paint(context,bounds,paint.Background,focused?paint.Focus:paint.Border,0);
-        if(focused)TShape.Paint(context,bounds,default,paint.Focus,1);
+        var state = State(context, interaction);
+        var forced = context.Theme.ForcedColors;
+        var paint = forced is { } colors ? UiFluentButtonPalette.ResolveForced(colors, state, appearance)
+            : UiFluentButtonPalette.Resolve(context.FluentColorScheme, state, appearance);
+        var focused = context.IsEnabled && interaction.FocusVisible;
+        var keepOuterBorder = forced.HasValue && appearance is UiFluentButtonAppearanceKind.Subtle or UiFluentButtonAppearanceKind.Transparent;
+        TShape.Paint(context, bounds, paint.Background, focused && !keepOuterBorder ? paint.Focus : paint.Border, 0);
+        if (focused)
+        {
+            TShape.Paint(context, bounds, default, paint.Focus, 1);
+            if (appearance == UiFluentButtonAppearanceKind.Primary && !interaction.Hovered)
+                TShape.Paint(context, bounds, default, forced.HasValue ? paint.Focus : new(255, 255, 255), 2);
+        }
         return paint.Foreground;
     }
 }

@@ -14,7 +14,7 @@ internal sealed partial class WindowsDirectWriteGlyphRasterizer
     private static readonly Queue<VectorGlyphKey> VectorGlyphOrder = [];
     private const int VectorGlyphCapacity = 2048;
 
-    private readonly record struct VectorParagraphKey(string Primary, string? Secondary, float Size, string Text);
+    private readonly record struct VectorParagraphKey(string Primary, string? Secondary, float Size, string Text, bool RightToLeft);
     private static readonly Dictionary<VectorParagraphKey, ContextualParagraph> VectorParagraphs = [];
     private static readonly Queue<VectorParagraphKey> VectorParagraphOrder = [];
     private const int VectorParagraphCapacity = 512;
@@ -24,13 +24,14 @@ internal sealed partial class WindowsDirectWriteGlyphRasterizer
     private static ContextualParagraph GetVectorParagraph(in PlatformTextMeshRequest request, string line)
     {
         if (line.Length > VectorParagraphMaxLength)
-            return ShapeContextualParagraph(request.FontPath, request.SecondaryFontPath, line, request.FontSize);
+            return ShapeContextualParagraph(request.FontPath, request.SecondaryFontPath, line, request.FontSize,
+                rightToLeft: request.RightToLeft);
 
-        var key = new VectorParagraphKey(request.FontPath, request.SecondaryFontPath, request.FontSize, line);
+        var key = new VectorParagraphKey(request.FontPath, request.SecondaryFontPath, request.FontSize, line, request.RightToLeft);
         if (VectorParagraphs.TryGetValue(key, out var cached))
             return cached;
 
-        var paragraph = ShapeContextualParagraph(key.Primary, key.Secondary, key.Text, key.Size);
+        var paragraph = ShapeContextualParagraph(key.Primary, key.Secondary, key.Text, key.Size, rightToLeft: key.RightToLeft);
         var glyphCount = 0;
         foreach (var run in paragraph.Runs)
         {
@@ -79,15 +80,23 @@ internal sealed partial class WindowsDirectWriteGlyphRasterizer
                             throw new InvalidOperationException("Cannot load the selected vector font face.");
                         foreach (var positioned in run.Glyphs)
                         {
-                            var key = new VectorGlyphKey(run.FontPath, positioned.Index, request.FontSize, request.FlatteningTolerance);
+                            var key = new VectorGlyphKey(run.FontPath, positioned.Index, request.FontSize,
+                                request.OutlineOnly ? 0f : request.FlatteningTolerance);
                             if (!VectorGlyphs.TryGetValue(key, out var glyph))
                             {
-                                if (factory == 0)
+                                if (request.OutlineOnly)
                                 {
-                                    var factoryId = new Guid("06152247-6F50-465A-9245-118BFD3B6007");
-                                    Marshal.ThrowExceptionForHR(D2D1CreateFactory(0, &factoryId, null, &factory));
+                                    glyph = new([], [], 0f, CaptureGlyphOutline(face, positioned.Index, request.FontSize));
                                 }
-                                glyph = CreateVectorGlyph(factory, face, positioned.Index, request.FontSize, request.FlatteningTolerance);
+                                else
+                                {
+                                    if (factory == 0)
+                                    {
+                                        var factoryId = new Guid("06152247-6F50-465A-9245-118BFD3B6007");
+                                        Marshal.ThrowExceptionForHR(D2D1CreateFactory(0, &factoryId, null, &factory));
+                                    }
+                                    glyph = CreateVectorGlyph(factory, face, positioned.Index, request.FontSize, request.FlatteningTolerance);
+                                }
                                 if (VectorGlyphs.Count == VectorGlyphCapacity)
                                     VectorGlyphs.Remove(VectorGlyphOrder.Dequeue());
                                 VectorGlyphs.Add(key, glyph);

@@ -89,16 +89,29 @@ public sealed partial class UiImmediateContext
                     clipped.Width <= 0 || clipped.Height <= 0, interaction.Focused, ValuePattern : false)
                     { Expansion = expanded ? UiAccessibilityExpansionState.Expanded : UiAccessibilityExpansionState.Collapsed,
                         ControlledElementId = expanded ? accordion.PanelIds[i] : null }, bounds);
-                if (!expanded) continue;
                 var body = OffsetFieldRect(accordion.PanelBounds[i], origin);
-                var panelClip = IntersectRect(rootClip, body);
+                var motions = accordion.PanelMotions;
+                var progress = motions?[i].Progress ?? (expanded ? 1 : 0);
+                var panelClip = IntersectRect(rootClip, body with { Height = body.Height * progress });
+                if (!expanded)
+                {
+                    if (progress > 0 && motions?[i].Paint is { } previousPaint && panelClip.Width > 0 && panelClip.Height > 0)
+                        RenderPresenceChild(items[i].Content, previousPaint, body, panelClip, live : false, opacity : progress);
+                    continue;
+                }
                 var panelId = accordion.PanelIds[i];
                 _accessibility?.Add(new(panelId, rootId, UiAccessibilityRole.AccordionPanel, items[i].Label, panelClip,
                     IsControlEnabled, panelClip.Width <= 0 || panelClip.Height <= 0, false, Focusable : false, ValuePattern : false)
                     { LabeledBy = id }, body);
+                if (progress <= 0)
+                    continue;
                 _accessibilityParent = panelId;
                 var panelTabStart = _currentTabStops.Count;
-                RenderParentDataChild(items[i].Content, null, body, root, blockBodyPointer);
+                if (motions is not null && panelClip.Width > 0 && panelClip.Height > 0)
+                    RenderPresenceChild(items[i].Content, motions[i].Paint ??= new(), body, panelClip, live : true,
+                        opacity : progress, blockPointer : blockBodyPointer);
+                else
+                    RenderParentDataChild(items[i].Content, null, body, motions is null ? root : panelClip, blockBodyPointer);
                 for (var tab = panelTabStart; tab < _currentTabStops.Count; tab++)
                     if (_currentTabStops[tab].Id == _state.FocusedId)
                     {
@@ -109,6 +122,8 @@ public sealed partial class UiImmediateContext
             }
         }
         finally { _accessibilityParent = previousParent; }
+        if (accordion.NextPanelFrame is { } next)
+            RequestFrameAt(next);
         FinishLayoutBox(origin, size);
     }
 

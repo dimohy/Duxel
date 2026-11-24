@@ -69,7 +69,11 @@ internal sealed class AvatarGroupPage(ObserverServices services) : IObserverPage
                 + $"var selection = {GallerySample.String(state.Selection)};\n"
                 + $"var options = new UiAvatarGroupOptions(Size : UiAvatarSize.{state.Options.Size},\n"
                 + $"    Layout : UiAvatarGroupLayout.{state.Options.Layout}, MaximumInlineItems : {state.Options.MaximumInlineItems},\n"
-                + $"    RightToLeft : {GallerySample.Boolean(state.Options.RightToLeft)}, OverflowLabel : {GallerySample.String(state.Options.OverflowLabel)});\n\n"
+                + $"    RightToLeft : {GallerySample.Boolean(state.Options.RightToLeft)}, OverflowLabel : {GallerySample.String(state.Options.OverflowLabel)})\n"
+                + "{\n"
+                + $"    OverflowMode = UiAvatarGroupOverflowMode.{state.Options.OverflowMode},\n"
+                + $"    AdditionalOverflowCount = {state.Options.AdditionalOverflowCount},\n"
+                + "};\n\n"
                 + factory);
             Samples = [sample];
             Root = Dux.ScrollView(Dux.Column(new(Spacing : 16, MainAxisSize : UiMainAxisSize.Min),
@@ -85,6 +89,15 @@ internal sealed class AvatarGroupPage(ObserverServices services) : IObserverPage
                     Fluent.Button(GalleryText.Get("Change the visible member count"), () => Group.Options = Group.Options with
                     {
                         MaximumInlineItems = Group.Options.MaximumInlineItems == 5 ? 2 : 5
+                    }),
+                    Fluent.Button(GalleryText.Get("Switch overflow mode"), () => Group.Options = Group.Options with
+                    {
+                        OverflowMode = Group.Options.OverflowMode == UiAvatarGroupOverflowMode.KeepLastInFixedSlots
+                            ? UiAvatarGroupOverflowMode.KeepFirstAndAppend : UiAvatarGroupOverflowMode.KeepLastInFixedSlots
+                    }),
+                    Fluent.Button(GalleryText.Get("Toggle unlisted members"), () => Group.Options = Group.Options with
+                    {
+                        AdditionalOverflowCount = Group.Options.AdditionalOverflowCount == 0 ? 3 : 0
                     }),
                     Fluent.Button(GalleryText.Get("Reverse group direction"), () => Group.Options = Group.Options with { RightToLeft = !Group.Options.RightToLeft })),
                 Fluent.Body1(() => GalleryText.Get("Selected: ") + selection),

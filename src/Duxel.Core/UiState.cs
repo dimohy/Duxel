@@ -91,6 +91,7 @@ public sealed partial class UiState
     {
         get; set;
     }
+    internal float PreviousFrameWorkTimeMs { get; set; }
     private readonly UiPresentationHistory _presentationHistory = new();
     public UiRendererFrameMetrics RendererFrameMetrics
     {
@@ -161,23 +162,26 @@ public sealed partial class UiState
     public string? FocusedId
     {
         get => _focusedId;
-        set
+        set => SetControlFocus(value);
+    }
+    internal bool ProgrammaticFocusWithoutKeyboard { get; private set; }
+    internal void SetControlFocus(string? id, bool programmaticWithoutKeyboard = false)
+    {
+        if (_focusedId == id)
+            return;
+        var previous = _focusedId;
+        _focusedId = id;
+        if (_pointerFocusPending)
         {
-            if (_focusedId == value)
+            if (id is null)
                 return;
-            var previous = _focusedId;
-            _focusedId = value;
-            if (_pointerFocusPending)
-            {
-                if (value is null)
-                    return;
-                previous = _pointerFocusOrigin;
-                _pointerFocusOrigin = null;
-                _pointerFocusPending = false;
-            }
-            if (previous != value)
-                ControlFocusChanged?.Invoke(previous, value);
+            previous = _pointerFocusOrigin;
+            _pointerFocusOrigin = null;
+            _pointerFocusPending = false;
         }
+        ProgrammaticFocusWithoutKeyboard = programmaticWithoutKeyboard;
+        if (previous != id)
+            ControlFocusChanged?.Invoke(previous, id);
     }
     internal event Action<string?, string?>? ControlFocusChanged;
 
@@ -198,6 +202,7 @@ public sealed partial class UiState
         var previous = _pointerFocusOrigin;
         _pointerFocusOrigin = null;
         _pointerFocusPending = false;
+        ProgrammaticFocusWithoutKeyboard = false;
         if (previous != _focusedId)
             ControlFocusChanged?.Invoke(previous, _focusedId);
     }
@@ -261,7 +266,12 @@ public sealed partial class UiState
     public bool NavCursorVisible
     {
         get => _navCursorVisible;
-        set => _navCursorVisible = value;
+        set
+        {
+            _navCursorVisible = value;
+            if (value)
+                ProgrammaticFocusWithoutKeyboard = false;
+        }
     }
 
     public bool VSync

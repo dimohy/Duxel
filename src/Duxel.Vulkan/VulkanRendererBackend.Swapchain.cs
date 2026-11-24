@@ -260,6 +260,7 @@ public sealed unsafe partial class VulkanRendererBackend
             }
 
             FlushRetiredRenderTargets(frame);
+            DestroyProjectedGlyphBatchPages(frame);
 
             if (frame.CommandPool.Handle is not 0)
             {
@@ -319,6 +320,11 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private void DestroyGraphicsPipelineResources()
     {
+        if (_projectedGlyphPipeline.Handle != 0)
+        {
+            _vk.DestroyPipeline(_device, _projectedGlyphPipeline, null);
+            _projectedGlyphPipeline = default;
+        }
         for (var index = 0; index < _projectedCapturePipelines.Length; index++)
         {
             if (_projectedCapturePipelines[index].Handle == 0) continue;

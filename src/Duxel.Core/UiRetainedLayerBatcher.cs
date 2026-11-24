@@ -99,7 +99,7 @@ public sealed class UiRetainedLayerBatcher : IDisposable
     private bool CanBatch(UiDrawList list)
     {
         if (list.OwnsBuffers || list.StaticGeometryKey is not { Length: > 0 } key || !list.Scene3D.HasValue) return false;
-        foreach (var command in list.Commands.AsSpan()) if (command.Callback is not null) return false;
+        if ((list.GetCommandFeatures() & UiDrawCommandFeatures.Callbacks) != 0) return false;
         var stamp = list.GetStaticGeometryStamp();
         if (_history.TryGetValue(key, out var history))
         {

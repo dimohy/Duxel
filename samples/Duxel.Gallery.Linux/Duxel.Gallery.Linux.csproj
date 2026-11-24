@@ -49,4 +49,7 @@
   <ItemGroup>
     <None Include="../Duxel.Gallery/Assets/Fonts/**/*" Link="Assets/Fonts/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../Duxel.Gallery/Assets/Image/*" Link="Assets/Image/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

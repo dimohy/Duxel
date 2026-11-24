@@ -20,6 +20,7 @@ public readonly record struct UiProgressValue(float? Value, float Maximum = 1,
     public bool RightToLeft { get; init; }
     /// <summary>Keep a moving Fluent bar visible until the end of its current indeterminate cycle.</summary>
     public bool FinishIndeterminateCycle { get; init; }
+    internal double IndeterminateElapsedSeconds { get; init; }
     public float? Fraction => Value is { } value ? Math.Clamp(value / Maximum, 0, 1) : null;
     public UiProgressValue Validate()
     {

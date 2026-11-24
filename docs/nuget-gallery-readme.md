@@ -2,7 +2,18 @@
 
 Explore Duxel's controls, SVG and Markdown examples, layout tools, and C# samples in a Windows desktop app. The gallery supports English, Korean, Japanese, and Simplified Chinese.
 
-With the .NET 11 SDK and a Vulkan-capable GPU on Windows, download the [gallery file-based app](https://raw.githubusercontent.com/dimohy/Duxel/v0.3.0-preview/samples/fba/duxel_gallery.cs) and run it:
+On Windows with the .NET 11 SDK and a Vulkan-capable GPU, save this file as `duxel_gallery.cs`.
+
+```csharp
+#:property TargetFramework=net11.0-windows
+#:property PublishAot=false
+#:property SelfContained=false
+#:package Duxel.Gallery@0.4.0
+
+Duxel.Gallery.GalleryApp.Run(args);
+```
+
+Run it from PowerShell.
 
 ```powershell
 dotnet run --file duxel_gallery.cs

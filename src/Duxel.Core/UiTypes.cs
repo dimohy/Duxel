@@ -87,6 +87,57 @@ public readonly record struct UiLayer3D(Matrix4x4 Transform, bool WriteDepth = t
             * Matrix4x4.CreateTranslation(0f, 0f, model.DepthOffset);
     }
 
+    /// <summary>
+    /// Determines whether an axis-aligned plane's drawing bounds lie entirely beyond its viewport.
+    /// Use a conservative bound in source coordinates, before any plane-model translation.
+    /// </summary>
+    /// <remarks>
+    /// Use this before building layers that only draw and have no input or other side effects.
+    /// A false result includes unsupported or uncertain projections.
+    /// </remarks>
+    public bool IsPlaneOutsideViewport(UiRect drawingBounds, UiRect displayBounds)
+    {
+        var camera = Transform;
+        if (WidgetTransform is not null || IsScreenSpacePresentation
+            || camera.M12 != 0f || camera.M21 != 0f || camera.M14 != 0f
+            || camera.M24 != 0f || camera.M44 != 1f)
+            return false;
+
+        var viewport = Viewport ?? displayBounds;
+        var offset = PlaneModel?.Translation ?? default;
+        if (!IsFinitePlaneBounds(drawingBounds) || !IsFinitePlaneBounds(viewport)
+            || viewport.Width <= 0f || viewport.Height <= 0f
+            || !float.IsFinite(offset.X) || !float.IsFinite(offset.Y)
+            || !float.IsFinite(camera.M11) || !float.IsFinite(camera.M22)
+            || !float.IsFinite(camera.M41) || !float.IsFinite(camera.M42))
+            return false;
+
+        return IsOutsideViewportAxis(drawingBounds.X, drawingBounds.Width, offset.X,
+                viewport.X, viewport.Width, camera.M11, camera.M41)
+            || IsOutsideViewportAxis(drawingBounds.Y, drawingBounds.Height, offset.Y,
+                viewport.Y, viewport.Height, camera.M22, camera.M42);
+    }
+
+    private static bool IsFinitePlaneBounds(UiRect bounds)
+        => float.IsFinite(bounds.X) && float.IsFinite(bounds.Y)
+            && float.IsFinite(bounds.Width) && float.IsFinite(bounds.Height)
+            && bounds.Width >= 0f && bounds.Height >= 0f;
+
+    private static bool IsOutsideViewportAxis(float start, float extent, float offset, float viewportStart,
+        float viewportSize, float scale, float translation)
+    {
+        var first = ((start + (double)offset - viewportStart) * (2d / viewportSize) - 1d) * scale + translation;
+        var last = first + (double)extent * (2d / viewportSize) * scale;
+        // Include two logical pixels and the float normalization error, even when large terms cancel.
+        var coordinateMagnitude = Math.Abs((double)start) + extent + Math.Abs((double)offset)
+            + Math.Abs((double)viewportStart);
+        var normalizedMagnitude = (coordinateMagnitude * (2d / viewportSize) + 1d) * Math.Abs((double)scale)
+            + Math.Abs((double)translation);
+        var guard = 4d / viewportSize + normalizedMagnitude * 3.814697265625e-6;
+        return normalizedMagnitude < float.MaxValue / 16d
+            && (Math.Max(first, last) < -1d - guard || Math.Min(first, last) > 1d + guard);
+    }
+
     public bool TryMapScreenPoint(UiVector2 screenPoint, UiRect displayBounds, out UiVector2 localPoint)
     {
         localPoint = default;
@@ -2052,6 +2103,7 @@ public readonly record struct UiDrawCommand(
 )
 {
     internal bool OpaqueAnalyticRange { get; init; }
+    internal UiProjectedGlyphDraw? ProjectedGlyphs { get; init; }
     public bool IsBackdropComposite => WhiteBackdropTextureId.HasValue;
     public bool IsLinearGradientPrimitive => Kind == UiDrawCommandKind.RectFilledPrimitives && VertexOffset == (uint)UiRectGeometryVariant.LinearGradient;
     public bool IsImagePrimitive => Kind == UiDrawCommandKind.RectFilledPrimitives && VertexOffset == (uint)UiRectGeometryVariant.Image;
@@ -3147,6 +3199,8 @@ public readonly record struct UiFrameInfo(
 {
     /// <summary>Seconds the host parked the render loop between frames while awaiting work.</summary>
     public double IdleWaitSeconds { get; init; }
+    /// <summary>The host requested immediate visual transitions for controls that support reduced motion.</summary>
+    public bool PrefersReducedMotion { get; init; }
     /// <summary>The host woke only to erase an expired diagnostic outline, without new application work.</summary>
     public bool RepaintDiagnosticCleanup
     {

@@ -105,11 +105,20 @@ public readonly struct UiFluentRadioGroupPresentation<TLayout>:IUiRadioGroupPres
         using var clip=context.Clip(bounds);
         var state=!context.IsEnabled?UiButtonVisualState.Disabled:interaction.Hovered&&interaction.Held?UiButtonVisualState.Pressed:interaction.Hovered?UiButtonVisualState.Hover:UiButtonVisualState.Rest;
         // Checked radios share the outlined brand-indicator tokens with mixed Checkbox.
-        var paint=UiFluentCheckboxPalette.Resolve(context.FluentColorScheme,state,selected?null:false);
+        var forcedColors = context.Theme.ForcedColors;
+        var paint = UiFluentCheckboxPalette.Resolve(context.FluentColorScheme, state, selected ? null : false);
+        if (forcedColors is { } colors)
+        {
+            var foreground = context.IsEnabled ? colors.CanvasText : colors.GrayText;
+            var dot = context.IsEnabled ? colors.Highlight : colors.GrayText;
+            var border = context.IsEnabled && (!selected || interaction.Hovered) ? colors.ButtonText : dot;
+            paint = new(default, border, dot, foreground);
+        }
         var indicator=layout.Indicator with{X=bounds.X+layout.Indicator.X,Y=bounds.Y+layout.Indicator.Y};
         context.Frame(indicator,new(0,0,0,0),paint.Border,8,1);
         if(selected)context.Circle(new(indicator.X+8,indicator.Y+8),5,paint.Indicator);
-        if(interaction.FocusVisible)context.FocusOutline(bounds,4);
+        if (interaction.FocusVisible)
+            context.FocusOutline(bounds, 4, forcedColors?.Highlight ?? context.Theme.Text);
         var label=layout.LabelBounds with{X=bounds.X+layout.LabelBounds.X,Y=bounds.Y+layout.LabelBounds.Y};
         var labelY = TLayout.LabelBelow ? label.Y : context.IndicatorBlockY(layout.LabelBlock, indicator.Y + indicator.Height / 2, label.Y);
         var labelShift = labelY - label.Y;
@@ -121,8 +130,9 @@ public readonly struct UiFluentRadioGroupPresentation<TLayout>:IUiRadioGroupPres
         {
             using var caption=context.BeginTypography<UiRegularTypeface,UiFluentType200>();
             var description=layout.DescriptionBounds with{X=bounds.X+layout.DescriptionBounds.X,Y=bounds.Y+layout.DescriptionBounds.Y+labelShift};
-            var color=context.IsEnabled?UiFluentCheckboxPalette.Resolve(context.FluentColorScheme,UiButtonVisualState.Rest,false).Label:
-                UiFluentCheckboxPalette.Resolve(context.FluentColorScheme,UiButtonVisualState.Disabled,false).Label;
+            var color = forcedColors.HasValue ? paint.Label
+                : UiFluentCheckboxPalette.Resolve(context.FluentColorScheme,
+                    context.IsEnabled ? UiButtonVisualState.Rest : UiButtonVisualState.Disabled, false).Label;
             context.TypographyTextBlock(layout.DescriptionBlock, description, color, align);
         }
     }

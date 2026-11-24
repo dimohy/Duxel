@@ -165,7 +165,8 @@ public sealed partial class UiImmediateContext
         bool valuePattern = true, bool multiline = false, bool invalid = false, UiAccessibilityScrollInfo? scroll = null,
         bool virtualItemContainer = false, UiAccessibilityRangeInfo? range = null, UiAccessibilityToggleState? toggleState = null,
         bool selectionRequired = false, bool literalLabel = false, UiVector2? clickablePoint = null, UiAccessibilityTextInfo? textInfo = null,
-        UiAccessibilityTextLayout? textLayout = null, UiAccessibilityImageInfo? imageInfo = null, bool busy = false, string? hint = null)
+        UiAccessibilityTextLayout? textLayout = null, UiAccessibilityImageInfo? imageInfo = null, bool busy = false,
+        string? hint = null, bool disabledFocusable = false)
     {
         if (_accessibility is not { } tree)
             return;
@@ -195,7 +196,8 @@ public sealed partial class UiImmediateContext
             ImageInfo = imageInfo,
             ToggleState = toggleState,
             SelectionRequired = selectionRequired,
-            ClickablePoint = clickablePoint
+            ClickablePoint = clickablePoint,
+            DisabledFocusable = disabledFocusable && _popupTierDepth >= _blockingKeyboardTier
         },
             parent.Length == 0 ? null : bounds);
     }

@@ -600,12 +600,13 @@ internal static class PresentationReuseTests
         internal UiFrameInfo FrameInfo => new(1f / 60, new(_platform.FramebufferSize.Width, _platform.FramebufferSize.Height), new(1, 1));
 
         internal Fixture(int frameSlots, bool reuse, IPlatformBackend? platform = null, int msaaSamples = 1,
-            bool useR8ParagraphCoverage = false)
+            bool useR8ParagraphCoverage = false, bool useProjectedGlyphText = false)
         {
             Context = new(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255],
                 new Dictionary<int, UiGlyphInfo>(), new Dictionary<uint, float>(), 16, 0, 0, -1), new(1), new(2))
             {
-                UseR8ParagraphCoverage = useR8ParagraphCoverage
+                UseR8ParagraphCoverage = useR8ParagraphCoverage,
+                UseProjectedGlyphText = useProjectedGlyphText
             };
             _forceFullRepaint = !reuse;
             _platform = platform ?? PresentationTestPlatform.Create();
@@ -625,13 +626,13 @@ internal static class PresentationReuseTests
 
         internal UiDrawData Build(Action<UiImmediateContext> draw) => Build(draw, null);
         internal UiDrawData Build(Action<UiImmediateContext> draw, UiInputState? input, bool pollEvents = true,
-            IReadOnlyList<UiInputState>? orderedInputs = null, double idleWaitSeconds = 0)
+            IReadOnlyList<UiInputState>? orderedInputs = null, double idleWaitSeconds = 0, bool prefersReducedMotion = false)
         {
             if (pollEvents)
                 _platform.PollEvents();
             var size = _platform.FramebufferSize;
             var clip = new UiRect(0, 0, size.Width, size.Height);
-            var frameInfo = FrameInfo with { IdleWaitSeconds = idleWaitSeconds };
+            var frameInfo = FrameInfo with { IdleWaitSeconds = idleWaitSeconds, PrefersReducedMotion = prefersReducedMotion };
             if (orderedInputs is { Count: > 0 })
                 Context.NewInputBatch(frameInfo, orderedInputs, clip, UiTextSettings.Default);
             else

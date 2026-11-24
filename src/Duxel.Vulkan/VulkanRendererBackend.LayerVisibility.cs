@@ -76,8 +76,9 @@ public sealed unsafe partial class VulkanRendererBackend
         foreach (ref readonly var command in list.Commands.AsSpan())
         {
             _frameLayerBoundsCommandVisits++;
-            if (command.Callback is not null) return false;
-            if (command.ElementCount == 0) continue;
+            var projectedGlyph = command.ProjectedGlyphs is not null;
+            if (command.Callback is not null && !projectedGlyph) return false;
+            if (command.ElementCount == 0 && !projectedGlyph) continue;
             var bounds = command.Bounds;
             if (!command.HasBounds || bounds.Width < 0 || bounds.Height < 0)
                 return false;
@@ -99,7 +100,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private bool IsOutsideLayerFrustum(
         in UiDrawCommand command, in CommandFrameContext context, in CommandPipelineState pipeline)
     {
-        if (!command.HasBounds || command.Callback is not null) return false;
+        if (!command.HasBounds || command.Callback is not null && command.ProjectedGlyphs is null) return false;
         var bounds = command.Bounds;
         if (!float.IsFinite(bounds.X) || !float.IsFinite(bounds.Y)
             || !float.IsFinite(bounds.Width) || !float.IsFinite(bounds.Height)

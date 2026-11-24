@@ -47,9 +47,9 @@ internal sealed class CarouselPage : IObserverPage, IObserverNaturalPage, IGalle
         var sample = GallerySample.Create(() => Fluent.Carousel(label, selected.Binding,
             slides.Select(item =>
             {
-                var image = new UiImageSource(new(1, 1, [item.R, item.G, item.B, 255]));
+                var image = CreateSlideImage(item.R, item.G, item.B);
                 var body = Dux.Column(new(Spacing: 8, MainAxisSize: UiMainAxisSize.Min),
-                    new UiImage(image) { Size = new(420, 72) },
+                    new UiImage(image) { Size = new(420, 72), Fit = UiImageFit.Contain },
                     Fluent.Button(string.Format(chooseLabel, item.Label), () => opened.Value++),
                     Fluent.Body1(() => string.Format(selectionCount, opened.Value)));
                 return new UiCarouselSlide(item.Key, item.Label, body, previews ? image : null);
@@ -61,9 +61,12 @@ internal sealed class CarouselPage : IObserverPage, IObserverNaturalPage, IGalle
             return $"var selected = new UiState<string>({GallerySample.String(state.Key)});\n"
                 + $"var opened = new UiState<int>({state.Opened});\n"
                 + "UiCarouselSlide Slide(string key, string label, byte r, byte g, byte b)\n{\n"
-                + "    var image = new UiImageSource(new(1, 1, [r, g, b, 255]));\n"
+                + "    var pixels = new byte[35 * 6 * 4];\n"
+                + "    for (var i = 0; i < pixels.Length; i += 4)\n    {\n"
+                + "        pixels[i] = r;\n        pixels[i + 1] = g;\n        pixels[i + 2] = b;\n        pixels[i + 3] = 255;\n    }\n"
+                + "    var image = new UiImageSource(new(35, 6, pixels));\n"
                 + "    var body = Dux.Column(new(Spacing: 8, MainAxisSize: UiMainAxisSize.Min),\n"
-                + "        new UiImage(image) { Size = new(420, 72) },\n"
+                + "        new UiImage(image) { Size = new(420, 72), Fit = UiImageFit.Contain },\n"
                 + $"        Fluent.Button(string.Format({GallerySample.String(chooseLabel)}, label), () => opened.Value++),\n"
                 + $"        Fluent.Body1(() => string.Format({GallerySample.String(selectionCount)}, opened.Value)));\n"
                 + $"    return new UiCarouselSlide(key, label, body{(previews ? ", image" : "")});\n}}\n"
@@ -77,5 +80,18 @@ internal sealed class CarouselPage : IObserverPage, IObserverNaturalPage, IGalle
                 + "carousel.Render(ui);";
         });
         return sample;
+    }
+
+    private static UiImageSource CreateSlideImage(byte red, byte green, byte blue)
+    {
+        var pixels = new byte[35 * 6 * 4];
+        for (var i = 0; i < pixels.Length; i += 4)
+        {
+            pixels[i] = red;
+            pixels[i + 1] = green;
+            pixels[i + 2] = blue;
+            pixels[i + 3] = 255;
+        }
+        return new UiImageSource(new(35, 6, pixels));
     }
 }

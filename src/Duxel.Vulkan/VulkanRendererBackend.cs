@@ -74,6 +74,7 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
         log?.Invoke("VulkanShutdown[DeviceResourcesReleased]");
 
         DestroyNativeDeviceHandles(log);
+        FlushFrameTrace();
     }
 
     private void DestroyNativeDeviceHandles(Action<string>? log = null)
@@ -114,6 +115,7 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
         FlushPendingBufferDestroysAll();
         DestroyGpuParticleResources();
         DestroyVectorScenes();
+        DestroyProjectedGlyphBuffers();
 
         DestroyCompiledLayerGroups();
         DestroyGeometryBuffers();
@@ -170,7 +172,7 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
         var profileEnabled = _profilingEnabled;
         // CPU durations are consumed only by profile logs. Counters and GPU
         // timestamps remain enabled on every frame independently of this flag.
-        _cpuTimingsThisFrame = profileEnabled && (!_cpuTimingSamplingEnabled
+        _cpuTimingsThisFrame = profileEnabled && (!_cpuTimingSamplingEnabled || !string.IsNullOrWhiteSpace(_frameTracePath)
             || unchecked(_profilingFrameCounter + 1) % _profilingLogInterval == 0);
         var allocatedBefore = profileEnabled ? GC.GetAllocatedBytesForCurrentThread() : 0;
 
@@ -306,7 +308,11 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
             MsaaAllocatedBytes = _msaaColorAllocationBytes,
         };
         if (profileEnabled)
+        {
+            if (presented)
+                CaptureFrameTrace(drawData.DrawDataFrameId, in frameProfile);
             EmitFrameProfile(drawData.DrawDataFrameId, frameContext.ImageIndex, presented, in frameProfile);
+        }
         return presented;
     }
 
@@ -372,13 +378,7 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
 
     public void SetMsaaSamples(int samples)
     {
-        var normalized = samples switch
-        {
-            <= 1 => 1,
-            <= 2 => 2,
-            <= 4 => 4,
-            _ => 8,
-        };
+        var normalized = NormalizeRequestedMsaaSamples(samples);
 
         if (_options.MsaaSamples == normalized)
         {
@@ -399,6 +399,14 @@ public sealed unsafe partial class VulkanRendererBackend : IRendererBackend
 
         RecreateSwapchainAfterSettingsChange();
     }
+
+    private static int NormalizeRequestedMsaaSamples(int samples) => samples switch
+    {
+        <= 1 => 1,
+        <= 2 => 2,
+        <= 4 => 4,
+        _ => 8,
+    };
 
     private void RecreateSwapchainAfterSettingsChange()
     {

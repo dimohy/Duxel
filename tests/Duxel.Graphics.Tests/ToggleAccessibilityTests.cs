@@ -123,6 +123,17 @@ internal static unsafe class ToggleAccessibilityTests
         check(Find("Explicit checkbox name").Node.ToggleState == UiAccessibilityToggleState.Off,
             "toggle publication preserves caller-provided accessibility naming without changing state");
 
+        control.DisabledFocusable = true;
+        Frame();
+        var lockedSwitch = Find("Switch");
+        var switchProvider = native.Find(lockedSwitch.Node.Id)!;
+        switchProvider.GetPropertyValue(30009, out var switchFocusable);
+        switchProvider.GetPropertyValue(30010, out var switchEnabled);
+        check(switchFocusable.Data.Boolean != 0 && switchEnabled.Data.Boolean == 0,
+            "Windows UIA provider reports focus-only Switch as keyboard focusable and disabled");
+        check(switchProvider.GetToggleState(out var switchToggleState) == 0 && switchToggleState == 1,
+            "Windows UIA provider preserves the readable On state of a focus-only Switch");
+
         using var lifecycle = new WindowsAccessibility(0);
         var lifecycleTree = lifecycle.Tree;
         var lifecycleChanges = new List<UiAccessibilityToggleChange>();

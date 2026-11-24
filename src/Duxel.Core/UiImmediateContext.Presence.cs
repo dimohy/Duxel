@@ -3,7 +3,8 @@ namespace Duxel.Core;
 public sealed partial class UiImmediateContext
 {
     private string? _presenceRemovedFocus;
-    internal void RenderPresenceChild(UiWidget child, UiPresencePaint paint, UiRect bounds, UiRect clip, bool live, float opacity)
+    internal void RenderPresenceChild(UiWidget child, UiPresencePaint paint, UiRect bounds, UiRect clip, bool live, float opacity,
+        bool blockPointer = false)
     {
         if (!live)
         {
@@ -30,7 +31,7 @@ public sealed partial class UiImmediateContext
         var captureBounds = IntersectRect(bounds, IntersectRect(clip, CurrentClipRect));
         if (captureBounds.Width <= 0 || captureBounds.Height <= 0)
         {
-            RenderParentDataChild(child, null, bounds, clip);
+            RenderParentDataChild(child, null, bounds, clip, blockPointer);
             return;
         }
         var capture = BeginInteractivePaintGroup(paint.Group, captureBounds);
@@ -38,7 +39,7 @@ public sealed partial class UiImmediateContext
         var completed = false;
         try
         {
-            RenderParentDataChild(child, null, bounds, clip);
+            RenderParentDataChild(child, null, bounds, clip, blockPointer);
             completed = true;
         }
         finally

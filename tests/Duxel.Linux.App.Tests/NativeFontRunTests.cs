@@ -39,8 +39,9 @@ internal static partial class NativeFontRunTests
             check(slanted[0].Font is { SimulatedOblique: true, Italic: false, FamilyName: "DejaVu Sans", Weight: 400 },
                 "Actual synthetic oblique stays distinct from the source face's native italic flag");
             var separated = capability.GetFontRuns(new(primary, secondary, "A\r\n정\tB\rZ", 18), "en");
-            check(separated.Select(r => (r.StartUtf16, r.EndUtf16)).SequenceEqual(new[] { (0, 1), (3, 4), (4, 6), (7, 8) }),
-                "CRLF and bare CR retain exact source gaps while expanded tabs retain a single source position");
+            check(separated.Select(r => (r.StartUtf16, r.EndUtf16)).SequenceEqual(new[] { (0, 1), (3, 5), (5, 6), (7, 8) })
+                && separated[1].Font.FamilyName == "Malgun Gothic" && separated[2].Font.FamilyName == "DejaVu Sans",
+                "CRLF and bare CR retain exact source gaps while the expanded tab keeps the preceding Korean face and its one source position");
             check(capability.GetFontRuns(new(primary, secondary, "\r\n", 18), "en").Count == 0
                 && capability.GetFontRuns(new(primary, secondary, "", 18), "en").Count == 0,
                 "Empty text and line separators do not invent painted font runs");

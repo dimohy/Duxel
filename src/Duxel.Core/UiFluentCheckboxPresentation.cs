@@ -105,7 +105,8 @@ public readonly struct UiFluentCheckboxPresentation<TSize,TShape,TLabel>:IUiTogg
             if (mixed > 0) PaintMark(context, indicator, interaction,
                 value is null ? paint.Indicator : UiFluentCheckboxPalette.Resolve(context, state, null).Indicator, mixed, true);
         }
-        if(interaction.FocusVisible)context.FocusOutline(bounds,4);
+        if (interaction.FocusVisible)
+            context.FocusOutline(bounds, 4, context.Theme.ForcedColors?.Highlight ?? context.Theme.Text);
         context.TypographyIndicatorText(text,
             new(bounds.X + layout.LabelOffset.X, bounds.Y, textSize.X, bounds.Height), textSize, paint.Label);
     }

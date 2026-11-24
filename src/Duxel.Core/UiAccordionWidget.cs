@@ -8,6 +8,10 @@ public enum UiAccordionChevronPosition { Start, End }
 public readonly record struct UiAccordionOptions(bool Multiple = false, bool Collapsible = false,
     UiAccordionSize Size = UiAccordionSize.Medium, UiAccordionChevronPosition ChevronPosition = UiAccordionChevronPosition.Start)
 {
+    /// <summary>Animates panel height and opacity using the Fluent Collapse timing.</summary>
+    public bool AnimatePanels { get; init; }
+    /// <summary>Applies panel state changes immediately.</summary>
+    public bool ReducedMotion { get; init; }
     public UiAccordionOptions Validate()
     {
         if ((uint)Size > 3 || (uint)ChevronPosition > 1) throw new ArgumentOutOfRangeException(nameof(UiAccordionOptions));
@@ -39,6 +43,8 @@ public class UiAccordion<TBehavior, TPresentation> : UiMultiChildWidget
     private string _label;
     private float _width;
     private UiAccordionOptions _options;
+    internal PanelMotion[]? PanelMotions { get; private set; }
+    internal double? NextPanelFrame { get; private set; }
     internal readonly UiAccordionHeaderLayout[] Headers;
     internal readonly UiRect[] HeaderBounds, PanelBounds;
     internal readonly UiButtonInteraction[] Interactions;
@@ -161,8 +167,15 @@ public class UiAccordion<TBehavior, TPresentation> : UiMultiChildWidget
     }
     internal UiVector2 PrepareLayout(UiControlContext context, ImmutableArray<string> open)
     {
+        if (_options.AnimatePanels && !_options.ReducedMotion)
+            PanelMotions ??= new PanelMotion[_items.Length];
+        else if (PanelMotions is not null)
+            ReleasePanelMotions();
+        NextPanelFrame = null;
         var constraints = context.LayoutConstraints;
         var width = Math.Clamp(_width, constraints.MinWidth, constraints.MaxWidth);
+        var margin = MathF.Min(width * .5f, TPresentation.PanelMargin);
+        var panelWidth = width - 2 * margin;
         double y = 0;
         for (var i = 0; i < _items.Length; i++)
         {
@@ -173,20 +186,61 @@ public class UiAccordion<TBehavior, TPresentation> : UiMultiChildWidget
             HeaderBounds[i] = new(0, UiLayoutDistribution.Finite(y), width, header.Size.Y);
             y += header.Size.Y;
             PanelBounds[i] = default;
-            if (open.Contains(_items[i].Value, StringComparer.Ordinal))
+            var expanded = open.Contains(_items[i].Value, StringComparer.Ordinal);
+            var height = expanded
+                ? context.MeasureConstrained(_items[i].Content, new(panelWidth, panelWidth, 0, float.PositiveInfinity)).Y
+                : 0;
+            if (PanelMotions is { } motions)
             {
-                var margin = MathF.Min(width * .5f, TPresentation.PanelMargin);
-                var body = context.MeasureConstrained(_items[i].Content, new(width - 2 * margin, width - 2 * margin, 0, float.PositiveInfinity));
-                PanelBounds[i] = new(margin, UiLayoutDistribution.Finite(y), width - 2 * margin, body.Y);
-                y += body.Y;
+                ref var motion = ref motions[i];
+                if (expanded)
+                    motion.Height = height;
+                var frame = motion.Transition.Update(expanded ? 1 : 0, context.TimeSeconds, PanelMotion.Timing);
+                motion.Progress = frame.Value;
+                if (frame.NextFrameTimeSeconds is { } next && (NextPanelFrame is null || next < NextPanelFrame))
+                    NextPanelFrame = next;
+                if (!expanded && !frame.Running)
+                    motion.ReleasePaint();
+                PanelBounds[i] = new(margin, UiLayoutDistribution.Finite(y), panelWidth, motion.Height);
+                y += motion.Height * motion.Progress;
+            }
+            else if (expanded)
+            {
+                PanelBounds[i] = new(margin, UiLayoutDistribution.Finite(y), panelWidth, height);
+                y += height;
             }
         }
         return constraints.Constrain(new(width, UiLayoutDistribution.Finite(y)));
     }
     protected override UiVector2 MeasureContent(UiControlContext context) => PrepareLayout(context, ReadSelection());
     protected override void RenderControl(UiImmediateContext ui) => ui.RenderAccordion(this);
+
+    private void ReleasePanelMotions()
+    {
+        if (PanelMotions is not { } motions)
+            return;
+        foreach (ref var motion in motions.AsSpan())
+            motion.ReleasePaint();
+        PanelMotions = null;
+    }
+
+    internal struct PanelMotion
+    {
+        internal static readonly UiTransitionOptions Timing = new(.2) { Curve = new(.8, 0, .2, 1) };
+        internal UiFloatTransition Transition;
+        internal float Height, Progress;
+        internal UiPresencePaint? Paint;
+
+        internal void ReleasePaint()
+        {
+            Paint?.Dispose();
+            Paint = null;
+        }
+    }
+
     private protected override void ReleaseOwnedResources()
     {
+        ReleasePanelMotions();
         _items = []; _value = null; _label = string.Empty;
         FocusedPanel = -1; FocusedPanelControl = null;
         Array.Clear(Headers); Array.Clear(Interactions); Array.Clear(HeaderIds); Array.Clear(PanelIds); Array.Clear(Suffixes);

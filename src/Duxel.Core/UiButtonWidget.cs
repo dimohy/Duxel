@@ -25,6 +25,12 @@ public interface IUiButtonBehavior
     static abstract UiButtonInteraction Process(UiControlContext context, string id, UiRect bounds);
 }
 
+/// <summary>Selects a pointer edge while the owning widget handles keyboard and accessibility input.</summary>
+public interface IUiPointerActivationBehavior
+{
+    static abstract UiButtonActivation PointerActivation { get; }
+}
+
 /// <summary>A statically selected layout and paint implementation; arbitrary drawing is supported.</summary>
 public interface IUiButtonPresentation
 {
@@ -41,6 +47,8 @@ public readonly partial struct UiControlContext
 {
     private readonly UiImmediateContext _ui;
     internal string? MotionKey { get; init; }
+    internal bool ReducedToggleMotion { get; init; }
+    internal UiSwitchIcons? SwitchIcons { get; init; }
     internal bool SeparateTabSelectionIndicator { get; init; }
     public bool ButtonHasText
     {
@@ -88,8 +96,10 @@ public readonly partial struct UiControlContext
         _ui.PaintButtonFrame(bounds, fill, border, radius, borderWidth);
     public void Circle(UiVector2 center, float radius, UiColor fill) => _ui.PaintButtonCircle(center, radius, fill);
     public void FocusOutline(UiRect bounds, float radius) =>
+        FocusOutline(bounds, radius, Theme.Text);
+    internal void FocusOutline(UiRect bounds, float radius, UiColor color) =>
         Frame(new(bounds.X + 2, bounds.Y + 2, MathF.Max(0, bounds.Width - 4), MathF.Max(0, bounds.Height - 4)),
-            new UiColor(0, 0, 0, 0), Theme.Text, MathF.Max(0, radius - 2), 2);
+            default, color, MathF.Max(0, radius - 2), 2);
     public void Text(string text, UiVector2 position, UiColor color) => _ui.PaintButtonText(text, position, color);
     public UiTextLayout LayoutText(string text) => _ui.LayoutControlText(text);
     public UiVector2 MeasureText(string text) => _ui.MeasureControlText(text);
@@ -158,14 +168,16 @@ public sealed class UiWidgetStyleAttribute(Type widget, params Type[] typeArgume
     public Type[] TypeArguments { get; } = typeArguments;
 }
 
-public readonly struct UiReleaseButtonBehavior : IUiButtonBehavior
+public readonly struct UiReleaseButtonBehavior : IUiButtonBehavior, IUiPointerActivationBehavior
 {
+    public static UiButtonActivation PointerActivation => UiButtonActivation.Release;
     public static bool AccessibilityFocus => true;
     public static UiButtonInteraction Process(UiControlContext context, string id, UiRect bounds) => context.ActivateOnRelease(id, bounds);
 }
 
-public readonly struct UiPressButtonBehavior : IUiButtonBehavior
+public readonly struct UiPressButtonBehavior : IUiButtonBehavior, IUiPointerActivationBehavior
 {
+    public static UiButtonActivation PointerActivation => UiButtonActivation.Press;
     public static bool AccessibilityFocus => true;
     public static UiButtonInteraction Process(UiControlContext context, string id, UiRect bounds) => context.ActivateOnPress(id, bounds);
 }

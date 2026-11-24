@@ -29,7 +29,8 @@ internal sealed class DrawerPage : IObserverPage, IObserverNaturalPage, IGallery
         var overlayDefinition = GallerySample.Define("_overlay", () =>
         {
             UiFluentOverlayDrawer? drawer = null;
-            drawer = Fluent.OverlayDrawer(new UiDrawerHeader(GalleryText.Get("Additional tasks"), Fluent.Button(GalleryText.Get("Clear drawer note"), () => _memo.Value = string.Empty)),
+            drawer = Fluent.OverlayDrawer(new UiDrawerHeader(GalleryText.Get("Additional tasks"), Fluent.Button(GalleryText.Get("Clear drawer note"), () => _memo.Value = string.Empty))
+                { Navigation = Fluent.Button(GalleryText.Get("Return to drawer example"), () => drawer!.Close()) },
                 new UiDrawerBody(contents(GalleryText.Get("Drawer note")), Scroll : overlayOptions.ScrollBody),
                 new UiDrawerFooter([Fluent.Button(GalleryText.Get("Save drawer changes"), () => { _saves++; drawer!.Close(); }), Fluent.Button(GalleryText.Get("Close drawer"), () => drawer!.Close())]),
                 overlayOptions);

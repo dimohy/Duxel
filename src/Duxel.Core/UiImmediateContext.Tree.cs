@@ -256,11 +256,20 @@ public sealed partial class UiImmediateContext
                         _focusGroupPointerDepth--;
                     }
                 }
+                var activation = UiButtonActivation.Release;
+                if (tree.HasPressActivation && !(tree.Selectable && IsHovering(check)))
+                    activation = graph.IsBranch(index) && IsHovering(chevron)
+                        ? tree.DisclosurePointerActivation : tree.RowPointerActivation;
+                // Keep the original edge until release, even when the pointer crosses into another part.
+                var pointerActivation = tree.HasPressActivation && !_leftMousePressed && _state.ActiveId == id
+                    ? tree.HeldPointerActivation : activation;
                 var interaction = claims != _focusGroupPointerClaims
                     ? ProcessControlKeyboard<RangeControlKeys>(id, bounds, default)
-                    : ProcessButton<RangeControlKeys>(UiControlWidget.PrimaryControlId, bounds, UiButtonActivation.Release);
+                    : ProcessButton<RangeControlKeys>(UiControlWidget.PrimaryControlId, bounds, pointerActivation);
+                if (tree.HasPressActivation && interaction.Hovered && _leftMousePressed)
+                    tree.HeldPointerActivation = pointerActivation;
             var availability = RadioAccessibilityAvailability(true, IntersectRect(CurrentClipRect, bounds));
-            var body = interaction.Activated;
+            var body = interaction.Activated && activation == pointerActivation;
             foreach (var action in (ReadOnlySpan<UiAccessibilityAction>)[UiAccessibilityAction.Expand, UiAccessibilityAction.Collapse])
                 if (_accessibility?.Take(id, action) is { } request)
                 {

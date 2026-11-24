@@ -33,8 +33,17 @@ internal static class ListWidgetTests
             new("x", "Row X", Fluent.Input("Edit X", text.Binding, 100, 180), Action, selectionLabel: "Select X"),
             new("y", "Row Y", Fluent.Button("Child action", () => childActions++), Action, selectionLabel: "Select Y")
         ], new(Navigation: UiListNavigation.Composite, Width: 230));
+        var pressSelection = new UiState<string?>(null);
+        var pressActions = new List<UiListActionKind>();
+        var pressChildActions = 0;
+        using var press = new UiList<UiPressListRowBehavior, UiFluentListPresentation>("Press list", pressSelection.Binding,
+        [
+            new("press", "Press row", Fluent.Button("Press child", () => pressChildActions++),
+                action => pressActions.Add(action.Kind), selectionLabel: "Press checkbox")
+        ], new(Navigation: UiListNavigation.Composite, Width: 140));
         using var before = Fluent.Button("Before list");
         using var after = Fluent.Button("After list");
+        var showPressList = false;
         var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
         void Frame(UiInputState? input = null)
         {
@@ -50,6 +59,11 @@ internal static class ListWidgetTests
                 composite.Render(ui);
                 ui.SetCursorScreenPos(new(10, 230));
                 after.Render(ui);
+                if (showPressList)
+                {
+                    ui.SetCursorScreenPos(new(490, 60));
+                    press.Render(ui);
+                }
             }));
             using var draw = context.GetDrawData();
         }
@@ -88,21 +102,23 @@ internal static class ListWidgetTests
                 KeyEvents = [new(key, false, default)]
             });
         }
-        void Click(string name, UiAccessibilityRole? role = null)
+        UiVector2 Point(string name, UiAccessibilityRole? role = null, bool trailing = false)
         {
             var bounds = Find(name, role).Node.Bounds;
-            var point = new UiVector2(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
-            Frame(idle with
-            {
-                MousePosition = point,
-                LeftMouseDown = true,
-                LeftMousePressed = true
-            });
-            Frame(idle with
-            {
-                MousePosition = point,
-                LeftMouseReleased = true
-            });
+            return new(bounds.X + (trailing ? bounds.Width - 2 : bounds.Width / 2), bounds.Y + bounds.Height / 2);
+        }
+        void Pointer(UiVector2 point, bool pressed, bool released) => Frame(idle with
+        {
+            MousePosition = point,
+            LeftMouseDown = pressed && !released,
+            LeftMousePressed = pressed,
+            LeftMouseReleased = released
+        });
+        void Click(string name, UiAccessibilityRole? role = null)
+        {
+            var point = Point(name, role);
+            Pointer(point, pressed: true, released: false);
+            Pointer(point, pressed: false, released: true);
         }
         Frame();
         check(Find("Single").Node is { Role: UiAccessibilityRole.ListBox, SupportsSelection: true, CanSelectMultiple: false }
@@ -186,6 +202,41 @@ internal static class ListWidgetTests
         check(rtlCheck.Node.Bounds.X > rtlContent.Node.Bounds.X && rtlCheck.Node.GridItem?.Column == 0
             && rtlContent.Node.GridItem?.Column == 1,
             "List RTL mirrors physical cells while retaining leading-column logical coordinates");
+        Pointer(Point("Child action"), pressed: true, released: true);
+        check(childActions == 2 && actions == 2,
+            "List child alone receives both pointer edges when they arrive in one frame");
+        var releasePoint = Point("A", UiAccessibilityRole.Option, trailing: true);
+        Pointer(releasePoint, pressed: true, released: false);
+        check(actions == 2, "Default List waits for pointer release");
+        Pointer(releasePoint, pressed: false, released: true);
+        check(actions == 3 && selected.Value == "a", "Default List invokes and selects on release");
+        showPressList = true;
+        Frame();
+        var pressPoint = Point("Press row", UiAccessibilityRole.Row, trailing: true);
+        Pointer(pressPoint, pressed: true, released: false);
+        check(pressActions.SequenceEqual([UiListActionKind.Pointer]) && pressSelection.Value == "press",
+            "Press List invokes and selects on the down edge");
+        Pointer(pressPoint, pressed: false, released: true);
+        check(pressActions.Count == 1 && pressSelection.Value == "press", "Press List release does not invoke again");
+        var pressChild = Point("Press child");
+        Pointer(pressChild, pressed: true, released: false);
+        check(pressActions.Count == 1 && pressChildActions == 0 && Find("Press child").Node.Focused,
+            "Press List child claims focus without invoking its row on down");
+        Pointer(pressChild, pressed: false, released: true);
+        Pointer(pressChild, pressed: true, released: true);
+        check(pressActions.Count == 1 && pressChildActions == 2 && pressSelection.Value == "press",
+            "Press List preserves child-only clicks across distinct and same-frame pointer edges");
+        var pressCheckbox = Point("Press checkbox", UiAccessibilityRole.Checkbox);
+        Pointer(pressCheckbox, pressed: true, released: false);
+        check(pressActions.Count == 1 && pressSelection.Value == "press", "Press List checkbox waits for release");
+        Pointer(pressCheckbox, pressed: false, released: true);
+        check(pressActions.Count == 1 && pressSelection.Value is null, "Press List checkbox toggles independently");
+        Request("Press row", UiAccessibilityAction.Focus, UiAccessibilityRole.Row);
+        Key(UiKey.Space);
+        Key(UiKey.Enter);
+        Request("Press row", UiAccessibilityAction.Invoke, UiAccessibilityRole.Row);
+        check(pressActions.SequenceEqual([UiListActionKind.Pointer, UiListActionKind.Enter, UiListActionKind.Accessibility])
+            && pressSelection.Value == "press", "Press List preserves keyboard selection and keyboard and accessibility invocation");
         using var dynamicList = new UiList<MutableListPresentation>("Mutable size", new UiState<string?>(null).Binding,
             [new("one", "One", Fluent.Body1("Stable content"))]);
         var knownRow = new UiListItem("known", "Known", Fluent.Body1("Stable content"));

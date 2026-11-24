@@ -48,21 +48,15 @@ public sealed unsafe partial class LinuxPlatformTextBackend
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_drawFunctions == 0)
                 _drawFunctions = LinuxGlyphOutline.CreateFunctions();
-            var layout = Layout(new(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize));
-            var glyphs = new List<PlatformTextGlyphMesh>();
-            foreach (var run in layout.Runs)
+            if (request.UseProjectedLineMetrics)
+                return CreateProjectedTextMesh(request);
+
+            var layout = Layout(new(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize)
             {
-                foreach (var positioned in run.Glyphs)
-                {
-                    var mesh = GetVectorGlyph(run.Font, checked((uint)positioned.Index), request.FlatteningTolerance);
-                    if (mesh.Indices.Length != 0)
-                        glyphs.Add(new(mesh.Vertices, mesh.Indices,
-                            new((float)positioned.X, (float)positioned.Y + layout.Metrics.FontAscent))
-                        {
-                            Outline = new(mesh.Curves)
-                        });
-                }
-            }
+                RightToLeft = request.RightToLeft
+            });
+            var glyphs = new List<PlatformTextGlyphMesh>();
+            AppendVectorGlyphs(layout.Runs, request, layout.Metrics.FontAscent, glyphs);
             return new(ReadOnlyMemory<UiVector2>.Empty, layout.Metrics.Advance, layout.LogicalHeight, layout.Metrics.FontAscent)
             {
                 Glyphs = glyphs.ToArray()
@@ -70,16 +64,65 @@ public sealed unsafe partial class LinuxPlatformTextBackend
         }
     }
 
-    private VectorGlyph GetVectorGlyph(LinuxFontResource font, uint index, float tolerance)
+    private PlatformTextMeshResult CreateProjectedTextMesh(in PlatformTextMeshRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request.Text);
+        _ = StrictUtf16.GetByteCount(request.Text);
+        var primary = Font(request.FontPath, request.FontSize);
+        var secondary = request.SecondaryFontPath is { } path ? Font(path, request.FontSize, primary) : null;
+        var glyphs = new List<PlatformTextGlyphMesh>();
+        var width = 0f;
+        var baseline = 0f;
+        var y = 0f;
+        var lines = request.Text.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n')
+            .Replace("\t", "    ", StringComparison.Ordinal).Split('\n');
+        foreach (var line in lines)
+        {
+            if (line.Length != 0)
+            {
+                var runs = ShapeProjectedParagraph(line, primary, secondary, y, out var advance,
+                    out var lineBaseline, request.RightToLeft);
+                width = MathF.Max(width, advance);
+                baseline = MathF.Max(baseline, lineBaseline);
+                AppendVectorGlyphs(runs, request, 0, glyphs);
+            }
+            y += request.FontSize;
+        }
+        return new(ReadOnlyMemory<UiVector2>.Empty, width, y, baseline)
+        {
+            Glyphs = glyphs.ToArray()
+        };
+    }
+
+    private void AppendVectorGlyphs(List<Run> runs, in PlatformTextMeshRequest request, float yOffset,
+        List<PlatformTextGlyphMesh> glyphs)
+    {
+        foreach (var run in runs)
+        {
+            foreach (var positioned in run.Glyphs)
+            {
+                var mesh = GetVectorGlyph(run.Font, checked((uint)positioned.Index), request.FlatteningTolerance, request.OutlineOnly);
+                if (request.OutlineOnly ? mesh.Curves.Length != 0 : mesh.Indices.Length != 0)
+                    glyphs.Add(new(mesh.Vertices, mesh.Indices,
+                        new((float)positioned.X, (float)positioned.Y + yOffset))
+                    {
+                        Outline = new(mesh.Curves)
+                    });
+            }
+        }
+    }
+
+    private VectorGlyph GetVectorGlyph(LinuxFontResource font, uint index, float tolerance, bool outlineOnly = false)
     {
         if (_drawFunctions == 0)
             _drawFunctions = LinuxGlyphOutline.CreateFunctions();
-        var key = new VectorKey(font.Path, font.Size, font.Oblique, index, tolerance);
+        var key = new VectorKey(font.Path, font.Size, font.Oblique, index, outlineOnly ? 0f : tolerance);
         if (_vectorGlyphs.TryGetValue(key, out var mesh))
             return mesh;
-        var outline = LinuxGlyphOutline.Extract(font.Shaper, index, _drawFunctions, tolerance);
-        mesh = Tessellate(outline.Contours, outline.Curves);
-        if (mesh.Vertices.Length == 0)
+        var outline = LinuxGlyphOutline.Extract(font.Shaper, index, _drawFunctions, tolerance, outlineOnly);
+        mesh = outlineOnly ? new([], [], outline.Curves) : Tessellate(outline.Contours, outline.Curves);
+        if (outlineOnly ? mesh.Curves.Length == 0 : mesh.Vertices.Length == 0)
         {
             var glyph = new Glyph(index);
             cairo_scaled_font_glyph_extents(font.Scaled, &glyph, 1, out var bounds);

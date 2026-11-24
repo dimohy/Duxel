@@ -82,6 +82,16 @@ public sealed partial class UiImmediateContext
         var handleHover = trackHovered && IsHovering(handleRect);
         var trackClickArea = trackHovered && !handleHover;
 
+        // Keyboard focus can leave a text field active between pointer gestures.
+        // A press on a scrollbar starts a new pointer gesture without stealing an existing drag.
+        if (_leftMousePressed && trackHovered && _state.ActiveId is { } editor
+            && editor != scrollId && _state.HasTextInputStorage(editor) && !_state.OwnsTextDrag(editor))
+        {
+            _state.ActiveId = null;
+            _state.PendingTextInputFocusId = null;
+            _imeHandler?.SetCompositionOwner(null);
+        }
+
         // Handle drag (only capture if no other interaction owns ActiveId)
         if (_leftMousePressed && handleHover && (_state.ActiveId is null || _state.ActiveId == scrollId))
         {

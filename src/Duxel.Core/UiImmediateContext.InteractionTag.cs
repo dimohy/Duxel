@@ -2,8 +2,11 @@ namespace Duxel.Core;
 
 public sealed partial class UiImmediateContext
 {
-    internal (bool Primary, bool Dismissed) RenderInteractionTag<TPresentation>(string id, UiTagContent content, UiTagOptions options,
-        bool dismissible, bool enabled, UiBinding<bool>? selected = null) where TPresentation : IUiTagPresentation
+    internal (bool Primary, bool Dismissed) RenderInteractionTag<TPrimaryBehavior, TDismissBehavior, TPresentation>(
+        string id, UiTagContent content, UiTagOptions options, bool dismissible, bool enabled, UiBinding<bool>? selected = null)
+        where TPrimaryBehavior : IUiButtonBehavior
+        where TDismissBehavior : IUiButtonBehavior
+        where TPresentation : IUiTagPresentation
     {
         var context = new UiControlContext(this);
         var size = context.ConstrainToLayout(TPresentation.MeasureInteraction(context, content, options, dismissible));
@@ -29,7 +32,7 @@ public sealed partial class UiImmediateContext
             _accessibilityParent = root;
             _accessibilityWidget = null;
             var primaryId = ResolveId(primaryName);
-            var primary = ProcessButton(primaryName, primaryBounds, UiButtonActivation.Release);
+            var primary = TPrimaryBehavior.Process(context, primaryName, primaryBounds);
             primary = ApplyAccessibilityInvoke(primaryId, primaryBounds, primary);
             if (selected is not null)
             {
@@ -46,14 +49,15 @@ public sealed partial class UiImmediateContext
                     Selected = selected.Value
                 };
             }
-            ExposeAccessibility(primaryId, root, UiAccessibilityRole.Button, name, primaryBounds, valuePattern: false,
+            ExposeAccessibility(primaryId, root, UiAccessibilityRole.Button, name, primaryBounds,
+                focusable : TPrimaryBehavior.AccessibilityFocus, valuePattern : false,
                 toggleState: selected is null ? null : options.Selected ? UiAccessibilityToggleState.On : UiAccessibilityToggleState.Off,
                 literalLabel: true);
             UiButtonInteraction secondary = default;
             if (dismissible)
             {
                 var secondaryId = ResolveId(secondaryName);
-                secondary = ProcessButton(secondaryName, secondaryBounds, UiButtonActivation.Release);
+                secondary = TDismissBehavior.Process(context, secondaryName, secondaryBounds);
                 secondary = ApplyAccessibilityInvoke(secondaryId, secondaryBounds, secondary);
                 if (IsControlEnabled && _popupTierDepth >= _blockingKeyboardTier && _state.FocusedId == secondaryId
                     && _keyEvents.Any(key => key.IsDown && key.Modifiers == 0 && key.Key is UiKey.Delete or UiKey.Backspace))
@@ -62,7 +66,7 @@ public sealed partial class UiImmediateContext
                         Activated = true
                     };
                 ExposeAccessibility(secondaryId, root, UiAccessibilityRole.Button, options.DismissLabel + " " + name, secondaryBounds,
-                    valuePattern: false, literalLabel: true);
+                    focusable : TDismissBehavior.AccessibilityFocus, valuePattern : false, literalLabel : true);
                 _accessibility?.ConnectActionLabel(secondaryId, primaryId);
             }
             TPresentation.PaintInteraction(context, content, bounds, primaryBounds, secondaryBounds, options, primary, secondary, dismissible);

@@ -7,6 +7,12 @@ Cancel	취소	キャンセル	取消
 Close	닫기	閉じる	关闭
 Could not save the language setting.	언어 설정을 저장할 수 없습니다.	言語設定を保存できませんでした。	无法保存语言设置。
 Light theme	밝은 테마	ライトテーマ	浅色主题
+Toggle theme	테마 전환	テーマ切り替え	切换主题
+Theme preview	테마 미리 보기	テーマのプレビュー	主题预览
+Alignment frame {0}	{0} 정렬 영역	{0} の配置枠	{0} 对齐区域
+Fill the finite width and height supplied by the parent.	부모가 정한 너비와 높이를 모두 채웁니다.	親が指定した幅と高さを埋めます。	填满父布局指定的宽度和高度。
+Move items to a new column when they no longer fit.	공간이 부족하면 항목을 다음 열로 보냅니다.	収まらない項目を次の列に移します。	空间不足时将项目移到下一列。
+Keep the items that fit and show an indicator for the rest.	들어가는 항목을 표시하고 나머지는 표시기로 알립니다.	収まる項目を表示し、残りはインジケーターで示します。	显示能够容纳的项目，并用指示器标记其余项目。
 Event-driven mode	이벤트 대기 모드	イベント駆動モード	事件驱动模式
 Highlight repaints	갱신 영역 강조	再描画領域を強調	突出显示重绘区域
 Gallery status and options	갤러리 상태와 옵션	ギャラリーの状態とオプション	图库状态和选项
@@ -175,6 +181,9 @@ Wrap lines	줄바꿈	行の折り返し	自动换行
 Line numbers	줄 번호	行番号	行号
 Show all	전체 표시	すべて表示	显示全部
 Copy source	소스 복사	ソースをコピー	复制源代码
+Copy	복사	コピー	复制
+Select All	모두 선택	すべて選択	全选
+Text actions	텍스트 명령	テキスト操作	文本操作
 Copied	복사됨	コピーしました	已复制
 C# example source	C# 예제 소스	C# サンプルソース	C# 示例代码
 Feature index	기능 찾아보기	機能一覧	功能索引
@@ -220,6 +229,9 @@ Side panels	보조 패널	サイドパネル	侧边面板
 Lists	목록	リスト	列表
 Shared container and menu behavior	컨테이너·Menu 공통 동작	コンテナーとメニューの共通動作	容器和菜单的共同行为
 Processing mode	처리 방식	処理モード	处理模式
+Notification frequency	알림 주기	通知頻度	通知频率
+Choose how often to receive notifications.	알림을 받을 주기를 선택하세요.	通知を受け取る頻度を選んでください。	请选择接收通知的频率。
+Alignment	정렬	配置	对齐
 Prioritize speed	속도 우선	速度優先	速度优先
 Balanced	균형	バランス	均衡
 Prioritize quality	품질 우선	品質優先	质量优先
@@ -546,6 +558,13 @@ Document upload	문서 업로드	ドキュメントのアップロード	文档�
 Uploading the document.	문서를 올리는 중입니다.	ドキュメントをアップロードしています。	正在上传文档。
 Uploading	업로드 중	アップロード中	正在上传
 Web progress transitions and errors	웹 진행률 전환과 오류	Web の進行状況の切り替えとエラー	网页进度切换与错误
+Android linear progress	Android 선형 진행률	Android の線形進行状況	Android 线性进度
+Reverse progress direction	진행 방향 뒤집기	進行方向を反転	反转进度方向
+iOS progress bar	iOS 진행 막대	iOS の進行状況バー	iOS 进度条
+Start iOS progress animation	iOS 진행 애니메이션 시작	iOS の進行状況アニメーションを開始	启动 iOS 进度动画
+Stop iOS progress animation	iOS 진행 애니메이션 정지	iOS の進行状況アニメーションを停止	停止 iOS 进度动画
+Hide iOS progress when stopped	정지 시 iOS 진행 막대 숨기기	停止中に iOS の進行状況バーを非表示	停止时隐藏 iOS 进度条
+Reverse iOS progress direction	iOS 진행 방향 뒤집기	iOS の進行方向を反転	反转 iOS 进度方向
 Start waiting	웹 대기 시작	待機を開始	开始等待
 Waiting for a server response.	서버 응답을 기다리고 있습니다.	サーバーの応答を待っています。	正在等待服务器响应。
 Waiting for server	서버 응답 대기	サーバーの応答待ち	等待服务器
@@ -644,6 +663,7 @@ MessageBar width	MessageBar 너비	MessageBar の幅	MessageBar 宽度
 Multi-line layout	여러 행 배치	複数行のレイアウト	多行布局
 Square corners	각진 모서리	角を四角くする	直角边角
 Right-to-left layout	오른쪽에서 왼쪽 배치	右から左へのレイアウト	从右到左布局
+Animate panels	패널 애니메이션	パネルをアニメーション表示	面板动画
 Width: {0:F0} / Actions: {1}	너비 : {0:F0} / 액션 실행 : {1}	幅：{0:F0} / 操作回数：{1}	宽度：{0:F0} / 操作次数：{1}
 Announce when shown	표시할 때 자동 공지	表示時に自動で通知	显示时自动播报
 Always use polite announcements	차분한 공지로 고정	控えめな通知に固定	始终使用礼貌播报
@@ -663,6 +683,8 @@ Dismiss nudge	안내 닫기	ヒントを閉じる	关闭提示
 Add to favorites	즐겨찾기에 추가	お気に入りに追加	添加到收藏
 Added to favorites.	즐겨찾기에 추가했습니다.	お気に入りに追加しました。	已添加到收藏。
 Recently viewed examples	최근에 살펴본 예제	最近表示したサンプル	最近查看的示例
+Favorite tips	즐겨찾기 팁	お気に入りのヒント	收藏夹提示
+Favorite tips opened.	즐겨찾기 팁을 열었습니다.	お気に入りのヒントを開きました。	已打开收藏夹提示。
 Show nudge again	안내 다시 표시	ヒントをもう一度表示	再次显示提示
 Step selection	단계 선택	ステップの選択	步骤选择
 Image previews and autoplay	이미지 미리보기와 자동 재생	画像プレビューと自動再生	图像预览和自动播放
@@ -805,6 +827,8 @@ Document collaborators	문서 공동 작업자	ドキュメントの共同編集
 Change group layout	그룹 배치 변경	グループの配置を変更	更改群组布局
 Change group size	그룹 크기 변경	グループのサイズを変更	更改群组大小
 Change the visible member count	그룹 표시 수 변경	表示するメンバー数を変更	更改显示的成员数
+Switch overflow mode	초과 구성원 표시 방식 전환	超過メンバーの表示方式を切り替える	切换溢出成员的显示方式
+Toggle unlisted members	목록 밖 인원 수 반영 전환	一覧外のメンバー数の反映を切り替える	切换未列出成员计数
 Reverse group direction	그룹 방향 전환	グループの左右を反転	反转群组方向
 Layout: {0}	배치 : {0}	配置：{0}	布局：{0}
 Side by side	펼침	横並び	并排
@@ -944,6 +968,7 @@ Drawer note	패널 메모	ドロワーのメモ	抽屉备注
 Save drawer changes	패널 저장	ドロワーの変更を保存	保存抽屉中的更改
 Close drawer	패널 닫기	ドロワーを閉じる	关闭抽屉
 Open side drawer	보조 패널 열기	サイドドロワーを開く	打开侧边抽屉
+Return to drawer example	보조 패널 예제로 돌아가기	ドロワーの例に戻る	返回抽屉示例
 Close inline drawer	인라인 패널 닫기	インラインドロワーを閉じる	关闭内嵌抽屉
 Inline drawer	인라인 패널	インラインドロワー	内嵌抽屉
 Inline drawer note	인라인 메모	インラインドロワーのメモ	内嵌抽屉备注
@@ -1336,6 +1361,7 @@ Open menu with icons	아이콘 메뉴 열기	アイコン付きメニューを�
 Select new item	새 항목 선택	新しい項目を選ぶ	选择新建项
 Template	템플릿	テンプレート	模板
 Select format	형식 선택	形式を選ぶ	选择格式
+Use PNG for an image you can share.	공유할 이미지는 PNG로 저장하세요.	共有する画像は PNG で保存してください。	要分享图片，请保存为 PNG。
 Show preview	미리보기 표시	プレビューを表示	显示预览
 Selection indicator	선택	選択	选中
 Unavailable item	사용할 수 없는 항목	利用できない項目	不可用的项
@@ -1596,3 +1622,26 @@ Enter, exit, and reflow	나타나기·사라지기·재배치	表示・非表示
 Add motion item	항목 추가	項目を追加	添加项目
 Remove motion item	항목 제거	項目を削除	删除项目
 Motion item {0}	항목 {0}	項目 {0}	项目 {0}
+Compare bitmap formats, fit modes, rounded corners, and tint.	비트맵 파일 형식, 표시 모드, 둥근 모서리와 색조를 비교합니다.	画像形式、表示モード、角丸と色合いを比較します。	比较位图格式、适应模式、圆角和色调。
+Image fit modes	이미지 표시 모드	画像の表示モード	图像适应模式
+Image file formats	이미지 파일 형식	画像ファイル形式	图像文件格式
+Stretch changes the aspect ratio. Contain shows the whole image. Cover fills the box and crops the edges.	Stretch는 가로세로 비율을 바꿉니다. Contain은 이미지 전체를 보여 줍니다. Cover는 영역을 채우고 넘치는 부분을 자릅니다.	Stretch は縦横比を変えます。Contain は画像全体を表示します。Cover は枠を埋め、はみ出した部分を切り取ります。	Stretch 会改变宽高比。Contain 显示完整图像。Cover 填满区域并裁掉超出的边缘。
+Image displays the first GIF frame. The SVG page shows vector rendering.	Image는 GIF의 첫 프레임을 보여 줍니다. 벡터 렌더링은 SVG 페이지에서 확인할 수 있습니다.	Image は GIF の最初のフレームを表示します。ベクター描画は SVG ページで確認できます。	Image 显示 GIF 的首帧。SVG 页面展示矢量渲染。
+Rounded corners and tint	둥근 모서리와 색조	角丸と色合い	圆角和色调
+Layout widgets	레이아웃 위젯	レイアウトウィジェット	布局小部件
+Choose a fixed width and height for a child.	자식의 너비와 높이를 고정합니다.	子要素の幅と高さを固定します。	固定子控件的宽度和高度。
+Set minimum and maximum dimensions for a child.	자식의 최소·최대 크기를 지정합니다.	子要素の最小・最大サイズを指定します。	设置子控件的最小和最大尺寸。
+Place widgets side by side.	위젯을 가로로 나란히 놓습니다.	ウィジェットを横に並べます。	横向排列控件。
+Stack widgets vertically.	위젯을 세로로 쌓습니다.	ウィジェットを縦に並べます。	纵向排列控件。
+Move items to a new row when they no longer fit.	공간이 부족하면 항목을 다음 줄에 놓습니다.	収まらない項目を次の行に送ります。	空间不足时将项目移到下一行。
+Give each item an equally sized grid cell.	각 항목을 크기가 같은 격자 칸에 놓습니다.	各項目を同じ大きさのセルに配置します。	将每个项目放在大小相同的网格单元中。
+Layer widgets in the same space.	같은 공간에 위젯을 겹쳐 놓습니다.	ウィジェットを同じ場所に重ねます。	在同一区域叠放控件。
+Anchor a child to the edges of a Stack.	Stack의 가장자리를 기준으로 자식을 배치합니다.	Stack の端を基準に子要素を配置します。	以 Stack 的边缘为基准放置子控件。
+Align a child within the space available.	주어진 영역 안에서 자식을 정렬합니다.	利用できる領域内で子要素を揃えます。	在可用空间内对齐子控件。
+Center a child horizontally and vertically.	자식을 가로와 세로 가운데에 놓습니다.	子要素を縦横の中央に配置します。	将子控件水平和垂直居中。
+Add spacing inside the layout around a child.	자식 둘레에 안쪽 여백을 넣습니다.	子要素の周りに内側の余白を加えます。	在子控件四周添加内边距。
+Combine margin and padding around content.	콘텐츠의 바깥 여백과 안쪽 여백을 함께 지정합니다.	コンテンツの外側と内側の余白を指定します。	设置内容的外边距和内边距。
+Scroll content inside a fixed viewport.	고정된 영역 안에서 콘텐츠를 스크롤합니다.	固定された表示領域内で内容をスクロールします。	在固定的显示区域内滚动内容。
+Use the row's remaining width.	가로 줄의 남은 공간을 채웁니다.	行の残りの幅を埋めます。	填满行中剩余的宽度。
+Allow a child to use part of the remaining width.	자식이 남은 너비의 일부를 쓸 수 있게 합니다.	子要素が残りの幅の一部を使えるようにします。	允许子控件使用部分剩余宽度。
+Reserve remaining width between siblings.	나란히 놓인 위젯 사이를 남은 너비만큼 띄웁니다.	隣り合う要素の間に残りの幅を確保します。	在同级控件之间留出剩余宽度。

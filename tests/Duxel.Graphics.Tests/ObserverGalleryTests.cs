@@ -99,7 +99,7 @@ internal static class ObserverGalleryTests
             "observer header uses actual Fluent switches with VSync off and event-wait on");
         var globalHighlight = Find("갱신 영역 강조", UiAccessibilityRole.Switch);
         check(globalHighlight.ToggleState == UiAccessibilityToggleState.Off
-            && globalHighlight.Bounds.X + globalHighlight.Bounds.Width < Find("밝은 테마", UiAccessibilityRole.Switch).Bounds.X
+            && globalHighlight.Bounds.X + globalHighlight.Bounds.Width < Find("테마 전환", UiAccessibilityRole.Switch).Bounds.X
             && globalHighlight.Bounds.Y == Find("V-Sync", UiAccessibilityRole.Switch).Bounds.Y,
             "global repaint switch starts off in the single status row before the pinned theme switch");
         if (!tree.TryGet(globalHighlight.Id, out var globalEntry))
@@ -691,6 +691,8 @@ internal static class ObserverGalleryTests
         check(tree.RequestAction(accordionHeader.Id, accordionElement.RuntimeId, UiAccessibilityAction.Expand, wait: false) == UiAccessibilityResult.Success,
             "observer Accordion header accepts expansion through its actual accessibility control");
         RenderFrame();
+        context.State.AdvanceTime(.25f);
+        RenderFrame();
         var accordionEditor = Find("접기 예제 메모", UiAccessibilityRole.Edit);
         tree.TryGet(accordionEditor.Id, out var accordionEditorElement);
         check(tree.RequestAction(accordionEditor.Id, accordionEditorElement.RuntimeId, UiAccessibilityAction.SetValue,
@@ -1014,10 +1016,11 @@ internal static class ObserverGalleryTests
             "observer actual radio menu exposes independent named selection groups");
         Click("배치 통합", "날짜순 정렬");
         Click("배치 통합", "아이콘 메뉴 열기");
-        check(Find("새 항목 선택").GetHelpText() == "템플릿" && Find("형식 선택").GetHelpText() == "PNG"
+        var formatMenuName = GalleryText.Get("Select format") + " " + GalleryText.Get("Use PNG for an image you can share.");
+        check(Find("새 항목 선택").GetHelpText() == "템플릿" && Find(formatMenuName).GetHelpText() == "PNG"
             && !Find("사용할 수 없는 항목").Enabled,
             "observer actual menu exposes icon/secondary content and disabled information through the shared item semantics");
-        Click("배치 통합", "형식 선택");
+        Click("배치 통합", formatMenuName);
         Click("배치 통합", "메뉴 방향 : LTR");
         Click("배치 통합", "아이콘 메뉴 열기");
         check(Find("새 항목 선택").GetHelpText() == "템플릿", "observer RTL content menu preserves its action name and secondary information");

@@ -59,7 +59,9 @@ internal sealed class UiDialogInputState : UiOverlayInputState
 }
 
 /// <summary>Owns a screen-space dialog portal with retained title, scrolling content and actions.</summary>
-public class UiDialog<TPresentation> : UiControlWidget where TPresentation : IUiDialogPresentation
+public class UiDialog<TCloseBehavior, TPresentation> : UiControlWidget
+    where TCloseBehavior : IUiPointerActivationBehavior
+    where TPresentation : IUiDialogPresentation
 {
     private string _title;
     private UiDialogOptions _options;
@@ -87,7 +89,7 @@ public class UiDialog<TPresentation> : UiControlWidget where TPresentation : IUi
         }
         _title = title;
         _visibility = new(Input, RequestRebuild);
-        Body = new(title, content, actions, () => Close());
+        Body = new(title, content, actions, () => Close(), closeActivation: TCloseBehavior.PointerActivation);
         Viewport = Dux.ScrollView(Body);
         OwnChild("surface", Viewport);
     }
@@ -172,6 +174,14 @@ public class UiDialog<TPresentation> : UiControlWidget where TPresentation : IUi
         _visibility.Dispose();
         base.ReleaseOwnedResources();
     }
+}
+
+/// <summary>Dialog whose header close button activates on pointer release.</summary>
+public class UiDialog<TPresentation> : UiDialog<UiReleaseButtonBehavior, TPresentation>
+    where TPresentation : IUiDialogPresentation
+{
+    public UiDialog(string title, UiWidget content, UiWidget[]? actions = null, UiDialogOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(title, content, actions, options, identity) { }
 }
 
 [UiWidgetStyle(typeof(UiDialog<>), typeof(UiFluentDialogPresentation))]

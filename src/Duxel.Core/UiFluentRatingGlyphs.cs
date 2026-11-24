@@ -31,8 +31,11 @@ internal static class UiFluentRatingGlyphs
         UiRatingSize.ExtraLarge => 28,
         _ => throw new ArgumentOutOfRangeException(nameof(size))
     };
-    internal static (UiColor Selected, UiColor Empty) Colors(UiControlContext context, UiRatingColor color)
+    private static (UiColor Selected, UiColor Empty) Colors(UiControlContext context, UiRatingColor color)
     {
+        if (context.Theme.ForcedColors is { } forced)
+            return (context.IsEnabled ? forced.CanvasText : forced.GrayText, forced.Canvas);
+
         var dark = context.FluentColorScheme == UiFluentColorScheme.Dark;
         var selected = color switch
         {
@@ -58,6 +61,8 @@ internal static class UiFluentRatingGlyphs
         {
             using var empty = context.Clip(new(rightToLeft ? icon.X : icon.X + icon.Width * fill, icon.Y, icon.Width * (1 - fill), icon.Height));
             PaintShape(context, icon, display ? colors.Empty : colors.Selected, shape, display, interaction);
+            if (display && context.Theme.ForcedColors.HasValue)
+                PaintShape(context, icon, colors.Selected, shape, false, interaction);
         }
         if (fill > 0)
         {

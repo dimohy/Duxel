@@ -161,7 +161,106 @@ internal static class AvatarGroupTests
             "Breadcrumb Parent identities isolate repeated home values under distinct named paths");
         check(Fluent.ComponentNames.Contains("AvatarGroup") && !Fluent.MissingComponentNames.Contains("AvatarGroup"),
             "AvatarGroup connects its official catalog requirement");
+
+        void PointerAt(UiRect bounds, bool down)
+        {
+            Frame(idle with
+            {
+                MousePosition = new(bounds.X + bounds.Width * .5f, bounds.Y + bounds.Height * .5f),
+                LeftMouseDown = down,
+                LeftMousePressed = down,
+                LeftMouseReleased = !down
+            });
+        }
+
+        void VerifyActivation<TBehavior>(string label, bool openOnPress, bool selectOnPress)
+            where TBehavior : IUiMenuBehavior
+        {
+            var values = new List<string>();
+            using var custom = new UiAvatarGroup<TBehavior, UiFluentAvatarGroupPresentation>(label, items,
+                selected: values.Add);
+            renderOverride = custom.Render;
+            Frame();
+            var trigger = Find("More people (2)");
+            PointerAt(trigger.Node.Bounds, true);
+            check(custom.IsOverflowOpen == openOnPress, label + " applies trigger pointer-down policy");
+            PointerAt(trigger.Node.Bounds, false);
+            check(custom.IsOverflowOpen && values.Count == 0, label + " opens without selecting an option");
+            var option = Find("Person 1").Node.Bounds;
+            PointerAt(option, true);
+            check(custom.IsOverflowOpen != selectOnPress && values.Count == (selectOnPress ? 1 : 0),
+                label + " applies option pointer-down policy");
+            PointerAt(option, false);
+            check(!custom.IsOverflowOpen && values.SequenceEqual(new[] { "value1" }),
+                label + " selects once and closes after pointer activation");
+            Frame();
+            Send(Find("More people (2)"), UiAccessibilityAction.Expand);
+            Frame();
+            Frame(idle with { KeyEvents = [new(UiKey.End, true, default)] });
+            Frame(idle with { KeyEvents = [new(UiKey.End, false, default)] });
+            Frame(idle with { KeyEvents = [new(UiKey.Enter, true, default)] });
+            Frame(idle with { KeyEvents = [new(UiKey.Enter, false, default)] });
+            check(!custom.IsOverflowOpen && values.SequenceEqual(new[] { "value1", "value1" }),
+                label + " retains menu keyboard selection under its pointer policy");
+        }
+
+        VerifyActivation<UiDefaultMenuBehavior>("Default AvatarGroup", false, false);
+        VerifyActivation<PressTrigger>("Press trigger AvatarGroup", true, false);
+        VerifyActivation<PressOption>("Press option AvatarGroup", false, true);
+
+        renderOverride = group.Render;
+        group.Options = new(MaximumInlineItems : 2)
+        {
+            OverflowMode = UiAvatarGroupOverflowMode.KeepFirstAndAppend,
+            AdditionalOverflowCount = 3,
+        };
+        Frame();
+        var firstVisible = Elements().Where(e => e.Node.Role == UiAccessibilityRole.Image).Select(e => e.Node.Name);
+        check(firstVisible.SequenceEqual(new[] { "Person 0", "Person 1" }) && Find("More people (7)").Node.Focusable,
+            "AvatarGroup keeps the first two members and appends a total of seven hidden people");
+        Send(Find("More people (7)"), UiAccessibilityAction.Expand);
+        Frame();
+        var menuNames = Elements().Where(e => e.Node.Role == UiAccessibilityRole.MenuItem).Select(e => e.Node.Name);
+        check(menuNames.SequenceEqual(new[] { "Person 2", "Person 3", "Person 4", "Person 5" }),
+            "AvatarGroup overflow lists only hidden members supplied by the caller");
+
+        group.Options = group.Options with { MaximumInlineItems = 6, RightToLeft = true };
+        Frame();
+        var countOnly = Find("More people (3)");
+        check(!group.IsOverflowOpen && countOnly.Node.Role == UiAccessibilityRole.Label && !countOnly.Node.Focusable
+            && !Elements().Any(e => e.Node.Role == UiAccessibilityRole.MenuItem)
+            && countOnly.Node.Bounds.X < Find("Person 5").Node.Bounds.X,
+            "AvatarGroup closes its popup and exposes a passive RTL count when no known members are hidden");
+
+        group.Options = group.Options with { Layout = UiAvatarGroupLayout.Pie };
+        Frame();
+        check(Find("More people (9)").Node.Role == UiAccessibilityRole.Button
+            && Elements().Count(e => e.Node.Role == UiAccessibilityRole.Image) == 3,
+            "AvatarGroup pie keeps its full-list trigger and includes the unlisted count");
+        using var remoteOnly = Fluent.AvatarGroup("Remote members", [], new() { AdditionalOverflowCount = 3 });
+        renderOverride = remoteOnly.Render;
+        Frame();
+        check(Find("More people (3)").Node.Role == UiAccessibilityRole.Label
+            && !Elements().Any(e => e.Node.Role == UiAccessibilityRole.Image),
+            "AvatarGroup can display an unlisted count with no locally available members");
+        remoteOnly.Options = remoteOnly.Options with { Layout = UiAvatarGroupLayout.Pie };
+        Frame();
+        check(Find("More people (3)").Node.Bounds.Width == 32,
+            "AvatarGroup uses the count badge when an empty pie has no avatars to paint");
     }
+
+    private readonly struct PressTrigger : IUiMenuBehavior
+    {
+        public static UiButtonActivation TriggerActivation => UiButtonActivation.Press;
+        public static UiButtonActivation OptionActivation => UiButtonActivation.Release;
+    }
+
+    private readonly struct PressOption : IUiMenuBehavior
+    {
+        public static UiButtonActivation TriggerActivation => UiButtonActivation.Release;
+        public static UiButtonActivation OptionActivation => UiButtonActivation.Press;
+    }
+
     private sealed class Screen(Action<UiImmediateContext> draw) : UiScreen
     {
         public override void Render(UiImmediateContext ui) => draw(ui);

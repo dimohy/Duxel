@@ -17,6 +17,7 @@ public sealed partial class UiImmediateContext
 
     internal static UiLabelLayout MeasureLabel(UiControlContext context, string text, UiLabelOptions options, UiBoxConstraints? available = null)
     {
+        using var direction = context.BeginLabelTextDirection();
         using var typography = BeginLabel(context, options);
         var constraints = available ?? context.LayoutConstraints;
         var maximum = constraints.MaxWidth;
@@ -52,11 +53,18 @@ public sealed partial class UiImmediateContext
         var foreground = enabled ? dark ? new UiColor(255, 255, 255) : new(36, 36, 36)
             : dark ? new UiColor(92, 92, 92) : new(189, 189, 189);
         using var clip = context.Clip(bounds);
+        using var direction = BeginLabelTextDirection();
         using var typography = BeginLabel(context, options);
-        context.TypographyTextBlock(layout.Text, bounds, foreground);
+        context.TypographyTextBlock(layout.Text, bounds, foreground,
+            RightToLeft ? UiItemHorizontalAlign.Right : UiItemHorizontalAlign.Left);
         if (options.Required)
-            context.TypographyTextBlock(context.MeasureTextBlock("*"), OffsetFieldRect(layout.Required, origin),
+        {
+            var marker = layout.Required;
+            if (RightToLeft)
+                marker = marker with { X = bounds.Width - marker.X - marker.Width };
+            context.TypographyTextBlock(context.MeasureTextBlock("*"), OffsetFieldRect(marker, origin),
                 enabled ? dark ? new(227, 125, 128) : new(209, 52, 56) : foreground);
+        }
         if (enabled && label.Target is { } target && FieldLabelPressed("\u001flabel", bounds))
         {
             target.ValidateLabelTarget();
@@ -64,6 +72,21 @@ public sealed partial class UiImmediateContext
             (_labelFocusOwner ??= new(label)).SetTarget(label);
             _requestFrame?.Invoke();
         }
+    }
+
+    internal LabelTextDirectionScope BeginLabelTextDirection() => new(this);
+
+    internal readonly struct LabelTextDirectionScope : IDisposable
+    {
+        private readonly UiImmediateContext _ui;
+        private readonly bool _previous;
+        internal LabelTextDirectionScope(UiImmediateContext ui)
+        {
+            _ui = ui;
+            _previous = ui._directTextRightToLeft;
+            ui._directTextRightToLeft = ui.RightToLeft;
+        }
+        public void Dispose() => _ui._directTextRightToLeft = _previous;
     }
 
     private bool HasLabelFocusRequest()
@@ -78,4 +101,9 @@ public sealed partial class UiImmediateContext
         }
         return ReferenceEquals(_identityWidget, target);
     }
+}
+
+public readonly partial struct UiControlContext
+{
+    internal UiImmediateContext.LabelTextDirectionScope BeginLabelTextDirection() => _ui.BeginLabelTextDirection();
 }

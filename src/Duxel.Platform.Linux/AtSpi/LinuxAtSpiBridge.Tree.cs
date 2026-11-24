@@ -240,7 +240,7 @@ internal sealed unsafe partial class LinuxAtSpiBridge
         Set(22, n.SupportsSelectionItem);
         Set(23, n.Selected == true);
         Set(32, n.ToggleState == UiAccessibilityToggleState.Indeterminate);
-        Set(33, n.Required || n.SelectionRequired);
+        Set(33, n.Required);
         Set(36, n.Invalid);
         Set(38, n.TextInfo?.CanSetSelection == true);
         Set(41, n.ToggleState.HasValue);

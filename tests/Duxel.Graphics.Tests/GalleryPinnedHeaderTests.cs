@@ -27,11 +27,11 @@ internal static class GalleryPinnedHeaderTests
         fixture.Capture(Draw); fixture.Capture(Draw);
         Reveal(gallery.SelectedNavigationLabel, UiAccessibilityRole.Link);
         var before = fixture.Capture(Draw);
-        var initial = Find("밝은 테마", UiAccessibilityRole.Switch).Node.Bounds;
+        var initial = Find("테마 전환", UiAccessibilityRole.Switch).Node.Bounds;
         var status = Find("갤러리 상태와 옵션", UiAccessibilityRole.Pane).Node.Bounds;
         Reveal("그룹 합성 예제", UiAccessibilityRole.Pane);
         var after = fixture.Capture(Draw);
-        var final = Find("밝은 테마", UiAccessibilityRole.Switch).Node.Bounds;
+        var final = Find("테마 전환", UiAccessibilityRole.Switch).Node.Bounds;
         var finalStatus = Find("갤러리 상태와 옵션", UiAccessibilityRole.Pane).Node.Bounds;
         Console.WriteLine($"GPU header theme : {initial} -> {final}; status : {status} -> {finalStatus}");
         var width = (int)fixture.FrameInfo.DisplaySize.X;

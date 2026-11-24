@@ -3,7 +3,7 @@
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_buffer_reference_uvec2 : require
 layout(local_size_x = 64) in;
-layout(constant_id = 1) const uint VectorSceneProtocolVersion = 4u;
+#include "vector_protocol.glsl"
 #include "vector_conic.glsl"
 layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer Scene { vec4 data[]; };
 layout(buffer_reference, std430, buffer_reference_align = 16) buffer Output { vec4 data[]; };
@@ -187,7 +187,7 @@ void emitPrimitive(vec4 ab, vec4 cd, uint kind, float rotation, vec4 tangents) {
 #include "vector_dash.glsl"
 #endif
 void main() {
-    if (VectorSceneProtocolVersion != 4u) return;
+    if (VectorSceneProtocolVersion != RequiredVectorSceneProtocol) return;
     uint program = pc.first + gl_GlobalInvocationID.y;
     if (program >= pc.programCount) return;
     Target target = pc.targets.data[program];

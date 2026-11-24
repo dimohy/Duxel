@@ -1,4 +1,5 @@
 using Duxel.Core;
+using Duxel.Gallery;
 
 internal static class CodeViewCacheTests
 {
@@ -12,6 +13,7 @@ internal static class CodeViewCacheTests
         VerifyClippedAccessibilityGeometry(check);
         VerifyScrollbarDragging(check);
         VerifySharedLineLayouts(check);
+        VerifySelectionContextMenu(check);
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
         ControlFontFixture.Configure(context);
         using var code = new UiCodeView("using Duxel.Core;\n" + string.Join("\n", Enumerable.Repeat("var message = \"한글 and English\"; // comment", 30)));
@@ -113,6 +115,120 @@ internal static class CodeViewCacheTests
             && scrolled.GetBoundedRanges(scrolledCharacter).Any(range => range.Start == 0)
             && original.GetCharacterExtents(0) == originalCharacter,
             "moving a code view updates accessibility ranges, carets and hit testing while preserving the prior snapshot");
+    }
+
+    internal static void VerifySelectionContextMenu(Action<bool, string> check)
+    {
+        VerifySelectionContextMenu(GalleryLanguage.English, "Text actions", "Copy", "Select All", check);
+        VerifySelectionContextMenu(GalleryLanguage.Korean, "텍스트 명령", "복사", "모두 선택", check);
+        VerifySelectionContextMenu(GalleryLanguage.Japanese, "テキスト操作", "コピー", "すべて選択", check);
+        VerifySelectionContextMenu(GalleryLanguage.SimplifiedChinese, "文本操作", "复制", "全选", check);
+    }
+
+    private static void VerifySelectionContextMenu(GalleryLanguage language, string menuName, string copyLabel,
+        string selectAllLabel, Action<bool, string> check)
+    {
+        using var locale = GalleryText.Use(language);
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        using var tree = new UiAccessibilityTree();
+        using var code = new UiCodeView("// 한글 group\n// more code", new(ShowToolbar : false), GalleryText.CodeViewLabels());
+        var clipboard = new SelectionClipboard();
+        ControlFontFixture.Configure(context);
+        var fonts = GalleryText.ConfigureFonts(new());
+        context.SetDirectTextSecondaryFontPath(fonts.DirectTextSecondaryFontPath);
+        context.SetTypographyFonts(fonts.Typography);
+        context.SetAccessibilityTree(tree);
+        context.SetClipboard(clipboard);
+        var input = new UiInputState(default, false, false, false, false, false, false, 0, 0, [], [], default, default);
+        var screen = new Screen(ui =>
+        {
+            ui.EnableRootViewportContentLayout(contentPadding: 0);
+            code.Render(ui);
+        });
+        float? menuOpacity = null;
+
+        UiAccessibilityNode[] Frame(UiInputState state)
+        {
+            context.NewFrame(new(.016f, new(640, 480), new(1, 1)), state, new(0, 0, 640, 480), UiTextSettings.Default);
+            context.Render(screen);
+            using var drawing = context.GetDrawData();
+            menuOpacity = drawing.DrawLists.SelectMany(list => list.Commands)
+                .Where(command => command.IsBackdropComposite).Select(command => (float?)command.Opacity).SingleOrDefault();
+            return tree.CaptureSnapshot().Elements.Select(element => element.Node).ToArray();
+        }
+
+        bool IsCopy(UiAccessibilityNode node) => node.Role == UiAccessibilityRole.MenuItem && node.Name == copyLabel;
+        bool IsSelectAll(UiAccessibilityNode node) => node.Role == UiAccessibilityRole.MenuItem && node.Name == selectAllLabel;
+        bool HasMenuName(UiAccessibilityNode node) => node.Role == UiAccessibilityRole.Menu && node.Name == menuName;
+        static UiVector2 Center(UiRect rect) => new(rect.X + rect.Width / 2, rect.Y + rect.Height / 2);
+        void Click(UiVector2 position)
+        {
+            Frame(input with { MousePosition = position, LeftMouseDown = true, LeftMousePressed = true });
+            Frame(input with { MousePosition = position, LeftMouseReleased = true });
+        }
+
+        var editor = Frame(input).Single(node => node.Role == UiAccessibilityRole.Edit);
+        var text = editor.TextLayout!;
+        var inside = Center(text.GetCharacterExtents(3));
+        var outside = Center(text.GetCharacterExtents(0));
+        UiInputState RightClick(UiVector2 position) => input with { MousePosition = position, RightMouseDown = true, RightMousePressed = true };
+        var emptyMenu = Frame(RightClick(inside));
+        var selectAll = emptyMenu.SingleOrDefault(IsSelectAll);
+        check(selectAll.Id is not null && emptyMenu.Any(HasMenuName) && !emptyMenu.Any(IsCopy),
+            $"{language}: empty CodeView selection exposes the localized Select All and menu name");
+        Frame(input with { MousePosition = inside, RightMouseReleased = true });
+        Click(Center(selectAll.Bounds));
+        var selected = Frame(input).Single(node => node.Role == UiAccessibilityRole.Edit).TextInfo;
+        check(selected?.SelectionStartUtf16 == 0 && selected.SelectionEndUtf16 == code.Code.Length && clipboard.GetText() == string.Empty,
+            $"{language}: Select All highlights the entire source without writing the clipboard");
+        Click(outside);
+        var collapsedMenu = Frame(RightClick(outside));
+        check(collapsedMenu.Any(IsSelectAll) && !collapsedMenu.Any(IsCopy), $"{language}: a left click clears Copy and restores Select All");
+        Frame(input with { MousePosition = outside, RightMouseReleased = true });
+        Frame(input with { KeyEvents = [new(UiKey.Escape, true, 0)] });
+        Frame(input);
+
+        var start = Center(text.GetRangeExtents(3, 3));
+        var end = Center(text.GetRangeExtents(17, 17));
+        Frame(input with { MousePosition = start, LeftMouseDown = true, LeftMousePressed = true });
+        Frame(input with { MousePosition = end, LeftMouseDown = true });
+        Frame(input with { MousePosition = end, LeftMouseReleased = true });
+        var outsideSelection = Frame(RightClick(outside));
+        var menu = outsideSelection.SingleOrDefault(IsCopy);
+        check(menu.Id is not null && !menu.Offscreen && !outsideSelection.Any(IsSelectAll),
+            $"{language}: right-clicking outside the selection inside CodeView immediately exposes localized Copy");
+        Frame(input with { MousePosition = outside, RightMouseReleased = true });
+        var earlyOpacity = menuOpacity;
+        Frame(input with { MousePosition = inside });
+        check(earlyOpacity is > 0 and < 1 && menuOpacity > earlyOpacity && menuOpacity < 1,
+            "the CodeView menu fades in across consecutive presentation frames");
+        Click(Center(menu.Bounds));
+        check(clipboard.GetText() == "한글 group\n// mo", "Copy works mid-animation and preserves the selected source newline");
+        check(!Frame(input).Any(IsCopy), "activating Copy removes the CodeView menu on the next frame");
+        check(Frame(RightClick(inside)).Any(IsCopy), $"{language}: right-clicking inside the retained selection exposes Copy");
+        Frame(input with { MousePosition = inside, RightMouseReleased = true });
+        check(menuOpacity is > 0 and < 1, "reopening a CodeView menu restarts its fade");
+        for (var frame = 0; frame < 12; frame++)
+            Frame(input with { MousePosition = inside });
+        check(Frame(input).Any(IsCopy) && menuOpacity is null,
+            "the open CodeView menu returns to ordinary opaque drawing once the fade ends");
+        var clearedAtAnchor = Frame(input with { MousePosition = inside, LeftMouseDown = true, LeftMousePressed = true });
+        var clearedText = clearedAtAnchor.Single(node => node.Role == UiAccessibilityRole.Edit).TextInfo;
+        check(clearedText is not null && clearedText.SelectionStartUtf16 == clearedText.SelectionEndUtf16,
+            $"{language}: clicking the context-menu anchor clears the selection");
+        check(!clearedAtAnchor.Any(HasMenuName) && !clearedAtAnchor.Any(IsCopy) && code.SelectionMenu is { Input.Open: false },
+            $"{language}: an open Copy menu closes on the same press that clears selection");
+        Frame(input with { MousePosition = inside, LeftMouseReleased = true });
+        var reopened = Frame(RightClick(inside));
+        check(reopened.Any(IsSelectAll) && !reopened.Any(IsCopy),
+            $"{language}: reopening after clearing selection offers only Select All");
+    }
+
+    private sealed class SelectionClipboard : IUiClipboard
+    {
+        private string _text = string.Empty;
+        public string GetText() => _text;
+        public void SetText(string text) => _text = text;
     }
     internal static void VerifySharedLineLayouts(Action<bool, string> check)
     {

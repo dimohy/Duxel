@@ -184,9 +184,11 @@ public sealed partial class UiImmediateContext
 
     private readonly record struct UiFontState(UiFontAtlas FontAtlas, float LineHeight, UiTextureId FontTexture);
     private readonly record struct UiFontSizeState(float PreviousPushedSize, UiFontAtlas FontAtlas, float LineHeight, UiTextureId FontTexture);
+    private bool _directTextRightToLeft;
     internal readonly record struct DirectTextCacheKey(string FontPath, string? SecondaryFontPath, string Text, float FontSize, long BackendGeneration)
     {
         internal bool ShortLived { get; init; }
+        internal bool RightToLeft { get; init; }
         internal int MaxIdleFrames => ShortLived ? ShortDirectTextCacheMaxIdleFrames : DirectTextCacheMaxIdleFrames;
 
         private object? ParagraphIdentity { get; init; }
@@ -201,7 +203,8 @@ public sealed partial class UiImmediateContext
             init => ParagraphIdentity = value;
         }
         public bool Equals(DirectTextCacheKey other) => FontPath == other.FontPath && SecondaryFontPath == other.SecondaryFontPath
-            && Text == other.Text && FontSize == other.FontSize && BackendGeneration == other.BackendGeneration && ShortLived == other.ShortLived
+            && Text == other.Text && FontSize == other.FontSize && BackendGeneration == other.BackendGeneration
+            && ShortLived == other.ShortLived && RightToLeft == other.RightToLeft
             && (ReferenceEquals(ParagraphIdentity, other.ParagraphIdentity)
                 || ParagraphRun is { } run && other.ParagraphRun is { } otherRun && run.RasterEquals(otherRun)
                 || WholeParagraph is { } paragraph && other.WholeParagraph is { } otherParagraph
@@ -210,7 +213,7 @@ public sealed partial class UiImmediateContext
             // The immutable raster hash already includes the font path and size.
             ? HashCode.Combine(run.RasterHash, BackendGeneration, ShortLived)
             : HashCode.Combine(FontPath, SecondaryFontPath, Text, FontSize, BackendGeneration,
-                WholeParagraph?.RasterHash ?? 0, ShortLived);
+                WholeParagraph?.RasterHash ?? 0, ShortLived, RightToLeft);
     }
     private long _directTextBackendGeneration;
     private ulong _directTextBackendRevision;
@@ -1257,7 +1260,8 @@ public sealed partial class UiImmediateContext
 
         if (IsVectorTextLayer())
         {
-            measured = MeasureVectorText(GetVectorTextMesh(text, sizeQuarter, fontSize), settings);
+            measured = MeasureVectorText(GetVectorTextMesh(text, sizeQuarter, fontSize,
+                outlineOnly: CanUseProjectedGlyphs(_builder)), settings);
             return true;
         }
 
@@ -1311,22 +1315,23 @@ public sealed partial class UiImmediateContext
         if (_platformTextBackend is IPlatformTextLayoutBackend layoutBackend)
         {
             var layout = default(PlatformTextLayoutResult);
-            var retained = _identityWidget?.TryGetTextLayout(_platformTextBackend, _directTextBackendRevision, key.FontPath, key.SecondaryFontPath, text, fontSize, out layout) ?? false;
+            var request = new PlatformTextMeasureRequest(key.FontPath, key.SecondaryFontPath, text, fontSize) { RightToLeft = key.RightToLeft };
+            var retained = _identityWidget?.TryGetTextLayout(_platformTextBackend, _directTextBackendRevision, request, out layout) ?? false;
             if (!retained)
             {
-                if (!layoutBackend.TryLayout(new(key.FontPath, key.SecondaryFontPath, text, fontSize), out layout))
+                if (!layoutBackend.TryLayout(request, out layout))
                     return false;
             }
             var layoutAdvance = ValidateDirectTextAdvance(layout.Advance);
             if (!retained)
-                _identityWidget?.RememberTextLayout(_platformTextBackend, _directTextBackendRevision, key.FontPath, key.SecondaryFontPath, text, fontSize, layout);
+                _identityWidget?.RememberTextLayout(_platformTextBackend, _directTextBackendRevision, request, layout);
             entry = new(null, layout.Width, layout.Height, layoutAdvance, layout.Baseline, layout.FontAscent,
                 _state.FrameCount, ReadOnlyMemory<byte>.Empty, HasRasterPixels: false, OriginX: layout.OriginX);
             StoreDirectTextEntry(key, entry, retainInContext: !retained);
             return true;
         }
         if (!_platformTextBackend!.TryRasterize(
-                new PlatformTextRasterizeRequest(_directTextPrimaryFontPath!, _directTextSecondaryFontPath, text, fontSize),
+                new PlatformTextRasterizeRequest(key.FontPath, key.SecondaryFontPath, text, fontSize) { RightToLeft = key.RightToLeft },
                 out var result))
         {
             return false;
@@ -1499,7 +1504,9 @@ public sealed partial class UiImmediateContext
 
         if (IsVectorTextLayer())
         {
-            var mesh = GetVectorTextMesh(text, sizeQuarter, fontSize);
+            if (TryRenderProjectedGlyphs(drawList, text, sizeQuarter, fontSize, position, color, clipRect, settings, out size))
+                return true;
+            var mesh = GetVectorTextMesh(text, sizeQuarter, fontSize, TrackProjectedText(drawList));
             size = MeasureVectorText(mesh, settings);
             RenderVectorText(drawList, mesh, position, color, clipRect);
             return true;
@@ -1562,7 +1569,10 @@ public sealed partial class UiImmediateContext
     };
 
     private DirectTextCacheKey CreateDirectTextCacheKey(string text, float fontSize) =>
-        new(_directTextPrimaryFontPath!, _directTextSecondaryFontPath, text, fontSize, _directTextBackendGeneration);
+        new(_directTextPrimaryFontPath!, _directTextSecondaryFontPath, text, fontSize, _directTextBackendGeneration)
+        {
+            RightToLeft = _directTextRightToLeft
+        };
 
     private bool ShouldUseDirectTextForText(string text, UiTextSettings settings)
     {
@@ -2204,7 +2214,10 @@ public sealed partial class UiImmediateContext
             scopes.Pop().Scope.Dispose();
     }
 
-    private UiDrawListBuilder GetOrCreatePopupBuilder(int depth) => _presentationLayers.Get(depth + 1);
+    private const int CaptionButtonLayerCount = 3;
+
+    private UiDrawListBuilder GetOrCreatePopupBuilder(int depth) =>
+        _presentationLayers.Get(depth + 1 + CaptionButtonLayerCount);
 
     private void AddRectFilled(UiRect rect, UiColor color, UiTextureId textureId) =>
         _builder.AddRectFilled(rect, color, textureId, CurrentClipRect);
@@ -2697,6 +2710,9 @@ public sealed partial class UiImmediateContext
     public UiDrawListBuilder GetBackgroundDrawList() => _baseBuilder;
 
     public UiDrawListBuilder GetForegroundDrawList() => _overlayBuilder;
+
+    // Each caption button has its own retained damage boundary, below popups.
+    internal UiDrawListBuilder GetCaptionButtonDrawList(int index) => _presentationLayers.Get(index + 1);
 
     public UiDrawListSharedData GetDrawListSharedData()
     {

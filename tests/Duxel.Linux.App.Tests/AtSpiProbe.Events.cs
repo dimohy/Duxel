@@ -24,13 +24,15 @@ internal static unsafe partial class AtSpiProbe
         internal nint Button, Input, Slider, Selection;
         internal nint AnnouncementSource;
         internal nint TooltipTarget;
+        internal nint RequiredTarget;
+        internal readonly List<int> RequiredStates = [];
         internal readonly List<NativeAnnouncementEvent> Announcements = [];
         internal readonly List<(string Type, int Index)> TooltipChildren = [];
         internal int Names, Focus, Values, Selections, TextSelections, Carets, LastCaret;
         internal int TextAttributes;
         internal readonly List<TextChange> TextChanges = [];
         internal Exception? Failure;
-        internal EventWatch(bool announcements = false, bool tooltipLifecycle = false)
+        internal EventWatch(bool announcements = false, bool tooltipLifecycle = false, bool requiredState = false)
         {
             _self = GCHandle.Alloc(this);
             try
@@ -42,6 +44,7 @@ internal static unsafe partial class AtSpiProbe
             {
                 var types = tooltipLifecycle ? new[] { "object:children-changed" }
                     : announcements ? new[] { "object:announcement" }
+                    : requiredState ? new[] { "object:state-changed:required" }
                     : new[] { "object:property-change:accessible-name", "object:state-changed:focused", "object:property-change:accessible-value", "object:selection-changed", "object:text-caret-moved", "object:text-selection-changed", "object:text-changed", "object:text-attributes-changed" };
                 foreach (var type in types)
                 {
@@ -88,6 +91,8 @@ internal static unsafe partial class AtSpiProbe
         {
             var value = *(EventPrefix*)nativeEvent;
             var type = Marshal.PtrToStringUTF8(value.Type);
+            if (watch.RequiredTarget != 0 && value.Source == watch.RequiredTarget && type == "object:state-changed:required")
+                watch.RequiredStates.Add(value.Detail1);
             if (watch.TooltipTarget != 0 && value.Source == watch.TooltipTarget
                 && type is "object:children-changed:add" or "object:children-changed:remove")
                 watch.TooltipChildren.Add((type, value.Detail1));

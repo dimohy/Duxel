@@ -495,7 +495,8 @@ platform.WaitEvents(1000);
 Check(oldInputWait.ElapsedMilliseconds < 500 && platform.Input.Snapshot.MousePosition == new UiVector2(48, 64),
     "native wait dispatches previously observed unread input instead of waiting for another message");
 
-using var renderer = new VulkanRendererBackend(platform, new VulkanRendererOptions(2, EnableVSync: false, MsaaSamples: 1));
+var validationMsaa = args.Contains("--projected-text-msaa4", StringComparer.Ordinal) ? 4 : 1;
+using var renderer = new VulkanRendererBackend(platform, new VulkanRendererOptions(2, EnableVSync: false, MsaaSamples: validationMsaa));
 renderer.CreateDeviceObjects();
 var size = platform.FramebufferSize;
 var width = size.Width;
@@ -551,6 +552,118 @@ UiDrawList TransferTriangle(UiImmediateContext ui, UiVector2 a, UiVector2 b, UiV
     return original;
 }
 UiColor Red = new(0xFF0000FF), Blue = new(0xFFFF0000), Green = new(0xFF00FF00);
+if (args.Contains("--projected-text-only", StringComparer.Ordinal))
+{
+    var cullViewport = new UiRect(20, 30, 400, 200);
+    var disjointViewport = new UiRect(0, 0, 1200, 900);
+    var cullPlane = new UiLayer3D(Matrix4x4.Identity) { Viewport = cullViewport };
+    var outsideBounds = new UiRect(430, 80, 30, 30);
+    Check(cullPlane.IsPlaneOutsideViewport(outsideBounds, disjointViewport),
+        "explicit viewport rejects an entirely offscreen plane before capture");
+    Check(!(cullPlane with { Viewport = null }).IsPlaneOutsideViewport(outsideBounds, disjointViewport),
+        "implicit viewport uses the display bounds");
+    Check(cullPlane.IsPlaneOutsideViewport(new(30, -20, 10, 10), disjointViewport),
+        "plane bounds can also be entirely outside the vertical viewport");
+    Check(!cullPlane.IsPlaneOutsideViewport(new(421, 80, 10, 10), disjointViewport),
+        "plane bounds keep a margin at the viewport edge");
+    Check(!(cullPlane with { PlaneModel = new(new(-25, 0)) }).IsPlaneOutsideViewport(outsideBounds, disjointViewport),
+        "plane-model translation can bring the same drawing back into view");
+    Check((cullPlane with { Transform = Matrix4x4.CreateScale(-1, 1, 1) })
+        .IsPlaneOutsideViewport(outsideBounds, disjointViewport), "mirrored projection keeps outside bounds outside");
+    Check(!(cullPlane with { Transform = Matrix4x4.CreateRotationZ(.2f) })
+        .IsPlaneOutsideViewport(outsideBounds, disjointViewport), "rotated planes remain eligible for capture");
+    var perspectiveCull = Matrix4x4.Identity;
+    perspectiveCull.M14 = .2f;
+    Check(!(cullPlane with { Transform = perspectiveCull }).IsPlaneOutsideViewport(outsideBounds, disjointViewport)
+        && !cullPlane.IsPlaneOutsideViewport(outsideBounds with { Y = float.NaN }, disjointViewport),
+        "perspective and nonfinite bounds remain eligible for capture");
+
+    ui.SetPlatformTextBackend(platform.TextBackend);
+    ui.SetDirectTextEnabled(true);
+    ui.SetDirectTextBaseFontSize(18);
+    ui.SetDirectTextPrimaryFontPath("C:/Windows/Fonts/segoeui.ttf");
+    var builds = 0;
+    var indices = 0;
+    byte[] ProjectedText(string name, float zoom, bool fineReference = false)
+    {
+        var transform = Matrix4x4.CreateScale(zoom, zoom, 1f) * Matrix4x4.CreateTranslation(0f, 0f, .2f);
+        // Keep the same projection at float precision while selecting the general perspective path.
+        if (fineReference)
+            transform.M14 = 1e-12f;
+        var id = fineReference ? "projected-text-reference" : "projected-text";
+        var options = new UiLayerOptions(false, 1f, default) { Scene3D = new(transform), ContentVersion = 0 };
+        return CaptureWithInspection(name, c =>
+        {
+            if (c.TryReplayLayer(id, options))
+                return;
+            if (c.BeginLayer(id, options))
+            {
+                builds++;
+                for (var row = 0; row < 4; row++)
+                {
+                    c.SetCursorScreenPos(new(width * .1f + row * 2.5f, height * .2f + row * 26.5f));
+                    c.TextColored(new(0xFFFFFFFF), "Orders Q3 2026 · customer IDs 109");
+                }
+            }
+            c.EndLayer();
+        }, data => indices = data.TotalIndexCount);
+    }
+
+    var coarsePixels = ProjectedText("coarse", .19f);
+    var coarseIndices = indices;
+    ProjectedText("coarse-held", .22f);
+    Check(builds == 1 && indices == coarseIndices, "zoom within the coarse band replays resident glyphs");
+    ProjectedText("medium", .27f);
+    var mediumIndices = indices;
+    Check(builds == 2 && mediumIndices > coarseIndices, "zooming in selects medium detail at the same content revision");
+    ProjectedText("medium-held-near-coarse", .22f);
+    Check(builds == 2 && indices == mediumIndices, "reversing within the lower overlap keeps medium detail resident");
+    var restored = ProjectedText("coarse-restored", .19f);
+    Check(builds == 3 && indices == coarseIndices && restored.AsSpan().SequenceEqual(coarsePixels),
+        "zooming out restores exactly the previous coarse image");
+    var coarseReference = ProjectedText("coarse-position-fine-reference", .19f, fineReference: true);
+    var fineIndices = indices;
+    Check(builds == 4 && fineIndices > mediumIndices, "perspective uses detailed glyphs even at small projection");
+    var mediumPixels = ProjectedText("medium-near-limit", .99f);
+    Check(builds == 5 && indices == mediumIndices, "medium detail remains resident below its screen error limit");
+    ProjectedText("fine", 1.01f);
+    Check(builds == 6 && indices == fineIndices, "zooming beyond the medium limit selects detailed glyphs");
+    ProjectedText("fine-held", .95f);
+    Check(builds == 6 && indices == fineIndices, "reversing within the upper overlap keeps detailed glyphs resident");
+    ProjectedText("medium-restored", .79f);
+    Check(builds == 7 && indices == mediumIndices, "zooming below the upper overlap restores medium detail");
+    var mediumReference = ProjectedText("medium-position-fine-reference", .99f, fineReference: true);
+    Check(builds == 7 && indices == fineIndices, "the comparison keeps an independent detailed layer");
+    (int Reference, int Actual, int Difference) CompareTextCoverage(byte[] reference, byte[] actual)
+    {
+        var referenceCoverage = 0;
+        var actualCoverage = 0;
+        var difference = 0;
+        for (var i = 0; i < reference.Length; i += 4)
+        {
+            referenceCoverage += reference[i];
+            actualCoverage += actual[i];
+            difference += Math.Abs(reference[i] - actual[i]);
+        }
+        return (referenceCoverage, actualCoverage, difference);
+    }
+    var coarseCoverage = CompareTextCoverage(coarseReference, coarsePixels);
+    var mediumCoverage = CompareTextCoverage(mediumReference, mediumPixels);
+    Check(coarseCoverage.Reference > 5_000 && coarseCoverage.Difference * 10 <= coarseCoverage.Reference
+        && Math.Abs(coarseCoverage.Actual - coarseCoverage.Reference) * 50 <= coarseCoverage.Reference,
+        $"coarse text retains antialiased glyph coverage ({coarseCoverage.Actual}/{coarseCoverage.Reference}, difference {coarseCoverage.Difference})");
+    Check(mediumCoverage.Reference > 5_000 && mediumCoverage.Difference * 10 <= mediumCoverage.Reference
+        && Math.Abs(mediumCoverage.Actual - mediumCoverage.Reference) * 50 <= mediumCoverage.Reference,
+        $"medium text retains antialiased glyph coverage ({mediumCoverage.Actual}/{mediumCoverage.Reference}, difference {mediumCoverage.Difference})");
+    File.WriteAllText(Path.Combine(output, "result.json"), JsonSerializer.Serialize(new
+    {
+        framework = RuntimeInformation.FrameworkDescription, passed = checks.Count, checks, validationMsaa,
+        coarseIndices, mediumIndices, fineIndices,
+        coarseCoverage = new { coarseCoverage.Reference, coarseCoverage.Actual, coarseCoverage.Difference },
+        mediumCoverage = new { mediumCoverage.Reference, mediumCoverage.Actual, mediumCoverage.Difference }
+    }));
+    return;
+}
 var wrappedHeight = 0f;
 var lineHeight = 0f;
 var rightColumnX = 0f;
@@ -2174,6 +2287,22 @@ try
         Check(commandOnlyBatch.DrawData.DrawLists.SelectMany(list => list.Commands).Any(command => command.Opacity == .25f),
             "retained batch rebuild preserves updated draw commands");
     }
+
+    var callbackCommands = commandOnlyCommands.ToArray();
+    callbackCommands[commandOnlyIndex] = callbackCommands[commandOnlyIndex] with { Callback = static (_, _) => { } };
+    var callbackList = commandOnlySource with
+    {
+        Commands = UiPooledList<UiDrawCommand>.FromArray(callbackCommands),
+        CommandStateStamp = UiDrawList.ComputeCommandStateStamp(callbackCommands),
+    };
+    var callbackLists = lifetimeData.DrawLists.AsSpan().ToArray();
+    callbackLists[0] = callbackList;
+    var callbackData = lifetimeData with { DrawLists = UiPooledList<UiDrawList>.FromArray(callbackLists) };
+    _ = callbackList.GetCommandFeatures();
+    using (var callbackBatch = batcher.Prepare(callbackData))
+        Check(batcher.BatchedSourceLists == 0 && ReferenceEquals(callbackData, callbackBatch.DrawData),
+            "cached callback features keep retained lists separate and in source order");
+
     var empty = lifetimeData with { DrawLists = UiPooledList<UiDrawList>.FromArray([]) };
     for (var i = 0; i < 181; i++) batcher.Prepare(empty).Dispose();
     using (var returned = batcher.Prepare(lifetimeData))

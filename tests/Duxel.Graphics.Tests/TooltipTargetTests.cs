@@ -34,6 +34,15 @@ internal static class TooltipTargetTests
         scene.Frame(0.01f, new(150, 70));
         scene.Frame(0.26f, new(150, 70));
         Check(scene.Second.IsOpen, "leaving and reentering permits a fresh show");
+        scene.Frame(0.01f, new(150, 70), press : true);
+        Check(!scene.Second.IsOpen && scene.Paints == 0, "pressing a hovered target closes its tooltip on the press frame");
+        scene.Frame(0.5f, new(150, 70));
+        Check(!scene.Second.IsOpen && scene.State.NextScheduledFrameTimeSeconds is null,
+            "a stationary pointer cannot reopen a click-dismissed tooltip");
+        scene.Frame(0.01f, new(-100, -100));
+        scene.Frame(0.01f, new(150, 70));
+        scene.Frame(0.26f, new(150, 70));
+        Check(scene.Second.IsOpen, "hover after click dismissal starts a normal show delay");
         scene.HideSecond = true;
         scene.Frame(0.01f, new(150, 70));
         Check(!scene.Second.IsOpen && scene.State.NextScheduledFrameTimeSeconds is null,
@@ -99,6 +108,10 @@ internal static class TooltipTargetTests
         input.Frame(0.01f, new(30, 70), press : true);
         input.Frame(0.26f, new(30, 70));
         var activeInput = input.State.ActiveId;
+        Check(!input.First.IsOpen && activeInput is not null, "text input activates even though its tooltip is dismissed by the press");
+        input.Frame(0.01f, new(-100, -100));
+        input.Frame(0.01f, new(30, 70));
+        input.Frame(0.26f, new(30, 70));
         Check(input.First.IsOpen && activeInput is not null, "real active text input hover opens its tooltip");
         input.Frame(0.01f, new(30, 70), [new(UiKey.Escape, true, KeyModifiers.None)]);
         Check(!input.First.IsOpen && input.State.ActiveId == activeInput,

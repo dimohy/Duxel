@@ -29,9 +29,10 @@ public sealed partial class UiImmediateContext
         var parent = _accessibilityParent;
         var widget = _accessibilityWidget;
         var previousBlocking = _blockingKeyboardTier;
+        var secondaryAction = completion?.SecondaryAction;
         if (popup.Open && ReferenceEquals(_activeMenu, popup))
             _blockingKeyboardTier = _popupTierDepth;
-        using var clip = context.Clip(bounds);
+        using var clip = context.Clip(secondaryAction is null ? bounds : completion!.Anchor);
         using var typography = TPresentation.BeginText(context, field);
         try
         {
@@ -53,7 +54,13 @@ public sealed partial class UiImmediateContext
             ApplyAccessibilityValue(root, ref text, options.MaxLength, false, bounds);
             if (_state.FocusedId == popup.Root)
                 _state.FocusedId = _ownedControlFocus = editorId;
-            var arrowBounds = TPresentation.ExpandBounds(bounds, field);
+            var arrowFrame = bounds;
+            if (secondaryAction is not null)
+            {
+                var anchor = completion!.Anchor;
+                arrowFrame = new(anchor.X + 4, anchor.Y, MathF.Max(0, anchor.Width - 8), anchor.Height);
+            }
+            var arrowBounds = TPresentation.ExpandBounds(arrowFrame, field);
             var arrow = ProcessButton(arrowName, arrowBounds, TBehavior.TriggerActivation);
             arrow = ApplyAccessibilityInvoke(arrowId, arrowBounds, arrow);
             _currentTabStops.RemoveAll(stop => stop.Id == arrowId);
@@ -62,6 +69,8 @@ public sealed partial class UiImmediateContext
             if (arrow.Activated)
                 _state.ActiveId = editorId;
             var layout = TPresentation.EditingLayout(context, bounds, field);
+            if (secondaryAction is not null)
+                layout = layout with { After = arrowBounds };
             layout.Validate();
             var keys = _keyEvents;
             var characters = _charEvents;
@@ -155,13 +164,16 @@ public sealed partial class UiImmediateContext
             popup.Prepare(menuId, filtered.Items);
             popup.TriggerId = root;
             popup.FocusOwnerId = editorId;
-            ExposeAccessibility(root, parent, UiAccessibilityRole.ComboBox, label, bounds, text, maxLength: options.MaxLength,
+            ExposeAccessibility(root, parent, UiAccessibilityRole.ComboBox, label, secondaryAction is null ? bounds : completion!.Anchor, text, maxLength: options.MaxLength,
                 invalid: field.Invalid);
             _accessibility?.SetSelectionPolicy(root, selection.Multiple);
             _accessibilityWidget = null;
             _accessibilityParent = root;
             ExposeAccessibility(editorId, root, UiAccessibilityRole.Edit, label, layout.EditingBounds, text,
                 maxLength: options.MaxLength, invalid: field.Invalid);
+            if (secondaryAction is not null)
+                completion!.SecondaryFocused = RenderAllocatedChild(_builder, secondaryAction, completion.SecondaryBounds,
+                    completion.Anchor, constrainLayout : true);
             ExposeAccessibility(arrowId, root, UiAccessibilityRole.Button, field.ExpandLabel, arrowBounds, focusable: false, valuePattern: false);
             var interaction = new UiButtonInteraction(arrow.Activated || !typedCommit && !nativeSelected && !popup.Open && edit.Active
                 && (editedText || _leftMousePressed && Contains(layout.EditingBounds, _mousePosition)), edit.Hovered, edit.Held)

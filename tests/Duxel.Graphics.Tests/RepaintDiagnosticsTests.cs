@@ -163,5 +163,42 @@ internal static class RepaintDiagnosticsTests
         stateContext.State.RendererFrameMetrics = metrics();
         check(!metrics().RepaintHighlightActive && stateContext.State.GetScheduledFrameWaitMilliseconds(0) == Timeout.Infinite,
             "diagnostic-only expiry does not restart its pulse when conservative projected scenes require a full repaint");
+
+        var pointerX = 10f;
+        const float left = 96;
+        const float width = Duxel.App.DuxelCaptionButtonRenderer.ButtonWidth;
+        void DrawCaption(UiImmediateContext ui)
+        {
+            ui.SetRepaintHighlights(false);
+            foreach (var button in Enum.GetValues<Duxel.App.DuxelCaptionButtonKind>())
+            {
+                var x = left + (int)button * width;
+                Duxel.App.DuxelCaptionButtonRenderer.Draw(ui, new(x, 0, width, 28), button,
+                    isMaximized : false, hovered : pointerX >= x && pointerX < x + width, pressed : false);
+            }
+        }
+        for (var i = 0; i < 12; i++) capture("caption-rest-" + i, DrawCaption);
+        pointerX = 18;
+        capture("caption-pointer-moves-outside", DrawCaption);
+        check(metrics().RepaintBounds == default && metrics().DrawCalls == 0,
+            "moving outside the caption buttons draws none of their glyphs");
+        pointerX = left + width * 2 + 12;
+        var hoveredClose = capture("caption-close-hover", DrawCaption);
+        check(hoveredClose.AsSpan((stride + 193) * 4, 3).SequenceEqual(new byte[] { 232, 17, 35 })
+            && hoveredClose.AsSpan((26 * stride + 238) * 4, 3).SequenceEqual(new byte[] { 232, 17, 35 }),
+            "Close hover fills opposite corners of its caption button cell");
+        var close = metrics().RepaintBounds;
+        check(close.Width > 0 && close.X >= left + width * 2 - 2 && close.X + close.Width <= left + width * 3 + 2,
+            "hovering Close repairs only the Close button : " + close);
+        for (var i = 0; i < 12; i++) capture("caption-close-settle-" + i, DrawCaption);
+        pointerX += 5;
+        capture("caption-pointer-moves-within-close", DrawCaption);
+        check(metrics().RepaintBounds == default && metrics().DrawCalls == 0,
+            "moving inside the same caption button performs zero content redraws");
+        pointerX = left + width + 10;
+        capture("caption-close-to-maximize", DrawCaption);
+        var transfer = metrics().RepaintBounds;
+        check(transfer.Width > 0 && transfer.X >= left + width - 2 && transfer.X + transfer.Width <= left + width * 3 + 2,
+            "moving between two caption buttons leaves Minimize unchanged : " + transfer);
     }
 }

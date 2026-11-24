@@ -87,6 +87,79 @@ internal static class FieldWidgetTests
         check(Fluent.ComponentNames.Contains("Field")&&!Fluent.MissingComponentNames.Contains("Field"),"generated standard catalog exposes Field and updates required coverage");
         field.Dispose();check(input.Disposed&&context.State.TextInputStorage==(0,0),"field disposal releases nested editor and editing storage");
         check(scopesRestored,"field metadata scopes are restored after every successful frame");
+        VerifySwitchField(check);
+    }
+
+    private static void VerifySwitchField(Action<bool, string> check)
+    {
+        using var tree = new UiAccessibilityTree();
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        context.SetAccessibilityTree(tree);
+        ControlFontFixture.Configure(context);
+        var value = false;
+        var writes = 0;
+        var control = Fluent.Switch(string.Empty, new UiBinding<bool>(() => value, next => { value = next; writes++; }));
+        var options = new UiFieldOptions { Label = "Required setting", Hint = "Enable this setting",
+            Required = true, ValidationMessage = "Setting is required" };
+        using var field = Fluent.Field(control, new(220, 36), options);
+        var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        var screen = new Screen(ui =>
+        {
+            ui.SetCursorScreenPos(new(10, 10));
+            field.Render(ui);
+        });
+        void Step(UiInputState input)
+        {
+            context.NewFrame(new(1f / 60, new(320, 240), new(1, 1)), input, new(0, 0, 320, 240), UiTextSettings.Default);
+            context.Render(screen);
+            using var draw = context.GetDrawData();
+        }
+        UiAccessibilityElement ReadSwitch()
+        {
+            for (var id = tree.Root.First; id is not null;)
+            {
+                if (!tree.TryGet(id, out var entry))
+                    break;
+                if (entry.Node.Role == UiAccessibilityRole.Switch)
+                    return entry;
+                id = entry.Next;
+            }
+            throw new InvalidOperationException("Missing Switch inside Field.");
+        }
+        void ClickLabel()
+        {
+            Step(idle with { MousePosition = new(15, 18), LeftMousePressed = true, LeftMouseDown = true });
+            Step(idle with { MousePosition = new(15, 18), LeftMouseReleased = true });
+        }
+        void Space()
+        {
+            Step(idle with { KeyEvents = [new(UiKey.Space, true, default)] });
+            Step(idle with { KeyEvents = [new(UiKey.Space, false, default)] });
+        }
+
+        Step(idle);
+        var initial = ReadSwitch();
+        check(initial.Node is { Name: "Required setting", Required: true, Invalid: true, Hint: "Enable this setting",
+            ValidationMessage: "Setting is required" }, "Switch publishes the Field label, required state, hint and validation message");
+        control.DisabledFocusable = true;
+        ClickLabel();
+        check(tree.Root.Focus == initial.Node.Id && !value && writes == 0,
+            "Field label focuses a focus-only Switch without changing its value");
+        Space();
+        check(!value && writes == 0, "A focus-only Switch remains locked after keyboard focus from its Field label");
+        field.Options = options with { Disabled = true };
+        ClickLabel();
+        check(tree.Root.Focus != initial.Node.Id && !ReadSwitch().Node.CanReceiveFocus && writes == 0,
+            "An explicitly disabled Field prevents its label from focusing a focus-only Switch");
+        field.Options = options with { Label = "Updated setting", Required = false, ValidationMessage = null };
+        control.DisabledFocusable = false;
+        ClickLabel();
+        var updated = ReadSwitch();
+        check(updated.RuntimeId == initial.RuntimeId && updated.Node is { Name: "Updated setting", Required: false, Invalid: false }
+            && tree.Root.Focus == initial.Node.Id && writes == 0,
+            "Field updates keep Switch identity and an ordinary label click only moves focus");
+        Space();
+        check(value && writes == 1, "Space activates the unlocked Switch exactly once after Field label focus");
     }
     private sealed class Screen(Action<UiImmediateContext> draw):UiScreen{public override void Render(UiImmediateContext ui)=>draw(ui);}
     private sealed class View(Action<UiImmediateContext> draw):IUiView{public void Render(UiImmediateContext ui)=>draw(ui);}

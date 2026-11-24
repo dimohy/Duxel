@@ -27,7 +27,8 @@ internal sealed class AccordionPage : UiWidget, IGallerySourcePage
         var clickFormat = GalleryText.Get("Body button clicks: {0}");
         var action = Fluent.Button(string.Format(clickFormat, clicks));
         action.Activated = () => action.Label = string.Format(clickFormat, ++clicks);
-        var options = new UiAccordionOptions(Collapsible : true);
+        var options = new UiAccordionOptions(Collapsible : true) { AnimatePanels = true };
+        var direction = UiFlowDirection.Inherit;
         var sample = GallerySample.Create(() => Fluent.Accordion(GalleryText.Get("Accordion example"),
             new(() => _open.Value, next =>
             {
@@ -41,10 +42,12 @@ internal sealed class AccordionPage : UiWidget, IGallerySourcePage
                 new("button", GalleryText.Get("Body button and keyboard navigation"), Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
                     Fluent.Body1(GalleryText.Get("Use Tab to move from the header into the panel and on to the next header. Press Enter or Space to open or close a panel.")), action)),
                 new("disabled", GalleryText.Get("Disabled header"), Fluent.Body1(GalleryText.Get("A disabled header cannot be opened with a pointer, keyboard, or accessibility request.")), false)
-            }, 640, options));
+            }, 640, options),
+            layout : preview => new UiThemeProvider(preview, paintBackground : false) { Direction = direction });
         var accordion = sample.Preview;
+        var provider = (UiThemeProvider)sample.PreviewLayout;
         var factory = sample.Source;
-        sample.BindSource(() => (accordion.Options, Open : _open.Value, Memo : _memo.Value, Clicks : clicks), state =>
+        sample.BindSource(() => (accordion.Options, Open : _open.Value, Memo : _memo.Value, Clicks : clicks, provider.Direction), state =>
         {
             var opened = state.Open.IsEmpty ? "ImmutableArray<string>.Empty"
                 : "ImmutableArray.Create<string>(" + string.Join(", ", state.Open.Select(GallerySample.String)) + ")";
@@ -58,7 +61,9 @@ internal sealed class AccordionPage : UiWidget, IGallerySourcePage
                 + "action.Activated = () => action.Label = string.Format(clickFormat, ++clicks);\n"
                 + $"var options = new UiAccordionOptions(Multiple : {GallerySample.Boolean(state.Options.Multiple)},\n"
                 + $"    Collapsible : {GallerySample.Boolean(state.Options.Collapsible)}, Size : UiAccordionSize.{state.Options.Size},\n"
-                + $"    ChevronPosition : UiAccordionChevronPosition.{state.Options.ChevronPosition});\n\n"
+                + $"    ChevronPosition : UiAccordionChevronPosition.{state.Options.ChevronPosition})"
+                + $" {{ AnimatePanels = {GallerySample.Boolean(state.Options.AnimatePanels)} }};\n\n"
+                + $"var direction = UiFlowDirection.{state.Direction};\n"
                 + factory;
         });
         _samples.Add(sample);
@@ -95,9 +100,15 @@ internal sealed class AccordionPage : UiWidget, IGallerySourcePage
             accordion.Options = accordion.Options with { Size = next };
             size.Label = SizeLabel(next);
         };
+        var rightToLeft = Fluent.Switch(GalleryText.Get("Right-to-left layout"),
+            new UiBinding<bool>(() => provider.Direction == UiFlowDirection.RightToLeft,
+                value => provider.Direction = value ? UiFlowDirection.RightToLeft : UiFlowDirection.Inherit));
+        var animate = Fluent.Switch(GalleryText.Get("Animate panels"), new UiBinding<bool>(() => accordion.Options.AnimatePanels,
+            value => accordion.Options = accordion.Options with { AnimatePanels = value }));
         return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
             Fluent.Body1(GalleryText.Get("Panels start collapsed. Select a header to open its content and enter some text. You can also inspect the accessibility relationship between the header and panel.")),
-            Dux.Row(new(Spacing : 8), multiple, collapsible, chevron, size), status, sample);
+            Dux.Wrap(new(Spacing : 8, RunSpacing : 8), multiple, collapsible, chevron, size),
+            Dux.Wrap(new(Spacing : 8, RunSpacing : 8), rightToLeft, animate), status, sample);
     });
 
     private static string SizeLabel(UiAccordionSize size) => GalleryText.Format("Header size: {0}", GalleryText.Get(size switch

@@ -6,11 +6,13 @@ public sealed record UiProgressIndicatorOptions(string? Label = null, string? De
 {
     public UiProgressColor Color { get; init; } = UiProgressColor.Brand;
     public bool FinishIndeterminateCycle { get; init; }
+    public bool RightToLeft { get; init; }
 
     internal UiProgressValue TrackValue => new(PercentComplete, Shape : UiProgressShape.Square,
         Color : Color, ReducedMotion : ReducedMotion)
     {
-        FinishIndeterminateCycle = FinishIndeterminateCycle
+        FinishIndeterminateCycle = FinishIndeterminateCycle,
+        RightToLeft = RightToLeft
     };
 
     internal void Validate()

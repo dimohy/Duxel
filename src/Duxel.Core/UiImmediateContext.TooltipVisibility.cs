@@ -173,12 +173,12 @@ public sealed partial class UiImmediateContext
 
     private void ObserveControlledTooltip<TBehavior>(IUiTooltipTarget owner, bool visible,
         Action<UiTooltipVisibilityChange>? callback, string text, UiTooltipOptions options,
-        TooltipAccessibilityScope? semantics, UiRect bounds, bool available, bool hovered, bool focused)
+        TooltipAccessibilityScope? semantics, UiRect bounds, bool available, bool hovered, bool focused, bool pointerPressed)
         where TBehavior : IUiTooltipBehavior
     {
         var tooltip = FindControlledTooltip(owner);
         var surfaceHovered = available && visible && ReferenceEquals(_tooltipSurfaceUnderPointer, owner);
-        var requested = available && TBehavior.Requested(new(hovered, focused, surfaceHovered));
+        var requested = available && !owner.PointerDismissed && IsTooltipRequested<TBehavior>(hovered, focused, surfaceHovered);
         if (!available || tooltip is null && !visible && !requested)
         {
             return;
@@ -205,6 +205,8 @@ public sealed partial class UiImmediateContext
         }
         tooltip.Focused = focused;
         tooltip.Visible = visible;
+        if (pointerPressed && visible)
+            RequestControlledTooltipHide(tooltip, UiTooltipVisibilityReason.Interaction);
     }
 
     private void ResolveControlledTooltips(double now)

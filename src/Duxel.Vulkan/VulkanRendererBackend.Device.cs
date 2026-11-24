@@ -30,9 +30,10 @@ public sealed unsafe partial class VulkanRendererBackend
     private uint _dedicatedTransferQueueFamily;
     private VulkanDevicePolicy _devicePolicy;
 
-    private void ConfigureMsaaSampleCount()
+    private void ConfigureMsaaSampleCount() => _msaaSampleCount = ResolveMsaaSampleCount(_options.MsaaSamples);
+
+    private SampleCountFlags ResolveMsaaSampleCount(int requested)
     {
-        var requested = _options.MsaaSamples;
         if (requested is not (1 or 2 or 4 or 8))
         {
             requested = 4;
@@ -40,7 +41,7 @@ public sealed unsafe partial class VulkanRendererBackend
 
         var supported = _devicePolicy.FramebufferColorSampleCounts;
 
-        _msaaSampleCount = requested switch
+        return requested switch
         {
             >= 8 when (supported & SampleCountFlags.Count8Bit) != 0 => SampleCountFlags.Count8Bit,
             >= 4 when (supported & SampleCountFlags.Count4Bit) != 0 => SampleCountFlags.Count4Bit,
@@ -128,15 +129,29 @@ public sealed unsafe partial class VulkanRendererBackend
         var devices = stackalloc PhysicalDevice[(int)deviceCount];
         Check(_vk.EnumeratePhysicalDevices(_instance, &deviceCount, devices));
 
+        var rejected = new List<string>();
         for (var i = 0; i < deviceCount; i++)
         {
             var device = devices[i];
+            _vk.GetPhysicalDeviceProperties(device, out var properties);
             if (TryFindGraphicsQueue(device, out var queueFamily, out var graphicsQueueTimestampValidBits))
             {
+                var missingExtensions = BaseDeviceExtensions.Where(extension => !_vk.IsDeviceExtensionPresent(device, extension)).ToArray();
+                if (missingExtensions.Length != 0)
+                {
+                    rejected.Add($"{GetPhysicalDeviceName(properties)} is missing device extensions ({string.Join(", ", missingExtensions)}).");
+                    continue;
+                }
+                var missingFeatures = FindMissingGpuDrivenRendererFeatures(device);
+                if (missingFeatures is not null)
+                {
+                    rejected.Add($"{GetPhysicalDeviceName(properties)} is missing required features ({string.Join(", ", missingFeatures)}).");
+                    continue;
+                }
+
                 _physicalDevice = device;
                 _graphicsQueueFamily = queueFamily;
                 _dedicatedTransferQueueFamily = FindDedicatedTransferQueueFamily(device, queueFamily);
-                _vk.GetPhysicalDeviceProperties(device, out var properties);
                 _standardSampleLocations = properties.Limits.StandardSampleLocations != 0;
                 SelectValidationStandardSampleLocations(ref _standardSampleLocations);
                 _maxImageDimension2D=properties.Limits.MaxImageDimension2D;
@@ -155,9 +170,10 @@ public sealed unsafe partial class VulkanRendererBackend
                 _pipelineCachePath = CreatePipelineCachePath(_devicePolicy);
                 return;
             }
+            rejected.Add($"{GetPhysicalDeviceName(properties)} has no graphics queue that can present to the surface.");
         }
 
-        throw new InvalidOperationException("No suitable Vulkan physical device found.");
+        throw new InvalidOperationException("No suitable Vulkan physical device found. " + string.Join(" ", rejected));
     }
 
     private DriverId GetDriverId(PhysicalDevice device, uint apiVersion)
@@ -241,8 +257,6 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private unsafe void CreateDevice()
     {
-        RequireGpuDrivenRendererFeatures();
-
         var queuePriority = 1.0f;
         var queueCreateInfos = stackalloc DeviceQueueCreateInfo[2];
         var queueCreateInfoCount = 0u;
@@ -354,7 +368,7 @@ public sealed unsafe partial class VulkanRendererBackend
     partial void SelectValidationViewportClipPlanes(ref bool enabled);
     partial void SelectValidationStandardSampleLocations(ref bool enabled);
 
-    private void RequireGpuDrivenRendererFeatures()
+    private List<string>? FindMissingGpuDrivenRendererFeatures(PhysicalDevice device)
     {
         var dynamicRenderingFeatures = new PhysicalDeviceDynamicRenderingFeatures
         {
@@ -375,7 +389,7 @@ public sealed unsafe partial class VulkanRendererBackend
             SType = StructureType.PhysicalDeviceFeatures2,
             PNext = &descriptorIndexingFeatures,
         };
-        _vk.GetPhysicalDeviceFeatures2(_physicalDevice, &features2);
+        _vk.GetPhysicalDeviceFeatures2(device, &features2);
 
         List<string>? missing = null;
         Require(features2.Features.ShaderSampledImageArrayDynamicIndexing, "shaderSampledImageArrayDynamicIndexing");
@@ -385,9 +399,7 @@ public sealed unsafe partial class VulkanRendererBackend
         Require(descriptorIndexingFeatures.RuntimeDescriptorArray, "runtimeDescriptorArray");
         Require(bufferDeviceAddressFeatures.BufferDeviceAddress, "bufferDeviceAddress");
         Require(dynamicRenderingFeatures.DynamicRendering, "dynamicRendering");
-        if (missing is not null)
-            throw new InvalidOperationException(
-                "Selected Vulkan device is missing required features: " + string.Join(", ", missing) + ".");
+        return missing;
 
         void Require(uint supported, string name)
         {

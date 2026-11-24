@@ -98,7 +98,10 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBacke
     {
         lock (_sync)
         {
-            var key = new PlatformTextMeasureRequest(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize);
+            var key = new PlatformTextMeasureRequest(request.FontPath, request.SecondaryFontPath, request.Text, request.FontSize)
+            {
+                RightToLeft = request.RightToLeft
+            };
             var measured = _lastMeasured;
             _lastMeasured = null;
             var run = measured is { } previous && previous.Key == key && HasLiveFonts(previous.Layout)
@@ -142,7 +145,7 @@ public sealed unsafe partial class LinuxPlatformTextBackend : IPlatformTextBacke
         foreach (var line in request.Text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n'))
         {
             var text = line.Replace("\t", "    ", StringComparison.Ordinal);
-            runs.AddRange(ShapeParagraph(text, primary, secondary, y, out var lineAdvance));
+            runs.AddRange(ShapeParagraph(text, primary, secondary, y, out var lineAdvance, request.RightToLeft));
             advance = Math.Max(advance, lineAdvance);
             y += lineHeight;
         }

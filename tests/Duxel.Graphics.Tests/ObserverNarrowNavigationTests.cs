@@ -55,13 +55,13 @@ internal static class ObserverNarrowNavigationTests
             && initial.Node.LabeledBy is null && initial.Node.Bounds.Width >= 300,
             "gallery compact main content is named and uses the full available width while navigation is closed");
         OpenNavigation();
-        var required = Fluent.RequiredComponentNames.ToArray().ToDictionary(GalleryText.Get, StringComparer.Ordinal);
+        var required = Fluent.RequiredComponentNames.ToArray().ToDictionary(static name => name, StringComparer.Ordinal);
         var missing = Fluent.MissingComponentNames.ToArray().ToHashSet(StringComparer.Ordinal);
         var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(9));
         var navigation = tree.CaptureSnapshot().Elements;
         var componentTabs = navigation.Where(element => element.Node.Role == UiAccessibilityRole.Link && required.ContainsKey(element.Node.Name)).ToArray();
         check(componentTabs.Length == required.Count && componentTabs.Select(static element => element.Node.Name).Distinct(StringComparer.Ordinal).Count() == required.Count,
-            "gallery lists every canonical Fluent component exactly once using its localized label");
+            "gallery lists every Fluent component exactly once using its canonical name");
         check(componentTabs.All(element =>
         {
             var component = required[element.Node.Name];

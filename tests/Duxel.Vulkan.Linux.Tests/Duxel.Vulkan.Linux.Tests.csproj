@@ -18,6 +18,9 @@
     <Compile Include="../Duxel.Graphics.Tests/ViewportClippingTests.cs" Link="ViewportClippingTests.cs" />
     <Compile Include="../Duxel.Graphics.Tests/GlyphTextureReplayTests.cs" Link="GlyphTextureReplayTests.cs" />
     <Compile Include="../Duxel.Graphics.Tests/TextImageMemoryTests.cs" Link="TextImageMemoryTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/GlyphCameraTests.cs" Link="GlyphCameraTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/ProjectedGlyphMaterialTests.cs" Link="ProjectedGlyphMaterialTests.cs" />
+    <Compile Include="../Duxel.Graphics.Tests/ProjectedGlyphResidencyTests.cs" Link="ProjectedGlyphResidencyTests.cs" />
     <Compile Include="../Duxel.Svg.Managed.Tests/BrowserPng.cs" Link="BrowserPng.cs" />
     <Compile Include="../Duxel.Graphics.Tests/PaintGroupRenderingTests.cs" Link="PaintGroupRenderingTests.cs" />
     <Compile Include="../Duxel.Graphics.Tests/SkeletonRenderingTests.cs" Link="SkeletonRenderingTests.cs" />

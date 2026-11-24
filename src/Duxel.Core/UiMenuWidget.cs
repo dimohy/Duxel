@@ -20,6 +20,18 @@ public readonly record struct UiMenuOption(string Value, string Label, bool Enab
     {
         get; init;
     }
+    /// <summary>Description below the label. Its text is included in the accessible name.</summary>
+    public string? SubText { get; init; }
+    internal UiMenuOption[]? SubmenuItems { get; private init; }
+    public ReadOnlySpan<UiMenuOption> Children => SubmenuItems;
+
+    /// <summary>Creates a menu item that opens another menu.</summary>
+    public static UiMenuOption Submenu(string value, string label, ReadOnlySpan<UiMenuOption> items, bool enabled = true)
+    {
+        if (items.IsEmpty)
+            throw new ArgumentException("A submenu requires at least one item.", nameof(items));
+        return new(value, label, enabled) { SubmenuItems = UiMenuItems.Validate(items) };
+    }
 
     public static UiMenuOption Checkbox(string value, string label, UiBinding<bool> state, bool enabled = true)
     {
@@ -63,6 +75,8 @@ public sealed class UiMenuRadioGroup
 /// <summary>One frame's resolved content, including the menu-wide checkmark column.</summary>
 public readonly record struct UiMenuItemContent(string Label, bool? Checked, bool HasCheckmarks)
 {
+    public string? SubText { get; init; }
+    public bool HasSubmenu { get; init; }
     internal bool MultipleSelection
     {
         get; init;
@@ -89,13 +103,16 @@ public readonly record struct UiMenuOptions(float MinimumWidth = 160, float Item
     {
         get; init;
     }
+    /// <summary>Optional inactivity timeout while the pointer crosses from an open menu item to its submenu.</summary>
+    public double? SubmenuPointerProtectionSeconds { get; init; }
     public UiMenuOptions() : this(160, 32, 4, false) { }
     public UiMenuOptions Validate()
     {
         if (!float.IsFinite(MinimumWidth) || MinimumWidth <= 0 || !float.IsFinite(ItemHeight) || ItemHeight <= 0
             || !float.IsFinite(Padding) || Padding < 0 || !float.IsFinite(ItemSpacing) || ItemSpacing < 0
             || MaximumWidth is { } maximum && (!float.IsFinite(maximum) || maximum < MinimumWidth)
-            || MaximumHeight is { } height && (!float.IsFinite(height) || height < ItemHeight + 2 * Padding))
+            || MaximumHeight is { } height && (!float.IsFinite(height) || height < ItemHeight + 2 * Padding)
+            || SubmenuPointerProtectionSeconds is { } timeout && (!double.IsFinite(timeout) || timeout <= 0))
             throw new ArgumentOutOfRangeException(nameof(UiMenuOptions));
         return this;
     }
@@ -112,6 +129,9 @@ public interface IUiMenuPresentation
     static abstract UiVector2 MeasureTrigger(UiControlContext context, string label);
     static abstract void PaintTrigger(UiControlContext context, string label, UiRect bounds, UiButtonInteraction interaction);
     static abstract float MeasureItem(UiControlContext context, string label);
+    /// <summary>Measures a row after the popup and scroll gutter determine its width.</summary>
+    static virtual float MeasureItemHeight(UiControlContext context, UiMenuItemContent content, float width, UiMenuOptions options)
+        => options.ItemHeight;
     static abstract void PaintSurface(UiControlContext context, UiRect bounds);
     static abstract void PaintItem(UiControlContext context, string label, UiRect bounds, UiButtonInteraction interaction, UiMenuOptions options);
     static virtual float MeasureItem(UiControlContext context, UiMenuItemContent content) =>
@@ -147,6 +167,8 @@ public readonly struct UiThemeMenuPresentation : IUiMenuPresentation
 
     public static float MeasureItem(UiControlContext context, UiMenuItemContent content) =>
         UiMenuContentLayout.Measure(context, content, 12);
+    public static float MeasureItemHeight(UiControlContext context, UiMenuItemContent content, float width, UiMenuOptions options) =>
+        UiMenuContentLayout.MeasureHeight(context, content, width, options, 12, 12, wrapLabel : false);
 
     public static void PaintItem(UiControlContext context, UiMenuItemContent content, UiRect bounds, UiButtonInteraction interaction, UiMenuOptions options)
     {
@@ -162,6 +184,14 @@ public readonly struct UiThemeMenuPresentation : IUiMenuPresentation
 
 internal sealed class UiMenuInputState
 {
+    internal UiMenuInputState? Parent;
+    internal UiMenuInputState? Child;
+    internal string? ChildValue;
+    internal UiVector2 LastPointer;
+    internal string? HoverBranch;
+    internal double? HoverDeadline;
+    internal UiVector2? SubmenuPointerOrigin;
+    internal double? SubmenuPointerDeadline;
     internal int PublishedFrame = int.MinValue;
     internal string? PublishedRoot;
     internal bool Open;
@@ -182,12 +212,16 @@ internal sealed class UiMenuInputState
     internal int BlockingFrame = -1;
     internal UiMenuOption[]? IdentityItems;
     internal string[] ItemIds = [];
+    internal string?[]? SubTextNames;
     internal bool?[] Checked = [];
+    internal double[] ItemOffsets = [];
+    internal float[] ItemHeights = [];
     internal UiMenuRadioGroup[] Groups = [];
     internal string[] GroupIds = [];
     internal int[] GroupIndex = [], GroupStarts = [], GroupEnds = [];
     internal string?[] Selection = [];
     internal string? Root;
+    internal UiMenuEntrance? Entrance;
     internal void Prepare(string root, UiMenuOption[] items)
     {
         if (Root == root && ReferenceEquals(IdentityItems, items))
@@ -196,7 +230,10 @@ internal sealed class UiMenuInputState
         RevealFocused = true;
         IdentityItems = items;
         ItemIds = new string[items.Length];
+        SubTextNames = null;
         Checked = new bool?[items.Length];
+        ItemOffsets = new double[items.Length];
+        ItemHeights = new float[items.Length];
         GroupIndex = new int[items.Length];
         Array.Fill(GroupIndex, -1);
         var groups = new List<UiMenuRadioGroup>();
@@ -205,6 +242,11 @@ internal sealed class UiMenuInputState
         for (var i = 0; i < items.Length; i++)
         {
             ItemIds[i] = root + "##item-" + Convert.ToHexString(System.Runtime.InteropServices.MemoryMarshal.AsBytes(items[i].Value.AsSpan()));
+            if (items[i].SubText is { } subText)
+            {
+                var name = string.Join(' ', subText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+                (SubTextNames ??= new string?[items.Length])[i] = items[i].Label + " " + name;
+            }
             if (items[i].RadioGroup is not { } group)
                 continue;
             var index = groups.IndexOf(group);
@@ -223,6 +265,20 @@ internal sealed class UiMenuInputState
         GroupEnds = ends.ToArray();
         Selection = new string?[Groups.Length];
         GroupIds = Groups.Select(group => root + "##radio-" + Convert.ToHexString(System.Runtime.InteropServices.MemoryMarshal.AsBytes(group.Name.AsSpan()))).ToArray();
+    }
+}
+
+internal sealed class UiMenuEntrance
+{
+    internal const double DurationSeconds = .16;
+    internal double? StartedAt;
+    internal UiPaintGroup? Paint;
+
+    internal void Reset()
+    {
+        StartedAt = null;
+        Paint?.Dispose();
+        Paint = null;
     }
 }
 
@@ -274,50 +330,14 @@ public class UiMenu<TBehavior, TPresentation> : UiControlWidget
         ArgumentException.ThrowIfNullOrWhiteSpace(label);
         ArgumentNullException.ThrowIfNull(invoked);
         _options = (options ?? TPresentation.DefaultOptions).Validate();
-        _items = ValidateItems(items);
+        _items = UiMenuItems.Validate(items);
         Label = label;
         _invoked = invoked;
-    }
-    private static UiMenuOption[] ValidateItems(ReadOnlySpan<UiMenuOption> items)
-    {
-        var values = new HashSet<string>(StringComparer.Ordinal);
-        var names = new Dictionary<string, UiMenuRadioGroup>(StringComparer.Ordinal);
-        var bindings = new HashSet<UiBinding<string?>>();
-        var completedGroups = new HashSet<UiMenuRadioGroup>();
-        UiMenuRadioGroup? previous = null;
-        foreach (var item in items)
-        {
-            if (string.IsNullOrWhiteSpace(item.Value) || string.IsNullOrWhiteSpace(item.Label) || !values.Add(item.Value))
-                throw new ArgumentException("Menu entries require unique nonempty values and labels.", nameof(items));
-            if (item.SecondaryContent is { } secondary && (string.IsNullOrWhiteSpace(secondary) || UiAccessibilityTree.ContainsControl(secondary, false)))
-                throw new ArgumentException("Secondary menu content must be nonempty single-line text.", nameof(items));
-            var group = item.RadioGroup;
-            if (previous is not null && !ReferenceEquals(previous, group))
-                completedGroups.Add(previous);
-            if (group is not null)
-            {
-                if (completedGroups.Contains(group))
-                    throw new ArgumentException("Radio group entries must be contiguous.", nameof(items));
-                if (names.TryGetValue(group.Name, out var known))
-                {
-                    if (!ReferenceEquals(known, group))
-                        throw new ArgumentException("Radio group names must identify one group instance.", nameof(items));
-                }
-                else
-                {
-                    names.Add(group.Name, group);
-                    if (!bindings.Add(group.Selection))
-                        throw new ArgumentException("Independent radio groups require independent bindings.", nameof(items));
-                }
-            }
-            previous = group;
-        }
-        return items.ToArray();
     }
     public void SetItems(ReadOnlySpan<UiMenuOption> items)
     {
         ThrowIfDisposed();
-        var next = ValidateItems(items);
+        var next = UiMenuItems.Validate(items);
         ThrowIfBuilding();
         var focused = (uint)_input.Focused < (uint)_items.Length ? _items[_input.Focused].Value : null;
         _items = next;
@@ -340,17 +360,64 @@ public class UiMenu<TBehavior, TPresentation> : UiControlWidget
     private protected override void ReleaseOwnedResources()
     {
         _items = [];
-        _input.Open = false;
-        _input.ScrollOwner.Release();
+        for (UiMenuInputState? menu = _input; menu is not null; menu = menu.Child)
+        {
+            menu.Open = false;
+            menu.ScrollOwner.Release();
+            menu.IdentityItems = null;
+        }
+        _input.Child = null;
         _input.ItemIds = [];
+        _input.SubTextNames = null;
         _input.Checked = [];
         _input.Groups = [];
         _input.GroupIds = [];
         _input.GroupIndex = _input.GroupStarts = _input.GroupEnds = [];
         _input.Selection = [];
-        _input.IdentityItems = null;
         _invoked = null;
         base.ReleaseOwnedResources();
+    }
+}
+
+internal static class UiMenuItems
+{
+    internal static UiMenuOption[] Validate(ReadOnlySpan<UiMenuOption> items)
+    {
+        var values = new HashSet<string>(StringComparer.Ordinal);
+        var names = new Dictionary<string, UiMenuRadioGroup>(StringComparer.Ordinal);
+        var bindings = new HashSet<UiBinding<string?>>();
+        var completedGroups = new HashSet<UiMenuRadioGroup>();
+        UiMenuRadioGroup? previous = null;
+        foreach (var item in items)
+        {
+            if (string.IsNullOrWhiteSpace(item.Value) || string.IsNullOrWhiteSpace(item.Label) || !values.Add(item.Value))
+                throw new ArgumentException("Menu entries require unique nonempty values and labels.", nameof(items));
+            if (item.SecondaryContent is { } secondary && (string.IsNullOrWhiteSpace(secondary) || UiAccessibilityTree.ContainsControl(secondary, false)))
+                throw new ArgumentException("Secondary menu content must be nonempty single-line text.", nameof(items));
+            if (item.SubText is { } subText && (string.IsNullOrWhiteSpace(subText) || UiAccessibilityTree.ContainsControl(subText, multiline : true)))
+                throw new ArgumentException("Menu subtext must contain visible text and may contain line breaks.", nameof(items));
+            var group = item.RadioGroup;
+            if (previous is not null && !ReferenceEquals(previous, group))
+                completedGroups.Add(previous);
+            if (group is not null)
+            {
+                if (completedGroups.Contains(group))
+                    throw new ArgumentException("Radio group entries must be contiguous.", nameof(items));
+                if (names.TryGetValue(group.Name, out var known))
+                {
+                    if (!ReferenceEquals(known, group))
+                        throw new ArgumentException("Radio group names must identify one group instance.", nameof(items));
+                }
+                else
+                {
+                    names.Add(group.Name, group);
+                    if (!bindings.Add(group.Selection))
+                        throw new ArgumentException("Independent radio groups require independent bindings.", nameof(items));
+                }
+            }
+            previous = group;
+        }
+        return items.ToArray();
     }
 }
 

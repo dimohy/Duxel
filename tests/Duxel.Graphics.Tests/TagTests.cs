@@ -103,6 +103,33 @@ internal static class TagTests
         Key(UiKey.Delete);
         check(dismissals == 3, "Disabled Tag ignores keyboard dismissal");
         disabled = false;
+        var pressDismissals = 0;
+        using var pressTag = new UiTag<UiPressButtonBehavior, UiFluentTagPresentation>("Press tag", () => pressDismissals++);
+        current = pressTag;
+        Frame();
+        var pressNode = Find("Remove Press tag");
+        var bounds = pressNode.Node.Bounds;
+        var point = new UiVector2(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
+        Frame(idle with { MousePosition = point, LeftMouseDown = true, LeftMousePressed = true });
+        check(pressDismissals == 1 && Find("Remove Press tag").Node.Focused,
+            "Press Tag dismisses on pointer down and retains the ordinary focus route");
+        Frame(idle with { MousePosition = point, LeftMouseDown = true });
+        Frame(idle with { MousePosition = point, LeftMouseReleased = true });
+        check(pressDismissals == 1, "Press Tag hold and release do not repeat dismissal");
+        Frame(idle with { MousePosition = point, LeftMousePressed = true, LeftMouseReleased = true });
+        check(pressDismissals == 2, "Press Tag dismisses once when both edges arrive in one frame");
+        Key(UiKey.Delete);
+        Send("Remove Press tag", UiAccessibilityAction.Invoke);
+        check(pressDismissals == 4, "Press Tag preserves keyboard Delete and accessibility Invoke");
+        disabled = true;
+        Frame(idle with { MousePosition = point, LeftMousePressed = true, LeftMouseReleased = true });
+        check(pressDismissals == 4 && !Find("Remove Press tag").Node.Enabled, "Press Tag ignores pointer input when disabled");
+        disabled = false;
+        using var pressPassive = new UiTag<UiPressButtonBehavior, UiFluentTagPresentation>("Press policy passive");
+        current = pressPassive;
+        Frame();
+        check(Find("Press policy passive").Node is { Role: UiAccessibilityRole.Label, Focusable: false, SupportsInvoke: false },
+            "A Tag without a dismissal callback remains passive with the press policy");
         current = allocated;
         Frame();
         var alpha = Find("Remove Alpha");

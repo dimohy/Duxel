@@ -33,12 +33,14 @@ internal static class DrawerTests
         using var background = Fluent.Button("Outside", () => outside++);
         var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
         var renderDrawer = true;
+        var titleBarInset = 0f;
         var direction = UiFlowDirection.Inherit;
         void Frame(UiInputState? input = null)
         {
             context.NewFrame(new(1f / 60, new(640, 640), new(1, 1)), input ?? idle, new(0, 0, 640, 640), UiTextSettings.Default);
             context.Render(new Screen(ui =>
             {
+                ui.SetViewportTopInset(titleBarInset);
                 ui.EnableRootViewportContentLayout(contentPadding : 0);
                 trigger.Render(ui);
                 ui.SetCursorScreenPos(new(400, 40));
@@ -75,7 +77,22 @@ internal static class DrawerTests
         var title = Find("Details", UiAccessibilityRole.Label).Node.Bounds;
         var refreshBounds = Find("Refresh", UiAccessibilityRole.Button).Node.Bounds;
         var save = Find("Save", UiAccessibilityRole.Button).Node.Bounds;
-        var viewport = tree.CaptureSnapshot().Elements.First(element => element.Node.Scroll is not null && element.Node.Bounds.Y > title.Y).Node.Bounds;
+        Click("Memo", UiAccessibilityRole.Edit);
+        var scrollNode = tree.CaptureSnapshot().Elements.First(element =>
+            element.Node.Scroll is { VerticallyScrollable: true } && element.Node.Bounds.Y > title.Y).Node;
+        var scrollInfo = scrollNode.Scroll!.Value;
+        var viewport = scrollNode.Bounds;
+        var gripHeight = MathF.Max(16, scrollInfo.Viewport.Y * scrollInfo.Viewport.Y / scrollInfo.Content.Y);
+        var thumb = new UiVector2(viewport.X + (viewport.Width + scrollInfo.Viewport.X) / 2, viewport.Y + gripHeight / 2);
+        Frame(idle with { MousePosition = thumb, LeftMouseDown = true, LeftMousePressed = true });
+        var acquiredThumb = context.State.PreciseScrollbarDrag.HasValue;
+        var dragTo = thumb with { Y = thumb.Y + 48 };
+        Frame(idle with { MousePosition = dragTo, LeftMouseDown = true });
+        Frame(idle with { MousePosition = dragTo, LeftMouseReleased = true });
+        check(drawer.Body.Content.Offset.Y > 0 && drawer.Viewport.Offset.Y == 0,
+            $"Drawer body can drag its vertical thumb while a text field was focused : acquired={acquiredThumb}, point={thumb}, bounds={viewport}, offset={drawer.Body.Content.Offset.Y}, focus={context.State.ActiveId}");
+        drawer.Body.Content.Offset = default;
+        Frame();
         Frame(idle with { MousePosition = new(viewport.X + 10, viewport.Y + 10), MouseWheel = -8 });
         Frame();
         check(drawer.Body.Content.Offset.Y > 0 && drawer.Viewport.Offset.Y == 0
@@ -93,6 +110,16 @@ internal static class DrawerTests
         check(!drawer.IsOpen && context.State.FocusedId == Find("Open drawer", UiAccessibilityRole.Button).Node.Id,
             "Drawer close restores its invoking control focus");
         check(memo.Value == "Retained text", "Drawer close preserves its owned input model");
+        titleBarInset = 48;
+        drawer.Options = drawer.Options with { Position = UiDrawerPosition.End };
+        drawer.Show();
+        Frame();
+        check(Find("Details", UiAccessibilityRole.Dialog).Node.Bounds is { X: 320, Y: 48, Height: 592 }
+            && Find("Close", UiAccessibilityRole.Button).Node.Bounds.Y >= 48,
+            "Drawer and its Close button start below a reserved title bar");
+        Click("Close", UiAccessibilityRole.Button);
+        check(!drawer.IsOpen, "Drawer closes through its own button below the title bar");
+        titleBarInset = 0;
         foreach (var position in Enum.GetValues<UiDrawerPosition>())
         {
             drawer.Options = drawer.Options with { Position = position };
@@ -158,7 +185,121 @@ internal static class DrawerTests
         Frame();
         check(!drawer.IsOpen && !SurfaceExists(), "Drawer owner removal retires its overlay and accessibility subtree");
         RunInlineLayout(check);
+        RunCompactLayout(check);
+        RunHeaderNavigation(check);
     }
+
+    private static void RunHeaderNavigation(Action<bool, string> check)
+    {
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        using var tree = new UiAccessibilityTree();
+        context.SetAccessibilityTree(tree);
+        ControlFontFixture.Configure(context);
+        var visits = 0;
+        var back = Fluent.Button("Back", () => visits++);
+        using var drawer = Fluent.OverlayDrawer(new UiDrawerHeader("Title", Fluent.Button("Refresh")) { Navigation = back },
+            new UiDrawerBody(Fluent.Body1("Body")), options : new(MotionEnabled : false));
+        var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        void Frame(UiInputState? input = null)
+        {
+            context.NewFrame(new(1f / 60, new(640, 480), new(1, 1)), input ?? idle,
+                new(0, 0, 640, 480), UiTextSettings.Default);
+            context.Render(new Screen(ui => drawer.Render(ui)));
+            using var draw = context.GetDrawData();
+        }
+        UiAccessibilityNode Find(string name, UiAccessibilityRole role) => tree.CaptureSnapshot().Elements
+            .Single(element => element.Node.Name == name && element.Node.Role == role).Node;
+
+        drawer.Show();
+        Frame();
+        var panel = Find("Title", UiAccessibilityRole.Dialog).Bounds;
+        var nav = Find("Drawer navigation", UiAccessibilityRole.Navigation);
+        var title = Find("Title", UiAccessibilityRole.Label).Bounds;
+        var backNode = Find("Back", UiAccessibilityRole.Button);
+        var close = Find("Close", UiAccessibilityRole.Button).Bounds;
+        var refresh = Find("Refresh", UiAccessibilityRole.Button).Bounds;
+        check(ReferenceEquals(drawer.HeaderNavigation, back) && backNode.ParentId == nav.Id,
+            "Drawer owns the navigation widget and parents its input under a navigation landmark");
+        check(nav.Bounds.X == panel.X + 9 && nav.Bounds.Y == panel.Y + 17 && nav.Bounds.Width == panel.Width - 18,
+            "Fluent Drawer navigation extends 16 horizontally and 8 upwards into the regular padding");
+        check(title.X == panel.X + 25 && title.Y == nav.Bounds.Y + nav.Bounds.Height && close.Y == title.Y && refresh.Y > title.Y,
+            "Drawer preserves the title alignment and separates navigation, close and regular actions");
+        var point = new UiVector2(backNode.Bounds.X + 8, backNode.Bounds.Y + 8);
+        Frame(idle with { MousePosition = point, LeftMouseDown = true, LeftMousePressed = true });
+        Frame(idle with { MousePosition = point, LeftMouseReleased = true });
+        check(visits == 1 && drawer.IsOpen, "Drawer navigation buttons activate in their retained layout slot");
+        drawer.Options = drawer.Options with { RightToLeft = true };
+        Frame();
+        var rtlPanel = Find("Title", UiAccessibilityRole.Dialog).Bounds;
+        var rtlNav = Find("Drawer navigation", UiAccessibilityRole.Navigation).Bounds;
+        check(rtlNav.X == rtlPanel.X + 9 && rtlNav.Width == nav.Bounds.Width
+            && Find("Close", UiAccessibilityRole.Button).Bounds.X == rtlPanel.X + 25,
+            "Drawer navigation keeps symmetric horizontal outsets in right-to-left layout");
+    }
+
+    private static void RunCompactLayout(Action<bool, string> check)
+    {
+        foreach (var (height, sticky, scrollTogether) in new[] { (359, true, true), (360, true, false), (360, false, true) })
+        {
+            const int width = 240;
+            using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+            using var tree = new UiAccessibilityTree();
+            context.SetAccessibilityTree(tree);
+            ControlFontFixture.Configure(context);
+            var applied = 0;
+            var apply = Fluent.Button("Apply", () => applied++);
+            apply.Size = new(140, 32);
+            var cancel = Fluent.Button("Cancel");
+            cancel.Size = new(140, 32);
+            using var drawer = Fluent.OverlayDrawer("Compact panel",
+                Dux.Column(new(MainAxisSize : UiMainAxisSize.Min),
+                    Enumerable.Range(0, 60).Select(i => Fluent.Body1("Row " + i)).ToArray()),
+                [apply, cancel], new(StickyHeaderFooter : sticky, MotionEnabled : false));
+            var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+            void Frame(UiInputState? input = null)
+            {
+                context.NewFrame(new(1f / 60, new(width, height), new(1, 1)), input ?? idle,
+                    new(0, 0, width, height), UiTextSettings.Default);
+                context.Render(new Screen(ui => drawer.Render(ui)));
+                using var draw = context.GetDrawData();
+            }
+            UiAccessibilityNode Find(string name, UiAccessibilityRole role) => tree.CaptureSnapshot().Elements
+                .Single(element => element.Node.Name == name && element.Node.Role == role).Node;
+
+            drawer.Show();
+            Frame();
+            var title = Find("Compact panel", UiAccessibilityRole.Label).Bounds;
+            var tag = $"240x{height}, sticky={sticky}";
+            check(Find("Compact panel", UiAccessibilityRole.Dialog).Bounds == new UiRect(0, 0, width, height),
+                "compact Drawer clamps the small preset to its fixed host : " + tag);
+            check(drawer.Body.Actions.IsStacked, "compact Drawer stacks footer actions that cannot fit in one row : " + tag);
+            check(scrollTogether
+                    ? drawer.Viewport.VerticalScrollRange > 0 && drawer.Body.Content.Scroll.VerticalScrollRange == 0
+                    : drawer.Viewport.VerticalScrollRange == 0 && drawer.Body.Content.Scroll.VerticalScrollRange > 0,
+                "compact Drawer selects the correct scrolling surface : " + tag);
+            Frame(idle with { MousePosition = new(60, 130), MouseWheel = -4 });
+            Frame();
+            var moved = Find("Compact panel", UiAccessibilityRole.Label);
+            check(scrollTogether
+                    ? drawer.Viewport.Offset.Y > 0 && drawer.Body.Content.Offset.Y == 0 && moved.Offscreen
+                    : drawer.Viewport.Offset.Y == 0 && drawer.Body.Content.Offset.Y > 0 && !moved.Offscreen && moved.Bounds == title,
+                "wheel input moves the header only when the whole compact Drawer scrolls : " + tag);
+
+            if (scrollTogether)
+                drawer.Viewport.Offset = new(0, drawer.Viewport.VerticalScrollRange);
+            Frame();
+            var first = Find("Apply", UiAccessibilityRole.Button).Bounds;
+            var second = Find("Cancel", UiAccessibilityRole.Button).Bounds;
+            check(first.Width > 0 && first.X == second.X && first.Y >= 0 && first.Y + first.Height <= second.Y
+                    && second.Y + second.Height <= height,
+                "both stacked footer actions are visible and ordered at the end of scrolling : " + tag);
+            var point = new UiVector2(first.X + first.Width / 2, first.Y + first.Height / 2);
+            Frame(idle with { MousePosition = point, LeftMouseDown = true, LeftMousePressed = true });
+            Frame(idle with { MousePosition = point, LeftMouseReleased = true });
+            check(applied == 1 && drawer.IsOpen, "the visible compact footer accepts pointer activation : " + tag);
+        }
+    }
+
     private static void RunInlineLayout(Action<bool, string> check)
     {
         foreach (var position in Enum.GetValues<UiDrawerPosition>())

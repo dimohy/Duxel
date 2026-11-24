@@ -148,7 +148,7 @@ public sealed partial class UiImmediateContext
         finally { _keyEvents = scope.Keys; _accessibilityParent = scope.Parent; _accessibilityWidget = scope.Widget; }
     }
 
-    internal void RenderListItem(UiListState list, UiListItem item)
+    internal void RenderListItem(UiListState list, UiListItem item, UiButtonActivation pointerActivation)
     {
         var context = new UiControlContext(this);
         var size = context.AllocatedLayoutSize;
@@ -165,8 +165,8 @@ public sealed partial class UiImmediateContext
         try
         {
             using var clip = context.Clip(bounds);
-            var interaction = navigable ? ProcessButton<RangeControlKeys>(UiControlWidget.PrimaryControlId, bounds, UiButtonActivation.Release)
-                : item.Action is not null ? ProcessControlPointer(UiControlWidget.PrimaryControlId, bounds, UiButtonActivation.Release) : default;
+            var interaction = navigable ? ProcessButton<RangeControlKeys>(UiControlWidget.PrimaryControlId, bounds, pointerActivation)
+                : item.Action is not null ? ProcessControlPointer(UiControlWidget.PrimaryControlId, bounds, pointerActivation) : default;
             var invoke = interaction.Activated;
             var kind = UiListActionKind.Pointer;
             if (_accessibility?.Take(root, UiAccessibilityAction.Invoke) is { } invocation)
@@ -219,6 +219,9 @@ public sealed partial class UiImmediateContext
                     X = contentBounds.X + contentBounds.Width - contentSize.X
                 };
             RenderLayoutChild(item.Content, childBounds, bounds);
+            // The nested control is visited after its row and can claim the same pointer edges.
+            if (kind == UiListActionKind.Pointer && interaction.Hovered && _state.HoveredId != root)
+                invoke = false;
             list.Input.Children[item.Index].Clear();
             for (var i = contentStart; i < _currentTabStops.Count; i++)
                 if (_currentTabStops[i].PopupTier == _popupTierDepth)

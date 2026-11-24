@@ -505,19 +505,19 @@ public sealed unsafe partial class VulkanRendererBackend
                 var hasIndexedGeometry = vertexCount > 0 || indexCount > 0;
                 var hasPrimitiveGeometry = drawListRectPrimitiveCount > 0 || drawListCirclePrimitiveCount > 0;
 
-                if ((hasIndexedGeometry || hasPrimitiveGeometry)
-                    && TryPrepareStaticDrawListBinding(staticBindings, listIndex, drawList))
+                if (!hasIndexedGeometry && !hasPrimitiveGeometry)
                 {
                     continue;
                 }
 
-                if (hasIndexedGeometry)
+                if (TryPrepareStaticDrawListBinding(staticBindings, listIndex, drawList))
                 {
-                    _dynamicDrawListIndices.Add(listIndex);
-                    dynamicVertexCount += vertexCount;
-                    dynamicIndexCount += indexCount;
+                    continue;
                 }
 
+                _dynamicDrawListIndices.Add(listIndex);
+                dynamicVertexCount += vertexCount;
+                dynamicIndexCount += indexCount;
                 rectPrimitiveCount += drawListRectPrimitiveCount;
                 circlePrimitiveCount += drawListCirclePrimitiveCount;
             }

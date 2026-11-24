@@ -25,7 +25,8 @@ public sealed partial class UiImmediateContext
         where TPresentation:IUiTogglePresentation
         =>Toggle<TValue,TValuePolicy,TBehavior,TPresentation>(label,label,ref value,constrainLayout);
 
-    internal bool Toggle<TValue,TValuePolicy,TBehavior,TPresentation>(string id,string label,ref TValue value,bool constrainLayout=false)
+    internal bool Toggle<TValue,TValuePolicy,TBehavior,TPresentation>(string id,string label,ref TValue value,bool constrainLayout=false,
+        bool focusOnly = false, bool reducedMotion = false, UiSwitchIcons? switchIcons = null)
         where TValuePolicy:IUiToggleValue<TValue>
         where TBehavior:IUiButtonBehavior
         where TPresentation:IUiTogglePresentation
@@ -35,17 +36,20 @@ public sealed partial class UiImmediateContext
         var text=GetDisplayLabel(label);
         var context=new UiControlContext(this);
         using var typography=TPresentation.BeginText(context,text.Length!=0);
-        var (textSize,layout)=MeasureToggleLocal<TPresentation>(context,text,typography.LineHeight,constrainLayout);
+        var (displayText, textSize, layout) = MeasureToggleLocal<TPresentation>(context, text, typography.LineHeight, constrainLayout);
         var cursor=AdvanceCursor(layout.Size);
         var bounds=new UiRect(cursor.X,cursor.Y,layout.Size.X,layout.Size.Y);
-        var interaction=TBehavior.Process(context,id,bounds);
         var resolvedId = ResolveId(id);
+        var disabledFocusable = focusOnly && TBehavior.AccessibilityFocus;
+        var interaction = focusOnly ? ProcessFocusOnlyToggle(id, resolvedId, bounds, disabledFocusable)
+            : TBehavior.Process(context, id, bounds);
         ClaimAccessibilityField(resolvedId);
         if (!interaction.Activated && ApplyAccessibilityToggle(resolvedId, bounds))
             interaction = interaction with { Activated = true };
         if(interaction.Activated)value=TValuePolicy.Activate(value);
         var checkedValue = TValuePolicy.Checked(value);
-        TPresentation.Paint(context with { MotionKey = resolvedId }, text, textSize, bounds, layout, interaction, checkedValue);
+        TPresentation.Paint(context with { MotionKey = resolvedId, ReducedToggleMotion = reducedMotion, SwitchIcons = switchIcons },
+            displayText, textSize, bounds, layout, interaction, checkedValue);
         var state = checkedValue switch
         {
             true => UiAccessibilityToggleState.On,
@@ -53,8 +57,25 @@ public sealed partial class UiImmediateContext
             null => UiAccessibilityToggleState.Indeterminate
         };
         ExposeAccessibility(resolvedId, _accessibilityParent, TPresentation.AccessibilityRole, label, bounds,
-            focusable : TBehavior.AccessibilityFocus, valuePattern : false, toggleState : state);
+            focusable : TBehavior.AccessibilityFocus, valuePattern : false, toggleState : state, disabledFocusable : disabledFocusable);
         return interaction.Activated;
+    }
+
+    private UiButtonInteraction ProcessFocusOnlyToggle(string id, string resolvedId, UiRect bounds, bool focusable)
+    {
+        // The disabled pointer path publishes item status without capturing or activating it.
+        var pointer = ProcessControlPointer(id, bounds, UiButtonActivation.Release);
+        if (_spacePressOwner == resolvedId)
+            CancelControlSpace();
+        if (_state.ActiveId == resolvedId)
+            _state.ActiveId = null;
+        if (!focusable)
+            return pointer;
+        var focusPointer = pointer with
+        {
+            Hovered = _leftMousePressed && ItemHoverable(resolvedId, bounds, allowDisabled: true, setHovered: false)
+        };
+        return ProcessControlKeyboard<SpaceControlKeys>(resolvedId, bounds, focusPointer, allowDisabledFocus: true);
     }
 
     private bool ApplyAccessibilityToggle(string id, UiRect bounds)

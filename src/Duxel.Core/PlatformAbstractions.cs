@@ -166,6 +166,7 @@ public readonly record struct UiCaptionButtonVisualState(
 public interface IPlatformThemeProvider
 {
     UiForcedColorPalette? ForcedColors => null;
+    bool PrefersReducedMotion => false;
     UiSystemColorScheme ColorScheme
     {
         get;

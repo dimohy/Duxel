@@ -11,6 +11,7 @@ public readonly record struct UiTransitionOptions(double DurationSeconds = .16,
     {
         get; init;
     }
+    internal bool KeepFirstVisibleStep { get; init; }
     public UiTransitionOptions() : this(.16, UiAnimationEasing.OutCubic, false, DefaultFrameIntervalSeconds) { }
     public UiTransitionOptions Validate()
     {
@@ -40,7 +41,10 @@ public struct UiFloatTransition
         _initialized = true;
     }
     public void Reset(float value) => this = new(value);
-    public UiTransitionFrame Update(float target, double timeSeconds, UiTransitionOptions? options = null)
+    public UiTransitionFrame Update(float target, double timeSeconds, UiTransitionOptions? options = null) =>
+        Update(target, timeSeconds, options, previousFrameDelayed : false);
+
+    internal UiTransitionFrame Update(float target, double timeSeconds, UiTransitionOptions? options, bool previousFrameDelayed)
     {
         if (!float.IsFinite(target) || !double.IsFinite(timeSeconds) || timeSeconds < 0 || _configured && timeSeconds < _lastTime)
             throw new ArgumentOutOfRangeException(nameof(timeSeconds), "A transition requires finite values and a monotonic UI clock.");
@@ -52,6 +56,8 @@ public struct UiFloatTransition
             _from = _target = target;
             _initialized = true;
         }
+        if (previousFrameDelayed && _configured && _options.KeepFirstVisibleStep && _lastTime == _started && _from != _target)
+            _started = UiAnimationCurve.RebaseDelayedStart(_started, timeSeconds, _options.FrameIntervalSeconds);
         var current = Sample(timeSeconds);
         if (!_configured || _target != target || _options != settings)
         {
@@ -84,6 +90,11 @@ public struct UiFloatTransition
 
 public static class UiAnimationCurve
 {
+    // A long first-frame build or swapchain change can consume the whole curve before presenting motion.
+    // Preserve one nominal step after that initial stall. Later samples continue on the normal UI clock.
+    internal static double RebaseDelayedStart(double start, double now, double frameInterval) =>
+        now - start > 3 * frameInterval ? now - frameInterval : start;
+
     public static float Evaluate(float progress, UiAnimationEasing easing)
     {
         if (!float.IsFinite(progress))
@@ -101,11 +112,13 @@ public static class UiAnimationCurve
 
 public sealed partial class UiImmediateContext
 {
+    private bool InitialAnimationFrameDelayed => MathF.Max(_state.PreviousFrameWorkTimeMs, _state.SubmitTimeMs) > 50;
+
     /// <summary>Samples an owned transition and declares only its finite next deadline.</summary>
     public float AnimateFloat(ref UiFloatTransition transition, float target, UiTransitionOptions? options = null)
     {
         EnsureNotMeasuring();
-        var frame = transition.Update(target, _state.TimeSeconds, options);
+        var frame = transition.Update(target, _state.TimeSeconds, options, InitialAnimationFrameDelayed);
         if (frame.NextFrameTimeSeconds is { } deadline)
             RequestFrameAt(deadline);
         return frame.Value;

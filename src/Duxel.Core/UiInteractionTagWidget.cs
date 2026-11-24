@@ -1,7 +1,10 @@
 namespace Duxel.Core;
 
 /// <summary>Independent primary and optional dismissal actions share Tag content, ownership and presentation.</summary>
-public class UiInteractionTag<TPresentation> : UiTag<TPresentation> where TPresentation : IUiTagPresentation
+public class UiInteractionTag<TPrimaryBehavior, TDismissBehavior, TPresentation> : UiTag<TPresentation>
+    where TPrimaryBehavior : IUiButtonBehavior
+    where TDismissBehavior : IUiButtonBehavior
+    where TPresentation : IUiTagPresentation
 {
     private Action? _activated;
     private UiBinding<bool>? _selected;
@@ -33,7 +36,7 @@ public class UiInteractionTag<TPresentation> : UiTag<TPresentation> where TPrese
             Options.WithInheritedDirection(context.RightToLeft), IsDismissible));
     protected override void RenderControl(UiImmediateContext ui)
     {
-        var result = ui.RenderInteractionTag<TPresentation>(ItemId ?? PrimaryInputId(Content.Text), BoundContent,
+        var result = ui.RenderInteractionTag<TPrimaryBehavior, TDismissBehavior, TPresentation>(ItemId ?? PrimaryInputId(Content.Text), BoundContent,
             Options.WithInheritedDirection(ui.RightToLeft), IsDismissible, ItemEnabled, _selected);
         if (result.Primary)
             _activated?.Invoke();
@@ -46,6 +49,17 @@ public class UiInteractionTag<TPresentation> : UiTag<TPresentation> where TPrese
         _selected = null;
         base.ReleaseOwnedResources();
     }
+}
+
+/// <summary>An interaction tag that activates either action on pointer release.</summary>
+public class UiInteractionTag<TPresentation> : UiInteractionTag<UiReleaseButtonBehavior, UiReleaseButtonBehavior, TPresentation>
+    where TPresentation : IUiTagPresentation
+{
+    public UiInteractionTag(UiTagContent content, Action activated, Action? dismissed = null, UiTagOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(content, activated, dismissed, options, identity) { }
+
+    public UiInteractionTag(string text, Action activated, Action? dismissed = null, UiTagOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(text, activated, dismissed, options, identity) { }
 }
 
 [UiWidgetStyle(typeof(UiInteractionTag<>), typeof(UiFluentTagPresentation))]

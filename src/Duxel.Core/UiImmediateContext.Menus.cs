@@ -7,6 +7,14 @@ public readonly partial struct UiControlContext
 
 public sealed partial class UiImmediateContext
 {
+    private static readonly System.Collections.Immutable.ImmutableArray<UiPopupPosition> SubmenuFallbackPositions =
+    [
+        UiPopupPosition.After, UiPopupPosition.AfterBottom, UiPopupPosition.BeforeTop,
+        UiPopupPosition.Before, UiPopupPosition.BeforeBottom
+    ];
+    private static readonly System.Collections.Immutable.ImmutableArray<UiPopupPosition> SubmenuFullWidthFallbackPositions =
+        SubmenuFallbackPositions.Add(UiPopupPosition.Above);
+    private const double SubmenuHoverDelay = .5;
     private UiMenuInputState? _activeMenu;
     private int _activeMenuFrame;
     private UiBoxShadow? _fluentMenuShadow;
@@ -25,12 +33,7 @@ public sealed partial class UiImmediateContext
             return;
         if (active.Open)
             active.DismissalVersion++;
-        active.Open = false;
-        active.PressedValue = null;
-        active.KeyboardPressed = false;
-        active.ScrollOwner.Release();
-        _activeMenu = null;
-        _requestFrame?.Invoke();
+        CloseMenu(active, restoreFocus: false, dismissal: false);
     }
 
     internal string? RenderMenu<TBehavior, TPresentation>(string id, string label, UiMenuOption[] items,
@@ -235,42 +238,61 @@ public sealed partial class UiImmediateContext
             if (opened)
             {
                 if (state.CanChangeOpen is { } authorize && !authorize(true)
-                    || _activeMenu is { } previous && !ReferenceEquals(previous, state) && !CloseMenu(previous, restoreFocus: false))
+                    || state.Parent is null && _activeMenu is { } previous && !ReferenceEquals(previous, state) && !CloseMenu(previous, restoreFocus: false))
                 {
                     if (expansionRequest is { } denied)
                         denied.Result = UiAccessibilityResult.InvalidOperation;
                     return null;
                 }
                 state.Open = true;
+                if (state.Entrance is { } entrance)
+                    entrance.StartedAt = _state.TimeSeconds;
                 var selected = selection?.FirstSelected() ?? -1;
                 state.Focused = selected >= 0 ? selected : openLast ? last : first;
                 selection?.ResetSearch();
                 if (selection is { Editable: true })
                     selection.Navigated = openKey;
                 state.FocusOnOpen = expandRequested || openKey || !button.Hovered;
+                state.LastPointer = _mousePosition;
                 state.KeyboardPressed = false;
                 state.PressedValue = null;
                 state.ScrollOffset = 0;
                 state.ReturnStops = _previousTabStops.Where(stop => stop.PopupTier == _popupTierDepth).Select(stop => stop.Id).ToArray();
-                _activeMenu = state;
+                if (state.Parent is null)
+                    _activeMenu = state;
                 _requestFrame?.Invoke();
             }
             if (!state.Open)
                 return null;
             trigger = WidgetScreenBounds(trigger);
             using var screenSpace = BeginWidgetScreenSpace();
-            _activeMenu = state;
-            _activeMenuFrame = GetFrameCount();
+            if (state.Parent is null)
+            {
+                _activeMenu = state;
+                _activeMenuFrame = GetFrameCount();
+            }
+
+            var childIndex = state.Child is { Open: true }
+                ? Array.FindIndex(items, item => item.Value == state.ChildValue && item.Enabled && item.SubmenuItems is not null)
+                : -1;
+            if (childIndex < 0 && state.Child is { Open: true } removedChild)
+                CloseMenu(removedChild, restoreFocus: OwnsMenuFocus(removedChild));
+            var openSubmenu = -1;
+            var openFromHover = false;
+            var openArrow = options.RightToLeft ? UiKey.LeftArrow : UiKey.RightArrow;
+            var closeArrow = options.RightToLeft ? UiKey.RightArrow : UiKey.LeftArrow;
 
             var hasCheckmarks = false;
             var hasIcons = false;
-            var hasSecondary = false;
+            var hasSupportingText = false;
+            var hasSubmenus = false;
             for (var i = 0; i < state.Groups.Length; i++)
                 state.Selection[i] = state.Groups[i].Selection.Value;
             for (var i = 0; i < items.Length; i++)
             {
                 hasIcons |= !items[i].Icon.IsEmpty;
-                hasSecondary |= items[i].SecondaryContent is not null;
+                hasSupportingText |= items[i].SecondaryContent is not null || items[i].SubText is not null;
+                hasSubmenus |= items[i].SubmenuItems is not null;
                 var binding = items[i].Checked;
                 state.Checked[i] = null;
                 if (state.GroupIndex[i] is var group && group >= 0)
@@ -298,12 +320,14 @@ public sealed partial class UiImmediateContext
                 for (var i = 0; i < items.Length; i++)
                     state.Checked[i] = selection.Selected[i];
             }
-            var hasContent = hasCheckmarks || hasIcons || hasSecondary;
+            var hasContent = hasCheckmarks || hasIcons || hasSupportingText || hasSubmenus;
             UiMenuItemContent Content(int index) => new(items[index].Label, state.Checked[index], hasCheckmarks)
             {
                 Icon = items[index].Icon,
                 HasIcons = hasIcons,
                 SecondaryContent = items[index].SecondaryContent,
+                SubText = items[index].SubText,
+                HasSubmenu = items[index].SubmenuItems is not null,
                 MultipleSelection = selection?.Multiple == true
             };
             var width = options.MinimumWidth;
@@ -316,29 +340,57 @@ public sealed partial class UiImmediateContext
                     : TPresentation.MeasureItem(context, items[i].Label)) + 2 * options.Padding);
             if (options.MaximumWidth is { } maximum)
                 width = MathF.Min(width, maximum);
-            var height = items.Length * (double)options.ItemHeight + Math.Max(0, items.Length - 1) * (double)options.ItemSpacing + 2 * options.Padding;
-            if (emptyText is not null)
-                height += options.ItemHeight;
+            if (state.Parent is not null || hasSubmenus)
+                width = MathF.Min(width, _displaySize.X);
+            var widthInsidePadding = MathF.Max(0, width - 2 * options.Padding);
+            var heightLimit = MathF.Min(options.MaximumHeight ?? _displaySize.Y, _displaySize.Y);
+            double MeasureRows(float rowWidth)
+            {
+                double offset = 0;
+                for (var i = 0; i < items.Length; i++)
+                {
+                    var itemHeight = TPresentation.MeasureItemHeight(context, Content(i), rowWidth, options);
+                    if (!float.IsFinite(itemHeight) || itemHeight <= 0)
+                        throw new InvalidOperationException("A menu presentation must measure a finite positive row height.");
+                    state.ItemOffsets[i] = offset;
+                    state.ItemHeights[i] = itemHeight;
+                    offset += itemHeight;
+                    if (i + 1 < items.Length)
+                        offset += options.ItemSpacing;
+                }
+                return offset + 2 * options.Padding + (emptyText is null ? 0 : options.ItemHeight);
+            }
+            var height = MeasureRows(widthInsidePadding);
+            var gutter = height > heightLimit ? MathF.Min(ScrollbarSize, widthInsidePadding) : 0;
+            if (gutter > 0)
+                height = MeasureRows(widthInsidePadding - gutter);
             if (!double.IsFinite(height) || height > float.MaxValue || !float.IsFinite(width))
                 throw new InvalidOperationException("Menu geometry exceeds finite coordinate capacity.");
-            var surfaceHeight = MathF.Min((float)height, MathF.Min(options.MaximumHeight ?? _displaySize.Y, _displaySize.Y));
+            var surfaceHeight = MathF.Min((float)height, heightLimit);
+            var submenuFallbacks = width == _displaySize.X && trigger.Y >= surfaceHeight
+                ? SubmenuFullWidthFallbackPositions : SubmenuFallbackPositions;
             var layout = UiPopupPlacement.Arrange(trigger, new(width, surfaceHeight), new(0, 0, _displaySize.X, _displaySize.Y),
                 new()
                 {
-                    Position = UiPopupPosition.BelowStart,
+                    Position = state.Parent is null ? UiPopupPosition.BelowStart : UiPopupPosition.AfterTop,
+                    FallbackPositions = state.Parent is null ? default : submenuFallbacks,
+                    TetherMode = state.Parent is null ? UiPopupTetherMode.Default : UiPopupTetherMode.DisabledAllAxes,
                     RightToLeft = options.RightToLeft
                 });
             var bounds = layout.Bounds;
-            if (!opened && _leftMousePressed && !Contains(bounds, _mousePosition) && !Contains(trigger, _mousePosition))
+            if (!opened && _leftMousePressed && !Contains(bounds, _mousePosition) && !Contains(trigger, _mousePosition)
+                && !ContainsOpenChild(state, _mousePosition))
             {
                 if (CloseMenu(state, restoreFocus: false))
                     return null;
             }
             if (!opened)
                 foreach (var key in _keyEvents)
-                    if (key.IsDown && key.Key is UiKey.Escape or UiKey.Tab)
+                    if (key.IsDown && (key.Key == UiKey.Tab && state.Parent is null
+                        || key.Key == UiKey.Escape && childIndex < 0
+                        || state.Parent is not null && OwnsMenuFocus(state) && key.Key == closeArrow))
                     {
-                        if (!CloseMenu(state, restoreFocus: key.Key == UiKey.Escape))
+                        if (!CloseMenu(state, restoreFocus: key.Key != UiKey.Tab))
                             continue;
                         if (key.Key == UiKey.Tab && state.ReturnStops.Length > 0)
                         {
@@ -357,6 +409,9 @@ public sealed partial class UiImmediateContext
             var oldParent = _accessibilityParent;
             string? invoked = null;
             var keepOpen = false;
+            InteractivePaintCapture? entranceCapture = null;
+            var opacity = 1f;
+            var paintCompleted = false;
             try
             {
                 _state.AddPopupBlockingRect(bounds, _popupTierDepth);
@@ -369,12 +424,28 @@ public sealed partial class UiImmediateContext
                     _focusedControlSeen = true;
                     _focusedControlTier = _popupTierDepth;
                 }
+                if (IsPresentationPass && state.Entrance is { StartedAt: { } started } entrance)
+                {
+                    var end = started + UiMenuEntrance.DurationSeconds;
+                    var now = _state.TimeSeconds;
+                    if (now < end)
+                    {
+                        var remaining = (float)Math.Clamp((end - now) / UiMenuEntrance.DurationSeconds, 0, 1);
+                        opacity = 1 - remaining * remaining * remaining;
+                        RequestFrameAt(Math.Min(end, now + 1d / 60));
+                        var shadow = UiFluentShadow.Resolve(ControlFluentColorScheme, UiShadowElevation.Shadow16);
+                        var captureBounds = IntersectRect(shadow.PaintBounds(bounds), CurrentClipRect);
+                        if (captureBounds is { Width: > 0, Height: > 0 })
+                            entranceCapture = BeginInteractivePaintGroup(entrance.Paint ??= new(), captureBounds);
+                    }
+                    else
+                        entrance.Reset();
+                }
                 TPresentation.PaintSurface(context, bounds);
                 var contentHeight = (float)height - 2 * options.Padding;
                 var viewportHeight = MathF.Max(0, bounds.Height - 2 * options.Padding);
                 var maximumScroll = MathF.Max(0, contentHeight - viewportHeight);
                 state.ScrollOffset = Math.Clamp(state.ScrollOffset, 0, maximumScroll);
-                var gutter = maximumScroll > 0 ? MathF.Min(ScrollbarSize, MathF.Max(0, bounds.Width - 2 * options.Padding)) : 0;
                 var viewport = new UiRect(bounds.X + options.Padding + (options.RightToLeft ? gutter : 0), bounds.Y + options.Padding,
                     MathF.Max(0, bounds.Width - 2 * options.Padding - gutter), viewportHeight);
                 var contentSize = new UiVector2(viewport.Width, contentHeight);
@@ -410,8 +481,10 @@ public sealed partial class UiImmediateContext
                 }
                 void Reveal(int index)
                 {
-                    var top = (float)(index * ((double)options.ItemHeight + options.ItemSpacing));
-                    state.ScrollOffset = Math.Clamp(MathF.Min(top, MathF.Max(state.ScrollOffset, top + options.ItemHeight - viewport.Height)), 0, maximumScroll);
+                    if ((uint)index >= (uint)items.Length)
+                        return;
+                    var top = (float)state.ItemOffsets[index];
+                    state.ScrollOffset = Math.Clamp(MathF.Min(top, MathF.Max(state.ScrollOffset, top + state.ItemHeights[index] - viewport.Height)), 0, maximumScroll);
                 }
                 if (opened && state.FocusOnOpen || state.RevealFocused)
                     Reveal(state.Focused);
@@ -419,16 +492,19 @@ public sealed partial class UiImmediateContext
                 var hit = -1;
                 var held = false;
                 UiButtonInteraction interaction;
-                UiRect Row(int i) => new(viewport.X, (float)(viewport.Y + i * ((double)options.ItemHeight + options.ItemSpacing) - state.ScrollOffset),
-                    viewport.Width, options.ItemHeight);
+                UiRect Row(int i) => new(viewport.X, (float)(viewport.Y + state.ItemOffsets[i] - state.ScrollOffset),
+                    viewport.Width, state.ItemHeights[i]);
                 using (context.Clip(viewport))
                 {
-                    for (var i = 0; i < items.Length; i++)
-                        if (items[i].Enabled && IsHovering(Row(i)))
-                            hit = i;
+                    if (!ContainsOpenChild(state, _mousePosition))
+                        for (var i = 0; i < items.Length; i++)
+                            if (items[i].Enabled && IsHovering(Row(i)))
+                                hit = i;
                     var pressed = ButtonBehavior(id + "##menu", hit < 0 ? default : Row(hit), out var hovered, out held,
                         optionActivation);
-                    interaction = ProcessControlKeyboard<RangeControlKeys>(bounds, new(pressed, hovered, held));
+                    interaction = state.Parent is null
+                        ? ProcessControlKeyboard<RangeControlKeys>(bounds, new(pressed, hovered, held))
+                        : ProcessControlKeyboard<RangeControlKeys>(root, bounds, new(pressed, hovered, held));
                     if (_leftMousePressed)
                     {
                         state.PressedValue = hit >= 0 ? items[hit].Value : null;
@@ -468,6 +544,11 @@ public sealed partial class UiImmediateContext
                             }
                             if (!key.IsDown)
                                 continue;
+                            if (key.Key == openArrow && items[state.Focused].SubmenuItems is not null)
+                            {
+                                openSubmenu = state.Focused;
+                                continue;
+                            }
                             if (key.Key == UiKey.Enter && selection is not { Editable: true, Navigated: false })
                                 invoked = items[state.Focused].Value;
                             var next = state.Focused;
@@ -629,6 +710,26 @@ public sealed partial class UiImmediateContext
                         BeginDisabled(!items[i].Enabled);
                         try
                         {
+                            if (items[i].SubmenuItems is { } children
+                                && (_accessibility?.Take(state.ItemIds[i], UiAccessibilityAction.Expand)
+                                    ?? _accessibility?.Take(state.ItemIds[i], UiAccessibilityAction.Collapse)) is { } branchRequest)
+                            {
+                                var clip = IntersectRect(CurrentClipRect, Row(i));
+                                branchRequest.Result = !IsControlEnabled ? UiAccessibilityResult.Disabled
+                                    : clip.Width <= 0 || clip.Height <= 0 ? UiAccessibilityResult.Unavailable
+                                    : branchRequest.Action == UiAccessibilityAction.Expand && !HasEnabledMenuItem(children)
+                                        ? UiAccessibilityResult.InvalidOperation : UiAccessibilityResult.Success;
+                                if (branchRequest.Result == UiAccessibilityResult.Success)
+                                {
+                                    if (branchRequest.Action == UiAccessibilityAction.Expand)
+                                        openSubmenu = i;
+                                    else if (childIndex == i)
+                                    {
+                                        CloseMenu(state.Child!, restoreFocus: OwnsMenuFocus(state.Child!));
+                                        childIndex = -1;
+                                    }
+                                }
+                            }
                             if (ApplyAccessibilityInvoke(state.ItemIds[i], Row(i), default).Activated)
                                 invoked = items[i].Value;
                             else if (_accessibility?.Take(state.ItemIds[i], UiAccessibilityAction.Toggle) is { } toggle)
@@ -659,7 +760,18 @@ public sealed partial class UiImmediateContext
                         {
                             if (items[i].Value != invoked)
                                 continue;
-                            if (selection is not null)
+                            if (items[i].SubmenuItems is not null)
+                            {
+                                if (childIndex == i && state.Child is { Open: true } currentChild)
+                                {
+                                    CloseMenu(currentChild, restoreFocus: OwnsMenuFocus(currentChild));
+                                    childIndex = -1;
+                                }
+                                else
+                                    openSubmenu = i;
+                                invoked = null;
+                            }
+                            else if (selection is not null)
                             {
                                 selection.Activate(i);
                                 for (var j = 0; j < items.Length; j++)
@@ -688,6 +800,52 @@ public sealed partial class UiImmediateContext
                             _requestFrame?.Invoke();
                             break;
                         }
+                    if (hasSubmenus && invoked is null && openSubmenu < 0 && !_leftMouseDown && _keyEvents.Count == 0
+                        && (options.SubmenuPointerProtectionSeconds is null || !_leftMousePressed && !_leftMouseReleased))
+                    {
+                        var branch = childIndex >= 0 ? IntersectRect(viewport, Row(childIndex)) : default;
+                        openSubmenu = UpdateSubmenuHover(state, items, hit, childIndex, branch,
+                            options.SubmenuPointerProtectionSeconds, out var closeHoveredChild, out var protecting);
+                        openFromHover = openSubmenu >= 0;
+                        if (protecting)
+                        {
+                            state.Focused = childIndex;
+                            hit = -1;
+                        }
+                        if (closeHoveredChild && state.Child is { Open: true } hoveredChild)
+                        {
+                            CloseMenu(hoveredChild, restoreFocus: OwnsMenuFocus(hoveredChild));
+                            childIndex = -1;
+                        }
+                    }
+                    else
+                    {
+                        state.LastPointer = _mousePosition;
+                        state.HoverDeadline = null;
+                        ResetSubmenuPointerProtection(state);
+                    }
+                    if (openSubmenu >= 0 && items[openSubmenu].SubmenuItems is { } nextItems && HasEnabledMenuItem(nextItems))
+                    {
+                        state.Focused = openSubmenu;
+                        if (openSubmenu != childIndex)
+                        {
+                            if (state.Child is { Open: true } previousChild)
+                                CloseMenu(previousChild, restoreFocus: false);
+                            state.Child ??= new() { Parent = state };
+                            state.ChildValue = items[openSubmenu].Value;
+                            childIndex = openSubmenu;
+                            ResetSubmenuPointerProtection(state);
+                        }
+                    }
+                    if (childIndex >= 0 && state.Child is { } childState)
+                    {
+                        var anchor = IntersectRect(viewport, Row(childIndex));
+                        if (anchor.Width <= 0 || anchor.Height <= 0)
+                        {
+                            CloseMenu(childState, restoreFocus: OwnsMenuFocus(childState));
+                            childIndex = -1;
+                        }
+                    }
                     for (var i = 0; i < items.Length; i++)
                     {
                         var row = Row(i);
@@ -711,10 +869,10 @@ public sealed partial class UiImmediateContext
                         BeginDisabled(!items[i].Enabled);
                         try
                         {
-                            var visual = new UiButtonInteraction(false, hit == i, held && state.PressedValue == items[i].Value || state.KeyboardPressed && state.Focused == i)
+                            var visual = new UiButtonInteraction(false, hit == i || childIndex == i, held && state.PressedValue == items[i].Value || state.KeyboardPressed && state.Focused == i)
                             {
-                                Focused = interaction.Focused && state.Focused == i,
-                                FocusVisible = interaction.FocusVisible && state.Focused == i
+                                Focused = interaction.Focused && state.Focused == i && childIndex < 0,
+                                FocusVisible = interaction.FocusVisible && state.Focused == i && childIndex < 0
                             };
                             if (hasContent)
                                 TPresentation.PaintItem(context, Content(i), row, visual, options);
@@ -727,11 +885,14 @@ public sealed partial class UiImmediateContext
                                 focusedVisual = visual;
                                 paintFocus = true;
                             }
-                            _accessibility?.Add(new(itemId, parentId, selection is null ? UiAccessibilityRole.MenuItem : UiAccessibilityRole.Option, items[i].Label, clip,
+                            var name = state.SubTextNames?[i] ?? items[i].Label;
+                            _accessibility?.Add(new(itemId, parentId, selection is null ? UiAccessibilityRole.MenuItem : UiAccessibilityRole.Option, name, clip,
                                 IsControlEnabled, clip.Width <= 0 || clip.Height <= 0, visual.Focused, Hint: items[i].SecondaryContent, ValuePattern: false)
                             {
                                 Checked = items[i].Checked is null ? null : state.Checked[i],
-                                Selected = selection is not null ? state.Checked[i] : group < 0 ? null : state.Checked[i]
+                                Selected = selection is not null ? state.Checked[i] : group < 0 ? null : state.Checked[i],
+                                Expansion = items[i].SubmenuItems is null ? null
+                                    : childIndex == i ? UiAccessibilityExpansionState.Expanded : UiAccessibilityExpansionState.Collapsed
                             }, row);
                             if (visual.Focused)
                                 (_accessibilityFocusOwner, _accessibilityFocusTarget) = (root, itemId);
@@ -741,17 +902,38 @@ public sealed partial class UiImmediateContext
                 }
                 if (paintFocus)
                     TPresentation.PaintFocus(context, focusedBounds, focusedVisual, options);
+                if (childIndex >= 0 && state.Child is { } activeChild && invoked is null)
+                {
+                    var item = items[childIndex];
+                    var itemId = state.ItemIds[childIndex];
+                    activeChild.Prepare(ResolveCachedIdentifier(itemId, "##menu", false), item.SubmenuItems!);
+                    activeChild.TriggerId = itemId;
+                    _accessibilityParent = itemId;
+                    invoked = RenderMenuPopup<TPresentation>(itemId, state.SubTextNames?[childIndex] ?? item.Label, item.SubmenuItems!, options, activeChild,
+                        IntersectRect(viewport, Row(childIndex)), new(!activeChild.Open, openFromHover, false),
+                        optionActivation: optionActivation);
+                    keepOpen = activeChild.Open;
+                }
                 if (!_leftMouseDown)
                     state.PressedValue = null;
+                paintCompleted = true;
             }
             finally
             {
-                _accessibilityParent = oldParent;
-                PopClipRect();
-                PopPopup();
+                try
+                {
+                    if (entranceCapture is { } capture)
+                        EndInteractivePaintGroup(capture, paintCompleted, opacity);
+                }
+                finally
+                {
+                    _accessibilityParent = oldParent;
+                    PopClipRect();
+                    PopPopup();
+                }
             }
-            if (invoked is not null && !keepOpen)
-                CloseMenu(state, restoreFocus: true);
+            if (invoked is not null && !keepOpen && CloseMenu(state, restoreFocus: true))
+                _accessibility?.MarkDismissingMenu(root);
             return invoked;
         }
         finally { UpdateMenuExpansion(state); }
@@ -761,9 +943,16 @@ public sealed partial class UiImmediateContext
     {
         if (state.Open && dismissal && state.CanChangeOpen is { } authorize && !authorize(false))
             return false;
+        if (state.Child is { Open: true } child)
+            CloseMenu(child, restoreFocus: false, dismissal: dismissal);
+        state.Child = null;
+        state.ChildValue = null;
         if (state.Open && dismissal)
             state.DismissalVersion++;
         state.Open = false;
+        state.Entrance?.Reset();
+        state.HoverDeadline = null;
+        ResetSubmenuPointerProtection(state);
         UpdateMenuExpansion(state);
         state.PressedValue = null;
         state.KeyboardPressed = false;
@@ -778,7 +967,7 @@ public sealed partial class UiImmediateContext
         _currentTabStops.RemoveAll(stop => stop.Id == state.Root);
         if (_state.FocusedId == state.Root || restoreFocus)
         {
-            _state.FocusedId = restoreFocus ? state.FocusOwnerId ?? state.TriggerId : null;
+            _state.FocusedId = restoreFocus ? state.Parent?.Root ?? state.FocusOwnerId ?? state.TriggerId : null;
             _ownedControlFocus = _state.FocusedId;
             _focusedControlSeen = restoreFocus;
             _focusedControlTier = _popupTierDepth;
@@ -790,6 +979,121 @@ public sealed partial class UiImmediateContext
 
     private static bool Contains(UiRect rect, UiVector2 point) => point.X >= rect.X && point.X < rect.X + rect.Width
         && point.Y >= rect.Y && point.Y < rect.Y + rect.Height;
+
+    private static bool HasEnabledMenuItem(UiMenuOption[] items) => Array.Exists(items, static item => item.Enabled);
+
+    private int UpdateSubmenuHover(UiMenuInputState state, UiMenuOption[] items, int hit, int childIndex,
+        UiRect branch, double? protection, out bool close, out bool protecting)
+    {
+        close = protecting = false;
+        var moved = state.LastPointer != _mousePosition;
+        state.LastPointer = _mousePosition;
+        if (childIndex >= 0 && (hit == childIndex || ContainsOpenChild(state, _mousePosition)))
+        {
+            state.HoverDeadline = null;
+            ResetSubmenuPointerProtection(state);
+            if (protection.HasValue && hit == childIndex)
+                state.SubmenuPointerOrigin = _mousePosition;
+            return -1;
+        }
+        var target = hit >= 0 && items[hit].SubmenuItems is not null ? items[hit].Value : null;
+        if (childIndex >= 0 && protection is { } timeout && state.SubmenuPointerOrigin is { } origin
+            && ContainsSubmenuPointerApproach(branch, state.Child!.BlockingRect, origin, _mousePosition))
+        {
+            state.HoverDeadline = null;
+            // Continue protecting a moving pointer without delaying a stationary one indefinitely.
+            if (moved || state.SubmenuPointerDeadline is null)
+                state.SubmenuPointerDeadline = GetTime() + timeout;
+            if (GetTime() < state.SubmenuPointerDeadline.Value)
+            {
+                protecting = true;
+                RequestFrameAt(state.SubmenuPointerDeadline.Value);
+                return -1;
+            }
+            ResetSubmenuPointerProtection(state);
+            close = target is null || !HasEnabledMenuItem(items[hit].SubmenuItems!);
+            return close ? -1 : hit;
+        }
+        ResetSubmenuPointerProtection(state);
+        if (moved && (target is not null || childIndex >= 0)
+            && (state.HoverDeadline is null || state.HoverBranch != target))
+        {
+            state.HoverBranch = target;
+            state.HoverDeadline = GetTime() + SubmenuHoverDelay;
+        }
+        if (state.HoverDeadline is not { } deadline)
+            return -1;
+        if (state.HoverBranch != target)
+        {
+            state.HoverDeadline = null;
+            return -1;
+        }
+        if (GetTime() < deadline)
+        {
+            RequestFrameAt(deadline);
+            return -1;
+        }
+        state.HoverDeadline = null;
+        close = target is null;
+        return target is null ? -1 : hit;
+    }
+
+    private static void ResetSubmenuPointerProtection(UiMenuInputState state)
+    {
+        state.SubmenuPointerOrigin = null;
+        state.SubmenuPointerDeadline = null;
+    }
+
+    private static bool ContainsSubmenuPointerApproach(UiRect branch, UiRect child, UiVector2 origin, UiVector2 pointer)
+    {
+        if (branch.Width <= 0 || branch.Height <= 0 || child.Width <= 0 || child.Height <= 0
+            || !Contains(branch, origin))
+            return false;
+        Span<UiVector2> corners =
+        [
+            new(child.X, child.Y), new(child.X + child.Width, child.Y),
+            new(child.X + child.Width, child.Y + child.Height), new(child.X, child.Y + child.Height)
+        ];
+        static float Cross(UiVector2 from, UiVector2 to, UiVector2 point) =>
+            (to.X - from.X) * (point.Y - from.Y) - (to.Y - from.Y) * (point.X - from.X);
+
+        // A corner approach can see two adjacent edges. Their outer vertices
+        // and the pointer's last position on the row bound the approach area.
+        for (var i = 0; i < corners.Length; i++)
+        {
+            var first = corners[i];
+            var end = corners[(i + 1) % corners.Length];
+            if (Cross(first, end, origin) >= 0 || Cross(corners[(i + 3) % corners.Length], first, origin) < 0)
+                continue;
+            if (Cross(origin, first, pointer) > 0 || Cross(first, end, pointer) > 0)
+                return false;
+            var next = corners[(i + 2) % corners.Length];
+            if (Cross(end, next, origin) < 0)
+            {
+                if (Cross(end, next, pointer) > 0)
+                    return false;
+                end = next;
+            }
+            return Cross(end, origin, pointer) <= 0;
+        }
+        return false;
+    }
+
+    private static bool ContainsOpenChild(UiMenuInputState state, UiVector2 pointer)
+    {
+        for (var child = state.Child; child is { Open: true }; child = child.Child)
+            if (Contains(child.BlockingRect, pointer))
+                return true;
+        return false;
+    }
+
+    private bool OwnsMenuFocus(UiMenuInputState state)
+    {
+        for (UiMenuInputState? menu = state; menu is { Open: true }; menu = menu.Child)
+            if (menu.Root == _state.FocusedId)
+                return true;
+        return false;
+    }
 
     private void UpdateMenuExpansion(UiMenuInputState state)
     {

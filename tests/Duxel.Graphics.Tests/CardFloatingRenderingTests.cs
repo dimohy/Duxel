@@ -61,8 +61,13 @@ internal static class CardFloatingRenderingTests
                 + (int)(root.Node.Bounds.X + root.Node.Bounds.Width / 2)) * 4;
             check(selected && writes == 1 && committed.AsSpan(center, 3).SequenceEqual(expected),
                 "GPU floating checkbox updates the shared selected body palette with one binding write on its followup frame");
-            check(committed.AsSpan().SequenceEqual(capture("floating-selection-replay", Draw)) && writes == 1,
-                "GPU floating selection replay preserves pixels without rewriting the model");
+            var deadline = context.State.TimeSeconds + UiDisclosureMotion.DurationSeconds;
+            var settled = committed;
+            for (var frame = 0; frame < 30 && context.State.TimeSeconds < deadline; frame++)
+                settled = capture("floating-selection-settling", Draw);
+            check(context.State.TimeSeconds >= deadline
+                && settled.AsSpan().SequenceEqual(capture("floating-selection-replay", Draw)) && writes == 1,
+                "GPU floating selection replay preserves settled pixels without rewriting the model");
         }
         finally { context.SetAccessibilityTree(null); }
     }

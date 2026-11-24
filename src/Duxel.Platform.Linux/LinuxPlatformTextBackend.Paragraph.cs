@@ -33,9 +33,10 @@ public sealed unsafe partial class LinuxPlatformTextBackend
     }
 
     private List<Run> ShapeParagraph(string text, LinuxFontResource primary, LinuxFontResource? secondary, double y,
-        out float advance)
+        out float advance, bool rightToLeft)
     {
-        var layout = ParagraphFonts(primary, secondary).CreateLayout(text, primary.Size, primary, secondary, out var selections);
+        var layout = ParagraphFonts(primary, secondary).CreateLayout(text, primary.Size, primary, secondary,
+            out var selections, rightToLeft);
         nint iterator = 0;
         var runs = new List<Run>();
         try
@@ -53,19 +54,10 @@ public sealed unsafe partial class LinuxPlatformTextBackend
                     continue;
                 var font = LinuxParagraphFontSet.VerifyFont(run->Item, selections);
                 pango_layout_iter_get_run_extents(iterator, null, out var logical);
-                var x = logical.X / (double)Scale;
-                var runY = y + (pango_layout_iter_get_baseline(iterator) - baseline - run->YOffset) / (double)Scale;
-                var glyphs = new List<LinuxFontNative.Glyph>(run->Glyphs->Count);
-                for (var index = 0; index < run->Glyphs->Count; index++)
-                {
-                    var glyph = run->Glyphs->Glyphs[index];
-                    if (glyph.Glyph == 0 || (glyph.Glyph & 0x10000000) != 0)
-                        throw new NotSupportedException("The explicit paragraph font produced a missing glyph.");
-                    if (glyph.Glyph != 0x0FFFFFFF)
-                        glyphs.Add(new(glyph.Glyph, x + glyph.XOffset / (double)Scale, runY + glyph.YOffset / (double)Scale));
-                    x += glyph.Width / (double)Scale;
-                }
-                runs.Add(new(font, glyphs.ToArray()));
+                long x = logical.X;
+                var iteratorBaseline = pango_layout_iter_get_baseline(iterator);
+                var runY = y + (iteratorBaseline - baseline - run->YOffset) / (double)Scale;
+                runs.Add(new(font, ReadParagraphGlyphs(run->Glyphs, ref x, runY)));
             }
             while (pango_layout_iter_next_run(iterator) != 0);
             return runs;
@@ -76,6 +68,73 @@ public sealed unsafe partial class LinuxPlatformTextBackend
                 pango_layout_iter_free(iterator);
             g_object_unref(layout);
         }
+    }
+
+    private List<Run> ShapeProjectedParagraph(string text, LinuxFontResource primary, LinuxFontResource? secondary,
+        double y, out float advance, out float lineBaseline, bool rightToLeft)
+    {
+        // Pango stores the absolute font size in signed native units. Keep that value in range.
+        var precision = 16;
+        while (precision > 1 && primary.Size * (double)(Scale * precision) > int.MaxValue)
+            precision /= 2;
+        var units = Scale * precision;
+        var layout = ParagraphFonts(primary, secondary).CreateLayout(text, primary.Size * precision, primary, secondary,
+            out var selections, rightToLeft, projected: true);
+        try
+        {
+            var line = pango_layout_get_line_readonly(layout, 0);
+            if (line == null || pango_layout_get_line_readonly(layout, 1) != null)
+                throw new InvalidOperationException("A projected paragraph must have one unwrapped Pango line.");
+
+            var runs = new List<Run>();
+            long x = 0;
+            long width = 0;
+            var baseline = double.NegativeInfinity;
+            var useNativeBaseline = false;
+            for (var node = line->Runs; node != null; node = node->Next)
+            {
+                var run = node->Run;
+                var font = LinuxParagraphFontSet.VerifyFont(run->Item, selections, projected: true);
+                // The first visual run starts at zero in an unindented, unconstrained layout.
+                if (node != line->Runs)
+                    x += run->StartXOffset;
+                var start = x;
+                runs.Add(new(font, ReadParagraphGlyphs(run->Glyphs, ref x, y, units)));
+                width += x - start;
+                x += run->EndXOffset;
+                if (font.ProjectedBaseline is { } fontBaseline)
+                    baseline = Math.Max(baseline, fontBaseline);
+                else
+                    useNativeBaseline = true;
+            }
+            if (useNativeBaseline || runs.Count == 0)
+                baseline = pango_layout_get_baseline(layout) / (double)units;
+            foreach (var run in runs)
+                for (var index = 0; index < run.Glyphs.Length; index++)
+                    run.Glyphs[index].Y += baseline;
+            advance = (float)(width / (double)units);
+            lineBaseline = (float)baseline;
+            return runs;
+        }
+        finally
+        {
+            g_object_unref(layout);
+        }
+    }
+
+    private static LinuxFontNative.Glyph[] ReadParagraphGlyphs(GlyphString* source, ref long x, double y, int units = Scale)
+    {
+        var glyphs = new List<LinuxFontNative.Glyph>(source->Count);
+        for (var index = 0; index < source->Count; index++)
+        {
+            var glyph = source->Glyphs[index];
+            if (glyph.Glyph == 0 || (glyph.Glyph & 0x10000000) != 0)
+                throw new NotSupportedException("The explicit paragraph font produced a missing glyph.");
+            if (glyph.Glyph != 0x0FFFFFFF)
+                glyphs.Add(new(glyph.Glyph, (x + glyph.XOffset) / (double)units, y + glyph.YOffset / (double)units));
+            x += glyph.Width;
+        }
+        return glyphs.ToArray();
     }
 
     public PlatformTextLineGeometry CreateLineGeometry(in PlatformTextMeasureRequest request, bool vectorMetrics)

@@ -7,7 +7,7 @@ internal static unsafe partial class DirectWriteLongTextShaper
     [StructLayout(LayoutKind.Sequential)]
     private readonly record struct TextRange(uint Start, uint Length);
 
-    /// <summary>A registered, single-file collection whose lifetime encloses its layout.</summary>
+    /// <summary>A private collection whose lifetime encloses its layout.</summary>
     internal sealed class ExplicitFontScope : IDisposable
     {
         private readonly nint _factory;
@@ -29,17 +29,21 @@ internal static unsafe partial class DirectWriteLongTextShaper
             try
             {
                 _file = GetFile(face);
-                var state = new FileState(_file, face);
-                _loader = CreateCallback(0, state);
-                Marshal.ThrowExceptionForHR(((delegate* unmanaged[Stdcall]<nint, Callback*, int>)Method(factory, 5))(factory, _loader));
-                _registered = true;
-                var key = face;
-                nint collection = 0;
-                var status = ((delegate* unmanaged[Stdcall]<nint, Callback*, void*, uint, nint*, int>)Method(factory, 4))
-                    (factory, _loader, &key, (uint)sizeof(nint), &collection);
-                _collection = collection;
-                state.Failure?.Throw();
-                Check(status, "CreateCustomFontCollection");
+                _collection = CreateVariableCollection(factory, face, Identity);
+                if (_collection == 0)
+                {
+                    var state = new FileState(_file, face);
+                    _loader = CreateCallback(0, state);
+                    Marshal.ThrowExceptionForHR(((delegate* unmanaged[Stdcall]<nint, Callback*, int>)Method(factory, 5))(factory, _loader));
+                    _registered = true;
+                    var key = face;
+                    nint collection = 0;
+                    var status = ((delegate* unmanaged[Stdcall]<nint, Callback*, void*, uint, nint*, int>)Method(factory, 4))
+                        (factory, _loader, &key, (uint)sizeof(nint), &collection);
+                    _collection = collection;
+                    state.Failure?.Throw();
+                    Check(status, "CreateCustomFontCollection");
+                }
                 nint font = 0, family = 0, names = 0;
                 Check(((delegate* unmanaged[Stdcall]<nint, nint, nint*, int>)Method(_collection, 6))(_collection, face, &font), "GetFontFromFontFace");
                 _font = font;
@@ -57,6 +61,51 @@ internal static unsafe partial class DirectWriteLongTextShaper
                 _style = (Identity.Simulations & 2) != 0 ? 1 : ((delegate* unmanaged[Stdcall]<nint, int>)Method(font, 6))(font);
             }
             catch { Dispose(); throw; }
+        }
+
+        private static nint CreateVariableCollection(nint factory, nint face, FontIdentity identity)
+        {
+            var faceIid = new Guid("98EFF3A5-B667-479A-B145-E2FA5B9FDC29");
+            nint variableFace = 0, variableFactory = 0, reference = 0, builder = 0, set = 0, collection = 0;
+            var status = ((delegate* unmanaged[Stdcall]<nint, Guid*, nint*, int>)Method(face, 0))
+                (face, &faceIid, &variableFace);
+            if (status == unchecked((int)0x80004002)) // E_NOINTERFACE
+                return 0;
+            Check(status, "QueryInterface IDWriteFontFace5");
+            try
+            {
+                // IDWriteFontFace5::HasVariations and inherited IDWriteFontFace3::GetFontFaceReference.
+                if (((delegate* unmanaged[Stdcall]<nint, int>)Method(variableFace, 55))(variableFace) == 0)
+                    return 0;
+                Check(((delegate* unmanaged[Stdcall]<nint, nint*, int>)Method(variableFace, 35))
+                    (variableFace, &reference), "GetFontFaceReference");
+                var factoryIid = new Guid("9A1B41C3-D3BB-466A-87FC-FE67556A3B65");
+                Check(((delegate* unmanaged[Stdcall]<nint, Guid*, nint*, int>)Method(factory, 0))
+                    (factory, &factoryIid, &variableFactory), "QueryInterface IDWriteFactory3");
+                Check(((delegate* unmanaged[Stdcall]<nint, nint*, int>)Method(variableFactory, 36))
+                    (variableFactory, &builder), "CreateFontSetBuilder");
+                // The overload without font properties is slot 4 in the Windows ABI.
+                Check(((delegate* unmanaged[Stdcall]<nint, nint, int>)Method(builder, 4))
+                    (builder, reference), "AddFontFaceReference");
+                Check(((delegate* unmanaged[Stdcall]<nint, nint*, int>)Method(builder, 6))
+                    (builder, &set), "CreateFontSet");
+                Check(((delegate* unmanaged[Stdcall]<nint, nint, nint*, int>)Method(variableFactory, 37))
+                    (variableFactory, set, &collection), "CreateFontCollectionFromFontSet");
+                identity.BindVariableFace(variableFace);
+                variableFace = 0;
+                var result = collection;
+                collection = 0;
+                return result;
+            }
+            finally
+            {
+                Release(ref collection);
+                Release(ref set);
+                Release(ref builder);
+                Release(ref reference);
+                Release(ref variableFactory);
+                Release(ref variableFace);
+            }
         }
 
         internal nint CreateFormat(float size, bool rtl, bool wrap = false)

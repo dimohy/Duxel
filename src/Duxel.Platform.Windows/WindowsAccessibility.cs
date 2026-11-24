@@ -13,8 +13,11 @@ internal sealed partial class WindowsAccessibility : IDisposable
     private readonly Dictionary<string, WeakReference<UiaNodeProvider>> _providers = new(StringComparer.Ordinal);
     private readonly List<string> _expired = [];
     private readonly Queue<UiaNodeProvider> _retired = [];
-    private readonly List<(UiaEventProvider Source, int EventId)> _stagedTooltipEvents = [];
-    private readonly Queue<(UiaEventProvider Source, int EventId)> _publishedTooltipEvents = [];
+    private readonly record struct SurfaceEvent(UiaEventProvider Source, int EventId,
+        UiAccessibilitySelectionChange? Selection = null);
+    private readonly List<SurfaceEvent> _stagedSurfaceEvents = [];
+    private readonly List<(long Revision, SurfaceEvent Event)> _dismissingMenuSelections = [];
+    private readonly Queue<SurfaceEvent> _publishedSurfaceEvents = [];
     private readonly Action? _requestCleanup;
     private int _disposed, _registered;
     internal int DisconnectResult
@@ -29,7 +32,7 @@ internal sealed partial class WindowsAccessibility : IDisposable
         _reportedWindowFocus = HasFocus;
         Tree.ElementsRemoved += PruneRemovedProviders;
         Tree.AutomationEvent += RaiseAutomationEvent;
-        Tree.Published += PublishTooltipEvents;
+        Tree.Published += PublishSurfaceEvents;
         Tree.Announcement += RaiseAnnouncement;
         Tree.TextPropertyChanged += RaiseTextPropertyChanged;
         Tree.ScrollChanged += RaiseScrollChanged;
@@ -59,31 +62,47 @@ internal sealed partial class WindowsAccessibility : IDisposable
             UiAccessibilityEventKind.Invoked => 20009,
             _ => throw new ArgumentOutOfRangeException(nameof(notification))
         };
+        var closed = notification.Kind is UiAccessibilityEventKind.TooltipClosed or UiAccessibilityEventKind.MenuClosed;
         if (_requestCleanup is not null && !notification.DuringDisposal
-            && notification.Kind is UiAccessibilityEventKind.TooltipOpened or UiAccessibilityEventKind.TooltipClosed)
+            && notification.Kind is UiAccessibilityEventKind.TooltipOpened or UiAccessibilityEventKind.TooltipClosed
+                or UiAccessibilityEventKind.MenuOpened or UiAccessibilityEventKind.MenuClosed)
         {
             // A native disconnect can invalidate a queued event with the same runtime ID.
             // Capture before removal but send in publication order after native retirement.
-            var source = CaptureEventSource(notification.Element, closed : notification.Kind == UiAccessibilityEventKind.TooltipClosed);
-            _stagedTooltipEvents.Add((source, eventId));
+            var source = CaptureEventSource(notification.Element, closed);
+            _stagedSurfaceEvents.Add(new(source, eventId));
             return;
         }
-        UiaElementProvider provider = notification.Kind is UiAccessibilityEventKind.TooltipClosed or UiAccessibilityEventKind.MenuClosed
+        UiaElementProvider provider = closed
             ? CaptureEventSource(notification.Element, closed : true)
             : Find(notification.Element.Node.Id)
                 ?? throw new InvalidOperationException("The automation event source must still be published.");
         RaiseNativeAutomationEvent(provider, eventId);
     }
 
-    private void PublishTooltipEvents()
+    private void PublishSurfaceEvents()
     {
-        if (_stagedTooltipEvents.Count == 0)
+        if (_stagedSurfaceEvents.Count == 0 && _dismissingMenuSelections.Count == 0)
             return;
+        var revision = Tree.Revision;
+        var ready = 0;
         lock (_gate)
-            foreach (var notification in _stagedTooltipEvents)
-                _publishedTooltipEvents.Enqueue(notification);
-        _stagedTooltipEvents.Clear();
-        _requestCleanup?.Invoke();
+        {
+            foreach (var notification in _stagedSurfaceEvents)
+                _publishedSurfaceEvents.Enqueue(notification);
+            foreach (var pending in _dismissingMenuSelections)
+            {
+                if (pending.Revision == revision)
+                    break;
+                _publishedSurfaceEvents.Enqueue(pending.Event);
+                ready++;
+            }
+        }
+        var notify = ready != 0 || _stagedSurfaceEvents.Count != 0;
+        _stagedSurfaceEvents.Clear();
+        _dismissingMenuSelections.RemoveRange(0, ready);
+        if (notify)
+            _requestCleanup?.Invoke();
     }
 
     private static void RaiseNativeAutomationEvent(UiaElementProvider provider, int eventId)
@@ -324,13 +343,18 @@ internal sealed partial class WindowsAccessibility : IDisposable
         }
         for (var i = 0; i < budget; i++)
         {
-            (UiaEventProvider Source, int EventId) notification;
+            SurfaceEvent notification;
             lock (_gate)
             {
-                if (_retired.Count != 0 || !_publishedTooltipEvents.TryDequeue(out notification))
+                if (_retired.Count != 0 || !_publishedSurfaceEvents.TryDequeue(out notification))
                     break;
             }
-            var live = notification.EventId == 20000 ? Find(notification.Source.SourceId) : null;
+            if (notification.Selection is { } selection)
+            {
+                RaiseNativeSelectionChanged(selection, notification.Source);
+                continue;
+            }
+            var live = notification.EventId is 20000 or 20003 ? Find(notification.Source.SourceId) : null;
             UiaElementProvider sender = live is not null && live.RuntimeId == notification.Source.RuntimeId
                 ? live : notification.Source;
             RaiseNativeAutomationEvent(sender, notification.EventId);
@@ -338,11 +362,11 @@ internal sealed partial class WindowsAccessibility : IDisposable
         bool again;
         lock (_gate)
         {
-            again = _retired.Count != 0 || _publishedTooltipEvents.Count != 0;
+            again = _retired.Count != 0 || _publishedSurfaceEvents.Count != 0;
             if (_retired.Count == 0 && _retired.EnsureCapacity(0) > 256)
                 _retired.TrimExcess();
-            if (_publishedTooltipEvents.Count == 0 && _publishedTooltipEvents.EnsureCapacity(0) > 256)
-                _publishedTooltipEvents.TrimExcess();
+            if (_publishedSurfaceEvents.Count == 0 && _publishedSurfaceEvents.EnsureCapacity(0) > 256)
+                _publishedSurfaceEvents.TrimExcess();
         }
         if (again)
             _requestCleanup?.Invoke();
@@ -446,7 +470,7 @@ internal sealed partial class WindowsAccessibility : IDisposable
     {
         Tree.ElementsRemoved -= PruneRemovedProviders;
         Tree.AutomationEvent -= RaiseAutomationEvent;
-        Tree.Published -= PublishTooltipEvents;
+        Tree.Published -= PublishSurfaceEvents;
         Tree.Announcement -= RaiseAnnouncement;
         Tree.TextPropertyChanged -= RaiseTextPropertyChanged;
         Tree.ScrollChanged -= RaiseScrollChanged;
@@ -492,8 +516,9 @@ internal sealed partial class WindowsAccessibility : IDisposable
                 _providers.Clear();
                 _expired.Clear();
                 _retired.Clear();
-                _stagedTooltipEvents.Clear();
-                _publishedTooltipEvents.Clear();
+                _stagedSurfaceEvents.Clear();
+                _dismissingMenuSelections.Clear();
+                _publishedSurfaceEvents.Clear();
             }
         }
     }

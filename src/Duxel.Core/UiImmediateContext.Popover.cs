@@ -3,7 +3,8 @@ namespace Duxel.Core;
 public sealed partial class UiImmediateContext
 {
     internal void RenderPopover<TPresentation>(string id, string label, UiScrollView viewport, UiPopoverInputState input,
-        UiPopoverOptions options, bool? controlledOpen, bool? pending) where TPresentation : IUiPopoverPresentation
+        UiPopoverOptions options, bool? controlledOpen, bool? pending, UiButtonActivation clickActivation)
+        where TPresentation : IUiPopoverPresentation
     {
         var context = new UiControlContext(this);
         if (RightToLeft)
@@ -43,7 +44,8 @@ public sealed partial class UiImmediateContext
             try
             {
                 ClaimAccessibilityField(root);
-                button = ProcessButton(id, trigger, UiButtonActivation.Release);
+                var activation = options.TriggerMode == UiPopoverTriggerMode.Click ? clickActivation : UiButtonActivation.Release;
+                button = ProcessButton(id, trigger, activation);
                 button = ApplyAccessibilityInvoke(root, trigger, options.TriggerMode == UiPopoverTriggerMode.Context ? button with
                 {
                     Activated = false
@@ -52,6 +54,7 @@ public sealed partial class UiImmediateContext
             }
             finally { _blockingKeyboardTier = oldGate; }
             var opened = false;
+            var blockOpeningPointer = false;
             if (available)
             {
                 if (controlledOpen == true && !input.Open)
@@ -91,6 +94,8 @@ public sealed partial class UiImmediateContext
                     else
                         RequestOverlayChange(input, !input.Open, input.Open);
                     opened |= !wasOpen && input.Open;
+                    blockOpeningPointer = !wasOpen && input.Open && options.TriggerMode == UiPopoverTriggerMode.Click
+                        && clickActivation == UiButtonActivation.Press && button.Hovered && _leftMousePressed;
                 }
             }
             var beforeTriggerEvents = input.Open;
@@ -248,7 +253,8 @@ public sealed partial class UiImmediateContext
                 PushStyleColor(UiStyleColor.Text, TPresentation.Foreground(context, options));
                 try
                 {
-                    RenderParentDataChild(viewport, null, contentBounds, contentBounds);
+                    // The trigger owns the opening press even when the surface covers it.
+                    RenderParentDataChild(viewport, null, contentBounds, contentBounds, blockPointer: blockOpeningPointer);
                 }
                 finally { PopStyleColor(); }
                 CompleteOverlayFocus(input, surfaceId, layout.Bounds, start, opened, !options.DisableAutoFocus);

@@ -75,4 +75,64 @@ internal static class SliderStateRenderingTests
         SliderDirectionPixelFixture.Run(capture, check, width, scheme);
     }
 
+    internal static void RunForced(Func<string, Action<UiImmediateContext>, byte[]> capture, Action<UiInputState> setInput,
+        Action<UiTheme> setTheme, Action<bool, string> check, int width)
+    {
+        var palette = new UiForcedColorPalette(new(4, 8, 16), new(240, 230, 220), new(110, 120, 130),
+            new(10, 90, 180), new(250, 240, 230), new(30, 210, 220), new(20, 30, 40), new(210, 220, 230));
+        var value = new UiState<float>(40);
+        using var slider = Fluent.Slider("System colors slider", value.Binding, 0, 100, 20);
+        var disabled = false;
+        void Draw(UiImmediateContext ui)
+        {
+            ui.EnableRootViewportContentLayout(contentPadding : 0);
+            ui.SetCursorScreenPos(new(20, 20));
+            ui.BeginDisabled(disabled);
+            slider.Render(ui);
+            ui.EndDisabled();
+        }
+        foreach (var vertical in new[] { false, true })
+        {
+            slider.Options = slider.Options with { Vertical = vertical };
+            slider.Size = vertical ? new(32, 200) : new(200, 32);
+            var thumb = vertical ? new UiVector2(36, 138) : new(102, 36);
+            foreach (var state in Enum.GetValues<UiButtonVisualState>())
+            {
+                disabled = state == UiButtonVisualState.Disabled;
+                var pointer = state == UiButtonVisualState.Rest ? new UiVector2(-100, -100) : thumb;
+                var pressed = state == UiButtonVisualState.Pressed;
+                setTheme(palette.Apply(UiCompiledDesign.Windows11.Theme));
+                setInput(new(pointer, pressed, false, pressed, false, false, false, 0, 0, [], [], default, default));
+                var pixels = capture($"{vertical}-{state}", Draw);
+                bool At(int x, int y, UiColor color) =>
+                    BitConverter.ToUInt32(pixels, (y * width + x) * 4) == color.Rgba;
+                var active = disabled ? palette.GrayText : palette.Highlight;
+                var rail = disabled ? palette.GrayText : palette.CanvasText;
+                check(At((int)thumb.X, (int)thumb.Y, active)
+                    && (vertical ? At(36, 182, active) && At(36, 70, rail) : At(50, 36, active) && At(180, 36, rail)),
+                    $"Slider forced colors / independent rail, fill and thumb roles / vertical={vertical} / {state}");
+                check(vertical ? At(36, 174, palette.HighlightText) : At(66, 36, palette.HighlightText),
+                    $"Slider forced colors / step marker uses system HighlightText / vertical={vertical} / {state}");
+                setInput(new(new(-100, -100), false, false, false, true, false, false, 0, 0, [], [], default, default));
+                capture($"{vertical}-{state}-release", Draw);
+            }
+            disabled = false;
+            var focus = capture($"{vertical}-focus-visible", ui =>
+            {
+                ui.EnableRootViewportContentLayout(contentPadding : 0);
+                var context = new UiControlContext(ui);
+                var layout = UiFluentSliderPresentation.Measure(context, slider.Options, slider.Size);
+                var bounds = new UiRect(20, 20, layout.Size.X, layout.Size.Y);
+                UiFluentSliderPresentation.Paint(context, bounds, layout, slider.Options,
+                    new(value.Value, false, new UiButtonInteraction(false, false, false) { FocusVisible = true }));
+            });
+            var top = ((20 * width) + (vertical ? 36 : 100)) * 4;
+            var left = ((vertical ? 60 : 36) * width + (vertical ? 14 : 22)) * 4;
+            check(BitConverter.ToUInt32(focus, top) == palette.Highlight.Rgba
+                && BitConverter.ToUInt32(focus, left) == palette.Highlight.Rgba,
+                $"Slider forced colors / focus uses Highlight at the official orientation offsets / vertical={vertical}");
+        }
+        check(value.Value == 40, "Slider forced colors / same-value press and theme changes preserve the binding");
+        setTheme(UiCompiledDesign.Windows11Dark.Theme);
+    }
 }

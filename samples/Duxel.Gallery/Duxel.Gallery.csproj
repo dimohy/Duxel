@@ -11,7 +11,7 @@
     <OptimizationPreference>Speed</OptimizationPreference>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.Gallery</PackageId>
-    <Version>0.3.0-preview</Version>
+    <Version>$(DuxelVersion)</Version>
     <Authors>dimohy</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/dimohy/Duxel</RepositoryUrl>
@@ -84,4 +84,7 @@
     </ItemGroup>
   </Target>
 
+  <ItemGroup>
+    <None Update="Assets/Image/*" Link="Assets/Image/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

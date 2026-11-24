@@ -43,7 +43,7 @@ public readonly struct UiFluentRatingPresentation : IUiRatingPresentation
             UiFluentRatingGlyphs.Paint(context, icon, fill, options.Shape, options.Color, options.RightToLeft, false, interaction.Control);
             var focused = interaction.FocusedIndex * options.Step;
             if (interaction.Control.FocusVisible && focused >= i && focused < i + 1)
-                context.FocusOutline(new(x, y, width, width), 0);
+                context.FocusOutline(new(x, y, width, width), 0, context.Theme.ForcedColors?.Highlight ?? context.Theme.Text);
         }
     }
 }

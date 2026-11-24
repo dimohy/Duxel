@@ -48,3 +48,8 @@ TestResults/
 
 # Project-local pending deletion
 /must_delete/
+
+# Private working notes and publication drafts
+/SESSION_HANDOFF.md
+/SESSION_RESTART*.md
+/local-docs/

@@ -66,7 +66,8 @@ internal static class VectorGlyphCoverageTests
             Glyphs = new PlatformTextGlyphMesh[] { cubicGlyph }
         }, 1);
         var commands = retained.Scene!.Data.Span;
-        check(commands[1].W == 5 && commands[1].Y == 2 && commands[8].X == 1 && commands[8].W == 2,
+        check(commands[1].W == (UiGpuVectorScene.GlyphCoverageBounds | 5)
+            && commands[1].Y == 2 && commands[8].X == 1 && commands[8].W == 2,
             "Vector glyph curves / native cubic controls, even-odd fill and two monotone intervals reach the GPU unchanged");
         check(Math.Abs(commands[8].Y - (3 - Math.Sqrt(3)) / 6) < 1e-6
             && Math.Abs(commands[8].Z - (3 + Math.Sqrt(3)) / 6) < 1e-6,

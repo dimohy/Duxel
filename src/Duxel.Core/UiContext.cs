@@ -223,6 +223,7 @@ public sealed partial class UiContext(
     }
 
     internal bool UseR8ParagraphCoverage { get; init; }
+    internal bool UseProjectedGlyphText { get; set; }
 
     public void SetPlatformTextBackend(IPlatformTextBackend? textBackend)
     {
@@ -316,6 +317,8 @@ public sealed partial class UiContext(
         {
             _theme = theme;
         }
+        if (_frameInfo.PrefersReducedMotion != frameInfo.PrefersReducedMotion)
+            _immediateContext?.MarkAllLayersDirty();
         _frameInfo = frameInfo;
         _displaySize = frameInfo.DisplaySize;
         _framebufferScale = frameInfo.DisplayFramebufferScale;
@@ -1026,7 +1029,9 @@ public sealed partial class UiContext(
         }
 
         ui.SetRenderPhase(phase);
+        ui.UseProjectedGlyphText = UseProjectedGlyphText;
         ui.HostIdleWaitSeconds = _frameInfo.IdleWaitSeconds;
+        ui.HostPrefersReducedMotion = _frameInfo.PrefersReducedMotion;
         ui.SetMiddleMouseState(_inputState.MiddleMouseDown, _inputState.MiddleMousePressed, _inputState.MiddleMouseReleased);
         ui.SetDirectTextBaseFontSize(_directTextBaseFontSize);
         ui.SetDirectTextEnabled(_directTextEnabled);

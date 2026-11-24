@@ -12,8 +12,17 @@ public readonly record struct UiCodeViewOptions(bool Wrap = true, bool LineNumbe
 public sealed record UiCodeViewLabels(string Title, string LineCountFormat, string Wrap, string LineNumbers,
     string ShowAll, string Copy, string Copied, string AccessibleName)
 {
+    public string ContextMenuName { get; init; } = "Text actions";
+    public string CopySelection { get; init; } = "Copy";
+    public string SelectAll { get; init; } = "Select All";
+
     public static UiCodeViewLabels Default { get; } = new("C# 소스", "{0}줄", "줄바꿈",
-        "줄 번호", "전체 표시", "소스 복사", "복사됨", "C# 예제 소스");
+        "줄 번호", "전체 표시", "소스 복사", "복사됨", "C# 예제 소스")
+    {
+        ContextMenuName = "텍스트 명령",
+        CopySelection = "복사",
+        SelectAll = "모두 선택"
+    };
 }
 
 public readonly record struct UiCodeViewMetrics(int MeasurementBuilds, int PaintBuilds, int SyntaxParses);
@@ -28,6 +37,7 @@ public sealed class UiCodeView : UiWidget
     internal readonly UiMultilineInputOwner Owner = new();
     internal readonly UiVisualTextVariants Measurements = new();
     internal readonly UiVisualTextLines IndependentPaintLines = new();
+    internal SelectionPopup? SelectionMenu { get; set; }
     internal int[] LineStarts { get; private set; } = [];
     // Cache a viewport's worth of labels without retaining a string for each source line.
     private const int LineLabelCapacity = 128;
@@ -116,12 +126,29 @@ public sealed class UiCodeView : UiWidget
     });
     private protected override void ReleaseOwnedResources()
     {
+        if (SelectionMenu is { } popup)
+        {
+            popup.Input.Entrance?.Reset();
+            popup.Input.ScrollOwner.Release();
+            SelectionMenu = null;
+        }
         Owner.Dispose();
         Measurements.Clear();
         IndependentPaintLines.Clear();
         _lineLabels = null;
         base.ReleaseOwnedResources();
     }
+
+    internal sealed class SelectionPopup(UiCodeViewLabels labels)
+    {
+        internal readonly UiMenuInputState Input = new() { Entrance = new() };
+        internal readonly UiMenuOption[] CopyItems = [new("copy", labels.CopySelection)];
+        internal readonly UiMenuOption[] SelectAllItems = [new("select-all", labels.SelectAll)];
+        internal UiRect Anchor;
+        internal string? Source;
+        internal UiTextSelection Selection;
+    }
+
     private sealed class Surface(UiCodeView code) : UiControlWidget
     {
         protected override UiVector2 MeasureContent(UiControlContext context) => context.MeasureCodeView(code);

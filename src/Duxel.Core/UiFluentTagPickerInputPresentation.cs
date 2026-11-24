@@ -18,7 +18,7 @@ internal readonly struct UiFluentTagPickerInputPresentation : IUiComboboxPresent
             options.Appearance, options.Invalid);
         context.PaintEditableText(layout, edit, new(palette.Text, context.Theme.InputSelectionBg, palette.Text) { Typography = true });
         UiFluentInputFrame.PaintPlaceholder(context, layout, edit, options.Placeholder, options.RightToLeft, palette.Placeholder);
-        var arrow = ExpandBounds(layout.Field, options);
+        var arrow = layout.After ?? ExpandBounds(layout.Field, options);
         context.PaintDisclosure(new(arrow.X + arrow.Width / 2, arrow.Y + arrow.Height / 2),
             UiFluentInputPalette.Adornment(context), open, 0, 180);
     }
@@ -39,7 +39,8 @@ public sealed partial class UiImmediateContext
     internal void PaintTagPickerFrame(UiRect bounds, UiDropdownOptions options, UiComboboxCompletion completion)
     {
         var context = new UiControlContext(this);
-        var focused = IsControlEnabled && (completion.EditorId is { } editor && _state.FocusedId == editor || Array.IndexOf(completion.PreviousGroup.Ids, _state.FocusedId) >= 0);
+        var focused = IsControlEnabled && (completion.SecondaryFocused || completion.EditorId is { } editor && _state.FocusedId == editor
+            || Array.IndexOf(completion.PreviousGroup.Ids, _state.FocusedId) >= 0);
         var state = !IsControlEnabled ? UiButtonVisualState.Disabled : focused ? UiButtonVisualState.Pressed
             : Contains(bounds, _mousePosition) ? UiButtonVisualState.Hover : UiButtonVisualState.Rest;
         var palette = UiFluentInputPalette.Resolve(context, state, options.Appearance, options.Invalid || _currentField is { Invalid: true });

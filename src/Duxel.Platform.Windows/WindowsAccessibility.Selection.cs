@@ -14,6 +14,18 @@ internal sealed partial class WindowsAccessibility
             ? CaptureEventSource(change.Element, closed : false)
             : Find(change.Element.Node.Id)
                 ?? throw new InvalidOperationException("The selection event source must already be published.");
+        if (_requestCleanup is not null && change.DismissingMenu && provider is UiaEventProvider snapshot)
+        {
+            // UIA disconnects the live item by runtime ID, which would also discard a queued event.
+            // Send the immutable selection only after the next publication and its cleanup.
+            _dismissingMenuSelections.Add((Tree.Revision, new(snapshot, 0, change)));
+            return;
+        }
+        RaiseNativeSelectionChanged(change, provider);
+    }
+
+    private static void RaiseNativeSelectionChanged(UiAccessibilitySelectionChange change, UiaElementProvider provider)
+    {
         var pointer = UiaNative.Pointer<IUiaSimple>(provider);
         try
         {

@@ -4,6 +4,7 @@ namespace Duxel.Gallery;
 
 internal sealed class ObserverScreen : UiScreen, IDisposable
 {
+    internal const float TitleBarHeight = 48;
 #if DUXEL_GALLERY_PROFILING
     internal bool ProfileRenderSections { get; set; }
     internal (long Navigation, long Options, long Page) RenderSectionTicks { get; private set; }
@@ -104,10 +105,11 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
     }
     private readonly UiState<bool> _repaintHighlights = new(false);
     private readonly UiWidget _options;
-    private readonly UiWidget _themeSwitch;
-    private readonly UiSizedBox _toolbar;
-    private readonly UiScrollView _toolbarScroll;
-    private readonly UiWidget _headerActions;
+    private readonly UiSizedBox? _toolbar;
+    private readonly UiScrollView? _toolbarScroll;
+    private readonly UiWidget? _headerActions;
+    private readonly UiWidget? _pageStatus;
+    private readonly UiWidget? _windowTitle;
     private readonly UiFluentDialog? _settings;
     private UiImmediateContext? _currentUi;
     private string _rendererStatus = "";
@@ -132,7 +134,8 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
     internal string PerformanceText => _performance;
 
     internal ObserverScreen(ObserverServices services, Duxel.App.DuxelAppSession? fileDialogSession = null,
-        GalleryLanguage language = GalleryLanguage.Korean, Action<GalleryLanguage>? requestLanguage = null)
+        GalleryLanguage language = GalleryLanguage.Korean, Action<GalleryLanguage>? requestLanguage = null,
+        bool controlsInTitleBar = false)
     {
         ArgumentNullException.ThrowIfNull(services);
         SvgPage = new(services);
@@ -142,22 +145,22 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
         AvatarGroupPage = new(services);
         RepaintPage = new();
         CatalogPage.Validate();
-        _themeSwitch = Fluent.Switch(GalleryText.Get("Light theme"), new UiBinding<bool>(
+        var themeLabel = GalleryText.Get("Toggle theme");
+        var themeSwitch = Fluent.IconSwitch(themeLabel, new UiBinding<bool>(
             () => _currentUi!.GetStyle(includeRequested : true).FluentColorScheme == UiFluentColorScheme.Light, light =>
             {
                 var theme = (light ? UiCompiledDesign.Windows11 : UiCompiledDesign.Windows11Dark).Theme;
                 if (_currentUi!.GetStyle(includeRequested : true).ForcedColors is { } system) theme = system.Apply(theme);
                 _currentUi.RequestTheme(theme);
-            }));
-        _toolbar = Dux.SizedBox(Dux.Row(new(Spacing: 16, CrossAxisAlignment: UiCrossAxisAlignment.Center),
-            Dux.Expanded(Fluent.Tooltip(Fluent.Caption1(() => _rendererStatus), GalleryText.Get("P : presentations / D : draw calls / U : uploaded bytes / C : cache hits"), ToolbarTooltipOptions)),
-            Fluent.Switch("V-Sync", new UiBinding<bool>(() => _currentUi!.GetVSync(), value => _currentUi!.SetVSync(value))),
-            Fluent.Switch(GalleryText.Get("Event-driven mode"), new UiBinding<bool>(() => _updateOnlyOnChange, value => _updateOnlyOnChange = value)),
-            Fluent.Switch(GalleryText.Get("Highlight repaints"), _repaintHighlights.Binding)));
-        _toolbarScroll = Dux.ScrollView(_toolbar, new(UiScrollAxis.Horizontal));
-        _toolbarScroll.AccessibleName = GalleryText.Get("Gallery status and options");
+            }), UiSwitchIcon.Create<GalleryDarkThemeIcon>(new(14, 51, 95), new(190, 222, 255)),
+            UiSwitchIcon.Create<GalleryLightThemeIcon>(new(128, 69, 0), new(255, 232, 169)));
+        var status = Fluent.Tooltip(Fluent.Caption1(() => _rendererStatus),
+            GalleryText.Get("P : presentations / D : draw calls / U : uploaded bytes / C : cache hits"), ToolbarTooltipOptions);
+        var vsync = Fluent.Switch("V-Sync", new UiBinding<bool>(() => _currentUi!.GetVSync(), value => _currentUi!.SetVSync(value)));
+        var eventDriven = Fluent.Switch(GalleryText.Get("Event-driven mode"), new UiBinding<bool>(() => _updateOnlyOnChange, value => _updateOnlyOnChange = value));
+        var repaint = Fluent.Switch(GalleryText.Get("Highlight repaints"), _repaintHighlights.Binding);
         _performance = GalleryText.Get("Measuring FPS");
-        _headerActions = _themeSwitch;
+        UiWidget headerActions = Fluent.Tooltip(themeSwitch, themeLabel, ToolbarTooltipOptions);
         if (requestLanguage is not null)
         {
             var current = GalleryText.Tag(language);
@@ -197,12 +200,28 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             {
                 AccessibleName = settingsLabel
             };
-            _headerActions = Dux.Row(new(Spacing : 12, CrossAxisAlignment : UiCrossAxisAlignment.Center),
-                _themeSwitch, Fluent.Tooltip(settingsButton, settingsLabel, ToolbarTooltipOptions));
+            headerActions = Dux.Row(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Center),
+                headerActions, Fluent.Tooltip(settingsButton, settingsLabel, ToolbarTooltipOptions));
         }
-        _options = Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
-            Dux.Row(new(Spacing : 16, CrossAxisAlignment : UiCrossAxisAlignment.Start), Dux.Expanded(_toolbarScroll), _headerActions), Fluent.Divider());
+        if (controlsInTitleBar)
+        {
+            _windowTitle = Fluent.Body1(GalleryText.Get("Duxel Gallery"));
+            _options = Dux.Wrap(new(Spacing : 14, RunSpacing : 8, CrossAlignment : UiWrapCrossAlignment.Center),
+                vsync, eventDriven, repaint, headerActions);
+            _pageStatus = status;
+        }
+        else
+        {
+            _headerActions = headerActions;
+            _toolbar = Dux.SizedBox(Dux.Row(new(Spacing : 16, CrossAxisAlignment : UiCrossAxisAlignment.Center),
+                Dux.Expanded(status), vsync, eventDriven, repaint));
+            _toolbarScroll = Dux.ScrollView(_toolbar, new(UiScrollAxis.Horizontal));
+            _toolbarScroll.AccessibleName = GalleryText.Get("Gallery status and options");
+            _options = Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
+                Dux.Row(new(Spacing : 16, CrossAxisAlignment : UiCrossAxisAlignment.Start), Dux.Expanded(_toolbarScroll), headerActions), Fluent.Divider());
+        }
         var catalog = new CatalogPage();
+        var layoutExamples = GalleryComponentExamples.CreateLayoutExamples();
         _pages =
         [
             new WidgetPage("개요", string.Empty, CreateOverview()),
@@ -264,7 +283,8 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             RepaintPage,
             MarkdownPage,
             new LocalizationPage(),
-            .. GalleryComponentExamples.Create(),
+            .. GalleryComponentExamples.Create(services.ImageDecoder),
+            .. layoutExamples,
             .. Fluent.MissingComponentNames.ToArray().Where(static component => component != "Toast").Select(static component => (IObserverPage)new WidgetPage(component,
                 "Fluent 구성요소 구현 예정",
                 Dux.Column(new(Spacing: 16, MainAxisSize: UiMainAxisSize.Min),
@@ -272,7 +292,8 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
                     Fluent.Body1(GalleryText.Get("The API and interactive examples for this component are planned.")),
                     Fluent.Body1(GalleryText.Get("The official component catalog guides this roadmap. Design and accessibility checks continue for the available examples.")))))
         ];
-        _navigation = new(PageTitles, Fluent.MissingComponentNames.ToArray(), new UiBinding<string?>(() => _selection.Value, SelectRoute));
+        _navigation = new(PageTitles, Fluent.MissingComponentNames.ToArray(), new UiBinding<string?>(() => _selection.Value, SelectRoute),
+            showBrand : !controlsInTitleBar, layoutComponents : layoutExamples.Select(static page => page.Title));
         catalog.Connect(_navigation.Destinations, SelectRoute);
         _navigationDrawer = Fluent.Drawer(GalleryText.Get("Gallery navigation"), _navigation.Content,
             options : new(Extent : 320, CloseLabel : GalleryText.Get("Close navigation"), ScrollBody : false));
@@ -353,6 +374,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
         var metrics = ui.GetRendererFrameMetrics();
         if (_rendererStatus.Length == 0 || (fps.Updated && !_repaintHighlights.Value && !FreezeDiagnosticText))
             _rendererStatus = $"{_performance} | P {metrics.PresentationSequence} · D {metrics.DrawCalls} · U {(metrics.DynamicUploadBytes + metrics.StagingUploadBytes) / 1024d:F1}KB · C {metrics.ResidentHits}";
+        var controlsInTitleBar = RenderTitleBar(ui, out var statusInTitleBar);
         var origin = ui.GetCursorScreenPos();
         var available = ui.GetContentRegionAvail();
         _compactNavigation = available.X + 16 <= 640;
@@ -381,14 +403,20 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
 #if DUXEL_GALLERY_PROFILING
         var optionsStart = sample ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
 #endif
-        var themeSize = _headerActions.MeasureConstrained(ui, new(0, float.PositiveInfinity, 0, float.PositiveInfinity));
-        var statusWidth = MathF.Max(1, ui.GetContentRegionAvail().X - themeSize.X - 16);
-        var toolbarWidth = MathF.Max(720, statusWidth);
-        _toolbar.Options = new(Width: toolbarWidth);
-        var toolbarSize = _toolbar.MeasureConstrained(ui, new(0, float.PositiveInfinity, 0, float.PositiveInfinity));
-        _toolbarScroll.Options = new(UiScrollAxis.Horizontal, Width: statusWidth,
-            Height: toolbarSize.Y + (statusWidth < toolbarWidth ? ui.GetFrameHeightWithSpacing() : 0));
-        _options.Render(ui);
+        if (_toolbar is { } toolbar && _toolbarScroll is { } scroll && _headerActions is { } header)
+        {
+            var themeSize = header.MeasureConstrained(ui, new(0, float.PositiveInfinity, 0, float.PositiveInfinity));
+            var statusWidth = MathF.Max(1, ui.GetContentRegionAvail().X - themeSize.X - 16);
+            var toolbarWidth = MathF.Max(720, statusWidth);
+            toolbar.Options = new(Width: toolbarWidth);
+            var toolbarSize = toolbar.MeasureConstrained(ui, new(0, float.PositiveInfinity, 0, float.PositiveInfinity));
+            scroll.Options = new(UiScrollAxis.Horizontal, Width: statusWidth,
+                Height: toolbarSize.Y + (statusWidth < toolbarWidth ? ui.GetFrameHeightWithSpacing() : 0));
+        }
+        if (!controlsInTitleBar)
+            _options.Render(ui);
+        if (!statusInTitleBar)
+            _pageStatus?.Render(ui);
         ui.SetRepaintHighlights(_repaintHighlights.Value);
 #if DUXEL_GALLERY_PROFILING
         var pageStart = sample ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
@@ -411,12 +439,70 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
 #endif
     }
 
+    private bool RenderTitleBar(UiImmediateContext ui, out bool statusInTitleBar)
+    {
+        statusInTitleBar = false;
+        if (_windowTitle is not { } title || !ui.TryGetCaptionButtonBounds(out var caption))
+            return false;
+
+        const float iconX = 14, iconSize = 22, titleX = 46, rightGap = 12;
+        var viewport = ui.GetMainViewport();
+        var bar = new UiRect(0, 0, viewport.Size.X, TitleBarHeight);
+        var titleClip = new UiRect(0, 0, caption.X, TitleBarHeight);
+        var draw = ui.GetBackgroundDrawList();
+        draw.AddRectFilled(bar, ui.GetColorU32(UiStyleColor.TitleBgActive), ui.WhiteTextureId, bar);
+        draw.AddRectFilled(new(0, TitleBarHeight - 1, bar.Width, 1), ui.GetColorU32(UiStyleColor.Border), ui.WhiteTextureId, bar);
+        if (ui.TryGetWindowIcon(out var icon))
+        {
+            icon.Prepare(ui, UiImageEffects.Default);
+            var iconY = (TitleBarHeight - iconSize) * .5f;
+            draw.AddImage(icon.TextureId, new(iconX, iconY), new(iconX + iconSize, iconY + iconSize),
+                new(0, 0), new(1, 1), new(0xffffffff), titleClip);
+        }
+        var titleSize = title.MeasureConstrained(ui, new(0, MathF.Max(0, caption.X - titleX), 0, TitleBarHeight));
+        ui.SetCursorScreenPos(new(titleX, (TitleBarHeight - titleSize.Y) * .5f));
+        ui.PushClipRect(titleClip, true);
+        try { title.Render(ui); }
+        finally { ui.PopClipRect(); }
+
+        var controlsRight = caption.X - rightGap;
+        var available = MathF.Max(0, controlsRight - titleX - titleSize.X - 32);
+        var controlsSize = _options.MeasureConstrained(ui, new(0, float.PositiveInfinity, 0, float.PositiveInfinity));
+        var fits = controlsSize.X <= available && controlsSize.Y <= TitleBarHeight - 4;
+        var controlsLeft = fits ? controlsRight - controlsSize.X : caption.X;
+        if (fits)
+        {
+            ui.SetCursorScreenPos(new(controlsLeft, (TitleBarHeight - controlsSize.Y) * .5f));
+            _options.Render(ui);
+        }
+        if (_pageStatus is { } status)
+        {
+            const float statusGap = 22;
+            var statusLeft = titleX + titleSize.X + statusGap;
+            var statusSize = status.MeasureConstrained(ui, new(0, float.PositiveInfinity, 0, float.PositiveInfinity));
+            // Reserve width for changing counters so the status does not jump between rows during rendering.
+            statusInTitleBar = statusLeft + MathF.Max(statusSize.X, 320) + statusGap <= controlsLeft
+                && statusSize.Y <= TitleBarHeight - 4;
+            if (statusInTitleBar)
+            {
+                ui.SetCursorScreenPos(new(statusLeft, (TitleBarHeight - statusSize.Y) * .5f));
+                status.Render(ui);
+            }
+        }
+        ui.SetTitleBarDragRegions([new(0, 0, controlsLeft, TitleBarHeight)]);
+        ui.SetViewportTopInset(TitleBarHeight);
+        ui.EnableRootViewportContentLayout(contentPadding: 8);
+        return fits;
+    }
+
     public void Dispose()
     {
         _navigationDrawer.Dispose();
         _compactHeader.Dispose();
         _navigation.Dispose();
         _options.Dispose();
+        _pageStatus?.Dispose();
+        _windowTitle?.Dispose();
         _settings?.Dispose();
         foreach (var frame in _pageFrames) frame?.Dispose();
         foreach (var page in _pages)

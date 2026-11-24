@@ -1,7 +1,43 @@
 namespace Duxel.Core;
 
+internal enum UiFluentButtonAppearanceKind { Secondary, Outline, Subtle, Transparent, Primary }
+
 public static partial class UiFluentButtonPalette
 {
+    internal static UiButtonPaint Resolve(UiFluentColorScheme scheme, UiButtonVisualState state,
+        UiFluentButtonAppearanceKind appearance) => appearance switch
+    {
+        UiFluentButtonAppearanceKind.Secondary => Resolve(scheme, state),
+        UiFluentButtonAppearanceKind.Outline => Outline(scheme, state),
+        UiFluentButtonAppearanceKind.Subtle => Subtle(scheme, state),
+        UiFluentButtonAppearanceKind.Transparent => Transparent(scheme, state),
+        UiFluentButtonAppearanceKind.Primary => Primary(scheme, state),
+        _ => throw new ArgumentOutOfRangeException(nameof(appearance))
+    };
+
+    internal static UiButtonPaint ResolveForced(UiForcedColorPalette colors, UiButtonVisualState state,
+        UiFluentButtonAppearanceKind appearance)
+    {
+        if (state == UiButtonVisualState.Disabled)
+            return new(colors.ButtonFace, colors.GrayText, colors.GrayText, colors.GrayText);
+        if (state is UiButtonVisualState.Hover or UiButtonVisualState.Pressed)
+        {
+            var background = appearance switch
+            {
+                UiFluentButtonAppearanceKind.Transparent => default,
+                UiFluentButtonAppearanceKind.Subtle => colors.ButtonFace,
+                _ => colors.HighlightText
+            };
+            return new(background, colors.Highlight, colors.Highlight, colors.Highlight);
+        }
+        return appearance switch
+        {
+            UiFluentButtonAppearanceKind.Primary => new(colors.Highlight, colors.HighlightText, colors.HighlightText, colors.HighlightText),
+            UiFluentButtonAppearanceKind.Secondary => new(colors.ButtonFace, colors.ButtonText, colors.ButtonText, colors.Highlight),
+            _ => new(default, colors.ButtonText, colors.ButtonText, colors.Highlight)
+        };
+    }
+
     public static UiButtonPaint Outline(UiFluentColorScheme scheme,UiButtonVisualState state)=>
         Resolve(scheme,state) with {Background=default};
 

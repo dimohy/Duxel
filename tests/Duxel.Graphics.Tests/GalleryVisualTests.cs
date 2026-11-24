@@ -13,7 +13,7 @@ internal static class GalleryVisualTests
         fixture.Context.State.VSync = false;
         fixture.Context.SetAccessibilityTree(tree);
         var fonts = GalleryText.ConfigureFonts(new());
-        fixture.Context.SetDirectTextSecondaryFontPath(fonts.SecondaryFontPath);
+        fixture.Context.SetDirectTextSecondaryFontPath(fonts.DirectTextSecondaryFontPath);
         fixture.Context.SetTypographyFonts(fonts.Typography);
         var clipboard = new CodeClipboard();
         fixture.Context.SetClipboard(clipboard);
@@ -85,7 +85,7 @@ internal static class GalleryVisualTests
             check(tab.IsCurrent == true && panel.Bounds.X > 200 && panel.LabeledBy == tab.Id,
                 "gallery actual GPU capture has left navigation and its associated content : " + page);
         }
-        foreach (var example in GalleryComponentExamples.Create())
+        foreach (var example in GalleryComponentExamples.Create(ObserverServices.CreateWindows().ImageDecoder))
         {
             using (example)
             {
@@ -139,25 +139,25 @@ internal static class GalleryVisualTests
                 "Gallery uses a passive common section header rather than a category button : " + label);
         }
         var brand = headerNodes.Single(element => element.Node.Name == "Duxel 갤러리" && element.Node.Role == UiAccessibilityRole.Label).Node;
-        var theme = headerNodes.Single(element => element.Node.Name == "밝은 테마" && element.Node.Role == UiAccessibilityRole.Switch).Node;
+        var theme = headerNodes.Single(element => element.Node.Name == "테마 전환" && element.Node.Role == UiAccessibilityRole.Switch).Node;
         check(headerNodes.Any(element => element.Node.Name == "Duxel 로고" && !element.Node.Offscreen),
             "Navigation header renders the existing Duxel vector logo without a raster substitute");
         var logoBounds = headerNodes.Single(element => element.Node.Name == "Duxel 로고").Node.Bounds;
         var logoPixels = fixture.Capture(Draw);
         byte[] LogoPixel(float x, float y)
         {
-            var column = (int)(logoBounds.X + (x - 50) * logoBounds.Width / 180);
-            var row = (int)(logoBounds.Y + (y - 40) * logoBounds.Height / 180);
+            var column = (int)(logoBounds.X + x * logoBounds.Width / 192);
+            var row = (int)(logoBounds.Y + y * logoBounds.Height / 192);
             var offset = (row * (int)fixture.FrameInfo.DisplaySize.X + column) * 4;
             return logoPixels.AsSpan(offset, 4).ToArray();
         }
-        var backPlate = LogoPixel(90, 57);
-        var logoCounter = LogoPixel(150, 145);
-        var stem = LogoPixel(120, 135);
-        check(backPlate[0] is > 80 and < 190 && backPlate[1] is > 80 and < 190,
-            "Gallery logo back plate composites at half opacity on the actual dark Vulkan surface");
-        check(stem[0] > 235 && logoCounter[0] < stem[0] - 25 && logoCounter[1] < stem[1] - 25,
-            "Gallery D monogram has a transparent counter revealing its underlying violet layer");
+        var backPlate = LogoPixel(30, 82);
+        var logoCounter = LogoPixel(92, 95);
+        var stem = LogoPixel(60, 95);
+        check(backPlate[2] > backPlate[0] + 20 && backPlate[2] > backPlate[1] + 20,
+            "Gallery logo back plate renders its indigo gradient on the actual dark Vulkan surface");
+        check(stem[0] > 235 && logoCounter[0] < stem[0] - 25 && logoCounter[2] > logoCounter[0] + 20,
+            "Gallery D monogram has a transparent counter revealing its underlying indigo layer");
         var status = headerNodes.Single(element => element.Node.Name == "갤러리 상태와 옵션" && element.Node.Role == UiAccessibilityRole.Pane).Node;
         var contentPanel = headerNodes.Single(element => element.Node.Name == "개요" && element.Node.Role == UiAccessibilityRole.Pane).Node;
         check(brand.Bounds.X < 120 && brand.Bounds.Y < 40 && theme.Bounds.Y < 40 && theme.Bounds.X > 900
@@ -356,7 +356,7 @@ internal static class GalleryVisualTests
         fixture.Capture(Draw, escaped);
         Capture("개요", "gallery-overview-source");
         var switches = tree.CaptureSnapshot().Elements.Where(static element => element.Node.Role == UiAccessibilityRole.Switch
-            && element.Node.Name is "V-Sync" or "이벤트 대기 모드" or "갱신 영역 강조" or "밝은 테마").Select(static element => element.Node).ToArray();
+            && element.Node.Name is "V-Sync" or "이벤트 대기 모드" or "갱신 영역 강조" or "테마 전환").Select(static element => element.Node).ToArray();
         check(switches.Length == 4 && switches.All(node => node.Bounds.Y == switches[0].Bounds.Y),
             "gallery status options occupy one horizontal toolbar row");
         Capture("SVG", "gallery-svg-primary-source");
@@ -622,7 +622,7 @@ internal static class GalleryVisualTests
             Capture(planned[0], "gallery-planned");
         void ToggleTheme()
         {
-            var toggle = tree.CaptureSnapshot().Elements.Single(static element => element.Node.Name == "밝은 테마" && element.Node.Role == UiAccessibilityRole.Switch);
+            var toggle = tree.CaptureSnapshot().Elements.Single(static element => element.Node.Name == "테마 전환" && element.Node.Role == UiAccessibilityRole.Switch);
             if (tree.RequestAction(toggle.Node.Id, toggle.RuntimeId, UiAccessibilityAction.Toggle, wait: false) != UiAccessibilityResult.Success)
                 throw new InvalidOperationException("Gallery theme toggle was rejected.");
             fixture.Capture(Draw);
@@ -688,6 +688,13 @@ internal static class GalleryVisualTests
         void Invoke(string name, UiAccessibilityRole role, UiAccessibilityAction action = UiAccessibilityAction.Invoke)
         {
             var entry = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == name && element.Node.Role == role);
+            if (entry.Node.Offscreen && tree.RequestAction(entry.Node.Id, entry.RuntimeId,
+                UiAccessibilityAction.ScrollIntoView, wait : false) == UiAccessibilityResult.Success)
+            {
+                fixture.Capture(Draw);
+                fixture.Capture(Draw);
+                entry = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == name && element.Node.Role == role);
+            }
             if (entry.Node.Offscreen || tree.RequestAction(entry.Node.Id, entry.RuntimeId, action, wait : false) != UiAccessibilityResult.Success)
                 throw new InvalidOperationException("Compact Gallery control rejected its actual action : " + name);
             fixture.Capture(Draw);
@@ -704,7 +711,7 @@ internal static class GalleryVisualTests
         Invoke("탐색 메뉴 닫기", UiAccessibilityRole.Button);
         fixture.Context.State.AdvanceTime(.35f);
         fixture.Capture(Draw);
-        Invoke("밝은 테마", UiAccessibilityRole.Switch, UiAccessibilityAction.Toggle);
+        Invoke("테마 전환", UiAccessibilityRole.Switch, UiAccessibilityAction.Toggle);
         Invoke("탐색 메뉴 열기", UiAccessibilityRole.Button);
         fixture.Context.State.AdvanceTime(.35f);
         var light = Capture("gallery-compact-light");

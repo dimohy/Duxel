@@ -66,6 +66,10 @@ internal abstract class UiTreeViewState
     internal UiOptionSelection? Single;
     internal UiTreeOptions Options;
     internal UiTreeMetrics Metrics;
+    internal UiButtonActivation HeldPointerActivation;
+    internal readonly UiButtonActivation RowPointerActivation;
+    internal readonly UiButtonActivation DisclosurePointerActivation;
+    internal readonly bool HasPressActivation;
     internal abstract bool RetainMeasurement { get; }
     internal abstract UiTreeMetrics MeasureMetrics(UiControlContext context);
     internal abstract void PaintRow(UiImmediateContext ui, UiTreeItem item, UiControlContext context, UiRect bounds, UiRect chevron, UiButtonInteraction interaction,
@@ -87,7 +91,8 @@ internal abstract class UiTreeViewState
     private WeakReference<UiImmediateContext>? _context;
     internal bool Selectable => Single is not null || Multiple is not null;
     protected UiTreeViewState(string label, UiBinding<string[]> expanded, UiTreeItem[] items,
-        UiBinding<string?>? single, UiBinding<string[]>? multiple, UiTreeOptions options)
+        UiBinding<string?>? single, UiBinding<string[]>? multiple, UiTreeOptions options,
+        UiButtonActivation rowPointerActivation, UiButtonActivation disclosurePointerActivation)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(label);
         options.Validate();
@@ -95,6 +100,12 @@ internal abstract class UiTreeViewState
         if (UiAccessibilityTree.ContainsControl(label, false) || items.Any(item => item is null || item.Owner is not null)
             || single is not null && multiple is not null)
             throw new ArgumentException("Tree requires unowned rows, a single-line label and one selection authority.");
+        if (rowPointerActivation is not (UiButtonActivation.Press or UiButtonActivation.Release)
+            || disclosurePointerActivation is not (UiButtonActivation.Press or UiButtonActivation.Release))
+            throw new InvalidOperationException("Tree pointer activation must be Press or Release.");
+        RowPointerActivation = rowPointerActivation;
+        DisclosurePointerActivation = disclosurePointerActivation;
+        HasPressActivation = rowPointerActivation == UiButtonActivation.Press || disclosurePointerActivation == UiButtonActivation.Press;
         Items = items.ToArray(); Options = options;
         var hierarchy = new UiTreeHierarchy(items.Select(item => new UiTreeEntry(item.Value, item.ParentValue, item.Label)).ToArray());
         _model = new(hierarchy, expanded);
@@ -155,14 +166,26 @@ internal abstract class UiTreeViewState
     }
 }
 
+/// <summary>Selects the pointer activation edges for Tree rows and branch disclosure.</summary>
+public interface IUiTreeBehavior
+{
+    static virtual UiButtonActivation RowPointerActivation => UiButtonActivation.Release;
+    static virtual UiButtonActivation DisclosurePointerActivation => UiButtonActivation.Release;
+}
+
+/// <summary>Activates Tree rows and branch disclosure on pointer release.</summary>
+public readonly struct UiReleaseTreeBehavior : IUiTreeBehavior;
+
 /// <summary>Owned hierarchical rows with controlled expansion and optional single or cascading terminal selection.</summary>
-public class UiTree<TPresentation> : UiArrangedChildrenWidget where TPresentation : IUiTreePresentation
+public class UiTree<TBehavior, TPresentation> : UiArrangedChildrenWidget
+    where TBehavior : IUiTreeBehavior
+    where TPresentation : IUiTreePresentation
 {
     private sealed class PresentationState : UiTreeViewState
     {
         internal PresentationState(string label, UiBinding<string[]> expanded, UiTreeItem[] items,
             UiBinding<string?>? single, UiBinding<string[]>? multiple, UiTreeOptions options)
-            : base(label, expanded, items, single, multiple, options)
+            : base(label, expanded, items, single, multiple, options, TBehavior.RowPointerActivation, TBehavior.DisclosurePointerActivation)
         {
             var slots = Items.Select(item => item.PlainLabel).Where(slot => slot is not null).ToArray();
             var labels = new UiTreeLabel[slots.Length];
@@ -297,6 +320,24 @@ public class UiTree<TPresentation> : UiArrangedChildrenWidget where TPresentatio
         finally { ui.EndTree(scope, State); }
     }
     private protected override void ReleaseOwnedResources() { State.Clear(); base.ReleaseOwnedResources(); }
+}
+
+/// <summary>Tree with row commands and disclosure that activate on pointer release.</summary>
+public class UiTree<TPresentation> : UiTree<UiReleaseTreeBehavior, TPresentation>
+    where TPresentation : IUiTreePresentation
+{
+    public UiTree(string label, UiBinding<string[]> expanded, UiTreeItem[] items, UiTreeOptions options = default,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, expanded, items, options, identity) { }
+    public UiTree(string label, UiBinding<string[]> expanded, UiBinding<string?> selected, UiTreeItem[] items,
+        UiTreeOptions options = default, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, expanded, selected, items, options, identity) { }
+    public UiTree(string label, UiBinding<string[]> expanded, UiBinding<string[]> selectedLeaves, UiTreeItem[] items,
+        UiTreeOptions options = default, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, expanded, selectedLeaves, items, options, identity) { }
+    protected UiTree(string label, UiBinding<string[]> expanded, UiTreeItem[] items, UiBinding<string?>? single,
+        UiBinding<string[]>? multiple, UiTreeOptions options, UiWidgetIdentity identity)
+        : base(label, expanded, items, single, multiple, options, identity) { }
 }
 
 // Existing internal probes use the default presentation while factory/Gallery qualification remains open.

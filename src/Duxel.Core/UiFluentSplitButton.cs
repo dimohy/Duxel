@@ -73,7 +73,7 @@ public sealed partial class UiImmediateContext
         }
 
         if (context.IsEnabled && interaction.FocusVisible)
-            context.FocusOutline(segment, 4);
+            context.FocusOutline(segment, 4, context.Theme.ForcedColors?.Highlight ?? context.Theme.Text);
     }
 
     internal (bool Activated, string? Item) RenderSplitButton<TBehavior>(string id, string label, string menuLabel,
@@ -100,8 +100,10 @@ public sealed partial class UiImmediateContext
 
         PaintSplitSegment(context, bounds, primary, primaryAction, label, layout.Text);
         PaintSplitSegment(context, bounds, menu, menuAction, null, default);
-        var border = context.Theme.ForcedColors?.CanvasText
-            ?? UiFluentButtonPalette.Resolve(context.FluentColorScheme, UiFluentButtonFrame.State(context, menuAction)).Border;
+        var border = context.Theme.ForcedColors is { } colors
+            ? UiFluentButtonPalette.ResolveForced(colors, UiFluentButtonFrame.State(context, primaryAction),
+                UiFluentButtonAppearanceKind.Secondary).Border
+            : UiFluentButtonPalette.Resolve(context.FluentColorScheme, UiFluentButtonFrame.State(context, menuAction)).Border;
         var divider = rtl ? primary.X : menu.X;
         if (menuWidth > 0 && size.Y > 2)
             context.Frame(new(divider, origin.Y + 1, 1, size.Y - 2), border, default, 0, 0);

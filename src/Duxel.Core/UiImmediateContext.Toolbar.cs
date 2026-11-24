@@ -4,7 +4,8 @@ public sealed partial class UiImmediateContext
 {
     private int _toolbarDepth;
     internal readonly record struct ToolbarScope(string Parent, UiWidget? Widget, int TabStart, int Tier, IReadOnlyList<UiKeyEvent> Keys, string? FocusAtStart);
-    internal ToolbarScope BeginToolbar(string label, UiRect bounds, UiToolbarInputState input, UiToolbarOptions options)
+    internal ToolbarScope BeginToolbar<TBehavior>(string label, UiRect bounds, UiToolbarInputState input, UiToolbarOptions options)
+        where TBehavior : IUiToolbarBehavior
     {
         if (_toolbarDepth != 0)
             throw new NotSupportedException("A Toolbar cannot contain another Toolbar. Use ordinary child layout groups.");
@@ -17,17 +18,23 @@ public sealed partial class UiImmediateContext
         {
             foreach (var key in _keyEvents)
             {
-                var step = key.Key is UiKey.LeftArrow or UiKey.UpArrow ? -1 : key.Key is UiKey.RightArrow or UiKey.DownArrow ? 1 : 0;
-                if (options.RightToLeft && key.Key is UiKey.LeftArrow or UiKey.RightArrow)
-                    step = -step;
-                var consumed = key.IsDown && key.Modifiers == 0 && (step != 0 || key.Key is UiKey.Home or UiKey.End);
-                if (!consumed)
+                // A preceding event in this frame may have moved focus into an editor.
+                var action = key.IsDown && key.Modifiers == 0 && !input.Members[index].ConsumesArrows
+                    ? TBehavior.GetNavigation(key.Key, options) : UiToolbarNavigationAction.None;
+                if (action == UiToolbarNavigationAction.None)
                 {
                     input.FilteredKeys.Add(key);
                     continue;
                 }
-                index = key.Key == UiKey.Home ? 0 : key.Key == UiKey.End ? input.Members.Count - 1
-                    : (index + step + input.Members.Count) % input.Members.Count;
+                var last = input.Members.Count - 1;
+                index = action switch
+                {
+                    UiToolbarNavigationAction.Previous => index == 0 ? TBehavior.WrapNavigation ? last : 0 : index - 1,
+                    UiToolbarNavigationAction.Next => index == last ? TBehavior.WrapNavigation ? 0 : last : index + 1,
+                    UiToolbarNavigationAction.First => 0,
+                    UiToolbarNavigationAction.Last => last,
+                    _ => throw new InvalidOperationException("Unsupported Toolbar navigation action.")
+                };
                 FocusGroupControl(input.Members[index].Id, keyboard: true);
             }
             _keyEvents = input.FilteredKeys;

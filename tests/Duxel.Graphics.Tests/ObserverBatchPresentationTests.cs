@@ -30,7 +30,7 @@ internal static class ObserverBatchPresentationTests
         using var screen = new ObserverScreen(ObserverServices.CreateWindows()) { FreezeDiagnosticText = true };
         ControlFontFixture.Configure(context);
         var fonts = GalleryText.ConfigureFonts(new());
-        context.SetDirectTextSecondaryFontPath(fonts.SecondaryFontPath);
+        context.SetDirectTextSecondaryFontPath(fonts.DirectTextSecondaryFontPath);
         context.SetTypographyFonts(fonts.Typography);
         using var tree = new UiAccessibilityTree();
         context.SetAccessibilityTree(tree);
@@ -102,7 +102,7 @@ internal static class ObserverBatchPresentationTests
         }
         Batch(idle);
         var themeBefore = context.GetStyle().FluentColorScheme;
-        var toggle = tree.CaptureSnapshot().Elements.Single(static element => element.Node.Role == UiAccessibilityRole.Switch && element.Node.Name == "밝은 테마").Node;
+        var toggle = tree.CaptureSnapshot().Elements.Single(static element => element.Node.Role == UiAccessibilityRole.Switch && element.Node.Name == "테마 전환").Node;
         var point = new UiVector2(toggle.Bounds.X + toggle.Bounds.Width / 2, toggle.Bounds.Y + toggle.Bounds.Height / 2);
         var down = idle with { MousePosition = point, LeftMouseDown = true, LeftMousePressed = true };
         var up = idle with { MousePosition = point, LeftMouseReleased = true };

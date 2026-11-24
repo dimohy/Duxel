@@ -135,7 +135,8 @@ public sealed partial class UiImmediateContext
         _state.FocusedId = _state.ActiveId = _ownedControlFocus = null;
         CancelControlSpace();
     }
-    internal bool RenderTag<TPresentation>(string id, UiTagContent content, UiTagOptions options, bool dismissible, bool enabled)
+    internal bool RenderTag<TPresentation>(string id, UiTagContent content, UiTagOptions options, bool dismissible, bool enabled,
+        UiButtonActivation pointerActivation)
         where TPresentation : IUiTagPresentation
     {
         options = options.WithInheritedDirection(RightToLeft);
@@ -148,7 +149,7 @@ public sealed partial class UiImmediateContext
         {
             using var clip = context.Clip(bounds);
             var root = ResolveId(id);
-            var interaction = dismissible ? ProcessButton(id, bounds, UiButtonActivation.Release) : default;
+            var interaction = dismissible ? ProcessButton(id, bounds, pointerActivation) : default;
             if (dismissible)
             {
                 interaction = ApplyAccessibilityInvoke(root, bounds, interaction);

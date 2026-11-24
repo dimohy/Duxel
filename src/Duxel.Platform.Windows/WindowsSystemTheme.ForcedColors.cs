@@ -6,6 +6,15 @@ namespace Duxel.Platform.Windows;
 
 public static partial class WindowsSystemTheme
 {
+    /// <summary>Reads whether the user has disabled client-area animations.</summary>
+    public static bool GetPrefersReducedMotion()
+    {
+        const uint getClientAreaAnimation = 0x1042;
+        if (!SystemParametersInfoW(getClientAreaAnimation, 0, out int enabled, 0))
+            throw new Win32Exception(Marshal.GetLastPInvokeError(), "SPI_GETCLIENTAREAANIMATION failed.");
+        return enabled == 0;
+    }
+
     /// <summary>Reads the user's current contrast palette without changing system settings.</summary>
     public static UiForcedColorPalette? GetForcedColors()
     {
@@ -35,6 +44,9 @@ public static partial class WindowsSystemTheme
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SystemParametersInfoW(uint action, uint parameter, ref HighContrast value, uint flags);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SystemParametersInfoW(uint action, uint parameter, out int value, uint flags);
     [LibraryImport("user32.dll")]
     private static partial uint GetSysColor(int index);
 }

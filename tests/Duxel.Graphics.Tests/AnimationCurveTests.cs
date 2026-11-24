@@ -65,6 +65,15 @@ internal static class AnimationCurveTests
         });
         check(reduced is { Value: 1, Running: false, NextFrameTimeSeconds: null },
             "Reduced motion bypasses explicit timing curves without scheduling extra work");
+        var cold = new UiFloatTransition(0);
+        var firstStep = new UiTransitionOptions(.2, UiAnimationEasing.Linear) { KeepFirstVisibleStep = true };
+        cold.Update(1, 0, firstStep);
+        var firstVisible = cold.Update(1, .3, firstStep, previousFrameDelayed : true);
+        check(firstVisible.Running && Math.Abs(firstVisible.Value - 1f / 12) < 1e-5f,
+            "A delayed first switch frame retains an intermediate position even after the nominal end time");
+        var nextVisible = cold.Update(1, .5, firstStep);
+        check(nextVisible is { Value: 1, Running: false, NextFrameTimeSeconds: null },
+            "The switch timeline uses normal elapsed time after the first visible step");
         var overflow = new UiFloatTransition(0);
         var huge = new UiTransitionOptions(1) { Curve = new(.3, double.MaxValue, .7, double.MaxValue) };
         overflow.Update(1, 0, huge);

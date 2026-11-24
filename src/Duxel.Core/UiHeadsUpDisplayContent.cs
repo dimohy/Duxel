@@ -14,17 +14,56 @@ public sealed record UiHeadsUpDisplayContentOptions(UiHeadsUpDisplayKind Kind = 
     }
 }
 
+public readonly record struct UiHeadsUpDisplayForeground(UiColor Text, UiColor Indicator);
+
+public interface IUiHeadsUpDisplayPresentation
+{
+    static abstract UiHeadsUpDisplayForeground PaintSurface(UiControlContext context, UiRect bounds, UiButtonInteraction interaction);
+}
+
+public readonly struct UiFluentHeadsUpDisplayPresentation : IUiHeadsUpDisplayPresentation
+{
+    public static UiHeadsUpDisplayForeground PaintSurface(UiControlContext context, UiRect bounds, UiButtonInteraction interaction)
+    {
+        var theme = context.Theme;
+        if (theme.ForcedColors is not null)
+        {
+            context.Frame(bounds, theme.WindowBg, theme.Text, 4, 1);
+            return new(theme.Text, theme.Text);
+        }
+        var (background, indicator) = context.FluentColorScheme switch
+        {
+            UiFluentColorScheme.Light => (new UiColor(36, 36, 36), new UiColor(143, 143, 143)),
+            UiFluentColorScheme.Dark => (new UiColor(61, 61, 61), new UiColor(184, 184, 184)),
+            _ => throw new ArgumentOutOfRangeException(nameof(context))
+        };
+        context.Frame(bounds, background, background, 4, 0);
+        return new(new(255, 255, 255), indicator);
+    }
+}
+
 /// <summary>The reusable HUD backplate and content; presentation ownership belongs to its host.</summary>
 public sealed class UiHeadsUpDisplayContent : UiControlWidget
 {
     private UiHeadsUpDisplayContentOptions _options;
     private readonly UiRetainedLayout<Layout> _layout = new();
+    private readonly UiButtonActivation _activation;
+    private readonly Func<UiControlContext, UiRect, UiButtonInteraction, UiHeadsUpDisplayForeground> _paintSurface;
     private UiActivityIndicatorMotion _motion;
     private Action? _tapped;
     internal bool HostReducedMotion;
     public UiHeadsUpDisplayContent(UiHeadsUpDisplayContentOptions? options = null,
-        Action? tapped = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(identity)
-        => (_options, _tapped) = ((options ?? new()).Validate(), tapped);
+        Action? tapped = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : this(options, tapped, identity, UiButtonActivation.Release, UiFluentHeadsUpDisplayPresentation.PaintSurface) { }
+    internal UiHeadsUpDisplayContent(UiHeadsUpDisplayContentOptions? options, Action? tapped, UiWidgetIdentity identity,
+        UiButtonActivation activation,
+        Func<UiControlContext, UiRect, UiButtonInteraction, UiHeadsUpDisplayForeground> paintSurface) : base(identity)
+    {
+        _options = (options ?? new()).Validate();
+        _tapped = tapped;
+        _activation = activation;
+        _paintSurface = paintSurface;
+    }
     public UiHeadsUpDisplayContentOptions Options
     {
         get => _options;
@@ -74,7 +113,8 @@ public sealed class UiHeadsUpDisplayContent : UiControlWidget
     protected override void RenderControl(UiImmediateContext ui)
     {
         var layout = Prepare(new(ui), render : true);
-        ui.RenderHeadsUpDisplayContent(PrimaryControlId, _options, layout, ref _motion, _tapped, HostReducedMotion);
+        ui.RenderHeadsUpDisplayContent(PrimaryControlId, _options, layout, ref _motion, _tapped, HostReducedMotion,
+            _activation, _paintSurface);
     }
 }
 
@@ -93,7 +133,9 @@ internal readonly partial struct UiHudFailureIcon;
 public sealed partial class UiImmediateContext
 {
     internal void RenderHeadsUpDisplayContent(string id, UiHeadsUpDisplayContentOptions options,
-        UiHeadsUpDisplayContent.Layout layout, ref UiActivityIndicatorMotion motion, Action? tapped, bool hostReducedMotion)
+        UiHeadsUpDisplayContent.Layout layout, ref UiActivityIndicatorMotion motion, Action? tapped, bool hostReducedMotion,
+        UiButtonActivation activation,
+        Func<UiControlContext, UiRect, UiButtonInteraction, UiHeadsUpDisplayForeground> paintSurface)
     {
         var context = new UiControlContext(this);
         var origin = AdvanceCursor(layout.Size);
@@ -105,7 +147,7 @@ public sealed partial class UiImmediateContext
         var interaction = default(UiButtonInteraction);
         if (tapped is not null)
         {
-            interaction = context.ActivateOnRelease(id, interactiveBounds);
+            interaction = ProcessButton(id, interactiveBounds, activation);
             interaction = ApplyAccessibilityInvoke(resolved, interactiveBounds, interaction);
         }
         var activity = new UiActivityIndicatorOptions(Size : UiActivityIndicatorSize.ExtraLarge,
@@ -115,21 +157,7 @@ public sealed partial class UiImmediateContext
         if (clip.Width > 0 && clip.Height > 0)
         {
             using var clipping = context.Clip(clip);
-            var foreground = _theme.ForcedColors is not null ? _theme.Text : new UiColor(255, 255, 255);
-            var background = _theme.ForcedColors is not null ? _theme.WindowBg : context.FluentColorScheme switch
-            {
-                UiFluentColorScheme.Light => new UiColor(36, 36, 36),
-                UiFluentColorScheme.Dark => new UiColor(61, 61, 61),
-                _ => throw new ArgumentOutOfRangeException(nameof(context))
-            };
-            var indicator = _theme.ForcedColors is not null ? _theme.Text : context.FluentColorScheme switch
-            {
-                UiFluentColorScheme.Light => new UiColor(143, 143, 143),
-                UiFluentColorScheme.Dark => new UiColor(184, 184, 184),
-                _ => throw new ArgumentOutOfRangeException(nameof(context))
-            };
-            context.Frame(bounds, background, _theme.ForcedColors is not null ? foreground : background, 4,
-                _theme.ForcedColors is not null ? 1 : 0);
+            var (foreground, indicator) = paintSurface(context, bounds, interaction);
             var hasLabel = !string.IsNullOrEmpty(options.Label);
             var height = 36 + (hasLabel ? 20 + layout.Label.Block.Size.Y : 0);
             var top = bounds.Y + (bounds.Height - height + (hasLabel ? 4 : 0)) * .5f;

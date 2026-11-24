@@ -3,6 +3,7 @@ namespace Duxel.Core;
 public readonly struct UiFluentDrawerPresentation : IUiDrawerPresentation
 {
     public static UiDialogMetrics Metrics => new(24, 12, 0, 1, 32);
+    public static UiVector2 HeaderNavigationOutset => new(16, 8);
     public static UiControlTypographyScope BeginBodyText(UiControlContext context) => UiFluentDialogPresentation.BeginBodyText(context);
     public static UiVector2 MeasureTitle(UiControlContext context, string title) => UiFluentDialogPresentation.MeasureTitle(context, title);
     public static void PaintTitle(UiControlContext context, string title, UiColor? color) => UiFluentDialogPresentation.PaintTitle(context, title, color);

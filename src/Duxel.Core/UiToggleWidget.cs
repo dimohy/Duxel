@@ -38,6 +38,8 @@ public interface IUiTogglePresentation
     static virtual bool CanRetainMeasurement => false;
     static virtual UiAccessibilityRole AccessibilityRole => UiAccessibilityRole.Checkbox;
     static virtual UiControlTypographyScope BeginText(UiControlContext context,bool hasText)=>default;
+    static virtual (string Text, UiVector2 Size) PrepareLabel(UiControlContext context, string text, UiVector2 natural, float maxWidth)
+        => (text, natural);
     static abstract UiToggleLayout Measure(UiControlContext context,UiVector2 textSize,bool hasLabel);
     static virtual UiToggleLayout Arrange(UiControlContext context,UiToggleLayout layout,UiVector2 allocatedSize)
         =>throw new NotSupportedException("This Toggle presentation must implement Arrange to accept a different parent allocation.");
@@ -52,6 +54,8 @@ public class UiToggle<TValue,TValuePolicy,TBehavior,TPresentation>:UiControlWidg
 {
     private string _label;
     private UiBinding<TValue>? _value;
+    private bool _disabledFocusable;
+    private bool _reducedMotion;
     public UiToggle(string label,UiBinding<TValue> value,UiWidgetIdentity identity=UiWidgetIdentity.Instance):base(identity)
     {
         ArgumentNullException.ThrowIfNull(label);
@@ -64,13 +68,56 @@ public class UiToggle<TValue,TValuePolicy,TBehavior,TPresentation>:UiControlWidg
         set{ThrowIfDisposed();ArgumentNullException.ThrowIfNull(value);if(string.Equals(_label,value,StringComparison.Ordinal))return;_label=value;RequestRebuild();}
     }
     public UiBinding<TValue> Value=>_value??throw new ObjectDisposedException(nameof(UiToggle<TValue,TValuePolicy,TBehavior,TPresentation>));
+
+    /// <summary>Disables value changes while keeping the control in the focus order of an enabled parent.</summary>
+    public bool DisabledFocusable
+    {
+        get => _disabledFocusable;
+        set
+        {
+            ThrowIfDisposed();
+            if (_disabledFocusable == value)
+                return;
+            _disabledFocusable = value;
+            RequestRebuild();
+        }
+    }
+
+    /// <summary>Suppresses transitions in toggle presentations that support reduced motion.</summary>
+    public bool ReducedMotion
+    {
+        get => _reducedMotion;
+        set
+        {
+            ThrowIfDisposed();
+            if (_reducedMotion == value)
+                return;
+            _reducedMotion = value;
+            RequestRebuild();
+        }
+    }
+
     protected virtual void OnChanged(TValue value)=>Value.Value=value;
+    private protected virtual UiSwitchIcons? SwitchIcons => null;
     protected override bool CanRetainMeasurement => TPresentation.CanRetainMeasurement;
     protected override UiVector2 MeasureContent(UiControlContext context)=>context.MeasureToggle<TPresentation>(Label);
     protected override void RenderControl(UiImmediateContext ui)
     {
         var value=_value!.Value;
-        if(ui.Toggle<TValue,TValuePolicy,TBehavior,TPresentation>(PrimaryInputId(Label),Label,ref value,constrainLayout:true))OnChanged(value);
+        var focusOnly = DisabledFocusable && ui.IsControlEnabled;
+        if (focusOnly)
+            ui.PushItemFlag(UiItemFlags.Disabled, true);
+        try
+        {
+            if (ui.Toggle<TValue,TValuePolicy,TBehavior,TPresentation>(PrimaryInputId(Label), Label, ref value,
+                constrainLayout: true, focusOnly: focusOnly, reducedMotion: ReducedMotion, switchIcons: SwitchIcons))
+                OnChanged(value);
+        }
+        finally
+        {
+            if (focusOnly)
+                ui.PopItemFlag();
+        }
     }
     private protected override void ReleaseOwnedResources(){_value=null;_label=string.Empty;base.ReleaseOwnedResources();}
 }

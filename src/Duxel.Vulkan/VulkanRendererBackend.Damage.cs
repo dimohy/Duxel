@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using System.Numerics;
 using Duxel.Core;
 
 namespace Duxel.Vulkan;
@@ -11,6 +13,8 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         public UiDrawCommand Command;
         public UiWidgetDrawTransform? WidgetTransform;
+        public UiLayer3D? ProjectedPlane;
+        public long RetainedCommandRevision;
         public string? Key;
         public ulong Revision;
         public ulong TextureRevision, WhiteBackdropRevision;
@@ -28,6 +32,12 @@ public sealed unsafe partial class VulkanRendererBackend
         public readonly List<DamageCommand> Commands = [];
     }
     private readonly bool _damageEnabled = Environment.GetEnvironmentVariable("DUXEL_VK_DAMAGE") != "0";
+    private readonly bool _projectedDamageEnabled = Environment.GetEnvironmentVariable("DUXEL_VK_PROJECTED_DAMAGE") == "1";
+    private readonly record struct DamageCamera(Matrix4x4 Transform, UiRect? Viewport, int DepthScope);
+    private readonly List<DamageCamera> _damageCameras = [];
+    private readonly List<DamageCamera> _nextDamageCameras = [];
+    private sealed record RetainedDamageLayer(bool CanGroup, UiTextureId Texture, UiRect Bounds);
+    private readonly ConditionalWeakTable<UiPooledList<UiDrawCommand>, RetainedDamageLayer> _retainedDamageLayers = new();
     private readonly bool _sparseDamageEnabled = Environment.GetEnvironmentVariable("DUXEL_VK_SPARSE_DAMAGE") != "0";
     private DamageImage[] _damageImages = [];
     private readonly List<DamageCommand> _damageLatest = [];
@@ -132,15 +142,36 @@ public sealed unsafe partial class VulkanRendererBackend
             _damageDisplay = display;
         }
 
-        // A projected/depth scene or an executable command has whole-scene dependencies.
-        // It invalidates every older image, including images not acquired this frame.
+        // Rebuild depth from all intersecting commands within each repair area.
+        // Camera and depth-scope changes invalidate the entire image history.
+        _nextDamageCameras.Clear();
+        var hasOtherDepthScene = false;
         foreach (var list in data.DrawLists)
         {
-            if (list.Scene3D is { } scene && !SupportsPartialDamage(scene, data.DisplayPos))
+            if (list.Scene3D is { } scene && !IsScreenAlignedScene(scene))
             {
-                _damagePlanReason = "projected-scene";
-                InvalidateLogicalDamage();
-                return;
+                if (_projectedDamageEnabled && IsDamagePlane(scene))
+                {
+                    if (hasOtherDepthScene)
+                    {
+                        RejectProjectedDamage();
+                        return;
+                    }
+                    var candidate = new DamageCamera(scene.Transform, scene.Viewport, scene.DepthScopeId);
+                    if (_nextDamageCameras.Count == 0 || _nextDamageCameras[^1] != candidate)
+                        _nextDamageCameras.Add(candidate);
+                    if (GetRetainedDamageLayer(list) is { CanGroup: true })
+                        continue;
+                }
+                else
+                {
+                    if (_nextDamageCameras.Count > 0 || !SupportsPartialDamage(scene, data.DisplayPos))
+                    {
+                        RejectProjectedDamage();
+                        return;
+                    }
+                    hasOtherDepthScene = true;
+                }
             }
             foreach (ref readonly var command in list.Commands.AsSpan())
                 if (command.Callback is not null || command.UserData is not null)
@@ -150,6 +181,12 @@ public sealed unsafe partial class VulkanRendererBackend
                     return;
                 }
         }
+        if (!CollectionsMarshal.AsSpan(_damageCameras).SequenceEqual(CollectionsMarshal.AsSpan(_nextDamageCameras)))
+        {
+            _damageCameras.Clear();
+            _damageCameras.AddRange(_nextDamageCameras);
+            _damageEpoch++;
+        }
 
         _damageCurrent.Clear();
         foreach (var list in data.DrawLists)
@@ -157,16 +194,86 @@ public sealed unsafe partial class VulkanRendererBackend
             var key = list.StaticGeometryKey;
             var revision = key is null ? 0 : list.GetStaticGeometryStamp();
             var widget = list.Scene3D?.WidgetTransform;
+            var plane = _damageCameras.Count > 0 && list.Scene3D is { } projected && IsDamagePlane(projected) ? (UiLayer3D?)projected : null;
+            if (plane is { } layer && GetRetainedDamageLayer(list) is { CanGroup: true } retained)
+            {
+                AppendRetainedDamageLayer(list, key!, revision, layer, retained, in context);
+                continue;
+            }
             foreach (ref readonly var command in list.Commands.AsSpan())
                 if (command.ElementCount != 0)
-                    AppendDamageCommand(list, in command, key, revision, widget);
+                    AppendDamageCommand(list, in command, key, revision, widget, plane, in context);
         }
 
         _damageSnapshotUsable = true;
     }
 
+    private void RejectProjectedDamage()
+    {
+        _damagePlanReason = "projected-scene";
+        InvalidateLogicalDamage();
+    }
+
+    private RetainedDamageLayer? GetRetainedDamageLayer(UiDrawList list)
+    {
+        if (list.StaticGeometryKey is null || !list.HasOwnedOpacityRanges || list.CommandStateStamp == 0)
+            return null;
+        if (_retainedDamageLayers.TryGetValue(list.Commands, out var retained))
+            return retained;
+        UiTextureId? texture = null;
+        var singleTexture = true;
+        foreach (ref readonly var command in list.Commands.AsSpan())
+        {
+            if (command.Callback is not null || command.UserData is not null || command.WhiteBackdropTextureId.HasValue
+                || command.ElementCount != 0 && texture is { } current && current != command.TextureId)
+            {
+                singleTexture = false;
+                break;
+            }
+            if (command.ElementCount == 0)
+                continue;
+            texture = command.TextureId;
+        }
+        // A split texture dependency invalidates per command, not per layer.
+        if (singleTexture && texture is { } single && TryGetLayerBounds(list, out var bounds))
+            retained = new(true, single, bounds);
+        else
+            retained = new(false, default, default);
+        _retainedDamageLayers.Add(list.Commands, retained);
+        return retained;
+    }
+
+    private void AppendRetainedDamageLayer(UiDrawList list, string key, ulong revision, UiLayer3D plane,
+        RetainedDamageLayer retained, in CommandFrameContext context)
+    {
+        var commandRevision = list.Commands.OpacityRevision;
+        var textureRevision = _paintTextureRevisions.GetValueOrDefault(retained.Texture);
+        var slot = _damageCurrent.Count;
+        var previous = slot < _damageLatest.Count ? _damageLatest[slot] : null;
+        if (previous is not null && previous.RetainedCommandRevision == commandRevision && previous.Key == key
+            && previous.Revision == revision && previous.ProjectedPlane == plane && previous.TextureRevision == textureRevision)
+        {
+            _damageCurrent.Add(previous);
+            return;
+        }
+        var view = GetLayerViewportTransform(plane, in context);
+        var snapshot = _damageFree.TryPop(out var reusable) ? reusable : new DamageCommand();
+        snapshot.Command = default;
+        snapshot.WidgetTransform = null;
+        snapshot.ProjectedPlane = plane;
+        snapshot.RetainedCommandRevision = commandRevision;
+        snapshot.Key = key;
+        snapshot.Revision = revision;
+        snapshot.Bounds = ProjectDamageBounds(retained.Bounds, default, in view, in context);
+        snapshot.TextureRevision = textureRevision;
+        snapshot.WhiteBackdropRevision = 0;
+        snapshot.GeometryLength = snapshot.IndexLength = snapshot.PaintMaskCount = 0;
+        snapshot.IndexOrigin = 0;
+        _damageCurrent.Add(snapshot);
+    }
+
     private void AppendDamageCommand(UiDrawList list, in UiDrawCommand command, string? key, ulong revision,
-        UiWidgetDrawTransform? widget)
+        UiWidgetDrawTransform? widget, UiLayer3D? plane, in CommandFrameContext context)
     {
         var slot = _damageCurrent.Count;
         var textureRevision = _paintTextureRevisions.GetValueOrDefault(command.TextureId);
@@ -177,7 +284,7 @@ public sealed unsafe partial class VulkanRendererBackend
         if (key is null)
             ReadStreamedDamageGeometry(list, in command, out geometry, out indices, out indexOrigin);
 
-        if (previous is not null && previous.WidgetTransform == widget && previous.Key == key
+        if (previous is not null && previous.WidgetTransform == widget && previous.ProjectedPlane == plane && previous.Key == key
             && previous.Revision == revision && previous.TextureRevision == textureRevision
             && previous.WhiteBackdropRevision == whiteRevision && EquivalentDamageCommand(previous.Command, command, key is null)
             && PaintMasksEqual(previous, list, command) && geometry.SequenceEqual(previous.Geometry.AsSpan(0, previous.GeometryLength))
@@ -193,9 +300,17 @@ public sealed unsafe partial class VulkanRendererBackend
             (bounds.X - _damagePixelOffset.X) * _damagePixelScale.X - 2,
             (bounds.Y - _damagePixelOffset.Y) * _damagePixelScale.Y - 2,
             bounds.Width * _damagePixelScale.X + 4, bounds.Height * _damagePixelScale.Y + 4) : default;
+        if (plane is { } projection)
+        {
+            var view = GetLayerViewportTransform(projection, in context);
+            pixels = command.HasBounds
+                ? ProjectDamageBounds(command.Bounds, command.Translation, in view, in context) : view.PixelViewport;
+        }
         var snapshot = _damageFree.TryPop(out var reusable) ? reusable : new DamageCommand();
         snapshot.Command = command;
         snapshot.WidgetTransform = widget;
+        snapshot.ProjectedPlane = plane;
+        snapshot.RetainedCommandRevision = 0;
         snapshot.Key = key;
         snapshot.Revision = revision;
         snapshot.Bounds = pixels;
@@ -246,6 +361,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private void InvalidateLogicalDamage()
     {
         _damageEpoch++;
+        _damageCameras.Clear();
         _presentedDamageValid = false;
         ReleaseDamageCommands(_damageLatest);
         _damageCurrent.Clear();
@@ -338,7 +454,8 @@ public sealed unsafe partial class VulkanRendererBackend
     {
         if (EquivalentDamageSnapshot(before, after))
             return;
-        if (TryGetPrimitiveDamage(before, after, out var primitiveDamage))
+        if (before.ProjectedPlane is null && after.ProjectedPlane is null
+            && TryGetPrimitiveDamage(before, after, out var primitiveDamage))
             IncludeDamageBounds(ref dirty, primitiveDamage);
         else
         {
@@ -401,7 +518,8 @@ public sealed unsafe partial class VulkanRendererBackend
         if (ReferenceEquals(before, after))
             return true;
         return before.Key == after.Key && before.Revision == after.Revision
-            && before.WidgetTransform == after.WidgetTransform
+            && before.RetainedCommandRevision == after.RetainedCommandRevision
+            && before.WidgetTransform == after.WidgetTransform && before.ProjectedPlane == after.ProjectedPlane
             && before.TextureRevision == after.TextureRevision && before.WhiteBackdropRevision == after.WhiteBackdropRevision
             && EquivalentDamageCommand(before.Command, after.Command, before.Key is null)
             && before.Geometry.AsSpan(0, before.GeometryLength).SequenceEqual(after.Geometry.AsSpan(0, after.GeometryLength))
@@ -431,6 +549,41 @@ public sealed unsafe partial class VulkanRendererBackend
         IsScreenAlignedScene(scene) || (displayPosition == default
             && scene is { WriteDepth: false, Viewport: null, DepthScopeId: 0, WidgetTransform: { SourceScene: null } });
 
+    private static bool IsDamagePlane(UiLayer3D scene)
+    {
+        var m = scene.Transform;
+        return scene is { PlaneModel: not null, WidgetTransform: null, IsScreenSpacePresentation: false }
+            && m.M12 == 0 && m.M21 == 0 && m.M14 == 0 && m.M24 == 0 && m.M44 == 1
+            && float.IsFinite(m.M11) && float.IsFinite(m.M22)
+            && float.IsFinite(m.M41) && float.IsFinite(m.M42);
+    }
+
+    private static UiRect ProjectDamageBounds(UiRect bounds, UiVector2 translation,
+        in LayerViewportTransform view, in CommandFrameContext context)
+    {
+        var model = view.PlaneModel!.Value.Translation;
+        var x = (bounds.X + translation.X + model.X) * context.ScaleX + context.TranslateX;
+        var y = (bounds.Y + translation.Y + model.Y) * context.ScaleY + context.TranslateY;
+        var a = Vector4.Transform(new Vector4(x, y, 0, 1), view.Transform);
+        var b = Vector4.Transform(new Vector4(x + bounds.Width * context.ScaleX, y + bounds.Height * context.ScaleY, 0, 1), view.Transform);
+        var viewport = view.PixelViewport;
+        if (!float.IsFinite(a.X) || !float.IsFinite(a.Y) || !float.IsFinite(b.X) || !float.IsFinite(b.Y))
+            return viewport;
+        float PixelX(float value) => viewport.X + (value + 1) * .5f * viewport.Width;
+        float PixelY(float value) => viewport.Y + (value + 1) * .5f * viewport.Height;
+        var left = Math.Clamp(PixelX(MathF.Min(a.X, b.X)) - 2, viewport.X, viewport.X + viewport.Width);
+        var top = Math.Clamp(PixelY(MathF.Min(a.Y, b.Y)) - 2, viewport.Y, viewport.Y + viewport.Height);
+        var right = Math.Clamp(PixelX(MathF.Max(a.X, b.X)) + 2, viewport.X, viewport.X + viewport.Width);
+        var bottom = Math.Clamp(PixelY(MathF.Max(a.Y, b.Y)) + 2, viewport.Y, viewport.Y + viewport.Height);
+        return new(left, top, right - left, bottom - top);
+    }
+
+    private bool IsOutsideDamageArea(UiRect pixels) =>
+        pixels.Width <= 0 || pixels.Height <= 0
+        || pixels.X >= _damageArea.Offset.X + _damageArea.Extent.Width
+        || pixels.Y >= _damageArea.Offset.Y + _damageArea.Extent.Height
+        || pixels.X + pixels.Width <= _damageArea.Offset.X || pixels.Y + pixels.Height <= _damageArea.Offset.Y;
+
     private static UiRect ScreenDamageBounds(in UiDrawCommand command, UiWidgetDrawTransform? widget)
     {
         var clip = command.ClipRect;
@@ -452,12 +605,20 @@ public sealed unsafe partial class VulkanRendererBackend
         }
     }
 
-    private bool IsOutsideFrameDamage(in UiDrawCommand command, in CommandFrameContext context, UiWidgetDrawTransform? widget)
+    private bool IsOutsideFrameDamage(in UiDrawCommand command, in CommandFrameContext context, UiLayer3D? scene)
     {
         if (!_damagePartial)
             return false;
         if (_damageEmpty)
             return true;
+        if (_damageCameras.Count > 0 && scene is { } plane && IsDamagePlane(plane))
+        {
+            if (!command.HasBounds)
+                return false;
+            var view = GetLayerViewportTransform(plane, in context);
+            return IsOutsideDamageArea(ProjectDamageBounds(command.Bounds, command.Translation, in view, in context));
+        }
+        var widget = scene?.WidgetTransform;
         var bounds = widget is null ? command.HasBounds ? command.Bounds : command.ClipRect
             : ScreenDamageBounds(in command, widget);
         if (widget is not null && (bounds.Width <= 0 || bounds.Height <= 0))

@@ -4,8 +4,10 @@ public sealed partial class UiImmediateContext
 {
     private const float DataGridSelectionWidth = 36;
 
-    internal double RenderDataGrid<T>(UiDataGrid<T> grid, UiVector2 size, UiVirtualListGeometry geometry,
+    internal double RenderDataGrid<T, TBehavior, TPresentation>(UiDataGrid<T, TBehavior, TPresentation> grid, UiVector2 size, UiVirtualListGeometry geometry,
         double offset, UiScrollOwner scroll, Action<UiImmediateContext, UiVirtualViewport> renderRows)
+        where TBehavior : IUiDataGridBehavior
+        where TPresentation : IUiDataGridPresentation
     {
         var height = MathF.Min(grid.Options.RowHeight, size.Y);
         var bodyHeight = size.Y - height;
@@ -53,12 +55,14 @@ public sealed partial class UiImmediateContext
         }
     }
 
-    private void PaintDataGridHeader<T>(UiDataGrid<T> grid, UiRect header, UiRect content, string gridId)
+    private void PaintDataGridHeader<T, TBehavior, TPresentation>(UiDataGrid<T, TBehavior, TPresentation> grid,
+        UiRect header, UiRect content, string gridId)
+        where TBehavior : IUiDataGridBehavior
+        where TPresentation : IUiDataGridPresentation
     {
         var context = new UiControlContext(this);
-        using var text = context.BeginTypography<UiSemiboldTypeface, UiFluentType300>();
-        var theme = context.Theme;
-        context.Frame(header, theme.FrameBg, default, 0, 0);
+        using var text = TPresentation.BeginHeaderText(context);
+        TPresentation.PaintHeader(context, header);
         PushID("DataGridHeaders");
         try
         {
@@ -74,7 +78,7 @@ public sealed partial class UiImmediateContext
                 {
                     var id = ResolveId("SelectAll");
                     var all = grid.SelectedCount == grid.RowCount;
-                    var interaction = ProcessButton<SpaceControlKeys>("SelectAll", cell, UiButtonActivation.Release);
+                    var interaction = ProcessButton<SpaceControlKeys>("SelectAll", cell, TBehavior.SelectionPointerActivation);
                     if (interaction.Activated || ApplyAccessibilityToggle(id, cell))
                     {
                         grid.SelectAllDuringRender(!all);
@@ -86,7 +90,7 @@ public sealed partial class UiImmediateContext
                     ExposeAccessibility(id, rowId, UiAccessibilityRole.Checkbox, label, cell,
                         valuePattern: false, literalLabel: true, toggleState: state);
                     _accessibility?.SetGridItem(id, new(gridId, 0, 0));
-                    UiFluentListPresentation.PaintCheckbox(context, cell, interaction, UiAccessibilityToggleStates.ToChecked(state));
+                    TPresentation.PaintSelection(context, cell, interaction, UiAccessibilityToggleStates.ToChecked(state));
                 }
                 x += selectorWidth;
             }
@@ -104,24 +108,24 @@ public sealed partial class UiImmediateContext
                 var labelBounds = cell;
                 if (sortable)
                 {
-                    var interaction = ApplyAccessibilityInvoke(cellId, cell, ProcessButton(key, cell, UiButtonActivation.Release));
+                    var interaction = ApplyAccessibilityInvoke(cellId, cell, ProcessButton(key, cell, TBehavior.SortPointerActivation));
                     if (interaction.Activated)
                         grid.Sort(c, grid.SortColumn == c && !grid.SortDescending);
                     if (interaction.Hovered)
-                        context.Frame(cell, theme.FrameBgHovered, default, 0, 0);
+                        TPresentation.PaintHoveredHeader(context, cell);
                     if (grid.SortColumn == c)
                     {
                         label += grid.SortDescending ? ", descending" : ", ascending";
                         var arrowX = RightToLeft ? cell.X + 10 : cell.X + cell.Width - 26;
                         var arrow = new UiRect(arrowX, cell.Y + (cell.Height - 16) / 2, 16, 16);
-                        DrawChevronIcon(arrow, grid.SortDescending ? 0 : 180, .85f, 1.5f, theme.Text);
+                        TPresentation.PaintSortIndicator(context, arrow, grid.SortDescending);
                     }
                     var labelWidth = MathF.Max(0, cell.Width - 20);
                     labelBounds = cell with { X = RightToLeft ? cell.X + cell.Width - labelWidth : cell.X, Width = labelWidth };
                     if (interaction.FocusVisible)
-                        context.FocusOutline(cell, 4);
+                        TPresentation.PaintFocus(context, cell);
                 }
-                PaintDataGridText(context, column.Header, labelBounds, column.Alignment);
+                TPresentation.PaintText(context, column.Header, labelBounds, column.Alignment);
                 ExposeAccessibility(cellId, rowId, sortable ? UiAccessibilityRole.Button : UiAccessibilityRole.GridCell, label, cell,
                     readOnly: !sortable, focusable: sortable, valuePattern: false, literalLabel: true);
                 _accessibility?.SetGridItem(cellId, new(gridId, 0, c + (grid.Selectable ? 1 : 0)));
@@ -131,17 +135,19 @@ public sealed partial class UiImmediateContext
         {
             PopID();
         }
-        context.Frame(new(header.X, header.Y + header.Height - 1, header.Width, 1), theme.Border, default, 0, 0);
+        TPresentation.PaintDivider(context, header);
     }
 
-    internal void RenderDataGridRows<T>(UiDataGrid<T> grid, UiVirtualViewport viewport)
+    internal void RenderDataGridRows<T, TBehavior, TPresentation>(UiDataGrid<T, TBehavior, TPresentation> grid, UiVirtualViewport viewport)
+        where TBehavior : IUiDataGridBehavior
+        where TPresentation : IUiDataGridPresentation
     {
         var geometry = new UiVirtualListGeometry(grid.RowCount, grid.Options.RowHeight, null);
         var (first, end) = geometry.OverscanRange(viewport, 0, out _);
         if (first == end)
             return;
         var context = new UiControlContext(this);
-        var theme = context.Theme;
+        var selectionActivation = grid.Selectable ? TBehavior.SelectionPointerActivation : UiButtonActivation.Release;
         var tabStart = _currentTabStops.Count;
         var focusedAtStart = _state.FocusedId;
         var pending = grid.PendingFocus;
@@ -151,7 +157,7 @@ public sealed partial class UiImmediateContext
         var parent = _accessibilityParent;
         var gridId = grid.GridId!;
         using var clip = BeginControlClip(viewport.Clip);
-        using var text = context.BeginTypography<UiRegularTypeface, UiFluentType300>();
+        using var text = TPresentation.BeginBodyText(context);
         for (var r = first; r < end; r++)
         {
             var item = grid.ItemAt(r);
@@ -159,9 +165,8 @@ public sealed partial class UiImmediateContext
             var row = viewport.Place(geometry.Item(r).Start - viewport.Offset, grid.Options.RowHeight);
             var selected = grid.IsSelected(key);
             var hovered = IsControlEnabled && IsHovering(IntersectRect(CurrentClipRect, row));
-            if (selected || hovered)
-                context.Frame(row, selected ? theme.Header : theme.FrameBgHovered, default, 0, 0);
-            context.Frame(new(row.X, row.Y + row.Height - 1, row.Width, 1), theme.Border, default, 0, 0);
+            TPresentation.PaintRow(context, row, selected, hovered);
+            TPresentation.PaintDivider(context, row);
             var rowScope = UiVirtualItemContainer.Id("DataGridRows", key);
             PushID(rowScope);
             try
@@ -211,11 +216,11 @@ public sealed partial class UiImmediateContext
                     var editable = column?.Edit is not null;
                     var interaction = editable
                         ? grid.Selectable
-                            ? ProcessButton<SpaceControlKeys>(columnKey, cell, UiButtonActivation.Release)
-                            : ProcessButton<RangeControlKeys>(columnKey, cell, UiButtonActivation.Release)
+                            ? ProcessButton<SpaceControlKeys>(columnKey, cell, selectionActivation)
+                            : ProcessButton<RangeControlKeys>(columnKey, cell, selectionActivation)
                         : grid.Selectable
-                            ? ProcessButton(columnKey, cell, UiButtonActivation.Release)
-                            : ProcessButton<RangeControlKeys>(columnKey, cell, UiButtonActivation.Release);
+                            ? ProcessButton(columnKey, cell, selectionActivation)
+                            : ProcessButton<RangeControlKeys>(columnKey, cell, selectionActivation);
                     var beginEdit = editable && IsControlEnabled && _popupTierDepth >= _blockingKeyboardTier && !restore
                         && (interaction.Hovered && IsMouseDoubleClicked((int)UiMouseButton.Left)
                             || interaction.Focused && DataGridEditKey(begin: true) != UiKey.None);
@@ -229,11 +234,11 @@ public sealed partial class UiImmediateContext
                     var label = column is null ? "Select row" : column.Text(item);
                     using var cellClip = BeginControlClip(cell);
                     if (column is null)
-                        UiFluentListPresentation.PaintCheckmark(context, cell, interaction, grid.IsSelected(key));
+                        TPresentation.PaintSelection(context, cell, interaction, grid.IsSelected(key));
                     else
-                        PaintDataGridText(context, label, cell, column.Alignment);
+                        TPresentation.PaintText(context, label, cell, column.Alignment);
                     if (interaction.FocusVisible)
-                        context.FocusOutline(cell, 4);
+                        TPresentation.PaintFocus(context, cell);
                     ExposeAccessibility(cellId, rowId, UiAccessibilityRole.GridCell, label, cell,
                         readOnly: !editable, valuePattern: false, literalLabel: true);
                     _accessibility?.SetGridItem(cellId, new(gridId, r + 1, c + (grid.Selectable ? 1 : 0)));
@@ -264,8 +269,10 @@ public sealed partial class UiImmediateContext
         return id;
     }
 
-    private void RenderDataGridEditor<T>(UiDataGrid<T> grid, UiDataGridEditor editor, string cellId, UiRect cell,
+    private void RenderDataGridEditor<T, TBehavior, TPresentation>(UiDataGrid<T, TBehavior, TPresentation> grid, UiDataGridEditor editor, string cellId, UiRect cell,
         UiVirtualViewport viewport)
+        where TBehavior : IUiDataGridBehavior
+        where TPresentation : IUiDataGridPresentation
     {
         if (_leftMousePressed ? !IsHovering(IntersectRect(CurrentClipRect, cell))
             : !editor.Input.NeedsFocus && editor.Input.InputId != _state.FocusedId)
@@ -298,7 +305,10 @@ public sealed partial class UiImmediateContext
     private static readonly UiAccessibilityAction[] DataGridSelectionActions =
         [UiAccessibilityAction.Select, UiAccessibilityAction.AddToSelection, UiAccessibilityAction.Deselect];
 
-    private void NavigateDataGrid<T>(UiDataGrid<T> grid, int row, int column, UiVirtualViewport viewport)
+    private void NavigateDataGrid<T, TBehavior, TPresentation>(UiDataGrid<T, TBehavior, TPresentation> grid,
+        int row, int column, UiVirtualViewport viewport)
+        where TBehavior : IUiDataGridBehavior
+        where TPresentation : IUiDataGridPresentation
     {
         foreach (var input in _keyEvents)
         {
@@ -322,7 +332,9 @@ public sealed partial class UiImmediateContext
         }
     }
 
-    private void KeepDataGridTabStop<T>(UiDataGrid<T> grid, int start)
+    private void KeepDataGridTabStop<T, TBehavior, TPresentation>(UiDataGrid<T, TBehavior, TPresentation> grid, int start)
+        where TBehavior : IUiDataGridBehavior
+        where TPresentation : IUiDataGridPresentation
     {
         if (_currentTabStops.Count == start)
             return;
@@ -362,22 +374,6 @@ public sealed partial class UiImmediateContext
         return cell;
     }
 
-    private static void PaintDataGridText(UiControlContext context, string label, UiRect cell, UiItemHorizontalAlign alignment)
-    {
-        const float padding = 10;
-        if (cell.Width <= 2 * padding || string.IsNullOrEmpty(label))
-            return;
-        var text = context.MeasureText(label);
-        var available = cell.Width - 2 * padding;
-        var inset = MathF.Max(0, available - text.X);
-        var left = cell.X + padding + (alignment switch
-        {
-            UiItemHorizontalAlign.Center => inset / 2,
-            UiItemHorizontalAlign.Right => inset,
-            _ => 0
-        });
-        using var clip = context.Clip(new(cell.X + padding, cell.Y, available, cell.Height));
-        context.TypographyButtonText(label, new(left, cell.Y, text.X, cell.Height), text,
-            context.IsEnabled ? context.Theme.Text : context.Theme.TextDisabled);
-    }
+    internal void PaintDataGridSortIndicator(UiRect bounds, bool descending)
+        => DrawChevronIcon(bounds, descending ? 0 : 180, .85f, 1.5f, _theme.Text);
 }

@@ -19,7 +19,9 @@ internal sealed class ProgressIndicatorPage : IObserverPage, IObserverNaturalPag
             Example(GalleryText.Get("File upload"), .25f, GalleryText.Get("Sending the selected file to the server.")),
             Example(GalleryText.Get("Server connection"), null, GalleryText.Get("Waiting for the server to respond. The task name and description stay visible when the bar is hidden.")),
             CircularExample(),
-            WebExample());
+            WebExample(),
+            AndroidLinearExample(),
+            IosProgressExample());
 
         private UiWidget CircularExample()
         {
@@ -86,6 +88,66 @@ internal sealed class ProgressIndicatorPage : IObserverPage, IObserverNaturalPag
                 + ",\n    FinishIndeterminateCycle = " + GallerySample.Boolean(state.FinishIndeterminateCycle) + "\n};\n\n" + factory);
             Samples.Add(sample);
             return sample;
+        }
+
+        private UiWidget AndroidLinearExample()
+        {
+            var label = GalleryText.Get("Android linear progress");
+            var options = new UiProgressIndicatorOptions(Label : label, PercentComplete : .25f, Width : 360);
+            var sample = GallerySample.Create(() => new UiFluentAndroidLinearProgressIndicator(options));
+            var preview = sample.Preview;
+            var factory = sample.Source;
+            sample.BindSource(() => preview.Options, state =>
+                "var options = new UiProgressIndicatorOptions(Label : " + GallerySample.String(state.Label)
+                + ",\n    PercentComplete : " + GallerySample.Number(state.PercentComplete) + ", Width : 360"
+                + ", ReducedMotion : " + GallerySample.Boolean(state.ReducedMotion) + ")\n"
+                + "{\n    RightToLeft = " + GallerySample.Boolean(state.RightToLeft) + "\n};\n\n" + factory);
+            Samples.Add(sample);
+            return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
+                Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
+                    Fluent.Button(GalleryText.Format("Increase progress for {0}", label), () => preview.Options = preview.Options with
+                    { PercentComplete = ((preview.Options.PercentComplete ?? 0) + .25f) % 1.25f }),
+                    Fluent.Button(GalleryText.Format("Toggle waiting for {0}", label), () => preview.Options = preview.Options with
+                    { PercentComplete = preview.Options.PercentComplete is null ? .5f : null }),
+                    Fluent.Button(GalleryText.Get("Reverse progress direction"), () => preview.Options = preview.Options with
+                    { RightToLeft = !preview.Options.RightToLeft }),
+                    Fluent.Button(GalleryText.Format("Toggle reduced motion for {0}", label), () => preview.Options = preview.Options with
+                    { ReducedMotion = !preview.Options.ReducedMotion })), sample);
+        }
+
+        private UiWidget IosProgressExample()
+        {
+            var label = GalleryText.Get("iOS progress bar");
+            var options = new UiFluentIosProgressBarOptions(Width : 360, AccessibilityLabel : label);
+            var sample = GallerySample.Create(() => new UiFluentIosProgressBar(options));
+            var preview = sample.Preview;
+            var factory = sample.Source;
+            sample.BindSource(() => preview.Options, state =>
+                "var options = new UiFluentIosProgressBarOptions(\n    Progress : " + GallerySample.Number(state.Progress)
+                + ", IsAnimating : " + GallerySample.Boolean(state.IsAnimating)
+                + ", HidesWhenStopped : " + GallerySample.Boolean(state.HidesWhenStopped)
+                + ",\n    Width : " + GallerySample.Number(state.Width)
+                + ", RightToLeft : " + GallerySample.Boolean(state.RightToLeft)
+                + ", ReducedMotion : " + GallerySample.Boolean(state.ReducedMotion)
+                + ",\n    AccessibilityLabel : " + GallerySample.String(state.AccessibilityLabel) + ");\n\n" + factory);
+            Samples.Add(sample);
+            return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
+                Fluent.Body1(label),
+                Dux.Wrap(new(Spacing : 8, RunSpacing : 8),
+                    Fluent.Button(GalleryText.Get("Start iOS progress animation"), () =>
+                    {
+                        preview.Options = preview.Options with { Progress = null };
+                        preview.Start();
+                    }),
+                    Fluent.Button(GalleryText.Get("Stop iOS progress animation"), preview.Stop),
+                    Fluent.Button(GalleryText.Get("Hide iOS progress when stopped"), () => preview.Options = preview.Options with
+                    { HidesWhenStopped = !preview.Options.HidesWhenStopped }),
+                    Fluent.Button(GalleryText.Format("Increase progress for {0}", label), () => preview.Options = preview.Options with
+                    { Progress = ((preview.Options.Progress ?? 0) + .25f) % 1.25f }),
+                    Fluent.Button(GalleryText.Get("Reverse iOS progress direction"), () => preview.Options = preview.Options with
+                    { RightToLeft = !preview.Options.RightToLeft }),
+                    Fluent.Button(GalleryText.Format("Toggle reduced motion for {0}", label), () => preview.Options = preview.Options with
+                    { ReducedMotion = !preview.Options.ReducedMotion })), sample);
         }
 
         private UiWidget Example(string label, float? value, string description)

@@ -48,6 +48,19 @@ internal static unsafe partial class LinuxParagraphNative
         internal Item* Item; internal GlyphString* Glyphs; internal int YOffset, StartXOffset, EndXOffset;
     }
     [StructLayout(LayoutKind.Sequential)]
+    internal struct LayoutLine
+    {
+        internal nint Layout;
+        internal int StartIndex, ByteLength;
+        internal LayoutRunNode* Runs;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct LayoutRunNode
+    {
+        internal GlyphItem* Run;
+        internal LayoutRunNode* Next;
+    }
+    [StructLayout(LayoutKind.Sequential)]
     internal struct Attribute
     {
         internal nint Type; internal uint Start, End;
@@ -66,6 +79,7 @@ internal static unsafe partial class LinuxParagraphNative
     [LibraryImport(Pango)] internal static partial nint pango_language_from_string(byte* language);
     [LibraryImport(Pango)] internal static partial void pango_context_set_language(nint context, nint language);
     [LibraryImport(Pango)] internal static partial nint pango_layout_new(nint context);
+    [LibraryImport(Pango)] internal static partial nint pango_font_get_hb_font(nint font);
     [LibraryImport(Pango)] internal static partial void pango_layout_set_text(nint layout, byte* text, int length);
     [LibraryImport(Pango)] internal static partial void pango_layout_set_auto_dir(nint layout, int auto);
     [LibraryImport(Pango)] internal static partial void pango_layout_set_single_paragraph_mode(nint layout, int single);
@@ -82,6 +96,9 @@ internal static unsafe partial class LinuxParagraphNative
     [LibraryImport(Pango)] internal static partial void pango_layout_set_font_description(nint layout, nint description);
     [LibraryImport(Pango)] internal static partial void pango_font_description_set_absolute_size(nint description, double size);
     [LibraryImport(Pango)] internal static partial void pango_font_description_set_style(nint description, int style);
+    [LibraryImport(Pango)] internal static partial nint pango_font_description_copy(nint description);
+    [LibraryImport(Pango, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial void pango_font_description_set_variations(nint description, string variations);
     [LibraryImport(Pango)] internal static partial void pango_font_description_free(nint description);
     [LibraryImport(Pango, StringMarshalling = StringMarshalling.Utf8)] internal static partial nint pango_font_description_from_string(string description);
     [LibraryImport(Pango)] internal static partial int pango_font_description_get_size(nint description);
@@ -94,6 +111,7 @@ internal static unsafe partial class LinuxParagraphNative
     [LibraryImport(Pango)] internal static partial int pango_layout_get_unknown_glyphs_count(nint layout);
     [LibraryImport(Pango)] internal static partial void pango_layout_get_size(nint layout, out int width, out int height);
     [LibraryImport(Pango)] internal static partial int pango_layout_get_baseline(nint layout);
+    [LibraryImport(Pango)] internal static partial LayoutLine* pango_layout_get_line_readonly(nint layout, int index);
     [LibraryImport(Pango)] internal static partial nint pango_layout_get_iter(nint layout);
     [LibraryImport(Pango)] internal static partial GlyphItem* pango_layout_iter_get_run_readonly(nint iterator);
     [LibraryImport(Pango)] internal static partial void pango_layout_iter_get_run_extents(nint iterator, Rectangle* ink, out Rectangle logical);

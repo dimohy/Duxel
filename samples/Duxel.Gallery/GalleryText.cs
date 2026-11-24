@@ -129,13 +129,18 @@ internal static class GalleryText
         var cjk = Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts", "NotoSansCJK", "NotoSansCJKsc-Regular.otf");
         return fonts with
         {
-            SecondaryFontPath = cjk,
+            DirectTextSecondaryFontPath = cjk,
             Typography = fonts.Typography with { SecondaryRegular = cjk, SecondarySemibold = cjk, SecondaryBold = cjk }
         };
     }
 
     internal static UiCodeViewLabels CodeViewLabels() => new(Get("C# source"), Get("{0} lines"), Get("Wrap lines"),
-        Get("Line numbers"), Get("Show all"), Get("Copy source"), Get("Copied"), Get("C# example source"));
+        Get("Line numbers"), Get("Show all"), Get("Copy source"), Get("Copied"), Get("C# example source"))
+    {
+        ContextMenuName = Get("Text actions"),
+        CopySelection = Get("Copy"),
+        SelectAll = Get("Select All")
+    };
 
     internal static Scope Use(GalleryLanguage language) => new(language);
 
@@ -175,14 +180,17 @@ internal sealed class GalleryLocalizedScreen : UiScreen, IDisposable
     private readonly ObserverServices _services;
     private readonly DuxelAppSession _session;
     private readonly string _settingsPath;
+    private readonly bool _controlsInTitleBar;
     private GalleryLanguage _active;
     private GalleryLanguage _requested;
     private ObserverScreen _observer;
 
-    internal GalleryLocalizedScreen(ObserverServices services, DuxelAppSession session, string? settingsPath = null)
+    internal GalleryLocalizedScreen(ObserverServices services, DuxelAppSession session, string? settingsPath = null,
+        bool controlsInTitleBar = false)
     {
         _services = services;
         _session = session;
+        _controlsInTitleBar = controlsInTitleBar;
         var directory = Environment.GetEnvironmentVariable("DUXEL_GALLERY_SETTINGS_DIRECTORY")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Duxel", "Gallery");
         _settingsPath = settingsPath ?? Path.Combine(directory, "language.txt");
@@ -197,7 +205,7 @@ internal sealed class GalleryLocalizedScreen : UiScreen, IDisposable
     private ObserverScreen CreateObserver()
     {
         using var locale = GalleryText.Use(_active);
-        return new(_services, _session, _active, RequestLanguage);
+        return new(_services, _session, _active, RequestLanguage, _controlsInTitleBar);
     }
 
     private void RequestLanguage(GalleryLanguage language)

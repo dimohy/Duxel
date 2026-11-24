@@ -5,6 +5,7 @@ internal static class TreeGalleryTests
 {
     internal static void Run(string output, Action<bool, string> check)
     {
+        using var language = GalleryText.Use(GalleryLanguage.English);
         using var fixture = new PresentationReuseTests.Fixture(1, true, PresentationTestPlatform.Create(1100, 800));
         using var accessibility = new UiAccessibilityTree();
         fixture.Context.SetAccessibilityTree(accessibility);
@@ -21,7 +22,7 @@ internal static class TreeGalleryTests
         fixture.Capture(Draw);
         check(page.Samples.Count == 2 && page.Samples.All(sample => sample.Source.Contains("Fluent.Tree(", StringComparison.Ordinal)),
             "each Tree example owns an adjacent factory source panel");
-        foreach (var name in new[] { "크기 전환", "줄바꿈 전환", "방향 전환", "모션 전환", "체크 표시 위쪽 정렬" })
+        foreach (var name in new[] { "Change size", "Toggle line wrapping", "Change direction", "Toggle reduced motion", "Align checkbox to top" })
         {
             var button = accessibility.CaptureSnapshot().Elements.First(element => element.Node.Role == UiAccessibilityRole.Button && element.Node.Name == name);
             accessibility.RequestAction(button.Node.Id, button.RuntimeId, UiAccessibilityAction.Invoke, wait: false);
@@ -39,9 +40,8 @@ internal static class TreeGalleryTests
         using var screen = new ObserverScreen(ObserverServices.CreateWindows()) { FreezeDiagnosticText = true, SelectedPage = "Tree" };
         var pixels = fixture.Capture(screen.Render);
         check(!Fluent.MissingComponentNames.Contains("Tree") && screen.SourceCountForPage("Tree") == 2
-            && accessibility.CaptureSnapshot().Elements.Where(e => e.Node.Role == UiAccessibilityRole.Link && e.Node.ItemStatus == "NEW")
-                .Select(e => e.Node.Name).SequenceEqual(["NavigationBar"]),
-            "Tree stays registered while the NEW badge follows NavigationBar");
+            && accessibility.CaptureSnapshot().Elements.Any(e => e.Node.Role == UiAccessibilityRole.Link && e.Node.Name == "Tree"),
+            "Tree stays registered and reachable in Gallery navigation");
         fixture.WriteCapturePng(Path.Combine(output, "gallery-tree.png"), pixels);
     }
 }

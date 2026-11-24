@@ -94,6 +94,9 @@ public sealed partial class UiImmediateContext
         public bool Dirty = true;
         public bool Removed;
         public bool VectorTextMode;
+        public bool UsesProjectedText;
+        public bool ProjectedGlyphScope;
+        public ProjectedTextDetail ProjectedTextDetail;
         public bool FontAtlasIndependent;
         public bool DependsOnFontAtlas = true;
         public UiDrawListBuilder? Builder;
@@ -170,7 +173,8 @@ public sealed partial class UiImmediateContext
             return false;
 
         options.Scene3D?.Validate();
-        if (entry.VectorTextMode != UsesLayerVectorText(options))
+        if (entry.VectorTextMode != UsesLayerVectorText(options) || entry.ProjectedGlyphScope != UsesProjectedGlyphScope(options)
+            || (entry.UsesProjectedText && entry.ProjectedTextDetail != SelectProjectedTextDetail(options, entry.ProjectedTextDetail)))
             return false;
         var parentClip = CurrentClipRect;
         var localClip = new UiRect(parentClip.X - options.Translation.X, parentClip.Y - options.Translation.Y,
@@ -234,9 +238,15 @@ public sealed partial class UiImmediateContext
         }
         var retainContent = nextOptions.StaticCache || nextOptions.ContentVersion.HasValue;
         var vectorTextMode = UsesLayerVectorText(nextOptions);
-        if (entry.VectorTextMode != vectorTextMode || entry.FontAtlasIndependent != nextOptions.FontAtlasIndependent)
+        var projectedGlyphScope = UsesProjectedGlyphScope(nextOptions);
+        if (entry.VectorTextMode != vectorTextMode || entry.FontAtlasIndependent != nextOptions.FontAtlasIndependent
+            || entry.ProjectedGlyphScope != projectedGlyphScope)
+            entry.Dirty = true;
+        var projectedTextDetail = SelectProjectedTextDetail(nextOptions, entry.ProjectedTextDetail);
+        if (entry.UsesProjectedText && entry.ProjectedTextDetail != projectedTextDetail)
             entry.Dirty = true;
         entry.VectorTextMode = vectorTextMode;
+        entry.ProjectedGlyphScope = projectedGlyphScope;
         entry.FontAtlasIndependent = nextOptions.FontAtlasIndependent;
         if (nextOptions.ContentVersion.HasValue && nextOptions.ContentVersion != entry.ContentVersion)
             entry.Dirty = true;
@@ -274,6 +284,8 @@ public sealed partial class UiImmediateContext
         layerBuilder._ResetForNewFrame();
         layerBuilder.SetLayerScene3D(nextOptions.Scene3D);
         entry.BuilderInUse = true;
+        entry.UsesProjectedText = false;
+        entry.ProjectedTextDetail = projectedTextDetail;
         entry.DependsOnFontAtlas = !nextOptions.FontAtlasIndependent;
         entry.FrameDeadline = null;
         entry.UnboundedAnimation = false;
@@ -880,12 +892,9 @@ public sealed partial class UiImmediateContext
         {
             replayCommands = new UiDrawCommand[localCommands.Length];
             cached.ReplayCommands = replayCommands;
-            cached.ReplayCommandList = UiPooledList<UiDrawCommand>.FromArray(replayCommands);
         }
-        else if (cached.ReplayCommandList is null)
-        {
-            cached.ReplayCommandList = UiPooledList<UiDrawCommand>.FromArray(replayCommands);
-        }
+        // Rebuilding into the same array still creates a new sealed command revision.
+        cached.ReplayCommandList = UiPooledList<UiDrawCommand>.FromArray(replayCommands);
 
         var localOwnedOpacityRanges = cached.LocalOwnedOpacityRanges;
         for (var i = 0; i < localCommands.Length; i++)

@@ -194,8 +194,26 @@ internal abstract class UiListState
     }
 }
 
+/// <summary>Selects the pointer activation edge for List row commands.</summary>
+public interface IUiListRowBehavior
+{
+    static abstract UiButtonActivation PointerActivation { get; }
+}
+
+public readonly struct UiReleaseListRowBehavior : IUiListRowBehavior
+{
+    public static UiButtonActivation PointerActivation => UiButtonActivation.Release;
+}
+
+public readonly struct UiPressListRowBehavior : IUiListRowBehavior
+{
+    public static UiButtonActivation PointerActivation => UiButtonActivation.Press;
+}
+
 /// <summary>Persistent rows, controlled nullable/single/multiple selection, and item/composite navigation.</summary>
-public class UiList<TPresentation> : UiArrangedChildrenWidget where TPresentation : IUiListPresentation
+public class UiList<TBehavior, TPresentation> : UiArrangedChildrenWidget
+    where TBehavior : IUiListRowBehavior
+    where TPresentation : IUiListPresentation
 {
     private sealed class State(UiListItem[] items, UiOptionSelection? selection, UiListOptions options) : UiListState(items, selection, options)
     {
@@ -204,7 +222,8 @@ public class UiList<TPresentation> : UiArrangedChildrenWidget where TPresentatio
             => ui.PaintListCheckmark<TPresentation>(paint, selected);
         internal override void PaintFocus(UiImmediateContext ui, UiListFocusPaint paint)
             => ui.PaintListFocus<TPresentation>(paint);
-        internal override void RenderItem(UiImmediateContext ui, UiListItem item) => ui.RenderListItem(this, item);
+        internal override void RenderItem(UiImmediateContext ui, UiListItem item)
+            => ui.RenderListItem(this, item, TBehavior.PointerActivation);
     }
     private readonly State _state;
     public string Label
@@ -295,6 +314,18 @@ public class UiList<TPresentation> : UiArrangedChildrenWidget where TPresentatio
         _state.Clear();
         base.ReleaseOwnedResources();
     }
+}
+
+/// <summary>List with row commands that activate on pointer release.</summary>
+public class UiList<TPresentation> : UiList<UiReleaseListRowBehavior, TPresentation>
+    where TPresentation : IUiListPresentation
+{
+    public UiList(string label, UiListItem[] items, UiListOptions options = default, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, items, options, identity) { }
+    public UiList(string label, UiBinding<string?> selected, UiListItem[] items, UiListOptions options = default, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, selected, items, options, identity) { }
+    public UiList(string label, UiBinding<string[]> selected, UiListItem[] items, UiListOptions options = default, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, selected, items, options, identity) { }
 }
 
 [UiWidgetStyle(typeof(UiList<>), typeof(UiFluentListPresentation))]

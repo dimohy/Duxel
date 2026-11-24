@@ -73,6 +73,9 @@ public readonly struct UiFluentMenuPresentation : IUiMenuPresentation
     public static float MeasureItem(UiControlContext context, UiMenuItemContent content) =>
         UiMenuContentLayout.Measure(context, content, 8);
 
+    public static float MeasureItemHeight(UiControlContext context, UiMenuItemContent content, float width, UiMenuOptions options) =>
+        UiMenuContentLayout.MeasureHeight(context, content, width, options, 8, 6, wrapLabel : true);
+
     public static void PaintItem(UiControlContext context, UiMenuItemContent content, UiRect bounds, UiButtonInteraction interaction, UiMenuOptions options)
     {
         var state = !context.IsEnabled ? UiButtonVisualState.Disabled : interaction.Held ? UiButtonVisualState.Pressed
@@ -82,7 +85,8 @@ public readonly struct UiFluentMenuPresentation : IUiMenuPresentation
         UiMenuContentLayout.Paint(context, content, bounds, interaction, options, paint.Foreground,
             UiFluentMenuPalette.Icon(context, state),
             UiFluentMenuPalette.Secondary(context, state, false),
-            UiFluentMenuPalette.Secondary(context, state, true), 8, 6);
+            UiFluentMenuPalette.Secondary(context, state, true), 8, 6, wrapLabel : true,
+            subTextColor : UiFluentMenuPalette.Secondary(context, state, state is UiButtonVisualState.Hover or UiButtonVisualState.Pressed));
         if (context.IsEnabled && interaction.FocusVisible && !context.Theme.ForcedColors.HasValue)
             context.FocusOutline(bounds, 4);
     }
@@ -143,6 +147,8 @@ public readonly struct UiFluentMenuButtonPresentation : IUiMenuPresentation
 
     public static float MeasureItem(UiControlContext context, string label) => UiFluentMenuPresentation.MeasureItem(context, label);
     public static float MeasureItem(UiControlContext context, UiMenuItemContent content) => UiFluentMenuPresentation.MeasureItem(context, content);
+    public static float MeasureItemHeight(UiControlContext context, UiMenuItemContent content, float width, UiMenuOptions options)
+        => UiFluentMenuPresentation.MeasureItemHeight(context, content, width, options);
     public static void PaintSurface(UiControlContext context, UiRect bounds) => UiFluentMenuPresentation.PaintSurface(context, bounds);
     public static void PaintItem(UiControlContext context, string label, UiRect bounds, UiButtonInteraction interaction, UiMenuOptions options) =>
         UiFluentMenuPresentation.PaintItem(context, label, bounds, interaction, options);

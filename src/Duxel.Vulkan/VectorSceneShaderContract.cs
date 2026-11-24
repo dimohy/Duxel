@@ -5,7 +5,7 @@ namespace Duxel.Vulkan;
 /// <summary>Checks the retained-scene protocol before a compiled shader reaches Vulkan.</summary>
 internal static class VectorSceneShaderContract
 {
-    internal const uint Version = 4;
+    internal const uint Version = 6;
     private static uint Word(ReadOnlySpan<byte> bytes, int index) => BinaryPrimitives.ReadUInt32LittleEndian(bytes[(index * 4)..]);
 
     internal static void Validate(ReadOnlySpan<byte> bytes)

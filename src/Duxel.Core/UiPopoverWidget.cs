@@ -84,7 +84,9 @@ internal sealed class UiPopoverInputState : UiOverlayInputState
 }
 
 /// <summary>Owns arbitrary retained content and its scrolling viewport; visibility and focus belong to one context.</summary>
-public class UiPopover<TPresentation> : UiControlWidget, IUiLabelTarget where TPresentation : IUiPopoverPresentation
+public class UiPopover<TBehavior, TPresentation> : UiControlWidget, IUiLabelTarget
+    where TBehavior : IUiPointerActivationBehavior
+    where TPresentation : IUiPopoverPresentation
 {
     private UiPopoverOptions _options;
     private UiBinding<bool>? _open;
@@ -199,7 +201,8 @@ public class UiPopover<TPresentation> : UiControlWidget, IUiLabelTarget where TP
         _input.Attach(ui);
         var pending = _pending;
         _pending = null;
-        ui.RenderPopover<TStyle>(PrimaryInputId(Label), Label, _viewport, _input, _options, _open?.Value, pending);
+        ui.RenderPopover<TStyle>(PrimaryInputId(Label), Label, _viewport, _input, _options, _open?.Value, pending,
+            TBehavior.PointerActivation);
     }
     private static void ValidateLabel(string label)
     {
@@ -216,6 +219,15 @@ public class UiPopover<TPresentation> : UiControlWidget, IUiLabelTarget where TP
         base.ReleaseOwnedResources();
     }
 }
+
+/// <summary>Popover whose click trigger activates on pointer release.</summary>
+public class UiPopover<TPresentation> : UiPopover<UiReleaseButtonBehavior, TPresentation>
+    where TPresentation : IUiPopoverPresentation
+{
+    public UiPopover(string label, UiWidget content, UiPopoverOptions? options = null, UiWidgetIdentity identity = UiWidgetIdentity.Instance)
+        : base(label, content, options, identity) { }
+}
+
 [UiWidgetStyle(typeof(UiPopover<>), typeof(UiFluentPopoverPresentation))]
 [UiComponent("Popover", UiComponentExposure.Fluent)]
 public partial class UiFluentPopover;

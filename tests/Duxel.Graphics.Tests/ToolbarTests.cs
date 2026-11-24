@@ -184,6 +184,12 @@ internal static class ToolbarTests
             CharEvents = [new('X')]
         });
         check(standaloneText == "aXb", "Standalone control same-input caret oracle : " + standaloneText);
+        current = editing;
+        Frame();
+        Send("Command", UiAccessibilityAction.Focus);
+        Frame(idle with { KeyEvents = [new(UiKey.RightArrow, true, default), new(UiKey.LeftArrow, true, default)] });
+        check(Find("Query").Node.Focused, "Toolbar gives the editor the remaining arrow after focus moves into it in the same frame");
+        Frame(idle with { KeyEvents = [new(UiKey.RightArrow, false, default), new(UiKey.LeftArrow, false, default)] });
         var value = 30f;
         using var range = Fluent.Toolbar("Range tools", [Fluent.Slider("Range", new UiBinding<float>(() => value, v => value = v), 0, 100, 1)]);
         current = range;
@@ -196,6 +202,55 @@ internal static class ToolbarTests
         Frame();
         check(Find("Empty").Node.Role == UiAccessibilityRole.Toolbar && context.State.NextScheduledFrameTimeSeconds is null, "Toolbar empty passive root needs no periodic frames");
         check(Fluent.ComponentNames.Contains("Toolbar") && !Fluent.MissingComponentNames.Contains("Toolbar"), "Toolbar connects official top-level catalog");
+
+        var customActions = 0;
+        var popup = Fluent.Popover("Tools popup", Fluent.Button("Popup item"),
+            new(TrapFocus: true, MotionEnabled: false));
+        using var axis = new UiToolbar<AxisNavigation, UiFluentToolbarPresentation>("Axis toolbar",
+            [Fluent.Button("Axis first", () => customActions++), popup, Fluent.Button("Axis last")]);
+        current = axis;
+        Frame();
+        Send("Axis first", UiAccessibilityAction.Focus);
+        Key(UiKey.DownArrow);
+        check(Find("Axis first").Node.Focused, "Custom horizontal Toolbar ignores its cross-axis arrow");
+        Key(UiKey.LeftArrow);
+        check(Find("Axis first").Node.Focused, "Custom Toolbar clamps navigation at the first child");
+        Key(UiKey.RightArrow);
+        check(Find("Tools popup").Node.Focused, "Custom Toolbar moves on its main axis using the existing child order");
+        popup.Show();
+        Frame();
+        Key(UiKey.RightArrow);
+        check(popup.IsOpen && Find("Popup item").Node.Focused, "Custom Toolbar leaves arrow input in an open exclusive child popup");
+        Key(UiKey.Escape);
+        check(!popup.IsOpen && Find("Tools popup").Node.Focused, "Custom Toolbar preserves child popup Escape and focus restoration");
+        Key(UiKey.End);
+        Key(UiKey.RightArrow);
+        check(Find("Axis last").Node.Focused, "Custom Toolbar clamps navigation at the last child");
+        axis.Options = new(Vertical: true, RightToLeft: true);
+        Frame();
+        Key(UiKey.Home);
+        Key(UiKey.LeftArrow);
+        check(Find("Axis first").Node.Focused
+            && Find("Axis toolbar").Node.Orientation == UiAccessibilityOrientation.Vertical,
+            "Custom vertical RTL Toolbar ignores the horizontal arrow and publishes vertical orientation");
+        Key(UiKey.Enter);
+        check(customActions == 1, "Custom Toolbar forwards non-navigation keys to the child");
+        Key(UiKey.DownArrow);
+        check(Find("Tools popup").Node.Focused, "Custom vertical Toolbar uses Down to reach the next child");
+        Key(UiKey.Tab);
+        check(Find("After").Node.Focused, "Custom Toolbar retains one roving Tab entry");
+    }
+
+    private readonly struct AxisNavigation : IUiToolbarBehavior
+    {
+        public static bool WrapNavigation => false;
+
+        public static UiToolbarNavigationAction GetNavigation(UiKey key, UiToolbarOptions options)
+        {
+            if (options.Vertical ? key is UiKey.LeftArrow or UiKey.RightArrow : key is UiKey.UpArrow or UiKey.DownArrow)
+                return UiToolbarNavigationAction.None;
+            return UiDefaultToolbarBehavior.GetNavigation(key, options);
+        }
     }
     private sealed class ConditionalToolbar(string label, UiWidget[] children) : UiFluentToolbar(label, children)
     {

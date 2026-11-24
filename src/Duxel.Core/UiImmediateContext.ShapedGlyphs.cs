@@ -15,7 +15,7 @@ public sealed partial class UiImmediateContext
     private bool TryDrawShapedGlyphs(UiDrawListBuilder drawList, DirectTextCacheKey key, DirectTextCacheEntry entry,
         UiVector2 origin, UiColor color, UiRect clip)
     {
-        if (!key.ShortLived || _contentScale != 1 || _capturingPaintGroup is not null || color.Rgba >> 24 != 255
+        if (key.RightToLeft || !key.ShortLived || _contentScale != 1 || _capturingPaintGroup is not null || color.Rgba >> 24 != 255
             || origin.X != MathF.Floor(origin.X) || origin.Y != MathF.Floor(origin.Y)
             || (key.FontSize != 16 && !IsCapturingRetainedGlyphGeometry())
             || _platformTextBackend is not IPlatformShapedGlyphBackend backend || !IsNumericAscii(key.Text))

@@ -129,6 +129,17 @@ public sealed partial class UiDrawListBuilder
 
     public UiRect GetClipRect() => _currentClipRect;
 
+    internal bool CanAddProjectedGlyphs => !HasPaintClip && _backdropWhiteTexture is null;
+
+    internal void AddProjectedGlyphs(UiProjectedGlyphDraw glyphs, UiRect bounds, UiRect clip)
+    {
+        // Device-owned draw data is an ordering barrier for the existing replay
+        // scheduler, just like a callback. The Vulkan renderer consumes it.
+        AddCommand(new(Intersect(clip, _currentClipRect), _currentTexture, 0, 0, 0,
+            static (_, _) => throw new NotSupportedException("This renderer does not support projected glyphs."),
+            Bounds: bounds, HasBounds: true) { ProjectedGlyphs = glyphs });
+    }
+
     internal void AppendVectorGlyph(ReadOnlySpan<UiVector2> points, ReadOnlySpan<uint> indices,
         UiVector2 offset, UiVector2 position, float scale, UiColor color, UiTextureId texture, UiRect clip)
     {

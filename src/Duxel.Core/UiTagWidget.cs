@@ -50,7 +50,9 @@ public interface IUiTagPresentation
 }
 
 /// <summary>A passive value or one dismiss action, using the common control input and icon pipelines.</summary>
-public class UiTag<TPresentation> : UiControlWidget where TPresentation : IUiTagPresentation
+public class UiTag<TDismissBehavior, TPresentation> : UiControlWidget
+    where TDismissBehavior : IUiPointerActivationBehavior
+    where TPresentation : IUiTagPresentation
 {
     private UiTagOptions _options;
     private UiTagContent _content;
@@ -99,7 +101,8 @@ public class UiTag<TPresentation> : UiControlWidget where TPresentation : IUiTag
             _options.WithInheritedDirection(context.RightToLeft), _dismissed is not null));
     protected override void RenderControl(UiImmediateContext ui)
     {
-        if (ui.RenderTag<TPresentation>(ItemId ?? PrimaryInputId(_content.Text), BoundContent, _options, _dismissed is not null, ItemEnabled))
+        if (ui.RenderTag<TPresentation>(ItemId ?? PrimaryInputId(_content.Text), BoundContent, _options, _dismissed is not null,
+            ItemEnabled, TDismissBehavior.PointerActivation))
             _dismissed?.Invoke();
     }
     private protected override void ReleaseOwnedResources()
@@ -111,6 +114,17 @@ public class UiTag<TPresentation> : UiControlWidget where TPresentation : IUiTag
         ItemId = null;
         base.ReleaseOwnedResources();
     }
+}
+
+/// <summary>A Tag whose dismiss action activates on pointer release.</summary>
+public class UiTag<TPresentation> : UiTag<UiReleaseButtonBehavior, TPresentation>
+    where TPresentation : IUiTagPresentation
+{
+    public UiTag(UiTagContent content, Action? dismissed = null, UiTagOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(content, dismissed, options, identity) { }
+
+    public UiTag(string text, Action? dismissed = null, UiTagOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(text, dismissed, options, identity) { }
 }
 
 [UiWidgetStyle(typeof(UiTag<>), typeof(UiFluentTagPresentation))]

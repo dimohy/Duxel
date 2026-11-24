@@ -185,6 +185,10 @@
       "id": "gallery-header-only"
     },
     {
+      "reason": "Vulkan readback of the localized Gallery overview and settings; run separately",
+      "id": "gallery-localization-only"
+    },
+    {
       "reason": "Vulkan readback via the fixed-size Gallery or rendering fixture; run separately",
       "id": "gallery-visual-only"
     },

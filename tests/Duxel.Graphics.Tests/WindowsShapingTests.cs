@@ -39,6 +39,43 @@ internal static class WindowsShapingTests
                 && Same(lf, crlf) && Same(lf, cr);
         }, "vector shaping preserves line breaks in LF, CRLF and CR text");
         Test(() => Same(Mesh(korean, "한"), Mesh(korean, "한")), "vector shaping composes Hangul Jamo with the same glyphs and advances as NFC");
+        static bool SameOutlines(PlatformTextMeshResult a, PlatformTextMeshResult b) =>
+            a.Width == b.Width && a.Height == b.Height && a.Baseline == b.Baseline && a.Glyphs.Length == b.Glyphs.Length
+            && a.Glyphs.ToArray().Zip(b.Glyphs.ToArray()).All(pair =>
+                pair.First.Offset == pair.Second.Offset && pair.First.Outline.EvenOdd == pair.Second.Outline.EvenOdd
+                && pair.First.Outline.Curves.Span.SequenceEqual(pair.Second.Outline.Curves.Span));
+        Test(() =>
+        {
+            var request = new PlatformTextMeshRequest(latin, korean, "고객 주문 내역 2026 · ₩12,345\n배송 상태: 준비 중", 32, .25f);
+            var outlined = backend.CreateTextMesh(request with { OutlineOnly = true });
+            return SameOutlines(backend.CreateTextMesh(request), outlined)
+                && outlined.Glyphs.ToArray().Any(glyph => !glyph.Outline.Curves.IsEmpty)
+                && outlined.Glyphs.ToArray().All(glyph => glyph.Vertices.IsEmpty && glyph.Indices.IsEmpty);
+        }, "original outlines preserve mixed Hangul, Latin-font digits and symbols without tessellating");
+        Test(() =>
+        {
+            var request = new PlatformTextMeshRequest(korean, null, "한글한", 32, .001f) { OutlineOnly = true };
+            var composed = backend.CreateTextMesh(request);
+            var decomposed = backend.CreateTextMesh(request with { Text = request.Text.Normalize(System.Text.NormalizationForm.FormD) });
+            var zoomed = backend.CreateTextMesh(request with { FlatteningTolerance = .25f });
+            var glyphs = composed.Glyphs.Span;
+            return glyphs.Length == 3 && !glyphs[0].Outline.Curves.IsEmpty
+                && glyphs[0].Outline.Curves.Equals(glyphs[2].Outline.Curves)
+                && glyphs[0].Outline.Curves.Equals(zoomed.Glyphs.Span[0].Outline.Curves)
+                && SameOutlines(composed, decomposed);
+        }, "original Hangul outlines preserve Jamo shaping and share curves across repetitions and tolerances");
+        Test(() =>
+        {
+            var request = new PlatformTextMeshRequest(latin, korean, "AV 한글 · 109", 24, .0625f);
+            var medium = backend.CreateTextMesh(request);
+            var fine = backend.CreateTextMesh(request with { FlatteningTolerance = .001f });
+            var larger = backend.CreateTextMesh(request with { FontSize = 36, OutlineOnly = true });
+            var koreanPrimary = backend.CreateTextMesh(request with { FontPath = korean, SecondaryFontPath = latin });
+            return SameOutlines(medium, fine)
+                && larger.Width > medium.Width && larger.Baseline > medium.Baseline
+                && !SameOutlines(medium, koreanPrimary)
+                && Same(medium, backend.CreateTextMesh(request));
+        }, "vector layout shares original placement across triangle tolerances and distinguishes font order and size");
         Test(() => Same(Mesh(latin, "é"), Mesh(latin, "e\u0301")), "vector shaping composes Latin base and combining acute without advancing the mark");
         Test(() => Mesh(latin, "AV").Width < Mesh(latin, "A").Width + Mesh(latin, "V").Width,
             "vector shaping applies the font's contextual pair placement");
@@ -64,6 +101,41 @@ internal static class WindowsShapingTests
             return glyphs.All(glyph => glyph.Cluster < 10 && float.IsFinite(glyph.Advance))
                 && glyphs.Any(glyph => glyph.Cluster == 0) && glyphs.Any(glyph => glyph.Cluster == 7);
         }, "mixed bidi analysis preserves original Latin and digit source positions");
+        foreach (var text in new[] { "אבג (ABC 123) דהו", "ABC 123 — مرحبا!" })
+        {
+            Test(() =>
+            {
+                var measure = new PlatformTextMeasureRequest(latin, null, text, 14);
+                var raster = new PlatformTextRasterizeRequest(latin, null, text, 14);
+                byte[] Read(bool rtl)
+                {
+                    if (!backend.TryLayout(measure with { RightToLeft = rtl }, out var layout)
+                        || !backend.TryRasterize(raster with { RightToLeft = rtl }, out var pixels))
+                        throw new InvalidOperationException("Cannot read directional text.");
+                    try
+                    {
+                        if (layout.Advance != pixels.Advance || layout.OriginX != pixels.OriginX
+                            || layout.Width != pixels.Width || layout.Height != pixels.Height || layout.Baseline != pixels.Baseline)
+                            throw new InvalidOperationException("Directional measurement and raster metrics differ.");
+                        return pixels.RgbaPixels.ToArray();
+                    }
+                    finally { pixels.PixelOwner?.Dispose(); }
+                }
+                var left = Read(false);
+                var right = Read(true);
+                return left.Length != 0 && right.Length != 0 && !left.AsSpan().SequenceEqual(right)
+                    && left.AsSpan().SequenceEqual(Read(false)) && right.AsSpan().SequenceEqual(Read(true));
+            }, "short directional measurement and raster survive alternating direction : " + text);
+            Test(() =>
+            {
+                var request = new PlatformTextMeshRequest(latin, null, text, 14) { OutlineOnly = true };
+                var left = backend.CreateTextMesh(request);
+                var right = backend.CreateTextMesh(request with { RightToLeft = true });
+                return !left.Glyphs.IsEmpty && !right.Glyphs.IsEmpty && !SameOutlines(left, right)
+                    && SameOutlines(left, backend.CreateTextMesh(request))
+                    && SameOutlines(right, backend.CreateTextMesh(request with { RightToLeft = true }));
+            }, "short directional outline placement survives alternating direction : " + text);
+        }
         Test(() =>
         {
             var glyphs = WindowsDirectWriteGlyphRasterizer.ShapeForValidation(latin, "\u200B", 32);

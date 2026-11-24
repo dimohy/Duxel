@@ -174,7 +174,7 @@ public sealed partial class UiImmediateContext
         using var typography = TPresentation.BeginText(context, text.Length > 0);
         return MeasureButtonLocal<TPresentation>(context, text, requested, typography.LineHeight).Size;
     }
-    private (UiVector2 Text, UiToggleLayout Layout) MeasureToggleLocal<TPresentation>(UiControlContext context, string text, float lineHeight, bool constrainLayout = false) where TPresentation : IUiTogglePresentation
+    private (string Text, UiVector2 TextSize, UiToggleLayout Layout) MeasureToggleLocal<TPresentation>(UiControlContext context, string text, float lineHeight, bool constrainLayout = false) where TPresentation : IUiTogglePresentation
     {
         var textSize = MeasureTextInternal(text, _textSettings, _lineHeight);
         if (lineHeight > 0)
@@ -182,6 +182,8 @@ public sealed partial class UiImmediateContext
             {
                 Y = lineHeight
             };
+        var maxWidth = constrainLayout ? ConstrainLayoutWidth(float.PositiveInfinity) : float.PositiveInfinity;
+        (text, textSize) = TPresentation.PrepareLabel(context, text, textSize, maxWidth);
         var layout = TPresentation.Measure(context, textSize, text.Length > 0);
         if (constrainLayout)
         {
@@ -191,7 +193,7 @@ public sealed partial class UiImmediateContext
             if (layout.Size != size)
                 throw new InvalidOperationException("Toggle presentation did not honor the parent allocation.");
         }
-        return (textSize, layout);
+        return (text, textSize, layout);
     }
     internal UiVector2 MeasureToggle<TPresentation>(string label) where TPresentation : IUiTogglePresentation
     {

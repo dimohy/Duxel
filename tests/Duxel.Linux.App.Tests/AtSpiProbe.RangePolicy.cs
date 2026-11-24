@@ -75,7 +75,7 @@ internal static unsafe partial class AtSpiProbe
                 Check(unsupported == 0, "Nonnumeric elements do not advertise an unsupported Value interface");
             }
             finally { if (unsupported != 0) g_object_unref(unsupported); }
-            VerifySelectionPolicy(application.Value, Path.Combine(Path.GetDirectoryName(output)!, "selection-policy.json"));
+            VerifySelectionPolicy(application.Value, output);
             File.WriteAllText(output, JsonSerializer.Serialize(new LinuxPolicyResult(checks.Count, checks), LinuxProbeResultsJson.Default.LinuxPolicyResult));
         }
         finally { atspi_exit(); }

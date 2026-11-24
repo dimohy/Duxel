@@ -3,6 +3,52 @@ using Duxel.Gallery;
 
 internal static class GallerySampleTests
 {
+    private static void VerifyComponentNavigationNames(Action<bool, string> check)
+    {
+        (string Page, string Label)[] expected =
+        [
+            ("평가", "Rating"), ("접기·펼치기", "Accordion"), ("스켈레톤", "Skeleton"),
+            ("인물 정보", "Persona"), ("Image", "Image"), ("Calendar", "Calendar"),
+            ("DatePicker", "DatePicker"), ("DateTimePicker", "DateTimePicker"),
+            ("RangeCalendar", "RangeCalendar"), ("TimePicker", "TimePicker")
+        ];
+        foreach (var language in Enum.GetValues<GalleryLanguage>())
+        {
+            using var locale = GalleryText.Use(language);
+            using var gallery = new ObserverScreen(ObserverServices.CreateWindows());
+            foreach (var (page, label) in expected)
+            {
+                gallery.SelectedPage = page;
+                check(gallery.SelectedNavigationLabel == label, $"{language}: Gallery navigation uses the component name {label}");
+            }
+            gallery.SelectedPage = "개요";
+            check(gallery.SelectedNavigationLabel == GalleryText.Get("Overview"),
+                $"{language}: Gallery localizes the Overview destination");
+            gallery.SelectedPage = "공휴일 제공자";
+            check(gallery.SelectedNavigationLabel == GalleryText.Get("Holiday provider"),
+                $"{language}: Gallery localizes the Holiday provider example");
+            foreach (var name in new[] { "SizedBox", "ConstrainedBox", "Row", "Column", "Wrap", "UniformGrid", "Stack", "Positioned",
+                "Align", "Center", "Padding", "Container", "ScrollView", "Expanded", "Flexible", "FlexSpacer",
+                "Expand", "VerticalWrap", "HorizontalGrid", "Overflow", "VerticalOverflow" })
+            {
+                gallery.SelectedPage = name;
+                check(gallery.SelectedNavigationLabel == name && gallery.SourceKindForPage(name) == "inline",
+                    $"{language}: Gallery opens the {name} layout example directly");
+            }
+        }
+    }
+
+    private static void VerifyTextStyleFactories(Action<bool, string> check)
+    {
+        foreach (var style in Enum.GetValues<Text>())
+        {
+            using var constant = Fluent.Text(style, "Example");
+            using var dynamicText = Fluent.Text(style, () => "Example");
+            check(constant.GetType().Name == "UiFluent" + style && dynamicText.GetType().Name == "UiFluentDynamic" + style,
+                $"Fluent.Text selects the established constant and callback typography widgets for {style}");
+        }
+    }
+
     internal static void Run(Action<bool, string> check, string? output = null)
     {
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
@@ -42,6 +88,8 @@ internal static class GallerySampleTests
         check(sources.All(source => !source.Value!.Contains("using Duxel.Core;", StringComparison.Ordinal)),
             "Gallery inline snippets omit the repeated Core import without changing UiCodeView");
         ExportSources(output, "Card", sources);
+        VerifyComponentNavigationNames(check);
+        VerifyTextStyleFactories(check);
         RunRating(check);
         RunAvatars(check);
         RunSearch(check);
@@ -525,9 +573,10 @@ internal static class GallerySampleTests
         using var page = new WidgetPage("접기·펼치기", "본문 상태와 소스", accordion);
         using var frame = new GalleryPageFrame(page);
         var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        var width = 1280;
         void Frame(UiInputState? input = null)
         {
-            context.NewFrame(new(.016f, new(1280, 4000), new(1, 1)), input ?? idle, new(0, 0, 1280, 4000), UiTextSettings.Default);
+            context.NewFrame(new(.016f, new(width, 4000), new(1, 1)), input ?? idle, new(0, 0, width, 4000), UiTextSettings.Default);
             context.Render(new Screen(ui => { ui.EnableRootViewportContentLayout(contentPadding : 0); frame.Render(ui); }));
             using var drawing = context.GetDrawData();
         }
@@ -543,11 +592,15 @@ internal static class GallerySampleTests
         }
         Frame(); Frame();
         var preview = Find("접기·펼치기 예제", UiAccessibilityRole.Accordion).Node;
+        check(accordion.Samples[0].Source.Contains("AnimatePanels = true", StringComparison.Ordinal),
+            "Accordion Gallery enables the published panel motion example");
         var source = Find("C# 예제 소스", UiAccessibilityRole.Edit).Node;
         check(accordion.Samples.Count == 1 && source.Bounds.Y >= preview.Bounds.Y + preview.Bounds.Height
             && source.Bounds.Y - preview.Bounds.Y - preview.Bounds.Height <= 24,
             "Accordion source immediately follows its collapsed preview");
         Click("입력 내용 보존");
+        context.State.AdvanceTime(.25f);
+        Frame();
         var memo = Find("접기 예제 메모", UiAccessibilityRole.Edit);
         check(tree.RequestAction(memo.Node.Id, memo.RuntimeId, UiAccessibilityAction.SetValue, "새 메모 \"D\"", wait : false)
             == UiAccessibilityResult.Success, "Accordion body accepts a native memo edit");
@@ -555,8 +608,15 @@ internal static class GallerySampleTests
         check(accordion.Samples[0].Source.Contains("ImmutableArray.Create<string>(\"input\")", StringComparison.Ordinal)
             && accordion.Samples[0].Source.Contains("새 메모 \\\"D\\\"", StringComparison.Ordinal),
             "Accordion source follows opened panels and escaped memo input");
-        Click("여러 항목 열기 : 꺼짐"); Click("본문 버튼과 키보드 이동"); Click("본문 클릭 : 0");
+        Click("여러 항목 열기 : 꺼짐"); Click("본문 버튼과 키보드 이동");
+        context.State.AdvanceTime(.25f);
+        Frame();
+        Click("본문 클릭 : 0");
         Click("모두 접기 : 허용"); Click("화살표 : 앞"); Click("헤더 크기 : 보통");
+        var directionSwitch = Find("오른쪽에서 왼쪽 배치", UiAccessibilityRole.Switch);
+        check(tree.RequestAction(directionSwitch.Node.Id, directionSwitch.RuntimeId, UiAccessibilityAction.Toggle, wait : false)
+            == UiAccessibilityResult.Success, "Accordion Gallery direction switch accepts a native toggle");
+        Frame(); Frame();
         var code = accordion.Samples[0].Source;
         check(code.Contains("Fluent.Accordion(", StringComparison.Ordinal)
             && code.Contains("Multiple : true", StringComparison.Ordinal)
@@ -566,11 +626,23 @@ internal static class GallerySampleTests
             "Accordion current options appear in its captured factory source");
         check(code.Contains("var clicks = 1;", StringComparison.Ordinal),
             "Accordion nested button count appears in its source initializer");
+        check(code.Contains("var direction = UiFlowDirection.RightToLeft;", StringComparison.Ordinal)
+            && code.Contains("Direction = direction", StringComparison.Ordinal),
+            "Accordion source preserves the preview's inherited right-to-left direction");
         check(code.Contains("ImmutableArray.Create<string>(\"button\", \"input\")", StringComparison.Ordinal),
             "Accordion source preserves the control's ordinal ordering of open panels");
         var parses = accordion.Samples[0].Metrics.SyntaxParses;
         Frame(); Frame();
         check(accordion.Samples[0].Metrics.SyntaxParses == parses, "idle Accordion source retains its syntax parse");
+        foreach (var nextWidth in new[] { 828, 560, 320, 1280 })
+        {
+            width = nextWidth;
+            Frame();
+            var sizing = tree.CaptureSnapshot().Elements.Single(element =>
+                element.Node.Role == UiAccessibilityRole.Button && element.Node.Name.StartsWith("헤더 크기", StringComparison.Ordinal)).Node;
+            check(sizing.Enabled && !sizing.Offscreen && sizing.Bounds.X + sizing.Bounds.Width <= width,
+                $"Accordion Gallery keeps its sizing control reachable at viewport width {width}");
+        }
     }
     private static void RunLists(Action<bool, string> check)
     {
@@ -1506,7 +1578,7 @@ internal static class GallerySampleTests
         check(tree.RequestAction(destination.Node.Id, destination.RuntimeId, UiAccessibilityAction.ScrollIntoView, wait : false) == UiAccessibilityResult.Success,
             "pinned-header regression reveals the selected navigation destination first");
         Frame(); Frame(); Frame();
-        string[] labels = ["Duxel 갤러리", "갤러리 상태와 옵션", "밝은 테마"];
+        string[] labels = ["Duxel 갤러리", "갤러리 상태와 옵션", "테마 전환"];
         UiAccessibilityRole[] roles = [UiAccessibilityRole.Label, UiAccessibilityRole.Pane, UiAccessibilityRole.Switch];
         var before = labels.Select((name, index) => Find(name, roles[index]).Node.Bounds).ToArray();
         var target = Find("그룹 합성 예제", UiAccessibilityRole.Pane);
@@ -2271,7 +2343,7 @@ internal static class GallerySampleTests
         var unchangedBytes = 0L;
         var requested = requestedPages?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
         var completedPages = new List<string>();
-        IObserverPage[] examples = [..GalleryComponentExamples.Create(), new DataGridPage()];
+        IObserverPage[] examples = [..GalleryComponentExamples.Create(ObserverServices.CreateWindows().ImageDecoder), new DataGridPage()];
         var expectedTitles = examples.Select(page => page.Title).ToHashSet(StringComparer.Ordinal);
         foreach (var example in examples)
         {
@@ -2324,9 +2396,20 @@ internal static class GallerySampleTests
                 }
             }
             Frame(); Frame();
-            check(samples.Count == (page.Title == "Animation" ? 4 : page.Title == "RadioGroup" ? 2 : 1) && samplePage.HasInlineSamples,
+            check(samples.Count == (page.Title switch { "Animation" => 4, "RadioGroup" => 5, "Image" => 3, _ => 1 }) && samplePage.HasInlineSamples,
                 "component owns its inline samples : " + page.Title);
             Snapshot("initial");
+            if (page.Title == "Image")
+            {
+                check(new[] { "Stretch", "Contain", "Cover" }.All(fit => samples[0].Source.Contains("UiImageFit." + fit, StringComparison.Ordinal)),
+                    "the Image examples compare all three fit modes on the same photo");
+                check(new[] { "png", "jpg", "gif", "bmp", "ico", "ppm" }.All(extension =>
+                    samples[1].Source.Contains("alpine-lake." + extension, StringComparison.Ordinal)),
+                    "the Image formats example loads all six real assets");
+                check(samples[2].Source.Contains("CornerRadius", StringComparison.Ordinal)
+                    && samples[2].Source.Contains("Tint", StringComparison.Ordinal),
+                    "the Image appearance example exposes rounding and tint in its C#");
+            }
             const string text = "디모이 \"Q\" \\path";
             string? expected = null;
             switch (page.Title)
@@ -2404,6 +2487,11 @@ internal static class GallerySampleTests
                 case "RadioGroup":
                     Send("품질 우선", UiAccessibilityRole.RadioButton, UiAccessibilityAction.Select);
                     expected = "new UiState<string?>(\"quality\")";
+                    Send("크게", UiAccessibilityRole.RadioButton, UiAccessibilityAction.Select);
+                    Send("오른쪽", UiAccessibilityRole.RadioButton, UiAccessibilityAction.Select);
+                    check(samples[1].Source.Contains("new UiState<string?>(\"large\")", StringComparison.Ordinal)
+                        && samples[2].Source.Contains("new UiState<string?>(\"right\")", StringComparison.Ordinal),
+                        "horizontal RadioGroup sources track their own selected options");
                     const string optionLabel = "시간이 더 걸려도 결과의 품질을 높입니다.";
                     var narrow = Find(optionLabel, UiAccessibilityRole.RadioButton).Node.Bounds;
                     Send(optionLabel, UiAccessibilityRole.RadioButton, UiAccessibilityAction.Select);
@@ -2411,10 +2499,18 @@ internal static class GallerySampleTests
                     var wide = Find(optionLabel, UiAccessibilityRole.RadioButton).Node.Bounds;
                     check(wide.Width > narrow.Width && wide.Height < narrow.Height,
                         "the allocated RadioGroup option uses one line after widening its parent");
-                    var allocationSource = samples[1].Source;
+                    var allocationSource = samples[3].Source;
                     check(allocationSource.Contains("new UiState<float>(360f)", StringComparison.Ordinal)
                         && allocationSource.Contains("new UiState<string?>(\"quality\")", StringComparison.Ordinal),
                         "allocation sample source tracks the width and preserves the selected option");
+                    var requiredGroup = Find("알림 주기", UiAccessibilityRole.RadioGroup);
+                    var weekly = Find("주간", UiAccessibilityRole.RadioButton);
+                    check(requiredGroup.Node.Required && weekly.Node.ParentId == requiredGroup.Node.Id
+                        && weekly.Node.Hint == "알림을 받을 주기를 선택하세요.",
+                        "the required Gallery RadioGroup publishes Field help on its choices");
+                    Send("주간", UiAccessibilityRole.RadioButton, UiAccessibilityAction.Select);
+                    check(samples[4].Source.Contains("new UiState<string?>(\"weekly\")", StringComparison.Ordinal),
+                        "the required RadioGroup source tracks the selected option");
                     break;
                 case "Slider":
                     var slider = Find("값 조절", UiAccessibilityRole.Slider);
@@ -2545,7 +2641,7 @@ internal static class GallerySampleTests
             "component source audit covers every requested standalone factory");
         check(unchangedBytes == 0, "verified unchanged component source bindings allocate0B across128 repetitions");
         var allBindingsBytes = 0L;
-        foreach (var example in GalleryComponentExamples.Create())
+        foreach (var example in GalleryComponentExamples.Create(ObserverServices.CreateWindows().ImageDecoder))
         {
             using var page = example;
             var sample = ((IGallerySourcePage)page).Samples[0];
@@ -2566,6 +2662,8 @@ internal static class GallerySampleTests
     internal static string ComponentFactoryMarker(string title, int index = 0) => title switch
     {
         "CodeView" => "new UiCodeView(",
+        "RadioGroup" when index == 1 => "UiFluentRadioGroupPresentation<UiRadioHorizontalLayout>",
+        "RadioGroup" when index == 2 => "UiFluentRadioGroupPresentation<UiRadioHorizontalStackedLayout>",
         "Animation" => index switch
         {
             0 => "new MotionPreview()",

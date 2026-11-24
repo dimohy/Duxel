@@ -139,13 +139,14 @@ public sealed partial class UiImmediateContext
         return IsControlEnabled && bounds.Width > 0 && bounds.Height > 0 && ItemHoverable(ResolveId(id), bounds) && _leftMousePressed;
     }
 
-    private void ClaimFieldFocus(string id, UiRect bounds)
+    private void ClaimFieldFocus(string id, UiRect bounds, bool allowDisabledFocus = false)
     {
         var standalone = HasLabelFocusRequest();
         if (!_fieldFocusRequested && !standalone)
             return;
         if (standalone) { _labelFocusTarget = null; _labelFocusOwner = null; }
-        if (!IsControlEnabled || _popupTierDepth < _blockingKeyboardTier) return;
+        if ((!IsControlEnabled && !allowDisabledFocus) || _popupTierDepth < _blockingKeyboardTier)
+            return;
         var clipped = IntersectRect(CurrentClipRect, bounds);
         if (clipped.Width <= 0 || clipped.Height <= 0)
             return;

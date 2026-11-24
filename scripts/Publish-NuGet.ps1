@@ -40,13 +40,12 @@ function Import-DotEnv {
 
 function Get-PackageVersion {
     $projectPath = Join-Path $repoRoot "src\Duxel.App\Duxel.App.csproj"
-    [xml]$project = Get-Content -LiteralPath $projectPath -Raw
-    $versionNode = $project.Project.PropertyGroup.Version | Select-Object -First 1
-    if ([string]::IsNullOrWhiteSpace($versionNode)) {
-        throw "Could not read package version from $projectPath."
+    $version = & dotnet msbuild $projectPath -nologo -getProperty:PackageVersion
+    if ($LASTEXITCODE -ne 0 -or ($version -join '').Trim() -notmatch '^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$') {
+        throw "Could not evaluate the package version for $projectPath."
     }
 
-    return $versionNode
+    return $version.Trim()
 }
 
 Import-DotEnv (Join-Path $repoRoot ".env")
@@ -59,25 +58,35 @@ if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) {
     throw "NUGET_API_KEY is missing. Add it to .env or set it in the current environment."
 }
 
+$projects = [ordered]@{
+    'Duxel.App' = 'src/Duxel.App/Duxel.App.csproj'
+    'Duxel.Windows.App' = 'src/Duxel.Windows.App/Duxel.Windows.App.csproj'
+    'Duxel.Gallery' = 'samples/Duxel.Gallery/Duxel.Gallery.csproj'
+}
+$output = Join-Path $repoRoot $PackageDirectory
+
 if ($Pack) {
-    dotnet pack (Join-Path $repoRoot "src\Duxel.App\Duxel.App.csproj") -c Release -o (Join-Path $repoRoot $PackageDirectory) -p:NodeReuse=false
-    dotnet pack (Join-Path $repoRoot "src\Duxel.Windows.App\Duxel.Windows.App.csproj") -c Release -o (Join-Path $repoRoot $PackageDirectory) -p:NodeReuse=false
+    foreach ($project in $projects.GetEnumerator()) {
+        $packArgs = @('pack', (Join-Path $repoRoot $project.Value), '-c', 'Release', '-o', $output,
+            '--disable-build-servers', '-warnaserror', "-p:DuxelVersion=$Version")
+        & dotnet @packArgs
+        if ($LASTEXITCODE -ne 0) { throw "Could not pack $($project.Key)." }
+    }
 }
 
-$packages = @(
-    (Join-Path $repoRoot "$PackageDirectory\Duxel.App.$Version.nupkg"),
-    (Join-Path $repoRoot "$PackageDirectory\Duxel.Windows.App.$Version.nupkg")
-)
-
+$packages = @($projects.Keys | ForEach-Object { Join-Path $output "$($_).$Version.nupkg" })
 foreach ($package in $packages) {
     if (-not (Test-Path -LiteralPath $package)) {
         throw "Package not found: $package"
     }
+}
 
-    $args = @("nuget", "push", $package, "--source", $Source, "--api-key", $env:NUGET_API_KEY)
+foreach ($package in $packages) {
+    $pushArgs = @('nuget', 'push', $package, '--source', $Source)
     if (-not $NoSkipDuplicate) {
-        $args += "--skip-duplicate"
+        $pushArgs += '--skip-duplicate'
     }
 
-    dotnet @args
+    & dotnet @pushArgs
+    if ($LASTEXITCODE -ne 0) { throw "NuGet push failed: $([IO.Path]::GetFileName($package))." }
 }

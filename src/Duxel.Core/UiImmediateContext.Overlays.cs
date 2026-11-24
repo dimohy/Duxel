@@ -226,7 +226,10 @@ public sealed partial class UiImmediateContext
         {
             var target = retainFocus && previousFocus is not null && input.Members.Contains(previousFocus) ? previousFocus
                 : input.Members.Count > 0 ? input.Members[0] : surfaceId;
-            FocusGroupControl(target, keyboard : true, preserveFocusIndicator : true);
+            // Modal keyboard focus must stay inside the surface, independently of a held scroll thumb.
+            var holdingThumb = !opened && _leftMouseDown && _state.PreciseScrollbarDrag is { } drag
+                && _state.ActiveId == drag.Id;
+            FocusGroupControl(target, keyboard : true, preserveFocusIndicator : true, preservePointerCapture : holdingThumb);
             _focusedControlSeen = true;
             _focusedControlTier = input.Tier;
         }

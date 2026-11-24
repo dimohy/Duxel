@@ -135,6 +135,7 @@ public sealed partial class UiImmediateContext
         TooltipAccessibilityScope? semantics, UiRect bounds, bool available, bool hovered, bool focused, int depth,
         bool? visible = null, Action<UiTooltipVisibilityChange>? visibilityCallback = null) where TBehavior : IUiTooltipBehavior
     {
+        var pointerInside = IsHovering(bounds);
         bounds = WidgetScreenBounds(bounds);
         if (!owner.IsAlive || _tooltipHostVisibility.IsHidden)
         {
@@ -142,10 +143,12 @@ public sealed partial class UiImmediateContext
         }
         if (RightToLeft && !options.Positioning.RightToLeft)
             options = options with { Positioning = options.Positioning with { RightToLeft = true } };
+        var pointerPressed = hovered && (_leftMousePressed || _rightMousePressed || _middleMousePressed);
+        owner.PointerDismissed = pointerInside && (owner.PointerDismissed || pointerPressed);
         if (visible is { } externalVisible)
         {
             ObserveControlledTooltip<TBehavior>(owner, externalVisible, visibilityCallback, text, options, semantics,
-                bounds, available, hovered, focused);
+                bounds, available, hovered, focused, pointerPressed);
             return;
         }
         if (ReferenceEquals(_tooltipOwner, owner))
@@ -159,9 +162,11 @@ public sealed partial class UiImmediateContext
             _tooltipTargetBounds = bounds;
             _tooltipFocusLost = _tooltipOwnerFocused && !focused;
             _tooltipOwnerFocused = focused;
+            if (pointerPressed)
+                CloseAutomaticTooltip(UiTooltipVisibilityReason.Interaction);
         }
         var surfaceHovered = available && ReferenceEquals(_tooltipSurfaceUnderPointer, owner);
-        var requested = available && TBehavior.Requested(new(hovered, focused, surfaceHovered));
+        var requested = available && !owner.PointerDismissed && IsTooltipRequested<TBehavior>(hovered, focused, surfaceHovered);
         if (ReferenceEquals(_tooltipSuppressed, owner))
         {
             _tooltipSuppressedSeen = requested;
@@ -186,6 +191,13 @@ public sealed partial class UiImmediateContext
             }
         }
     }
+
+    private bool IsTooltipRequested<TBehavior>(bool hovered, bool focused, bool surfaceHovered)
+        where TBehavior : IUiTooltipBehavior =>
+        TBehavior.Requested(new(hovered, focused, surfaceHovered)
+        {
+            ProgrammaticFocusWithoutKeyboard = _state.ProgrammaticFocusWithoutKeyboard
+        });
 
     internal void EndTooltipTargets()
     {

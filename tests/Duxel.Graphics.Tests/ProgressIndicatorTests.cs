@@ -65,10 +65,12 @@ internal static class ProgressIndicatorTests
         using var page = new ProgressIndicatorPage();
         using var pageFrame = new GalleryPageFrame(page);
         Frame(pageFrame.Render); Frame(pageFrame.Render);
-        check(page.Samples.Count == 4 && page.Samples.Take(2).All(sample => sample.Source.Contains("Fluent.ProgressIndicator", StringComparison.Ordinal))
+        check(page.Samples.Count == 6 && page.Samples.Take(2).All(sample => sample.Source.Contains("Fluent.ProgressIndicator", StringComparison.Ordinal))
             && page.Samples[2].Source.Contains("Fluent.CircularProgressIndicator", StringComparison.Ordinal)
-            && page.Samples[3].Source.Contains("FinishIndeterminateCycle = true", StringComparison.Ordinal),
-            "linear, circular and cycle-completion Gallery examples own adjacent public factory source");
+            && page.Samples[3].Source.Contains("FinishIndeterminateCycle = true", StringComparison.Ordinal)
+            && page.Samples[4].Source.Contains("new UiFluentAndroidLinearProgressIndicator", StringComparison.Ordinal)
+            && page.Samples[5].Source.Contains("new UiFluentIosProgressBar", StringComparison.Ordinal),
+            "Web and mobile progress Gallery examples own adjacent public source");
         var button = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == "파일 업로드 진행률 증가"
             && element.Node.Role == UiAccessibilityRole.Button);
         check(tree.RequestAction(button.Node.Id, button.RuntimeId, UiAccessibilityAction.Invoke, wait : false) == UiAccessibilityResult.Success,
@@ -76,6 +78,34 @@ internal static class ProgressIndicatorTests
         Frame(pageFrame.Render); Frame(pageFrame.Render);
         check(page.Samples[0].Source.Contains("PercentComplete : 0.5f", StringComparison.Ordinal),
             "ProgressIndicator inline source follows its actual updated completion");
+        var reverse = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == "진행 방향 뒤집기"
+            && element.Node.Role == UiAccessibilityRole.Button);
+        check(tree.RequestAction(reverse.Node.Id, reverse.RuntimeId, UiAccessibilityAction.Invoke, wait : false) == UiAccessibilityResult.Success,
+            "Android linear Gallery direction control accepts activation");
+        Frame(pageFrame.Render); Frame(pageFrame.Render);
+        check(page.Samples[4].Source.Contains("RightToLeft = true", StringComparison.Ordinal),
+            "Android linear Gallery source follows the live direction setting");
+        var start = tree.CaptureSnapshot().Elements.Single(element => element.Node.Name == "iOS 진행 애니메이션 시작"
+            && element.Node.Role == UiAccessibilityRole.Button);
+        check(tree.RequestAction(start.Node.Id, start.RuntimeId, UiAccessibilityAction.Invoke, wait : false) == UiAccessibilityResult.Success,
+            "the iOS Gallery start button accepts activation");
+        Frame(pageFrame.Render); Frame(pageFrame.Render);
+        check(page.Samples[5].Source.Contains("IsAnimating : true", StringComparison.Ordinal),
+            "the iOS Gallery source follows the live animation setting");
+
+        using var android = new UiFluentAndroidLinearProgressIndicator(new(Label : "Android upload", PercentComplete : .25f));
+        Frame(android.Render);
+        var androidId = Progress().Id;
+        android.Options = android.Options with { PercentComplete = .75f, RightToLeft = true };
+        Frame(android.Render);
+        check(Progress().Id == androidId && Progress().Range?.Value == 75 && context.State.HasActiveAnimations,
+            "Android linear progress preserves its node and publishes the requested value during the transition");
+        android.Options = android.Options with { PercentComplete = null, ReducedMotion = true };
+        Frame(android.Render);
+        check(Progress().Id == androidId && Progress().Busy && Progress().Range is null && !context.State.HasActiveAnimations,
+            "Android linear reduced waiting preserves its node and busy state without continuous frames");
+        CheckAndroidLinearMotion(check);
+        CheckIosProgress(context, tree, Frame, check);
 
         using var custom = new CustomIndicator(new(Label : "Custom upload", Description : "Upload in progress",
             PercentComplete : .8f, Width : 200));
@@ -134,6 +164,80 @@ internal static class ProgressIndicatorTests
         check(node.Range?.Value == 25 && node.ItemStatus == "Upload failed"
             && node.GetHelpText() == "Check your connection and retry." && !node.Busy,
             "a failed indicator preserves the last known completion and exposes both the error and recovery text");
+    }
+
+    private static void CheckAndroidLinearMotion(Action<bool, string> check)
+    {
+        var state = new UiFluentAndroidLinearProgressBehavior();
+        var target = new UiProgressValue(0);
+        UiProgressValue Sample(double time, out bool running) =>
+            UiFluentAndroidLinearProgressBehavior.Evaluate(ref state, target, time, out running);
+        Sample(0, out _);
+        target = target with { Value = 1 };
+        Sample(1, out _);
+        check(MathF.Abs(Sample(1.2, out var running).Value!.Value - .5f) < 1e-5f && running,
+            "Android determinate progress samples LinearOutSlowIn at one fifth of its one-second transition");
+        check(Sample(1.75, out running).Value < 1 && running && Sample(2, out running).Value == 1 && !running,
+            "Android determinate progress settles at exactly one second");
+        target = target with { Value = null };
+        check(Sample(5, out _).IndeterminateElapsedSeconds == 0 && Sample(5.5, out _).IndeterminateElapsedSeconds == .5,
+            "Android waiting cycle measures time since entering the waiting state");
+        UiFluentAndroidLinearProgressBehavior.OnHidden(ref state);
+        check(Sample(9, out _).IndeterminateElapsedSeconds == 0, "showing the Android track starts a new waiting cycle");
+        var first = UiFluentAndroidLinearProgressPresentation.WaitingEdges(.30625);
+        var second = UiFluentAndroidLinearProgressPresentation.WaitingEdges(.74325);
+        var last = UiFluentAndroidLinearProgressPresentation.WaitingEdges(1.32);
+        check(first.Tail == 0 && MathF.Abs(first.Head - .5f) < 1e-5f && MathF.Abs(second.Tail - .5f) < 1e-5f
+            && second.Head > .9f && last == (1, 1) && UiFluentAndroidLinearProgressPresentation.WaitingEdges(1.375) == default,
+            "Android waiting gradient moves the leading edge first, delays the trailing edge by 437ms and repeats after 1375ms");
+    }
+
+    private static void CheckIosProgress(UiContext context, UiAccessibilityTree tree, Action<Action<UiImmediateContext>> frame,
+        Action<bool, string> check)
+    {
+        using var ios = new UiFluentIosProgressBar(new(Width : 240, AccessibilityLabel : "iOS download"));
+        using var following = Fluent.ProgressIndicator(new(Label : "Next task", PercentComplete : .5f));
+        UiAccessibilityNode? Node(string name) => tree.CaptureSnapshot().Elements
+            .Select(element => element.Node)
+            .Where(node => node.Role == UiAccessibilityRole.ProgressBar && node.Name == name)
+            .Select(node => (UiAccessibilityNode?)node).SingleOrDefault();
+        void Draw(UiImmediateContext ui) { ios.Render(ui); following.Render(ui); }
+        frame(Draw);
+        var hiddenNextBounds = Node("Next task")!.Value.Bounds;
+        check(Node("iOS download") is null && !context.State.HasActiveAnimations,
+            "the default stopped iOS progress bar is absent from the accessibility tree and does not animate");
+        ios.Start();
+        frame(Draw);
+        check(Node("iOS download") is { Busy: true, Range: null, ReadOnly: true }
+            && Node("Next task")!.Value.Bounds == hiddenNextBounds && context.State.HasActiveAnimations,
+            "starting iOS progress publishes a busy node and uses the same reserved layout");
+        ios.Options = ios.Options with { HidesWhenStopped = false };
+        ios.Stop();
+        frame(Draw);
+        check(Node("iOS download") is { Busy: false, Range: null } && !context.State.HasActiveAnimations,
+            "a visible stopped iOS progress bar has neither busy state nor numeric range");
+        ios.Options = ios.Options with { Progress = .625f, HidesWhenStopped = true };
+        frame(Draw);
+        check(Node("iOS download") is { Busy: false, Value: "63%" } determinate && determinate.Range?.Value == 62.5
+            && Node("Next task")!.Value.Bounds == hiddenNextBounds,
+            "determinate iOS progress stays visible when stopped and exposes the range and rounded percentage");
+        ios.Options = ios.Options with { Progress = null, ReducedMotion = true };
+        ios.Start();
+        frame(Draw);
+        check(Node("iOS download") is { Busy: true, Range: null } && !context.State.HasActiveAnimations,
+            "reduced motion leaves indeterminate iOS progress busy without scheduling frames");
+
+        var motion = new UiFluentIosProgressMotion();
+        motion.SampleValue(0, 0, false);
+        motion.SampleValue(1, 0, false);
+        var middle = motion.SampleValue(1, .1, false);
+        var end = motion.SampleValue(1, .2, false);
+        check(middle.Running && middle.Value == .5f && !end.Running && end.Value == 1,
+            "the iOS determinate transition is linear and settles after 200ms");
+        check(motion.WaitingStart(10, false) == -1 && motion.WaitingStart(10.875, false) == 0
+            && motion.WaitingStart(11.75, false) == -1, "the iOS gradient crosses two track widths every 1750ms");
+        motion.StopWaiting();
+        check(motion.WaitingStart(20, false) == -1, "restarting the iOS waiting state resets the gradient");
     }
 
     private static void VerifyWebTransition(Action<bool, string> check)
@@ -211,6 +315,50 @@ internal static class ProgressIndicatorTests
         context.State.AdvanceTime(.5f);
         var restored = capture("indicator-restored", Draw);
         check(first.AsSpan().SequenceEqual(restored), "restoring ProgressIndicator completion restores exact original pixels");
+
+        using var android = new UiFluentAndroidLinearProgressIndicator(new(PercentComplete : .25f, BarHeight : 4, Width : 240));
+        void DrawAndroid(UiImmediateContext ui) { ui.EnableRootViewportContentLayout(contentPadding : 0); android.Render(ui); }
+        var left = capture("android-linear-left", DrawAndroid);
+        android.Options = android.Options with { RightToLeft = true };
+        var right = capture("android-linear-right", DrawAndroid);
+        check(left.AsSpan(20 * 4, 4).SequenceEqual(right.AsSpan(220 * 4, 4))
+            && left.AsSpan(220 * 4, 4).SequenceEqual(right.AsSpan(20 * 4, 4))
+            && !left.AsSpan(20 * 4, 4).SequenceEqual(left.AsSpan(220 * 4, 4)),
+            "Android linear Vulkan fill switches sides when the direction changes");
+        android.Options = android.Options with { PercentComplete = null };
+        capture("android-linear-wait-start", DrawAndroid);
+        context.State.AdvanceTime(.30625f);
+        var waiting = capture("android-linear-wait-later", DrawAndroid);
+        context.State.AdvanceTime(.4f);
+        var advanced = capture("android-linear-wait-advanced", DrawAndroid);
+        check(!waiting.AsSpan().SequenceEqual(advanced), "Android linear waiting gradient advances on Vulkan");
+        android.Options = android.Options with { ReducedMotion = true };
+        var reduced = capture("android-linear-reduced", DrawAndroid);
+        context.State.AdvanceTime(.4f);
+        check(reduced.AsSpan().SequenceEqual(capture("android-linear-reduced-stable", DrawAndroid)),
+            "Android linear reduced waiting keeps the same pixels on Vulkan");
+
+        using var ios = new UiFluentIosProgressBar(new(Width : 240));
+        void DrawIos(UiImmediateContext ui) { ui.EnableRootViewportContentLayout(contentPadding : 0); ios.Render(ui); }
+        var iosHidden = capture("ios-linear-hidden", DrawIos);
+        ios.Options = ios.Options with { HidesWhenStopped = false };
+        var iosStopped = capture("ios-linear-stopped", DrawIos);
+        ios.Start();
+        var iosStart = capture("ios-linear-start", DrawIos);
+        context.State.AdvanceTime(.6f);
+        var iosMoving = capture("ios-linear-moving", DrawIos);
+        ios.Stop();
+        var iosReset = capture("ios-linear-reset", DrawIos);
+        check(!iosHidden.AsSpan().SequenceEqual(iosStopped) && iosStopped.AsSpan().SequenceEqual(iosStart)
+            && !iosStopped.AsSpan().SequenceEqual(iosMoving) && iosStopped.AsSpan().SequenceEqual(iosReset),
+            "Vulkan iOS stopped and reset tracks match while the moving gradient paints a different frame");
+        ios.Options = ios.Options with { Progress = .25f };
+        var iosLeft = capture("ios-linear-left", DrawIos);
+        ios.Options = ios.Options with { RightToLeft = true };
+        var iosRight = capture("ios-linear-right", DrawIos);
+        check(iosLeft.AsSpan(20 * 4, 4).SequenceEqual(iosRight.AsSpan(220 * 4, 4))
+            && !iosLeft.AsSpan(20 * 4, 4).SequenceEqual(iosRight.AsSpan(20 * 4, 4)),
+            "Vulkan iOS determinate fill follows the requested layout direction");
     }
     private static void CheckReducedMotion(UiContext context, UiAccessibilityNode node, Action<bool, string> check)
         => check(context.State.HasActiveAnimations && node.Busy && node.Range is null && node.Bounds.Height == 6,

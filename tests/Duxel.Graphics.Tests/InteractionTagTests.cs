@@ -93,6 +93,34 @@ internal static class InteractionTagTests
             });
             Frame();
         }
+        void VerifyPolicies<TPrimary, TDismiss>(bool primaryOnPress)
+            where TPrimary : IUiButtonBehavior
+            where TDismiss : IUiButtonBehavior
+        {
+            var activations = 0;
+            var dismissals = 0;
+            using var custom = new UiInteractionTag<TPrimary, TDismiss, UiFluentTagPresentation>(
+                "Policy tag", () => activations++, () => dismissals++);
+            current = custom;
+            Frame();
+
+            void Exercise(string name, bool activatesOnPress, Func<int> getCount)
+            {
+                var bounds = Find(name).Node.Bounds;
+                var point = new UiVector2(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
+                Frame(idle with { MousePosition = point, LeftMouseDown = true, LeftMousePressed = true });
+                check(getCount() == (activatesOnPress ? 1 : 0),
+                    "InteractionTag applies the independent press policy : " + name);
+                Frame(idle with { MousePosition = point, LeftMouseReleased = true });
+                check(getCount() == 1, "InteractionTag invokes the action exactly once : " + name);
+                Frame();
+            }
+
+            Exercise("Policy tag", primaryOnPress, () => activations);
+            check(dismissals == 0, "A custom primary behavior does not dismiss the tag");
+            Exercise("Remove Policy tag", !primaryOnPress, () => dismissals);
+            check(activations == 1, "A custom dismissal behavior does not activate the primary action");
+        }
         Frame();
         var root = Find("정##세일, Details", UiAccessibilityRole.Group);
         var main = Find("정##세일, Details");
@@ -139,6 +167,8 @@ internal static class InteractionTagTests
         Frame();
         var onlyRoot = Find("Primary only", UiAccessibilityRole.Group);
         check(Elements().Count(e => e.Node.ParentId == onlyRoot.Node.Id) == 1, "InteractionTag without dismissal has exactly one real child action");
+        VerifyPolicies<UiPressButtonBehavior, UiReleaseButtonBehavior>(primaryOnPress : true);
+        VerifyPolicies<UiReleaseButtonBehavior, UiPressButtonBehavior>(primaryOnPress : false);
         var selected = false;
         var accept = true;
         var writes = 0;

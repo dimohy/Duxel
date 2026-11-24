@@ -48,6 +48,91 @@ internal static class SwitchWidgetTests
         check(!value&&writes==2,"disabled Switch label cannot activate");
         using var standard=Fluent.Switch("Setting",new UiState<bool>(false).Binding);
         check(standard is UiFluentSwitch,"standard Switch factory still consumes generated implementation");
+        VerifyDisabledFocusable(check);
+    }
+
+    private static void VerifyDisabledFocusable(Action<bool, string> check)
+    {
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        using var tree = new UiAccessibilityTree();
+        context.SetAccessibilityTree(tree);
+        ControlFontFixture.Configure(context);
+        var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        var value = false;
+        var writes = 0;
+        var parentDisabled = false;
+        using var control = Fluent.Switch("Locked setting", new UiBinding<bool>(() => value, next => { value = next; writes++; }));
+        using var next = Fluent.Button("Next");
+        control.DisabledFocusable = true;
+        var screen = new Screen(ui =>
+        {
+            ui.SetCursorScreenPos(new(10, 10));
+            ui.BeginDisabled(parentDisabled);
+            control.Render(ui);
+            ui.EndDisabled();
+            ui.SetCursorScreenPos(new(10, 80));
+            next.Render(ui);
+        });
+        void Step(UiInputState input)
+        {
+            context.NewFrame(new(1f / 60, new(320, 240), new(1, 1)), input, new(0, 0, 320, 240), UiTextSettings.Default);
+            context.Render(screen);
+            using var data = context.GetDrawData();
+        }
+        void Key(UiKey key)
+        {
+            Step(idle with { KeyEvents = [new(key, true, default)] });
+            Step(idle with { KeyEvents = [new(key, false, default)] });
+        }
+        UiAccessibilityElement ReadControl()
+        {
+            if (!tree.TryGet(tree.Root.First!, out var item) || item.Node.Name != "Locked setting")
+                throw new InvalidOperationException("Missing Switch accessibility node.");
+            return item;
+        }
+
+        Step(idle);
+        var item = ReadControl();
+        check(item.Node is { Enabled: false, DisabledFocusable: true, CanReceiveFocus: true,
+            Role: UiAccessibilityRole.Switch, ToggleState: UiAccessibilityToggleState.Off },
+            "Focus-only Switch reports disabled, focusable and switch state together");
+        Key(UiKey.Tab);
+        check(tree.Root.Focus == item.Node.Id, "Tab includes a focus-only Switch");
+        Key(UiKey.Space);
+        Key(UiKey.Enter);
+        check(!value && writes == 0, "Space and Enter cannot activate a focus-only Switch");
+        Key(UiKey.Tab);
+        check(tree.Root.Focus != item.Node.Id && tree.Root.Focus is not null, "Tab leaves a focus-only Switch for the next widget");
+        Step(idle with { MousePosition = new(20, 20), LeftMouseDown = true, LeftMousePressed = true });
+        Step(idle with { MousePosition = new(20, 20), LeftMouseReleased = true });
+        check(tree.Root.Focus == item.Node.Id && !value && writes == 0, "Pointer gives focus without toggling a focus-only Switch");
+        Key(UiKey.Tab);
+        check(tree.RequestAction(item.Node.Id, item.RuntimeId, UiAccessibilityAction.Focus, wait: false) == UiAccessibilityResult.Success,
+            "Accessibility accepts a Focus request for a focus-only Switch");
+        Step(idle);
+        check(tree.Root.Focus == item.Node.Id, "Accessibility Focus reaches the focus-only Switch");
+        check(tree.RequestAction(item.Node.Id, item.RuntimeId, UiAccessibilityAction.Toggle, wait: false) == UiAccessibilityResult.Disabled,
+            "Accessibility rejects Toggle on a focus-only Switch");
+
+        parentDisabled = true;
+        Step(idle);
+        check(!ReadControl().Node.CanReceiveFocus && tree.Root.Focus != item.Node.Id,
+            "A disabled parent prevents focus on its focus-only Switch");
+        parentDisabled = false;
+        control.DisabledFocusable = false;
+        Step(idle);
+        item = ReadControl();
+        check(item.Node.Enabled && !item.Node.DisabledFocusable, "Clearing the flag restores ordinary Switch semantics");
+        tree.RequestAction(item.Node.Id, item.RuntimeId, UiAccessibilityAction.Focus, wait: false);
+        Step(idle);
+        Step(idle with { KeyEvents = [new(UiKey.Space, true, default)] });
+        control.DisabledFocusable = true;
+        Step(idle with { KeyEvents = [new(UiKey.Space, false, default)] });
+        check(!value && writes == 0, "Becoming focus-only cancels a Space press already in progress");
+        control.DisabledFocusable = false;
+        Step(idle);
+        Key(UiKey.Space);
+        check(value && writes == 1, "Re-enabled Switch activates on a fresh Space release");
     }
     private sealed class Screen(Action<UiImmediateContext> draw):UiScreen{public override void Render(UiImmediateContext ui)=>draw(ui);}
     private sealed class InheritedSwitch(UiBinding<bool> value):SwitchAbove("Setting",value)

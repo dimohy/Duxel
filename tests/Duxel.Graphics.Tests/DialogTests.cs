@@ -4,6 +4,7 @@ internal static class DialogTests
 {
     internal static void Run(Action<bool, string> check)
     {
+        SurfaceClosePolicyTests.Run(check);
         DialogAccessibilityContractTests.Run(check);
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
         ControlFontFixture.Configure(context);

@@ -96,6 +96,7 @@ internal static unsafe partial class DirectWriteLongTextShaper
     internal sealed class FontIdentity : IDisposable
     {
         private nint _loader;
+        private nint _variableFace;
         internal required byte[] Key;
         internal uint Index;
         internal int Simulations;
@@ -129,8 +130,15 @@ internal static unsafe partial class DirectWriteLongTextShaper
             using var actual = Read(face);
             if (_loader != actual._loader || Index != actual.Index || Simulations != actual.Simulations || !Key.AsSpan().SequenceEqual(actual.Key))
                 throw new InvalidOperationException("TextLayout substituted a font outside the explicitly selected face.");
+            if (_variableFace != 0 && ((delegate* unmanaged[Stdcall]<nint, nint, int>)Method(_variableFace, 57))(_variableFace, face) == 0)
+                throw new InvalidOperationException("TextLayout substituted a different variation of the explicitly selected face.");
         }
-        public void Dispose() => Release(ref _loader);
+        internal void BindVariableFace(nint face) => _variableFace = face;
+        public void Dispose()
+        {
+            Release(ref _variableFace);
+            Release(ref _loader);
+        }
     }
     private static void* Method(nint instance, int slot) => (*(void***)instance)[slot];
     private static uint AddReference(nint instance) => ((delegate* unmanaged[Stdcall]<nint, uint>)Method(instance, 1))(instance);

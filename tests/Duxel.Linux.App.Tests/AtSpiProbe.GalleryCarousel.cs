@@ -17,11 +17,17 @@ internal static unsafe partial class AtSpiProbe
         Wait(() => !HasState(previous.Value, enabledState) && HasState(next.Value, enabledState),
             "the first Carousel boundary");
         checks.Add("The first slide is the only active slide, and Previous starts disabled.");
+        VerifyReadingOrder("바다");
+
+        using var events = new EventWatch { Selection = tabs.Value };
+        Pump();
 
         Reveal(next);
         InvokeNamed(next, "click");
         WaitForSlide("숲", "바다");
         checks.Add("Invoking Next selects the forest slide and retires the previous slide content.");
+        WaitForSelectionEvent(1);
+        VerifyReadingOrder("숲");
 
         if (!SelectionAction(selection.Value, 2, SelectionOperation.Select))
             throw new InvalidOperationException("The Carousel refused selection of the third slide.");
@@ -29,23 +35,66 @@ internal static unsafe partial class AtSpiProbe
         Wait(() => HasState(previous.Value, enabledState) && !HasState(next.Value, enabledState),
             "the last Carousel boundary");
         checks.Add("Selecting the third tab activates the sunset slide and disables Next.");
+        WaitForSelectionEvent(2);
 
         using var choose = required("노을 선택", carousel.Value, buttonRole);
         Reveal(choose);
         InvokeNamed(choose, "click");
         using var count = required("선택 횟수 1회", carousel.Value, null);
         checks.Add("The active slide button updates the shared counter through AT-SPI.");
+        Pump();
+        events.Check();
+        if (events.Selections != 2)
+            throw new InvalidOperationException("A slide content action changed selection notifications.");
+        checks.Add("Activating the slide content does not emit a selection change.");
 
         Reveal(previous);
         InvokeNamed(previous, "click");
         WaitForSlide("숲", "노을");
         using var retainedCount = required("선택 횟수 1회", carousel.Value, null);
         checks.Add("Previous restores the forest slide while the counter remains at one.");
+        WaitForSelectionEvent(3);
 
         VerifyGalleryCarouselPreviews(window, required, checks);
 
         void WaitForSlide(string active, string inactive) =>
             WaitForCarouselSlide(carousel, selection, active, inactive);
+
+        void WaitForSelectionEvent(int expected)
+        {
+            Wait(() => events.Selections >= expected || events.Failure is not null, "Carousel selection-changed event");
+            events.Check();
+            if (events.Selections != expected)
+                throw new InvalidOperationException("The Carousel emitted duplicate selection events.");
+            checks.Add($"The Carousel publishes selection change {expected} on its tab list.");
+        }
+
+        void VerifyReadingOrder(string active)
+        {
+            atspi_accessible_clear_cache(carousel.Value);
+            var names = new List<string>();
+            ReadChildren(carousel.Value);
+            var items = new[] { "이전 슬라이드", "다음 슬라이드", active + " 선택", "바다", "숲", "노을" };
+            var index = -1;
+            foreach (var item in items)
+            {
+                index = names.IndexOf(item, index + 1);
+                if (index < 0)
+                    throw new InvalidOperationException("Unexpected Carousel reading order: " + string.Join(" / ", names));
+            }
+            checks.Add($"The {active} slide exposes navigation, active content, then all three tabs in reading order.");
+
+            void ReadChildren(nint parent)
+            {
+                var count = Count(parent);
+                for (var i = 0; i < count; i++)
+                {
+                    using var child = Child(parent, i);
+                    names.Add(Name(child.Value));
+                    ReadChildren(child.Value);
+                }
+            }
+        }
     }
 
     private static void VerifyGalleryCarouselPreviews(nint window,

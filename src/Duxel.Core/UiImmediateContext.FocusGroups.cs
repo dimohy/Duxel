@@ -112,18 +112,21 @@ public sealed partial class UiImmediateContext
         return focused;
     }
 
-    private void FocusGroupControl(string id, bool keyboard, bool preserveFocusIndicator = false)
+    private void FocusGroupControl(string id, bool keyboard, bool preserveFocusIndicator = false,
+        bool preservePointerCapture = false)
     {
         if (keyboard)
         {
             if (_state.ActiveId is { } active && _state.HasTextInputStorage(active))
                 _imeHandler?.SetCompositionOwner(null);
-            _state.ActiveId = null;
+            if (!preservePointerCapture)
+                _state.ActiveId = null;
             _state.PendingTextInputFocusId = null;
             if (!preserveFocusIndicator)
                 _state.NavCursorVisible = true;
         }
-        _state.FocusedId = _ownedControlFocus = id;
+        _ownedControlFocus = id;
+        _state.SetControlFocus(id, programmaticWithoutKeyboard : preserveFocusIndicator && !_state.NavCursorVisible);
         CancelControlSpace();
         _requestFrame?.Invoke();
     }

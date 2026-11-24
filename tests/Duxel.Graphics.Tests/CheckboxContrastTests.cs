@@ -43,17 +43,19 @@ internal static class CheckboxContrastTests
                             var disabled = state == UiButtonVisualState.Disabled;
                             var interaction = new UiButtonInteraction(false, state is UiButtonVisualState.Hover or UiButtonVisualState.Pressed,
                                 state == UiButtonVisualState.Pressed);
-                            void Draw(UiImmediateContext ui, bool reference)
+                            void Draw(UiImmediateContext ui, bool reference, bool focused = false)
                             {
                                 Begin(ui, disabled);
                                 var context = new UiControlContext(ui);
                                 using var typography = UiFluentCheckboxPresentation<TSize, TShape, TLabel>.BeginText(context, true);
                                 var textSize = ui.CalcTextSize("Label");
                                 var bounds = new UiRect(20, 20, 200, 40);
+                                using var allocationClip = context.Clip(bounds);
                                 var layout = UiFluentCheckboxPresentation<TSize, TShape, TLabel>.Measure(context, textSize, true);
                                 layout = UiFluentCheckboxPresentation<TSize, TShape, TLabel>.Arrange(context, layout, new(bounds.Width, bounds.Height));
                                 if (!reference)
-                                    UiFluentCheckboxPresentation<TSize, TShape, TLabel>.Paint(context, "Label", textSize, bounds, layout, interaction, value);
+                                    UiFluentCheckboxPresentation<TSize, TShape, TLabel>.Paint(context, "Label", textSize, bounds, layout,
+                                        interaction with { FocusVisible = focused }, value);
                                 else
                                 {
                                     var foreground = disabled ? colors.GrayText : colors.CanvasText;
@@ -73,6 +75,8 @@ internal static class CheckboxContrastTests
                                         TSize.PaintMark(context, new(indicator.X + inset, indicator.Y + inset, TSize.GlyphSize, TSize.GlyphSize),
                                             paint.Indicator, interaction, value is null, TShape.Circular);
                                     }
+                                    if (focused)
+                                        context.Frame(new(22, 22, 196, 36), default, colors.Highlight, 2, 2);
                                     context.TypographyIndicatorText("Label", new(bounds.X + layout.LabelOffset.X, bounds.Y,
                                         textSize.X, bounds.Height), textSize, paint.Label);
                                 }
@@ -80,7 +84,10 @@ internal static class CheckboxContrastTests
                             }
                             var expected = fixture.Capture(ui => Draw(ui, true));
                             var actual = fixture.Capture(ui => Draw(ui, false));
-                            Compare($"forced={forced}/dark={dark}/{typeof(TSize).Name}/{typeof(TShape).Name}/{typeof(TLabel).Name}/value={value?.ToString() ?? "mixed"}/{state}", expected, actual);
+                            var name = $"forced={forced}/dark={dark}/{typeof(TSize).Name}/{typeof(TShape).Name}/{typeof(TLabel).Name}/value={value?.ToString() ?? "mixed"}/{state}";
+                            Compare(name, expected, actual);
+                            if (forced && value is null && state == UiButtonVisualState.Rest)
+                                Compare(name + "/keyboard-focus", fixture.Capture(ui => Draw(ui, true, true)), fixture.Capture(ui => Draw(ui, false, true)));
                         }
         }
         Variant<UiFluentMediumCheckboxSize, UiFluentSquareCheckboxShape, UiCheckboxLabelAfter>();

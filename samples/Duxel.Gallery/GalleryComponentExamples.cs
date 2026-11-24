@@ -81,6 +81,20 @@ internal static class GalleryComponentExamples
                 new UiRadioOption[] { new("efficient", GalleryText.Get("Prioritize speed")), new("balanced", GalleryText.Get("Balanced")), new("quality", GalleryText.Get("Prioritize quality")) });
         }, current => TextState("value", current, nullable : true));
 
+        var horizontal = StatefulSample(new UiState<string?>("small"), value =>
+        {
+            return new UiRadioGroup<UiFluentRadioGroupBehavior, UiFluentRadioGroupPresentation<UiRadioHorizontalLayout>>(
+                GalleryText.Get("Size"), value.Binding,
+                new UiRadioOption[] { new("small", GalleryText.Get("Small")), new("medium", GalleryText.Get("Medium")), new("large", GalleryText.Get("Large")) });
+        }, current => TextState("value", current, nullable : true));
+
+        var stacked = StatefulSample(new UiState<string?>("left"), value =>
+        {
+            return new UiRadioGroup<UiFluentRadioGroupBehavior, UiFluentRadioGroupPresentation<UiRadioHorizontalStackedLayout>>(
+                GalleryText.Get("Alignment"), value.Binding,
+                new UiRadioOption[] { new("left", GalleryText.Get("Left edge")), new("center", GalleryText.Get("Center")), new("right", GalleryText.Get("Right edge")) });
+        }, current => TextState("value", current, nullable : true));
+
         var allocation = StatefulSample(new UiState<string?>("balanced"), new UiState<float>(180), (selection, width) =>
         {
             var group = Fluent.RadioGroup(GalleryText.Get("Processing priority"), selection.Binding, new UiRadioOption[]
@@ -103,8 +117,24 @@ internal static class GalleryComponentExamples
         }, (selection, width) => TextState("selection", selection, nullable : true)
             + "\nvar width = new UiState<float>(" + GallerySample.Number(width) + ");");
 
+        var requiredField = StatefulSample(new UiState<string?>(null), value =>
+        {
+            var group = Fluent.RadioGroup(string.Empty, value.Binding, new UiRadioOption[]
+            {
+                new("daily", GalleryText.Get("Daily")), new("weekly", GalleryText.Get("Weekly")), new("monthly", GalleryText.Get("Monthly"))
+            });
+            var field = Fluent.Field(group);
+            field.Options = new()
+            {
+                Label = GalleryText.Get("Notification frequency"),
+                Hint = GalleryText.Get("Choose how often to receive notifications."),
+                Required = true
+            };
+            return field;
+        }, current => TextState("value", current, nullable : true));
+
         return new("RadioGroup", "Use the arrow keys to change the selection and see how long labels wrap at different container widths.",
-            choices, allocation);
+            choices, horizontal, stacked, allocation, requiredField);
     }
 
     private static ComponentExamplePage CreateAnimation()
@@ -142,7 +172,268 @@ internal static class GalleryComponentExamples
         GallerySample.Create<UiWidget>(() => create(), expression : expression,
             declarations : GallerySample.LocalizeSource(GalleryPageSource.Declaration(typeof(T).Name))).WithExcerpt(excerpt);
 
-    internal static IObserverPage[] Create() =>
+    private static ComponentExamplePage CreateImage(IUiImageDecoder decoder)
+    {
+        var directory = Path.Combine(AppContext.BaseDirectory, "Assets", "Image");
+        const string pathSetup = """
+            var directory = Path.Combine(AppContext.BaseDirectory, "Assets", "Image");
+            """;
+        UiImageSource Load(string extension)
+        {
+            var path = Path.Combine(directory, "alpine-lake." + extension);
+            return extension == "ppm" ? UiImageSource.LoadFromFile(path) : new(decoder.Decode(path));
+        }
+
+        var photo = Load("jpg");
+        var png = Load("png");
+        var gif = Load("gif");
+        var bmp = Load("bmp");
+        var ico = Load("ico");
+        var ppm = Load("ppm");
+        const string photoSetup = pathSetup + "\nvar photo = UiImageSource.LoadFromFile(Path.Combine(directory, \"alpine-lake.jpg\"));";
+
+        var fitSample = GallerySample.Create<UiWidget>(() =>
+        {
+            UiWidget Preview(string label, UiImageFit fit)
+            {
+                var image = Fluent.Image(photo);
+                image.Size = new(172, 136);
+                image.Fit = fit;
+                image.AccessibleName = label;
+                return Dux.Column(new(Spacing : 4, MainAxisSize : UiMainAxisSize.Min), Fluent.Caption1(label), image);
+            }
+
+            return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
+                Fluent.Subtitle2(GalleryText.Get("Image fit modes")),
+                Fluent.Body1(GalleryText.Get("Stretch changes the aspect ratio. Contain shows the whole image. Cover fills the box and crops the edges.")),
+                Dux.Wrap(new(Spacing : 12, RunSpacing : 12),
+                    Preview("Stretch", UiImageFit.Stretch), Preview("Contain", UiImageFit.Contain), Preview("Cover", UiImageFit.Cover)));
+        }, setup : photoSetup);
+        var formatSample = GallerySample.Create<UiWidget>(() =>
+        {
+            UiWidget Preview(string label, UiImageSource source)
+            {
+                var image = Fluent.Image(source);
+                image.Size = new(104, 72);
+                image.Fit = UiImageFit.Contain;
+                image.AccessibleName = label;
+                return Dux.Column(new(Spacing : 4, MainAxisSize : UiMainAxisSize.Min), Fluent.Caption1(label), image);
+            }
+
+            return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
+                Fluent.Subtitle2(GalleryText.Get("Image file formats")),
+                Dux.Wrap(new(Spacing : 12, RunSpacing : 12),
+                    Preview("PNG", png), Preview("JPEG (.jpg, .jpeg)", photo), Preview("GIF", gif),
+                    Preview("BMP", bmp), Preview("ICO", ico), Preview("PPM", ppm)),
+                Fluent.Caption1(GalleryText.Get("Image displays the first GIF frame. The SVG page shows vector rendering.")));
+        }, setup : photoSetup + """
+
+            var png = UiImageSource.LoadFromFile(Path.Combine(directory, "alpine-lake.png"));
+            var gif = UiImageSource.LoadFromFile(Path.Combine(directory, "alpine-lake.gif"));
+            var bmp = UiImageSource.LoadFromFile(Path.Combine(directory, "alpine-lake.bmp"));
+            var ico = UiImageSource.LoadFromFile(Path.Combine(directory, "alpine-lake.ico"));
+            var ppm = UiImageSource.LoadFromFile(Path.Combine(directory, "alpine-lake.ppm"));
+            """);
+        var appearanceSample = GallerySample.Create<UiWidget>(() =>
+        {
+            var rounded = Fluent.Image(photo);
+            rounded.Size = new(172, 114);
+            rounded.CornerRadius = 16;
+            var tinted = Fluent.Image(photo);
+            tinted.Size = rounded.Size;
+            tinted.CornerRadius = rounded.CornerRadius;
+            tinted.Tint = new(180, 210, 255);
+            return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min),
+                Fluent.Subtitle2(GalleryText.Get("Rounded corners and tint")),
+                Dux.Wrap(new(Spacing : 12, RunSpacing : 12), rounded, tinted));
+        }, setup : photoSetup);
+        return new("Image", "Compare bitmap formats, fit modes, rounded corners, and tint.", fitSample, formatSample, appearanceSample);
+    }
+
+    internal static IObserverPage[] CreateLayoutExamples() =>
+    [
+        Example("SizedBox", "Choose a fixed width and height for a child.", () =>
+            Dux.Wrap(new(Spacing : 12, RunSpacing : 8),
+                Dux.SizedBox(Fluent.Button("208 × 52"), width : 208, height : 52),
+                Dux.SizedBox(Fluent.Button("Width : 180"), width : 180),
+                Dux.SizedBox(Fluent.Button("Height : 52"), height : 52),
+                Dux.SizedBox(Fluent.Button("Natural size")),
+                Dux.Row(new(Spacing : 8), Fluent.Badge("Left"), Dux.SizedBox(width : 32), Fluent.Badge("32 px gap")))),
+        Example("ConstrainedBox", "Set minimum and maximum dimensions for a child.", () =>
+            Dux.Wrap(new(Spacing : 12, RunSpacing : 8),
+                Dux.ConstrainedBox(Fluent.Button("160–240 × 40–56"), new(160, 240, 40, 56)),
+                Dux.ConstrainedBox(Fluent.Button("Tight : 140 × 48"), UiBoxConstraints.Tight(new(140, 48))),
+                Dux.ConstrainedBox(Fluent.Button("Loose : ≤ 200 × 56"), UiBoxConstraints.Loose(new(200, 56))))),
+        Example("Expand", "Fill the finite width and height supplied by the parent.", () =>
+            Dux.SizedBox(Dux.Expand(Fluent.Button("240 × 64")), width : 240, height : 64)),
+        Example("Align", "Align a child within the space available.", () =>
+        {
+            (string Name, UiAlignment Alignment)[] positions =
+            [
+                ("TopLeft", new(-1, -1)), ("TopCenter", new(0, -1)), ("TopRight", new(1, -1)),
+                ("CenterLeft", new(-1, 0)), ("Center", new(0, 0)), ("CenterRight", new(1, 0)),
+                ("BottomLeft", new(-1, 1)), ("BottomCenter", new(0, 1)), ("BottomRight", new(1, 1))
+            ];
+            UiWidget Frame(string name) => new UiViewHost(new UiView(ui =>
+            {
+                var origin = ui.GetCursorScreenPos();
+                var size = ui.GetContentRegionAvail();
+                var bounds = new UiRect(origin.X, origin.Y, size.X, size.Y);
+                var draw = ui.GetWindowDrawList();
+                draw.AddRectFilled(bounds, ui.GetColorU32(UiStyleColor.FrameBg), ui.WhiteTextureId, bounds);
+                draw.AddRect(new(bounds.X + .5f, bounds.Y + .5f, bounds.Width - 1, bounds.Height - 1),
+                    ui.GetColorU32(UiStyleColor.Separator));
+            })) { AccessibleName = GalleryText.Format("Alignment frame {0}", name) };
+            UiWidget Cell(string name, UiAlignment alignment) => Dux.Stack(new(Fit : UiStackFit.Expand), Frame(name),
+                Dux.Align(Fluent.Button(name), alignment));
+            return Dux.Column(new(Spacing : 14, MainAxisSize : UiMainAxisSize.Min),
+                Dux.SizedBox(Dux.UniformGrid(new(3, CrossAxisSpacing : 12, MainAxisSpacing : 12, MainAxisExtent : 64),
+                    [..positions.Select(position => Cell(position.Name, position.Alignment))]), width : 450),
+                Dux.Wrap(new(Spacing : 12, RunSpacing : 12),
+                    Dux.SizedBox(Cell("Custom (-0.5, 0.5)", new(-.5f, .5f)), width : 142, height : 64),
+                    Dux.Align(Fluent.Button("Width 1.5×"), UiAlignment.TopLeft, widthFactor : 1.5f),
+                    Dux.Align(Fluent.Button("Height 2×"), UiAlignment.BottomRight, heightFactor : 2),
+                    Dux.Align(Fluent.Badge("Width 1.5×, Height 2×"), UiAlignment.BottomRight, widthFactor : 1.5f, heightFactor : 2)));
+        }),
+        Example("Center", "Center a child horizontally and vertically.", () =>
+            Dux.Wrap(new(Spacing : 12, RunSpacing : 8),
+                Dux.SizedBox(Dux.Center(Fluent.Button("Center")), width : 240, height : 72),
+                Dux.Center(Fluent.Button("1.5× width"), widthFactor : 1.5f),
+                Dux.Center(Fluent.Button("2× height"), heightFactor : 2),
+                Dux.Center(Fluent.Button("Both factors"), widthFactor : 1.5f, heightFactor : 2))),
+        Example("Padding", "Add spacing inside the layout around a child.", () =>
+            Dux.Wrap(new(Spacing : 12, RunSpacing : 8), Dux.Padding(Fluent.Button("Uniform : 16"), new(16)),
+                Dux.Padding(Fluent.Button("Left : 24, Top : 8"), new(24, 8, 0, 0)))),
+        Example("Container", "Combine margin and padding around content.", () =>
+            Dux.Wrap(new(Spacing : 12, RunSpacing : 8),
+                Dux.Container(Fluent.Button("Padding : 16, Margin : 8"), new(Padding : new(16), Margin : new(8))),
+                Dux.Container(Fluent.Button("BottomRight"), new(Alignment : UiAlignment.BottomRight, Width : 180, Height : 72)),
+                Dux.Container(Fluent.Button("Min width : 140"), new(Constraints : new(140, 200, 32, 56))))),
+        FlexExamples("Row", true),
+        FlexExamples("Column", false),
+        WrapExamples("Wrap", false),
+        WrapExamples("VerticalWrap", true),
+        GridExamples("UniformGrid", false),
+        GridExamples("HorizontalGrid", true),
+        Example("Stack", "Layer widgets in the same space.", () =>
+            Dux.Wrap(new(Spacing : 12, RunSpacing : 8), [..Enum.GetValues<UiStackFit>().Select(fit =>
+                Dux.SizedBox(Dux.Stack(new(UiAlignment.Center, fit), Fluent.Card(fit.ToString(), Fluent.Body1(fit.ToString())),
+                    Dux.Positioned(Fluent.Badge(fit.ToString()), new(Right : 6, Bottom : 6))), width : 180, height : 64))])),
+        Example("Positioned", "Anchor a child to the edges of a Stack.", () =>
+            Dux.Wrap(new(Spacing : 12, RunSpacing : 8),
+                Dux.SizedBox(Dux.Stack(new(Fit : UiStackFit.Expand),
+                    Dux.Positioned(Fluent.Button("Left + top"), new(Left : 8, Top : 8)),
+                    Dux.Positioned(Fluent.Button("Right + bottom"), new(Right : 8, Bottom : 8)),
+                    Dux.Positioned(Fluent.Button("Both sides"), new(Left : 8, Right : 8, Top : 48)),
+                    Dux.Positioned(Fluent.Button("140 × 32"), new(Left : 8, Top : 100, Width : 140, Height : 32)),
+                    Dux.Positioned(Fluent.Badge("Stack alignment"))), width : 260, height : 180))),
+        Example("ScrollView", "Scroll content inside a fixed viewport.", () =>
+        {
+            UiWidget Row(int i) => Dux.Row(new(Spacing : 6, MainAxisSize : UiMainAxisSize.Min),
+                [..Enumerable.Range(1, 8).Select(j => Dux.SizedBox(Fluent.Button($"{i},{j}"), width : 52))]);
+            UiWidget Content(UiScrollAxis axis) => axis switch
+            {
+                UiScrollAxis.Horizontal => Row(1),
+                UiScrollAxis.Vertical => Dux.Column(new(Spacing : 6, MainAxisSize : UiMainAxisSize.Min),
+                    [..Enumerable.Range(1, 7).Select(i => Fluent.Button(i.ToString()))]),
+                _ => Dux.Column(new(Spacing : 6, MainAxisSize : UiMainAxisSize.Min),
+                    [..Enumerable.Range(1, 7).Select(Row)])
+            };
+            return Dux.Wrap(new(Spacing : 12, RunSpacing : 10), [..Enum.GetValues<UiScrollAxis>().Select(axis =>
+                Dux.Column(new(Spacing : 4, MainAxisSize : UiMainAxisSize.Min), Fluent.Caption1(axis.ToString()),
+                    Dux.ScrollView(Content(axis), new(axis, Width : 182, Height : 116)))),
+                Dux.Column(new(Spacing : 4, MainAxisSize : UiMainAxisSize.Min), Fluent.Caption1("RightToLeft"),
+                    Dux.ScrollView(Content(UiScrollAxis.Horizontal), new(UiScrollAxis.Horizontal, Width : 182, Height : 116) { RightToLeft = true }))]);
+        }),
+        Example("Expanded", "Use the row's remaining width.", () =>
+            Dux.SizedBox(Dux.Row(new(Spacing : 8), Fluent.Button("Fixed"), Dux.Expanded(Fluent.Button("Flex 1")),
+                Dux.Expanded(Fluent.Button("Flex 2"), flex : 2)), width : 320)),
+        Example("Flexible", "Allow a child to use part of the remaining width.", () =>
+            Dux.SizedBox(Dux.Row(new(Spacing : 8), Dux.Flexible(Fluent.Button("Flex 1")),
+                Dux.Flexible(Fluent.Button("Flex 2"), flex : 2), Fluent.Button("Fixed")), width : 320)),
+        Example("FlexSpacer", "Reserve remaining width between siblings.", () =>
+            Dux.SizedBox(Dux.Row(new(Spacing : 8), Fluent.Button("1"), Dux.FlexSpacer(), Fluent.Button("2"),
+                Dux.FlexSpacer(flex : 2), Fluent.Button("3")), width : 320)),
+        OverflowExamplesFor("Overflow", false),
+        OverflowExamplesFor("VerticalOverflow", true)
+    ];
+
+    private static ComponentExamplePage FlexExamples(string name, bool horizontal) =>
+        Stateful(name, horizontal ? "Place widgets side by side." : "Stack widgets vertically.", new UiState<bool>(horizontal), direction =>
+        {
+            UiWidget Case(string label, UiFlexOptions options)
+            {
+                UiWidget[] children = [Dux.SizedBox(Fluent.Button("1"), width : 38, height : 30),
+                    Dux.SizedBox(Fluent.Button("2"), width : 66, height : 35), Dux.SizedBox(Fluent.Button("3"), width : 48, height : 42)];
+                var content = direction.Value ? (UiWidget)Dux.Row(options, children) : Dux.Column(options, children);
+                UiBoxConstraints bounds = direction.Value ? new(0, 200, 52, 52) : new(200, 200, 0, 152);
+                return Dux.Column(new(Spacing : 5, MainAxisSize : UiMainAxisSize.Min), Fluent.Caption1(label),
+                    Dux.ConstrainedBox(content, bounds));
+            }
+            return Dux.Wrap(new(Spacing : 14, RunSpacing : 12),
+                [..Enum.GetValues<UiMainAxisAlignment>().Select(main => Case(main.ToString(), new(Spacing : 3, MainAxisAlignment : main))),
+                ..Enum.GetValues<UiCrossAxisAlignment>().Select(cross => Case("Cross : " + cross, new(Spacing : 3, CrossAxisAlignment : cross))),
+                Case("Main size : Min", new(Spacing : 3, MainAxisSize : UiMainAxisSize.Min))]);
+        }, horizontal => "var direction = new UiState<bool>(" + GallerySample.Boolean(horizontal) + ");");
+
+    private static ComponentExamplePage WrapExamples(string name, bool vertical) =>
+        Stateful(name, vertical ? "Move items to a new column when they no longer fit." : "Move items to a new row when they no longer fit.", new UiState<bool>(vertical), direction =>
+        {
+            UiWidget Case(string label, UiWrapOptions options)
+            {
+                UiWidget[] children = [Dux.SizedBox(Fluent.Button("1"), width : 58),
+                    Dux.SizedBox(Fluent.Button("2"), width : 70), Dux.SizedBox(Fluent.Button("3"), width : 64, height : 46),
+                    Dux.SizedBox(Fluent.Button("4"), width : 58), Dux.SizedBox(Fluent.Button("5"), width : 58)];
+                var content = direction.Value ? (UiWidget)Dux.VerticalWrap(options, children) : Dux.Wrap(options, children);
+                return Dux.Column(new(Spacing : 5, MainAxisSize : UiMainAxisSize.Min), Fluent.Caption1(label),
+                    Dux.SizedBox(content, width : 200, height : 138));
+            }
+            return Dux.Wrap(new(Spacing : 14, RunSpacing : 12),
+                [..Enum.GetValues<UiMainAxisAlignment>().Select(value => Case("Alignment : " + value, new(4, 4, Alignment : value))),
+                ..Enum.GetValues<UiMainAxisAlignment>().Select(value => Case("RunAlignment : " + value, new(4, 4, RunAlignment : value))),
+                ..Enum.GetValues<UiWrapCrossAlignment>().Select(value => Case("Cross : " + value, new(4, 4, CrossAlignment : value))),
+                Case("RightToLeft", new(4, 4) { RightToLeft = true })]);
+        }, vertical => "var direction = new UiState<bool>(" + GallerySample.Boolean(vertical) + ");");
+
+    private static ComponentExamplePage GridExamples(string name, bool horizontal) =>
+        Stateful(name, "Give each item an equally sized grid cell.", new UiState<bool>(horizontal), direction =>
+        {
+            UiWidget Case(string label, UiUniformGridOptions options)
+            {
+                UiWidget[] children = [..Enumerable.Range(1, 6).Select(i => Fluent.Button(i.ToString()))];
+                var grid = direction.Value ? (UiWidget)Dux.HorizontalGrid(options, children) : Dux.UniformGrid(options, children);
+                return Dux.Column(new(Spacing : 5, MainAxisSize : UiMainAxisSize.Min), Fluent.Caption1(label),
+                    direction.Value ? Dux.SizedBox(grid, height : 132) : Dux.SizedBox(grid, width : 192));
+            }
+            return Dux.Wrap(new(Spacing : 14, RunSpacing : 12),
+                Case("MainAxisExtent : 36", new(3, CrossAxisSpacing : 6, MainAxisSpacing : 8, MainAxisExtent : 36)),
+                Case("ChildAspectRatio : 1.8", new(2, CrossAxisSpacing : 4, MainAxisSpacing : 6, ChildAspectRatio : 1.8f)));
+        }, horizontal => "var direction = new UiState<bool>(" + GallerySample.Boolean(horizontal) + ");");
+
+    private static ComponentExamplePage OverflowExamplesFor(string name, bool vertical) =>
+        Stateful(name, "Keep the items that fit and show an indicator for the rest.", new UiState<bool>(vertical), direction =>
+        {
+            UiWidget Case(string label, UiOverflowOptions options, bool prioritizeLast = false, bool wide = false)
+            {
+                UiWidget[] items = [..Enumerable.Range(1, 5).Select(i => Dux.SizedBox(Fluent.Button(i.ToString()), width : 50, height : 30))];
+                int[]? priorities = prioritizeLast ? [0, 0, 0, 0, 2] : null;
+                var indicator = Fluent.Badge("+", new(UiBadgeSize.Small));
+                var overflow = direction.Value ? (UiWidget)Dux.VerticalOverflow(items, indicator, options, priorities)
+                    : Dux.Overflow(items, indicator, options, priorities);
+                return Dux.Column(new(Spacing : 5, MainAxisSize : UiMainAxisSize.Min), Fluent.Caption1(label),
+                    Dux.SizedBox(overflow, width : direction.Value ? 65 : wide ? 300 : 180,
+                        height : direction.Value ? wide ? 186 : 108 : 32));
+            }
+            return Dux.Wrap(new(Spacing : 14, RunSpacing : 12),
+                Case("All fit", new(Spacing : 4), wide : true),
+                Case("Collapse : End", new(Spacing : 4)),
+                Case("Collapse : Start", new(Spacing : 4, CollapseFrom : UiOverflowCollapseDirection.Start)),
+                Case("Priority : last", new(Spacing : 4), prioritizeLast : true),
+                Case("MinimumVisible : 2", new(Spacing : 4, MinimumVisible : 2)),
+                Case("RightToLeft", new(Spacing : 4, RightToLeft : true)));
+        }, vertical => "var direction = new UiState<bool>(" + GallerySample.Boolean(vertical) + ");");
+
+    internal static IObserverPage[] Create(IUiImageDecoder imageDecoder) =>
     [
         new IconCatalogPage(),
         Stateful("TagPicker", "Search for a recipient by name, then try removing a selected tag.", new UiState<string>(string.Empty), new UiState<string[]>(["dimoi"]), (query, selected) =>
@@ -150,7 +441,12 @@ internal static class GalleryComponentExamples
             UiSelectOption[] people = [new("dimoi", GalleryText.Get("Dimoi")), new("kim", GalleryText.Get("Min-su Kim")), new("park", GalleryText.Get("Ji-yeon Park")), new("guest", GalleryText.Get("Guest"), false)];
             return Dux.Column(new(Spacing : 12, MainAxisSize : UiMainAxisSize.Min),
                 Fluent.TagPicker(GalleryText.Get("Recipients"), query.Binding, selected.Binding, people,
-                    new(Field: new(Width: 520, Placeholder: GalleryText.Get("Enter a name")), EmptyText: GalleryText.Get("No matching people"), DismissLabel: GalleryText.Get("Remove"))),
+                    new(Field : new(Width : 520, Placeholder : GalleryText.Get("Enter a name")),
+                        EmptyText : GalleryText.Get("No matching people"), DismissLabel : GalleryText.Get("Remove"))
+                    {
+                        SecondaryAction = new UiButton<UiReleaseButtonBehavior, UiFluentSmallButtonPresentation<UiFluentSubtleButtonAppearance>>(
+                            GalleryText.Get("Clear selection"), () => selected.Value = [])
+                    }),
                 Fluent.Caption1(GalleryText.Get("Type a name to search and press Enter to add it. At the start of the input, press Left Arrow or Backspace to focus the last tag.")),
                 Fluent.Body1(() => GalleryText.Get("Selected: ") + string.Join(", ", selected.Value)));
         }, (query, selected) => TextState("query", query) + "\nvar selected = new UiState<string[]>(" + StringArray(selected) + ");"),
@@ -167,10 +463,19 @@ internal static class GalleryComponentExamples
         {
             return Fluent.Checkbox(GalleryText.Get("Start in mixed state"), value.Binding);
         }, current => "var value = new UiState<bool?>(" + (current is null ? "null" : GallerySample.Boolean(current.Value)) + ");"),
-        Stateful("Switch", "Turn the feature on or off and watch the value change in the code below.", new UiState<bool>(false), value =>
-        {
-            return Fluent.Switch(GalleryText.Get("Enable feature"), value.Binding);
-        }, current => "var value = new UiState<bool>(" + GallerySample.Boolean(current) + ");"),
+        new ComponentExamplePage("Switch", "Turn the feature on or off and watch the value change in the code below.",
+            StatefulSample(new UiState<bool>(false), value =>
+            {
+                return Fluent.Switch(GalleryText.Get("Enable feature"), value.Binding);
+            }, current => "var value = new UiState<bool>(" + GallerySample.Boolean(current) + ");"),
+            StatefulSample(new UiState<bool>(false), value =>
+            {
+                return Dux.Row(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min, CrossAxisAlignment : UiCrossAxisAlignment.Center),
+                    Fluent.IconSwitch(GalleryText.Get("Theme preview"), value.Binding,
+                        UiSwitchIcon.Create<GalleryDarkThemeIcon>(new(14, 51, 95), new(190, 222, 255)),
+                        UiSwitchIcon.Create<GalleryLightThemeIcon>(new(128, 69, 0), new(255, 232, 169))),
+                    Fluent.Body1(GalleryText.Get("Theme preview")));
+            }, current => "var value = new UiState<bool>(" + GallerySample.Boolean(current) + ");")),
         RadioGroupExample(),
         Stateful("Slider", "Drag the thumb or use the arrow keys to adjust the value between 0 and 1.", new UiState<float>(.35f), value =>
         {
@@ -263,17 +568,9 @@ internal static class GalleryComponentExamples
                 $"    public const string Message{index} = \"{text} ({index})\";");
             var source = "public static class Messages\n{\n" + string.Join("\n", lines) + "\n}";
             return new UiCodeView(source, new(Wrap : false, MaximumVisibleLines : 10, InitiallyExpanded : false),
-                new(GalleryText.Get("C# source"), GalleryText.Get("{0} lines"), GalleryText.Get("Wrap lines"),
-                    GalleryText.Get("Line numbers"), GalleryText.Get("Show all"), GalleryText.Get("Copy source"),
-                    GalleryText.Get("Copied"), GalleryText.Get("CodeView preview")));
+                GalleryText.CodeViewLabels() with { AccessibleName = GalleryText.Get("CodeView preview") });
         }),
         CreateAnimation(),
-        Example("Image", "Display a four-pixel image in a 160 × 160 widget.", () =>
-        {
-            var pixels = new byte[] { 0, 120, 212, 255, 100, 180, 240, 255, 100, 180, 240, 255, 0, 120, 212, 255 };
-            var image = Fluent.Image(new UiImageSource(new UiImageData(2, 2, pixels)));
-            image.Size = new(160, 160);
-            return image;
-        })
+        CreateImage(imageDecoder)
     ];
 }

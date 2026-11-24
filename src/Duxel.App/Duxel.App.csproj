@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>Duxel.App</PackageId>
-    <Version>0.3.0-preview</Version>
+    <Version>$(DuxelVersion)</Version>
     <Authors>dimohy</Authors>
     <Description>Shared Duxel UI runtime, Fluent 2 widgets and themes, Vulkan renderer, and declarative UI source generator.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -38,8 +38,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Duxel.Core is bundled, so its Markdown dependency must flow to package consumers. -->
+    <!-- Keep bundled Core's runtime dependencies available to package consumers. -->
     <PackageReference Include="Markdig" Version="1.4.0" />
+    <PackageReference Include="System.IO.Hashing" Version="$(DuxelHashingVersion)" />
   </ItemGroup>
 
   <Target Name="IncludeProjectReferenceOutputsInPackage" DependsOnTargets="ResolveReferences">

@@ -26,7 +26,7 @@ internal static class BoxShadowRenderingTests
         var background = capture("pattern-reference", Pattern);
         show = true;
         foreach (var elevation in Enum.GetValues<UiShadowElevation>())
-            foreach (var corner in new[] { 0f, 8f, 16f })
+            foreach (var corner in new[] { 0f, 4f, 8f, 16f })
             {
                 radius = corner;
                 shadow.Options = UiFluentShadow.Resolve(scheme, elevation);

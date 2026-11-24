@@ -5,6 +5,8 @@ internal static class CardNudgeTests
 {
     internal static void Run(Action<bool, string> check)
     {
+        CardNudgePolicyTests.Run(check);
+        RunMessageSlots(check);
         using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
         ControlFontFixture.Configure(context);
         var frameRequests = 0;
@@ -112,6 +114,73 @@ internal static class CardNudgeTests
             "reduced motion removes layout space immediately");
     }
 
+    private static void RunMessageSlots(Action<bool, string> check)
+    {
+        using var context = new UiContext(new(1, 1, UiTextureFormat.Rgba8Unorm, [255, 255, 255, 255]), new(1), new(2));
+        ControlFontFixture.Configure(context);
+        using var accessibility = new UiAccessibilityTree();
+        context.SetAccessibilityTree(accessibility);
+        var open = new UiState<bool>(true);
+        var invoked = 0;
+        var actionInvoked = 0;
+        var iconBounds = new List<UiRect>();
+        var icon = new UiMenuIcon((_, bounds, _, _, _) => iconBounds.Add(bounds));
+        using var root = Dux.Column(new(MainAxisSize : UiMainAxisSize.Min),
+            Fluent.CardNudge("Suggestion", "Details", open.Binding,
+                action : Fluent.Button("Separate action", () => actionInvoked++),
+                options : new(Width : 300, ReducedMotion : true)
+                {
+                    LeadingIcon = icon,
+                    AccentIcon = icon,
+                    AccentText = "Accent",
+                    MessageAction = () => invoked++,
+                }), Fluent.Button("Next", () => { }));
+        var screen = new Screen(root);
+        var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
+        void Frame(UiInputState input)
+        {
+            iconBounds.Clear();
+            context.NewFrame(new(1f / 60, new(640, 480), new(1, 1)), input, new(0, 0, 640, 480), UiTextSettings.Default);
+            context.Render(screen);
+            using var draw = context.GetDrawData();
+        }
+        UiAccessibilityElement Button(string name) => accessibility.CaptureSnapshot().Elements.Single(
+            element => element.Node.Role == UiAccessibilityRole.Button && element.Node.Name == name);
+
+        Frame(idle);
+        var message = Button("Suggestion");
+        check(iconBounds.Count == 2 && iconBounds[0].Width == 24 && iconBounds[1].Width == 12
+            && iconBounds[0].X < iconBounds[1].X,
+            "CardNudge paints both decorative icon slots at their logical sizes");
+        check(accessibility.CaptureSnapshot().Elements.Any(e => e.Node.Name == "Accent")
+            && Button("Separate action").Node.ParentId == message.Node.ParentId,
+            "CardNudge publishes accent text and separate sibling actions");
+        var point = new UiVector2(message.Node.Bounds.X + 12, message.Node.Bounds.Y + 10);
+        Frame(idle with { MousePosition = point, LeftMouseDown = true, LeftMousePressed = true });
+        check(invoked == 0 && open.Value, "CardNudge message tap waits for release");
+        Frame(idle with { MousePosition = point, LeftMouseReleased = true });
+        check(invoked == 1 && actionInvoked == 0 && open.Value, "CardNudge message tap invokes only its action");
+
+        var action = Button("Separate action");
+        accessibility.RequestAction(action.Node.Id, action.RuntimeId, UiAccessibilityAction.Invoke, wait : false);
+        Frame(idle);
+        check(invoked == 1 && actionInvoked == 1 && open.Value, "CardNudge action widget stays independent");
+        accessibility.RequestAction(message.Node.Id, message.RuntimeId, UiAccessibilityAction.Focus, wait : false);
+        Frame(idle);
+        Frame(idle with { KeyEvents = [new(UiKey.Enter, true, default)] });
+        Frame(idle with { KeyEvents = [new(UiKey.Enter, false, default)] });
+        check(invoked == 2 && open.Value, "CardNudge message supports keyboard invocation");
+
+        Frame(idle with { MousePosition = point, LeftMouseDown = true, LeftMousePressed = true });
+        var end = point with { X = point.X + 72 };
+        Frame(idle with { MousePosition = end, LeftMouseDown = true });
+        Frame(idle with { MousePosition = end, LeftMouseReleased = true });
+        Frame(idle);
+        check(!open.Value && invoked == 2, "CardNudge message swipe dismisses without invoking the message");
+        check(!accessibility.CaptureSnapshot().Elements.Any(e => e.Node.Id == message.Node.Id),
+            "CardNudge retires the message action with the dismissed card");
+    }
+
     internal static void RunGallery(string output, Action<bool, string> check)
     {
         using var fixture = new PresentationReuseTests.Fixture(1, true, PresentationTestPlatform.Create(1100, 900));
@@ -129,7 +198,19 @@ internal static class CardNudgeTests
         var sample = page.Samples.Single();
         sample.SynchronizeSource();
         check(sample.Source.Contains("Fluent.CardNudge(", StringComparison.Ordinal), "the preview exports the public CardNudge factory");
+        check(sample.Source.Contains("LeadingIcon", StringComparison.Ordinal)
+            && sample.Source.Contains("AccentIcon", StringComparison.Ordinal)
+            && sample.Source.Contains("MessageAction", StringComparison.Ordinal),
+            "the Gallery source exports the optional CardNudge slots");
         File.WriteAllText(Path.Combine(output, "cardnudge-example.cs"), "using Duxel.Core;\nUiImmediateContext ui = null!;\n" + sample.Source);
+
+        var message = accessibility.CaptureSnapshot().Elements.Single(element => element.Node.Role == UiAccessibilityRole.Button
+            && element.Node.Name == "빠르게 찾아보세요");
+        accessibility.RequestAction(message.Node.Id, message.RuntimeId, UiAccessibilityAction.Invoke, wait : false);
+        fixture.Capture(screen.Render);
+        fixture.Capture(screen.Render);
+        check(accessibility.CaptureSnapshot().Elements.Any(element => element.Node.Name == "즐겨찾기 팁을 열었습니다."),
+            "the Gallery message updates the caption without dismissing the suggestion");
 
         var action = accessibility.CaptureSnapshot().Elements.Single(element => element.Node.Role == UiAccessibilityRole.Button
             && element.Node.Name == "즐겨찾기에 추가");

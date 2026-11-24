@@ -35,7 +35,7 @@ internal static class MenuContrastTests
                 context.Frame(surface, colors.Canvas, colors.CanvasText, 4, 1);
                 context.Frame(row, active ? colors.Highlight : colors.Canvas, default, 4, 0);
                 UiMenuContentLayout.Paint(context, content, row, interaction, options,
-                    foreground, foreground, foreground, foreground, 8, 6);
+                    foreground, foreground, foreground, foreground, 8, 6, wrapLabel: true);
                 if (state is "Focus" or "HoverFocus" or "PressedFocus")
                     context.Frame(new(row.X - 2, row.Y - 2, row.Width + 4, row.Height + 4), default, colors.Highlight, 4, 2);
             }
@@ -122,15 +122,35 @@ internal static class MenuContrastTests
             "Menu contrast / actual bound popup opens through its published accessibility action");
         var entry = tree.CaptureSnapshot().Elements.Single(e => e.Node.Name == "A");
         var bounds = entry.Node.Bounds;
-        var hovered = Frame(idle with { MousePosition = new(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2) });
+        var pointerOverEntry = idle with { MousePosition = new(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2) };
+        var hovered = Frame(pointerOverEntry);
         var offset = ((int)(bounds.Y + 4) * (int)fixture.FrameInfo.DisplaySize.X + (int)(bounds.X + bounds.Width / 2)) * 4;
         check(BitConverter.ToUInt32(hovered, offset) == palette.Highlight.Rgba,
             "Menu contrast / actual popup pointer hover reaches the system Highlight background");
         var focused = tree.RequestAction(entry.Node.Id, entry.RuntimeId, UiAccessibilityAction.Focus, wait: false);
-        var focusPixels = Frame(idle with { MousePosition = new(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2) });
+        var focusPixels = Frame(pointerOverEntry);
         var ring = ((int)(bounds.Y + bounds.Height / 2) * (int)fixture.FrameInfo.DisplaySize.X + (int)bounds.X - 2) * 4;
         check(focused == UiAccessibilityResult.Success && BitConverter.ToUInt32(focusPixels, ring) == palette.Highlight.Rgba,
             "Menu contrast / actual focused hovered row paints its outer Highlight ring beyond the item viewport clip");
+        var authoredTheme = UiCompiledDesign.Windows11Dark.Theme;
+        fixture.Context.SetTheme(authoredTheme);
+        var ordinaryPixels = Frame(pointerOverEntry);
+        var switchedPalette = palette with { Highlight = new(131, 51, 107) };
+        fixture.Context.SetTheme(switchedPalette.Apply(authoredTheme));
+        var switchedPixels = Frame(pointerOverEntry);
+        check(BitConverter.ToUInt32(switchedPixels, offset) == switchedPalette.Highlight.Rgba
+            && BitConverter.ToUInt32(switchedPixels, ring) == switchedPalette.Highlight.Rgba,
+            "Menu contrast / enabling a new palette repaints the open row and its focus ring");
+        var switchedEntry = tree.CaptureSnapshot().Elements.Single(e => e.Node.Name == "A");
+        check(menu.IsOpen && selected.Value && switchedEntry.Node.Focused && switchedEntry.RuntimeId == entry.RuntimeId
+            && switchedEntry.Node.Bounds == bounds,
+            "Menu contrast / applying a palette preserves the open checkbox, focus identity and layout");
+        fixture.Context.SetTheme(authoredTheme);
+        check(Frame(pointerOverEntry).AsSpan().SequenceEqual(ordinaryPixels),
+            "Menu contrast / disabling the palette restores the open menu's ordinary Vulkan pixels");
+        fixture.Context.SetTheme(palette.Apply(authoredTheme));
+        check(Frame(pointerOverEntry).AsSpan().SequenceEqual(focusPixels),
+            "Menu contrast / reapplying the original palette restores the focused popup's exact pixels");
         entry = tree.CaptureSnapshot().Elements.Single(e => e.Node.Name == "A");
         var toggled = tree.RequestAction(entry.Node.Id, entry.RuntimeId, UiAccessibilityAction.Toggle, wait: false);
         Frame();

@@ -27,23 +27,32 @@ public readonly struct UiFluentAccordionPresentation : IUiAccordionPresentation
         if (context.IsHovered(bounds))
             context.SetMouseCursor(enabled ? UiMouseCursor.Hand : UiMouseCursor.NotAllowed);
         var dark = context.FluentColorScheme == UiFluentColorScheme.Dark;
-        var color = enabled ? dark ? new UiColor(255, 255, 255) : new(36, 36, 36)
-            : dark ? new UiColor(92, 92, 92) : new(189, 189, 189);
-        var start = options.ChevronPosition == UiAccordionChevronPosition.Start;
-        var x = bounds.X + (start ? 10 : 12);
-        var center = new UiVector2(start ? x + 10 : bounds.X + bounds.Width - 18, bounds.Y + bounds.Height * .5f);
-        context.PaintDisclosure(center, color, expanded, -90);
-        if (start)
-            x += 28;
+        var forcedColors = context.Theme.ForcedColors;
+        var color = forcedColors is { } colors
+            ? (enabled ? colors.CanvasText : colors.GrayText)
+            : enabled ? (dark ? new UiColor(255, 255, 255) : new(36, 36, 36))
+                : (dark ? new UiColor(92, 92, 92) : new(189, 189, 189));
+        var chevronAtStart = options.ChevronPosition == UiAccordionChevronPosition.Start;
+        var rtl = context.RightToLeft;
+        var right = bounds.X + bounds.Width;
+        var chevronOffset = chevronAtStart ? 20 : bounds.Width - 18;
+        var center = new UiVector2(rtl ? right - chevronOffset : bounds.X + chevronOffset, bounds.Y + bounds.Height * .5f);
+        var closedAngle = chevronAtStart ? (rtl ? 90 : -90) : 0;
+        context.PaintDisclosure(center, color, expanded, closedAngle, chevronAtStart ? 0 : 180);
+        var startInset = chevronAtStart ? 38 : 12;
+        var endInset = chevronAtStart ? 12 : 38;
         if (!item.Icon.IsEmpty)
         {
-            item.Icon.Paint(context, new(x, bounds.Y + (bounds.Height - 20) * .5f, 20, 20), color, interaction);
-            x += 28;
+            var iconX = rtl ? right - startInset - 20 : bounds.X + startInset;
+            item.Icon.Paint(context, new(iconX, bounds.Y + (bounds.Height - 20) * .5f, 20, 20), color, interaction);
+            startInset += 28;
         }
-        var textWidth = MathF.Max(0, bounds.X + bounds.Width - (start ? 12 : 38) - x);
+        var textX = bounds.X + (rtl ? endInset : startInset);
+        var textWidth = MathF.Max(0, bounds.Width - startInset - endInset);
         context.TypographyTextBlock(layout.Text,
-            new(x, bounds.Y + (bounds.Height - layout.Text.Size.Y) * .5f, textWidth, layout.Text.Size.Y), color);
+            new(textX, bounds.Y + (bounds.Height - layout.Text.Size.Y) * .5f, textWidth, layout.Text.Size.Y), color,
+            rtl ? UiItemHorizontalAlign.Right : UiItemHorizontalAlign.Left);
         if (interaction.FocusVisible)
-            context.FocusOutline(bounds, 4);
+            context.FocusOutline(bounds, 4, forcedColors?.Highlight ?? context.Theme.Text);
     }
 }

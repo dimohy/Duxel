@@ -23,6 +23,7 @@ internal static class InfoLabelTests
         using var after = Fluent.Button("After information");
         var idle = new UiInputState(new(-100, -100), false, false, false, false, false, false, 0, 0, [], [], default, default);
         var width = 300f;
+        var direction = UiFlowDirection.LeftToRight;
         UiVector2 measured = default;
         void Frame(UiInputState? input = null)
         {
@@ -31,8 +32,11 @@ internal static class InfoLabelTests
             {
                 ui.EnableRootViewportContentLayout(contentPadding: 0);
                 ui.SetCursorScreenPos(new(20, 80));
-                measured = label.MeasureConstrained(ui, new(0, width, 0, 400));
-                ui.RenderLayoutChild(label, new(20, 80, measured.X, measured.Y), new(0, 0, 640, 480));
+                using (ui.BeginFluentProvider(null, direction : direction))
+                {
+                    measured = label.MeasureConstrained(ui, new(0, width, 0, 400));
+                    ui.RenderLayoutChild(label, new(20, 80, measured.X, measured.Y), new(0, 0, 640, 480));
+                }
                 ui.SetCursorScreenPos(new(20, 240));
                 target.Render(ui);
                 after.Render(ui);
@@ -133,6 +137,23 @@ internal static class InfoLabelTests
         Frame();
         check(Trigger().Node.Bounds.X == 20 && Trigger().Node.Bounds.Y >= 98 && measured.Y >= 40,
             "InfoLabel flows its information button to the next text line when the available width is exhausted");
+        direction = UiFlowDirection.RightToLeft;
+        Frame();
+        check(Trigger().Node.Bounds is var wrapped && wrapped.X == 20 + measured.X - wrapped.Width && wrapped.Y >= 98,
+            "RTL InfoLabel wraps its information button to the right-hand start of the next line");
+        width = 300;
+        label.Options = new(Required : true);
+        Frame();
+        var rtlButton = Trigger().Node.Bounds;
+        check(rtlButton.X == 20 && rtlButton.Width == 24 && rtlButton.Height == 24,
+            "RTL InfoLabel places its full information button after the label and required marker");
+        var rtlPointer = idle with { MousePosition = new(rtlButton.X + 12, rtlButton.Y + 12) };
+        Frame(rtlPointer with { LeftMouseDown = true, LeftMousePressed = true });
+        Frame(rtlPointer with { LeftMouseReleased = true });
+        check(label.IsOpen && Nodes().Any(e => e.Node.Role == UiAccessibilityRole.Note),
+            "RTL InfoLabel opens its Note through the mirrored button position");
+        Frame(idle with { KeyEvents = [new(UiKey.Escape, true, default)] });
+        check(!label.IsOpen && Trigger().Node.Focused, "RTL InfoLabel restores its mirrored button focus on Escape");
         var borrowed = label.Target;
         label.Dispose();
         target.AccessibleName = null;

@@ -117,12 +117,15 @@ internal sealed class OverflowExamples : UiWidget, IGallerySourcePage
             + sortDefinition.Source + "\n" + viewDefinition.Source + "\n");
         var iconDefinition = GallerySample.Define("menuIcon", () => UiMenuIcon.Create<UiFluentAddIcon, UiFluentAddFilledIcon>());
         var menuIcon = iconDefinition.Value;
-        var iconOptions = UiFluentMenuPresentation.DefaultOptions;
+        var iconOptions = UiFluentMenuPresentation.DefaultOptions with { SubmenuPointerProtectionSeconds = .3 };
         var contentMenu = GallerySample.Create(() => Fluent.Menu(GalleryText.Get("Open menu with icons"),
             [new("new", GalleryText.Get("Select new item")) { Icon = menuIcon, SecondaryContent = GalleryText.Get("Template") },
-                new("format", GalleryText.Get("Select format")) { SecondaryContent = "PNG" },
+                new("format", GalleryText.Get("Select format")) { SecondaryContent = "PNG",
+                    SubText = GalleryText.Get("Use PNG for an image you can share.") },
                 UiMenuOption.Checkbox("preview", GalleryText.Get("Show preview"), showDetails) with { Icon = menuIcon, SecondaryContent = GalleryText.Get("Selection indicator") },
-                new("locked", GalleryText.Get("Unavailable item"), false) { Icon = menuIcon, SecondaryContent = GalleryText.Get("Locked") }],
+                new("locked", GalleryText.Get("Unavailable item"), false) { Icon = menuIcon, SecondaryContent = GalleryText.Get("Locked") },
+                UiMenuOption.Submenu("export", GalleryText.Get("Export"),
+                    [new("export-pdf", GalleryText.Get("Export as PDF")), new("export-png", GalleryText.Get("Export as PNG"))])],
             value => lastAction.Value = string.Format(GalleryText.Get("Icon menu selection: {0}"), value), iconOptions));
         RecordMenu(contentMenu, nameof(iconOptions), () => contentMenu.Preview.Options,
             () => showDetails.Value, state =>
@@ -152,6 +155,8 @@ internal sealed class OverflowExamples : UiWidget, IGallerySourcePage
     private static string MenuOptions(UiMenuOptions options) =>
         $"new UiMenuOptions(MinimumWidth : {GallerySample.Number(options.MinimumWidth)}, ItemHeight : {GallerySample.Number(options.ItemHeight)},\n"
         + $"    Padding : {GallerySample.Number(options.Padding)}, RightToLeft : {GallerySample.Boolean(options.RightToLeft)}, ItemSpacing : {GallerySample.Number(options.ItemSpacing)},\n"
-        + $"    MaximumWidth : {GallerySample.Number(options.MaximumWidth)}) {{ MaximumHeight = {GallerySample.Number(options.MaximumHeight)} }}";
+        + $"    MaximumWidth : {GallerySample.Number(options.MaximumWidth)}) {{ MaximumHeight = {GallerySample.Number(options.MaximumHeight)}"
+        + (options.SubmenuPointerProtectionSeconds is { } seconds ? FormattableString.Invariant($", SubmenuPointerProtectionSeconds = {seconds:R}") : "")
+        + " }";
     protected override IUiView Build(UiBuildContext context) => context.Child("root", () => _root);
 }

@@ -2,8 +2,9 @@ using System.Text.Json;
 
 internal static unsafe partial class AtSpiProbe
 {
-    private static void VerifySelectionPolicy(nint application, string output)
+    private static void VerifySelectionPolicy(nint application, string probeOutput)
     {
+        var output = Path.Combine(Path.GetDirectoryName(probeOutput)!, "selection-policy.json");
         if (File.Exists(output))
             throw new IOException("The selection-policy result already exists.");
         List<string> checks = [];
@@ -18,7 +19,7 @@ internal static unsafe partial class AtSpiProbe
             ?? throw new InvalidDataException("The mandatory selection fixture is missing.");
         using var mandatorySelection = new NativeObject(atspi_accessible_get_selection_iface(mandatory.Value));
         using var states = new NativeObject(atspi_accessible_get_state_set(mandatory.Value));
-        Check(atspi_state_set_contains(states.Value, 33) != 0, "A mandatory native selection exposes the required state");
+        Check(atspi_state_set_contains(states.Value, 33) == 0, "A mandatory selection without a form requirement omits the AT-SPI required state");
         using (var selected = SelectedChild(mandatorySelection.Value, 0))
             Check(SelectionCount(mandatorySelection.Value) == 1 && selected is not null && Name(selected.Value) == "mandatory choice",
                 "A required native selection exposes its actual selected child");
@@ -50,6 +51,18 @@ internal static unsafe partial class AtSpiProbe
         Check(!SelectionAction(mandatoryMultiSelection.Value, 0, SelectionOperation.Clear)
             && SelectionCount(mandatoryMultiSelection.Value) == 2,
             "Clearing mandatory multiple selection refuses the complete operation before removing an earlier child");
+        using var watch = new EventWatch(requiredState : true) { RequiredTarget = mandatory.Value };
+        File.WriteAllText(probeOutput + ".required-on", "");
+        Wait(() => watch.RequiredStates.Count >= 1, "the required state being set");
+        using (var requiredStates = new NativeObject(atspi_accessible_get_state_set(mandatory.Value)))
+            Check(atspi_state_set_contains(requiredStates.Value, 33) != 0,
+                "The container exposes AT-SPI required state after the form requirement is set");
+        File.WriteAllText(probeOutput + ".required-off", "");
+        Wait(() => watch.RequiredStates.Count >= 2, "the required state being cleared");
+        watch.Check();
+        using var finalStates = new NativeObject(atspi_accessible_get_state_set(mandatory.Value));
+        Check(watch.RequiredStates.SequenceEqual([1, 0]) && atspi_state_set_contains(finalStates.Value, 33) == 0,
+            "Toggling the form requirement emits set and clear events in order while the selection rule stays active");
         File.WriteAllText(output, JsonSerializer.Serialize(new LinuxPolicyResult(checks.Count, checks), LinuxProbeResultsJson.Default.LinuxPolicyResult));
     }
 }

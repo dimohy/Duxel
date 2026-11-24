@@ -36,7 +36,10 @@ internal static class MenuNativeHost
         UiMenuOption[] items = content
             ? [new("one", "One") { Icon = menuIcon, SecondaryContent = "ZIP" },
                 new("disabled", "Disabled", false) { Icon = menuIcon, SecondaryContent = "Locked" },
-                new("finish", "Finish") { SecondaryContent = "Done" }]
+                new("archive", "선택한문서를변경이력과함께내보내고공유용파일에저장하기") { SecondaryContent = "Ctrl+E" },
+                new("finish", "Finish") { SecondaryContent = "Done" },
+                new("copy", "Copy") { SubText = "Copy to clipboard", SecondaryContent = "Ctrl+C" },
+                UiMenuOption.Submenu("formats", "Formats", [new("pdf", "PDF"), new("png", "PNG")])]
             : radio
             ? [UiMenuOption.Radio("one", "One", sortGroup), UiMenuOption.Radio("two", "Two", sortGroup),
                 UiMenuOption.Radio("disabled", "Disabled", sortGroup, false), UiMenuOption.Radio("compact", "Compact", viewGroup),

@@ -91,7 +91,7 @@ public sealed partial class UiImmediateContext
     {
         if (_state.FocusedId is null && _lastItemId is not null)
         {
-            _state.FocusedId = _lastItemId;
+            _state.SetControlFocus(_lastItemId, programmaticWithoutKeyboard : !_state.NavCursorVisible);
         }
     }
 

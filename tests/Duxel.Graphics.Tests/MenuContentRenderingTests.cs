@@ -102,8 +102,67 @@ internal static class MenuContentRenderingTests
             "actual RTL icon and trailing caption mirror independent logical column references");
         check(capture("rtl-replay", Render).AsSpan().SequenceEqual(rtlPixels) && calls.Count == 0,
             "rich menu idle pixels replay without callbacks");
+        var originalRow = row;
+        foreach (var (sample, label) in new[]
+        {
+            ("wrapped", "Export selected documents with comments and revision history"),
+            ("wrapped-ko", "선택한문서를변경이력과함께내보내고공유용파일에저장하기")
+        })
+        {
+            menu.SetItems([First(true) with { Label = label }, UiMenuOption.Checkbox("track", "Track", state), new("plain", "Plain")]);
+            foreach (var rtl in new[] { false, true })
+            {
+                menu.Options = menu.Options with { RightToLeft = rtl };
+                row = default;
+                var wrapped = capture(sample + (rtl ? "-rtl" : "-ltr"), Render);
+                var bounds = Find(label).Node.Bounds;
+                var bg = Background(UiButtonVisualState.Rest);
+                var ink = 0;
+                for (var y = (int)bounds.Y + 32; y < (int)(bounds.Y + bounds.Height) - 6; y++)
+                    for (var x = (int)bounds.X + 50; x < (int)(bounds.X + bounds.Width) - 50; x++)
+                    {
+                        var pixel = wrapped.AsSpan((y * width + x) * 4, 3);
+                        if (pixel[0] != (byte)bg.Rgba || pixel[1] != (byte)(bg.Rgba >> 8) || pixel[2] != (byte)(bg.Rgba >> 16))
+                            ink++;
+                    }
+                check(bounds.Height >= 52 && ink > 15,
+                    "Fluent renders label glyphs below the original single-line row in " + (rtl ? "RTL" : "LTR") + " : " + sample);
+            }
+        }
+        row = originalRow;
         trigger = Find("Rich actions", UiAccessibilityRole.Button);
         tree.RequestAction(trigger.Node.Id, trigger.RuntimeId, UiAccessibilityAction.Collapse, wait : false);
         capture("cleanup", Render);
+        row = default;
+        menu.Options = new(125, 32, 5, ItemSpacing : 2, MaximumWidth : 125);
+        menu.SetItems([UiMenuOption.Submenu("export", "Export", [new("pdf", "PDF"), new("png", "PNG")])]);
+        tree.RequestAction(trigger.Node.Id, trigger.RuntimeId, UiAccessibilityAction.Expand, wait : false);
+        var rootOnly = capture("submenu-root", Render);
+        var branch = Find("Export");
+        tree.RequestAction(branch.Node.Id, branch.RuntimeId, UiAccessibilityAction.Expand, wait : false);
+        var cascade = capture("submenu-expanded", Render);
+        branch = Find("Export");
+        var foundChild = branch.FirstChild is { } id && tree.TryGet(id, out var child)
+            && child.Node.Bounds.X >= branch.Node.Bounds.X + branch.Node.Bounds.Width;
+        check(foundChild && !cascade.AsSpan().SequenceEqual(rootOnly), "Vulkan paints the child surface beyond the parent row");
+        tree.RequestAction(trigger.Node.Id, trigger.RuntimeId, UiAccessibilityAction.Collapse, wait : false);
+        capture("submenu-cleanup", Render);
+        menu.SetItems([new("cut", "Cut") { SubText = "Cut to clipboard" }]);
+        tree.RequestAction(trigger.Node.Id, trigger.RuntimeId, UiAccessibilityAction.Expand, wait : false);
+        var subtextPixels = capture("subtext", Render);
+        var subtextRow = Find("Cut Cut to clipboard").Node.Bounds;
+        var sampleBackground = Background(UiButtonVisualState.Rest).Rgba & 0x00ffffff;
+        var count = 0;
+        for (var y = (int)subtextRow.Y + 26; y < (int)subtextRow.Y + 40; y++)
+            for (var x = (int)subtextRow.X + 8; x < (int)(subtextRow.X + subtextRow.Width) - 8; x++)
+            {
+                var pixel = subtextPixels.AsSpan((y * width + x) * 4, 3);
+                var rgb = (uint)(pixel[0] | pixel[1] << 8 | pixel[2] << 16);
+                if (rgb != sampleBackground)
+                    count++;
+            }
+        check(subtextRow.Height == 46 && count > 15, "Vulkan paints Caption2 subtext below the menu label");
+        tree.RequestAction(trigger.Node.Id, trigger.RuntimeId, UiAccessibilityAction.Collapse, wait : false);
+        capture("subtext-cleanup", Render);
     }
 }

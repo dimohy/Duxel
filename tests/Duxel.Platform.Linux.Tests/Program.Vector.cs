@@ -41,6 +41,7 @@ internal static unsafe partial class Program
         Check(backend.GetFontVariantResource(latinPath, PlatformFontSimulation.None) == latinPath, "Normal variant preserves the requested resource");
         Throws<ArgumentOutOfRangeException>(() => backend.GetFontVariantResource(latinPath, (PlatformFontSimulation)99), "Unknown font simulations fail explicitly");
         Throws<ArgumentOutOfRangeException>(() => backend.CreateTextMesh(new(latinPath, null, "O", 24, 0)), "Invalid flattening tolerance fails explicitly");
+        CheckWideProjectedParagraphs(backend, latinPath, cjkPath, Check);
 
         var precedingFace = backend.GetFontRuns(new(latinPath, cjkPath, "정", 32), "en")[0].Font;
         foreach (var (space, expanded) in new[] { (" ", " "), ("\t", "    ") })
@@ -164,6 +165,36 @@ internal static unsafe partial class Program
             RuntimeInformation.FrameworkDescription, RuntimeInformation.OSDescription,
             RuntimeInformation.ProcessArchitecture.ToString(), "vector", [latinPath, cjkPath], checks.Count, checks, comparisons),
             LinuxValidationJson.Default.LinuxVectorResult));
+    }
+
+    private static void CheckWideProjectedParagraphs(LinuxPlatformTextBackend backend, string latinPath,
+        string cjkPath, Action<bool, string> check)
+    {
+        const float size = 96;
+        const int count = 24_576;
+        var request = new PlatformTextMeshRequest(cjkPath, null, "정", size)
+        {
+            OutlineOnly = true,
+            UseProjectedLineMetrics = true
+        };
+        var glyph = backend.CreateTextMesh(request);
+        var text = new string('정', count);
+        var expected = glyph.Width * count;
+        check(expected > int.MaxValue / 1024f, "The projected line fixture exceeds the signed Pango coordinate range");
+        var line = backend.CreateTextMesh(request with { Text = text });
+        check(line.Width == expected && line.Glyphs.Length == count
+            && line.Glyphs.Span[^1].Offset.X == expected - glyph.Width,
+            "A projected line retains the full 64-bit advance and final glyph origin");
+        var latin = backend.CreateTextMesh(request with { FontPath = latinPath, Text = "A" });
+        var mixed = backend.CreateTextMesh(request with
+        {
+            FontPath = latinPath,
+            SecondaryFontPath = cjkPath,
+            Text = text + "A"
+        });
+        check(mixed.Width == expected + latin.Width && mixed.Glyphs.Length == count + 1
+            && mixed.Glyphs.Span[^1].Offset.X == expected,
+            "A projected run after a very wide run starts at the full accumulated position");
     }
 
     private readonly record struct Triangle(UiVector2 A, UiVector2 B, UiVector2 C);

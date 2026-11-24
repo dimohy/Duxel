@@ -106,6 +106,46 @@ internal static class RadioAccessibilityTests
             "removed radio identity rejects retained selection requests");
         visible = false; Frame();
         check(tree.Count == 0 && provider.GetIsSelected(out _) == UiaNative.Unavailable, "removing the group retires all options and retained native getters");
+
+        var fieldValue = new UiState<string?>(null);
+        using var field = Fluent.Field(Fluent.RadioGroup("Choice", fieldValue.Binding, options));
+        field.Options = new() { Label = "Priority", Required = true, Hint = "Choose a priority", ValidationMessage = "Choose one option" };
+        screen = new Screen(ui =>
+        {
+            ui.EnableRootViewportContentLayout();
+            field.Render(ui);
+        });
+        Frame();
+        var fieldGroup = Find("Priority");
+        check(fieldGroup.Node is { Required: true, Invalid: true, SelectionRequired: true }
+            && fieldValue.Value is null, "required Field publishes form metadata without choosing an option");
+        var fieldAlpha = Find("Alpha");
+        var fieldBeta = Find("Beta");
+        check(fieldAlpha.Node is { Required: false, Invalid: false, Hint: "First option Choose a priority", ValidationMessage: "Choose one option" }
+            && fieldBeta.Node is { Hint: "Choose a priority", ValidationMessage: "Choose one option" },
+            "radio choices receive their Field help without duplicating the group's required and invalid states");
+        Request("Alpha", UiAccessibilityAction.Focus);
+        Frame();
+        check(fieldValue.Value is null && Find("Alpha").Node.Focused
+            && ReadNativeHelp(fieldAlpha.Node.Id) == "First option Choose a priority Choose one option",
+            "focused native radio exposes the option help and current Field feedback without selecting it");
+        Request("Beta", UiAccessibilityAction.Select);
+        Frame();
+        check(fieldValue.Value == "b" && Find("Beta").Node.Selected == true, "a required Field uses the underlying radio binding");
+        field.Options = field.Options with { Required = false, Hint = "Optional priority", ValidationMessage = null };
+        Frame();
+        check(Find("Priority").Node is { Required: false, Invalid: false, SelectionRequired: true }
+            && Find("Priority").RuntimeId == fieldGroup.RuntimeId && Find("Beta").RuntimeId == fieldBeta.RuntimeId
+            && fieldValue.Value == "b" && ReadNativeHelp(fieldBeta.Node.Id) == "Optional priority",
+            "changing Field metadata preserves runtime identity and selection while clearing old help");
+
+        string ReadNativeHelp(string id)
+        {
+            var item = native.Find(id) ?? throw new InvalidOperationException("Missing native radio provider.");
+            System.Runtime.InteropServices.Marshal.ThrowExceptionForHR(item.GetPropertyValue(30013, out var help));
+            try { return System.Runtime.InteropServices.Marshal.PtrToStringBSTR(help.Data.Pointer); }
+            finally { System.Runtime.InteropServices.Marshal.ThrowExceptionForHR(UiaNative.VariantClear(ref help)); }
+        }
     }
     private sealed class Screen(Action<UiImmediateContext> render) : UiScreen
     {

@@ -4,7 +4,11 @@ public enum UiDrawerType { Overlay, Inline }
 public enum UiDrawerPosition { Start, End, Bottom }
 public enum UiDrawerSize { Small, Medium, Large, Full }
 /// <summary>The title and optional owned action content in a Drawer header.</summary>
-public readonly record struct UiDrawerHeader(string Title, UiWidget? Actions = null);
+public readonly record struct UiDrawerHeader(string Title, UiWidget? Actions = null)
+{
+    /// <summary>Optional owned navigation content rendered above the title.</summary>
+    public UiWidget? Navigation { get; init; }
+}
 
 /// <summary>The owned content and initial scrolling of a Drawer body.</summary>
 public readonly record struct UiDrawerBody(UiWidget Content, bool Scroll = true);
@@ -42,6 +46,8 @@ public readonly record struct UiDrawerOptions(UiDrawerType Type = UiDrawerType.O
 public interface IUiDrawerPresentation : IUiSurfacePresentation
 {
     static virtual UiColor? ScrollSeparator(UiControlContext context) => null;
+    /// <summary>Horizontal and top space by which navigation extends into the surface padding.</summary>
+    static virtual UiVector2 HeaderNavigationOutset => default;
 }
 
 internal sealed class UiDrawerInputState : UiOverlayInputState
@@ -73,7 +79,9 @@ internal sealed class UiDrawerInputState : UiOverlayInputState
 }
 
 /// <summary>Owns an edge surface with shared focus/visibility, a scrolling body and retained header/footer slots.</summary>
-public class UiDrawer<TPresentation> : UiControlWidget where TPresentation : IUiDrawerPresentation
+public class UiDrawer<TCloseBehavior, TPresentation> : UiControlWidget
+    where TCloseBehavior : IUiPointerActivationBehavior
+    where TPresentation : IUiDrawerPresentation
 {
     private string _title;
     private UiDrawerOptions _options;
@@ -127,6 +135,11 @@ public class UiDrawer<TPresentation> : UiControlWidget where TPresentation : IUi
             if (!unique.Add(headerActions)) throw new ArgumentException("Drawer slots cannot share a widget instance.", nameof(header));
             ValidateOwnedChild("header-actions", headerActions);
         }
+        if (header.Navigation is { } navigation)
+        {
+            if (!unique.Add(navigation)) throw new ArgumentException("Drawer slots cannot share a widget instance.", nameof(header));
+            ValidateOwnedChild("header-navigation", navigation);
+        }
         for (var i = 0; i < actions.Length; i++)
         {
             ArgumentNullException.ThrowIfNull(actions[i]);
@@ -135,7 +148,7 @@ public class UiDrawer<TPresentation> : UiControlWidget where TPresentation : IUi
         }
         _title = header.Title;
         _visibility = new(Input, RequestRebuild);
-        Body = new(header.Title, content, actions, () => Close(), header.Actions);
+        Body = new(header.Title, content, actions, () => Close(), header.Actions, TCloseBehavior.PointerActivation, header.Navigation);
         Viewport = Dux.ScrollView(Body);
         OwnChild("surface", Viewport);
     }
@@ -178,6 +191,7 @@ public class UiDrawer<TPresentation> : UiControlWidget where TPresentation : IUi
     }
     public UiWidget Content => Body.Content.Child;
     public UiWidget? HeaderActions => Body.HeaderActions;
+    public UiWidget? HeaderNavigation => Body.HeaderNavigation;
     public ReadOnlySpan<UiWidget> Actions => Body.Actions.Children;
     public bool IsOpen => Input.Open;
     public UiBinding<bool>? Open
@@ -234,6 +248,30 @@ public class UiDrawer<TPresentation> : UiControlWidget where TPresentation : IUi
         base.ReleaseOwnedResources();
     }
 }
+
+/// <summary>Drawer whose header close button activates on pointer release.</summary>
+public class UiDrawer<TPresentation> : UiDrawer<UiReleaseButtonBehavior, TPresentation>
+    where TPresentation : IUiDrawerPresentation
+{
+    public UiDrawer(string title, UiWidget content, UiWidget[]? actions = null, UiDrawerOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(title, content, actions, options, identity) { }
+
+    public UiDrawer(UiDrawerHeader header, UiWidget content, UiWidget[]? actions = null, UiDrawerOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(header, content, actions, options, identity) { }
+
+    public UiDrawer(UiDrawerHeader header, UiDrawerBody body, UiDrawerFooter? footer = null, UiDrawerOptions? options = null,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(header, body, footer, options, identity) { }
+
+    private protected UiDrawer(string title, UiWidget content, UiWidget[]? actions, UiDrawerOptions? options,
+        UiWidgetIdentity identity, UiDrawerType fixedType) : base(title, content, actions, options, identity, fixedType) { }
+
+    private protected UiDrawer(UiDrawerHeader header, UiWidget content, UiWidget[]? actions, UiDrawerOptions? options,
+        UiWidgetIdentity identity, UiDrawerType fixedType) : base(header, content, actions, options, identity, fixedType) { }
+
+    private protected UiDrawer(UiDrawerHeader header, UiDrawerBody body, UiDrawerFooter? footer, UiDrawerOptions? options,
+        UiWidgetIdentity identity, UiDrawerType fixedType) : base(header, body, footer, options, identity, fixedType) { }
+}
+
 [UiWidgetStyle(typeof(UiDrawer<>), typeof(UiFluentDrawerPresentation))]
 [UiComponent("Drawer", UiComponentExposure.Fluent)]
 public partial class UiFluentDrawer;

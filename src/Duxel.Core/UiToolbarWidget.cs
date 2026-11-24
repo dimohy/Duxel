@@ -19,6 +19,32 @@ public interface IUiToolbarPresentation
 {
     static abstract UiEdgeInsets Padding(UiToolbarOptions options);
 }
+
+public enum UiToolbarNavigationAction
+{
+    None, Previous, Next, First, Last
+}
+
+/// <summary>Maps unmodified keys for children that delegate navigation to the toolbar.</summary>
+public interface IUiToolbarBehavior
+{
+    static virtual bool WrapNavigation => true;
+    static abstract UiToolbarNavigationAction GetNavigation(UiKey key, UiToolbarOptions options);
+}
+
+public readonly struct UiDefaultToolbarBehavior : IUiToolbarBehavior
+{
+    public static UiToolbarNavigationAction GetNavigation(UiKey key, UiToolbarOptions options) => key switch
+    {
+        UiKey.LeftArrow => options.RightToLeft ? UiToolbarNavigationAction.Next : UiToolbarNavigationAction.Previous,
+        UiKey.RightArrow => options.RightToLeft ? UiToolbarNavigationAction.Previous : UiToolbarNavigationAction.Next,
+        UiKey.UpArrow => UiToolbarNavigationAction.Previous,
+        UiKey.DownArrow => UiToolbarNavigationAction.Next,
+        UiKey.Home => UiToolbarNavigationAction.First,
+        UiKey.End => UiToolbarNavigationAction.Last,
+        _ => UiToolbarNavigationAction.None
+    };
+}
 public readonly struct UiFluentToolbarPresentation : IUiToolbarPresentation
 {
     public static UiEdgeInsets Padding(UiToolbarOptions options) => options.Vertical ? new(8, 4, 8, 4) : options.Size switch
@@ -65,8 +91,10 @@ internal sealed class UiToolbarInputState
     }
 }
 
-/// <summary>Owns ordinary controls, one roving tab entry and circular arrow navigation.</summary>
-public class UiToolbar<TPresentation> : UiArrangedChildrenWidget where TPresentation : IUiToolbarPresentation
+/// <summary>Owns ordinary controls and one roving tab entry, with independent keyboard navigation and presentation.</summary>
+public class UiToolbar<TBehavior, TPresentation> : UiArrangedChildrenWidget
+    where TBehavior : IUiToolbarBehavior
+    where TPresentation : IUiToolbarPresentation
 {
     private UiToolbarOptions _options;
     private readonly UiToolbarInputState _input = new();
@@ -142,7 +170,7 @@ public class UiToolbar<TPresentation> : UiArrangedChildrenWidget where TPresenta
     }
     protected override void RenderArrangedChildren(UiImmediateContext ui, ReadOnlySpan<UiRect> layout, UiRect root)
     {
-        var scope = ui.BeginToolbar(Label, root, _input, _options.WithInheritedDirection(ui.RightToLeft));
+        var scope = ui.BeginToolbar<TBehavior>(Label, root, _input, _options.WithInheritedDirection(ui.RightToLeft));
         try
         {
             base.RenderArrangedChildren(ui, layout, root);
@@ -154,6 +182,14 @@ public class UiToolbar<TPresentation> : UiArrangedChildrenWidget where TPresenta
         _input.Clear();
         base.ReleaseOwnedResources();
     }
+}
+
+/// <summary>Toolbar with the default circular navigation.</summary>
+public class UiToolbar<TPresentation> : UiToolbar<UiDefaultToolbarBehavior, TPresentation>
+    where TPresentation : IUiToolbarPresentation
+{
+    public UiToolbar(string label, UiWidget[] children, UiToolbarOptions options = default,
+        UiWidgetIdentity identity = UiWidgetIdentity.Instance) : base(label, children, options, identity) { }
 }
 
 [UiWidgetStyle(typeof(UiToolbar<>), typeof(UiFluentToolbarPresentation))]

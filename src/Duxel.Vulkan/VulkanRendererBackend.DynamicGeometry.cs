@@ -285,7 +285,7 @@ public sealed unsafe partial class VulkanRendererBackend
         }
 
         EnsureDynamicGeometryCapacity(frameSlot, in geometryCounts);
-        UploadDynamicGeometry(frameSlot, drawData, _frameStaticBindings);
+        UploadDynamicGeometry(frameSlot, drawData);
         PruneStaticGeometryCachesIfNeeded(_frameIndex);
 
         uploadTicks = EndFrameProfileTiming(profileEnabled, uploadStart);
@@ -317,7 +317,7 @@ public sealed unsafe partial class VulkanRendererBackend
     private ulong _profileDynamicGeometryUploadBytes;
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    private void UploadDynamicGeometry(int frame, UiDrawData drawData, StaticGeometryFrameBindings staticBindings)
+    private void UploadDynamicGeometry(int frame, UiDrawData drawData)
     {
         var frameData = _frames[frame];
         var renderBuffers = frameData.RenderBuffers;
@@ -350,16 +350,7 @@ public sealed unsafe partial class VulkanRendererBackend
                     indexDst += indexBytes;
                 }
             }
-        }
 
-        for (var listIndex = 0; listIndex < drawData.DrawLists.Count; listIndex++)
-        {
-            if (staticBindings.ContainsKey(listIndex))
-            {
-                continue;
-            }
-
-            var drawList = drawData.DrawLists[listIndex];
             if (drawList.RectFilledPrimitives is not null)
             {
                 var primitives = drawList.RectFilledPrimitives.AsSpan();

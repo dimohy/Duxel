@@ -6,7 +6,7 @@ internal static class VectorSceneShaderContractTests
 {
     internal static void Run(Action<bool, string> check)
     {
-        byte[] Shader(uint version = 4, uint specId = 1)
+        byte[] Shader(uint version = VectorSceneShaderContract.Version, uint specId = 1)
         {
             uint[] words = [0x07230203, 0x00010500, 0, 20, 0,
                 4u << 16 | 71, 10, 1, specId, 4u << 16 | 21, 1, 32, 0,
@@ -26,7 +26,9 @@ internal static class VectorSceneShaderContractTests
             catch (InvalidDataException) { return false; }
         }
         check(Accepts(Shader()), "Vector shader protocol / current unsigned32 marker is accepted");
-        check(!Accepts(Shader(1)) && !Accepts(Shader(2)) && !Accepts(Shader(3)) && !Accepts(Shader(5)), "Vector shader protocol / old and unknown versions fail before module creation");
+        check(Enumerable.Range(1, (int)VectorSceneShaderContract.Version - 1).All(version => !Accepts(Shader((uint)version)))
+            && !Accepts(Shader(VectorSceneShaderContract.Version + 1)),
+            "Vector shader protocol / old and unknown versions fail before module creation");
         check(!Accepts(Shader(specId: 0)), "Vector shader protocol / stack-capacity specialization cannot masquerade as the protocol marker");
         var truncated = Shader()[..^1];
         check(!Accepts(truncated), "Vector shader protocol / truncated words reject without reading outside the artifact");

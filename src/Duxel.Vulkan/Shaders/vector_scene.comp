@@ -4,7 +4,7 @@
 #extension GL_EXT_buffer_reference_uvec2 : require
 layout(local_size_x = 8, local_size_y = 8) in;
 layout(constant_id = 0) const uint StackCapacity = 8u;
-layout(constant_id = 1) const uint VectorSceneProtocolVersion = 4u;
+#include "vector_protocol.glsl"
 layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer Scene { vec4 data[]; };
 layout(buffer_reference, std430, buffer_reference_align = 4) writeonly buffer Pixels { uint data[]; };
 layout(buffer_reference, std430, buffer_reference_align = 4) readonly buffer ReadPixels { uint data[]; };
@@ -38,7 +38,7 @@ layout(push_constant, std430) uniform Parameters {
 #include "vector_paint.glsl"
 #include "vector_analytic.glsl"
 void main() {
-    if (VectorSceneProtocolVersion != 4u) return;
+    if (VectorSceneProtocolVersion != RequiredVectorSceneProtocol) return;
     uvec2 pixel = gl_GlobalInvocationID.xy;
     if (pixel.x >= pc.width || pixel.y >= pc.height) return;
     vec4 background = unpackUnorm4x8(pc.background);
@@ -129,6 +129,12 @@ void main() {
         if (any(lessThan(paintPoint, bounds.xy - 1.0 / scale)) || any(greaterThan(paintPoint, bounds.zw + 1.0 / scale))) continue;
         vec4 specification = pc.scene.data[command + 1u];
         uint pathFlags = uint(specification.w);
+        if ((pathFlags & GlyphCoverageBounds) != 0u) {
+            // Quantized line endpoints may extend past the mathematical hull
+            // when one screen-space subpixel spans several local units.
+            vec2 margin = (1.0 / 256.0) / scale;
+            bounds = vec4(max(vec2(0), bounds.xy - margin), min(sourceSize, bounds.zw + margin));
+        }
         float coverage = 1.0;
         vec2 materialPoint = paintPoint;
         bool uniformCoverage = (pathFlags & 216u) != 0u;
@@ -155,10 +161,11 @@ void main() {
         uint coveredSamples = 15u;
         if (!uniformCoverage) {
             coveredSamples = 0u;
+            vec4 placement = (pathFlags & PlacedCurvePath) != 0u ? pc.scene.data[command + 4u] : vec4(0.0);
             for (uint s = 0u; s < 4u; ++s) {
                 vec2 point = points[s];
                 if (any(lessThan(point, bounds.xy)) || any(greaterThan(point, bounds.zw)) ||
-                    !containsPoint(point, vec2(pixel) + pc.camera.zw + samples[s], bounds, specification, scale, origin)) continue;
+                    !containsPoint(point, vec2(pixel) + pc.camera.zw + samples[s], bounds, specification, scale, origin, placement)) continue;
                 coveredSamples |= 1u << s;
             }
             if (coveredSamples == 0u) continue;

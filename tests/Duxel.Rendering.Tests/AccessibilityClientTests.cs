@@ -226,7 +226,7 @@ internal static unsafe partial class AccessibilityClientTests
             }
             if (menu || tabOverflow || menuScroll || menuExpansion || menuCheckbox || menuRadio || menuContent)
             {
-                CheckMenu(automation, root, condition, found, owned, check, tabOverflow, menuScroll, menuExpansion, menuCheckbox, menuRadio, menuContent);
+                CheckMenu(window, automation, root, condition, found, owned, check, tabOverflow, menuScroll, menuExpansion, menuCheckbox, menuRadio, menuContent);
                 return;
             }
             if (lifetime)
@@ -435,7 +435,7 @@ internal static unsafe partial class AccessibilityClientTests
         check(oldHr == UiaNative.Unavailable && Text(replacement, 30005) == "Transient", "old client does not bind to a new widget with the same logical ID");
         Invoke(found["Finish"]);
     }
-    private static void CheckMenu(nint automation, nint root, nint condition, Dictionary<string, nint> found, List<nint> owned,
+    private static void CheckMenu(nint window, nint automation, nint root, nint condition, Dictionary<string, nint> found, List<nint> owned,
         Action<bool, string> check, bool tabOverflow = false, bool menuScroll = false, bool menuExpansion = false, bool menuCheckbox = false, bool menuRadio = false, bool menuContent = false)
     {
         var trigger = found[tabOverflow ? "2 more tabs" : "Actions"];
@@ -495,6 +495,38 @@ internal static unsafe partial class AccessibilityClientTests
             var contentDisabled = Find("Disabled", 50011);
             check(!Boolean(contentDisabled, 30010) && Text(contentDisabled, 30013) == "Locked",
                 "external disabled content row retains its secondary HelpText");
+            const string archiveLabel = "선택한문서를변경이력과함께내보내고공유용파일에저장하기";
+            var archive = Find(archiveLabel, 50011);
+            var firstY = ClientCenter(window, contentItem).Y;
+            var disabledY = ClientCenter(window, contentDisabled).Y;
+            var finishY = ClientCenter(window, Find("Finish", 50011)).Y;
+            check(Text(archive, 30005) == archiveLabel && Text(archive, 30013) == "Ctrl+E" && !Boolean(archive, 30022)
+                && finishY - disabledY > 2 * (disabledY - firstY),
+                "external CJK label keeps its full Name and expanded row geometry with native UIA");
+            var branch = Find("Formats", 50011);
+            var described = Find("Copy Copy to clipboard", 50011);
+            check(Text(described, 30005) == "Copy Copy to clipboard" && Text(described, 30013) == "Ctrl+C",
+                "external UIA includes menu subtext in Name and keeps the trailing shortcut in HelpText");
+            var branchExpander = Pattern(branch, 10005);
+            owned.Add(branchExpander);
+            int BranchState()
+            {
+                var state = -1;
+                Ok(((delegate* unmanaged[Stdcall]<nint, int*, int>)Slot(branchExpander, 5))(branchExpander, &state));
+                return state;
+            }
+            check(BranchState() == 0, "external submenu MenuItem exposes an initially collapsed ExpandCollapse pattern");
+            Ok(((delegate* unmanaged[Stdcall]<nint, int>)Slot(branchExpander, 3))(branchExpander));
+            var child = Find("Formats", 50009);
+            var childItem = Find("PDF", 50011);
+            check(BranchState() == 1 && !Boolean(childItem, 30022),
+                "external submenu expansion exposes a native Menu surface and visible child MenuItem");
+            Ok(((delegate* unmanaged[Stdcall]<nint, int>)Slot(branchExpander, 4))(branchExpander));
+            var subtreeDeadline = Environment.TickCount64 + 3000;
+            while (!TooltipElementUnavailable(child) && Environment.TickCount64 < subtreeDeadline)
+                Thread.Sleep(5);
+            check(BranchState() == 0 && TooltipElementUnavailable(child) && !TooltipElementUnavailable(contentItem),
+                "external collapse retires the submenu while the parent menu stays available");
             Invoke(contentItem);
             var contentDeadline = Environment.TickCount64 + 3000;
             while (!TooltipElementUnavailable(contentItem) && Environment.TickCount64 < contentDeadline)

@@ -132,8 +132,14 @@ public readonly struct UiFluentSliderPresentation:IUiSliderPresentation
         var state = !enabled ? UiButtonVisualState.Disabled : interaction.Control.Held ? UiButtonVisualState.Pressed
             : interaction.Control.Hovered ? UiButtonVisualState.Hover : UiButtonVisualState.Rest;
         var paint = UiFluentSliderPalette.Resolve(context.FluentColorScheme, state);
+        var forcedColors = context.Theme.ForcedColors;
         var brand = paint.Fill;
         var neutral = paint.Rail;
+        if (forcedColors is { } colors)
+        {
+            brand = enabled ? colors.Highlight : colors.GrayText;
+            neutral = enabled ? colors.CanvasText : colors.GrayText;
+        }
         var fraction=options.Fraction(interaction.Value);
         var reversed = options.IsReversedInLayout(context.RightToLeft);
         var position = reversed ? 1 - fraction : fraction;
@@ -146,7 +152,7 @@ public readonly struct UiFluentSliderPresentation:IUiSliderPresentation
         {
             var length=options.Vertical?track.Height:track.Width;
             var pitch=(double)length*step/(options.Maximum-options.Minimum);
-            var mark=paint.Surface;
+            var mark = forcedColors?.HighlightText ?? paint.Surface;
             if(pitch<=1)context.Frame(track,mark,mark,4,0);
             else
             {
@@ -180,6 +186,17 @@ public readonly struct UiFluentSliderPresentation:IUiSliderPresentation
         context.Circle(center,radius,paint.ThumbBorder);
         context.Circle(center,radius-layout.ThumbDiameter*.05f,paint.Surface);
         context.Circle(center,layout.InnerThumbRadius,brand);
-        if(interaction.Control.FocusVisible)context.FocusOutline(bounds,4);
+        if (interaction.Control.FocusVisible)
+        {
+            if (forcedColors is { } systemColors)
+            {
+                // Fluent's 2px outline starts inside the horizontal root and outside the vertical root.
+                var insetX = options.Vertical ? -6 : 2;
+                var outline = new UiRect(bounds.X + insetX, bounds.Y, MathF.Max(0, bounds.Width - 2 * insetX), bounds.Height);
+                context.Frame(outline, default, systemColors.Highlight, 4, 2);
+            }
+            else
+                context.FocusOutline(bounds, 4);
+        }
     }
 }

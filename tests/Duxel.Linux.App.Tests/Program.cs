@@ -67,7 +67,7 @@ if (args is ["atspi-gallery-time-picker" or "atspi-gallery-date-pickers" or "ats
     return;
 }
 
-if (args is ["x11-gallery-time-picker-wheel" or "x11-gallery-scroll-view" or "x11-gallery-scroll-profile" or "x11-gallery-search-input" or "x11-gallery-pixels" or "x11-gallery-svg-pixels" or "x11-gallery-svg-thumb" or "x11-gallery-svg-layer-mix" or "x11-gallery-range-calendar" or "x11-gallery-range-calendar-pixels" or "x11-gallery-radio-group" or "x11-gallery-radio-allocation-pixels" or "x11-gallery-tree-actions" or "x11-gallery-tooltip" or "x11-gallery-provider-radio-direction" or "x11-gallery-fps" or "x11-gallery-drawer" or "x11-gallery-dialog",
+if (args is ["x11-gallery-time-picker-wheel" or "x11-gallery-scroll-view" or "x11-gallery-scroll-profile" or "x11-gallery-search-input" or "x11-gallery-pixels" or "x11-gallery-svg-pixels" or "x11-gallery-svg-thumb" or "x11-gallery-svg-layer-mix" or "x11-gallery-range-calendar" or "x11-gallery-range-calendar-pixels" or "x11-gallery-radio-group" or "x11-gallery-radio-allocation-pixels" or "x11-gallery-tree-actions" or "x11-gallery-tooltip" or "x11-gallery-provider-radio-direction" or "x11-gallery-fps" or "x11-gallery-drawer" or "x11-gallery-dialog" or "x11-gallery-card-nudge" or "x11-gallery-menu-subtext" or "x11-gallery-tag-picker" or "x11-gallery-select" or "x11-gallery-combobox" or "x11-gallery-dropdown",
     var wheelGalleryPid, var wheelClientOutput, var wheelWindow])
 {
     NativeProbeFailure.Capture(wheelClientOutput, () => AtSpiProbe.RunGalleryControls(
@@ -77,6 +77,7 @@ if (args is ["x11-gallery-time-picker-wheel" or "x11-gallery-scroll-view" or "x1
             "x11-gallery-time-picker-wheel" => AtSpiProbe.GalleryProbe.TimePicker,
             "x11-gallery-range-calendar" or "x11-gallery-range-calendar-pixels" => AtSpiProbe.GalleryProbe.RangeCalendar,
             "x11-gallery-radio-group" or "x11-gallery-radio-allocation-pixels" => AtSpiProbe.GalleryProbe.RadioGroup,
+            "x11-gallery-menu-subtext" => AtSpiProbe.GalleryProbe.MenuSubText,
             "x11-gallery-tree-actions" => AtSpiProbe.GalleryProbe.Tree,
             "x11-gallery-tooltip" => AtSpiProbe.GalleryProbe.Tooltip,
             "x11-gallery-provider-radio-direction" => AtSpiProbe.GalleryProbe.ProviderDirection,
@@ -86,6 +87,11 @@ if (args is ["x11-gallery-time-picker-wheel" or "x11-gallery-scroll-view" or "x1
             "x11-gallery-fps" => AtSpiProbe.GalleryProbe.Fps,
             "x11-gallery-drawer" => AtSpiProbe.GalleryProbe.Drawer,
             "x11-gallery-dialog" => AtSpiProbe.GalleryProbe.Dialog,
+            "x11-gallery-tag-picker" => AtSpiProbe.GalleryProbe.TagPicker,
+            "x11-gallery-select" => AtSpiProbe.GalleryProbe.Select,
+            "x11-gallery-combobox" => AtSpiProbe.GalleryProbe.Combobox,
+            "x11-gallery-dropdown" => AtSpiProbe.GalleryProbe.Dropdown,
+            "x11-gallery-card-nudge" => AtSpiProbe.GalleryProbe.CardNudge,
             "x11-gallery-search-input" or "x11-gallery-pixels" => AtSpiProbe.GalleryProbe.SearchInput,
             _ => AtSpiProbe.GalleryProbe.ScrollView
         },
@@ -302,8 +308,9 @@ var popupNativeOnly = args.Length == 4 && args[0] == "text-scroll-popup-native";
 var imageNativeOnly = args.Length == 4 && args[0] == "markdown-image-accessibility-native";
 var attributesOnly = args.Length == 4 && args[0] == "text-attributes-native";
 var probeFailureContract = args.Length == 4 && args[0] == "probe-failure-contract";
+var policyOnly = args.Length == 4 && args[0] == "range-selection-policy-native";
 var nativeClientOnly = attributesOnly || args.Length == 4 && args[0] == "native-client-only";
-if (imageComponentNativeOnly || componentNativeOnly || variableNativeOnly || popupNativeOnly || imageNativeOnly || nativeClientOnly || probeFailureContract)
+if (imageComponentNativeOnly || componentNativeOnly || variableNativeOnly || popupNativeOnly || imageNativeOnly || nativeClientOnly || probeFailureContract || policyOnly)
     args = args[1..];
 if (args.Length != 3)
     throw new ArgumentException("Specify a fresh result directory and explicit Latin/Korean font paths.");
@@ -368,6 +375,12 @@ void NativeProbe(string mode, string suffix, bool unreachableBus = false, nuint?
             throw new NativeProbeClientException(mode, probe.ExitCode, failure);
         throw new InvalidOperationException("The owned native probe failed: " + mode + ";exit=" + probe.ExitCode);
     }
+}
+
+if (policyOnly)
+{
+    RunRangeSelectionPolicy();
+    return;
 }
 
 if (probeFailureContract)
@@ -683,16 +696,22 @@ foreach (var registered in new[] { false, true })
                 },
                     "actual Korean and emoji text state uses Unicode scalar offsets");
                 unicodeTextState = true;
-                var rasters = screen.ImageStatistics.Rasterizations;
+                var imagesBeforeRotation = screen.ImageStatistics;
                 peer.Pointer(6, 480, 155);
                 peer.Pointer(4, 480, 155, 1);
                 Thread.Sleep(80);
                 peer.Pointer(5, 480, 155, 1);
                 Wait(() => screen.SvgRotation == 15, "native SVG transform button");
-                var statistics = screen.ImageStatistics;
-                transformedSvgReused = statistics.SourceReads == 1 && statistics.XmlParses == 1
-                    && statistics.SceneCompiles == 1 && statistics.Rasterizations == rasters && rasters == 2;
                 NativeProbe("atspi-client", registered.ToString(), nativeWindow: (nuint)handle, privateSelection: selection, observe: paintProbe.Observe);
+                var imagesAfterRotation = screen.ImageStatistics;
+                transformedSvgReused = imagesBeforeRotation is
+                    { SourceReads: 1, XmlParses: 1, SceneCompiles: 1, Rasterizations: 1, GpuSceneCompiles: 1 }
+                    && imagesAfterRotation.SourceReads == imagesBeforeRotation.SourceReads
+                    && imagesAfterRotation.XmlParses == imagesBeforeRotation.XmlParses
+                    && imagesAfterRotation.SceneCompiles == imagesBeforeRotation.SceneCompiles
+                    && imagesAfterRotation.Rasterizations == imagesBeforeRotation.Rasterizations
+                    && imagesAfterRotation.GpuSceneCompiles == imagesBeforeRotation.GpuSceneCompiles;
+                Console.WriteLine($"SVG rotation statistics, registered={registered}, before={imagesBeforeRotation}, after={imagesAfterRotation}");
                 Wait(() => screen.Clicks == 2, "external native accessibility invocation");
                 Wait(peer.HasNativeFocus, "real X11 keyboard focus after the AT-SPI component request");
                 nativeAccessibilityWindowFocus = true;
@@ -766,7 +785,7 @@ foreach (var registered in new[] { false, true })
     Check(screen.RenderCount > 0 && idleFrames == 0, "The shared app loop stops producing unchanged frames, registered=" + registered);
     Check(capturedColors > 10, "The actual product window has nonblank rendered content, registered=" + registered);
     Check(imagePixelsMatch, "Actual window pixels match opaque PNG, SVG bitmap and SVG widget colors, registered=" + registered);
-    Check(transformedSvgReused, "A native SVG rotation reuses the one parsed scene and existing rasters, registered=" + registered);
+    Check(transformedSvgReused, "A native SVG rotation reuses the parsed GPU scene and creates no new bitmap raster, registered=" + registered);
     Check(workerFrames > 0 && screen.ExternalValue == 42, "A worker RequestFrame resumes the sleeping UI, registered=" + registered);
     Check(nativePointerClicked, "Real X11 pointer events activate the shared button exactly once, registered=" + registered);
     Check(nativeAccessibility && screen.Clicks == 2, "An independent native AT-SPI client navigates, invokes and focuses the real UI, registered=" + registered);
@@ -794,12 +813,37 @@ NativeProbe("transport-failure", "unreachable", unreachableBus: true);
 Check(true, "Unreachable-bus startup fails explicitly, joins its threads and retains no per-attempt descriptors");
 NativeProbe("pango-failure", "dependency");
 Check(true, "An unavailable Pango import fails before native bus creation and retains no owner threads or per-attempt descriptors");
-using (var policy = new LinuxX11PlatformBackend(new(64, 64, "Owned numeric policy fixture", Visible: false)
+RunRangeSelectionPolicy();
+void RunRangeSelectionPolicy()
 {
-    Accessibility = new()
-}))
+    using (var policy = new LinuxX11PlatformBackend(new(64, 64, "Owned numeric policy fixture", Visible: false)
+    {
+        Accessibility = new()
+    }))
+    {
+        var tree = policy.AccessibilityTree;
+        PublishRangeSelectionFixture(tree, required: false);
+        var phase = 0;
+        NativeProbe("atspi-range-policy", "contracts", observe : result =>
+        {
+            if (phase == 0 && File.Exists(result + ".required-on"))
+            {
+                PublishRangeSelectionFixture(tree, required: true);
+                phase = 1;
+            }
+            if (phase == 1 && File.Exists(result + ".required-off"))
+            {
+                PublishRangeSelectionFixture(tree, required: false);
+                phase = 2;
+            }
+        });
+        Check(phase == 2, "The host published both required-state transitions");
+        Check(true, "Native numeric policy rejects readonly and disabled writes and omits unsupported Value interfaces");
+    }
+    NativeProbe("atspi-absent", "range-policy");
+}
+static void PublishRangeSelectionFixture(UiAccessibilityTree tree, bool required)
 {
-    var tree = policy.AccessibilityTree;
     NumericPublicationFixture.BeginFrame(tree);
     NumericPublicationFixture.Add(tree, new("readonly", "", UiAccessibilityRole.ProgressBar, "readonly numeric fixture", new(0, 0, 60, 10), true, false, false,
         Value: "절반", ReadOnly: true, Focusable: false, ValuePattern: false)
@@ -816,7 +860,8 @@ using (var policy = new LinuxX11PlatformBackend(new(64, 64, "Owned numeric polic
     NumericPublicationFixture.Add(tree, new("mandatory", "", UiAccessibilityRole.RadioGroup, "mandatory selection fixture", new(0, 0, 60, 10), true, false, false,
         Focusable: false, ValuePattern: false)
     {
-        SelectionRequired = true
+        SelectionRequired = true,
+        Required = required
     });
     NumericPublicationFixture.Add(tree, new("mandatory-first", "mandatory", UiAccessibilityRole.RadioButton, "mandatory choice", new(0, 0, 30, 10), true, false, false,
         ValuePattern: false)
@@ -870,10 +915,7 @@ using (var policy = new LinuxX11PlatformBackend(new(64, 64, "Owned numeric polic
         Selected = true
     });
     NumericPublicationFixture.EndFrame(tree, null, false);
-    NativeProbe("atspi-range-policy", "contracts");
-    Check(true, "Native numeric policy rejects readonly and disabled writes and omits unsupported Value interfaces");
 }
-NativeProbe("atspi-absent", "range-policy");
 void RunOwnedTextProbe(bool registered, UiScreen surface, ManualResetEventSlim firstFrame, string mode, string name)
 {
     var session = registered ? DuxelApp.PrimarySession : new DuxelAppSession();
