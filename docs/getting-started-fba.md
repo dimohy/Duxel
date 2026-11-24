@@ -1,112 +1,19 @@
-# Duxel FBA Quick Start Guide
+# Build a C# desktop app with one file
 
-> Last synced: 2026-11-10
-> Korean original: [getting-started-fba.ko.md](getting-started-fba.ko.md)
+Duxel shares widgets and application state between Windows and Linux. Use Fluent 2 for the controls, `Dux.Column` or `Dux.Row` for layout, and `UiState<T>` for controls that read and change the same state.
 
-This guide covers the .NET 10 FBA (File-Based App) flow to run Duxel with a single `.cs` file. Duxel `0.3.0-preview` packages support regular `net8.0`, `net9.0`, and `net10.0` project consumers.
+1. Install the [.NET 11 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0) and start a graphical session with Vulkan. On Linux follow [the Linux setup guide](linux-platform.md).
+2. [Run Duxel Gallery](../README.md#try-duxel-gallery-040). Find a control, exercise it, and copy the C# shown below it.
+3. Open [`duxel_calculator.cs`](../samples/fba/duxel_calculator.cs). The file selects the appropriate host package at build time. Its widget tree and arithmetic are shared.
+4. Copy the file, run `dotnet run --file duxel_calculator.cs`, and change a widget or layout. When working with a coding assistant, point it to the exact Gallery page and the [API and source map](duxel-agent-reference.md).
 
-## Requirements
+## Package choice
 
-| Item | Requirement |
-|---|---|
-| .NET SDK | 10.0 or newer |
-| OS | Windows 10/11 |
-| GPU | Vulkan 1.0+ support |
+| Package | When to use it |
+| --- | --- |
+| [Duxel.Windows.App](https://www.nuget.org/packages/Duxel.Windows.App/0.4.0) | Build a Windows desktop app. |
+| [Duxel.Linux.App](https://www.nuget.org/packages/Duxel.Linux.App/0.4.0) | Build a Linux X11 desktop app. Configure installed font files for the host. |
+| [Duxel.App](https://www.nuget.org/packages/Duxel.App/0.4.0) | Shared runtime, included through either host. |
+| [Duxel.Gallery](https://www.nuget.org/packages/Duxel.Gallery/0.4.0) / [Duxel.Gallery.Linux](https://www.nuget.org/packages/Duxel.Gallery.Linux/0.4.0) | Launch the corresponding platform's examples. |
 
-## 30-Second Run
-
-`hello.cs`:
-
-```csharp
-#:property TargetFramework=net10.0
-#:property platform=windows
-#:package Duxel.$(platform).App@*-*
-
-using Duxel.App;
-using Duxel.Core;
-using Duxel.Windows.App;
-
-DuxelWindowsApp.Run(new DuxelAppOptions
-{
-    Window = new DuxelWindowOptions { Title = "Hello Duxel" },
-    Screen = new HelloScreen()
-});
-
-public sealed class HelloScreen : UiScreen
-{
-    public override void Render(UiImmediateContext ui)
-    {
-        ui.BeginWindow("Hello");
-        ui.Text("Hello, Duxel!");
-        ui.EndWindow();
-    }
-}
-```
-
-```powershell
-dotnet run hello.cs
-```
-
-## Running Samples
-
-Repo samples are in `samples/fba/`.
-
-```powershell
-dotnet run samples/fba/all_features.cs
-./run-fba.ps1 samples/fba/all_features.cs
-./run-fba.ps1 samples/fba/all_features.cs -Managed
-```
-
-- `dotnet run ...`: NuGet package execution path.
-- `run-fba.ps1`: rewrites to local project references (NativeAOT by default).
-
-### Frequently Used Samples
-
-| File | Description |
-|---|---|
-| `layout_field_allocation_fba.cs` | Local .NET11 Field allocation: vertical/user-generated horizontal, real editors, labels/descriptions and Width/Height/Validation; Native pending |
-| `layout_scroll_routing_fba.cs` | Local .NET11 nested scrolling: axis boundary handoff, clip, row count and clicks; owned widget/virtualization/Native pending |
-| `layout_scroll_view_fba.cs` | Local .NET11 owned scroll: vertical/both axes, real editor, Width/Height, Top/End; virtualization/Native pending |
-| `layout_virtual_list_fba.cs` | Local .NET11 billion-row fixed-height virtualization, double offsets, editing/eviction, Top/Middle/End; extensions/Native pending |
-| `layout_badge_allocation_fba.cs` | Local .NET11 Badge allocation: frame/text/icons, hidden counter, Width/Height, Dot and count state; Native pending |
-| `layout_link_allocation_fba.cs` | Local .NET11 Link allocation: wrapping/clips/input root, Width/Height, Short/Long and navigation status; Native pending |
-| `layout_divider_allocation_fba.cs` | Local .NET11 Divider allocation: actual lines/captions/clips, Width/Height/Orientation and dynamic content; Native pending |
-| `layout_text_allocation_fba.cs` | Local .NET11 text allocation: wrapping/clipping, static/getter content, Width/Height and empty content; Native pending |
-| `layout_progress_allocation_fba.cs` | Local .NET11 Progress allocation: pure getter measurement, live Slider, Width/Height; Native pending |
-| `layout_radio_allocation_fba.cs` | Local .NET11 RadioGroup allocation:three layouts,shared selection,Width/Height;Native pending |
-| `all_features.cs` | Full widget showcase demo with dedicated typography, layout, popup/context, input-query, item-status, multi-select, and layer/animation windows |
-| `declarative_dashboard_fba.cs` | Declarative C# dashboard using `UiState<T>`, reusable `UiComponent` classes, compiled Windows 11 design tokens, and product-shell helpers |
-| `hello_duxel_fba.cs` | Ultra-minimal hello sample with a small `Hello` and a large `Duxel!` |
-| `extended_title_bar_fba.cs` | Windows 11-style extended title bar using the effective window icon, tab-shaped application controls, caption buttons visually identical to Duxel chrome in restored/maximized states, native Windows behavior, public drag/bounds APIs, and test-only Win32/DWM diagnostics |
-| `windows_calculator_fba.cs` | Calculator UI demo using library-owned Duxel chrome, including state-aware Maximize/Restore glyphs |
-| `text_render_validation_fba.cs` | Text rendering validation |
-| `font_style_validation_fba.cs` | Font style/size rendering validation |
-| `scrolling_static_layer_bench_fba.cs` | Scrolling/clip static layer benchmark for visual regression and cache invalidation validation |
-| `Duxel_perf_test_fba.cs` | High-polygon benchmark |
-| `pipeline_ordering_bench_fba.cs` | Dynamic solid/text pipeline ordering benchmark |
-| `dynamic_widget_ordering_bench_fba.cs` | Widget-like dynamic ordering and row clip churn benchmark |
-| `static_cache_rebuild_bench_fba.cs` | Static cache rebuild, reuse, and allocation pressure benchmark |
-| `static_layer_moving_order_bench_fba.cs` | Moving static-layer replay ordering benchmark |
-| `texture_upload_barrier_bench_fba.cs` | Texture upload copy/barrier policy benchmark |
-| `directtext_page_upload_bench_fba.cs` | DirectText page-style partial texture upload benchmark |
-| `directtext_dynamic_text_bench_fba.cs` | DirectText stable-cache versus changing-string frame-tail, text-work, and allocation benchmark |
-| `vector_primitives_bench_fba.cs` | Primitive-heavy vector workload benchmark |
-| `analytic_rounded_primitives_bench_fba.cs` | 1x-MSAA visual and performance gate for analytic rounded fills, outlines, combined fill/border panels, and circles |
-
-## Profile / Environment Variable
-
-```powershell
-$env:DUXEL_APP_PROFILE='render'
-./run-fba.ps1 samples/fba/Duxel_perf_test_fba.cs -Managed
-Remove-Item Env:DUXEL_APP_PROFILE
-```
-
-## DSL Style
-
-For DSL-based UI, use the `UiDslScreen` class with `.ui` and `.duxel-theme` files in a project. See `samples/Duxel.ThemeDemo` for a complete example.
-
-## Related Docs
-
-- [docs/fba-reference-guide.md](fba-reference-guide.md)
-- [docs/fba-run-samples.md](fba-run-samples.md) · [한국어](fba-run-samples.ko.md)
-- [docs/ui-dsl.md](ui-dsl.md)
+[One-line example commands](fba-run-samples.md) · [한국어](getting-started-fba.ko.md)

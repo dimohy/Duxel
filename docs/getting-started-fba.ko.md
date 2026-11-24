@@ -1,111 +1,19 @@
-# Duxel FBA 빠른 시작 가이드
+# C# 파일 하나로 데스크톱 앱 만들기
 
-> 마지막 동기화: 2026-07-28
+Duxel은 Windows와 Linux에서 위젯과 앱 상태를 공유합니다. Fluent 2로 컨트롤을 만들고 `Dux.Column`이나 `Dux.Row`로 배치합니다. 여러 컨트롤이 읽고 바꾸는 값은 `UiState<T>`로 연결합니다.
 
-단일 `.cs` 파일로 Duxel 앱을 실행하는 .NET 10 FBA(File-Based App) 기준 가이드입니다. Duxel `0.3.0-preview` 패키지는 일반 `net8.0`, `net9.0`, `net10.0` 프로젝트를 지원합니다.
+1. [.NET 11 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0)를 설치하고 Vulkan을 쓸 수 있는 그래픽 세션을 준비합니다. Linux에서는 [Linux 설치 안내](linux-platform.ko.md)를 따릅니다.
+2. [Duxel Gallery를 실행](../README.ko.md#duxel-gallery-040-실행하기)하고 필요한 컨트롤을 눌러 봅니다. 예제 아래의 C# 코드를 복사할 수 있습니다.
+3. [`duxel_calculator.cs`](../samples/fba/duxel_calculator.cs)를 엽니다. 파일을 빌드할 때 운영체제에 맞는 호스트 패키지를 고릅니다. 위젯 트리와 계산 로직은 공유합니다.
+4. 파일을 저장하고 `dotnet run --file duxel_calculator.cs`로 실행합니다. 위젯이나 레이아웃을 바꿔 보세요. AI와 작업한다면 Gallery의 해당 페이지와 [API와 소스 위치](duxel-agent-reference.ko.md)를 알려주면 실제 사용 코드부터 찾을 수 있습니다.
 
-## 필수 환경
+## NuGet 패키지 선택
 
-| 항목 | 요구 사항 |
-|---|---|
-| .NET SDK | 10.0 이상 |
-| OS | Windows 10/11 |
-| GPU | Vulkan 1.0+ 지원 |
+| 패키지 | 쓰는 곳 |
+| --- | --- |
+| [Duxel.Windows.App](https://www.nuget.org/packages/Duxel.Windows.App/0.4.0) | Windows 데스크톱 앱을 만듭니다. |
+| [Duxel.Linux.App](https://www.nuget.org/packages/Duxel.Linux.App/0.4.0) | Linux X11 데스크톱 앱을 만듭니다. 호스트에 설치된 글꼴 파일을 설정합니다. |
+| [Duxel.App](https://www.nuget.org/packages/Duxel.App/0.4.0) | 공용 런타임입니다. 두 호스트 패키지에서 자동으로 참조합니다. |
+| [Duxel.Gallery](https://www.nuget.org/packages/Duxel.Gallery/0.4.0) / [Duxel.Gallery.Linux](https://www.nuget.org/packages/Duxel.Gallery.Linux/0.4.0) | 운영체제에 맞는 Gallery를 실행해 예제를 확인합니다. |
 
-## 30초 실행
-
-`hello.cs`:
-
-```csharp
-#:property TargetFramework=net10.0
-#:property platform=windows
-#:package Duxel.$(platform).App@*-*
-
-using Duxel.App;
-using Duxel.Core;
-using Duxel.Windows.App;
-
-DuxelWindowsApp.Run(new DuxelAppOptions
-{
-    Window = new DuxelWindowOptions { Title = "Hello Duxel" },
-    Screen = new HelloScreen()
-});
-
-public sealed class HelloScreen : UiScreen
-{
-    public override void Render(UiImmediateContext ui)
-    {
-        ui.BeginWindow("Hello");
-        ui.Text("Hello, Duxel!");
-        ui.EndWindow();
-    }
-}
-```
-
-```powershell
-dotnet run hello.cs
-```
-
-## 샘플 실행
-
-레포 샘플은 `samples/fba/`에 있습니다.
-
-```powershell
-dotnet run samples/fba/all_features.cs
-./run-fba.ps1 samples/fba/all_features.cs
-./run-fba.ps1 samples/fba/all_features.cs -Managed
-```
-
-- `dotnet run ...`: NuGet 패키지 기준 실행
-- `run-fba.ps1`: 로컬 프로젝트 참조로 치환해 실행(기본 NativeAOT)
-
-### 자주 쓰는 샘플
-
-| 파일 | 설명 |
-|---|---|
-| `layout_field_allocation_fba.cs` | 로컬 .NET11 Field 할당: 세로/사용자 생성 가로·실제 편집기·라벨/설명·Width/Height/Validation; Native 대기 |
-| `layout_scroll_routing_fba.cs` | 로컬 .NET11 중첩 스크롤: 두 축 경계 전달·클립·행 수·클릭; 소유 스크롤 위젯/가상화/Native 대기 |
-| `layout_scroll_view_fba.cs` | 로컬 .NET11 소유 스크롤: 세로/양축·실제 편집기·Width/Height·Top/End; 가상화/Native 대기 |
-| `layout_virtual_list_fba.cs` | 로컬 .NET11 10억 행 고정 높이 가상화·double·편집/해제·Top/Middle/End; 확장/Native 대기 |
-| `layout_badge_allocation_fba.cs` | 로컬 .NET11 Badge 할당: 프레임·글자·아이콘·숨은 카운터, Width/Height·Dot·숫자 상태; Native 대기 |
-| `layout_link_allocation_fba.cs` | 로컬 .NET11 Link 할당: 줄바꿈·클립·입력 루트, Width/Height·Short/Long·탐색 상태; Native 대기 |
-| `layout_divider_allocation_fba.cs` | 로컬 .NET11 Divider 할당: 실제 선·캡션·클립, Width/Height/Orientation·동적 콘텐츠; Native 대기 |
-| `layout_text_allocation_fba.cs` | 로컬 .NET11 텍스트 할당: 줄바꿈·클립·정적/getter·Width/Height·빈 콘텐츠, Native 대기 |
-| `layout_progress_allocation_fba.cs` | 로컬 .NET11 Progress 할당: getter 없는 순수 측정·실제 Slider·Width/Height, Native 대기 |
-| `layout_radio_allocation_fba.cs` | 로컬 .NET11 RadioGroup 할당:세 배치·공유 선택·Width/Height,Native 대기 |
-| `all_features.cs` | 타이포그래피, 레이아웃, 팝업/컨텍스트, 입력 질의, 아이템 상태, 멀티셀렉트, 레이어/애니메이션 전용 창까지 포함한 전체 위젯 종합 데모 |
-| `declarative_dashboard_fba.cs` | `UiState<T>`, 재사용 `UiComponent`, 컴파일된 Windows 11 디자인 토큰, 제품 셸 헬퍼를 사용하는 선언형 C# 대시보드 |
-| `hello_duxel_fba.cs` | 작은 `Hello`와 큰 `Duxel!`만 보여주는 초간단 인사 샘플 |
-| `extended_title_bar_fba.cs` | 유효 창 아이콘, 탭 모양 앱 컨트롤, 복원·최대화 모두 Duxel 크롬과 동일한 캡션 버튼, 네이티브 Windows 동작, 공개 드래그/경계 API, 테스트 전용 Win32/DWM 진단을 사용하는 Windows 11 스타일 확장 타이틀바 샘플 |
-| `windows_calculator_fba.cs` | 창 상태에 따라 바뀌는 최대화/복원 아이콘 등 라이브러리 소유 Duxel 크롬을 사용하는 계산기 UI 데모 |
-| `text_render_validation_fba.cs` | 텍스트 렌더 검증 |
-| `font_style_validation_fba.cs` | 폰트 스타일/크기 렌더링 검증 |
-| `scrolling_static_layer_bench_fba.cs` | 스크롤/클립 정적 레이어 벤치 및 시각 회귀·캐시 무효화 검증 |
-| `Duxel_perf_test_fba.cs` | 대량 폴리곤 벤치 |
-| `pipeline_ordering_bench_fba.cs` | 동적 solid/text pipeline ordering 벤치 |
-| `dynamic_widget_ordering_bench_fba.cs` | 위젯형 동적 ordering과 row clip churn 벤치 |
-| `static_cache_rebuild_bench_fba.cs` | static cache rebuild, reuse, allocation pressure 벤치 |
-| `static_layer_moving_order_bench_fba.cs` | moving static-layer replay ordering 벤치 |
-| `texture_upload_barrier_bench_fba.cs` | texture upload copy/barrier policy 벤치 |
-| `directtext_page_upload_bench_fba.cs` | DirectText page-style partial texture upload 벤치 |
-| `directtext_dynamic_text_bench_fba.cs` | DirectText 안정 캐시와 변경 문자열의 frame-tail, text-work, 할당 비교 벤치 |
-| `vector_primitives_bench_fba.cs` | primitive-heavy vector workload 벤치 |
-| `analytic_rounded_primitives_bench_fba.cs` | 해석적 rounded fill, outline, fill/border 결합 panel, circle의 1x-MSAA 시각·성능 게이트 |
-
-## 프로필/환경 변수
-
-```powershell
-$env:DUXEL_APP_PROFILE='render'
-./run-fba.ps1 samples/fba/Duxel_perf_test_fba.cs -Managed
-Remove-Item Env:DUXEL_APP_PROFILE
-```
-
-## DSL 방식
-
-DSL 기반 UI는 `UiDslScreen` 클래스와 `.ui`/`.duxel-theme` 파일을 프로젝트에서 사용합니다. 완전한 예제는 `samples/Duxel.ThemeDemo`를 참고하세요.
-
-## 참고 문서
-
-- [docs/fba-reference-guide.ko.md](docs/fba-reference-guide.ko.md)
-- [docs/fba-run-samples.ko.md](docs/fba-run-samples.ko.md) · [English](docs/fba-run-samples.md)
-- [docs/ui-dsl.ko.md](docs/ui-dsl.ko.md)
+[예제별 한 줄 실행 명령](fba-run-samples.ko.md) · [English](getting-started-fba.md)

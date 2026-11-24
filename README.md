@@ -1,78 +1,46 @@
-<p align="center">
-  <img src="samples/Duxel.Gallery/Assets/Brand/duxel-mark.svg" width="96" height="96" alt="" />
-</p>
+<img src="samples/Duxel.Gallery/Assets/Brand/duxel-mark.svg" width="72" height="72" alt="Duxel logo">
 
-<h1 align="center">Duxel</h1>
+# Duxel · Cross-platform C# desktop UI for Windows and Linux
 
-<p align="center"><strong>A C# UI library for native desktop apps</strong></p>
+Build fast native desktop apps for **Windows and Linux** with a shared **C# / .NET** UI, **Fluent 2** controls, and a **Vulkan** renderer. Duxel is designed for **AI-assisted development and vibe coding**. Pick a working control in the Gallery, share its C# example with your coding assistant, and iterate in a file-based app (FBA). The same widget and state code runs with either platform host.
 
-Build application windows, tools, and custom visualizations with **retained-mode** C# widgets and an **immediate-mode** drawing API. Use either mode or combine them in the same Vulkan-rendered window. Start with the built-in Fluent 2 light and dark themes, then tailor the design to your app.
+[한국어](README.ko.md) · [Documentation](docs/README.md) · [Examples](docs/fba-run-samples.md) · [Release history](docs/version-history.md)
 
-[![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://licenses.nuget.org/MIT)
+## Try Duxel Gallery 0.4.0
 
-[한국어](README.ko.md) · [Documentation](docs/README.md) · [Release history](docs/version-history.md)
+Install the [.NET 11 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0) and use a graphical desktop with Vulkan. The Gallery shows working controls, layout, images, SVG, and Markdown with C# examples you can copy.
 
-## Build an interface
+### Start a Windows app
 
-- **Retained mode** keeps a widget tree across frames. Use `Dux` for layout and `Fluent` for controls. Connect application state through `UiState<T>` and bindings. Use C# or the declarative `.ui` format.
-- **Immediate mode** uses `UiScreen.Render` and `UiImmediateContext` for drawing, custom interaction, and diagnostics. An application can host widgets and immediate content together.
-- **Fluent 2 themes** include light and dark Windows 11 designs. Customize colors, typography, and control geometry through `UiTheme`, `UiDesignTokens`, and `IUiDesign`. Use a provider to theme one region independently.
+Open PowerShell 7 and run the Gallery as a file-based app.
 
-Duxel also includes virtualized lists and data grids, SVG and Markdown widgets, keyboard navigation, and platform accessibility. See the documentation for platform and component coverage. [Fluent 2 coverage](docs/fluent2-coverage.md) · [Theme provider](docs/fluent2-provider.md)
+~~~powershell
+curl.exe -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/v0.4.0/samples/fba/duxel_gallery.cs && dotnet run --file duxel_gallery.cs
+~~~
 
-## Try the Gallery
+### Start a Linux app
 
-On Windows with the .NET 11 SDK and a Vulkan-capable GPU, run this PowerShell line. It downloads a single C# file and launches the Gallery from NuGet.
+Use Bash on Linux or WSLg with X11/Xwayland and Vulkan. [Linux setup](docs/linux-platform.md)
 
-```powershell
-$file = Join-Path ([IO.Path]::GetTempPath()) 'duxel_gallery_0_3_preview.cs'; Invoke-WebRequest 'https://raw.githubusercontent.com/dimohy/Duxel/v0.3.0-preview/samples/fba/duxel_gallery.cs' -OutFile $file -UseBasicParsing; dotnet run --file $file
-```
+~~~bash
+curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/v0.4.0/samples/fba/duxel_gallery_linux.cs && dotnet run --file duxel_gallery_linux.cs
+~~~
 
-To build the Gallery from this checkout, run:
+## Run a Fluent 2 desktop app
 
-```powershell
-./run-gallery.ps1
-```
+Download and run any of the following as a single C# file. The Calculator, Notepad, Large List, and Motion Canvas run with the same source on Windows and Linux. [One-line commands for every example](docs/fba-run-samples.md)
 
-Choose an example, operate the actual control, and copy its C# code. Gallery settings offer English, Korean, Japanese, and Simplified Chinese. [Gallery guide](docs/gallery-navigation.md) · [Linux setup](docs/linux-platform.md)
+| Example | What to try |
+| --- | --- |
+| [Calculator](samples/fba/duxel_calculator.cs) | Chain decimal operations and try the divide-by-zero case. |
+| [Notepad](samples/fba/duxel_notepad.cs) | Edit a local note and save it as plain text. |
+| [Large List](samples/fba/duxel_large_list.cs) | Scroll or jump through 100,000 rows with a virtualized viewport. |
+| [Motion Canvas](samples/fba/duxel_render_motion.cs) | Adjust the number of animated shapes while the Fluent 2 controls stay interactive. |
 
-## Start a Windows app
+## Build with Duxel
 
-With the .NET 10 SDK or later, save this example as `hello.cs`. The file uses the published Windows package.
+- Compose retained-mode widgets with `Dux`, `Fluent`, and `UiState<T>`. Use immediate-mode drawing for custom graphics inside the same UI.
+- Reference the Windows or Linux app host in a project or via `#:package` in a single C# file. The hosts and shared runtime ship assets for .NET 8, 9, and 10. The 0.4.0 Gallery launchers use the .NET 11 SDK.
+- Check rendering behavior in the Gallery, Large List, or Motion Canvas. For measurements from earlier builds, see [historical benchmarks](docs/archive/README.md).
 
-```csharp
-#:property TargetFramework=net10.0
-#:property PublishAot=false
-#:property SelfContained=false
-#:package Duxel.Windows.App@0.3.0-preview
-
-using Duxel.App;
-using Duxel.Core;
-using Duxel.Windows.App;
-
-var clicks = new UiState<int>(0);
-var root = Dux.Column(12,
-    Fluent.Title2("Hello, Duxel"),
-    Fluent.Button("Add one", () => clicks.Value++),
-    Fluent.Body1(() => $"Count: {clicks.Value}"));
-
-DuxelWindowsApp.Run(DuxelApp.Options<LightDesign>(Dux.App(root), title: "Hello Duxel"));
-
-readonly struct LightDesign : IUiDesign
-{
-    public static UiCompiledDesign Create() => UiCompiledDesign.Windows11;
-}
-```
-
-```powershell
-dotnet run hello.cs
-```
-
-For an existing Windows project, install `Duxel.Windows.App` with `dotnet add package Duxel.Windows.App --version 0.3.0-preview`. The packages target .NET 8, 9, and 10. [File-based app guide](docs/getting-started-fba.md) · [Declarative C# sample](samples/fba/declarative_dashboard_fba.cs) · [Immediate-mode sample](samples/fba/all_features.cs)
-
-## Build from source
-
-```powershell
-dotnet build Duxel.slnx -c Release
-```
+[Start a C# app](docs/getting-started-fba.md) · [API and source map](docs/duxel-agent-reference.md) · [Repository instructions](AGENTS.md) · [LLM-friendly documentation index](llms.txt)

@@ -35,9 +35,9 @@
 .PARAMETER ExtraArgs
     dotnet run/dotnet publish에 전달할 추가 인수.
 .EXAMPLE
-    ./run-fba.ps1 samples/fba/all_features.cs
+    ./run-fba.ps1 samples/fba/duxel_gallery.cs
 .EXAMPLE
-    ./run-fba.ps1 samples/fba/all_features.cs -NoCache
+    ./run-fba.ps1 samples/fba/duxel_gallery.cs -NoCache
 .EXAMPLE
     ./run-fba.ps1 samples/fba/Duxel_perf_test_fba.cs
 .EXAMPLE

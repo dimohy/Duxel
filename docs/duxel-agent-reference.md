@@ -1,33 +1,19 @@
-# Build with Duxel and a coding assistant
+# Duxel API and source map
 
-[한국어](duxel-agent-reference.ko.md) · [Duxel documentation](README.md)
+For AI-assisted development, identify the target platform, choose a working Gallery example, and copy the API calls from it. The 0.4.0 FBA examples show complete files with package directives and app initialization. Check implementation signatures before proposing new API calls.
 
-Give your assistant the target platform, the screen you want, and the reference version. Use the installed NuGet version for an application that consumes packages. Use this checkout and its local-source runner when you need current branch APIs.
-
-## Pick the starting point
-
-| Task | Reference |
+| Task | Start with |
 | --- | --- |
-| Retained mode for forms, tools, dashboards and dialogs | [Declarative C# dashboard](../samples/fba/declarative_dashboard_fba.cs), [Gallery](gallery-navigation.md) |
-| Immediate mode for custom drawing and direct input | [Immediate-mode examples](../samples/fba/all_features.cs), [Architecture](design.md) |
-| Layout, theming and custom widgets | [Containers](widget-containers.md), [Theme provider](fluent2-provider.md), [Custom widgets](custom-widgets.md) |
-| Sort, select or edit tabular data | [Fluent DataGrid](fluent2-data-grid.md) |
-| Load or generate a declarative UI | [`.ui` syntax and source generation](ui-dsl.md) |
+| Runnable examples and package choice | [File-based app guide](getting-started-fba.md), [samples/fba](../samples/fba) |
+| Working controls and layout | [GalleryComponentExamples.cs](../samples/Duxel.Gallery/GalleryComponentExamples.cs), [Gallery navigation](../samples/Duxel.Gallery/GalleryNavigation.cs) |
+| Fluent typography | [Fluent.Text.cs](../src/Duxel.Core/Fluent.Text.cs), e.g. `Fluent.Text(Text.Title2, "Title")` |
+| State, widgets, and layout | [Duxel.Core](../src/Duxel.Core) |
+| App options and frame loop | [Duxel.App](../src/Duxel.App) |
+| Platform windows and input | [Windows host](../src/Duxel.Windows.App), [Linux host](../src/Duxel.Linux.App) |
+| Vulkan, SVG | [Duxel.Vulkan](../src/Duxel.Vulkan), [Duxel.Svg](../src/Duxel.Svg) |
 
-## Starting prompt
+The shared widget layer uses `Dux` and `Fluent`. Keep platform-specific features in the host setup and reuse the widget tree. Run the example after editing it in each targeted platform.
 
-> Build a Windows desktop screen in a single C# file using this Duxel checkout. Use `Dux` for layout, `Fluent` for controls, and `UiState<T>` with bindings for user-editable values. Use retained mode and keep the widget tree alive across frames. Use the built-in light design and show how to switch to dark. Use an immediate-mode view if the screen needs custom drawing. Check the public signatures or copy the matching Gallery sample before writing code. Compile and run the result. Verify the main click or keyboard interaction and tell me which command you ran.
+For system colors on Windows, leave `Design` and `Theme` at their defaults so the host can apply the app color mode. With the 0.4.0 Linux host, the [representative file-based apps](fba-run-samples.md) choose a Fluent design from the desktop Settings portal at launch.
 
-## Check the result
-
-- Start with the nearest Gallery example. Its copied C# often includes the state and options needed to use the control.
-- Gallery inline code fits its content height. Use the page scrollbar to read long snippets. The copy icon in the page header copies the Gallery page's C# implementation files. On **Animation**, the code below each demo shows the relevant API call.
-- The navigation header displays the Duxel major and minor version followed by the Gallery revision without leading zeros, as in `0.3.3`. The revision increases with each delivered fix or feature that affects the Gallery.
-- The SVG gallery uses `UiTabListOptions.Scroll` to let users drag the tab strip horizontally or open the previous and next menus when the tabs overflow.
-- In Gallery, **CodeView** demonstrates selection, copying, line wrapping, and line numbers. **Animation** covers timing curves, frame scheduling, rotation, scrollbar fading, and animated layout changes. Its links open widget-specific motion examples. On **Icon**, pick a result and hover over the preview to see its filled style. The copied C# uses `UiIcon.HoverIcon` to do the same. For runtime glyph selection, use `UiMenuIcon.FromFontGlyph<TFont>` with a glyph from that font.
-- For a slider with fine increments, set `ShowStepMarkers = false` to keep snapping without painting a tick for each step. The MessageBar width slider uses this option.
-- In the MessageBar example, the thumb follows the pointer while the width preview applies the latest value at up to 60 updates per second. On release, the message layout and the displayed C# use the final width.
-- When diagnosing resident geometry memory, distinguish cached draw-list bytes from Vulkan page allocations. See [retained rendering](retained-rendering.md).
-- Review keyboard focus, editing and content overflow for the actual screen. Use [keyboard guidance](widget-keyboard.md) and [accessibility guidance](widget-accessibility.md).
-- For an immediate-mode document viewport that scrolls vertically, pass `horizontalScroll: false` to `BeginChild`. The viewport reserves the scrollbar gutter during layout. A nested code view can still scroll horizontally when a line exceeds its own width.
-- Run the local source example with `./run-fba.ps1 samples/fba/declarative_dashboard_fba.cs -Managed -NoCache`. For published packages, follow the [file-based app quick start](getting-started-fba.md).
+[Documentation index](README.md) · [한국어](duxel-agent-reference.ko.md)

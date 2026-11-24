@@ -1,33 +1,19 @@
-# 코딩 AI로 Duxel 앱 만들기
+# Duxel API와 소스 위치
 
-[English](duxel-agent-reference.md) · [Duxel 문서](README.ko.md)
+AI로 앱을 만들 때는 대상 운영체제를 먼저 정하고, Gallery에서 동작하는 예제를 골라 API를 확인하세요. 0.4.0 FBA에는 NuGet 참조와 호스트를 포함한 전체 C# 파일이 있습니다. 새 API 호출을 제안하기 전에 현재 소스의 시그니처를 확인합니다.
 
-AI에 대상 플랫폼, 만들 화면, 사용할 Duxel 버전을 알려 주세요. 앱에서 NuGet을 사용한다면 설치한 패키지 버전을 기준으로 삼습니다. 현재 브랜치의 API가 필요하면 이 저장소와 로컬 소스 실행 스크립트를 사용합니다.
-
-## 작업에 맞는 예제
-
-| 만들려는 것 | 참고 자료 |
+| 찾는 것 | 먼저 살펴볼 곳 |
 | --- | --- |
-| 리테인드 모드로 폼·도구·대화 상자 만들기 | [선언형 C# 대시보드](../samples/fba/declarative_dashboard_fba.cs), [갤러리](gallery-navigation.ko.md) |
-| 즉시 모드로 직접 그리기와 입력 처리 | [즉시 모드 예제](../samples/fba/all_features.cs), [설계](design.ko.md) |
-| 레이아웃, 테마, 사용자 정의 위젯 | [컨테이너](widget-containers.ko.md), [테마 공급자](fluent2-provider.ko.md), [사용자 정의 위젯](custom-widgets.ko.md) |
-| 표에서 정렬, 선택, 편집 | [Fluent DataGrid](fluent2-data-grid.ko.md) |
-| 선언형 UI 불러오기 또는 생성 | [`.ui` 문법과 소스 생성](ui-dsl.ko.md) |
+| 실행할 예제와 패키지 선택 | [FBA 시작하기](getting-started-fba.ko.md), [samples/fba](../samples/fba) |
+| 컨트롤과 레이아웃의 실제 사용 | [GalleryComponentExamples.cs](../samples/Duxel.Gallery/GalleryComponentExamples.cs), [Gallery navigation](../samples/Duxel.Gallery/GalleryNavigation.cs) |
+| Fluent 글꼴 스타일 | [Fluent.Text.cs](../src/Duxel.Core/Fluent.Text.cs), 예 `Fluent.Text(Text.Title2, "Title")` |
+| 상태, 위젯, 레이아웃 | [Duxel.Core](../src/Duxel.Core) |
+| 앱 옵션과 프레임 루프 | [Duxel.App](../src/Duxel.App) |
+| 운영체제별 창과 입력 | [Windows host](../src/Duxel.Windows.App), [Linux host](../src/Duxel.Linux.App) |
+| Vulkan, SVG | [Duxel.Vulkan](../src/Duxel.Vulkan), [Duxel.Svg](../src/Duxel.Svg) |
 
-## 처음 사용할 프롬프트
+`Dux`와 `Fluent`로 만든 위젯 트리를 공유하고 운영체제별 옵션은 호스트에서 설정합니다. 수정한 예제는 지원하려는 플랫폼에서 각각 실행해 확인하세요.
 
-> 이 Duxel 저장소를 기준으로 Windows 데스크톱 화면을 C# 파일 하나로 만들어 줘. 레이아웃은 `Dux`, 컨트롤은 `Fluent`를 사용하고, 사용자가 편집하는 값은 `UiState<T>`와 바인딩으로 연결해 줘. 리테인드 모드로 구성하고 프레임 사이에 위젯 트리를 유지해 줘. 기본 밝은 테마를 적용하고 어두운 테마로 바꾸는 방법도 보여 줘. 화면 일부를 직접 그려야 하면 즉시 모드 뷰를 사용해 줘. 코드를 쓰기 전에 공개 API나 갤러리 예제를 확인하고, 실제로 빌드하고 실행해서 주요 클릭이나 키보드 동작을 확인해 줘. 실행한 명령도 알려 줘.
+Windows의 앱 색 모드를 따르려면 `Design`과 `Theme`을 기본값으로 두세요. Linux 0.4.0의 [대표 FBA](fba-run-samples.ko.md)는 시작할 때 데스크톱 설정 포털을 읽어 Fluent 디자인을 선택합니다.
 
-## 결과 확인
-
-- 가장 가까운 갤러리 예제부터 확인하세요. 예제의 C#에는 컨트롤과 함께 필요한 상태나 옵션이 들어 있습니다.
-- 갤러리의 코드 예제는 내용 높이에 맞춰 펼쳐집니다. 긴 코드는 페이지의 스크롤바로 읽을 수 있습니다. 페이지 상단의 복사 아이콘을 누르면 해당 페이지를 구현한 C# 파일이 복사됩니다. **애니메이션**은 동작별로 사용한 API를 해당 예제 바로 아래에 표시합니다.
-- 탐색 메뉴 상단에는 `0.3.3`처럼 Duxel의 주·부 버전과 갤러리 번호가 표시됩니다. 갤러리에 영향을 주는 수정이나 기능을 반영할 때마다 갤러리 번호가 올라갑니다.
-- SVG 갤러리는 `UiTabListOptions.Scroll`을 사용합니다. 탭이 잘리면 탭 줄을 좌우로 끌거나 이전·다음 탭 메뉴를 열어 나머지 탭으로 이동할 수 있습니다.
-- 갤러리의 **CodeView**에서 텍스트 선택과 복사, 줄바꿈, 줄 번호를 시험할 수 있습니다. **애니메이션**에서는 속도 곡선, 프레임 요청, 회전, 스크롤바 투명도와 항목 배치의 변화를 비교할 수 있습니다. 위젯별 애니메이션 예제도 바로 열 수 있습니다. **Icon**에서 검색 결과를 선택한 뒤 미리 보기에 마우스를 올리면 채움 모양이 나타납니다. 복사할 C#은 `UiIcon.HoverIcon`으로 같은 동작을 구현합니다. 실행 중 글리프를 선택하려면 해당 글꼴의 글리프를 `UiMenuIcon.FromFontGlyph<TFont>`에 전달하세요.
-- 슬라이더의 값 간격이 작으면 `ShowStepMarkers = false`로 눈금을 숨기면서 값 간격을 유지할 수 있습니다. MessageBar 너비 조절 예제에서 이 옵션을 사용합니다.
-- MessageBar 예제에서는 슬라이더 손잡이가 포인터를 따라가고, 미리보기에는 최신 너비를 초당 최대 60회 반영합니다. 손잡이를 놓으면 메시지 배치와 화면의 C# 코드에 최종 너비가 반영됩니다.
-- GPU에 보관하는 기하의 메모리를 분석할 때는 그리기 목록의 데이터 크기와 Vulkan이 할당한 페이지 크기를 각각 확인하세요. [보존 렌더링](retained-rendering.ko.md)
-- 실제 화면에서 키보드 포커스, 편집, 콘텐츠가 영역을 벗어날 때의 동작을 확인하세요. [키보드 동작](widget-keyboard.ko.md) · [접근성](widget-accessibility.ko.md)
-- 즉시 모드 문서 영역에 세로 스크롤만 필요하면 `BeginChild`에 `horizontalScroll: false`를 전달하세요. 레이아웃에서 세로 스크롤바 자리를 확보하며, 안쪽 코드 뷰는 긴 줄이 자체 너비를 넘으면 가로로 스크롤할 수 있습니다.
-- `./run-fba.ps1 samples/fba/declarative_dashboard_fba.cs -Managed -NoCache`로 로컬 소스 예제를 실행할 수 있습니다. 공개 패키지로 만들 때는 [파일 기반 앱 시작](getting-started-fba.ko.md)을 따르세요.
+[문서 색인](README.ko.md) · [English](duxel-agent-reference.md)

@@ -14,8 +14,7 @@
     <ProjectReference Include="../../src/Duxel.Platform.Linux/Duxel.Platform.Linux.csproj" />
     <ProjectReference Include="../../src/Duxel.Vulkan/Duxel.Vulkan.csproj" />
     <ProjectReference Include="../../src/Duxel.Svg/Duxel.Svg.csproj" />
-    <None Include="../../samples/Duxel.Linux.Sample/Assets/**/*" Link="Assets/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-    <Compile Include="../../samples/Duxel.Linux.Sample/LinuxDemoScreen.cs" Link="LinuxDemoScreen.cs" />
+    <None Update="Fixtures/DesktopSmoke/Assets/*" TargetPath="Assets/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../Duxel.Platform.Linux.Tests/NativePeer.cs" Link="NativePeer.cs" />
     <Compile Include="../Duxel.Graphics.Tests/NativeAnnouncementScene.cs" Link="NativeAnnouncementScene.cs" />
     <Compile Include="../Shared/DialogAccessibilityScreen.cs" Link="DialogAccessibilityScreen.cs" />

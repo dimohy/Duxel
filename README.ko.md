@@ -1,78 +1,46 @@
-<p align="center">
-  <img src="samples/Duxel.Gallery/Assets/Brand/duxel-mark.svg" width="96" height="96" alt="" />
-</p>
+<img src="samples/Duxel.Gallery/Assets/Brand/duxel-mark.svg" width="72" height="72" alt="Duxel 로고">
 
-<h1 align="center">Duxel</h1>
+# Duxel · Windows와 Linux용 C# 크로스플랫폼 데스크톱 UI
 
-<p align="center"><strong>네이티브 데스크톱 앱을 만드는 C# UI 라이브러리</strong></p>
+**C# / .NET**으로 빠른 **Windows·Linux 데스크톱 앱**을 만들어 보세요. Duxel은 **Fluent 2** 컨트롤과 **Vulkan** 렌더러를 제공합니다. **AI 바이브 코딩**을 할 때 Gallery에서 필요한 컨트롤을 눌러 보고, 그 C# 코드를 AI에게 보여준 다음 파일 기반 앱(FBA)으로 바로 실행할 수 있습니다. 위젯과 상태 코드는 두 플랫폼에서 공유합니다.
 
-앱 화면과 개발 도구, 맞춤 시각화를 **리테인드 모드(retained mode)** 위젯과 **즉시 모드(immediate mode)** 그리기 API로 구현할 수 있습니다. 각 모드를 따로 쓰거나 같은 Vulkan 창에서 함께 사용하세요. 내장 Fluent 2 밝은·어두운 테마를 앱에 맞게 바꿀 수 있습니다.
+[English](README.md) · [문서](docs/README.ko.md) · [예제](docs/fba-run-samples.ko.md) · [버전 이력](docs/version-history.ko.md)
 
-[![NuGet](https://img.shields.io/nuget/vpre/Duxel.App)](https://www.nuget.org/packages/Duxel.App)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://licenses.nuget.org/MIT)
+## Duxel Gallery 0.4.0 실행하기
 
-[English](README.md) · [문서](docs/README.ko.md) · [버전 이력](docs/version-history.ko.md)
+[.NET 11 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0)와 Vulkan을 사용할 수 있는 그래픽 환경이 필요합니다. Gallery에서 컨트롤, 레이아웃, 이미지, SVG, Markdown을 직접 써 보고 C# 코드를 복사할 수 있습니다.
 
-## 인터페이스 만들기
+### Windows에서 시작하기
 
-- **리테인드 모드**는 프레임이 바뀌어도 위젯 트리를 유지합니다. `Dux`로 레이아웃을 만들고 `Fluent`로 컨트롤을 배치합니다. 애플리케이션 상태는 `UiState<T>`와 바인딩으로 연결합니다. C#과 선언형 `.ui` 파일을 사용할 수 있습니다.
-- **즉시 모드**는 `UiScreen.Render`와 `UiImmediateContext`로 그리기, 맞춤 입력 처리, 진단 화면을 구현합니다. 같은 애플리케이션에 즉시 모드 콘텐츠와 위젯을 배치할 수 있습니다.
-- **Fluent 2 테마**는 Windows 11의 밝은·어두운 디자인을 제공합니다. `UiTheme`, `UiDesignTokens`, `IUiDesign`으로 색상과 서체, 컨트롤 크기나 간격을 바꿀 수 있습니다. 테마 공급자를 사용하면 특정 영역에만 다른 테마를 적용할 수 있습니다.
+PowerShell 7에서 Gallery를 파일 기반 앱으로 실행합니다.
 
-가상화 목록과 데이터 그리드, SVG와 Markdown 위젯, 키보드 탐색과 플랫폼 접근성도 제공합니다. 플랫폼과 컴포넌트별 지원 범위는 문서에서 확인할 수 있습니다. [Fluent 2 지원 범위](docs/fluent2-coverage.ko.md) · [테마 공급자](docs/fluent2-provider.ko.md)
+~~~powershell
+curl.exe -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/v0.4.0/samples/fba/duxel_gallery.cs && dotnet run --file duxel_gallery.cs
+~~~
 
-## 갤러리 실행
+### Linux에서 시작하기
 
-.NET 11 SDK와 Vulkan을 지원하는 GPU가 있는 Windows에서 아래 PowerShell 한 줄을 실행하세요. C# 파일 하나를 내려받고 NuGet 패키지로 갤러리를 엽니다.
+Linux의 Bash에서 실행합니다. X11/Xwayland와 Vulkan이 준비된 WSLg에서도 실행할 수 있습니다. [Linux 설치 안내](docs/linux-platform.ko.md)
 
-```powershell
-$file = Join-Path ([IO.Path]::GetTempPath()) 'duxel_gallery_0_3_preview.cs'; Invoke-WebRequest 'https://raw.githubusercontent.com/dimohy/Duxel/v0.3.0-preview/samples/fba/duxel_gallery.cs' -OutFile $file -UseBasicParsing; dotnet run --file $file
-```
+~~~bash
+curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/v0.4.0/samples/fba/duxel_gallery_linux.cs && dotnet run --file duxel_gallery_linux.cs
+~~~
 
-저장소 소스로 갤러리를 빌드하려면 루트에서 실행합니다.
+## Fluent 2 앱 예제
 
-```powershell
-./run-gallery.ps1
-```
+계산기, 메모장, 대용량 목록, 움직이는 도형은 각각 C# 파일 하나로 실행합니다. Windows와 Linux에서 같은 소스를 씁니다. [예제별 한 줄 실행 명령](docs/fba-run-samples.ko.md)
 
-예제를 열어 컨트롤을 조작하고 C# 코드를 복사할 수 있습니다. 설정에서 영어, 한국어, 일본어, 간체 중국어를 선택할 수 있습니다. [갤러리 안내](docs/gallery-navigation.ko.md) · [Linux 설정](docs/linux-platform.ko.md)
+| 예제 | 이렇게 써 보세요 |
+| --- | --- |
+| [계산기](samples/fba/duxel_calculator.cs) | 소수 연산을 이어서 하고 0으로 나누었을 때의 표시도 확인합니다. |
+| [메모장](samples/fba/duxel_notepad.cs) | 로컬 메모를 편집하고 텍스트 파일로 저장합니다. |
+| [대용량 목록](samples/fba/duxel_large_list.cs) | 10만 행을 스크롤하거나 마지막 행으로 바로 이동합니다. 화면에 가까운 행만 위젯으로 만듭니다. |
+| [움직이는 도형](samples/fba/duxel_render_motion.cs) | 원의 수를 바꾸면서 같은 창에서 Fluent 2 컨트롤을 조작해 봅니다. |
 
-## Windows 앱 시작
+## 앱 만들기
 
-.NET 10 이상의 SDK를 사용하고 아래 코드를 `hello.cs`로 저장합니다. 이 예제는 NuGet에 공개된 Windows 패키지를 사용합니다.
+- `Dux`로 배치하고 `Fluent`로 컨트롤을 만듭니다. `UiState<T>`로 상태를 연결하고, 같은 창의 일부에 즉시 모드로 직접 그릴 수 있습니다.
+- Windows 또는 Linux 호스트를 프로젝트에서 참조하거나 C# 파일 상단에서 `#:package`로 지정합니다. 호스트와 공용 런타임은 .NET 8·9·10용 패키지 자산을 제공합니다. 0.4.0 Gallery는 .NET 11 SDK로 실행합니다.
+- 렌더링 동작은 Gallery, 대용량 목록, 도형 예제에서 확인할 수 있습니다. 이전 버전에서 어떤 조건으로 측정했는지는 [성능 기록](docs/archive/README.md)에 남겼습니다.
 
-```csharp
-#:property TargetFramework=net10.0
-#:property PublishAot=false
-#:property SelfContained=false
-#:package Duxel.Windows.App@0.3.0-preview
-
-using Duxel.App;
-using Duxel.Core;
-using Duxel.Windows.App;
-
-var clicks = new UiState<int>(0);
-var root = Dux.Column(12,
-    Fluent.Title2("Hello, Duxel"),
-    Fluent.Button("Add one", () => clicks.Value++),
-    Fluent.Body1(() => $"Count: {clicks.Value}"));
-
-DuxelWindowsApp.Run(DuxelApp.Options<LightDesign>(Dux.App(root), title: "Hello Duxel"));
-
-readonly struct LightDesign : IUiDesign
-{
-    public static UiCompiledDesign Create() => UiCompiledDesign.Windows11;
-}
-```
-
-```powershell
-dotnet run hello.cs
-```
-
-기존 Windows 프로젝트에는 `dotnet add package Duxel.Windows.App --version 0.3.0-preview`로 설치할 수 있습니다. 패키지는 .NET 8·9·10을 지원합니다. [파일 기반 앱 시작](docs/getting-started-fba.ko.md) · [선언형 C# 예제](samples/fba/declarative_dashboard_fba.cs) · [즉시 모드 예제](samples/fba/all_features.cs)
-
-## 소스 빌드
-
-```powershell
-dotnet build Duxel.slnx -c Release
-```
+[C# 앱 시작하기](docs/getting-started-fba.ko.md) · [API와 소스 위치](docs/duxel-agent-reference.ko.md) · [저장소 지침](AGENTS.md) · [AI 문서 색인](llms.txt)

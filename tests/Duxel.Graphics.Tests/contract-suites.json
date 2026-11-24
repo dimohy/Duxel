@@ -2,6 +2,9 @@
   "schemaVersion": 1,
   "graphicsContracts": [
     "popover-only",
+    "button-contrast-only",
+    "radio-contrast-only",
+    "toggle-button-contrast-only",
     "popup-input-only",
     "toolbar-only",
     "searchbox-only",

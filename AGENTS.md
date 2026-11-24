@@ -1,49 +1,7 @@
-# Codex Instructions
+# Duxel repository guide
 
-## 응답 스타일
-
-- 모든 외부 응답은 `네. 마스터님({이해도}%)` 형식으로 시작한다.
-- 이해도가 90%를 넘지 않으면, 이해도를 높이기 위한 선택형 질문을 제시한다.
-- 사용자가 명시적으로 다른 언어를 요구하지 않는 한 한국어로 답한다.
-
-## .github 지침 활용
-
-- Codex는 작업 시작 시 이 파일을 우선 기준으로 삼고, 프로젝트 세부 정책은 `.github/copilot-instructions.md`를 함께 참고한다.
-- `.github/copilot-instructions.md`의 상대 경로는 `.github/` 기준으로 해석한다.
-- `.github/copilot-instructions.md`와 이 파일이 충돌하면 이 파일을 우선한다.
-- Codex 환경에 없는 도구나 MCP 호출 강제 규칙은 적용하지 않는다. 예: `ask_user`, `fetch_webpage`, `fetch_url`.
-- `.github/copilot-instructions.md`의 대화 호칭 규칙은 Codex에서는 이 파일의 `네. 마스터님({이해도}%)` 규칙으로 대체한다.
-
-## Repo-local Skills
-
-- `.github/skills/*/SKILL.md`는 Codex가 활용해야 하는 저장소 로컬 스킬 카탈로그다.
-- 관련 작업이 감지되면 해당 `SKILL.md`를 먼저 읽고, 필요한 범위만 작업에 반영한다.
-- 스킬 문서가 추가 참조 파일이나 하위 폴더를 가리킬 때는 필요한 파일만 선별해서 읽는다.
-- `.github/skills/silk-dot-net-skill/Silk.NET/`는 참고 자료로만 사용하고, 필요한 특정 파일만 읽는다.
-- 스킬 내용과 현재 시스템/개발자 지침이 충돌하면 시스템/개발자 지침을 우선한다.
-
-### Skill Trigger Map
-
-- .NET/C# 작업: `.github/skills/dotnet-latest/SKILL.md`
-- 성능/메모리/핫패스 최적화: `.github/skills/dotnet-performance/SKILL.md`
-- 코드 생성/구조 변경: `.github/skills/dev-skill/SKILL.md`
-- Vulkan 구현: `.github/skills/vulkan/SKILL.md`
-- Vulkan 셰이더 또는 벤더별 최적화: `.github/skills/vulkan-shader-vendor-optimization/SKILL.md`
-- Windows 네이티브 API, Win32, DirectWrite, WIC, IMM, COM, P/Invoke: `.github/skills/windows-native-import/SKILL.md`
-- Vulkan P/Invoke 및 Silk.NET 대체 구현 참고: `.github/skills/silk-dot-net-skill/SKILL.md`
-- NativeAOT 배포/호환성: `.github/skills/nativeaot/SKILL.md`
-- ImGui 호환 API/동작 참고: `.github/skills/imgui/SKILL.md`
-- 새 스킬 조사/추가: `.github/skills/skill-acquisition/SKILL.md`
-
-## Project Policy Summary
-
-- 소스코드 변경 후에는 가능한 경우 빌드 또는 관련 검증 명령으로 확인한다.
-- 사용자 요청 수정이나 완성된 기능을 갤러리에 반영할 때마다 `samples/Duxel.Gallery/GalleryNavigation.cs`의 `GalleryRevision`을 같은 변경에서 1 올린다. 갤러리 동작에 영향을 주는 공통 라이브러리 변경에도 적용한다. Duxel의 주·부 버전 뒤에는 갤러리 번호를 앞자리 0 없이 표시한다(`0.3.3`).
-- 임시 산출물 삭제가 도구 정책이나 자동 승인 검토에서 거부되면 대상·거부 이유·미실행 상태를 기록하고, 목표 완료 시 정확한 경로와 사용자가 직접 정리할 방법을 안내한다. 삭제 거부만으로 독립적인 개발·검증을 중단하거나 전체 목표를 차단 상태로 전환하지 않는다. 삭제를 우회하거나 실제 삭제가 끝난 것으로 보고하지 않으며, 성공한 삭제의 기록과 보관 한도는 기존 정책을 따른다.
-- PowerShell 파일 시스템 작업은 와일드카드 확장에 의존하지 않는다. 경로는 먼저 확정하고 `-LiteralPath`를 사용하며, 여러 파일은 리터럴 디렉터리를 열거한 뒤 확장자/이름 속성으로 필터링한다.
-- 네이티브 실행 파일 인수는 보간된 단일 명령 문자열 대신 인수 배열로 전달한다. PowerShell 스크립트/함수의 이름 있는 매개변수는 문자열 배열이 아니라 해시테이블 스플래팅으로 전달한다. `rg`처럼 패턴이 옵션으로 오인될 수 있는 명령에는 옵션 종결자 `--`를 명시한다.
-- FBA 샘플을 로컬 소스 기준으로 실행할 때는 `./run-fba.ps1 samples/fba/<file>.cs -NoCache` 경로를 우선한다.
-- 성능 최적화는 `docs/optimization-policy.ko.md` 기준으로 가설, 변경, 검증, Before/After, 개선율, 리스크를 기록한다.
-- 문서/API/샘플 변경 시 `docs/duxel-agent-reference.md`와 `docs/duxel-agent-reference.ko.md`를 최신 상태로 유지한다.
-- 한국어/영문 문서는 쌍으로 존재하는 경우 함께 갱신한다.
-- 버전 히스토리에는 AI, Codex, Claude, agent가 작업했다는 뉘앙스나 도구 사용 사실을 기록하지 않는다. 변경된 제품 기능, 사용자 가치, API, 성능, 버그, 배포 사실만 기록한다.
+- Start with [README.md](README.md) or [README.ko.md](README.ko.md) for platform support and runnable examples. [docs/README.md](docs/README.md) links the public guides. [llms.txt](llms.txt) indexes the same sources.
+- Consult the [API and source map](docs/duxel-agent-reference.md), then verify the current signature in source. Use [Gallery examples](samples/Duxel.Gallery) and [file-based apps](samples/fba) as working references.
+- Build with the .NET SDK selected in `global.json`. Use `dotnet build Duxel.slnx -c Release` after project changes. For a user-facing Gallery change, update `GalleryRevision` and run the Gallery normally. Reserve the default full `scripts/Test-WidgetContracts.ps1` run for final acceptance after the implementation is in place.
+- Retain paired English and Korean user guides. Use versioned, verified NuGet packages in public FBA launchers.
+- Keep credentials, session handoffs, generated output, private working notes, and unpublished announcements in ignored paths. Publish product behavior and reproducible examples.

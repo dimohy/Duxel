@@ -29,9 +29,7 @@
     <Compile Include="../Duxel.Gallery/*.cs"
              Exclude="../Duxel.Gallery/Program.cs;../Duxel.Gallery/GalleryApp.cs;../Duxel.Gallery/ObserverServices.Windows.cs"
              Link="Observer/%(Filename)%(Extension)" />
-    <Compile Include="../Duxel.Sample/SampleScreen.cs" Link="Legacy/SampleScreen.cs" />
-    <Compile Include="../Duxel.Sample/ImGuiExamples.cs" Link="Legacy/ImGuiExamples.cs" />
-    <Compile Include="../Duxel.Sample/ImmediateSampleSection.cs" Link="Legacy/ImmediateSampleSection.cs" />
+    <Compile Include="../Duxel.Gallery/Immediate/*.cs" Link="Immediate/%(Filename)%(Extension)" />
     <None Include="../Duxel.Gallery/Assets/Svg/*.svg" Link="Assets/Svg/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/*.svg;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/*.browser.png;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/*.json;../../tests/Duxel.Svg.Managed.Tests/Fixtures/Browser/ATTRIBUTION.md"
           Link="Assets/Svg/Browser/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

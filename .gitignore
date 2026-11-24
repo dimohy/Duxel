@@ -9,8 +9,9 @@ artifacts/
 # Embedded repository in skills (exclude from main repo)
 .github/skills/imgui/imgui/
 
-# Ignore all .github contents
-.github/
+# Keep repository-local tooling private and publish the Copilot entry point.
+/.github/*
+!/.github/copilot-instructions.md
 
 # Rider/VS/VSCode
 .idea/
@@ -53,3 +54,6 @@ TestResults/
 /SESSION_HANDOFF.md
 /SESSION_RESTART*.md
 /local-docs/
+/docs/optimization-policy.ko.md
+/docs/optimization-session-*.md
+/docs/rejected-build-cleanup.ko.md

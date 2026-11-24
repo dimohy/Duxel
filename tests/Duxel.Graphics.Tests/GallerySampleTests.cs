@@ -2396,7 +2396,7 @@ internal static class GallerySampleTests
                 }
             }
             Frame(); Frame();
-            check(samples.Count == (page.Title switch { "Animation" => 4, "RadioGroup" => 5, "Image" => 3, _ => 1 }) && samplePage.HasInlineSamples,
+            check(samples.Count == (page.Title switch { "Animation" => 4, "RadioGroup" => 5, "Image" => 3, "Switch" => 2, _ => 1 }) && samplePage.HasInlineSamples,
                 "component owns its inline samples : " + page.Title);
             Snapshot("initial");
             if (page.Title == "Image")
@@ -2483,6 +2483,11 @@ internal static class GallerySampleTests
                 case "Switch":
                     Send("기능 사용", UiAccessibilityRole.Switch, UiAccessibilityAction.Toggle);
                     expected = "new UiState<bool>(true)";
+                    check(samples[1].Source.Contains("new UiState<bool>(false)", StringComparison.Ordinal),
+                        "the icon switch keeps its own state when the standard switch changes");
+                    Send("테마 미리 보기", UiAccessibilityRole.Switch, UiAccessibilityAction.Toggle);
+                    check(samples[1].Source.Contains("new UiState<bool>(true)", StringComparison.Ordinal),
+                        "the icon switch updates its own source");
                     break;
                 case "RadioGroup":
                     Send("품질 우선", UiAccessibilityRole.RadioButton, UiAccessibilityAction.Select);
@@ -2662,6 +2667,7 @@ internal static class GallerySampleTests
     internal static string ComponentFactoryMarker(string title, int index = 0) => title switch
     {
         "CodeView" => "new UiCodeView(",
+        "Switch" when index == 1 => "Fluent.IconSwitch(",
         "RadioGroup" when index == 1 => "UiFluentRadioGroupPresentation<UiRadioHorizontalLayout>",
         "RadioGroup" when index == 2 => "UiFluentRadioGroupPresentation<UiRadioHorizontalStackedLayout>",
         "Animation" => index switch

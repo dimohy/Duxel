@@ -145,9 +145,7 @@
     <DefineConstants>$(DefineConstants);DUXEL_GALLERY_PROFILING</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../samples/Duxel.Sample/SampleScreen.cs" Link="Observer/SampleScreen.cs" />
-    <Compile Include="../../samples/Duxel.Sample/ImGuiExamples.cs" Link="Observer/ImGuiExamples.cs" />
-    <Compile Include="../../samples/Duxel.Sample/ImmediateSampleSection.cs" Link="Observer/ImmediateSampleSection.cs" />
+    <Compile Include="../../samples/Duxel.Gallery/Immediate/*.cs" Link="Observer/%(Filename)%(Extension)" />
     <Compile Include="../../samples/Duxel.Gallery/ControlsPage.cs" Link="Observer/ControlsPage.cs" />
     <Compile Include="../../samples/Duxel.Gallery/TabExampleIcons.cs" Link="Observer/TabExampleIcons.cs" />
     <Compile Include="../../samples/Duxel.Gallery/GalleryThemeSwitchIcons.cs" Link="Observer/GalleryThemeSwitchIcons.cs" />

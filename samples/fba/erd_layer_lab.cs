@@ -847,15 +847,17 @@ public sealed class ErdLayerLab : UiScreen
         var movement = table.Position - table.GeometryOrigin;
         scene = scene with { PlaneModel = new(new(movement.X, movement.Y),
             -.2f * (float)((double)table.DepthRank / _frontSequence)) };
-        // Projected DirectWrite glyphs use a fixed font size and cursor anchor.
         var options = Options(scene, table.Revision, fontAtlasIndependent: ui.GetDirectTextEnabled());
         if (_directLayerReplay && ui.TryReplayLayer(table.LayerId, options)) return;
+
+        var origin = Origin(board, table.GeometryOrigin);
+        var bounds = new UiRect(origin.X, origin.Y, TableWidth, TableHeight);
+        if (scene.IsPlaneOutsideViewport(bounds, board)) return;
+
         if (ui.BeginLayer(table.LayerId, options))
         {
             _builds++;
             var draw = ui.GetWindowDrawList();
-            var origin = Origin(board, table.GeometryOrigin);
-            var bounds = new UiRect(origin.X, origin.Y, TableWidth, TableHeight);
             draw.PushClipRect(bounds);
             draw.AddRectFilledRounded(bounds, new(0xFF352C25), index == _selected ? new(0xFFFFFFFF) : new(0xFF655140), ui.WhiteTextureId, 10, index == _selected ? 2 : 1, draw.GetClipRect());
             var title = new UiRect(origin.X + 2, origin.Y + 2, TableWidth - 4, 43);

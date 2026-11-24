@@ -1,21 +1,13 @@
 # Duxel documentation
 
-[한국어](README.ko.md) · [Project home](../README.md) · [Release history](version-history.md)
+[한국어](README.ko.md) · [Project README](../README.md)
 
-| I want to… | Read |
+| Start here | What you can do |
 | --- | --- |
-| Start a Windows app or run a sample | [File-based app quick start](getting-started-fba.md), [sample catalog](fba-run-samples.md) |
-| Try controls and copy working C# | [Duxel Gallery](gallery-navigation.md) |
-| Choose immediate mode, retained mode, or both | [Architecture](design.md), [custom widgets](custom-widgets.md), [containers](widget-containers.md), [declarative `.ui`](ui-dsl.md) |
-| Choose and customize a design | [Fluent 2 overview and coverage](fluent2-coverage.md), [theme provider](fluent2-provider.md), [typography](fluent2-typography.md), [system contrast](system-forced-colors.md) |
-| Display or edit content | [DataGrid](fluent2-data-grid.md), [SVG](svg-support.md), [Markdown](markdown-widgets.md), [file dialogs](file-dialogs.md), [date and time pickers](date-time-pickers.md) |
-| Support keyboard use and assistive technology | [Keyboard behavior](widget-keyboard.md), [accessibility](widget-accessibility.md), [focus](accessibility-focus.md) |
-| Configure or deploy on a platform | [Linux](linux-platform.md), [Windows title bars](extended-title-bar-guide.md), [toolchain status](native-toolchain-status.md) |
-
-## Development and performance
-
-See [retained rendering](retained-rendering.md), [widget validation](widget-contract-validation.md), and the [engineering archive](archive/README.md) for earlier measurements and designs.
-
-## AI-assisted development
-
-Give your coding assistant the [Duxel guide for AI-assisted development](duxel-agent-reference.md). It explains immediate mode and retained mode, gives a starting prompt, and points to the public API and runnable examples.
+| [Gallery guide](gallery-navigation.md) | Find, try, and copy an example from the desktop Gallery. |
+| [File-based apps](getting-started-fba.md) | Set up .NET and build a shared Windows/Linux C# UI. |
+| [Runnable Fluent 2 apps](fba-run-samples.md) | Launch a calculator, notepad, virtual list, or animated canvas from one C# file. |
+| [Linux and WSLg](linux-platform.md) | Install system prerequisites and run the Linux Gallery FBA. |
+| [API and source map](duxel-agent-reference.md) | Locate the current implementation and runnable uses of each API. |
+| [Version history](version-history.md) | Identify what shipped in Duxel 0.4.0. |
+| [Historical performance record](archive/README.md) | Find the retained benchmark programs and measurement context. |

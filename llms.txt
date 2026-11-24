@@ -1,0 +1,22 @@
+# Duxel
+
+> Duxel is a cross-platform C#/.NET desktop UI library for Windows (Win32) and Linux (X11), with Fluent 2 widgets, retained-mode layouts, immediate drawing, and Vulkan rendering. Try it from a .NET 11 file-based app using public NuGet packages.
+
+## Getting started
+
+- [README](https://github.com/dimohy/Duxel): Platform support, Gallery launchers, and runnable app examples.
+- [Korean README](https://github.com/dimohy/Duxel/blob/main/README.ko.md): Korean quick start and desktop examples.
+- [File-based apps](https://github.com/dimohy/Duxel/blob/main/docs/getting-started-fba.md): Windows and Linux host choices and the shared C# example.
+- [Linux and WSLg setup](https://github.com/dimohy/Duxel/blob/main/docs/linux-platform.md): X11, Vulkan, fonts, and Linux Gallery launch.
+- [Runnable Fluent 2 apps](https://github.com/dimohy/Duxel/blob/main/docs/fba-run-samples.md): One-file apps for calculator, notepad, large list, and motion.
+
+## Reference
+
+- [API and source map](https://github.com/dimohy/Duxel/blob/main/docs/duxel-agent-reference.md): Where to confirm signatures and find working examples.
+- [Repository instructions](https://github.com/dimohy/Duxel/blob/main/AGENTS.md): Build, validation, and public documentation conventions.
+- [Gallery guide](https://github.com/dimohy/Duxel/blob/main/docs/gallery-navigation.md): How to find, try, and copy Gallery examples.
+- [Version history](https://github.com/dimohy/Duxel/blob/main/docs/version-history.md): Released package names and platform scope.
+
+## Optional
+
+- [Historical performance archive](https://github.com/dimohy/Duxel/blob/main/docs/archive/README.md): Earlier workloads and measurements.
