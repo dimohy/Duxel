@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Duxel.Linux.App/Duxel.Linux.App.csproj" />
+    <ProjectReference Include="../../src/Duxel.Platform.Linux/Duxel.Platform.Linux.csproj" />
     <ProjectReference Include="../../src/Duxel.Svg/Duxel.Svg.csproj" />
     <None Include="Assets/**/*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

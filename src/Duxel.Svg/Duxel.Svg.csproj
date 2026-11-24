@@ -18,9 +18,9 @@
     <Compile Include="../Shared/DirectWriteLongTextShaper.FontScope.cs" Link="Interop/DirectWriteLongTextShaper.FontScope.cs" />
     <Compile Include="../Shared/DirectWriteLongTextShaper.Paragraph.cs" Link="Interop/DirectWriteLongTextShaper.Paragraph.cs" />
     <Compile Include="../Shared/DirectWriteLongTextShaper.InlineObjects.cs" Link="Interop/DirectWriteLongTextShaper.InlineObjects.cs" />
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="14.2.0"
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="$(DuxelHarfBuzzVersion)"
                       Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-')) or ('$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux')))" />
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.macOS" Version="14.2.0"
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.macOS" Version="$(DuxelHarfBuzzVersion)"
                       Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-')) or ('$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('OSX')))" />
   </ItemGroup>
   <!-- Notices are content on every target; the native package references above remain target-specific. -->

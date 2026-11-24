@@ -2,5 +2,7 @@
   <PropertyGroup>
     <DuxelVersion>0.4.0</DuxelVersion>
     <DuxelHashingVersion>10.0.13</DuxelHashingVersion>
+    <DuxelLibTessVersion>1.1.15</DuxelLibTessVersion>
+    <DuxelHarfBuzzVersion>14.2.0</DuxelHarfBuzzVersion>
   </PropertyGroup>
 </Project>

@@ -8,10 +8,24 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible>true</IsAotCompatible>
+    <IsPackable>true</IsPackable>
+    <PackageId>Duxel.Gallery.Linux</PackageId>
+    <Version>$(DuxelVersion)</Version>
+    <Authors>dimohy</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/dimohy/Duxel</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/dimohy/Duxel</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Duxel.Linux.App/Duxel.Linux.App.csproj" />
-    <ProjectReference Include="../../src/Duxel.Svg/Duxel.Svg.csproj" />
+    <ProjectReference Include="../../src/Duxel.Platform.Linux/Duxel.Platform.Linux.csproj" PrivateAssets="all" />
+    <ProjectReference Include="../../src/Duxel.Svg/Duxel.Svg.csproj" PrivateAssets="all" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="$(DuxelHarfBuzzVersion)" />
+    <None Include="../../docs/nuget-gallery-linux-readme.md" Pack="true" PackagePath="README.md" />
+    <None Include="../../src/Duxel.Svg/ThirdParty/HarfBuzz/LICENSE.txt;../../src/Duxel.Svg/ThirdParty/HarfBuzz/THIRD-PARTY-NOTICES.txt"
+          Link="ThirdParty/HarfBuzz/%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
     <Compile Include="../Duxel.Gallery/*.cs"
              Exclude="../Duxel.Gallery/Program.cs;../Duxel.Gallery/GalleryApp.cs;../Duxel.Gallery/ObserverServices.Windows.cs"
              Link="Observer/%(Filename)%(Extension)" />
@@ -52,4 +66,5 @@
   <ItemGroup>
     <None Include="../Duxel.Gallery/Assets/Image/*" Link="Assets/Image/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+  <Import Project="../Duxel.Gallery/Gallery.Package.targets" />
 </Project>

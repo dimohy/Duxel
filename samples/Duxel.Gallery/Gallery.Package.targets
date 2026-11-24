@@ -1,0 +1,25 @@
+<Project>
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeGallerySvgAssembly</TargetsForTfmSpecificBuildOutput>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeGalleryAssets</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+  <Target Name="IncludeGallerySvgAssembly" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)"
+                            Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'Duxel.Svg' and '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="IncludeGalleryAssets" DependsOnTargets="AssignTargetPaths">
+    <ItemGroup>
+      <_GalleryAsset Include="@(_NoneWithTargetPath)"
+                     Condition="'%(_NoneWithTargetPath.CopyToPublishDirectory)' == 'PreserveNewest'" />
+      <TfmSpecificPackageFile Include="@(_GalleryAsset)">
+        <PackagePath>contentFiles/any/any/%(_GalleryAsset.TargetPath)</PackagePath>
+        <BuildAction>None</BuildAction>
+        <PackageCopyToOutput>true</PackageCopyToOutput>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
+</Project>

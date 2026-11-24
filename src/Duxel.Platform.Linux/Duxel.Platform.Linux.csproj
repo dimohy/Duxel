@@ -11,6 +11,6 @@
     <InternalsVisibleTo Include="Duxel.Linux.App.Tests" />
     <InternalsVisibleTo Include="Duxel.Vulkan.Linux.Tests" />
     <ProjectReference Include="../Duxel.Core/Duxel.Core.csproj" />
-    <PackageReference Include="LibTessDotNet" Version="1.1.15" />
+    <PackageReference Include="LibTessDotNet" Version="$(DuxelLibTessVersion)" />
   </ItemGroup>
 </Project>

@@ -4,10 +4,31 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CA2255</NoWarn>
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
+    <PackageId>Duxel.Linux.App</PackageId>
+    <Version>$(DuxelVersion)</Version>
+    <Authors>dimohy</Authors>
+    <Description>Linux X11 host for Duxel, a Vulkan-rendered .NET desktop UI library.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/dimohy/Duxel</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/dimohy/Duxel</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeLinuxPlatformOutputInPackage</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../Duxel.App/Duxel.App.csproj" />
-    <ProjectReference Include="../Duxel.Platform.Linux/Duxel.Platform.Linux.csproj" />
+    <ProjectReference Include="../Duxel.App/Duxel.App.csproj" PrivateAssets="contentfiles;build" />
+    <ProjectReference Include="../Duxel.Platform.Linux/Duxel.Platform.Linux.csproj" PrivateAssets="all" />
+    <ProjectReference Include="../Duxel.Core.Dsl.Generator/Duxel.Core.Dsl.Generator.csproj"
+                      PrivateAssets="all" GlobalPropertiesToRemove="PublishAot;SelfContained;RuntimeIdentifier"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <PackageReference Include="LibTessDotNet" Version="$(DuxelLibTessVersion)" />
+    <None Include="../../docs/nuget-linux-package-readme.md" Pack="true" PackagePath="README.md" />
   </ItemGroup>
+  <Target Name="IncludeLinuxPlatformOutputInPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)"
+                            Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference' and '%(ReferenceCopyLocalPaths.Filename)' == 'Duxel.Platform.Linux' and '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
+    </ItemGroup>
+  </Target>
 </Project>

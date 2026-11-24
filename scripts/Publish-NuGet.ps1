@@ -61,7 +61,9 @@ if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) {
 $projects = [ordered]@{
     'Duxel.App' = 'src/Duxel.App/Duxel.App.csproj'
     'Duxel.Windows.App' = 'src/Duxel.Windows.App/Duxel.Windows.App.csproj'
+    'Duxel.Linux.App' = 'src/Duxel.Linux.App/Duxel.Linux.App.csproj'
     'Duxel.Gallery' = 'samples/Duxel.Gallery/Duxel.Gallery.csproj'
+    'Duxel.Gallery.Linux' = 'samples/Duxel.Gallery.Linux/Duxel.Gallery.Linux.csproj'
 }
 $output = Join-Path $repoRoot $PackageDirectory
 
