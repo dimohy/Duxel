@@ -140,7 +140,13 @@ public sealed unsafe partial class LinuxPlatformTextBackend
     {
         if (contours.Count == 0)
             return new([], [], curves);
+#if DUXEL_COMPACT
+        // The standard pool compiles an expression tree to construct its nodes.
+        // The allocation-only pool uses the same tessellator without that dependency.
+        var tessellator = new Tess(new NullPool()) { NoEmptyPolygons = true };
+#else
         var tessellator = new Tess { NoEmptyPolygons = true };
+#endif
         foreach (var contour in contours)
         {
             var vertices = new ContourVertex[contour.Count];

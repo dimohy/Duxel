@@ -13,11 +13,13 @@ All rows use .NET SDK **11.0.100** and Release builds. Sizes count the executabl
 | Published Duxel 0.4.0 · NativeAOT defaults | 12,812,800 bytes | 13,566,208 bytes |
 | Published Duxel 0.4.0 · size optimization | 12,038,656 bytes | 13,431,344 bytes |
 | Published Duxel 0.4.0 · size optimization and invariant globalization | 11,818,496 bytes | 13,233,648 bytes |
-| Repository source · compact build and the runtime settings below | **4,846,592 bytes (4.85 MB)** | **6,137,176 bytes (6.14 MB)** |
+| Repository source · compact build and the runtime settings below | **4,846,592 bytes (4.85 MB)** | **5,283,592 bytes (5.28 MB)** |
+
+The table targets .NET 11. With the same source and publish settings targeting .NET 10, the Linux executable was **5,225,312 bytes (5.23 MB, 4.98 MiB)** and presented its first frame.
 
 The published Windows executable contained about 6.08 MB of embedded resources, including 5.47 MB of Fluent icon fonts and 0.62 MB of Vulkan shaders. NativeAOT already trims code. As long as the app can load a resource from its assembly, code trimming can leave that resource intact. The opt-in compact build omits embedded icon fonts, compresses the Vulkan shaders it still needs, and leaves out the managed file picker fallback.
 
-In the compact Linux executable, managed code compiled to native instructions takes 3.09 MB. Unwind and exception tables take another 1.06 MB. The Linux build is still above 5 MB.
+On Linux, the compact build keeps vector glyph tessellation and uses LibTessDotNet's allocation-only pool. The default pool brings in the .NET expression-tree interpreter to construct tessellation objects. Switching pools saved 853,584 bytes in this sample. The Linux build is still above 5 MB. [LibTessDotNet pool implementation](https://github.com/speps/LibTessDotNet/blob/v1.1.15/LibTessDotNet/Sources/MeshUtils.cs)
 
 ## Reproduce the compact build
 
@@ -48,6 +50,8 @@ wc -c out/native/duxel_hello
 ~~~
 
 The window should display **Hello, Duxel**. The executable includes the .NET runtime. The target needs its platform libraries, a Vulkan driver, and the fonts and assets used by the app.
+
+To reproduce the Linux .NET 10 measurement, keep SDK 11 and change the sample's first line to `#:property TargetFramework=net10.0`. Run the Linux commands above with different output and artifact directories.
 
 ## Choose settings for your app
 

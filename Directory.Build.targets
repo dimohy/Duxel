@@ -8,10 +8,16 @@
                                 Condition="'%(ProjectReference.Filename)' == 'Duxel.Core.Dsl.Generator'" />
     </ItemGroup>
 
-    <Error Condition="'@(_DuxelWindowsAppReference)' != '' and '@(_DuxelGeneratorReference)' == '' and !Exists('$(MSBuildThisFileDirectory)src\Duxel.Core.Dsl.Generator\bin\$(Configuration)\netstandard2.0\Duxel.Core.Dsl.Generator.dll')"
+    <MSBuild Condition="'@(_DuxelWindowsAppReference)' != '' and '@(_DuxelGeneratorReference)' == ''"
+             Projects="$(MSBuildThisFileDirectory)src/Duxel.Core.Dsl.Generator/Duxel.Core.Dsl.Generator.csproj"
+             Targets="GetTargetPath"
+             RemoveProperties="TargetFramework;RuntimeIdentifier;SelfContained;PublishAot">
+      <Output TaskParameter="TargetOutputs" ItemName="_DuxelImplicitGeneratorPath" />
+    </MSBuild>
+    <Error Condition="'@(_DuxelWindowsAppReference)' != '' and '@(_DuxelGeneratorReference)' == '' and ('@(_DuxelImplicitGeneratorPath)' == '' or !Exists('@(_DuxelImplicitGeneratorPath)'))"
            Text="DUXEL-GENERATOR-MISSING: build the local Duxel source generator before compiling its consumer." />
     <ItemGroup Condition="'@(_DuxelWindowsAppReference)' != '' and '@(_DuxelGeneratorReference)' == ''">
-      <Analyzer Include="$(MSBuildThisFileDirectory)src\Duxel.Core.Dsl.Generator\bin\$(Configuration)\netstandard2.0\Duxel.Core.Dsl.Generator.dll" />
+      <Analyzer Include="@(_DuxelImplicitGeneratorPath)" />
       <AdditionalFiles Include="$(MSBuildThisFileDirectory)src\Duxel.Core\Assets\FluentIcons\FluentSystemIcons-Regular.json" Exclude="@(AdditionalFiles)" />
       <AdditionalFiles Include="$(MSBuildThisFileDirectory)src\Duxel.Core\Assets\FluentIcons\FluentSystemIcons-Filled.json" Exclude="@(AdditionalFiles)" />
     </ItemGroup>

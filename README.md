@@ -70,7 +70,7 @@ The Calculator, Notepad, Large List, and Motion Canvas use the same C# source on
 
 ## Publish a small NativeAOT app
 
-A minimal Fluent 2 app published to **4.85 MB on Windows x64** and **6.14 MB on Linux x64** with the opt-in compact build. The [NativeAOT guide](docs/native-aot.md) shows the baseline, exact byte counts, and reproducible commands.
+A minimal Fluent 2 app published to **4.85 MB on Windows x64** targeting .NET 11, and **5.23 MB on Linux x64** targeting .NET 10, with the opt-in compact build. The [NativeAOT guide](docs/native-aot.md) shows the baseline, exact byte counts, and reproducible commands.
 
 ## Build with Duxel
 
