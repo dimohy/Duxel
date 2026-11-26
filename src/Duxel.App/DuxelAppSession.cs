@@ -146,6 +146,7 @@ public sealed partial class DuxelAppSession
         EmitStartupTiming("StartupClear");
 
         var renderedFrameNumber = 0;
+        long lastPresentedResizeSequence = 0;
         var appStartTimestamp = Stopwatch.GetTimestamp();
         var autoExitSeconds = DuxelApp.ParseAutoExitSeconds(Environment.GetEnvironmentVariable("DUXEL_SAMPLE_AUTO_EXIT_SECONDS"));
 
@@ -386,7 +387,10 @@ public sealed partial class DuxelAppSession
                     if (presentedCount == 1)
                         platform.NotifyFirstFramePresented();
                     if (work.ResizeSequence > 0)
+                    {
+                        Volatile.Write(ref lastPresentedResizeSequence, work.ResizeSequence);
                         platform.NotifyFramePresented(work.ResizeSequence);
+                    }
                     if (Interlocked.Exchange(ref startupFirstFrameLogged, 1) == 0)
                         EmitStartupTiming("FirstFramePresented");
                 }
@@ -490,13 +494,14 @@ public sealed partial class DuxelAppSession
                     var hasInputInvalidation = AppInputSnapshots.HasInputDrivenInvalidation(snapshot, lastObservedInput);
                     lastObservedInput = AppInputSnapshots.Clear(snapshot);
                     var hasPendingRenderWork = fontTextureDirty || pendingGlyphs > 0 || fullAtlasTask is not null || incrementalAtlasTask is not null;
-                    // Native size commits already request frames. Holding a
-                    // resize gesture alone must not queue unchanged old frames.
+                    // A native size commit can arrive after sampling the size but
+                    // before consuming its wake. Keep scheduling until it presents.
+                    var hasUnpresentedResize = interactiveResizeSequence > Volatile.Read(ref lastPresentedResizeSequence);
                     // Widget animations declare deadlines; only an explicit continuous
                     // producer bypasses the interruptible event/deadline wait.
                     var hasAnimationWork = frameOptions.IsAnimationActiveProvider?.Invoke() ?? false;
                     var hasRequestedFrame = TryConsumeFrameRequest();
-                    if (frameOptions.EnableIdleFrameSkip && Volatile.Read(ref renderedFrameNumber) > 0)
+                    if (frameOptions.EnableIdleFrameSkip && !hasUnpresentedResize && Volatile.Read(ref renderedFrameNumber) > 0)
                     {
                         if (!hasInputInvalidation && !hasPendingRenderWork && !hasAnimationWork && !hasRequestedFrame)
                         {

@@ -7,7 +7,7 @@ using Duxel.Platform.Windows;
 
 internal static partial class ResizeInteractionTests
 {
-    internal static unsafe void Run(Action<bool,string> check,int frameSlots,string? output=null,int cycles=3,int delayMs=8,bool systemTitle=false,bool synchronous=false,bool diagnostics=true,UiScreen? content=null,bool vsync=true,Func<bool>? contentReady=null)
+    internal static unsafe void Run(Action<bool,string> check,int frameSlots,string? output=null,int cycles=3,int delayMs=8,bool systemTitle=false,bool synchronous=false,bool diagnostics=true,UiScreen? content=null,bool vsync=true,Func<bool>? contentReady=null,bool verifyResizeWake=false)
     {
         if(cycles is <1 or >30)throw new ArgumentOutOfRangeException(nameof(cycles),"Resize qualification supports1..30cycles.");
         Duxel.Vulkan.VulkanRendererBackend.ValidationResizeDiagnostics=synchronous&&diagnostics;
@@ -28,6 +28,18 @@ internal static partial class ResizeInteractionTests
             Resizable=true,ShowMinimizeButton=true,ShowMaximizeButton=true,
             KeyRepeatSettingsProvider=new WindowsKeyRepeatSettingsProvider(),TrayOptions=new(),FrameInvalidated=session.RequestFrame});
         using var screen=new ResizeScreen(platform,content);ExceptionDispatchInfo? failure=null;
+        using var sizeSampled = new ManualResetEventSlim(false);
+        var pauseAfterSizeSample = 0;
+        bool PauseAtFrameRequest()
+        {
+            if (Interlocked.Exchange(ref pauseAfterSizeSample, 0) != 0)
+            {
+                sizeSampled.Set();
+                if (!SpinWait.SpinUntil(() => platform.ValidationResizePresentationWaitActive, TimeSpan.FromSeconds(2)))
+                    throw new TimeoutException("The resize commit did not reach its presentation wait.");
+            }
+            return false;
+        }
         using var observation=synchronous&&diagnostics&&output is not null?new Timer(_=>
             File.AppendAllText(Path.Combine(output,"live-waits.log"),$"{DateTime.UtcNow:O} phase={Duxel.Vulkan.VulkanRendererBackend.ValidationWaitPhase} {Duxel.Vulkan.VulkanRendererBackend.ValidationResizeSnapshot}{Environment.NewLine}"),null,1000,1000):null;
         var passes=new List<ResizePass>();
@@ -47,6 +59,28 @@ internal static partial class ResizeInteractionTests
                 _=ShowWindow(platform.WindowHandle,4);
                 Wait(()=>IsWindowVisible(platform.WindowHandle),"owned resize window is actually visible");
                 Wait(()=>contentReady?.Invoke()??true,"gallery source viewport ready");
+                if (verifyResizeWake)
+                {
+                    Thread.Sleep(300);
+                    if (SendMessageTimeoutW(platform.WindowHandle, 0x231, 0, 0, 2, 3000, out _) == 0)
+                        throw new TimeoutException("Enter idle resize.");
+                    var size = platform.FramebufferSize;
+                    var expectedSequence = platform.InteractiveResizeSequence + 1;
+                    Volatile.Write(ref pauseAfterSizeSample, 1);
+                    session.RequestFrame();
+                    if (!sizeSampled.Wait(TimeSpan.FromSeconds(3)))
+                        throw new TimeoutException("The render loop did not sample the previous extent.");
+
+                    // Equal extents let the old frame present successfully, so Vulkan
+                    // has no reason to retry even though a newer size commit is waiting.
+                    var packedSize = (nint)((size.Height << 16) | size.Width);
+                    if (SendMessageTimeoutW(platform.WindowHandle, 0x0005, 0, packedSize, 2, 3000, out _) == 0)
+                        throw new TimeoutException("An idle size commit was not acknowledged after its wake was consumed.");
+                    check(platform.ValidationPresentedResizeSequence >= expectedSequence,
+                        "A size commit after frame sampling is presented even when its wake was already consumed");
+                    if (SendMessageTimeoutW(platform.WindowHandle, 0x232, 0, 0, 2, 3000, out _) == 0)
+                        throw new TimeoutException("Exit idle resize.");
+                }
                 for(var pass=0;pass<cycles;pass++)
                 {
                     Console.WriteLine($"Resize phase: pass {pass} start");
@@ -121,7 +155,9 @@ internal static partial class ResizeInteractionTests
         }){IsBackground=true,Name="OwnedResizeController"};
         controller.Start();
         session.RunCore(new(){Screen=screen,Window=new(){Width=640,Height=480,VSync=vsync,UseDuxelTitleBar=!systemTitle},
-            Renderer=new(){MaxFramesInFlight=frameSlots}},platform);
+            Renderer=new(){MaxFramesInFlight=frameSlots},
+            Font=new(){FastStartup=!verifyResizeWake},
+            Frame=new(){UseEventDrivenPlatformLoop=verifyResizeWake, IsAnimationActiveProvider=verifyResizeWake ? PauseAtFrameRequest : null}},platform);
         Console.WriteLine("Resize phase: session disposed");
         if(!controller.Join(10000))throw new TimeoutException("resize controller exit");
         if(output is not null)File.WriteAllText(Path.Combine(output,"resize-trace.json"),System.Text.Json.JsonSerializer.Serialize(

@@ -1646,14 +1646,15 @@ if (args.Length >= 2 && args[1] == "gallery-resize")
     return;
 }
 
-if (args.Length is 3 or 4 or 5 && args[1] is "resize-stress" or "resize-system-stress")
+if (args.Length is 3 or 4 or 5 && args[1] is "resize-stress" or "resize-system-stress" or "resize-system-wake")
 {
     var destination = Path.GetFullPath(args[0]);
     Directory.CreateDirectory(destination);
     var resizeChecks = new List<string>();
     if (args.Length == 5 && args[4] != "no-diagnostics")
         throw new ArgumentException("Expected no-diagnostics as the final resize option.");
-    ResizeInteractionTests.Run((condition, name) => { if (!condition) throw new InvalidOperationException(name); resizeChecks.Add(name); Console.WriteLine("PASS " + name); }, int.Parse(args[2]), destination, args.Length >= 4 ? int.Parse(args[3]) : 30, 0, args[1] == "resize-system-stress", true, args.Length != 5);
+    ResizeInteractionTests.Run((condition, name) => { if (!condition) throw new InvalidOperationException(name); resizeChecks.Add(name); Console.WriteLine("PASS " + name); }, int.Parse(args[2]), destination, args.Length >= 4 ? int.Parse(args[3]) : 30, 0, args[1] != "resize-stress", true, args.Length != 5,
+        verifyResizeWake: args[1] == "resize-system-wake");
     File.WriteAllText(Path.Combine(destination, "result.json"), JsonSerializer.Serialize(new GraphicsResult(RuntimeInformation.FrameworkDescription, args[1], resizeChecks.Count, resizeChecks.ToArray(), 0, 0, 0, 0), GraphicsJson.Default.GraphicsResult));
     return;
 }
