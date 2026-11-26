@@ -742,6 +742,10 @@ public sealed unsafe partial class VulkanRendererBackend
 
     private static byte[] LoadEmbeddedShader(string resourceName)
     {
+#if DUXEL_LINUX_SHADER_ARCHIVE
+        return CompactShaderArchive.Shaders.TryGetValue(resourceName, out var shader)
+            ? shader : throw new InvalidOperationException($"Embedded shader not found: {resourceName}.");
+#else
         var assembly = typeof(VulkanRendererBackend).Assembly;
         using var stream = assembly.GetManifestResourceStream(resourceName)
             ?? throw new InvalidOperationException($"Embedded shader not found: {resourceName}.");
@@ -760,6 +764,7 @@ public sealed unsafe partial class VulkanRendererBackend
         var buffer = new byte[(int)stream.Length];
         stream.ReadExactly(buffer);
         return buffer;
+#endif
 #endif
     }
 }

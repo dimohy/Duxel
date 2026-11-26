@@ -13,13 +13,13 @@
 | 공개 Duxel 0.4.0 · NativeAOT 기본값 | 12,812,800바이트 | 13,566,208바이트 |
 | 공개 Duxel 0.4.0 · 크기 우선 최적화 | 12,038,656바이트 | 13,431,344바이트 |
 | 공개 Duxel 0.4.0 · 크기 우선 최적화와 고정 문화권 설정 | 11,818,496바이트 | 13,233,648바이트 |
-| 저장소 소스 · 용량 절약 빌드와 아래 런타임 옵션 | **4,846,592바이트 (4.85 MB)** | **5,283,592바이트 (5.28 MB)** |
+| 저장소 소스 · 아래의 용량 절약 옵션 | **4,846,592바이트 (4.85 MB)** | **5,045,808바이트 (5.05 MB)** |
 
-표의 게시 대상은 .NET 11입니다. 같은 코드와 옵션으로 Linux에서 .NET 10을 대상으로 게시했을 때는 **5,225,312바이트 (5.23 MB, 4.98 MiB)**였고 첫 화면도 확인했습니다.
+표의 게시 대상은 .NET 11입니다. 같은 코드와 옵션으로 Linux에서 .NET 10을 대상으로 게시했을 때는 **4,979,416바이트 (4.98 MB)**였고 첫 화면도 확인했습니다.
 
 공개 패키지로 만든 Windows 실행 파일에 내장 리소스가 약 6.08 MB 들어 있었습니다. Fluent 아이콘 글꼴이 5.47 MB, Vulkan 셰이더가 0.62 MB였습니다. NativeAOT는 사용하지 않는 코드를 트리밍합니다. 앱이 어셈블리에서 읽을 수 있는 리소스는 코드가 줄어들어도 남을 수 있습니다. 용량 절약 옵션을 켜면 아이콘 글꼴을 내장하지 않고, Vulkan에 필요한 셰이더는 압축하며, 네이티브 파일 대화 상자를 쓸 수 없을 때 대신 열던 Duxel 파일 선택기는 제외합니다.
 
-Linux 용량 절약 빌드는 벡터 글자의 윤곽을 같은 알고리즘으로 삼각형으로 나눕니다. 기본 객체 풀은 필요한 객체를 만들기 위해 .NET의 표현식 트리 인터프리터를 포함합니다. 객체를 직접 할당하는 방식으로 바꿔 이 예제에서 853,584바이트를 줄였습니다. Linux 실행 파일은 아직 5 MB를 넘습니다. [LibTessDotNet 객체 풀 구현](https://github.com/speps/LibTessDotNet/blob/v1.1.15/LibTessDotNet/Sources/MeshUtils.cs)
+Linux 용량 절약 빌드는 벡터 글자의 윤곽을 같은 알고리즘으로 삼각형으로 나눕니다. 객체를 직접 할당해 기본 객체 풀에서 쓰던 .NET 표현식 트리 인터프리터를 덜어냅니다. `DuxelLinuxShaderArchive` 옵션을 켜면 Vulkan 셰이더를 하나의 Brotli 파일로 묶고 시스템 라이브러리로 풉니다. 압축을 푼 셰이더 24개를 원본과 대조해 바이트가 모두 일치하는 것을 확인했습니다. [LibTessDotNet 객체 풀 구현](https://github.com/speps/LibTessDotNet/blob/v1.1.15/LibTessDotNet/Sources/MeshUtils.cs)
 
 ## 용량 절약 빌드 재현하기
 
@@ -39,9 +39,12 @@ dotnet publish samples/fba/duxel_hello.cs -c Release -r win-x64 `
 
 ### Linux x64 · Bash
 
+Brotli 런타임 라이브러리를 설치합니다. Ubuntu 24.04의 패키지 이름은 `libbrotli1`입니다. 표와 같은 조건으로 잴 때는 `DuxelLinuxShaderArchive` 옵션을 켭니다.
+
 ~~~bash
 dotnet publish samples/fba/duxel_hello.cs -c Release -r linux-x64 \
   -p:PublishAot=true -p:DuxelCompact=true -p:OptimizationPreference=Size \
+  -p:DuxelLinuxShaderArchive=true \
   -p:InvariantGlobalization=true -p:StackTraceSupport=false -p:EventSourceSupport=false \
   -p:UseSystemResourceKeys=true -p:IlcScanReflection=false \
   "-p:ArtifactsPath=$PWD/out/native-objects" -o out/native
@@ -51,7 +54,7 @@ wc -c out/native/duxel_hello
 
 창에 **Hello, Duxel**이 표시됩니다. 실행 파일에 .NET 런타임이 들어갑니다. 대상 환경에는 시스템 라이브러리와 Vulkan 드라이버가 필요하며, 앱에서 쓰는 글꼴과 파일도 준비해야 합니다.
 
-Linux의 .NET 10 실측을 재현하려면 SDK 11을 그대로 사용하고 예제 첫 줄을 `#:property TargetFramework=net10.0`으로 바꿉니다. 위 Linux 명령에서 결과와 중간 파일을 저장할 폴더를 각각 새 경로로 지정합니다.
+가장 작은 Linux 빌드를 재현하려면 SDK 11을 그대로 사용하고 예제 첫 줄을 `#:property TargetFramework=net10.0`으로 바꿉니다. 위 Linux 명령에서 결과와 중간 파일을 저장할 폴더를 각각 새 경로로 지정합니다.
 
 ## 내 앱에 맞는 옵션 고르기
 

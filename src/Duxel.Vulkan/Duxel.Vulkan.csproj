@@ -7,6 +7,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DuxelShaderDirectory Condition="'$(DuxelShaderDirectory)' == ''">$(MSBuildThisFileDirectory)Shaders</DuxelShaderDirectory>
     <DefineConstants Condition="'$(DuxelCompact)' == 'true'">$(DefineConstants);DUXEL_COMPACT</DefineConstants>
+    <_DuxelPackLinuxShaders>false</_DuxelPackLinuxShaders>
+    <_DuxelPackLinuxShaders Condition="'$(DuxelCompact)' == 'true' and '$(DuxelLinuxShaderArchive)' == 'true' and $([MSBuild]::IsOSPlatform('Linux'))">true</_DuxelPackLinuxShaders>
+    <DefineConstants Condition="'$(_DuxelPackLinuxShaders)' == 'true'">$(DefineConstants);DUXEL_LINUX_SHADER_ARCHIVE</DefineConstants>
     <IsPackable>false</IsPackable>
     <PackageId>Duxel.Vulkan</PackageId>
     <Version>$(DuxelVersion)</Version>
@@ -32,23 +35,53 @@
                       Condition="'$(DuxelCompact)' != 'true'" />
   </ItemGroup>
 
-  <UsingTask TaskName="DuxelDeflateShaders" TaskFactory="RoslynCodeTaskFactory"
+  <UsingTask TaskName="DuxelPackShaders" TaskFactory="RoslynCodeTaskFactory"
              AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <Shaders ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
       <OutputDirectory ParameterType="System.String" Required="true" />
+      <PackLinuxShaders ParameterType="System.Boolean" />
     </ParameterGroup>
     <Task>
       <Using Namespace="System.IO" />
       <Using Namespace="System.IO.Compression" />
+      <Using Namespace="System.Linq" />
       <Code Type="Fragment" Language="cs"><![CDATA[
         Directory.CreateDirectory(OutputDirectory);
-        foreach (var shader in Shaders)
+        if (PackLinuxShaders)
         {
-            using var source = File.OpenRead(shader.ItemSpec);
-            using var output = File.Create(Path.Combine(OutputDirectory, Path.GetFileName(shader.ItemSpec)));
-            using var compressed = new DeflateStream(output, CompressionLevel.Optimal);
-            source.CopyTo(compressed);
+            using var contents = new MemoryStream();
+            using (var entries = new BinaryWriter(contents, System.Text.Encoding.UTF8, leaveOpen: true))
+            {
+                entries.Write(Shaders.Length);
+                foreach (var shader in Shaders.OrderBy(item => Path.GetFileName(item.ItemSpec), StringComparer.Ordinal))
+                {
+                    using var source = File.OpenRead(shader.ItemSpec);
+                    entries.Write("Duxel.Vulkan.Shaders." + Path.GetFileName(shader.ItemSpec));
+                    entries.Write(checked((int)source.Length));
+                    source.CopyTo(contents);
+                }
+            }
+
+            using var output = File.Create(Path.Combine(OutputDirectory, "shaders.br"));
+            using (var header = new BinaryWriter(output, System.Text.Encoding.UTF8, leaveOpen: true))
+                header.Write(checked((int)contents.Length));
+            // Inline MSBuild tasks target .NET Standard. Use the SDK host's Brotli encoder.
+            var encoder = Type.GetType("System.IO.Compression.BrotliStream, System.IO.Compression.Brotli", throwOnError: true);
+            var quality = Enum.Parse(typeof(CompressionLevel), "SmallestSize");
+            using var compressed = (Stream)Activator.CreateInstance(encoder, output, quality);
+            contents.Position = 0;
+            contents.CopyTo(compressed);
+        }
+        else
+        {
+            foreach (var shader in Shaders)
+            {
+                using var source = File.OpenRead(shader.ItemSpec);
+                using var output = File.Create(Path.Combine(OutputDirectory, Path.GetFileName(shader.ItemSpec)));
+                using var compressed = new DeflateStream(output, CompressionLevel.Optimal);
+                source.CopyTo(compressed);
+            }
         }
       ]]></Code>
     </Task>
@@ -59,10 +92,14 @@
     <PropertyGroup>
       <DuxelCompactShaderDirectory>$(IntermediateOutputPath)compact-shaders</DuxelCompactShaderDirectory>
     </PropertyGroup>
-    <DuxelDeflateShaders Shaders="@(DuxelShader)" OutputDirectory="$(DuxelCompactShaderDirectory)" />
+    <DuxelPackShaders Shaders="@(DuxelShader)" OutputDirectory="$(DuxelCompactShaderDirectory)"
+                      PackLinuxShaders="$(_DuxelPackLinuxShaders)" />
     <ItemGroup>
       <EmbeddedResource Include="@(DuxelShader->'$(DuxelCompactShaderDirectory)/%(Filename)%(Extension)')"
-                        LogicalName="Duxel.Vulkan.Shaders.%(Filename)%(Extension)" />
+                        LogicalName="Duxel.Vulkan.Shaders.%(Filename)%(Extension)"
+                        Condition="'$(_DuxelPackLinuxShaders)' != 'true'" />
+      <EmbeddedResource Include="$(DuxelCompactShaderDirectory)/shaders.br" LogicalName="Duxel.Vulkan.Shaders.br"
+                        Condition="'$(_DuxelPackLinuxShaders)' == 'true'" />
     </ItemGroup>
   </Target>
 

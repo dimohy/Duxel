@@ -70,7 +70,7 @@ dotnet run --file gallery_controls.cs -- "$(fc-match -f '%{file}' sans-serif)"
 
 ## NativeAOT로 작은 실행 파일 만들기
 
-Fluent 2 텍스트 컨트롤 하나를 띄우는 최소 앱을 용량 절약 옵션으로 게시한 결과, **Windows x64는 4.85 MB**(.NET 11 대상), **Linux x64는 5.23 MB**(.NET 10 대상)였습니다. 기본 게시 결과와 바이트 단위 실측값, 재현 명령은 [NativeAOT 가이드](docs/native-aot.ko.md)에 있습니다.
+Fluent 2 텍스트 컨트롤 하나를 띄우는 최소 앱을 용량 절약 옵션으로 게시한 결과, **Windows x64는 4.85 MB**(.NET 11 대상), **Linux x64는 4.98 MB**(.NET 10 대상)였습니다. 기본 게시 결과와 바이트 단위 실측값, 재현 명령은 [NativeAOT 가이드](docs/native-aot.ko.md)에 있습니다.
 
 ## 앱 만들기
 
