@@ -53,6 +53,7 @@ LargeTitle	variant	web-react	parent-guidance-and-linked-reference	https://fluent
 Link	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/link/usage
 List	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/list/usage
 Menu	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/menu/usage
+MenuBar	variant	desktop	menu-guidance-and-winui-menubar	https://fluent2.microsoft.design/components/web/react/core/menu/usage
 MenuButton	variant	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/button/usage
 MessageBar	component	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/messagebar/usage
 MessageBarActions	variant	web-react	documented	https://fluent2.microsoft.design/components/web/react/core/messagebar/usage

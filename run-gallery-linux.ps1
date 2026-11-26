@@ -7,6 +7,8 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$PublishedExecutable,
     [string]$LinuxDotnet,
+    [ValidateSet('net8.0', 'net9.0', 'net10.0', 'net11.0')]
+    [string]$TargetFramework = 'net11.0',
     [switch]$Managed,
     [ValidateNotNull()]
     [ValidateRange(1, 32)]
@@ -68,18 +70,15 @@ if (-not $PSBoundParameters.ContainsKey('PublishedExecutable')) {
     $repositoryKey = [Convert]::ToHexString($repositoryHash).Substring(0, 12).ToLowerInvariant()
     $publishAot = if ($Managed) { 'false' } else { 'true' }
     $mode = if ($Managed) { 'managed' } else { 'native' }
-    $buildRoot = "$linuxHome/.cache/duxel/gallery-source-$repositoryKey/$sdkVersion/$mode"
+    $buildRoot = "$linuxHome/.cache/duxel/gallery-source-$repositoryKey/$sdkVersion/$TargetFramework/$mode"
     $runId = [Guid]::NewGuid().ToString('N')
     $publishDirectory = "$buildRoot/runs/$runId"
-    $sourceFramework = "net$($sdkVersion.Split('.')[0]).0"
     $publishArgs = @(
         '--cd', $linuxRepository, '--exec', $LinuxDotnet,
         'publish', 'samples/Duxel.Gallery.Linux/Duxel.Gallery.Linux.csproj',
-        '-c', 'Release', '-r', $runtimeIdentifier, '--self-contained', 'true',
+        '-c', 'Release', '-f', $TargetFramework, '-r', $runtimeIdentifier, '--self-contained', 'true',
         '--disable-build-servers', '-o', $publishDirectory, '-warnaserror', '-m:1', '-v:minimal',
         "-p:PublishAot=$publishAot", '-p:BuildInParallel=false',
-        "-p:DuxelSourceTargetFramework=$sourceFramework", "-p:DuxelBenchmarkFramework=$sourceFramework",
-        "-p:DirectoryBuildTargetsPath=$linuxRepository/samples/Duxel.Gallery/LocalSource.targets",
         "-p:ArtifactsPath=$buildRoot/build"
     )
     & $wsl @distributionArgs @publishArgs

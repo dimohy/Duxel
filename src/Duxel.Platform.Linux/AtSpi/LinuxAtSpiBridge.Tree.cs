@@ -261,6 +261,7 @@ internal sealed unsafe partial class LinuxAtSpiBridge
         UiAccessibilityRole.TabList => 38,
         UiAccessibilityRole.Tab => 37,
         UiAccessibilityRole.Menu => 33,
+        UiAccessibilityRole.MenuBar => 34,
         UiAccessibilityRole.MenuItem => 35,
         UiAccessibilityRole.Slider => 51,
         UiAccessibilityRole.Checkbox => 7,

@@ -746,6 +746,12 @@ public sealed unsafe partial class VulkanRendererBackend
         using var stream = assembly.GetManifestResourceStream(resourceName)
             ?? throw new InvalidOperationException($"Embedded shader not found: {resourceName}.");
 
+#if DUXEL_COMPACT
+        using var compressed = new System.IO.Compression.DeflateStream(stream, System.IO.Compression.CompressionMode.Decompress);
+        using var shader = new MemoryStream();
+        compressed.CopyTo(shader);
+        return shader.ToArray();
+#else
         if (stream.Length is > int.MaxValue)
         {
             throw new InvalidOperationException($"Embedded shader too large: {resourceName}.");
@@ -754,5 +760,6 @@ public sealed unsafe partial class VulkanRendererBackend
         var buffer = new byte[(int)stream.Length];
         stream.ReadExactly(buffer);
         return buffer;
+#endif
     }
 }

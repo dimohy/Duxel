@@ -278,9 +278,11 @@ public sealed partial class DuxelAppSession
                 => new ExtendedContentWindowChromeScreen(options.Screen, chrome, titleBar),
             _ => new DuxelRootContentScreen(options.Screen),
         };
+#if !DUXEL_COMPACT
         using var fileDialogScreen = platform is IPlatformFileDialogs ? new FileDialogScreen(activeScreen, this) : null;
         if (fileDialogScreen is not null)
             activeScreen = fileDialogScreen;
+#endif
         uiContext.SetScreen(activeScreen);
         DuxelApp.ConfigureContext(uiContext, options, platform);
         uiContext.State.VSync = window.VSync;

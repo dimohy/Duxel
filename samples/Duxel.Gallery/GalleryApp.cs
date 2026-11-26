@@ -11,7 +11,8 @@ public static class GalleryApp
     [SupportedOSPlatform("windows")]
     public static void Run(params string[] args)
     {
-        Console.OutputEncoding = new System.Text.UTF8Encoding(false);
+        if (!Console.IsOutputRedirected)
+            Console.OutputEncoding = new System.Text.UTF8Encoding(false);
         if (args.Length != 0 && (args.Length != 2 || args[0] is not ("--verify" or "--verify-live-holidays")))
             throw new ArgumentException("Use no arguments, --verify <fresh output directory> or --verify-live-holidays <fresh output directory>.");
         var session = new DuxelAppSession();

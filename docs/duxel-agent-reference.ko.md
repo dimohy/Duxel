@@ -4,7 +4,7 @@ AI로 앱을 만들 때는 대상 운영체제를 먼저 정하고, Gallery에�
 
 | 찾는 것 | 먼저 살펴볼 곳 |
 | --- | --- |
-| 실행할 예제와 패키지 선택 | [FBA 시작하기](getting-started-fba.ko.md), [samples/fba](../samples/fba) |
+| 실행할 예제와 패키지 선택 | [FBA 시작하기](getting-started-fba.ko.md), [Fluent 2 예제 실행 명령](fba-run-samples.ko.md) |
 | 컨트롤과 레이아웃의 실제 사용 | [GalleryComponentExamples.cs](../samples/Duxel.Gallery/GalleryComponentExamples.cs), [Gallery navigation](../samples/Duxel.Gallery/GalleryNavigation.cs) |
 | Fluent 글꼴 스타일 | [Fluent.Text.cs](../src/Duxel.Core/Fluent.Text.cs), 예 `Fluent.Text(Text.Title2, "Title")` |
 | 상태, 위젯, 레이아웃 | [Duxel.Core](../src/Duxel.Core) |

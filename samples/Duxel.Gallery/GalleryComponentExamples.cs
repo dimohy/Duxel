@@ -561,6 +561,25 @@ internal static class GalleryComponentExamples
                 Fluent.MenuButton(GalleryText.Get("Export"), [new("pdf", GalleryText.Get("Export as PDF")), new("png", GalleryText.Get("Export as PNG"))], value => chosen.Value = value),
                 Fluent.Body1(() => GalleryText.Get("Command: ") + chosen.Value));
         }, current => TextState("chosen", current)),
+        Stateful("MenuBar", "Use Tab to focus the menu bar, then use the arrow keys to move between menus.",
+            new UiState<string>(GalleryText.Get("None selected")), new UiState<bool>(true), (chosen, showStatus) =>
+        {
+            return Dux.Column(new(Spacing : 8, MainAxisSize : UiMainAxisSize.Min,
+                    CrossAxisAlignment : UiCrossAxisAlignment.Stretch),
+                Fluent.MenuBar(GalleryText.Get("Application menu"),
+                    new(GalleryText.Get("File"),
+                        [new("new", GalleryText.Get("New document")),
+                         UiMenuOption.Submenu("export", GalleryText.Get("Export"),
+                            [new("pdf", GalleryText.Get("Export as PDF")), new("png", GalleryText.Get("Export as PNG"))]),
+                         UiMenuOption.Separator("file-divider"), new("save", GalleryText.Get("Save"))],
+                        value => chosen.Value = value, UiKey.F),
+                    new(GalleryText.Get("Edit"), [new("copy", GalleryText.Get("Copy"), Enabled : false),
+                        new("clear", GalleryText.Get("Clear"))], value => chosen.Value = value, UiKey.E),
+                    new(GalleryText.Get("View"), [UiMenuOption.Checkbox("status", GalleryText.Get("Status bar"), showStatus.Binding)],
+                        value => chosen.Value = value, UiKey.V)),
+                Fluent.Divider(),
+                Fluent.Body1(() => showStatus.Value ? GalleryText.Get("Command: ") + chosen.Value : string.Empty));
+        }, (chosen, showStatus) => TextState("chosen", chosen) + "\nvar showStatus = new UiState<bool>(true);"),
         Example("CodeView", "Try syntax highlighting, selection, copying, line wrapping, and line numbers.", () =>
         {
             var text = GalleryText.Get("This intentionally long string lets you test horizontal scrolling, line wrapping, text selection, and copying in the code viewer.");

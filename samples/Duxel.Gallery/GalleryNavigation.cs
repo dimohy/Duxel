@@ -26,7 +26,7 @@ internal sealed record GalleryDestination(string Key, string Label, string Page,
 internal sealed class GalleryNavigation : IDisposable
 {
     // Increase once for each fix or feature delivered in the Gallery.
-    private const int GalleryRevision = 91;
+    private const int GalleryRevision = 92;
     internal static string DisplayVersion { get; } = FormatVersion();
 
     private static string FormatVersion()
@@ -79,7 +79,7 @@ internal sealed class GalleryNavigation : IDisposable
         var media = UiMenuIcon.Create<GalleryMediaIcon, GalleryMediaIcon>();
         (string Label, string Description, UiMenuIcon Icon, string[] Components)[] groups =
         [
-            ("Actions and navigation", "Commands, links, and page navigation", navigation, ["Breadcrumb", "Button", "Link", "Menu", "Nav", "NavigationBar", "TabList", "Toolbar"]),
+            ("Actions and navigation", "Commands, links, and page navigation", navigation, ["Breadcrumb", "Button", "Link", "Menu", "MenuBar", "Nav", "NavigationBar", "TabList", "Toolbar"]),
             ("Input and selection", "Input, validation, selection, and value adjustment", input, ["Checkbox", "Combobox", "Dropdown", "Field", "Input", "Label", "RadioGroup", "Rating", "SearchBox", "SegmentedControl", "Select", "Slider", "SpinButton", "Switch", "TagPicker", "Textarea", "TextField"]),
             ("Content and lists", "Content layout, lists, and hierarchies", content, ["Accordion", "Card", "CardNudge", "Carousel", "DataGrid", "Divider", "List", "Tag", "Tree"]),
             ("People", "Avatars, profiles, and badges", people, ["Avatar", "AvatarGroup", "Badge", "Persona"]),
@@ -89,7 +89,7 @@ internal sealed class GalleryNavigation : IDisposable
         ];
         var components = groups.SelectMany(static group => group.Components).ToArray();
         if (components.Distinct(StringComparer.Ordinal).Count() != components.Length
-            || !Fluent.RequiredComponentNames.ToArray().Append("DataGrid").ToHashSet(StringComparer.Ordinal).SetEquals(components))
+            || !Fluent.RequiredComponentNames.ToArray().Concat(["DataGrid", "MenuBar"]).ToHashSet(StringComparer.Ordinal).SetEquals(components))
             throw new InvalidOperationException("Gallery groups must cover each Fluent destination exactly once.");
         var componentPages = CatalogPage.Groups.SelectMany(static group => group.Components.Select(component => (component, group.Page)))
             .ToDictionary(static entry => entry.component, static entry => entry.Page, StringComparer.Ordinal);

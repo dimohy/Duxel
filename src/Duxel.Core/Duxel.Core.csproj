@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>$(DuxelTargetFrameworks)</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -44,12 +44,15 @@
     <AdditionalFiles Include="FluentComponents.tsv" />
     <AdditionalFiles Include="Assets/FluentIcons/FluentSystemIcons-Regular.json" />
     <AdditionalFiles Include="Assets/FluentIcons/FluentSystemIcons-Filled.json" />
+    <CompilerVisibleProperty Include="DuxelRequireCompleteFluentCatalog" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(DuxelEmbedFluentIconFonts)' != 'false'">
     <EmbeddedResource Include="Assets/FluentIcons/*.ttf"
                       LogicalName="Duxel.Core.FluentIcons.%(Filename)%(Extension)" />
     <Content Include="Assets/FluentIcons/FluentSystemIcons-Regular.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets/FluentIcons/FluentSystemIcons-Filled.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets/FluentIcons/LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <CompilerVisibleProperty Include="DuxelRequireCompleteFluentCatalog" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(PublishAot)' == 'true'">

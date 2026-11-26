@@ -349,6 +349,52 @@ internal static class FluentMenuTests
             "subtext rows retain label-based typeahead");
         Frame(idle with { KeyEvents = [new(UiKey.Enter, true, KeyModifiers.None)] });
         check(!described.IsOpen && invocations.SequenceEqual(["paste"]), "keyboard activates the described row's original command");
+
+        invocations.Clear();
+        var status = new UiState<bool>(true);
+        using var bar = Fluent.MenuBar("Application",
+            new("File", [new("new", "New"), UiMenuOption.Separator("file-divider"), new("save", "Save"),
+                UiMenuOption.Submenu("export", "Export", [new("pdf", "PDF")])], invocations.Add, UiKey.F),
+            new("Edit", [new("clear", "Clear")], invocations.Add, UiKey.E),
+            new("View", [UiMenuOption.Checkbox("status", "Status bar", status.Binding)], invocations.Add, UiKey.V));
+        current = bar;
+        Frame();
+        var barNode = Find("Application", UiAccessibilityRole.MenuBar);
+        check(Fluent.ComponentNames.Contains("MenuBar") && barNode.FirstChild is not null,
+            "Fluent MenuBar is exposed as a distinct composite accessibility role");
+        check(!Fluent.RequiredComponentNames.Contains("MenuBar"),
+            "The desktop menu bar reuses the published Fluent Menu requirement");
+
+        void Press(UiKey key, KeyModifiers modifiers = KeyModifiers.None) =>
+            Frame(idle with { KeyEvents = [new(key, true, modifiers)] });
+        bool IsOpen(string name) => Find(name, UiAccessibilityRole.MenuItem).Node.Expansion == UiAccessibilityExpansionState.Expanded;
+
+        Press(UiKey.F, KeyModifiers.Alt);
+        check(IsOpen("File") && Find("New", UiAccessibilityRole.MenuItem).Node.Focused,
+            "Alt plus the access key opens the top-level menu and focuses its first command");
+        Press(UiKey.DownArrow);
+        check(Find("Save", UiAccessibilityRole.MenuItem).Node.Focused,
+            "MenuBar popup moves across separators without making them keyboard targets");
+        Press(UiKey.RightArrow);
+        check(!IsOpen("File") && IsOpen("Edit"), "Right arrow switches from an open File menu to Edit");
+        Press(UiKey.LeftArrow);
+        Press(UiKey.End);
+        Press(UiKey.RightArrow);
+        check(Find("PDF", UiAccessibilityRole.MenuItem).Node.Focused,
+            "Right arrow opens a focused submenu before moving to the next top-level menu");
+        Press(UiKey.Escape);
+        Frame();
+        check(IsOpen("File") && !IsOpen("Export") && Find("Export", UiAccessibilityRole.MenuItem).Node.Focused,
+            "Escape closes the submenu and restores focus to the parent item");
+        Frame(idle with { MousePosition = Center(Find("View", UiAccessibilityRole.MenuItem)) });
+        check(!IsOpen("File") && IsOpen("View"), "Pointer movement switches an open menu to a sibling without a click");
+        Press(UiKey.Enter);
+        check(!status.Value && IsOpen("View") && invocations.SequenceEqual(["status"]),
+            "MenuBar checkbox toggles once and keeps the popup open");
+        Press(UiKey.Escape);
+        Frame();
+        check(!IsOpen("View") && Find("View", UiAccessibilityRole.MenuItem).Node.Focused,
+            "Escape closes the top-level popup and returns focus to its menu bar entry");
     }
     private sealed class Screen(Action<UiImmediateContext> render) : UiScreen
     {

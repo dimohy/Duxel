@@ -5,6 +5,8 @@ param(
     [Parameter(ParameterSetName = 'LiveHolidayVerification')]
     [switch]$VerifyLiveHolidays,
     [string]$VerificationOutput,
+    [ValidateSet('net8.0-windows', 'net9.0-windows', 'net10.0-windows', 'net11.0-windows')]
+    [string]$TargetFramework = 'net11.0-windows',
     [switch]$NoRestore
 )
 
@@ -16,17 +18,15 @@ if ($VerificationOutput) {
     if (Test-Path -LiteralPath $VerificationOutput) { throw 'Use a fresh verification output directory.' }
 }
 $project = Join-Path $PSScriptRoot 'samples/Duxel.Gallery/Duxel.Gallery.csproj'
-$targets = Join-Path $PSScriptRoot 'samples/Duxel.Gallery/LocalSource.targets'
 $cacheRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Duxel/Gallery'
 $artifacts = Join-Path $cacheRoot 'source-build'
+$buildOutput = Join-Path $artifacts "gallery/$TargetFramework"
 $buildArgs = @(
-    'build', $project, '--configuration', 'Release',
-    "-p:DirectoryBuildTargetsPath=$targets", '-p:UseArtifactsOutput=true',
-    "-p:ArtifactsPath=$artifacts", '-m:1', '-nr:false', '-warnaserror', '-v:minimal'
+    'build', $project, '--configuration', 'Release', '--framework', $TargetFramework, '--output', $buildOutput,
+    '-m:1', '-nr:false', '-warnaserror', '-v:minimal'
 )
 if ($NoRestore) { $buildArgs += '--no-restore' }
 & (Join-Path $PSScriptRoot 'scripts/InvokeGalleryBuild.ps1') -Arguments $buildArgs -WorkingDirectory $PSScriptRoot
-$buildOutput = Join-Path $artifacts 'bin/Duxel.Gallery/release'
 $runId = [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-fff') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
 $runs = Join-Path $cacheRoot 'runs'
 New-Item -ItemType Directory -Path $runs -Force | Out-Null

@@ -3,7 +3,9 @@
 #:property SelfContained=false
 #:property DuxelHost=$([System.String]::Copy('$(OS)').Replace('Windows_NT','Windows').Replace('Unix','Linux'))
 #:property DefineConstants=$(DefineConstants);DUXEL_$(DuxelHost)
-#:package Duxel.$(DuxelHost).App@0.4.0
+#:project ../../src/Duxel.Core/Duxel.Core.csproj
+#:project ../../src/Duxel.App/Duxel.App.csproj
+#:project ../../src/Duxel.$(DuxelHost).App/Duxel.$(DuxelHost).App.csproj
 
 using System.Diagnostics;
 using Duxel.App;
@@ -16,95 +18,211 @@ using Duxel.Linux.App;
 
 const int MaxCharacters = 131072;
 if (args.Length > 1)
-    throw new ArgumentException("Supply at most one note file path.");
+    throw new ArgumentException("Supply at most one text file to open.");
 
-var defaultPath = Path.GetFullPath("duxel-note.txt");
-var draftPath = new UiState<string>(args.Length == 0 ? defaultPath : Path.GetFullPath(args[0]));
-var activePath = new UiState<string>(draftPath.Value);
-var note = new UiState<string>("");
-var status = new UiState<string>("New document");
-var hasFile = new UiState<bool>(false);
-var saved = "";
-if (File.Exists(activePath.Value))
-    Open();
+var document = new UiState<string>(string.Empty);
+var file = new UiState<string?>(null);
+var status = new UiState<string>("Ready");
+var showCount = new UiState<bool>(true);
+var savedText = string.Empty;
+var filePending = (Task<IReadOnlyList<string>>?)null;
+var fileKind = UiFileDialogKind.OpenFile;
+var clipboardCommand = (string?)null;
+var session = DuxelApp.PrimarySession;
+if (args.Length == 1)
+    ReadDocument(args[0]);
 
-var menuOptions = new UiMenuOptions(MinimumWidth: 144, ItemHeight: 28, Padding: 4, ItemSpacing: 1);
-var menuBar = Dux.Padding(Dux.Row(new UiFlexOptions(Spacing: 4, MainAxisSize: UiMainAxisSize.Min),
-    Dux.SizedBox(Fluent.Menu("File",
-        [new("new", "New"), new("open", "Open"), new("save", "Save"), new("exit", "Exit")],
-        FileCommand, menuOptions), width: 52, height: 28),
-    Dux.SizedBox(Fluent.Menu("Edit",
-        [new("revert", "Revert to saved"), new("clear", "Clear document")],
-        EditCommand, menuOptions), width: 52, height: 28)),
-    new UiEdgeInsets(8, 0, 8, 0));
-var editor = Dux.Column(new UiFlexOptions(Spacing: 8,
-    CrossAxisAlignment: UiCrossAxisAlignment.Stretch),
-    Fluent.Input("File path", draftPath.Binding, 4096),
-    Dux.Expanded(Fluent.Textarea("Document", note.Binding, MaxCharacters, 0, 0)),
+var menu = Fluent.MenuBar("Notepad menu",
+    new("File",
+        [new("new", "New") { SecondaryContent = "Ctrl+N" },
+         new("open", "Open…") { SecondaryContent = "Ctrl+O" },
+         UiMenuOption.Separator("file-actions"),
+         new("save", "Save") { SecondaryContent = "Ctrl+S" },
+         new("save-as", "Save as…") { SecondaryContent = "Ctrl+Shift+S" },
+         UiMenuOption.Separator("window-actions"),
+         new("exit", "Exit")], FileCommand, UiKey.F),
+    new("Edit",
+        [new("copy", "Copy document"), new("paste", "Paste at end"),
+         UiMenuOption.Separator("document-actions"),
+         UiMenuOption.Submenu("transform", "Change case",
+             [new("upper", "Uppercase"), new("lower", "Lowercase")]),
+         new("revert", "Revert to saved"), new("clear", "Clear document")], EditCommand, UiKey.E),
+    new("View", [UiMenuOption.Checkbox("count", "Character count", showCount.Binding)], _ => { }, UiKey.V));
+
+var documentHeader = Dux.Row(new UiFlexOptions(Spacing: 16, CrossAxisAlignment: UiCrossAxisAlignment.Center),
+    Dux.Expanded(Dux.Column(new(Spacing: 2),
+        Fluent.Text(Text.Title2, () => file.Value is { } path ? Path.GetFileName(path) : "Untitled"),
+        Fluent.Text(Text.Caption1, () => file.Value is { } path
+            ? Path.GetFileName(Path.GetDirectoryName(path)) ?? "Plain text document"
+            : "Plain text document"))),
+    new UiButton<UiReleaseButtonBehavior, UiFluentButtonPresentation<UiFluentPrimaryButtonAppearance>>(
+        "Save", () => FileCommand("save")));
+
+var statusBar = Dux.Column(new(Spacing: 8, CrossAxisAlignment: UiCrossAxisAlignment.Stretch),
     Fluent.Divider(),
-    Dux.Row(new(Spacing: 12, CrossAxisAlignment: UiCrossAxisAlignment.Center),
+    Dux.Row(new UiFlexOptions(Spacing: 12, CrossAxisAlignment: UiCrossAxisAlignment.Center),
         Dux.Expanded(Fluent.Text(Text.Caption1, () => status.Value)),
-        Fluent.Text(Text.Caption1, () => $"{note.Value.Length:N0} characters"),
-        Fluent.Text(Text.Caption1Strong, () => saved != note.Value ? "Modified" : hasFile.Value ? "Saved" : "New")));
-var window = Dux.Column(new UiFlexOptions(CrossAxisAlignment: UiCrossAxisAlignment.Stretch),
-    menuBar, Dux.Expanded(Dux.Padding(editor, new UiEdgeInsets(10, 6, 10, 8))));
+        Fluent.Text(Text.Caption1, () => showCount.Value ? $"{document.Value.Length:N0} characters" : string.Empty),
+        Fluent.Text(Text.Caption1Strong, () => IsModified() ? "Modified" : file.Value is null ? "Untitled" : "Saved")));
+
+var workspace = Dux.Column(new(Spacing: 12, CrossAxisAlignment: UiCrossAxisAlignment.Stretch),
+    documentHeader,
+    Dux.Expanded(Fluent.Textarea("Document", document.Binding, MaxCharacters, 0, 0)),
+    statusBar);
+var window = Dux.Column(new(CrossAxisAlignment: UiCrossAxisAlignment.Stretch),
+    Dux.Padding(menu, new UiEdgeInsets(12, 0, 12, 0)), Fluent.Divider(),
+    Dux.Expanded(Dux.Padding(workspace, new UiEdgeInsets(20, 16, 20, 12))));
+
 Run(new UiView(ui =>
 {
+    ReadFileDialogResult();
     ui.EnableRootViewportContentLayout(contentPadding: 0);
+    if (ui.Shortcut(UiKey.N, KeyModifiers.Ctrl))
+        FileCommand("new");
+    if (ui.Shortcut(UiKey.O, KeyModifiers.Ctrl))
+        FileCommand("open");
+    if (ui.Shortcut(UiKey.S, KeyModifiers.Ctrl | KeyModifiers.Shift))
+        FileCommand("save-as");
+    else if (ui.Shortcut(UiKey.S, KeyModifiers.Ctrl))
+        FileCommand("save");
     window.Render(ui);
-}), "Duxel Notepad", 700, 540);
+    ApplyClipboard(ui);
+}), "Duxel Notepad", 820, 600);
+
+bool IsModified() => !string.Equals(document.Value, savedText, StringComparison.Ordinal);
+
+bool CanReplace()
+{
+    if (!IsModified())
+        return true;
+    status.Value = "Save your changes or choose Edit → Revert to saved first.";
+    return false;
+}
 
 void FileCommand(string command)
 {
     switch (command)
     {
-        case "new": New(); break;
-        case "open": Open(); break;
-        case "save": Save(); break;
-        case "exit": if (CanReplace()) DuxelApp.Exit(); break;
+        case "new" when CanReplace():
+            file.Value = null;
+            document.Value = savedText = string.Empty;
+            status.Value = "New document";
+            break;
+        case "open" when CanReplace():
+            ChooseFile(UiFileDialogKind.OpenFile);
+            break;
+        case "save" when file.Value is { } path:
+            WriteDocument(path);
+            break;
+        case "save":
+        case "save-as":
+            ChooseFile(UiFileDialogKind.SaveFile);
+            break;
+        case "exit" when CanReplace():
+            session.Exit();
+            break;
     }
 }
 
 void EditCommand(string command)
 {
-    if (command == "revert")
-        Revert();
-    else if (command == "clear")
+    switch (command)
     {
-        note.Value = "";
-        status.Value = "Document cleared.";
+        case "copy":
+        case "paste":
+            clipboardCommand = command;
+            break;
+        case "upper":
+            document.Value = document.Value.ToUpperInvariant();
+            status.Value = "Converted to uppercase";
+            break;
+        case "lower":
+            document.Value = document.Value.ToLowerInvariant();
+            status.Value = "Converted to lowercase";
+            break;
+        case "revert":
+            document.Value = savedText;
+            status.Value = "Restored the last saved text";
+            break;
+        case "clear":
+            document.Value = string.Empty;
+            status.Value = "Document cleared";
+            break;
     }
 }
 
-void New()
+void ApplyClipboard(UiImmediateContext ui)
 {
-    if (!CanReplace())
-        return;
-    draftPath.Value = defaultPath;
-    activePath.Value = defaultPath;
-    note.Value = saved = "";
-    hasFile.Value = false;
-    status.Value = "New document. Choose a file path, then save.";
+    if (clipboardCommand == "copy")
+    {
+        ui.SetClipboardText(document.Value);
+        status.Value = "Document copied";
+    }
+    else if (clipboardCommand == "paste")
+    {
+        var text = ui.GetClipboardText().ReplaceLineEndings("\n");
+        if (text.Length <= MaxCharacters - document.Value.Length)
+        {
+            document.Value += text;
+            status.Value = "Text pasted at the end";
+        }
+        else
+            status.Value = $"The document can contain at most {MaxCharacters:N0} characters.";
+    }
+    clipboardCommand = null;
 }
 
-void Open()
+void ChooseFile(UiFileDialogKind kind)
 {
-    if (!CanReplace())
+    if (filePending is not null)
         return;
+
+    fileKind = kind;
+    var save = kind == UiFileDialogKind.SaveFile;
+    filePending = session.ShowFileDialogAsync(new(kind, save ? "Save text document" : "Open text document",
+        initialDirectory: file.Value is { } path ? Path.GetDirectoryName(path) : null,
+        suggestedFileName: save ? Path.GetFileName(file.Value) ?? "Untitled.txt" : null,
+        defaultExtension: save ? "txt" : null,
+        filters: [new("Text files", "*.txt"), new("All files", "*")]));
+}
+
+void ReadFileDialogResult()
+{
+    if (filePending is not { IsCompleted: true } pending)
+        return;
+    filePending = null;
     try
     {
-        var path = DocumentPath();
-        var text = File.ReadAllText(path).ReplaceLineEndings("\n");
-        if (text.Length > MaxCharacters)
+        var paths = pending.GetAwaiter().GetResult();
+        if (paths.Count == 0)
+            return;
+        if (fileKind == UiFileDialogKind.SaveFile)
+            WriteDocument(paths[0]);
+        else if (CanReplace())
+            ReadDocument(paths[0]);
+    }
+    catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
+    {
+        status.Value = $"File dialog unavailable: {error.Message}";
+    }
+}
+
+void ReadDocument(string path)
+{
+    try
+    {
+        var fullPath = Path.GetFullPath(path);
+        using var reader = File.OpenText(fullPath);
+        var buffer = new char[MaxCharacters + 1];
+        var read = reader.ReadBlock(buffer);
+        if (read > MaxCharacters)
         {
             status.Value = $"Choose a document with at most {MaxCharacters:N0} characters.";
             return;
         }
-
-        note.Value = saved = text;
-        activePath.Value = draftPath.Value = path;
-        hasFile.Value = true;
-        status.Value = $"Opened {Path.GetFileName(path)}";
+        document.Value = savedText = new string(buffer, 0, read).ReplaceLineEndings("\n");
+        file.Value = fullPath;
+        status.Value = $"Opened {Path.GetFileName(fullPath)}";
     }
     catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
     {
@@ -112,39 +230,21 @@ void Open()
     }
 }
 
-void Save()
+void WriteDocument(string path)
 {
     try
     {
-        var path = DocumentPath();
-        File.WriteAllText(path, note.Value);
-        saved = note.Value;
-        activePath.Value = draftPath.Value = path;
-        hasFile.Value = true;
-        status.Value = $"Saved {Path.GetFileName(path)}";
+        var fullPath = Path.GetFullPath(path);
+        File.WriteAllText(fullPath, document.Value);
+        savedText = document.Value;
+        file.Value = fullPath;
+        status.Value = $"Saved {Path.GetFileName(fullPath)}";
     }
     catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
     {
         status.Value = $"Could not save the document: {error.Message}";
     }
 }
-
-void Revert()
-{
-    note.Value = saved;
-    draftPath.Value = activePath.Value;
-    status.Value = "Restored the last opened or saved text.";
-}
-
-bool CanReplace()
-{
-    if (saved == note.Value)
-        return true;
-    status.Value = "Save or revert your edits before switching documents.";
-    return false;
-}
-
-string DocumentPath() => Path.GetFullPath(draftPath.Value.Trim());
 
 static void Run(IUiView root, string title, int width, int height, Func<bool>? animationActive = null)
 {

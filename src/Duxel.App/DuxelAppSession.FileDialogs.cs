@@ -30,11 +30,16 @@ public sealed partial class DuxelAppSession
         FileDialogWork? work;
         lock (_platformWakeGate)
             work = _fileDialogRequest;
-        if (work is null || work.UseManagedChooser)
+        if (work is null)
             return;
+#if !DUXEL_COMPACT
+        if (work.UseManagedChooser)
+            return;
+#endif
         IReadOnlyList<string>? paths = null;
         Exception? failure = null;
         try { paths = _fileDialogs!.ShowFileDialog(work.Request); }
+#if !DUXEL_COMPACT
         catch (UiNativeFileDialogUnavailableException)
         {
             lock (_platformWakeGate)
@@ -42,6 +47,7 @@ public sealed partial class DuxelAppSession
             RequestFrame();
             return;
         }
+#endif
         catch (Exception exception) { failure = exception; }
         lock (_platformWakeGate)
         {
@@ -58,9 +64,12 @@ public sealed partial class DuxelAppSession
     {
         internal UiFileDialogRequest Request { get; } = request;
         internal TaskCompletionSource<IReadOnlyList<string>> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+#if !DUXEL_COMPACT
         internal bool UseManagedChooser;
+#endif
     }
 
+#if !DUXEL_COMPACT
     private sealed class FileDialogScreen(UiScreen content, DuxelAppSession session) : UiScreen, IDisposable
     {
         private FileDialogWork? _work;
@@ -97,4 +106,5 @@ public sealed partial class DuxelAppSession
 
         public void Dispose() => _chooser?.Dispose();
     }
+#endif
 }

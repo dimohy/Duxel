@@ -1,11 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>$(DuxelTargetFrameworks)</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DuxelShaderDirectory Condition="'$(DuxelShaderDirectory)' == ''">$(MSBuildThisFileDirectory)Shaders</DuxelShaderDirectory>
+    <DefineConstants Condition="'$(DuxelCompact)' == 'true'">$(DefineConstants);DUXEL_COMPACT</DefineConstants>
     <IsPackable>false</IsPackable>
     <PackageId>Duxel.Vulkan</PackageId>
     <Version>$(DuxelVersion)</Version>
@@ -26,8 +27,44 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="$(DuxelShaderDirectory)\*.spv" LogicalName="Duxel.Vulkan.Shaders.%(Filename)%(Extension)" />
+    <DuxelShader Include="$(DuxelShaderDirectory)\*.spv" />
+    <EmbeddedResource Include="@(DuxelShader)" LogicalName="Duxel.Vulkan.Shaders.%(Filename)%(Extension)"
+                      Condition="'$(DuxelCompact)' != 'true'" />
   </ItemGroup>
+
+  <UsingTask TaskName="DuxelDeflateShaders" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Shaders ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <OutputDirectory ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.IO.Compression" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        Directory.CreateDirectory(OutputDirectory);
+        foreach (var shader in Shaders)
+        {
+            using var source = File.OpenRead(shader.ItemSpec);
+            using var output = File.Create(Path.Combine(OutputDirectory, Path.GetFileName(shader.ItemSpec)));
+            using var compressed = new DeflateStream(output, CompressionLevel.Optimal);
+            source.CopyTo(compressed);
+        }
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="PrepareCompactDuxelShaders" BeforeTargets="AssignTargetPaths"
+          Condition="'$(DuxelCompact)' == 'true' and '$(TargetFramework)' != ''">
+    <PropertyGroup>
+      <DuxelCompactShaderDirectory>$(IntermediateOutputPath)compact-shaders</DuxelCompactShaderDirectory>
+    </PropertyGroup>
+    <DuxelDeflateShaders Shaders="@(DuxelShader)" OutputDirectory="$(DuxelCompactShaderDirectory)" />
+    <ItemGroup>
+      <EmbeddedResource Include="@(DuxelShader->'$(DuxelCompactShaderDirectory)/%(Filename)%(Extension)')"
+                        LogicalName="Duxel.Vulkan.Shaders.%(Filename)%(Extension)" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <InternalsVisibleTo Include="Duxel.App" />

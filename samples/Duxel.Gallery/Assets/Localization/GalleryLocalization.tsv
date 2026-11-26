@@ -1645,3 +1645,9 @@ Scroll content inside a fixed viewport.	고정된 영역 안에서 콘텐츠를 
 Use the row's remaining width.	가로 줄의 남은 공간을 채웁니다.	行の残りの幅を埋めます。	填满行中剩余的宽度。
 Allow a child to use part of the remaining width.	자식이 남은 너비의 일부를 쓸 수 있게 합니다.	子要素が残りの幅の一部を使えるようにします。	允许子控件使用部分剩余宽度。
 Reserve remaining width between siblings.	나란히 놓인 위젯 사이를 남은 너비만큼 띄웁니다.	隣り合う要素の間に残りの幅を確保します。	在同级控件之间留出剩余宽度。
+Use Tab to focus the menu bar, then use the arrow keys to move between menus.	Tab으로 메뉴 모음에 초점을 맞춘 뒤 방향키로 메뉴 사이를 이동합니다.	Tab キーでメニューバーにフォーカスし、方向キーでメニュー間を移動します。	按 Tab 将焦点移到菜单栏，再按方向键在菜单之间移动。
+Application menu	앱 메뉴	アプリ メニュー	应用菜单
+Status bar	상태 표시줄	ステータス バー	状态栏
+File	파일	ファイル	文件
+Edit	편집	編集	编辑
+Clear	지우기	クリア	清除

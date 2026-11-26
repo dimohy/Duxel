@@ -47,7 +47,8 @@ public enum UiAccessibilityRole
     Tree,
     TreeItem,
     TreeGrid,
-    TreeGridRow
+    TreeGridRow,
+    MenuBar
 }
 public enum UiAccessibilityOrientation
 {

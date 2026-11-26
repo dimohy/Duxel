@@ -11,7 +11,8 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="IncludeGalleryAssets" DependsOnTargets="AssignTargetPaths">
+  <Target Name="IncludeGalleryAssets" DependsOnTargets="AssignTargetPaths"
+          Condition="'$(TargetFramework)' == '$(DuxelGalleryAssetFramework)'">
     <ItemGroup>
       <_GalleryAsset Include="@(_NoneWithTargetPath)"
                      Condition="'%(_NoneWithTargetPath.CopyToPublishDirectory)' == 'PreserveNewest'" />

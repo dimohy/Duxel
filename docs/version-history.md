@@ -7,4 +7,4 @@
 - Gallery CodeView supports selection and a localized context menu. The menu offers Copy for a selection and Select All for unselected text.
 - `Duxel.App`, `Duxel.Windows.App`, and `Duxel.Linux.App` ship .NET 8, 9, and 10 assets. Gallery uses .NET 11.
 
-[Current documentation](README.md) · [Korean history](version-history.ko.md) · [Older package versions](https://www.nuget.org/packages/Duxel.App#versions-body-tab)
+[Current documentation](README.md) · [Korean history](version-history.ko.md)

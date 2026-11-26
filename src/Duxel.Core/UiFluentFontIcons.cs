@@ -63,8 +63,13 @@ internal static class UiFluentFontAsset
 {
     internal static string GetPath(string name)
     {
-        using var font = typeof(UiFluentFontAsset).Assembly.GetManifestResourceStream("Duxel.Core.FluentIcons." + name)
-            ?? throw new InvalidOperationException("Embedded Fluent icon font is missing: " + name);
+        using var font = typeof(UiFluentFontAsset).Assembly.GetManifestResourceStream("Duxel.Core.FluentIcons." + name);
+        if (font is null)
+        {
+            var external = System.IO.Path.Combine(AppContext.BaseDirectory, name);
+            return File.Exists(external) ? external : throw new FileNotFoundException(
+                "A Fluent icon requires its font. Embed the fonts or deploy the font beside the app.", external);
+        }
         var hash = SHA256.HashData(font);
         var directory = System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify),

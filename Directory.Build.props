@@ -1,5 +1,8 @@
 <Project>
   <PropertyGroup>
+    <DuxelTargetFrameworks>net8.0;net9.0;net10.0;net11.0</DuxelTargetFrameworks>
+    <DuxelWindowsTargetFrameworks>net8.0-windows;net9.0-windows;net10.0-windows;net11.0-windows</DuxelWindowsTargetFrameworks>
+    <DuxelEmbedFluentIconFonts Condition="'$(DuxelCompact)' == 'true' and '$(DuxelEmbedFluentIconFonts)' == ''">false</DuxelEmbedFluentIconFonts>
     <DuxelVersion>0.4.0</DuxelVersion>
     <DuxelHashingVersion>10.0.13</DuxelHashingVersion>
     <DuxelLibTessVersion>1.1.15</DuxelLibTessVersion>

@@ -8,7 +8,7 @@ internal static class GallerySampleTests
         (string Page, string Label)[] expected =
         [
             ("평가", "Rating"), ("접기·펼치기", "Accordion"), ("스켈레톤", "Skeleton"),
-            ("인물 정보", "Persona"), ("Image", "Image"), ("Calendar", "Calendar"),
+            ("인물 정보", "Persona"), ("Image", "Image"), ("MenuBar", "MenuBar"), ("Calendar", "Calendar"),
             ("DatePicker", "DatePicker"), ("DateTimePicker", "DateTimePicker"),
             ("RangeCalendar", "RangeCalendar"), ("TimePicker", "TimePicker")
         ];

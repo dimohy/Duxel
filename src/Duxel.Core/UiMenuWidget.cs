@@ -24,6 +24,10 @@ public readonly record struct UiMenuOption(string Value, string Label, bool Enab
     public string? SubText { get; init; }
     internal UiMenuOption[]? SubmenuItems { get; private init; }
     public ReadOnlySpan<UiMenuOption> Children => SubmenuItems;
+    public bool IsSeparator { get; private init; }
+
+    /// <summary>Adds a non-interactive divider between groups of commands.</summary>
+    public static UiMenuOption Separator(string value) => new(value, string.Empty, Enabled: false) { IsSeparator = true };
 
     /// <summary>Creates a menu item that opens another menu.</summary>
     public static UiMenuOption Submenu(string value, string label, ReadOnlySpan<UiMenuOption> items, bool enabled = true)
@@ -390,7 +394,8 @@ internal static class UiMenuItems
         UiMenuRadioGroup? previous = null;
         foreach (var item in items)
         {
-            if (string.IsNullOrWhiteSpace(item.Value) || string.IsNullOrWhiteSpace(item.Label) || !values.Add(item.Value))
+            if (string.IsNullOrWhiteSpace(item.Value) || !values.Add(item.Value)
+                || (item.IsSeparator ? item.Enabled : string.IsNullOrWhiteSpace(item.Label)))
                 throw new ArgumentException("Menu entries require unique nonempty values and labels.", nameof(items));
             if (item.SecondaryContent is { } secondary && (string.IsNullOrWhiteSpace(secondary) || UiAccessibilityTree.ContainsControl(secondary, false)))
                 throw new ArgumentException("Secondary menu content must be nonempty single-line text.", nameof(items));

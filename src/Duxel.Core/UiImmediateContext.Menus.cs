@@ -335,9 +335,10 @@ public sealed partial class UiImmediateContext
             if (emptyText is not null)
                 width = MathF.Max(width, TPresentation.MeasureItem(context, emptyText) + 2 * options.Padding);
             for (var i = 0; i < items.Length; i++)
-                width = MathF.Max(width, (hasContent
-                    ? TPresentation.MeasureItem(context, Content(i))
-                    : TPresentation.MeasureItem(context, items[i].Label)) + 2 * options.Padding);
+                if (!items[i].IsSeparator)
+                    width = MathF.Max(width, (hasContent
+                        ? TPresentation.MeasureItem(context, Content(i))
+                        : TPresentation.MeasureItem(context, items[i].Label)) + 2 * options.Padding);
             if (options.MaximumWidth is { } maximum)
                 width = MathF.Min(width, maximum);
             if (state.Parent is not null || hasSubmenus)
@@ -349,7 +350,7 @@ public sealed partial class UiImmediateContext
                 double offset = 0;
                 for (var i = 0; i < items.Length; i++)
                 {
-                    var itemHeight = TPresentation.MeasureItemHeight(context, Content(i), rowWidth, options);
+                    var itemHeight = items[i].IsSeparator ? 9 : TPresentation.MeasureItemHeight(context, Content(i), rowWidth, options);
                     if (!float.IsFinite(itemHeight) || itemHeight <= 0)
                         throw new InvalidOperationException("A menu presentation must measure a finite positive row height.");
                     state.ItemOffsets[i] = offset;
@@ -849,6 +850,12 @@ public sealed partial class UiImmediateContext
                     for (var i = 0; i < items.Length; i++)
                     {
                         var row = Row(i);
+                        if (items[i].IsSeparator)
+                        {
+                            context.Frame(new(row.X + 4, row.Y + 4, MathF.Max(0, row.Width - 8), 1),
+                                context.Theme.Border, default, 0, 0);
+                            continue;
+                        }
                         var itemId = state.ItemIds[i];
                         var group = state.GroupIndex[i];
                         var parentId = group < 0 ? root : state.GroupIds[group];

@@ -4,7 +4,8 @@
     <Description>Duxel controls and graphics gallery.</Description>
     <OutputType>WinExe</OutputType>
     <ApplicationIcon>Assets/Brand/duxel.ico</ApplicationIcon>
-    <TargetFramework>net11.0-windows</TargetFramework>
+    <TargetFrameworks>$(DuxelWindowsTargetFrameworks)</TargetFrameworks>
+    <DuxelGalleryAssetFramework>net8.0-windows</DuxelGalleryAssetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsAotCompatible>true</IsAotCompatible>

@@ -2,7 +2,7 @@
 
 Each example is an independent file-based app. Install the [.NET 11 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0) and a Vulkan driver. On Linux, follow the [setup guide](linux-platform.md). If you already have the file, run `dotnet run --file <filename.cs>`.
 
-Run the commands in PowerShell 7 on Windows or Bash on Linux. Each command downloads the example into the working directory and runs it.
+Run the commands in PowerShell 7 on Windows or Bash on Linux. The calculator, large list, and motion canvas can be downloaded and run on their own. Notepad uses the menu bar in this checkout.
 
 The four apps below use the Windows app color mode. On Linux they read the [desktop color preference](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Settings.html) at launch via `gdbus`. They use Fluent light when the session has no preference or no Settings portal, as can happen under WSLg. Restart a Linux sample after changing the desktop preference.
 
@@ -20,15 +20,15 @@ curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/duxe
 
 ## Notepad
 
-Type, select text, and save to duxel-note.txt. Pass a text file after -- to open an existing note. [C# source](../samples/fba/duxel_notepad.cs)
+Open or save a local document using the File menu. Try the Edit submenu and the character count in View. Use Tab and the arrow keys to navigate the menu bar. On Windows, try Alt+F, Alt+E, and Alt+V to open the menus directly. Run this command from the repository root on Windows or Linux. [C# source](../samples/fba/duxel_notepad.cs)
 
-~~~powershell
-curl.exe -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/duxel_notepad.cs && dotnet run --file duxel_notepad.cs
+~~~sh
+dotnet run --file samples/fba/duxel_notepad.cs
 ~~~
 
-~~~bash
-curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/duxel_notepad.cs && dotnet run --file duxel_notepad.cs
-~~~
+Add `-- path/to/note.txt` to open an existing document.
+
+![Duxel Notepad's File menu open over a document in Ubuntu 24.04 on WSLg](images/duxel-notepad-linux.png)
 
 ## Large List
 
@@ -59,6 +59,5 @@ curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/duxe
 - [Controls and state](../samples/fba/gallery_controls.cs) uses `UiState<T>`, `Fluent.Switch`, and `Fluent.Text`. On Linux specify a font with `dotnet run --file gallery_controls.cs -- "$(fc-match -f '%{file}' sans-serif)"`.
 - The [layout example](../samples/fba/gallery_layout.cs) demonstrates the nine Align positions and SizedBox sizing options on Windows.
 - The [Gallery guide](gallery-navigation.md) covers layout, controls, image fit, SVG, and Markdown.
-- Large List and Motion Canvas show behavior on your machine. For older measurements and their test conditions, see the [performance archive](archive/README.md).
 
 [한국어](fba-run-samples.ko.md)

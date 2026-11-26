@@ -4,7 +4,7 @@ For AI-assisted development, identify the target platform, choose a working Gall
 
 | Task | Start with |
 | --- | --- |
-| Runnable examples and package choice | [File-based app guide](getting-started-fba.md), [samples/fba](../samples/fba) |
+| Runnable examples and package choice | [File-based app guide](getting-started-fba.md), [Fluent 2 sample commands](fba-run-samples.md) |
 | Working controls and layout | [GalleryComponentExamples.cs](../samples/Duxel.Gallery/GalleryComponentExamples.cs), [Gallery navigation](../samples/Duxel.Gallery/GalleryNavigation.cs) |
 | Fluent typography | [Fluent.Text.cs](../src/Duxel.Core/Fluent.Text.cs), e.g. `Fluent.Text(Text.Title2, "Title")` |
 | State, widgets, and layout | [Duxel.Core](../src/Duxel.Core) |

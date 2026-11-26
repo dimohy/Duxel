@@ -3,7 +3,8 @@
     <Product>Duxel Gallery</Product>
     <Description>Duxel controls and graphics gallery.</Description>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net11.0</TargetFramework>
+    <TargetFrameworks>$(DuxelTargetFrameworks)</TargetFrameworks>
+    <DuxelGalleryAssetFramework>net8.0</DuxelGalleryAssetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

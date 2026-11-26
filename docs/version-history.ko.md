@@ -7,4 +7,4 @@
 - Gallery CodeView에서 코드를 선택하고 오른쪽 버튼 메뉴를 열 수 있습니다. 선택 영역이 있으면 복사, 없으면 전체 선택을 표시합니다.
 - `Duxel.App`, `Duxel.Windows.App`, `Duxel.Linux.App`은 .NET 8·9·10용 자산을 제공합니다. Gallery는 .NET 11을 사용합니다.
 
-[현재 문서](README.ko.md) · [English](version-history.md) · [이전 NuGet 버전](https://www.nuget.org/packages/Duxel.App#versions-body-tab)
+[현재 문서](README.ko.md) · [English](version-history.md)

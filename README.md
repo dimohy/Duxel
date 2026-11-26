@@ -26,25 +26,55 @@ Use Bash on Linux or WSLg with X11/Xwayland and Vulkan. [Linux setup](docs/linux
 curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/v0.4.0/samples/fba/duxel_gallery_linux.cs && dotnet run --file duxel_gallery_linux.cs
 ~~~
 
-![Duxel Gallery showing the SizedBox layout demo and its C# source](docs/images/duxel-0.4.0-gallery.png)
+| Windows | Linux · Ubuntu 24.04 on WSLg |
+| --- | --- |
+| ![Windows Duxel Gallery showing the SizedBox demo and C# source](docs/images/duxel-0.4.0-gallery.png) | ![Linux Duxel Gallery showing the overview in Ubuntu 24.04 on WSLg](docs/images/duxel-0.4.0-gallery-linux.png) |
+
+From this repository, the library and both Gallery projects build for .NET **8, 9, 10, and 11**. See the [Gallery guide](docs/gallery-navigation.md) to select a runtime when running from source. The download commands above use the published 0.4.0 launchers.
+
+## Start vibe coding with Duxel
+
+1. Open **Gallery → Fluent controls → Input and selection → Switch** and try the widget. Copy the C# shown under the example.
+2. Download [`gallery_controls.cs`](samples/fba/gallery_controls.cs) into an empty folder and open that folder in your AI coding assistant. Run the file once. You should see a switch, a Count button, and a count that changes only while the switch is on.
+3. Paste the Gallery code and give your assistant a small change with a result you can check.
+
+> Open `gallery_controls.cs`. Using the attached Gallery Switch example, add a **Reset count** button that sets the count to zero without changing whether counting is enabled. Reuse the existing `UiState<int>` and Fluent controls. Keep the Windows and Linux host setup and package version. Run the app and check that Count increases by one when enabled and Reset returns it to zero.
+
+**Windows** · PowerShell 7
+
+~~~powershell
+dotnet run --file gallery_controls.cs
+~~~
+
+**Linux** · Bash with a desktop session and Fontconfig
+
+~~~bash
+dotnet run --file gallery_controls.cs -- "$(fc-match -f '%{file}' sans-serif)"
+~~~
+
+Run the same edited file on Windows and Linux. Check the switch, both buttons, and the displayed count on each. Use the [API and source map](docs/duxel-agent-reference.md) to give the assistant exact widget signatures.
+
 
 ## Run a Fluent 2 desktop app
 
-Download and run any of the following as a single C# file. The Calculator, Notepad, Large List, and Motion Canvas run with the same source on Windows and Linux. [One-line commands for every example](docs/fba-run-samples.md)
+The Calculator, Notepad, Large List, and Motion Canvas use the same C# source on Windows and Linux. The run guide includes each sample's dependencies and commands. [Run the examples](docs/fba-run-samples.md)
 
 | Example | What to try |
 | --- | --- |
 | [Calculator](samples/fba/duxel_calculator.cs) | Chain decimal operations and try the divide-by-zero case. |
-| [Notepad](samples/fba/duxel_notepad.cs) | Edit a local note and save it as plain text. |
+| [Notepad](docs/fba-run-samples.md#notepad) | Open and save a local note using the desktop menu bar. Run from the repository checkout. |
 | [Large List](samples/fba/duxel_large_list.cs) | Scroll or jump through 100,000 rows with a virtualized viewport. |
 | [Motion Canvas](samples/fba/duxel_render_motion.cs) | Adjust the number of animated shapes while the Fluent 2 controls stay interactive. |
 
 ![The inventory sample showing 12 row widgets for 100,000 items](docs/images/duxel-0.4.0-inventory.png)
 
+## Publish a small NativeAOT app
+
+A minimal Fluent 2 app published to **4.85 MB on Windows x64** and **6.14 MB on Linux x64** with the opt-in compact build. The [NativeAOT guide](docs/native-aot.md) shows the baseline, exact byte counts, and reproducible commands.
+
 ## Build with Duxel
 
-- Compose retained-mode widgets with `Dux`, `Fluent`, and `UiState<T>`. Use immediate-mode drawing for custom graphics inside the same UI.
-- Reference the Windows or Linux app host in a project or via `#:package` in a single C# file. The hosts and shared runtime ship assets for .NET 8, 9, and 10. The 0.4.0 Gallery launchers use the .NET 11 SDK.
-- Check rendering behavior in the Gallery, Large List, or Motion Canvas. For measurements from earlier builds, see [historical benchmarks](docs/archive/README.md).
+- Lay out Fluent 2 controls with `Dux`, style them with `Fluent`, and bind their values with `UiState<T>`.
+- Reference the Windows or Linux host in a project or via `#:package` in a file-based app. The source projects target .NET 8, 9, 10, and 11. The published 0.4.0 host packages target .NET 8, 9, and 10, and the launchers above use the .NET 11 SDK.
 
-[Start a C# app](docs/getting-started-fba.md) · [API and source map](docs/duxel-agent-reference.md) · [Repository instructions](AGENTS.md) · [LLM-friendly documentation index](llms.txt)
+[Start a C# app](docs/getting-started-fba.md) · [API and source map](docs/duxel-agent-reference.md) · [LLM-friendly documentation index](llms.txt)

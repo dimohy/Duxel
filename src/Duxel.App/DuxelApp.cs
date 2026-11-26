@@ -22,17 +22,12 @@ public static class DuxelApp
         ArgumentNullException.ThrowIfNull(runner);
 
         var current = Interlocked.CompareExchange(ref s_registeredRunner, runner, null);
-        if (current is null || AreEquivalentRunner(current, runner))
+        if (current is null || current == runner)
         {
             return;
         }
 
         throw new InvalidOperationException("A Duxel platform runner is already registered.");
-    }
-
-    private static bool AreEquivalentRunner(Action<DuxelAppOptions> left, Action<DuxelAppOptions> right)
-    {
-        return left.Method == right.Method && ReferenceEquals(left.Target, right.Target);
     }
 
     public static void RequestFrame()
