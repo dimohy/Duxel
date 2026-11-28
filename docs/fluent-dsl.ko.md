@@ -8,14 +8,16 @@ Fluent DSL은 `.duxel.yaml` 파일을 기존 Fluent 2 컨트롤과 Dux 레이아
 
 ```powershell
 $feed = Join-Path (Get-Location) 'artifacts/fluent-dsl-feed'
-dotnet pack src/Duxel.FluentDsl.Generator -c Release -o $feed -p:DuxelVersion=0.4.1-fluentdsl.3
+dotnet pack src/Duxel.FluentDsl.Generator -c Release -o $feed -p:DuxelVersion=0.4.1-fluentdsl.4
 $env:RestoreAdditionalProjectSources = $feed
 dotnet run --file samples/fba/fluent_dsl/app.cs
 ```
 
 Linux 셸에서는 `feed="$PWD/artifacts/fluent-dsl-feed"`와 `export RestoreAdditionalProjectSources="$feed"`를 사용합니다. 예제를 실행할 때 `dotnet run --file samples/fba/fluent_dsl/app.cs -- /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf`처럼 설치된 글꼴 파일을 넘깁니다.
 
-[FBA 진입 파일](../samples/fba/fluent_dsl/app.cs)은 YAML 파일 6개의 경로를 `DuxelViewFiles`에 세미콜론으로 구분해 적고, `#:include`로 C# 동작 파일 두 개를 포함합니다. 경로는 진입 파일을 기준으로 적습니다. YAML마다 고유한 화면 이름을 선언하면 앱에서 생성된 화면을 만들어 연결할 수 있습니다. 패키지는 YAML 파일을 소스 생성기와 개발 중 파일 감시에 전달합니다. 프로젝트 파일을 쓰는 앱에서는 `AdditionalFiles`로 YAML 파일을 지정할 수 있습니다.
+[FBA 진입 파일](../samples/fba/fluent_dsl/app.cs)은 `DuxelViewFiles=Views/**/*.duxel.yaml`로 YAML 화면 6개를, `#:include Actions/*.cs`로 C# 동작 파일을 포함합니다. 경로는 진입 파일을 기준으로 적습니다. 개별 YAML 경로를 세미콜론으로 나눠 지정할 수도 있습니다. 패키지는 YAML을 컴파일러와 파일 감시에 전달합니다. 프로젝트 파일을 쓰는 앱에서는 `AdditionalFiles`로 YAML 파일을 지정할 수 있습니다.
+
+Windows와 Linux에서 같은 진입 파일의 `FluentDslHost.Run(options, args)`를 호출합니다. 생성기가 참조된 호스트 패키지에 맞춰 시작 코드를 만듭니다. Windows는 기존 `DuxelApp.Run` 경로와 창 최소 크기 설정을 사용합니다. Linux는 X11 호스트를 실행하고 명령줄에서 설치된 글꼴의 경로를 받습니다.
 
 | 메뉴 | 해 볼 동작 | YAML |
 | --- | --- | --- |

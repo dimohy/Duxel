@@ -224,6 +224,18 @@ internal static class FluentDslGeneratorTests
         check(duplicate.Result.Diagnostics.Length == 2
             && duplicate.Result.GeneratedTrees.Single().GetText().ToString().StartsWith("#error", StringComparison.Ordinal),
             "duplicate DSL screen names report both files without generating conflicting types");
+
+        const string windowsHost = "namespace Duxel.Windows.App { public static class DuxelWindowsApp {} }";
+        const string linuxHost = "namespace Duxel.Linux.App { public static class DuxelLinuxApp {} }";
+        var windowsStartup = Generate(windowsHost).Result.GeneratedTrees.Single().GetText().ToString();
+        check(windowsStartup.Contains("DuxelApp.Run(options)") && !windowsStartup.Contains("DuxelLinuxApp"),
+            "a Windows host reference reuses the existing DuxelApp runner bootstrap");
+        var linuxStartup = Generate(linuxHost).Result.GeneratedTrees.Single().GetText().ToString();
+        check(linuxStartup.Contains("DuxelLinuxApp.Run(options with") && linuxStartup.Contains("PrimaryFontPath = font")
+            && !linuxStartup.Contains("DuxelWindowsApp"),
+            "a Linux host reference selects the typed X11 runner with its font options");
+        check(Generate(windowsHost + "\n" + linuxHost).Result.GeneratedTrees.Length == 0,
+            "a compilation referencing both hosts does not select one implicitly");
     }
 
     private sealed class ViewFile(string path, string content) : AdditionalText

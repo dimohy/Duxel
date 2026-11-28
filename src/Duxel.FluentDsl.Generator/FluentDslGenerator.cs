@@ -23,6 +23,23 @@ public sealed class FluentDslGenerator : IIncrementalGenerator
                 .ToImmutableArray() ?? []);
         var screens = parsed.Combine(typography).Select(static (input, _) => Compile(input.Left, input.Right));
         context.RegisterSourceOutput(screens.Collect(), static (output, files) => Emit(output, files));
+
+        var host = context.CompilationProvider.Select(static (compilation, _) =>
+        {
+            var windows = compilation.GetTypeByMetadataName("Duxel.Windows.App.DuxelWindowsApp") is not null;
+            var linux = compilation.GetTypeByMetadataName("Duxel.Linux.App.DuxelLinuxApp") is not null;
+            return (windows, linux) switch
+            {
+                (true, false) => DslEmitter.WindowsHost,
+                (false, true) => DslEmitter.LinuxHost,
+                _ => null
+            };
+        });
+        context.RegisterSourceOutput(host, static (output, source) =>
+        {
+            if (source is not null)
+                output.AddSource("Duxel.FluentDsl.FluentDslHost.g.cs", SourceText.From(source, Encoding.UTF8));
+        });
     }
 
     private static ParsedFile Parse(AdditionalText file, CancellationToken cancellationToken)

@@ -8,14 +8,16 @@ From the repository root, build the preview package in a local feed. The sample 
 
 ```powershell
 $feed = Join-Path (Get-Location) 'artifacts/fluent-dsl-feed'
-dotnet pack src/Duxel.FluentDsl.Generator -c Release -o $feed -p:DuxelVersion=0.4.1-fluentdsl.3
+dotnet pack src/Duxel.FluentDsl.Generator -c Release -o $feed -p:DuxelVersion=0.4.1-fluentdsl.4
 $env:RestoreAdditionalProjectSources = $feed
 dotnet run --file samples/fba/fluent_dsl/app.cs
 ```
 
 In a Linux shell, set `feed="$PWD/artifacts/fluent-dsl-feed"` and `export RestoreAdditionalProjectSources="$feed"`. Pass an installed font file to the sample, for example `dotnet run --file samples/fba/fluent_dsl/app.cs -- /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf`.
 
-The [FBA entry](../samples/fba/fluent_dsl/app.cs) lists six YAML files in the semicolon-separated `DuxelViewFiles` property and includes two C# action files with `#:include`. Paths are relative to the entry file. Each YAML file declares a unique screen, and the app creates and mounts the generated views. The package forwards the YAML files to the source generator and the development watcher. Project-based apps can use `AdditionalFiles`.
+The [FBA entry](../samples/fba/fluent_dsl/app.cs) sets `DuxelViewFiles=Views/**/*.duxel.yaml` to include all six screens. Use `#:include Actions/*.cs` for their C# actions. Both paths are relative to the entry file. You can also give `DuxelViewFiles` a semicolon-separated list of individual paths. The package forwards the YAML files to the compiler and watcher. Project-based apps can use `AdditionalFiles`.
+
+The same entry calls `FluentDslHost.Run(options, args)` on both platforms. The generator selects the startup code from the referenced host package. Windows uses the existing `DuxelApp.Run` bootstrap and applies the window minimum size. Linux uses its X11 runner and takes the installed font path from the command line.
 
 | Open | Try | YAML |
 | --- | --- | --- |
