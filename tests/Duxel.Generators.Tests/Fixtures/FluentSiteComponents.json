@@ -593,6 +593,13 @@
       "https://fluent2.microsoft.design/components/web/react/core/text/usage"
     ],
     [
+      "MenuBar",
+      "variant",
+      "desktop",
+      "menu-guidance-and-winui-menubar",
+      "https://fluent2.microsoft.design/components/web/react/core/menu/usage"
+    ],
+    [
       "MenuButton",
       "variant",
       "web-react",
