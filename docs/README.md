@@ -7,6 +7,7 @@
 | [Gallery guide](gallery-navigation.md) | Find, try, and copy an example from the desktop Gallery. |
 | [File-based apps](getting-started-fba.md) | Set up .NET and build a shared Windows/Linux C# UI. |
 | [Runnable Fluent 2 apps](fba-run-samples.md) | Launch a calculator, notepad, virtual list, or animated canvas from one C# file. |
+| [Fluent 2 YAML views](fluent-dsl.md) | Build multiple YAML screens into one file-based app with typed state and C# actions. |
 | [Linux and WSLg](linux-platform.md) | Install system prerequisites and run the Linux Gallery FBA. |
 | [NativeAOT publishing](native-aot.md) | Publish a minimal Fluent 2 app and compare x64 executable sizes. |
 | [API and source map](duxel-agent-reference.md) | Locate the current implementation and runnable uses of each API. |

@@ -417,6 +417,7 @@ internal static class GeneratorTestRunner
         }
         FluentIconGeneratorTests.Run(Check, references, parseOptions, output);
         FluentIconIncrementalTests.Run(Check, references, parseOptions, output);
+        FluentDslGeneratorTests.Run(Check, references, parseOptions);
         File.WriteAllText(Path.Combine(output, "core-catalog.json"), JsonSerializer.Serialize(new
         {
             available = Fluent.ComponentNames.ToArray(),

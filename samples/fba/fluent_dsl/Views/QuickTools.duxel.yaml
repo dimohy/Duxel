@@ -1,0 +1,40 @@
+schema: 1
+screen: QuickTools
+using: [Dux]
+
+state:
+  Count: 0
+  Result: "Counter: 0"
+
+view:
+  Padding:
+    all: 12
+    child:
+      Column:
+        spacing: 12
+        children:
+          - Fluent.Text:
+              style: Title2
+              text: Quick tools
+          - SizedBox:
+              width: 360
+              child:
+                UniformGrid:
+                  columns: 2
+                  spacing: 8
+                  rowHeight: 36
+                  children:
+                    - Fluent.Button:
+                        label: Add one
+                        onClick: AddOne
+                    - Fluent.Button:
+                        label: Subtract one
+                        onClick: SubtractOne
+                    - Fluent.Button:
+                        label: Double
+                        onClick: Double
+                    - Fluent.Button:
+                        label: Reset counter
+                        onClick: ResetCounter
+          - Fluent.Text:
+              text: { read: Result }

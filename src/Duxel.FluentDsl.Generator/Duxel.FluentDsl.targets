@@ -1,0 +1,9 @@
+<Project>
+  <!-- Include relative to the consumer project, including an SDK virtual file-based project. -->
+  <ItemGroup Condition="'$(DuxelViewFiles)' != ''">
+    <AdditionalFiles Include="$(DuxelViewFiles)" />
+  </ItemGroup>
+  <ItemGroup>
+    <Watch Include="@(AdditionalFiles->WithMetadataValue('Extension', '.yaml'))" />
+  </ItemGroup>
+</Project>

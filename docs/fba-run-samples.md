@@ -54,6 +54,10 @@ curl.exe -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/
 curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/duxel_render_motion.cs && dotnet run --file duxel_render_motion.cs
 ~~~
 
+## Fluent 2 YAML preview
+
+Run the notes editor, transfer progress, release checklist, and tool grid in a single app with six YAML views. Build the preview analyzer from the checkout. [Build and run the YAML samples](fluent-dsl.md)
+
 ## Smaller examples and the Gallery
 
 - [Controls and state](../samples/fba/gallery_controls.cs) uses `UiState<T>`, `Fluent.Switch`, and `Fluent.Text`. On Linux specify a font with `dotnet run --file gallery_controls.cs -- "$(fc-match -f '%{file}' sans-serif)"`.

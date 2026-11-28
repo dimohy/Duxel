@@ -1,0 +1,12 @@
+schema: 1
+screen: About
+
+view:
+  Dux.Column:
+    spacing: 8
+    children:
+      - Fluent.Text:
+          style: Title2
+          text: About this demo
+      - Fluent.Text:
+          text: All six screens are generated from YAML at build time.

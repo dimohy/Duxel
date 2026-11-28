@@ -1,0 +1,46 @@
+schema: 1
+screen: ReleaseChecklist
+using: [Fluent]
+
+state:
+  BuildChecked: true
+  BadgeText: In review
+  Status: Check each release requirement.
+
+view:
+  Dux.Column:
+    spacing: 10
+    children:
+      - Text:
+          style: Title2
+          text: Release checklist
+      - Dux.SizedBox:
+          width: 360
+          child:
+            Card:
+              title: Release requirements
+              child:
+                Dux.Column:
+                  spacing: 8
+                  children:
+                    - Checkbox:
+                        label: Build verified
+                        value: { bind: BuildChecked }
+                    - Checkbox:
+                        label: Release notes reviewed
+                        value: { bind: NotesChecked }
+                    - Checkbox:
+                        label: Rollback plan ready
+                        value: { bind: RollbackChecked }
+      - Divider:
+          text: Release decision
+      - Dux.Row:
+          spacing: 8
+          children:
+            - Button:
+                label: Evaluate checklist
+                onClick: Evaluate
+            - Badge:
+                text: { read: BadgeText }
+      - Text:
+          text: { read: Status }

@@ -54,6 +54,10 @@ curl.exe -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/
 curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/main/samples/fba/duxel_render_motion.cs && dotnet run --file duxel_render_motion.cs
 ~~~
 
+## Fluent 2 YAML 미리 보기
+
+YAML 화면 6개를 한 앱에 모았습니다. 작업 노트를 검토하거나 전송 진행률을 바꾸고, 릴리스 조건을 평가하거나 도구 단추로 카운터를 조작할 수 있습니다. 저장소에서 미리 보기용 생성기를 빌드해 실행합니다. [YAML 예제 실행법](fluent-dsl.ko.md)
+
 ## 더 작은 예제와 Gallery
 
 - [Controls와 상태 연결](../samples/fba/gallery_controls.cs)은 `UiState<T>`, `Fluent.Switch`, `Fluent.Text`를 씁니다. Linux에서는 `dotnet run --file gallery_controls.cs -- "$(fc-match -f '%{file}' sans-serif)"`로 글꼴 경로를 지정합니다.

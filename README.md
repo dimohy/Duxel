@@ -68,6 +68,12 @@ The Calculator, Notepad, Large List, and Motion Canvas use the same C# source on
 
 ![The inventory sample showing 12 row widgets for 100,000 items](docs/images/duxel-0.4.0-inventory.png)
 
+## Try the Fluent 2 YAML preview
+
+Build a six-screen file-based app with separate YAML views and C# actions. The source generator turns the views into Duxel widget calls and typed state at build time. Build the preview analyzer from this checkout, then try the four examples in the [Fluent 2 YAML guide](docs/fluent-dsl.md).
+
+![Windows sample showing the completed release checklist and its Ready badge](docs/images/fluent-dsl-checklist.jpg)
+
 ## Publish a small NativeAOT app
 
 A minimal Fluent 2 app published to **4.85 MB on Windows x64** targeting .NET 11 and **4.98 MB on Linux x64** targeting .NET 10 with the opt-in compact build. The [NativeAOT guide](docs/native-aot.md) shows the baseline, exact byte counts, and reproducible commands.

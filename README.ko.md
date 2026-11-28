@@ -68,6 +68,12 @@ dotnet run --file gallery_controls.cs -- "$(fc-match -f '%{file}' sans-serif)"
 
 ![10만 항목 중 행 위젯 12개를 생성한 재고 목록 예제 화면](docs/images/duxel-0.4.0-inventory.png)
 
+## Fluent 2 YAML 미리 보기
+
+YAML 화면 6개와 C# 동작 파일을 하나의 파일 기반 앱에서 씁니다. 소스 생성기는 빌드할 때 YAML을 Duxel 위젯 호출과 타입이 지정된 상태로 바꿉니다. 이 저장소에서 미리 보기용 생성기를 빌드한 뒤 네 가지 예제를 실행해 보세요. [Fluent 2 YAML 가이드](docs/fluent-dsl.ko.md)
+
+![Windows에서 릴리스 조건 세 가지를 충족해 Ready 배지가 표시된 화면](docs/images/fluent-dsl-checklist.jpg)
+
 ## NativeAOT로 작은 실행 파일 만들기
 
 Fluent 2 텍스트 컨트롤 하나를 띄우는 최소 앱을 용량 절약 옵션으로 게시한 결과, **Windows x64는 4.85 MB**(.NET 11 대상), **Linux x64는 4.98 MB**(.NET 10 대상)였습니다. 기본 게시 결과와 바이트 단위 실측값, 재현 명령은 [NativeAOT 가이드](docs/native-aot.ko.md)에 있습니다.

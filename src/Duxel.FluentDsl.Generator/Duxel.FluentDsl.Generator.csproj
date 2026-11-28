@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="PublishAot">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <PublishAot>false</PublishAot>
+    <PackageId>Duxel.FluentDsl</PackageId>
+    <Version>$(DuxelVersion)</Version>
+    <Authors>dimohy</Authors>
+    <Description>Compile YAML views into Duxel Fluent 2 widgets and typed state.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackFluentDslAnalyzer</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0" PrivateAssets="all" />
+    <PackageReference Include="YamlDotNet" Version="16.3.0" GeneratePathProperty="true" PrivateAssets="all" />
+    <Compile Include="../Duxel.Core.Dsl.Generator/IsExternalInit.cs" Link="IsExternalInit.cs" />
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md;AnalyzerReleases.Unshipped.md" />
+    <None Update="Duxel.FluentDsl.targets" Pack="true" PackagePath="buildTransitive/Duxel.FluentDsl.targets" />
+    <None Update="YamlDotNet.LICENSE.txt" Pack="true" PackagePath="licenses/YamlDotNet/LICENSE.txt" />
+    <None Include="../../docs/fluent-dsl.md" Pack="true" PackagePath="README.md" />
+  </ItemGroup>
+  <Target Name="PackFluentDslAnalyzer">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(TargetPath);$(PkgYamlDotNet)/lib/netstandard2.0/YamlDotNet.dll"
+                              PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
+</Project>

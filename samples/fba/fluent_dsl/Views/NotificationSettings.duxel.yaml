@@ -1,0 +1,28 @@
+schema: 1
+screen: NotificationSettings
+using: [Fluent]
+
+state:
+  Status: Ready
+
+view:
+  Dux.Column:
+    spacing: 12
+    children:
+      - Text:
+          style: Title2
+          text: Notification settings
+      - Input:
+          label: Email address
+          value: { bind: Email }
+          maxLength: 254
+          width: 280
+      - Switch:
+          label: Email notifications
+          value: { bind: EmailNotifications }
+      - Button:
+          label: Save
+          onClick: Save
+      - Text:
+          style: Caption1
+          text: { read: Status }

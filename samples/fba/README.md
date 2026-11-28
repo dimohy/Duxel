@@ -1,6 +1,6 @@
 # Duxel file-based apps
 
-Start with the [one-line launch commands](../../docs/fba-run-samples.md) or [한국어 안내](../../docs/fba-run-samples.ko.md). Each current app is one C# file.
+Start with the [one-line launch commands](../../docs/fba-run-samples.md) or [한국어 안내](../../docs/fba-run-samples.ko.md). The YAML preview combines several YAML views and C# files in a single file-based app.
 
 | File | Use |
 | --- | --- |
@@ -10,4 +10,5 @@ Start with the [one-line launch commands](../../docs/fba-run-samples.md) or [한
 | [duxel_large_list.cs](duxel_large_list.cs) | Browse or jump to items in a virtualized inventory. |
 | [duxel_render_motion.cs](duxel_render_motion.cs) | Change the load on an animated Vulkan canvas. |
 | [gallery_controls.cs](gallery_controls.cs), [gallery_layout.cs](gallery_layout.cs) | Focused widget, state, and layout examples. |
+| [fluent_dsl/app.cs](fluent_dsl/app.cs) | Six compiled YAML views, including a draft editor, progress, checklist, and tool grid. [Build the preview and see the screens](../../docs/fluent-dsl.md). |
 | [duxel_hello.cs](duxel_hello.cs) | Minimal Fluent 2 app used in the [NativeAOT guide](../../docs/native-aot.md). |

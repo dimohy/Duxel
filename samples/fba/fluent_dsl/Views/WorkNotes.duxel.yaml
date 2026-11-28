@@ -1,0 +1,38 @@
+schema: 1
+screen: WorkNotes
+using: [Fluent, Dux]
+
+state:
+  Summary: Ready to review
+
+view:
+  Padding:
+    all: 12
+    child:
+      Column:
+        spacing: 10
+        children:
+          - Text:
+              style: Title2
+              text: Work notes
+          - Textarea:
+              label: Note draft
+              value: { bind: Draft }
+              maxLength: 1200
+              width: 360
+              height: 100
+          - Checkbox:
+              label: Mark as follow-up
+              value: { bind: FollowUp }
+          - Wrap:
+              spacing: 8
+              runSpacing: 6
+              children:
+                - Button:
+                    label: Review draft
+                    onClick: Review
+                - Button:
+                    label: Clear draft
+                    onClick: ClearNote
+          - Text:
+              text: { read: Summary }
