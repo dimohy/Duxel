@@ -14,6 +14,10 @@ Try decimal arithmetic, chained operators and clear. [C# source](../samples/fba/
 dotnet run --file samples/fba/duxel_calculator.cs
 ~~~
 
+The keypad fills the available width. In a shorter window, scroll to reach the bottom rows.
+
+![Duxel Calculator showing 15, with every key and the memory status visible](images/duxel-calculator-windows.jpg)
+
 ## Notepad
 
 Open or save a local document using the File menu. Try the Edit submenu and the character count in View. Use Tab and the arrow keys to navigate the menu bar. On Windows, try Alt+F, Alt+E, and Alt+V to open the menus directly. Run this command from the repository root on Windows or Linux. [C# source](../samples/fba/duxel_notepad.cs)

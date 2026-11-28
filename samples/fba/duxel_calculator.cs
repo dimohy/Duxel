@@ -28,19 +28,28 @@ string[] keys =
     "0", ".", "%", "="
 ];
 
-const float Width = 356;
+const float MinimumKeypadWidth = 256;
 var displayCard = Fluent.Card("Standard", Dux.Column(new UiFlexOptions(Spacing: 3, MainAxisSize: UiMainAxisSize.Min,
     CrossAxisAlignment: UiCrossAxisAlignment.Stretch),
     Fluent.Text(Text.Caption1, () => operation.Value),
     Dux.Align(Fluent.Text(Text.Display, () => display.Value), new UiAlignment(1, 0))),
-    new UiCardOptions(Width: Width, Appearance: UiCardAppearance.FilledAlternative));
-var root = Dux.Column(new UiFlexOptions(Spacing: 12, MainAxisSize: UiMainAxisSize.Min),
+    new UiCardOptions(Appearance: UiCardAppearance.FilledAlternative));
+var root = Dux.Column(new UiFlexOptions(Spacing: 8, MainAxisSize: UiMainAxisSize.Min,
+    CrossAxisAlignment: UiCrossAxisAlignment.Stretch),
     Fluent.Text(Text.Title2, "Calculator"),
     displayCard,
-    Dux.SizedBox(Dux.UniformGrid(new(4, CrossAxisSpacing: 7, MainAxisSpacing: 7, MainAxisExtent: 40),
-        [.. keys.Select(Key)]), width: Width),
+    Dux.UniformGrid(new(4, CrossAxisSpacing: 7, MainAxisSpacing: 6, MainAxisExtent: 40),
+        [.. keys.Select(Key)]),
     Fluent.Text(Text.Caption1, () => memory.Value is { } value ? $"Memory  {Format(value)}" : "Memory is empty"));
-Run(Dux.ScrollView(Dux.SizedBox(root, width: Width), new(UiScrollAxis.Both)), "Duxel Calculator", 428, 566);
+var body = Dux.SizedBox(root);
+using var viewport = Dux.ScrollView(body);
+Run(new UiView(ui =>
+{
+    var narrow = ui.GetContentRegionAvail().X < MinimumKeypadWidth;
+    body.Options = new(Width: narrow ? MinimumKeypadWidth: null);
+    viewport.Options = new(narrow ? UiScrollAxis.Both : UiScrollAxis.Vertical);
+    viewport.Render(ui);
+}), "Duxel Calculator", 428, 566);
 
 UiWidget Key(string key) => Fluent.Button(key, () => Press(key));
 
@@ -144,7 +153,7 @@ void Reset(string status)
 bool Read(out decimal value) => decimal.TryParse(display.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
 static string Format(decimal value) => value.ToString("G17", CultureInfo.InvariantCulture);
 
-static void Run(UiWidget root, string title, int width, int height, Func<bool>? animationActive = null)
+static void Run(IUiView root, string title, int width, int height, Func<bool>? animationActive = null)
 {
     var options = DuxelApp.Options(Dux.App(root), title: title, width: width, height: height);
     options = options with

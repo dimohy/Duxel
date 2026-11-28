@@ -14,6 +14,10 @@
 dotnet run --file samples/fba/duxel_calculator.cs
 ~~~
 
+키패드는 창 너비에 맞춰 늘어납니다. 창을 낮추면 아래로 스크롤해 마지막 줄까지 사용할 수 있습니다.
+
+![계산 결과 15와 키패드 전체, 메모리 상태가 보이는 Duxel 계산기](images/duxel-calculator-windows.jpg)
+
 ## 메모장
 
 파일 메뉴로 문서를 열고 저장합니다. 편집 하위 메뉴와 보기 메뉴의 글자 수 표시도 써 보세요. Tab과 방향키로 메뉴를 탐색할 수 있습니다. Windows에서는 Alt+F·Alt+E·Alt+V로 메뉴를 바로 엽니다. Windows와 Linux 모두 저장소 루트에서 다음 명령으로 실행합니다. [C# 소스](../samples/fba/duxel_notepad.cs)
