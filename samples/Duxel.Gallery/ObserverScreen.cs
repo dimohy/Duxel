@@ -2,13 +2,13 @@ using Duxel.Core;
 
 namespace Duxel.Gallery;
 
-internal sealed class ObserverScreen : UiScreen, IDisposable
+internal sealed partial class ObserverScreen : UiScreen, IDisposable
 {
     internal const float TitleBarHeight = 48;
-#if DUXEL_GALLERY_PROFILING
-    internal bool ProfileRenderSections { get; set; }
-    internal (long Navigation, long Options, long Page) RenderSectionTicks { get; private set; }
-#endif
+    partial void BeginNavigationProfile();
+    partial void BeginToolbarProfile();
+    partial void BeginPageProfile();
+    partial void EndRenderProfile();
     private static readonly UiTooltipOptions ToolbarTooltipOptions = new()
     {
         ShowDelaySeconds = .75,
@@ -378,10 +378,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
         var origin = ui.GetCursorScreenPos();
         var available = ui.GetContentRegionAvail();
         _compactNavigation = available.X + 16 <= 640;
-#if DUXEL_GALLERY_PROFILING
-        var sample = ProfileRenderSections;
-        var navigationStart = sample ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
-#endif
+        BeginNavigationProfile();
         if (_compactNavigation)
         {
             _compactHeader.Render(ui);
@@ -400,9 +397,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
                 ui.GetColorU32(UiStyleColor.Separator), ui.WhiteTextureId);
             ui.SetCursorScreenPos(new(contentX, origin.Y));
         }
-#if DUXEL_GALLERY_PROFILING
-        var optionsStart = sample ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
-#endif
+        BeginToolbarProfile();
         if (_toolbar is { } toolbar && _toolbarScroll is { } scroll && _headerActions is { } header)
         {
             var themeSize = header.MeasureConstrained(ui, new(0, float.PositiveInfinity, 0, float.PositiveInfinity));
@@ -418,9 +413,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
         if (!statusInTitleBar)
             _pageStatus?.Render(ui);
         ui.SetRepaintHighlights(_repaintHighlights.Value);
-#if DUXEL_GALLERY_PROFILING
-        var pageStart = sample ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
-#endif
+        BeginPageProfile();
         for (var index = 0; index < _pages.Length; index++)
         {
             if (SelectedPage == _pages[index].Title)
@@ -432,11 +425,7 @@ internal sealed class ObserverScreen : UiScreen, IDisposable
             }
         }
         _settings?.Render(ui);
-#if DUXEL_GALLERY_PROFILING
-        if (sample)
-            RenderSectionTicks = (optionsStart - navigationStart, pageStart - optionsStart,
-                System.Diagnostics.Stopwatch.GetTimestamp() - pageStart);
-#endif
+        EndRenderProfile();
     }
 
     private bool RenderTitleBar(UiImmediateContext ui, out bool statusInTitleBar)

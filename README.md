@@ -35,7 +35,7 @@ From this repository, the library and both Gallery projects build for .NET **8, 
 ## Start vibe coding with Duxel
 
 1. Open **Gallery → Fluent controls → Input and selection → Switch** and try the widget. Copy the C# shown under the example.
-2. Download [`gallery_controls.cs`](samples/fba/gallery_controls.cs) into an empty folder and open that folder in your AI coding assistant. Run the file once. You should see a switch, a Count button, and a count that changes only while the switch is on.
+2. Open the repository checkout in your AI coding assistant and find [`gallery_controls.cs`](samples/fba/gallery_controls.cs). Run the file once. You should see a switch, a Count button, and a count that changes only while the switch is on.
 3. Paste the Gallery code and give your assistant a small change with a result you can check.
 
 > Open `gallery_controls.cs`. Using the attached Gallery Switch example, add a **Reset count** button that sets the count to zero without changing whether counting is enabled. Reuse the existing `UiState<int>` and Fluent controls. Keep the Windows and Linux host setup and package version. Run the app and check that Count increases by one when enabled and Reset returns it to zero.
@@ -43,13 +43,13 @@ From this repository, the library and both Gallery projects build for .NET **8, 
 **Windows** · PowerShell 7
 
 ~~~powershell
-dotnet run --file gallery_controls.cs
+dotnet run --file samples/fba/gallery_controls.cs
 ~~~
 
 **Linux** · Bash with a desktop session and Fontconfig
 
 ~~~bash
-dotnet run --file gallery_controls.cs -- "$(fc-match -f '%{file}' sans-serif)"
+dotnet run --file samples/fba/gallery_controls.cs -- "$(fc-match -f '%{file}' sans-serif)"
 ~~~
 
 Run the same edited file on Windows and Linux. Check the switch, both buttons, and the displayed count on each. Use the [API and source map](docs/duxel-agent-reference.md) to give the assistant exact widget signatures.

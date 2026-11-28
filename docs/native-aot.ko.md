@@ -54,7 +54,7 @@ wc -c out/native/duxel_hello
 
 창에 **Hello, Duxel**이 표시됩니다. 실행 파일에 .NET 런타임이 들어갑니다. 대상 환경에는 시스템 라이브러리와 Vulkan 드라이버가 필요하며, 앱에서 쓰는 글꼴과 파일도 준비해야 합니다.
 
-가장 작은 Linux 빌드를 재현하려면 SDK 11을 그대로 사용하고 예제 첫 줄을 `#:property TargetFramework=net10.0`으로 바꿉니다. 위 Linux 명령에서 결과와 중간 파일을 저장할 폴더를 각각 새 경로로 지정합니다.
+가장 작은 Linux 빌드를 재현하려면 SDK 11을 그대로 사용하고 예제 대상 프레임워크 지시문을 `#:property TargetFramework=net10.0`으로 바꿉니다. 위 Linux 명령에서 결과와 중간 파일을 저장할 폴더를 각각 새 경로로 지정합니다.
 
 ## 내 앱에 맞는 옵션 고르기
 

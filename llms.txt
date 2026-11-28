@@ -8,7 +8,7 @@
 - [Korean README](https://github.com/dimohy/Duxel/blob/main/README.ko.md): Korean quick start and desktop examples.
 - [File-based apps](https://github.com/dimohy/Duxel/blob/main/docs/getting-started-fba.md): Windows and Linux host choices and the shared C# example.
 - [Linux and WSLg setup](https://github.com/dimohy/Duxel/blob/main/docs/linux-platform.md): X11, Vulkan, fonts, and Linux Gallery launch.
-- [Runnable Fluent 2 apps](https://github.com/dimohy/Duxel/blob/main/docs/fba-run-samples.md): One-file apps for calculator, notepad, large list, and motion.
+- [Runnable Fluent 2 apps](https://github.com/dimohy/Duxel/blob/main/docs/fba-run-samples.md): File-based apps for calculator, notepad, large list, and motion.
 - [Fluent 2 YAML preview](https://github.com/dimohy/Duxel/blob/main/docs/fluent-dsl.md): Compile multiple YAML views with typed state and C# callbacks, and run the samples from the checkout.
 - [Vibe-coding quick start](https://github.com/dimohy/Duxel#start-vibe-coding-with-duxel): Use a Gallery example in a first prompt, then verify the change.
 - [NativeAOT publishing](https://github.com/dimohy/Duxel/blob/main/docs/native-aot.md): Reproduce executable sizes on Windows and Linux.

@@ -6,7 +6,7 @@
 | --- | --- |
 | [Gallery 사용법](gallery-navigation.ko.md) | 데스크톱 Gallery에서 컨트롤을 찾아 쓰고 C# 코드를 복사합니다. |
 | [파일 기반 앱 시작하기](getting-started-fba.ko.md) | .NET을 준비하고 Windows와 Linux에서 쓸 C# UI를 만듭니다. |
-| [Fluent 2 앱 예제](fba-run-samples.ko.md) | 계산기, 메모장, 가상 목록, 움직이는 도형을 C# 파일 한 장으로 실행합니다. |
+| [Fluent 2 앱 예제](fba-run-samples.ko.md) | 계산기, 메모장, 가상 목록, 움직이는 도형을 파일 기반 앱으로 실행합니다. |
 | [Fluent 2 YAML 화면](fluent-dsl.ko.md) | 여러 YAML 화면과 C# 동작을 파일 기반 앱 하나로 빌드합니다. |
 | [Linux와 WSLg](linux-platform.ko.md) | 시스템 의존성을 설치하고 Linux Gallery FBA를 실행합니다. |
 | [NativeAOT 게시](native-aot.ko.md) | 작은 Fluent 2 앱을 게시하고 x64 실행 파일 크기를 비교합니다. |

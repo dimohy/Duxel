@@ -1,18 +1,14 @@
+#!/usr/bin/env dotnet
 #:property TargetFramework=net11.0
 #:property PublishAot=false
 #:property SelfContained=false
 #:property DuxelHost=$([System.String]::Copy('$(OS)').Replace('Windows_NT','Windows').Replace('Unix','Linux'))
-#:property DefineConstants=$(DefineConstants);DUXEL_$(DuxelHost)
+#:include Host/$(DuxelHost).cs
 #:package Duxel.$(DuxelHost).App@0.4.0
 
-using System.Diagnostics;
 using Duxel.App;
 using Duxel.Core;
-#if DUXEL_Windows
-using Duxel.Windows.App;
-#elif DUXEL_Linux
-using Duxel.Linux.App;
-#endif
+using Duxel.Samples;
 using System.Globalization;
 
 const int MaxInputLength = 17;
@@ -161,64 +157,5 @@ static void Run(UiWidget root, string title, int width, int height, Func<bool>? 
             IsAnimationActiveProvider = animationActive
         }
     };
-#if DUXEL_Windows
-    if (!OperatingSystem.IsWindows())
-        throw new PlatformNotSupportedException("This build requires Windows.");
-    DuxelWindowsApp.Run(options);
-#elif DUXEL_Linux
-    if (!OperatingSystem.IsLinux())
-        throw new PlatformNotSupportedException("This build requires Linux.");
-    using var match = Process.Start(new ProcessStartInfo("fc-match", ["-f", "%{file}", "sans-serif"])
-    {
-        RedirectStandardOutput = true,
-        UseShellExecute = false
-    }) ?? throw new InvalidOperationException("Could not find a desktop font.");
-    var font = match.StandardOutput.ReadToEnd().Trim();
-    match.WaitForExit();
-    if (match.ExitCode != 0 || !File.Exists(font))
-        throw new InvalidOperationException("Install Fontconfig and a sans-serif desktop font.");
-
-    DuxelLinuxApp.Run(options with
-    {
-        Design = ReadDesktopDesign(),
-        Font = new() { PrimaryFontPath = font, SecondaryFontPath = null, Typography = new(font, font, font) }
-    });
-#else
-#error This example requires the Windows or Linux Duxel host.
-#endif
+    DesktopSampleHost.Run(options);
 }
-
-#if DUXEL_Linux
-static UiCompiledDesign ReadDesktopDesign()
-{
-    var request = new ProcessStartInfo("gdbus",
-    [
-        "call", "--session", "--timeout", "1",
-        "--dest", "org.freedesktop.portal.Desktop",
-        "--object-path", "/org/freedesktop/portal/desktop",
-        "--method", "org.freedesktop.portal.Settings.Read",
-        "org.freedesktop.appearance", "color-scheme"
-    ])
-    {
-        UseShellExecute = false,
-        RedirectStandardOutput = true,
-        RedirectStandardError = true
-    };
-    try
-    {
-        using var portal = Process.Start(request)!;
-        var errors = portal.StandardError.ReadToEndAsync();
-        var setting = portal.StandardOutput.ReadToEnd();
-        portal.WaitForExit();
-        errors.GetAwaiter().GetResult();
-        return portal.ExitCode == 0 && setting.Contains("<uint32 1>", StringComparison.Ordinal)
-            ? UiCompiledDesign.Windows11Dark
-            : UiCompiledDesign.Windows11;
-    }
-    catch (System.ComponentModel.Win32Exception error) when (error.NativeErrorCode == 2)
-    {
-        // The Settings portal is optional in a minimal X11 session.
-        return UiCompiledDesign.Windows11;
-    }
-}
-#endif

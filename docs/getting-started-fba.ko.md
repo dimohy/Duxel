@@ -5,7 +5,7 @@ Duxel은 Windows와 Linux에서 위젯과 앱 상태를 공유합니다. Fluent 
 1. [.NET 11 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0)를 설치하고 Vulkan을 쓸 수 있는 그래픽 세션을 준비합니다. Linux에서는 [Linux 설치 안내](linux-platform.ko.md)를 따릅니다.
 2. [Duxel Gallery를 실행](../README.ko.md#duxel-gallery-040-실행하기)하고 필요한 컨트롤을 눌러 봅니다. 예제 아래의 C# 코드를 복사할 수 있습니다.
 3. [`duxel_calculator.cs`](../samples/fba/duxel_calculator.cs)를 엽니다. 파일을 빌드할 때 운영체제에 맞는 호스트 패키지를 고릅니다. 위젯 트리와 계산 로직은 공유합니다.
-4. 파일을 저장하고 `dotnet run --file duxel_calculator.cs`로 실행합니다. 위젯이나 레이아웃을 바꿔 보세요. AI와 작업한다면 Gallery의 해당 페이지와 [API와 소스 위치](duxel-agent-reference.ko.md)를 알려주면 실제 사용 코드부터 찾을 수 있습니다.
+4. 저장소 루트에서 `dotnet run --file samples/fba/duxel_calculator.cs`로 실행합니다. 예제의 Host 폴더에는 두 플랫폼의 시작 코드가 있습니다. 위젯이나 레이아웃을 바꿔 보세요. AI와 작업한다면 Gallery의 해당 페이지와 [API와 소스 위치](duxel-agent-reference.ko.md)를 알려주면 실제 사용 코드부터 찾을 수 있습니다.
 
 ## NuGet 패키지 선택
 

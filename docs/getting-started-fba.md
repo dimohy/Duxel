@@ -5,7 +5,7 @@ Duxel shares widgets and application state between Windows and Linux. Use Fluent
 1. Install the [.NET 11 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0) and start a graphical session with Vulkan. On Linux follow [the Linux setup guide](linux-platform.md).
 2. [Run Duxel Gallery](../README.md#try-duxel-gallery-040). Find a control, exercise it, and copy the C# shown below it.
 3. Open [`duxel_calculator.cs`](../samples/fba/duxel_calculator.cs). The file selects the appropriate host package at build time. Its widget tree and arithmetic are shared.
-4. Copy the file, run `dotnet run --file duxel_calculator.cs`, and change a widget or layout. When working with a coding assistant, point it to the exact Gallery page and the [API and source map](duxel-agent-reference.md).
+4. From the checkout root, run `dotnet run --file samples/fba/duxel_calculator.cs`. The Host folder beside the sample provides platform startup. Change a widget or layout. When working with a coding assistant, point it to the exact Gallery page and the [API and source map](duxel-agent-reference.md).
 
 ## Package choice
 

@@ -1,6 +1,6 @@
 # Duxel file-based apps
 
-Start with the [one-line launch commands](../../docs/fba-run-samples.md) or [한국어 안내](../../docs/fba-run-samples.ko.md). The YAML preview combines several YAML views and C# files in a single file-based app.
+Start with the [one-line launch commands](../../docs/fba-run-samples.md) or [한국어 안내](../../docs/fba-run-samples.ko.md). The shared desktop samples include their platform startup files from [Host](Host). Keep that directory beside an entry file when copying a sample. The YAML preview combines YAML views with C# actions.
 
 | File | Use |
 | --- | --- |

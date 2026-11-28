@@ -35,7 +35,7 @@ curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/v0.4.0/samples/fba/du
 ## Duxel로 바이브 코딩 시작하기
 
 1. **Gallery → Fluent 컨트롤 → 입력 및 선택 → Switch**에서 스위치를 눌러 보고, 예제 아래의 C# 코드를 복사합니다.
-2. 빈 폴더에 [`gallery_controls.cs`](samples/fba/gallery_controls.cs)를 받아 AI 코딩 도구에서 그 폴더를 엽니다. 먼저 아래 명령으로 원본을 실행합니다. 스위치가 켜져 있을 때 Count 버튼을 눌러 숫자가 올라가는지 확인합니다.
+2. AI 코딩 도구에서 이 저장소를 열고 [`gallery_controls.cs`](samples/fba/gallery_controls.cs)를 찾습니다. 먼저 아래 명령으로 원본을 실행합니다. 스위치가 켜져 있을 때 Count 버튼을 눌러 숫자가 올라가는지 확인합니다.
 3. 복사한 Gallery 코드와 함께 아래 프롬프트를 AI에 전달합니다.
 
 > `gallery_controls.cs`를 열어 주세요. 첨부한 Gallery의 Switch 예제를 참고해서 **Reset count** 버튼을 추가해 주세요. 이 버튼은 스위치 상태를 그대로 두고 숫자만 0으로 돌려야 합니다. 기존 `UiState<int>`와 Fluent 컨트롤을 활용하고 Windows·Linux 호스트 설정과 패키지 버전을 유지해 주세요. 실행해서 스위치가 켜졌을 때 Count를 누르면 숫자가 1씩 오르고 Reset을 누르면 0이 되는지 확인해 주세요.
@@ -43,13 +43,13 @@ curl -fsSLO https://raw.githubusercontent.com/dimohy/Duxel/v0.4.0/samples/fba/du
 **Windows** · PowerShell 7
 
 ~~~powershell
-dotnet run --file gallery_controls.cs
+dotnet run --file samples/fba/gallery_controls.cs
 ~~~
 
 **Linux** · 그래픽 세션과 Fontconfig를 사용할 수 있는 Bash
 
 ~~~bash
-dotnet run --file gallery_controls.cs -- "$(fc-match -f '%{file}' sans-serif)"
+dotnet run --file samples/fba/gallery_controls.cs -- "$(fc-match -f '%{file}' sans-serif)"
 ~~~
 
 수정한 C# 파일을 Windows와 Linux에서 각각 실행해 스위치, 두 버튼, 카운트를 확인합니다. AI가 컨트롤의 사용법을 확인해야 할 때는 [API와 소스 위치](docs/duxel-agent-reference.ko.md)도 함께 전달합니다.

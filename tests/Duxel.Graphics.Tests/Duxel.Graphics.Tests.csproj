@@ -142,7 +142,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DisableRuntimeMarshalling>true</DisableRuntimeMarshalling>
     <IsAotCompatible>true</IsAotCompatible>
-    <DefineConstants>$(DefineConstants);DUXEL_GALLERY_PROFILING</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../samples/Duxel.Gallery/Immediate/*.cs" Link="Observer/%(Filename)%(Extension)" />

@@ -54,7 +54,7 @@ wc -c out/native/duxel_hello
 
 The window should display **Hello, Duxel**. The executable includes the .NET runtime. The target needs its platform libraries, a Vulkan driver, and the fonts and assets used by the app.
 
-To reproduce the smallest Linux build, keep SDK 11 and change the sample's first line to `#:property TargetFramework=net10.0`. Run the Linux commands above with different output and artifact directories.
+To reproduce the smallest Linux build, keep SDK 11 and set the sample's target framework directive to `#:property TargetFramework=net10.0`. Run the Linux commands above with different output and artifact directories.
 
 ## Choose settings for your app
 
